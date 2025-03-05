@@ -1,6 +1,6 @@
 module github.com/yusing/go-proxy
 
-go 1.24.0
+go 1.24.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.2 // parsing HTML for extract fav icon
@@ -15,13 +15,13 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1 // jwt for default auth
 	github.com/gotify/server/v2 v2.6.1 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
-	github.com/prometheus/client_golang v1.21.0 // metrics
+	github.com/prometheus/client_golang v1.21.1 // metrics
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.33.0 // logging
 	github.com/shirou/gopsutil/v4 v4.25.2 // system info metrics
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.35.0 // encrypting password with bcrypt
-	golang.org/x/net v0.35.0 // HTTP header utilities
+	golang.org/x/net v0.36.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.27.0 // oauth2 authentication
 	golang.org/x/text v0.22.0 // string utilities
 	golang.org/x/time v0.10.0 // time utilities
@@ -53,7 +53,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lufia/plan9stats v0.0.0-20250224150550-a661cff19cfb // indirect
+	github.com/lufia/plan9stats v0.0.0-20250303091104-876f3ea5145d // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.63 // indirect
@@ -63,7 +63,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nrdcg/porkbun v0.4.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0 // indirect
+	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/ovh/go-ovh v1.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
