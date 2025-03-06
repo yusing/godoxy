@@ -30,7 +30,7 @@ func (d *dockerInfo) MarshalJSON() ([]byte, error) {
 }
 
 func DockerInfo(w http.ResponseWriter, r *http.Request) {
-	serveHTTP[dockerInfo, []dockerInfo](w, r, GetDockerInfo)
+	serveHTTP[dockerInfo](w, r, GetDockerInfo)
 }
 
 func GetDockerInfo(ctx context.Context, dockerClients DockerClients) ([]dockerInfo, gperr.Error) {

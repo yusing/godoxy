@@ -6,6 +6,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -55,6 +56,13 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+
 	writer := gpwebsocket.NewWriter(r.Context(), conn, websocket.MessageText)
-	stdcopy.StdCopy(writer, writer, logs) //de-multiplex logs
+	_, err = stdcopy.StdCopy(writer, writer, logs) // de-multiplex logs
+	if err != nil {
+		logging.Err(err).
+			Str("server", server).
+			Str("container", containerID).
+			Msg("failed to de-multiplex logs")
+	}
 }
