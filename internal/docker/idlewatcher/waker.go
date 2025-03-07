@@ -1,7 +1,6 @@
 package idlewatcher
 
 import (
-	"errors"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
@@ -12,7 +11,6 @@ import (
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
 	U "github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
@@ -22,11 +20,10 @@ type (
 	waker struct {
 		_ U.NoCopy
 
-		rp      *reverseproxy.ReverseProxy
-		stream  net.Stream
-		hc      health.HealthChecker
-		metric  *metrics.Gauge
-		lastErr atomic.Value[error]
+		rp     *reverseproxy.ReverseProxy
+		stream net.Stream
+		hc     health.HealthChecker
+		metric *metrics.Gauge
 	}
 )
 
@@ -34,8 +31,6 @@ const (
 	idleWakerCheckInterval = 100 * time.Millisecond
 	idleWakerCheckTimeout  = time.Second
 )
-
-var noErr = errors.New("no error")
 
 // TODO: support stream
 
@@ -47,8 +42,7 @@ func newWaker(parent task.Parent, route route.Route, rp *reverseproxy.ReversePro
 		rp:     rp,
 		stream: stream,
 	}
-	task := parent.Subtask("idlewatcher." + route.TargetName())
-	watcher, err := registerWatcher(task, route, waker)
+	watcher, err := registerWatcher(parent, route, waker)
 	if err != nil {
 		return nil, gperr.Errorf("register watcher: %w", err)
 	}
@@ -121,43 +115,46 @@ func (w *Watcher) Latency() time.Duration {
 
 // Status implements health.HealthMonitor.
 func (w *Watcher) Status() health.Status {
-	status := w.getStatusUpdateReady()
-	if w.metric != nil {
-		w.metric.Set(float64(status))
-	}
-	return status
-}
-
-func (w *Watcher) getStatusUpdateReady() health.Status {
-	if !w.running.Load() {
-		return health.StatusNapping
-	}
-
-	if w.ready.Load() {
-		return health.StatusHealthy
-	}
-
-	result, err := w.hc.CheckHealth()
-	switch {
-	case err != nil:
-		w.lastErr.Store(err)
-		w.ready.Store(false)
+	state := w.state.Load()
+	if state.err != nil {
 		return health.StatusError
-	case result.Healthy:
-		w.lastErr.Store(noErr)
-		w.ready.Store(true)
+	}
+	if state.ready {
 		return health.StatusHealthy
-	default:
-		w.lastErr.Store(noErr)
+	}
+	if state.running {
 		return health.StatusStarting
 	}
+	return health.StatusNapping
 }
 
-func (w *Watcher) LastError() error {
-	if err := w.lastErr.Load(); err != noErr {
-		return err
+func (w *Watcher) checkUpdateState() (ready bool, err error) {
+	// already ready
+	if w.ready() {
+		return true, nil
 	}
-	return nil
+
+	if w.metric != nil {
+		defer w.metric.Set(float64(w.Status()))
+	}
+
+	// the new container info not yet updated
+	if w.hc.URL().Host == "" {
+		return false, nil
+	}
+
+	res, err := w.hc.CheckHealth()
+	if err != nil {
+		w.setError(err)
+		return false, err
+	}
+
+	if res.Healthy {
+		w.setReady()
+		return true, nil
+	}
+	w.setStarting()
+	return false, nil
 }
 
 // MarshalJSON implements health.HealthMonitor.
@@ -167,7 +164,7 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 		url = w.hc.URL()
 	}
 	var detail string
-	if err := w.LastError(); err != nil {
+	if err := w.error(); err != nil {
 		detail = err.Error()
 	}
 	return (&monitor.JSONRepresentation{

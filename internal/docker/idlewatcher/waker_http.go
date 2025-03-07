@@ -9,7 +9,6 @@ import (
 
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 type ForceCacheControl struct {
@@ -42,11 +41,25 @@ func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (w *Watcher) cancelled(reqCtx context.Context, rw http.ResponseWriter) bool {
+	select {
+	case <-reqCtx.Done():
+		w.WakeDebug().Str("cause", context.Cause(reqCtx).Error()).Msg("canceled")
+		return true
+	case <-w.task.Context().Done():
+		w.WakeDebug().Str("cause", w.task.FinishCause().Error()).Msg("canceled")
+		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
+		return true
+	default:
+		return false
+	}
+}
+
 func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldNext bool) {
 	w.resetIdleTimer()
 
 	// pass through if container is already ready
-	if w.ready.Load() {
+	if w.ready() {
 		return true
 	}
 
@@ -54,10 +67,6 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	if w.StartEndpoint != "" && r.URL.Path != w.StartEndpoint {
 		http.Error(rw, "Forbidden: Container can only be started via configured start endpoint", http.StatusForbidden)
 		return false
-	}
-
-	if r.Body != nil {
-		defer r.Body.Close()
 	}
 
 	accept := gphttp.GetAccept(r.Header)
@@ -82,21 +91,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	ctx, cancel := context.WithTimeoutCause(r.Context(), w.WakeTimeout, errors.New("wake timeout"))
 	defer cancel()
 
-	checkCanceled := func() (canceled bool) {
-		select {
-		case <-ctx.Done():
-			w.WakeDebug().Str("cause", context.Cause(ctx).Error()).Msg("canceled")
-			return true
-		case <-w.task.Context().Done():
-			w.WakeDebug().Str("cause", w.task.FinishCause().Error()).Msg("canceled")
-			http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
-			return true
-		default:
-			return false
-		}
-	}
-
-	if checkCanceled() {
+	if w.cancelled(ctx, rw) {
 		return false
 	}
 
@@ -109,11 +104,16 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	}
 
 	for {
-		if checkCanceled() {
+		if w.cancelled(ctx, rw) {
 			return false
 		}
 
-		if w.Status() == health.StatusHealthy {
+		ready, err := w.checkUpdateState()
+		if err != nil {
+			http.Error(rw, "Error waking container", http.StatusInternalServerError)
+			return false
+		}
+		if ready {
 			w.resetIdleTimer()
 			if isCheckRedirect {
 				w.Debug().Msgf("redirecting to %s ...", w.hc.URL())

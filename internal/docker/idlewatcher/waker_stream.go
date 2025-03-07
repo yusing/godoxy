@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 // Setup implements types.Stream.
@@ -50,7 +49,7 @@ func (w *Watcher) wakeFromStream() error {
 	w.resetIdleTimer()
 
 	// pass through if container is already ready
-	if w.ready.Load() {
+	if w.ready() {
 		return nil
 	}
 
@@ -78,7 +77,9 @@ func (w *Watcher) wakeFromStream() error {
 		default:
 		}
 
-		if w.Status() == health.StatusHealthy {
+		if ready, err := w.checkUpdateState(); err != nil {
+			return err
+		} else if ready {
 			w.resetIdleTimer()
 			w.Debug().Msg("container is ready, passing through to " + w.hc.URL().String())
 			return nil
