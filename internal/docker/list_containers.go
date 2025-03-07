@@ -21,17 +21,11 @@ var listOptions = container.ListOptions{
 	All: true,
 }
 
-func ListContainers(clientHost string) ([]container.Summary, error) {
-	dockerClient, err := NewClient(clientHost)
-	if err != nil {
-		return nil, err
-	}
-	defer dockerClient.Close()
-
+func (c *SharedClient) ListContainers() ([]container.Summary, error) {
 	ctx, cancel := context.WithTimeoutCause(context.Background(), 3*time.Second, errors.New("list containers timeout"))
 	defer cancel()
 
-	containers, err := dockerClient.ContainerList(ctx, listOptions)
+	containers, err := c.ContainerList(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}

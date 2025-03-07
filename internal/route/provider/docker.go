@@ -61,7 +61,13 @@ func (p *DockerProvider) NewWatcher() watcher.Watcher {
 }
 
 func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
-	containers, err := docker.ListContainers(p.dockerHost)
+	dockerClient, err := docker.NewClient(p.dockerHost)
+	if err != nil {
+		return nil, gperr.Wrap(err)
+	}
+	defer dockerClient.Close()
+
+	containers, err := dockerClient.ListContainers()
 	if err != nil {
 		return nil, gperr.Wrap(err)
 	}

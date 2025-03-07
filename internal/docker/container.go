@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -105,7 +106,7 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 func FromInspectResponse(json container.InspectResponse, dockerHost string) *Container {
 	ports := make([]container.Port, 0)
 	for k, bindings := range json.NetworkSettings.Ports {
-		privPortStr, proto := k.Port(), k.Proto()
+		proto, privPortStr := nat.SplitProtoPort(string(k))
 		privPort, _ := strconv.ParseUint(privPortStr, 10, 16)
 		ports = append(ports, container.Port{
 			PrivatePort: uint16(privPort),
@@ -137,6 +138,10 @@ func FromInspectResponse(json container.InspectResponse, dockerHost string) *Con
 	return cont
 }
 
+func (c *Container) IsBlacklisted() bool {
+	return c.Image.IsBlacklisted() || c.isDatabase()
+}
+
 var databaseMPs = map[string]struct{}{
 	"/var/lib/postgresql/data": {},
 	"/var/lib/mysql":           {},
@@ -161,10 +166,6 @@ func (c *Container) isDatabase() bool {
 		}
 	}
 	return false
-}
-
-func (c *Container) IsBlacklisted() bool {
-	return c.Image.IsBlacklisted() || c.isDatabase()
 }
 
 func (c *Container) setPublicHostname() {
