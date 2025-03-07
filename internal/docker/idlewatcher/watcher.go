@@ -37,14 +37,6 @@ type (
 		lastReset    time.Time
 		task         *task.Task
 	}
-	containerMeta struct {
-		ContainerID, ContainerName string
-	}
-	containerState struct {
-		running bool
-		ready   bool
-		err     error
-	}
 
 	StopCallback func() error
 )

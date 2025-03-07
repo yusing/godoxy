@@ -134,6 +134,10 @@ func (w *Watcher) checkUpdateState() (ready bool, err error) {
 		return true, nil
 	}
 
+	if !w.running() {
+		return false, nil
+	}
+
 	if w.metric != nil {
 		defer w.metric.Set(float64(w.Status()))
 	}

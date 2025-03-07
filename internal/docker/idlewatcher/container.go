@@ -7,6 +7,17 @@ import (
 	"github.com/docker/docker/api/types/container"
 )
 
+type (
+	containerMeta struct {
+		ContainerID, ContainerName string
+	}
+	containerState struct {
+		running bool
+		ready   bool
+		err     error
+	}
+)
+
 func (w *Watcher) containerStop(ctx context.Context) error {
 	return w.client.ContainerStop(ctx, w.ContainerID, container.StopOptions{
 		Signal:  string(w.StopSignal),
