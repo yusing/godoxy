@@ -55,7 +55,7 @@ var (
 	}
 )
 
-func getSchemePortByImageName(imageName string, port int) (scheme string, portNum int, ok bool) {
+func getSchemePortByImageName(imageName string) (scheme string, port int, ok bool) {
 	if port, ok := ImageNamePortMapHTTP[imageName]; ok {
 		return "http", port, true
 	}
@@ -68,7 +68,7 @@ func getSchemePortByImageName(imageName string, port int) (scheme string, portNu
 	return
 }
 
-func getSchemePortByAlias(alias string, port int) (scheme string, portNum int, ok bool) {
+func getSchemePortByAlias(alias string) (scheme string, port int, ok bool) {
 	if port, ok := AliasPortMapHTTP[alias]; ok {
 		return "http", port, true
 	}

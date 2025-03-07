@@ -276,7 +276,7 @@ func (r *Route) Finalize() {
 	lp, pp := r.Port.Listening, r.Port.Proxy
 
 	if isDocker {
-		scheme, port, ok := getSchemePortByImageName(cont.Image.Name, pp)
+		scheme, port, ok := getSchemePortByImageName(cont.Image.Name)
 		if ok {
 			if r.Scheme == "" {
 				r.Scheme = types.Scheme(scheme)
@@ -287,7 +287,7 @@ func (r *Route) Finalize() {
 		}
 	}
 
-	if scheme, port, ok := getSchemePortByAlias(r.Alias, pp); ok {
+	if scheme, port, ok := getSchemePortByAlias(r.Alias); ok {
 		if r.Scheme == "" {
 			r.Scheme = types.Scheme(scheme)
 		}
