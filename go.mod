@@ -4,8 +4,8 @@ go 1.24.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.2 // parsing HTML for extract fav icon
-	github.com/coder/websocket v1.8.12 // websocket for API and agent
-	github.com/coreos/go-oidc/v3 v3.12.0 // oidc authentication
+	github.com/coder/websocket v1.8.13 // websocket for API and agent
+	github.com/coreos/go-oidc/v3 v3.13.0 // oidc authentication
 	github.com/docker/cli v28.0.1+incompatible // docker CLI
 	github.com/docker/docker v28.0.1+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.8.0 // file watcher
@@ -20,13 +20,15 @@ require (
 	github.com/rs/zerolog v1.33.0 // logging
 	github.com/shirou/gopsutil/v4 v4.25.2 // system info metrics
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
-	golang.org/x/crypto v0.35.0 // encrypting password with bcrypt
-	golang.org/x/net v0.36.0 // HTTP header utilities
-	golang.org/x/oauth2 v0.27.0 // oauth2 authentication
-	golang.org/x/text v0.22.0 // string utilities
-	golang.org/x/time v0.10.0 // time utilities
+	golang.org/x/crypto v0.36.0 // encrypting password with bcrypt
+	golang.org/x/net v0.37.0 // HTTP header utilities
+	golang.org/x/oauth2 v0.28.0 // oauth2 authentication
+	golang.org/x/text v0.23.0 // string utilities
+	golang.org/x/time v0.11.0 // time utilities
 	gopkg.in/yaml.v3 v3.0.1 // yaml parsing for different config files
 )
+
+require github.com/docker/go-connections v0.5.0
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -37,7 +39,6 @@ require (
 	github.com/cloudflare/cloudflare-go v0.115.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -68,23 +69,22 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tklauser/go-sysconf v0.3.14 // indirect
-	github.com/tklauser/numcpus v0.9.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.15 // indirect
+	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
-	go.opentelemetry.io/otel v1.34.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
+	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.30.0 // indirect
-	go.opentelemetry.io/otel/metric v1.34.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.30.0 // indirect
-	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/tools v0.30.0 // indirect
+	go.opentelemetry.io/otel/metric v1.35.0 // indirect
+	go.opentelemetry.io/otel/trace v1.35.0 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/tools v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
