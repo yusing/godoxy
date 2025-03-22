@@ -126,11 +126,17 @@ func VerifyNewAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile(certs.AgentCertsFilename(data.Host), zip, 0600); err != nil {
+	filename := certs.AgentCertsFilename(data.Host)
+	if !strutils.IsValidFilename(filename) {
+		gphttp.ClientError(w, gphttp.ErrInvalidKey("host"))
+		return
+	}
+
+	if err := os.WriteFile(filename, zip, 0600); err != nil {
 		gphttp.ServerError(w, r, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Added %d routes", nRoutesAdded)))
+	w.Write(fmt.Appendf(nil, "Added %d routes", nRoutesAdded))
 }

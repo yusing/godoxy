@@ -19,6 +19,7 @@ import (
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	route "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type fetchResult struct {
@@ -207,10 +208,7 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string) *fetchResult
 	defer cancel()
 	newReq := req.WithContext(ctx)
 	newReq.Header.Set("Accept-Encoding", "identity") // disable compression
-	if !strings.HasPrefix(uri, "/") {
-		uri = "/" + uri
-	}
-	u, err := url.ParseRequestURI(uri)
+	u, err := url.ParseRequestURI(strutils.SanitizeURI(uri))
 	if err != nil {
 		logging.Error().Err(err).
 			Str("route", r.TargetName()).
@@ -231,11 +229,8 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string) *fetchResult
 			return &fetchResult{statusCode: http.StatusBadGateway, errMsg: "connection error"}
 		default:
 			if loc := c.Header().Get("Location"); loc != "" {
-				loc = path.Clean(loc)
-				if !strings.HasPrefix(loc, "/") {
-					loc = "/" + loc
-				}
-				if loc == newReq.URL.Path {
+				loc = strutils.SanitizeURI(loc)
+				if loc == "/" || loc == newReq.URL.Path {
 					return &fetchResult{statusCode: http.StatusBadGateway, errMsg: "circular redirect"}
 				}
 				return findIconSlow(r, req, loc)
