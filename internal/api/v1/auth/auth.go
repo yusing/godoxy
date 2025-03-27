@@ -31,7 +31,7 @@ func GetDefaultAuth() Provider {
 }
 
 func IsEnabled() bool {
-	return common.APIJWTSecret != nil || IsOIDCEnabled()
+	return !common.DebugDisableAuth && (common.APIJWTSecret != nil || IsOIDCEnabled())
 }
 
 func IsOIDCEnabled() bool {
