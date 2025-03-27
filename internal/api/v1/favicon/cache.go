@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	iconCacheTTL    = 24 * time.Hour
+	iconCacheTTL    = 3 * 24 * time.Hour
 	cleanUpInterval = time.Hour
 )
 
@@ -35,8 +35,8 @@ func InitIconCache() {
 	err := utils.LoadJSONIfExist(common.IconCachePath, &iconCache)
 	if err != nil {
 		logging.Error().Err(err).Msg("failed to load icon cache")
-	} else {
-		logging.Info().Msgf("icon cache loaded (%d icons)", len(iconCache))
+	} else if len(iconCache) > 0 {
+		logging.Info().Int("count", len(iconCache)).Msg("icon cache loaded")
 	}
 
 	go func() {
@@ -77,7 +77,9 @@ func pruneExpiredIconCache() {
 			nPruned++
 		}
 	}
-	logging.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
+	if nPruned > 0 {
+		logging.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
+	}
 }
 
 func routeKey(r route.HTTPRoute) string {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type GitHubContents struct { //! keep this, may reuse in future
@@ -64,12 +62,11 @@ func InitIconListCache() {
 	err := utils.LoadJSONIfExist(common.IconListCachePath, iconsCache)
 	if err != nil {
 		logging.Error().Err(err).Msg("failed to load icon list cache config")
-	} else if stats, err := os.Stat(common.IconListCachePath); err == nil {
-		lastUpdate = stats.ModTime()
-		logging.Info().Msgf("icon list cache loaded (%d icons, %d display names), last updated at %s",
-			len(iconsCache.IconList),
-			len(iconsCache.DisplayNames),
-			strutils.FormatTime(lastUpdate))
+	} else if len(iconsCache.IconList) > 0 {
+		logging.Info().
+			Int("icons", len(iconsCache.IconList)).
+			Int("display_names", len(iconsCache.DisplayNames)).
+			Msg("icon list cache loaded")
 	}
 }
 
@@ -86,12 +83,15 @@ func ListAvailableIcons() (*Cache, error) {
 	iconsCahceMu.Lock()
 	defer iconsCahceMu.Unlock()
 
+	logging.Info().Msg("updating icon data")
 	icons, err := fetchIconData()
 	if err != nil {
 		return nil, err
 	}
-
-	logging.Info().Msg("icons list updated")
+	logging.Info().
+		Int("icons", len(icons.IconList)).
+		Int("display_names", len(icons.DisplayNames)).
+		Msg("icons list updated")
 
 	iconsCache = icons
 	lastUpdate = time.Now()

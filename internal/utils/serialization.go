@@ -529,13 +529,10 @@ func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
 	return os.WriteFile(path, data, perm)
 }
 
-func LoadJSONIfExist[T any](path string, dst *T) error {
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+func LoadJSONIfExist[T any](path string, dst *T) (exists bool, err error) {
+	err = loadSerialized(path, dst, json.Unmarshal)
+	if err != nil && os.IsNotExist(err) {
+		return false, nil
 	}
-	return loadSerialized(path, dst, json.Unmarshal)
+	return true, err
 }
