@@ -1,6 +1,6 @@
 {
 	"name": "godoxy-schemas",
-	"version": "0.10.0-2",
+	"version": "0.10.0-3",
 	"description": "JSON Schema and typescript types for GoDoxy configuration",
 	"license": "MIT",
 	"repository": {
