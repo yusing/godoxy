@@ -23,7 +23,6 @@ lint:
   enabled:
     - hadolint@2.12.1-beta
     - actionlint@1.7.7
-    - checkov@3.2.370
     - git-diff-check
     - gofmt@1.20.4
     - golangci-lint@1.64.5

@@ -9,6 +9,8 @@ certs*/
 bin/
 error_pages/
 !examples/error_pages/
+profiles/
+data/
 
 logs/
 log/
@@ -30,3 +32,6 @@ test.Dockerfile
 
 node_modules/
 tsconfig.tsbuildinfo
+
+!agent.compose.yml
+!agent/pkg/**
