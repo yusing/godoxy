@@ -7,12 +7,14 @@ import (
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
+	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
+	metricslogger "github.com/yusing/go-proxy/internal/net/gphttp/middleware/metrics_logger"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
-
-	E "github.com/yusing/go-proxy/internal/error"
 )
 
 type (
@@ -96,7 +98,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	}
 
 	if s.UseHealthCheck() {
-		s.Health = monitor.NewFileServerHealthMonitor(s.TargetName(), s.HealthCheck, s.Root)
+		s.Health = monitor.NewFileServerHealthMonitor(s.HealthCheck, s.Root)
 		if err := s.Health.Start(s.task); err != nil {
 			return err
 		}

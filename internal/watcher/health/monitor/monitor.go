@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/metrics"
 	"github.com/yusing/go-proxy/internal/net/types"
@@ -26,7 +25,7 @@ type (
 		url     atomic.Value[*types.URL]
 
 		status     atomic.Value[health.Status]
-		lastResult *health.HealthCheckResult
+		lastResult atomic.Value[*health.HealthCheckResult]
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
@@ -140,10 +139,11 @@ func (mon *monitor) Uptime() time.Duration {
 
 // Latency implements HealthMonitor.
 func (mon *monitor) Latency() time.Duration {
-	if mon.lastResult == nil {
+	res := mon.lastResult.Load()
+	if res == nil {
 		return 0
 	}
-	return mon.lastResult.Latency
+	return res.Latency
 }
 
 // Name implements HealthMonitor.
@@ -159,7 +159,13 @@ func (mon *monitor) String() string {
 
 // MarshalJSON implements json.Marshaler of HealthMonitor.
 func (mon *monitor) MarshalJSON() ([]byte, error) {
-	res := mon.lastResult
+	res := mon.lastResult.Load()
+	if res == nil {
+		res = &health.HealthCheckResult{
+			Healthy: true,
+		}
+	}
+
 	return (&JSONRepresentation{
 		Name:     mon.service,
 		Config:   mon.config,
@@ -185,7 +191,7 @@ func (mon *monitor) checkUpdateHealth() error {
 		return nil
 	}
 
-	mon.lastResult = result
+	mon.lastResult.Store(result)
 	var status health.Status
 	if result.Healthy {
 		status = health.StatusHealthy

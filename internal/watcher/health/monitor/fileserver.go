@@ -12,10 +12,9 @@ type FileServerHealthMonitor struct {
 	path string
 }
 
-func NewFileServerHealthMonitor(alias string, config *health.HealthCheckConfig, path string) *FileServerHealthMonitor {
+func NewFileServerHealthMonitor(config *health.HealthCheckConfig, path string) *FileServerHealthMonitor {
 	mon := &FileServerHealthMonitor{path: path}
 	mon.monitor = newMonitor(nil, config, mon.CheckHealth)
-	mon.service = alias
 	return mon
 }
 

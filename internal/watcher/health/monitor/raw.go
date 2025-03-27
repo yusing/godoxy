@@ -36,14 +36,13 @@ func (mon *RawHealthMonitor) CheckHealth() (result *health.HealthCheckResult, er
 	url := mon.url.Load()
 	start := time.Now()
 	conn, dialErr := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
-	result = &health.HealthCheckResult{
-		Latency: time.Since(start),
-	}
+	result = new(health.HealthCheckResult)
 	if dialErr != nil {
 		result.Detail = dialErr.Error()
 		return
 	}
-	conn.Close()
+	defer conn.Close()
+	result.Latency = time.Since(start)
 	result.Healthy = true
 	return
 }
