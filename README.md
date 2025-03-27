@@ -5,7 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
-[![](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
+[![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Benchmarks) reverse proxy with WebUI.
 
@@ -44,17 +44,17 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 - Easy to use
   - Effortless configuration
-  - Simple multi-node setup with GoDoxy agents
+  - Simple multi-node setup with GoDoxy agents or Docker Socket Proxies
   - Error messages is clear and detailed, easy troubleshooting
-- Auto SSL with Let's Encrypt and DNS-01 (See [Supported DNS-01 Challenge Providers](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
+- Auto SSL with Let's Encrypt (See [Supported DNS-01 Challenge Providers](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
 - Auto hot-reload on container state / config file changes
-- Create routes dynamically from running docker containers
-- **idlesleeper**: stop containers on idle, wake it up on traffic _(optional, see [screenshots](#idlesleeper))_
+- Container aware: create routes dynamically from running docker containers
+- **idlesleeper**: stop and wake containers based on traffic _(optional, see [screenshots](#idlesleeper))_
 - HTTP reserve proxy and TCP/UDP port forwarding
-- OpenID Connect integration
+- OpenID Connect integration: SSO and secure your apps easily
 - [HTTP middleware](https://github.com/yusing/go-proxy/wiki/Middlewares) and [Custom error pages support](https://github.com/yusing/go-proxy/wiki/Middlewares#custom-error-pages)
-- **Web UI with App dashboard, config editor, _uptime monitor_, _system monitor_, _docker logs viewer_ (available on nightly builds)**
-- Supports linux/amd64, linux/arm64
+- **Web UI with App dashboard, config editor, _uptime and system metrics_, _docker logs viewer_**
+- Supports linux/amd64 and linux/arm64
 - Written in **[Go](https://go.dev)**
 
 [🔼Back to top](#table-of-content)
@@ -71,8 +71,9 @@ Setup Wildcard DNS Record(s) for machine running `GoDoxy`, e.g.
 1. List all the containers
 2. Read container name, labels and port configurations for each of them
 3. Create a route if applicable (a route is like a "Virtual Host" in NPM)
+4. Watch for container / config changes and update automatically
 
-GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to `container_name`.
+GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
 
 For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
 
@@ -101,8 +102,6 @@ For example, with the label `proxy.aliases: qbt` you can access your app via `qb
 ![idlesleeper](screenshots/idlesleeper.webp)
 
 ### Metrics and Logs
-
-_In development, available on nightly builds._
 
 <div align="center">
   <table>
