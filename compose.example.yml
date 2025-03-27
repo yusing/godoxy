@@ -4,7 +4,6 @@ services:
     image: ghcr.io/yusing/godoxy-frontend:latest
     container_name: godoxy-frontend
     restart: unless-stopped
-    network_mode: host
     env_file: .env
     depends_on:
       - app
