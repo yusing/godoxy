@@ -15,13 +15,9 @@ import (
 var (
 	prefixes = []string{"GODOXY_", "GOPROXY_", ""}
 
-	IsTest       = GetEnvBool("TEST", false) || strings.HasSuffix(os.Args[0], ".test")
-	IsDebug      = GetEnvBool("DEBUG", IsTest)
-	IsTrace      = GetEnvBool("TRACE", false) && IsDebug
-	IsProduction = !IsTest && !IsDebug
-
-	EnableLogStreaming = GetEnvBool("LOG_STREAMING", true)
-	DebugMemLogger     = GetEnvBool("DEBUG_MEM_LOGGER", false) && EnableLogStreaming
+	IsTest  = GetEnvBool("TEST", false) || strings.HasSuffix(os.Args[0], ".test")
+	IsDebug = GetEnvBool("DEBUG", IsTest)
+	IsTrace = GetEnvBool("TRACE", false) && IsDebug
 
 	ProxyHTTPAddr,
 	ProxyHTTPHost,
@@ -55,6 +51,13 @@ var (
 	OIDCScopes        = GetEnvString("OIDC_SCOPES", "openid, profile, email")
 	OIDCAllowedUsers  = GetCommaSepEnv("OIDC_ALLOWED_USERS", "")
 	OIDCAllowedGroups = GetCommaSepEnv("OIDC_ALLOWED_GROUPS", "")
+
+	// metrics configuration
+	MetricsDisableCPU     = GetEnvBool("METRICS_DISABLE_CPU", false)
+	MetricsDisableMemory  = GetEnvBool("METRICS_DISABLE_MEMORY", false)
+	MetricsDisableDisk    = GetEnvBool("METRICS_DISABLE_DISK", false)
+	MetricsDisableNetwork = GetEnvBool("METRICS_DISABLE_NETWORK", false)
+	MetricsDisableSensors = GetEnvBool("METRICS_DISABLE_SENSORS", false)
 )
 
 func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T {
@@ -85,6 +88,10 @@ func GetEnvString(key string, defaultValue string) string {
 
 func GetEnvBool(key string, defaultValue bool) bool {
 	return GetEnv(key, defaultValue, strconv.ParseBool)
+}
+
+func GetEnvInt(key string, defaultValue int) int {
+	return GetEnv(key, defaultValue, strconv.Atoi)
 }
 
 func GetAddrEnv(key, defaultValue, scheme string) (addr, host, port, fullURL string) {
