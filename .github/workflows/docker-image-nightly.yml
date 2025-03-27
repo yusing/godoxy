@@ -6,6 +6,7 @@ on:
       - "*" # matches every branch that doesn't contain a '/'
       - "*/*" # matches every branch containing a single '/'
       - "**" # matches every branch
+      - "!dependabot/*"
       - "!main" # excludes main
 
 jobs:
