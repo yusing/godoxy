@@ -10,7 +10,11 @@ type Value[T any] struct {
 }
 
 func (a *Value[T]) Load() T {
-	return a.Value.Load().(T)
+	if v := a.Value.Load(); v != nil {
+		return v.(T)
+	}
+	var zero T
+	return zero
 }
 
 func (a *Value[T]) Store(v T) {
@@ -18,11 +22,11 @@ func (a *Value[T]) Store(v T) {
 }
 
 func (a *Value[T]) Swap(v T) T {
-	return a.Value.Swap(v).(T)
-}
-
-func (a *Value[T]) CompareAndSwap(oldV, newV T) bool {
-	return a.Value.CompareAndSwap(oldV, newV)
+	if v := a.Value.Swap(v); v != nil {
+		return v.(T)
+	}
+	var zero T
+	return zero
 }
 
 func (a *Value[T]) MarshalJSON() ([]byte, error) {
