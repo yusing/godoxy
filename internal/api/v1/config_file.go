@@ -7,11 +7,11 @@ import (
 	"path"
 	"strings"
 
-	U "github.com/yusing/go-proxy/internal/api/v1/utils"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
-	E "github.com/yusing/go-proxy/internal/error"
-	"github.com/yusing/go-proxy/internal/net/http/middleware"
+	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/provider"
 )
 
@@ -51,12 +51,12 @@ func (t FileType) GetPath(filename string) string {
 func getArgs(r *http.Request) (fileType FileType, filename string, err error) {
 	fileType = FileType(r.PathValue("type"))
 	if !fileType.IsValid() {
-		err = U.ErrInvalidKey("type")
+		err = gphttp.ErrInvalidKey("type")
 		return
 	}
 	filename = r.PathValue("filename")
 	if filename == "" {
-		err = U.ErrMissingKey("filename")
+		err = gphttp.ErrMissingKey("filename")
 	}
 	return
 }
@@ -64,23 +64,23 @@ func getArgs(r *http.Request) (fileType FileType, filename string, err error) {
 func GetFileContent(w http.ResponseWriter, r *http.Request) {
 	fileType, filename, err := getArgs(r)
 	if err != nil {
-		U.RespondError(w, err, http.StatusBadRequest)
+		gphttp.BadRequest(w, err.Error())
 		return
 	}
 	content, err := os.ReadFile(fileType.GetPath(filename))
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
-	U.WriteBody(w, content)
+	gphttp.WriteBody(w, content)
 }
 
-func validateFile(fileType FileType, content []byte) error {
+func validateFile(fileType FileType, content []byte) gperr.Error {
 	switch fileType {
 	case FileTypeConfig:
 		return config.Validate(content)
 	case FileTypeMiddleware:
-		errs := E.NewBuilder("middleware errors")
+		errs := gperr.NewBuilder("middleware errors")
 		middleware.BuildMiddlewaresFromYAML("", content, errs)
 		return errs.Error()
 	}
@@ -90,18 +90,17 @@ func validateFile(fileType FileType, content []byte) error {
 func ValidateFile(w http.ResponseWriter, r *http.Request) {
 	fileType := FileType(r.PathValue("type"))
 	if !fileType.IsValid() {
-		U.RespondError(w, U.ErrInvalidKey("type"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "invalid file type")
 		return
 	}
 	content, err := io.ReadAll(r.Body)
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	r.Body.Close()
-	err = validateFile(fileType, content)
-	if err != nil {
-		U.RespondError(w, err, http.StatusBadRequest)
+	if valErr := validateFile(fileType, content); valErr != nil {
+		gphttp.JSONError(w, valErr, http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -110,23 +109,23 @@ func ValidateFile(w http.ResponseWriter, r *http.Request) {
 func SetFileContent(w http.ResponseWriter, r *http.Request) {
 	fileType, filename, err := getArgs(r)
 	if err != nil {
-		U.RespondError(w, err, http.StatusBadRequest)
+		gphttp.BadRequest(w, err.Error())
 		return
 	}
 	content, err := io.ReadAll(r.Body)
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 
 	if valErr := validateFile(fileType, content); valErr != nil {
-		U.RespondError(w, valErr, http.StatusBadRequest)
+		gphttp.JSONError(w, valErr, http.StatusBadRequest)
 		return
 	}
 
 	err = os.WriteFile(fileType.GetPath(filename), content, 0o644)
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
