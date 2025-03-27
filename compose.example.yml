@@ -4,14 +4,17 @@ services:
     image: ghcr.io/yusing/godoxy-frontend:latest
     container_name: godoxy-frontend
     restart: unless-stopped
-    network_mode: host
+    network_mode: host # do not change this
     env_file: .env
     depends_on:
       - app
+    environment:
+      PORT: ${GODOXY_FRONTEND_PORT:-3000}
+
     # modify below to fit your needs
     labels:
       proxy.aliases: godoxy
-      proxy.godoxy.port: 3000
+      proxy.godoxy.port: ${GODOXY_FRONTEND_PORT:-3000}
       # proxy.godoxy.middlewares.cidr_whitelist: |
       #   status: 403
       #   message: IP not allowed
@@ -24,13 +27,14 @@ services:
     image: ghcr.io/yusing/godoxy:latest
     container_name: godoxy
     restart: always
-    network_mode: host
+    network_mode: host # do not change this
     env_file: .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/app/config
       - ./logs:/app/logs
       - ./error_pages:/app/error_pages
+      - ./data:/app/data
 
       # To use autocert, certs will be stored in "./certs".
       # You can also use a docker volume to store it
