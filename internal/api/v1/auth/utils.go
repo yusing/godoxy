@@ -43,7 +43,7 @@ func setTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, 
 		MaxAge:   int(ttl.Seconds()),
 		Domain:   cookieFQDN(r),
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -56,7 +56,6 @@ func clearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
 		MaxAge:   -1,
 		Domain:   cookieFQDN(r),
 		HttpOnly: true,
-		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
