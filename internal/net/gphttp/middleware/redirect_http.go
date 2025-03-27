@@ -44,7 +44,7 @@ func (m *redirectHTTP) before(w http.ResponseWriter, r *http.Request) (proceed b
 		r.URL.Host = host
 	}
 
-	http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+	http.Redirect(w, r, r.URL.String(), http.StatusPermanentRedirect)
 
 	logging.Debug().Str("url", r.URL.String()).Str("user_agent", r.UserAgent()).Msg("redirect to https")
 	return false
