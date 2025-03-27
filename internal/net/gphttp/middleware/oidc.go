@@ -65,9 +65,6 @@ func (amw *oidcMiddleware) initSlow() error {
 
 	amw.authMux = http.NewServeMux()
 	amw.authMux.HandleFunc(auth.OIDCMiddlewareCallbackPath, authProvider.LoginCallbackHandler)
-	amw.authMux.HandleFunc(auth.OIDCLogoutPath, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	})
 	amw.authMux.HandleFunc("/", authProvider.RedirectLoginPage)
 	amw.auth = authProvider
 	return nil
@@ -82,6 +79,7 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 
 	if r.URL.Path == auth.OIDCLogoutPath {
 		amw.auth.LogoutCallbackHandler(w, r)
+		return false
 	}
 	if err := amw.auth.CheckToken(r); err != nil {
 		if errors.Is(err, auth.ErrMissingToken) {
