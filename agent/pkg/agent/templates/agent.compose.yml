@@ -1,0 +1,14 @@
+services:
+  agent:
+    image: "{{.Image}}"
+    container_name: godoxy-agent
+    restart: always
+    network_mode: host # do not change this
+    environment:
+      AGENT_NAME: "{{.Name}}"
+      AGENT_PORT: "{{.Port}}"
+      AGENT_CA_CERT: "{{.CACert}}"
+      AGENT_SSL_CERT: "{{.SSLCert}}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data

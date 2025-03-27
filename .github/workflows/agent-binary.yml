@@ -1,0 +1,51 @@
+name: GoDoxy agent binary
+
+on:
+  push:
+    tags:
+      - v*
+    paths:
+      - "agent/**"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            binary_name: godoxy-agent-linux-amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            binary_name: godoxy-agent-linux-arm64
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Build
+        run: |
+          make agent=1 NAME=${{ matrix.binary_name }} build
+      - name: Check binary
+        run: |
+          file bin/${{ matrix.binary_name }}
+      - name: Test
+        run: |
+          go test -v ./agent/...
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: bin/${{ matrix.binary_name }}
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: bin/${{ matrix.binary_name }}
