@@ -56,6 +56,7 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	defer conn.CloseNow()
 
 	writer := gpwebsocket.NewWriter(r.Context(), conn, websocket.MessageText)
 	_, err = stdcopy.StdCopy(writer, writer, logs) // de-multiplex logs
