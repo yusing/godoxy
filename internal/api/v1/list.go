@@ -1,15 +1,16 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal"
-	U "github.com/yusing/go-proxy/internal/api/v1/utils"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/net/http/middleware"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
@@ -43,24 +44,24 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 		if route == nil {
 			http.NotFound(w, r)
 		} else {
-			U.RespondJSON(w, r, route)
+			gphttp.RespondJSON(w, r, route)
 		}
 	case ListRoutes:
-		U.RespondJSON(w, r, routequery.RoutesByAlias(route.RouteType(r.FormValue("type"))))
+		gphttp.RespondJSON(w, r, routequery.RoutesByAlias(route.RouteType(r.FormValue("type"))))
 	case ListFiles:
 		listFiles(w, r)
 	case ListMiddlewares:
-		U.RespondJSON(w, r, middleware.All())
+		gphttp.RespondJSON(w, r, middleware.All())
 	case ListMiddlewareTraces:
-		U.RespondJSON(w, r, middleware.GetAllTrace())
+		gphttp.RespondJSON(w, r, middleware.GetAllTrace())
 	case ListMatchDomains:
-		U.RespondJSON(w, r, cfg.Value().MatchDomains)
+		gphttp.RespondJSON(w, r, cfg.Value().MatchDomains)
 	case ListHomepageConfig:
-		U.RespondJSON(w, r, routequery.HomepageConfig(cfg.Value().Homepage.UseDefaultCategories, r.FormValue("category"), r.FormValue("provider")))
+		gphttp.RespondJSON(w, r, routequery.HomepageConfig(r.FormValue("category"), r.FormValue("provider")))
 	case ListRouteProviders:
-		U.RespondJSON(w, r, cfg.RouteProviderList())
+		gphttp.RespondJSON(w, r, cfg.RouteProviderList())
 	case ListHomepageCategories:
-		U.RespondJSON(w, r, routequery.HomepageCategories())
+		gphttp.RespondJSON(w, r, routequery.HomepageCategories())
 	case ListIcons:
 		limit, err := strconv.Atoi(r.FormValue("limit"))
 		if err != nil {
@@ -68,17 +69,17 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 		}
 		icons, err := internal.SearchIcons(r.FormValue("keyword"), limit)
 		if err != nil {
-			U.RespondError(w, err)
+			gphttp.ClientError(w, err)
 			return
 		}
 		if icons == nil {
 			icons = []string{}
 		}
-		U.RespondJSON(w, r, icons)
+		gphttp.RespondJSON(w, r, icons)
 	case ListTasks:
-		U.RespondJSON(w, r, task.DebugTaskList())
+		gphttp.RespondJSON(w, r, task.DebugTaskList())
 	default:
-		U.HandleErr(w, r, U.ErrInvalidKey("what"), http.StatusBadRequest)
+		gphttp.BadRequest(w, fmt.Sprintf("invalid what: %s", what))
 	}
 }
 
@@ -99,7 +100,7 @@ func listRoute(which string) any {
 func listFiles(w http.ResponseWriter, r *http.Request) {
 	files, err := utils.ListFiles(common.ConfigBasePath, 0, true)
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	resp := map[FileType][]string{
@@ -116,12 +117,12 @@ func listFiles(w http.ResponseWriter, r *http.Request) {
 
 	mids, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0, true)
 	if err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	for _, mid := range mids {
 		mid = strings.TrimPrefix(mid, common.MiddlewareComposeBasePath+"/")
 		resp[FileTypeMiddleware] = append(resp[FileTypeMiddleware], mid)
 	}
-	U.RespondJSON(w, r, resp)
+	gphttp.RespondJSON(w, r, resp)
 }

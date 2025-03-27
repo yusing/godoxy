@@ -3,14 +3,14 @@ package v1
 import (
 	"net/http"
 
-	U "github.com/yusing/go-proxy/internal/api/v1/utils"
 	config "github.com/yusing/go-proxy/internal/config/types"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
 )
 
 func Reload(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 	if err := cfg.Reload(); err != nil {
-		U.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
-	U.WriteBody(w, []byte("OK"))
+	gphttp.WriteBody(w, []byte("OK"))
 }

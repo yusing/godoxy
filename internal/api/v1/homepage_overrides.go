@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/api/v1/utils"
 	"github.com/yusing/go-proxy/internal/homepage"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
 )
 
 const (
@@ -37,13 +37,13 @@ type (
 func SetHomePageOverrides(w http.ResponseWriter, r *http.Request) {
 	what := r.FormValue("what")
 	if what == "" {
-		http.Error(w, "missing what or which", http.StatusBadRequest)
+		gphttp.BadRequest(w, "missing what or which")
 		return
 	}
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		utils.RespondError(w, err, http.StatusBadRequest)
+		gphttp.ClientError(w, err, http.StatusBadRequest)
 		return
 	}
 	r.Body.Close()
@@ -53,32 +53,32 @@ func SetHomePageOverrides(w http.ResponseWriter, r *http.Request) {
 	case HomepageOverrideItem:
 		var params HomepageOverrideItemParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			utils.RespondError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, err, http.StatusBadRequest)
 			return
 		}
 		overrides.OverrideItem(params.Which, &params.Value)
 	case HomepageOverrideItemsBatch:
 		var params HomepageOverrideItemsBatchParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			utils.RespondError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, err, http.StatusBadRequest)
 			return
 		}
 		overrides.OverrideItems(params.Value)
 	case HomepageOverrideItemVisible: // POST /v1/item_visible [a,b,c], false => hide a, b, c
 		var params HomepageOverrideItemVisibleParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			utils.RespondError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, err, http.StatusBadRequest)
 			return
 		}
 		if params.Value {
-			overrides.UnhideItems(params.Which...)
+			overrides.UnhideItems(params.Which)
 		} else {
-			overrides.HideItems(params.Which...)
+			overrides.HideItems(params.Which)
 		}
 	case HomepageOverrideCategoryOrder:
 		var params HomepageOverrideCategoryOrderParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			utils.RespondError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, err, http.StatusBadRequest)
 			return
 		}
 		overrides.SetCategoryOrder(params.Which, params.Value)
