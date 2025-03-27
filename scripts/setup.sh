@@ -21,25 +21,8 @@ fi
 
 echo "Using ${DOWNLOAD_TOOL} for downloads"
 
-# get_default_branch() {
-#     local repo="$1"  # Format: owner/repo
-#     local branch
-
-#     if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-#         branch=$(curl -sL "https://api.github.com/repos/${repo}" | grep -o '"default_branch": *"[^"]*"' | cut -d'"' -f4)
-#     elif [ "$DOWNLOAD_TOOL" = "wget" ]; then
-#         branch=$(wget -qO- "https://api.github.com/repos/${repo}" | grep -o '"default_branch": *"[^"]*"' | cut -d'"' -f4)
-#     fi
-
-#     if [ -z "$branch" ]; then
-#         echo "main"  # Fallback to 'main' if detection fails
-#     else
-#         echo "$branch"
-#     fi
-# }
-
 # Environment variables with defaults
-REPO="yusing/go-proxy"
+REPO="yusing/godoxy"
 BRANCH=${BRANCH:-"main"}
 REPO_URL="https://github.com/$REPO"
 WIKI_URL="${REPO_URL}/wiki"
@@ -162,7 +145,7 @@ get_timezone() {
 			echo "$TIMEZONE"
 		fi
 	else
-		echo "Warning: could not detect timezone, please set it manually"
+		echo "Warning: could not detect timezone, you may set it manually in ${DOT_ENV_PATH} to have correct time in logs"
 	fi
 }
 
@@ -218,11 +201,11 @@ if [ "$ENABLE_AUTOCERT" == "y" ]; then
 	ask_while_empty "Enter email for Let's Encrypt: " EMAIL
 
 	# ask if using cloudflare
-	ask_while_empty "Are you using cloudflare? (y/n): " USE_CLOUDFLARE
+	ask_while_empty "Is cloudflare the current DNS nameserver? (y/n): " USE_CLOUDFLARE
 
 	# ask for cloudflare api key
 	if [ "$USE_CLOUDFLARE" = "y" ]; then
-		ask_while_empty "Enter cloudflare api key: " CLOUDFLARE_API_KEY
+		ask_while_empty "Enter cloudflare zone api key: " CLOUDFLARE_API_KEY
 		cat <<EOF >>"$CONFIG_BASE_PATH/$CONFIG_FILE_NAME"
 autocert:
   provider: cloudflare
