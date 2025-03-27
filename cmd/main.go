@@ -15,6 +15,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/metrics/uptime"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/task"
@@ -139,6 +140,7 @@ func main() {
 		API: true,
 	})
 
+	uptime.Poller.Start()
 	config.WatchChanges()
 
 	task.WaitExit(cfg.Value().TimeoutShutdown)
