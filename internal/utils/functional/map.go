@@ -29,64 +29,6 @@ func NewMap[MapType Map[KT, VT], KT comparable, VT any]() Map[KT, VT] {
 	return NewMapOf[KT, VT]()
 }
 
-// MapFind iterates over the map and returns the first value
-// that satisfies the given criteria. The iteration is stopped
-// once a value is found. If no value satisfies the criteria,
-// the function returns the zero value of CT.
-//
-// The criteria function takes a value of type VT and returns a
-// value of type CT and a boolean indicating whether the value
-// satisfies the criteria. The boolean value is used to determine
-// whether the iteration should be stopped.
-//
-// The function is safe for concurrent use.
-func MapFind[KT comparable, VT, CT any](m Map[KT, VT], criteria func(VT) (CT, bool)) (_ CT) {
-	result := make(chan CT, 1)
-
-	m.Range(func(key KT, value VT) bool {
-		select {
-		case <-result: // already have a result
-			return false // stop iteration
-		default:
-			if got, ok := criteria(value); ok {
-				result <- got
-				return false
-			}
-			return true
-		}
-	})
-
-	select {
-	case v := <-result:
-		return v
-	default:
-		return
-	}
-}
-
-// MergeFrom merges the contents of another Map into this one, ignoring duplicated keys.
-//
-// Parameters:
-//
-//	other: Map of values to add from
-//
-// Returns:
-//
-//	Map of duplicated keys-value pairs
-func (m Map[KT, VT]) MergeFrom(other Map[KT, VT]) Map[KT, VT] {
-	dups := NewMapOf[KT, VT]()
-
-	other.Range(func(k KT, v VT) bool {
-		if _, ok := m.Load(k); ok {
-			dups.Store(k, v)
-		} else {
-			m.Store(k, v)
-		}
-		return true
-	})
-	return dups
-}
-
 // RangeAll calls the given function for each key-value pair in the map.
 //
 // Parameters:
