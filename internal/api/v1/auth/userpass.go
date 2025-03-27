@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	U "github.com/yusing/go-proxy/internal/api/v1/utils"
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrInvalidUsername = E.New("invalid username")
-	ErrInvalidPassword = E.New("invalid password")
+	ErrInvalidUsername = gperr.New("invalid username")
+	ErrInvalidPassword = gperr.New("invalid password")
 )
 
 type (
@@ -94,7 +94,7 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	case claims.Username != auth.username:
 		return ErrUserNotAllowed.Subject(claims.Username)
 	case claims.ExpiresAt.Before(time.Now()):
-		return E.Errorf("token expired on %s", strutils.FormatTime(claims.ExpiresAt.Time))
+		return gperr.Errorf("token expired on %s", strutils.FormatTime(claims.ExpiresAt.Time))
 	}
 
 	return nil
@@ -111,17 +111,16 @@ func (auth *UserPassAuth) LoginCallbackHandler(w http.ResponseWriter, r *http.Re
 	}
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
-		U.HandleErr(w, r, err, http.StatusBadRequest)
+		gphttp.Unauthorized(w, "invalid credentials")
 		return
 	}
 	if err := auth.validatePassword(creds.User, creds.Pass); err != nil {
-		U.LogError(r).Err(err).Msg("auth: invalid credentials")
-		U.RespondError(w, E.New("invalid credentials"), http.StatusUnauthorized)
+		gphttp.Unauthorized(w, "invalid credentials")
 		return
 	}
 	token, err := auth.NewToken()
 	if err != nil {
-		U.HandleErr(w, r, err, http.StatusInternalServerError)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	setTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)

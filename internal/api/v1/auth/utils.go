@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"time"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 var (
-	ErrMissingToken   = E.New("missing token")
-	ErrInvalidToken   = E.New("invalid token")
-	ErrUserNotAllowed = E.New("user not allowed")
+	ErrMissingToken   = gperr.New("missing token")
+	ErrInvalidToken   = gperr.New("invalid token")
+	ErrUserNotAllowed = gperr.New("user not allowed")
 )
 
 // cookieFQDN returns the fully qualified domain name of the request host

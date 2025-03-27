@@ -12,10 +12,9 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	U "github.com/yusing/go-proxy/internal/api/v1/utils"
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
-	CE "github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"golang.org/x/oauth2"
 )
@@ -131,9 +130,9 @@ func (auth *OIDCProvider) CheckToken(r *http.Request) error {
 
 	// Logical AND between allowed users and groups.
 	allowedUser := slices.Contains(auth.allowedUsers, claims.Username)
-	allowedGroup := len(CE.Intersect(claims.Groups, auth.allowedGroups)) > 0
+	allowedGroup := len(utils.Intersect(claims.Groups, auth.allowedGroups)) > 0
 	if !allowedUser && !allowedGroup {
-		return ErrUserNotAllowed.Subject(claims.Username)
+		return ErrUserNotAllowed
 	}
 	return nil
 }
@@ -154,7 +153,7 @@ func generateState() (string, error) {
 func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Request) {
 	state, err := generateState()
 	if err != nil {
-		U.HandleErr(w, r, err, http.StatusInternalServerError)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -171,7 +170,7 @@ func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Reque
 	if auth.isMiddleware {
 		u, err := r.URL.Parse(redirURL)
 		if err != nil {
-			U.HandleErr(w, r, err, http.StatusInternalServerError)
+			gphttp.ServerError(w, r, err)
 			return
 		}
 		q := u.Query()
@@ -201,31 +200,31 @@ func (auth *OIDCProvider) LoginCallbackHandler(w http.ResponseWriter, r *http.Re
 
 	state, err := r.Cookie(CookieOauthState)
 	if err != nil {
-		U.HandleErr(w, r, E.New("missing state cookie"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "missing state cookie")
 		return
 	}
 
 	query := r.URL.Query()
 	if query.Get("state") != state.Value {
-		U.HandleErr(w, r, E.New("invalid oauth state"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "invalid oauth state")
 		return
 	}
 
 	oauth2Token, err := auth.exchange(r)
 	if err != nil {
-		U.HandleErr(w, r, fmt.Errorf("failed to exchange token: %w", err), http.StatusInternalServerError)
+		gphttp.ServerError(w, r, fmt.Errorf("failed to exchange token: %w", err))
 		return
 	}
 
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		U.HandleErr(w, r, E.New("missing id_token"), http.StatusInternalServerError)
+		gphttp.BadRequest(w, "missing id_token")
 		return
 	}
 
 	idToken, err := auth.oidcVerifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
-		U.HandleErr(w, r, fmt.Errorf("failed to verify ID token: %w", err), http.StatusInternalServerError)
+		gphttp.ServerError(w, r, fmt.Errorf("failed to verify ID token: %w", err))
 		return
 	}
 
@@ -243,7 +242,7 @@ func (auth *OIDCProvider) LogoutCallbackHandler(w http.ResponseWriter, r *http.R
 
 	token, err := r.Cookie(auth.TokenCookieName())
 	if err != nil {
-		U.HandleErr(w, r, E.New("missing token cookie"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "missing token cookie")
 		return
 	}
 	clearTokenCookie(w, r, auth.TokenCookieName())
@@ -258,12 +257,12 @@ func (auth *OIDCProvider) LogoutCallbackHandler(w http.ResponseWriter, r *http.R
 func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Request) {
 	state, err := r.Cookie(CookieOauthState)
 	if err != nil {
-		U.HandleErr(w, r, E.New("missing state cookie"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "missing state cookie")
 		return
 	}
 
 	if r.URL.Query().Get("state") != state.Value {
-		U.HandleErr(w, r, E.New("invalid oauth state"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "invalid oauth state")
 		return
 	}
 
