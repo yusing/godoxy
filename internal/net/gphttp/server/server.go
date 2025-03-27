@@ -3,9 +3,8 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"errors"
-	"io"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -21,8 +20,6 @@ type Server struct {
 	CertProvider *autocert.Provider
 	http         *http.Server
 	https        *http.Server
-	httpStarted  bool
-	httpsStarted bool
 	startTime    time.Time
 
 	l zerolog.Logger
@@ -45,7 +42,7 @@ func StartServer(parent task.Parent, opt Options) (s *Server) {
 func NewServer(opt Options) (s *Server) {
 	var httpSer, httpsSer *http.Server
 
-	logger := logging.With().Str("module", "server").Str("name", opt.Name).Logger()
+	logger := logging.With().Str("server", opt.Name).Logger()
 
 	certAvailable := false
 	if opt.CertProvider != nil {
@@ -53,23 +50,16 @@ func NewServer(opt Options) (s *Server) {
 		certAvailable = err == nil
 	}
 
-	out := io.Discard
-	if common.IsDebug {
-		out = logging.GetLogger()
-	}
-
 	if opt.HTTPAddr != "" {
 		httpSer = &http.Server{
-			Addr:     opt.HTTPAddr,
-			Handler:  opt.Handler,
-			ErrorLog: log.New(out, "", 0), // most are tls related
+			Addr:    opt.HTTPAddr,
+			Handler: opt.Handler,
 		}
 	}
 	if certAvailable && opt.HTTPSAddr != "" {
 		httpsSer = &http.Server{
-			Addr:     opt.HTTPSAddr,
-			Handler:  opt.Handler,
-			ErrorLog: log.New(out, "", 0), // most are tls related
+			Addr:    opt.HTTPSAddr,
+			Handler: opt.Handler,
 			TLSConfig: &tls.Config{
 				GetCertificate: opt.CertProvider.GetCert,
 			},
@@ -90,62 +80,80 @@ func NewServer(opt Options) (s *Server) {
 //
 // Start() is non-blocking.
 func (s *Server) Start(parent task.Parent) {
-	if s.http == nil && s.https == nil {
-		return
-	}
-
-	task := parent.Subtask("server."+s.Name, false)
-
 	s.startTime = time.Now()
-	if s.http != nil {
-		go func() {
-			s.handleErr("http", s.http.ListenAndServe())
-		}()
-		s.httpStarted = true
-		s.l.Info().Str("addr", s.http.Addr).Msg("server started")
-	}
-
-	if s.https != nil {
-		go func() {
-			s.handleErr("https", s.https.ListenAndServeTLS(s.CertProvider.GetCertPath(), s.CertProvider.GetKeyPath()))
-		}()
-		s.httpsStarted = true
-		s.l.Info().Str("addr", s.https.Addr).Msgf("server started")
-	}
-
-	task.OnCancel("stop", s.stop)
+	subtask := parent.Subtask("server."+s.Name, false)
+	Start(subtask, s.http, &s.l)
+	Start(subtask, s.https, &s.l)
 }
 
-func (s *Server) stop() {
-	if s.http == nil && s.https == nil {
+func Start(parent task.Parent, srv *http.Server, logger *zerolog.Logger) {
+	if srv == nil {
 		return
+	}
+	srv.BaseContext = func(l net.Listener) context.Context {
+		return parent.Context()
+	}
+
+	if common.IsDebug {
+		srv.ErrorLog = log.New(logger, "", 0)
+	}
+
+	var proto string
+	if srv.TLSConfig == nil {
+		proto = "http"
+	} else {
+		proto = "https"
+	}
+
+	task := parent.Subtask(proto, false)
+
+	var lc net.ListenConfig
+
+	// Serve already closes the listener on return
+	l, err := lc.Listen(task.Context(), "tcp", srv.Addr)
+	if err != nil {
+		HandleError(logger, err, "failed to listen on port")
+		return
+	}
+
+	task.OnCancel("stop", func() {
+		Stop(srv, logger)
+	})
+
+	logger.Info().Str("addr", srv.Addr).Msg("server started")
+
+	go func() {
+		if srv.TLSConfig == nil {
+			err = srv.Serve(l)
+		} else {
+			err = srv.Serve(tls.NewListener(l, srv.TLSConfig))
+		}
+		HandleError(logger, err, "failed to serve "+proto+" server")
+	}()
+}
+
+func Stop(srv *http.Server, logger *zerolog.Logger) {
+	if srv == nil {
+		return
+	}
+
+	var proto string
+	if srv.TLSConfig == nil {
+		proto = "http"
+	} else {
+		proto = "https"
 	}
 
 	ctx, cancel := context.WithTimeout(task.RootContext(), 3*time.Second)
 	defer cancel()
 
-	if s.http != nil && s.httpStarted {
-		s.handleErr("http", s.http.Shutdown(ctx))
-		s.httpStarted = false
-		s.l.Info().Str("addr", s.http.Addr).Msgf("server stopped")
-	}
-
-	if s.https != nil && s.httpsStarted {
-		s.handleErr("https", s.https.Shutdown(ctx))
-		s.httpsStarted = false
-		s.l.Info().Str("addr", s.https.Addr).Msgf("server stopped")
+	if err := srv.Shutdown(ctx); err != nil {
+		HandleError(logger, err, "failed to shutdown "+proto+" server")
+	} else {
+		logger.Info().Str("addr", srv.Addr).Msgf("server stopped")
 	}
 }
 
 func (s *Server) Uptime() time.Duration {
 	return time.Since(s.startTime)
-}
-
-func (s *Server) handleErr(scheme string, err error) {
-	switch {
-	case err == nil, errors.Is(err, http.ErrServerClosed), errors.Is(err, context.Canceled):
-		return
-	default:
-		s.l.Fatal().Err(err).Str("scheme", scheme).Msg("server error")
-	}
 }
