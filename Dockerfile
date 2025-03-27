@@ -1,5 +1,5 @@
-# Stage 1: Builder
-FROM golang:1.23.6-alpine AS builder
+# Stage 1: deps
+FROM golang:1.24.1-alpine AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
@@ -11,30 +11,33 @@ WORKDIR /src
 # Only copy go.mod and go.sum initially for better caching
 COPY go.mod go.sum /src/
 
-# Utilize build cache
-RUN --mount=type=cache,target="/go/pkg/mod" \
-    go mod download -x
+ENV GOPATH=/root/go
+RUN go mod download -x
 
-ENV GOCACHE=/root/.cache/go-build
+# Stage 2: builder
+FROM deps AS builder
 
-COPY Makefile /src/
-COPY cmd /src/cmd
-COPY internal /src/internal
-COPY pkg /src/pkg
+WORKDIR /src
+
+COPY Makefile ./
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
+COPY agent ./agent
 
 ARG VERSION
 ENV VERSION=${VERSION}
 
-ARG BUILD_FLAGS
-ENV BUILD_FLAGS=${BUILD_FLAGS}
+ARG MAKE_ARGS
+ENV MAKE_ARGS=${MAKE_ARGS}
 
-RUN --mount=type=cache,target="/go/pkg/mod" \
-    --mount=type=cache,target="/root/.cache/go-build" \
-    make build && \
-    mkdir -p /app/error_pages /app/certs && \
-    mv bin/godoxy /app/godoxy
+ENV GOCACHE=/root/.cache/go-build
+ENV GOPATH=/root/go
+RUN make ${MAKE_ARGS} build link-binary && \
+    mv bin /app/ && \
+    mkdir -p /app/error_pages /app/certs
 
-# Stage 2: Final image
+# Stage 3: Final image
 FROM scratch
 
 LABEL maintainer="yusing@6uo.me"
@@ -53,12 +56,7 @@ COPY config.example.yml /app/config/config.yml
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 ENV DOCKER_HOST=unix:///var/run/docker.sock
-ENV GODOXY_DEBUG=0
-
-EXPOSE 80
-EXPOSE 8888
-EXPOSE 443
 
 WORKDIR /app
 
-CMD ["/app/godoxy"]
+CMD ["/app/run"]
