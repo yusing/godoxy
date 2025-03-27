@@ -4,12 +4,6 @@ import (
 	"time"
 )
 
-const (
-	ConnectionTimeout = 5 * time.Second
-	DialTimeout       = 3 * time.Second
-	KeepAlive         = 60 * time.Second
-)
-
 // file, folder structure
 
 const (
@@ -30,6 +24,8 @@ const (
 	ComposeExampleFileName = "compose.example.yml"
 
 	ErrorPagesBasePath = "error_pages"
+
+	AgentCertsBasePath = "certs"
 )
 
 var RequiredDirectories = []string{
@@ -48,5 +44,3 @@ const (
 	StopTimeoutDefault = "30s"
 	StopMethodDefault  = "stop"
 )
-
-const HeaderCheckRedirect = "X-Goproxy-Check-Redirect"

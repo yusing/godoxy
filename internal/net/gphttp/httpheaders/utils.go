@@ -1,4 +1,4 @@
-package http
+package httpheaders
 
 import (
 	"net/http"
@@ -17,13 +17,15 @@ const (
 	HeaderXForwardedURI    = "X-Forwarded-Uri"
 	HeaderXRealIP          = "X-Real-IP"
 
-	HeaderUpstreamName   = "X-GoDoxy-Upstream-Name"
-	HeaderUpstreamScheme = "X-GoDoxy-Upstream-Scheme"
-	HeaderUpstreamHost   = "X-GoDoxy-Upstream-Host"
-	HeaderUpstreamPort   = "X-GoDoxy-Upstream-Port"
-
 	HeaderContentType   = "Content-Type"
 	HeaderContentLength = "Content-Length"
+
+	HeaderUpstreamName   = "X-Godoxy-Upstream-Name"
+	HeaderUpstreamScheme = "X-Godoxy-Upstream-Scheme"
+	HeaderUpstreamHost   = "X-Godoxy-Upstream-Host"
+	HeaderUpstreamPort   = "X-Godoxy-Upstream-Port"
+
+	HeaderGoDoxyCheckRedirect = "X-Godoxy-Check-Redirect"
 )
 
 // Hop-by-hop headers. These are removed when sent to the backend.
