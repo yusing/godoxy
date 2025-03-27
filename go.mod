@@ -6,8 +6,8 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.2 // parsing HTML for extract fav icon
 	github.com/coder/websocket v1.8.13 // websocket for API and agent
 	github.com/coreos/go-oidc/v3 v3.13.0 // oidc authentication
-	github.com/docker/cli v28.0.2+incompatible // docker CLI
-	github.com/docker/docker v28.0.2+incompatible // docker daemon
+	github.com/docker/cli v28.0.4+incompatible // docker CLI
+	github.com/docker/docker v28.0.4+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.8.0 // file watcher
 	github.com/go-acme/lego/v4 v4.22.2 // acme client
 	github.com/go-playground/validator/v10 v10.25.0 // validator
@@ -90,7 +90,7 @@ require (
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
