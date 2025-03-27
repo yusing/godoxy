@@ -1,6 +1,8 @@
-package err
+package gperr
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -19,25 +21,48 @@ func Errorf(format string, args ...any) Error {
 	return &baseError{fmt.Errorf(format, args...)}
 }
 
+// Wrap wraps message in front of the error message.
 func Wrap(err error, message ...string) Error {
-	if len(message) == 0 || message[0] == "" {
-		return From(err)
+	if err == nil {
+		return nil
 	}
-	return Errorf("%w: %s", err, message[0])
+	if len(message) == 0 || message[0] == "" {
+		return wrap(err)
+	}
+	//nolint:errorlint
+	switch err := err.(type) {
+	case *baseError:
+		err.Err = fmt.Errorf("%s: %w", message[0], err.Err)
+		return err
+	case *nestedError:
+		err.Err = fmt.Errorf("%s: %w", message[0], err.Err)
+		return err
+	}
+	return &baseError{fmt.Errorf("%s: %w", message[0], err)}
 }
 
-func From(err error) Error {
+func wrap(err error) Error {
 	if err == nil {
 		return nil
 	}
 	//nolint:errorlint
 	switch err := err.(type) {
-	case *baseError:
-		return err
-	case *nestedError:
+	case Error:
 		return err
 	}
 	return &baseError{err}
+}
+
+func IsJSONMarshallable(err error) bool {
+	switch err := err.(type) {
+	case *nestedError, *withSubject:
+		return true
+	case *baseError:
+		return IsJSONMarshallable(err.Err)
+	default:
+		var v json.Marshaler
+		return errors.As(err, &v)
+	}
 }
 
 func Join(errors ...error) Error {
@@ -63,12 +88,6 @@ func Join(errors ...error) Error {
 
 func Collect[T any, Err error, Arg any, Func func(Arg) (T, Err)](eb *Builder, fn Func, arg Arg) T {
 	result, err := fn(arg)
-	eb.Add(err)
-	return result
-}
-
-func Collect2[T any, Err error, Arg1 any, Arg2 any, Func func(Arg1, Arg2) (T, Err)](eb *Builder, fn Func, arg1 Arg1, arg2 Arg2) T {
-	result, err := fn(arg1, arg2)
 	eb.Add(err)
 	return result
 }

@@ -1,4 +1,4 @@
-package err_test
+package gperr_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/error"
+	. "github.com/yusing/go-proxy/internal/gperr"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 

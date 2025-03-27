@@ -1,4 +1,4 @@
-package err
+package gperr
 
 type Error interface {
 	error

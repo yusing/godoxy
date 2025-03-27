@@ -1,4 +1,4 @@
-package err
+package gperr
 
 import (
 	"errors"
@@ -99,7 +99,7 @@ func makeLines(errs []error, level int) []string {
 	}
 	lines := make([]string, 0, len(errs))
 	for _, err := range errs {
-		switch err := From(err).(type) {
+		switch err := wrap(err).(type) {
 		case *nestedError:
 			if err.Err != nil {
 				lines = append(lines, makeLine(err.Err.Error(), level))

@@ -1,4 +1,4 @@
-package err
+package gperr
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ func (b *Builder) error() Error {
 
 func (b *Builder) Error() Error {
 	if len(b.errs) == 1 {
-		return From(b.errs[0])
+		return wrap(b.errs[0])
 	}
 	return b.error()
 }
@@ -60,7 +60,7 @@ func (b *Builder) Add(err error) *Builder {
 	b.Lock()
 	defer b.Unlock()
 
-	switch err := From(err).(type) {
+	switch err := wrap(err).(type) {
 	case *baseError:
 		b.errs = append(b.errs, err.Err)
 	case *nestedError:
@@ -121,4 +121,10 @@ func (b *Builder) AddRange(errs ...error) *Builder {
 	}
 
 	return b
+}
+
+func (b *Builder) ForEach(fn func(error)) {
+	for _, err := range b.errs {
+		fn(err)
+	}
 }

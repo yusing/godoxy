@@ -1,4 +1,4 @@
-package err
+package gperr
 
 import (
 	"errors"
@@ -44,7 +44,7 @@ func TestBaseWithExtra(t *testing.T) {
 
 func TestBaseUnwrap(t *testing.T) {
 	err := errors.New("err")
-	wrapped := From(err)
+	wrapped := Wrap(err)
 
 	ExpectError(t, err, errors.Unwrap(wrapped))
 }
@@ -52,7 +52,7 @@ func TestBaseUnwrap(t *testing.T) {
 func TestNestedUnwrap(t *testing.T) {
 	err := errors.New("err")
 	err2 := New("err2")
-	wrapped := From(err).Subject("foo").With(err2.Subject("bar"))
+	wrapped := Wrap(err).Subject("foo").With(err2.Subject("bar"))
 
 	unwrapper, ok := wrapped.(interface{ Unwrap() []error })
 	ExpectTrue(t, ok)
@@ -64,7 +64,7 @@ func TestNestedUnwrap(t *testing.T) {
 
 func TestErrorIs(t *testing.T) {
 	from := errors.New("error")
-	err := From(from)
+	err := Wrap(from)
 	ExpectError(t, from, err)
 
 	ExpectTrue(t, err.Is(from))
