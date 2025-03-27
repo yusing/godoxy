@@ -25,13 +25,13 @@ lint:
     - actionlint@1.7.7
     - git-diff-check
     - gofmt@1.20.4
-    - golangci-lint@1.63.4
+    - golangci-lint@1.64.5
     - osv-scanner@1.9.2
-    - oxipng@9.1.3
-    - prettier@3.4.2
+    - oxipng@9.1.4
+    - prettier@3.5.1
     - shellcheck@0.10.0
     - shfmt@3.6.0
-    - trufflehog@3.88.5
+    - trufflehog@3.88.9
 actions:
   disabled:
     - trunk-announce

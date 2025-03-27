@@ -6,7 +6,6 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.2 // parsing HTML for extract fav icon
 	github.com/coder/websocket v1.8.13 // websocket for API and agent
 	github.com/coreos/go-oidc/v3 v3.13.0 // oidc authentication
-	github.com/docker/cli v28.0.4+incompatible // docker CLI
 	github.com/docker/docker v28.0.4+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.8.0 // file watcher
 	github.com/go-acme/lego/v4 v4.22.2 // acme client
@@ -76,7 +75,6 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect

@@ -2,18 +2,18 @@
 
 # GoDoxy
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 [![](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 輕量、易用、 [高效能](https://github.com/yusing/godoxy/wiki/Benchmarks)，且帶有主頁和配置面板的反向代理
 
 完整文檔請查閱 **[Wiki](https://github.com/yusing/godoxy/wiki)**（暫未有中文翻譯）
 
-<!-- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_godoxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_godoxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yusing_godoxy&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy) -->
+<!-- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy) -->
 
 <a href="README.md">EN</a> | **中文**
 
@@ -34,6 +34,7 @@
     - [資料夾結構](#資料夾結構)
   - [截圖](#截圖)
     - [閒置休眠](#閒置休眠)
+    - [監控](#監控)
   - [自行編譯](#自行編譯)
 
 ## 主要特點
@@ -46,11 +47,9 @@
 - 自動配置 Docker 容器
 - 容器狀態/配置文件變更時自動熱重載
 - **閒置休眠**：在閒置時停止容器，有流量時喚醒（_可選，參見[截圖](#閒置休眠)_）
-- HTTP(s) 反向代理
-- OpenID Connect 支持
-- [HTTP 中介軟體支援](https://github.com/yusing/godoxy/wiki/Middlewares)
-- [自訂錯誤頁面支援](https://github.com/yusing/godoxy/wiki/Middlewares#custom-error-pages)
-- TCP 和 UDP 埠轉發
+- OpenID Connect：輕鬆實現單點登入
+- HTTP(s) 反向代理和TCP 和 UDP 埠轉發
+- [HTTP 中介軟體](https://github.com/yusing/godoxy/wiki/Middlewares) 和 [自定義錯誤頁面](https://github.com/yusing/godoxy/wiki/Middlewares#custom-error-pages)
 - **網頁介面，具有應用儀表板和配置編輯器**
 - 支援 linux/amd64、linux/arm64
 - 使用 **[Go](https://go.dev)** 編寫
@@ -72,9 +71,9 @@
 
 2. 在目錄內運行安裝腳本，或[手動安裝](#手動安裝)
 
-   ```shell
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
-   ```
+    ```shell
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
+    ```
 
 3. 啟動容器 `docker compose up -d` 並等待就緒
 
@@ -124,6 +123,31 @@
 ![閒置休眠](screenshots/idlesleeper.webp)
 
 [🔼回到頂部](#目錄)
+
+### 監控
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="screenshots/uptime.png" alt="Uptime Monitor" width="250"/></td>
+      <td align="center"><img src="screenshots/docker-logs.jpg" alt="Docker Logs" width="250"/></td>
+      <td align="center"><img src="screenshots/docker.jpg" alt="Server Overview" width="250"/></td>
+    </tr>
+    <tr>
+      <td align="center"><b>運行時間監控</b></td>
+      <td align="center"><b>Docker 日誌</b></td>
+      <td align="center"><b>伺服器概覽</b></td>
+    </tr>
+        <tr>
+      <td align="center"><img src="screenshots/system-monitor.jpg" alt="System Monitor" width="250"/></td>
+      <td align="center"><img src="screenshots/system-info-graphs.jpg" alt="Graphs" width="250"/></td>
+    </tr>
+    <tr>
+      <td align="center"><b>系統監控</b></td>
+      <td align="center"><b>圖表</b></td>
+    </tr>
+  </table>
+</div>
 
 ## 自行編譯
 
