@@ -9,7 +9,6 @@ type (
 	StreamRouteMetricLabels struct {
 		Service, Visitor string
 	}
-	HealthMetricLabels string
 )
 
 func (lbl *HTTPRouteMetricLabels) toPromLabels() prometheus.Labels {
@@ -26,11 +25,5 @@ func (lbl *StreamRouteMetricLabels) toPromLabels() prometheus.Labels {
 	return prometheus.Labels{
 		"service": lbl.Service,
 		"visitor": lbl.Visitor,
-	}
-}
-
-func (lbl HealthMetricLabels) toPromLabels() prometheus.Labels {
-	return prometheus.Labels{
-		"service": string(lbl),
 	}
 }
