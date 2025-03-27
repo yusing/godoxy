@@ -2,16 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"sync"
 
-	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal"
-	v1 "github.com/yusing/go-proxy/internal/api/v1"
 	"github.com/yusing/go-proxy/internal/api/v1/auth"
 	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/api/v1/query"
@@ -20,7 +15,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/http/middleware"
+	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
@@ -84,6 +79,11 @@ func main() {
 			homepage.InitOverridesConfig,
 			favicon.InitIconCache,
 		)
+
+		if common.APIJWTSecret == nil {
+			logging.Warn().Msg("API_JWT_SECRET is not set, using random key")
+			common.APIJWTSecret = common.RandomJWTKey()
+		}
 	} else {
 		logging.DiscardLogger()
 	}
