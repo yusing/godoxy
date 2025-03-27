@@ -1,22 +1,21 @@
-package utils
+package gphttp
 
 import (
 	"crypto/tls"
 	"net"
 	"net/http"
-
-	"github.com/yusing/go-proxy/internal/common"
+	"time"
 )
 
 var (
 	httpClient = &http.Client{
-		Timeout: common.ConnectionTimeout,
+		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
 			ForceAttemptHTTP2: false,
 			DialContext: (&net.Dialer{
-				Timeout:   common.DialTimeout,
-				KeepAlive: common.KeepAlive, // this is different from DisableKeepAlives
+				Timeout:   3 * time.Second,
+				KeepAlive: 60 * time.Second, // this is different from DisableKeepAlives
 			}).DialContext,
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
