@@ -8,19 +8,6 @@ theGreatPretender:
       - X-Test3
       - X-Test4
 
-notAuthenticAuthentik:
-  - use: RedirectHTTP
-  - use: ForwardAuth
-    address: https://authentik.company
-    trustForwardHeader: true
-    addAuthCookiesToResponse:
-      - session_id
-      - user_id
-    authResponseHeaders:
-      - X-Auth-SessionID
-      - X-Auth-UserID
-  - use: CustomErrorPage
-
 realIPAuthentik:
   - use: RedirectHTTP
   - use: RealIP
@@ -30,9 +17,6 @@ realIPAuthentik:
       - "192.168.0.0/16"
       - "172.16.0.0/12"
     recursive: true
-  - use: ForwardAuth
-    address: https://authentik.company
-    trustForwardHeader: true
 
 testFakeRealIP:
   - use: ModifyRequest

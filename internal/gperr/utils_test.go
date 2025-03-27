@@ -29,6 +29,11 @@ func TestIsJSONMarshallable(t *testing.T) {
 		{
 			name: "baseError",
 			err:  &baseError{},
+			want: false,
+		},
+		{
+			name: "baseError with json marshallable error",
+			err:  &baseError{&testErr{}},
 			want: true,
 		},
 		{

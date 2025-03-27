@@ -52,6 +52,7 @@ func NewServer(name string, url *net.URL, weight Weight, handler http.Handler, h
 func TestNewServer[T ~int | ~float32 | ~float64](weight T) Server {
 	srv := &server{
 		weight: Weight(weight),
+		url:    net.MustParseURL("http://localhost"),
 	}
 	return srv
 }
