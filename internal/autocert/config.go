@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/lego"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -30,17 +30,17 @@ type (
 )
 
 var (
-	ErrMissingDomain   = E.New("missing field 'domains'")
-	ErrMissingEmail    = E.New("missing field 'email'")
-	ErrMissingProvider = E.New("missing field 'provider'")
-	ErrInvalidDomain   = E.New("invalid domain")
-	ErrUnknownProvider = E.New("unknown provider")
+	ErrMissingDomain   = gperr.New("missing field 'domains'")
+	ErrMissingEmail    = gperr.New("missing field 'email'")
+	ErrMissingProvider = gperr.New("missing field 'provider'")
+	ErrInvalidDomain   = gperr.New("invalid domain")
+	ErrUnknownProvider = gperr.New("unknown provider")
 )
 
 var domainOrWildcardRE = regexp.MustCompile(`^\*?([^.]+\.)+[^.]+$`)
 
 // Validate implements the utils.CustomValidator interface.
-func (cfg *AutocertConfig) Validate() E.Error {
+func (cfg *AutocertConfig) Validate() gperr.Error {
 	if cfg == nil {
 		return nil
 	}
@@ -50,8 +50,8 @@ func (cfg *AutocertConfig) Validate() E.Error {
 		return nil
 	}
 
-	b := E.NewBuilder("autocert errors")
-	if cfg.Provider != ProviderLocal {
+	b := gperr.NewBuilder("autocert errors")
+	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
 		if len(cfg.Domains) == 0 {
 			b.Add(ErrMissingDomain)
 		}
@@ -79,7 +79,7 @@ func (cfg *AutocertConfig) Validate() E.Error {
 	return b.Error()
 }
 
-func (cfg *AutocertConfig) GetProvider() (*Provider, E.Error) {
+func (cfg *AutocertConfig) GetProvider() (*Provider, gperr.Error) {
 	if cfg == nil {
 		cfg = new(AutocertConfig)
 	}
@@ -101,16 +101,16 @@ func (cfg *AutocertConfig) GetProvider() (*Provider, E.Error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 
-	if cfg.Provider != ProviderLocal {
+	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
 		if privKey, err = cfg.loadACMEKey(); err != nil {
 			logging.Info().Err(err).Msg("load ACME private key failed")
 			logging.Info().Msg("generate new ACME private key")
 			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
-				return nil, E.New("generate ACME private key").With(err)
+				return nil, gperr.New("generate ACME private key").With(err)
 			}
 			if err = cfg.saveACMEKey(privKey); err != nil {
-				return nil, E.New("save ACME private key").With(err)
+				return nil, gperr.New("save ACME private key").With(err)
 			}
 		}
 	}
