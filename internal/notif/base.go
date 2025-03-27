@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type ProviderBase struct {
@@ -16,12 +16,12 @@ type ProviderBase struct {
 }
 
 var (
-	ErrMissingToken     = E.New("token is required")
-	ErrURLMissingScheme = E.New("url missing scheme, expect 'http://' or 'https://'")
+	ErrMissingToken     = gperr.New("token is required")
+	ErrURLMissingScheme = gperr.New("url missing scheme, expect 'http://' or 'https://'")
 )
 
 // Validate implements the utils.CustomValidator interface.
-func (base *ProviderBase) Validate() E.Error {
+func (base *ProviderBase) Validate() gperr.Error {
 	if base.Token == "" {
 		return ErrMissingToken
 	}
@@ -30,7 +30,7 @@ func (base *ProviderBase) Validate() E.Error {
 	}
 	u, err := url.Parse(base.URL)
 	if err != nil {
-		return E.Wrap(err)
+		return gperr.Wrap(err)
 	}
 	base.URL = u.String()
 	return nil
@@ -63,7 +63,7 @@ func (base *ProviderBase) SetHeaders(logMsg *LogMessage, headers http.Header) {
 func (base *ProviderBase) makeRespError(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err == nil {
-		return E.Errorf("%s status %d: %s", base.Name, resp.StatusCode, body)
+		return gperr.Errorf("%s status %d: %s", base.Name, resp.StatusCode, body)
 	}
-	return E.Errorf("%s status %d", base.Name, resp.StatusCode)
+	return gperr.Errorf("%s status %d", base.Name, resp.StatusCode)
 }

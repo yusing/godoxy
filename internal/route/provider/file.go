@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -33,12 +33,12 @@ func FileProviderImpl(filename string) (ProviderImpl, error) {
 	return impl, nil
 }
 
-func validate(data []byte) (routes route.Routes, err E.Error) {
+func validate(data []byte) (routes route.Routes, err gperr.Error) {
 	err = utils.DeserializeYAML(data, &routes)
 	return
 }
 
-func Validate(data []byte) (err E.Error) {
+func Validate(data []byte) (err gperr.Error) {
 	_, err = validate(data)
 	return
 }
@@ -59,16 +59,16 @@ func (p *FileProvider) Logger() *zerolog.Logger {
 	return &p.l
 }
 
-func (p *FileProvider) loadRoutesImpl() (route.Routes, E.Error) {
+func (p *FileProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 	data, err := os.ReadFile(p.path)
 	if err != nil {
-		return nil, E.Wrap(err)
+		return nil, gperr.Wrap(err)
 	}
 	routes, err := validate(data)
 	if err != nil && len(routes) == 0 {
-		return nil, E.Wrap(err)
+		return nil, gperr.Wrap(err)
 	}
-	return routes, E.Wrap(err)
+	return routes, gperr.Wrap(err)
 }
 
 func (p *FileProvider) NewWatcher() W.Watcher {

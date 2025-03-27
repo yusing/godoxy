@@ -7,7 +7,7 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/http"
 	"github.com/yusing/go-proxy/internal/net/http/accesslog"
@@ -38,8 +38,7 @@ type (
 
 // var globalMux    = http.NewServeMux() // TODO: support regex subdomain matching.
 
-func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, E.Error) {
-	trans := gphttp.DefaultTransport
+func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	httpConfig := base.HTTPConfig
 
 	if httpConfig.NoTLSVerify {
@@ -72,7 +71,7 @@ func (r *ReveseProxyRoute) String() string {
 }
 
 // Start implements task.TaskStarter.
-func (r *ReveseProxyRoute) Start(parent task.Parent) E.Error {
+func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	r.task = parent.Subtask("http."+r.TargetName(), false)
 
 	switch {
@@ -103,7 +102,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) E.Error {
 		r.rp.AccessLogger, err = accesslog.NewFileAccessLogger(r.task, r.AccessLog)
 		if err != nil {
 			r.task.Finish(err)
-			return E.From(err)
+			return gperr.Wrap(err)
 		}
 	}
 
@@ -119,7 +118,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) E.Error {
 				Str("route", r.TargetName()).
 				Msg("`path_patterns` for reverse proxy is deprecated. Use `rules` instead.")
 			mux := gphttp.NewServeMux()
-			patErrs := E.NewBuilder("invalid path pattern(s)")
+			patErrs := gperr.NewBuilder("invalid path pattern(s)")
 			for _, p := range pathPatterns {
 				patErrs.Add(mux.HandleFunc(p, r.rp.HandlerFunc))
 			}

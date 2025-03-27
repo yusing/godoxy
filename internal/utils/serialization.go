@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"gopkg.in/yaml.v3"
@@ -20,15 +20,15 @@ import (
 type SerializedObject = map[string]any
 
 type MapUnmarshaller interface {
-	UnmarshalMap(m map[string]any) E.Error
+	UnmarshalMap(m map[string]any) gperr.Error
 }
 
 var (
-	ErrInvalidType           = E.New("invalid type")
-	ErrNilValue              = E.New("nil")
-	ErrUnsettable            = E.New("unsettable")
-	ErrUnsupportedConversion = E.New("unsupported conversion")
-	ErrUnknownField          = E.New("unknown field")
+	ErrInvalidType           = gperr.New("invalid type")
+	ErrNilValue              = gperr.New("nil")
+	ErrUnsettable            = gperr.New("unsettable")
+	ErrUnsupportedConversion = gperr.New("unsupported conversion")
+	ErrUnknownField          = gperr.New("unknown field")
 )
 
 var (
@@ -89,8 +89,8 @@ func extractFields(t reflect.Type) (all, anonymous []reflect.StructField) {
 	return fields, anonymous
 }
 
-func ValidateWithFieldTags(s any) E.Error {
-	errs := E.NewBuilder("validate error")
+func ValidateWithFieldTags(s any) gperr.Error {
+	errs := gperr.NewBuilder("validate error")
 	err := validate.Struct(s)
 	var valErrs validator.ValidationErrors
 	if errors.As(err, &valErrs) {
@@ -107,13 +107,13 @@ func ValidateWithFieldTags(s any) E.Error {
 	return errs.Error()
 }
 
-func ValidateWithCustomValidator(v reflect.Value) E.Error {
+func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
 	isStruct := false
 	for {
 		switch v.Kind() {
 		case reflect.Pointer, reflect.Interface:
 			if v.IsNil() {
-				return E.Errorf("validate: v is %w", ErrNilValue)
+				return gperr.Errorf("validate: v is %w", ErrNilValue)
 			}
 			if validate, ok := v.Interface().(CustomValidator); ok {
 				return validate.Validate()
@@ -134,14 +134,14 @@ func ValidateWithCustomValidator(v reflect.Value) E.Error {
 	}
 }
 
-func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err E.Error) {
+func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) {
 	dstT := dst.Type()
 	for {
 		switch dst.Kind() {
 		case reflect.Pointer, reflect.Interface:
 			if dst.IsNil() {
 				if !dst.CanSet() {
-					err = E.Errorf("dive: dst is %w and is not settable", ErrNilValue)
+					err = gperr.Errorf("dive: dst is %w and is not settable", ErrNilValue)
 					return
 				}
 				dst.Set(New(dstT.Elem()))
@@ -158,7 +158,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err E.Error) {
 				case reflect.Slice:
 					dst.Set(reflect.MakeSlice(dstT, 0, 0))
 				default:
-					err = E.Errorf("deserialize: %w for dst %s", ErrInvalidType, dstT.String())
+					err = gperr.Errorf("deserialize: %w for dst %s", ErrInvalidType, dstT.String())
 					return
 				}
 			}
@@ -180,7 +180,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err E.Error) {
 // If the target value is a map[string]any the SerializedObject will be deserialized into the map.
 //
 // The function returns an error if the target value is not a struct or a map[string]any, or if there is an error during deserialization.
-func Deserialize(src SerializedObject, dst any) (err E.Error) {
+func Deserialize(src SerializedObject, dst any) (err gperr.Error) {
 	dstV := reflect.ValueOf(dst)
 	dstT := dstV.Type()
 
@@ -189,7 +189,7 @@ func Deserialize(src SerializedObject, dst any) (err E.Error) {
 			dstV.Set(reflect.Zero(dstT))
 			return nil
 		}
-		return E.Errorf("deserialize: src is %w and dst is not settable\n%s", ErrNilValue, debug.Stack())
+		return gperr.Errorf("deserialize: src is %w and dst is not settable\n%s", ErrNilValue, debug.Stack())
 	}
 
 	if dstT.Implements(mapUnmarshalerType) {
@@ -209,7 +209,7 @@ func Deserialize(src SerializedObject, dst any) (err E.Error) {
 	// convert target fields to lower no-snake
 	// then check if the field of data is in the target
 
-	errs := E.NewBuilder("deserialize error")
+	errs := gperr.NewBuilder("deserialize error")
 
 	switch dstV.Kind() {
 	case reflect.Struct, reflect.Interface:
@@ -302,9 +302,9 @@ func isIntFloat(t reflect.Kind) bool {
 //
 // Returns:
 //   - error: the error occurred during conversion, or nil if no error occurred.
-func Convert(src reflect.Value, dst reflect.Value) E.Error {
+func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 	if !dst.IsValid() {
-		return E.Errorf("convert: dst is %w", ErrNilValue)
+		return gperr.Errorf("convert: dst is %w", ErrNilValue)
 	}
 
 	if !src.IsValid() {
@@ -312,7 +312,7 @@ func Convert(src reflect.Value, dst reflect.Value) E.Error {
 			dst.Set(reflect.Zero(dst.Type()))
 			return nil
 		}
-		return E.Errorf("convert: src is %w", ErrNilValue)
+		return gperr.Errorf("convert: src is %w", ErrNilValue)
 	}
 
 	srcT := src.Type()
@@ -379,7 +379,7 @@ func Convert(src reflect.Value, dst reflect.Value) E.Error {
 		if dstT.Kind() != reflect.Slice {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		sliceErrs := E.NewBuilder("slice conversion errors")
+		sliceErrs := gperr.NewBuilder("slice conversion errors")
 		newSlice := reflect.MakeSlice(dstT, src.Len(), src.Len())
 		i := 0
 		for j, v := range src.Seq2() {
@@ -401,7 +401,7 @@ func Convert(src reflect.Value, dst reflect.Value) E.Error {
 	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 }
 
-func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.Error) {
+func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
 	if dst.Kind() == reflect.Ptr {
@@ -423,7 +423,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.E
 		}
 		d, err := time.ParseDuration(src)
 		if err != nil {
-			return true, E.From(err)
+			return true, gperr.Wrap(err)
 		}
 		dst.Set(reflect.ValueOf(d))
 		return
@@ -443,14 +443,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.E
 			i, err = strconv.ParseFloat(src, dstT.Bits())
 		}
 		if err != nil {
-			return true, E.From(err)
+			return true, gperr.Wrap(err)
 		}
 		dst.Set(reflect.ValueOf(i).Convert(dstT))
 		return
 	}
 	// check if (*T).Convertor is implemented
 	if parser, ok := dst.Addr().Interface().(strutils.Parser); ok {
-		return true, E.From(parser.Parse(src))
+		return true, gperr.Wrap(parser.Parse(src))
 	}
 	// yaml like
 	var tmp any
@@ -462,7 +462,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.E
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
 			dst.Set(reflect.MakeSlice(dst.Type(), len(values), len(values)))
-			errs := E.NewBuilder("invalid slice values")
+			errs := gperr.NewBuilder("invalid slice values")
 			for i, v := range values {
 				err := Convert(reflect.ValueOf(v), dst.Index(i))
 				if err != nil {
@@ -477,14 +477,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.E
 		sl := make([]any, 0)
 		err := yaml.Unmarshal([]byte(src), &sl)
 		if err != nil {
-			return true, E.From(err)
+			return true, gperr.Wrap(err)
 		}
 		tmp = sl
 	case reflect.Map, reflect.Struct:
 		rawMap := make(SerializedObject)
 		err := yaml.Unmarshal([]byte(src), &rawMap)
 		if err != nil {
-			return true, E.From(err)
+			return true, gperr.Wrap(err)
 		}
 		tmp = rawMap
 	default:
@@ -493,17 +493,17 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr E.E
 	return true, Convert(reflect.ValueOf(tmp), dst)
 }
 
-func DeserializeYAML[T any](data []byte, target *T) E.Error {
+func DeserializeYAML[T any](data []byte, target *T) gperr.Error {
 	m := make(map[string]any)
 	if err := yaml.Unmarshal(data, m); err != nil {
-		return E.From(err)
+		return gperr.Wrap(err)
 	}
 	return Deserialize(m, target)
 }
 
-func DeserializeYAMLMap[V any](data []byte) (_ functional.Map[string, V], err E.Error) {
+func DeserializeYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
-	if err = E.From(yaml.Unmarshal(data, m)); err != nil {
+	if err = gperr.Wrap(yaml.Unmarshal(data, m)); err != nil {
 		return
 	}
 	m2 := make(map[string]V, len(m))

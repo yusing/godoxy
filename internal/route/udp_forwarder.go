@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/types"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
@@ -192,7 +192,7 @@ func (w *UDPForwarder) Handle(streamConn types.StreamConn) error {
 }
 
 func (w *UDPForwarder) Close() error {
-	errs := E.NewBuilder("errors closing udp conn")
+	errs := gperr.NewBuilder("errors closing udp conn")
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.connMap.RangeAll(func(key string, conn *UDPConn) {

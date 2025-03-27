@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 // See https://docs.ntfy.sh/publish
@@ -24,22 +24,22 @@ const (
 	NtfyStylePlain    NtfyStyle = "plain"
 )
 
-func (n *Ntfy) Validate() E.Error {
+func (n *Ntfy) Validate() gperr.Error {
 	if n.URL == "" {
-		return E.New("url is required")
+		return gperr.New("url is required")
 	}
 	if n.Topic == "" {
-		return E.New("topic is required")
+		return gperr.New("topic is required")
 	}
 	if n.Topic[0] == '/' {
-		return E.New("topic should not start with a slash")
+		return gperr.New("topic should not start with a slash")
 	}
 	switch n.Style {
 	case "":
 		n.Style = NtfyStyleMarkdown
 	case NtfyStyleMarkdown, NtfyStylePlain:
 	default:
-		return E.Errorf("invalid style, expecting %q or %q, got %q", NtfyStyleMarkdown, NtfyStylePlain, n.Style)
+		return gperr.Errorf("invalid style, expecting %q or %q, got %q", NtfyStyleMarkdown, NtfyStylePlain, n.Style)
 	}
 	return nil
 }

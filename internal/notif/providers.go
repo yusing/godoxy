@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	E "github.com/yusing/go-proxy/internal/error"
-	gphttp "github.com/yusing/go-proxy/internal/net/http"
+	"github.com/yusing/go-proxy/internal/gperr"
+	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -26,7 +26,7 @@ type (
 
 		makeRespError(resp *http.Response) error
 	}
-	ProviderCreateFunc func(map[string]any) (Provider, E.Error)
+	ProviderCreateFunc func(map[string]any) (Provider, gperr.Error)
 	ProviderConfig     map[string]any
 )
 
@@ -39,7 +39,7 @@ const (
 func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) error {
 	body, err := provider.MakeBody(msg)
 	if err != nil {
-		return E.PrependSubject(provider.GetName(), err)
+		return gperr.PrependSubject(provider.GetName(), err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -52,7 +52,7 @@ func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) err
 		body,
 	)
 	if err != nil {
-		return E.PrependSubject(provider.GetName(), err)
+		return gperr.PrependSubject(provider.GetName(), err)
 	}
 
 	req.Header.Set("Content-Type", provider.GetMIMEType())
@@ -63,7 +63,7 @@ func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) err
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return E.PrependSubject(provider.GetName(), err)
+		return gperr.PrependSubject(provider.GetName(), err)
 	}
 
 	defer resp.Body.Close()

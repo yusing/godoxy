@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -14,7 +14,7 @@ func TestParser(t *testing.T) {
 		input   string
 		subject string
 		args    []string
-		wantErr E.Error
+		wantErr gperr.Error
 	}{
 		{
 			name:    "basic",

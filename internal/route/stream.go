@@ -30,7 +30,7 @@ type StreamRoute struct {
 	l zerolog.Logger
 }
 
-func NewStreamRoute(base *Route) (route.Route, E.Error) {
+func NewStreamRoute(base *Route) (route.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
 	return &StreamRoute{
 		Route: base,
@@ -46,7 +46,7 @@ func (r *StreamRoute) String() string {
 }
 
 // Start implements task.TaskStarter.
-func (r *StreamRoute) Start(parent task.Parent) E.Error {
+func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	r.task = parent.Subtask("stream." + r.TargetName())
 	r.Stream = NewStream(r)
 	parent.OnCancel("finish", func() {
@@ -78,14 +78,14 @@ func (r *StreamRoute) Start(parent task.Parent) E.Error {
 
 	if err := r.Stream.Setup(); err != nil {
 		r.task.Finish(err)
-		return E.From(err)
+		return gperr.Wrap(err)
 	}
 
 	r.l.Info().Int("port", r.Port.Listening).Msg("listening")
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
-			E.LogWarn("health monitor error", err, &r.l)
+			gperr.LogWarn("health monitor error", err, &r.l)
 		}
 	}
 
@@ -125,7 +125,7 @@ func (r *StreamRoute) acceptConnections() {
 				select {
 				case <-r.task.Context().Done():
 				default:
-					E.LogError("accept connection error", err, &r.l)
+					gperr.LogError("accept connection error", err, &r.l)
 				}
 				r.task.Finish(err)
 				return
@@ -136,7 +136,7 @@ func (r *StreamRoute) acceptConnections() {
 			go func() {
 				err := r.Stream.Handle(conn)
 				if err != nil && !errors.Is(err, context.Canceled) {
-					E.LogError("handle connection error", err, &r.l)
+					gperr.LogError("handle connection error", err, &r.l)
 				}
 			}()
 		}

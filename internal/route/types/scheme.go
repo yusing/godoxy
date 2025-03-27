@@ -1,12 +1,12 @@
 package types
 
 import (
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type Scheme string
 
-var ErrInvalidScheme = E.New("invalid scheme")
+var ErrInvalidScheme = gperr.New("invalid scheme")
 
 const (
 	SchemeHTTP       Scheme = "http"
@@ -16,7 +16,7 @@ const (
 	SchemeFileServer Scheme = "fileserver"
 )
 
-func (s Scheme) Validate() E.Error {
+func (s Scheme) Validate() gperr.Error {
 	switch s {
 	case SchemeHTTP, SchemeHTTPS,
 		SchemeTCP, SchemeUDP, SchemeFileServer:

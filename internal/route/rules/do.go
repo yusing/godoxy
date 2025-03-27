@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	E "github.com/yusing/go-proxy/internal/error"
-	gphttp "github.com/yusing/go-proxy/internal/net/http"
-	"github.com/yusing/go-proxy/internal/net/http/reverseproxy"
+	"github.com/yusing/go-proxy/internal/gperr"
+	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -47,7 +47,7 @@ var commands = map[string]struct {
 				"to":   "the path to rewrite to, must start with /",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			if len(args) != 2 {
 				return nil, ErrExpectTwoArgs
 			}
@@ -109,7 +109,7 @@ var commands = map[string]struct {
 				"text": "the error message to return",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			if len(args) != 2 {
 				return nil, ErrExpectTwoArgs
 			}
@@ -137,7 +137,7 @@ var commands = map[string]struct {
 				"realm": "the authentication realm",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			if len(args) == 1 {
 				return args[0], nil
 			}
@@ -164,7 +164,7 @@ var commands = map[string]struct {
 			if target.Scheme == "" {
 				target.Scheme = "http"
 			}
-			rp := reverseproxy.NewReverseProxy("", target, gphttp.DefaultTransport)
+			rp := reverseproxy.NewReverseProxy("", target, gphttp.NewTransport())
 			return ReturningCommand(rp.ServeHTTP)
 		},
 	},
@@ -176,7 +176,7 @@ var commands = map[string]struct {
 				"value": "the value to set",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			return validateModField(ModFieldSet, args)
 		},
 		build: func(args any) CommandHandler {
@@ -191,7 +191,7 @@ var commands = map[string]struct {
 				"value": "the value to add",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			return validateModField(ModFieldAdd, args)
 		},
 		build: func(args any) CommandHandler {
@@ -205,7 +205,7 @@ var commands = map[string]struct {
 				"field": "the field to remove",
 			},
 		},
-		validate: func(args []string) (any, E.Error) {
+		validate: func(args []string) (any, gperr.Error) {
 			return validateModField(ModFieldRemove, args)
 		},
 		build: func(args any) CommandHandler {

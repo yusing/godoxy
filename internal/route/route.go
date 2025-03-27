@@ -7,12 +7,12 @@ import (
 
 	"github.com/yusing/go-proxy/internal/docker"
 	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
-	dockertypes "github.com/docker/docker/api/types"
 	"github.com/yusing/go-proxy/internal/common"
 	E "github.com/yusing/go-proxy/internal/error"
 	"github.com/yusing/go-proxy/internal/net/http/accesslog"
@@ -65,14 +65,14 @@ func (r Routes) Contains(alias string) bool {
 	return ok
 }
 
-func (r *Route) Validate() (err E.Error) {
+func (r *Route) Validate() (err gperr.Error) {
 	if r.isValidated {
 		return nil
 	}
 	r.isValidated = true
 	r.Finalize()
 
-	errs := E.NewBuilder("entry validation failed")
+	errs := gperr.NewBuilder("entry validation failed")
 
 	switch r.Scheme {
 	case types.SchemeFileServer:
@@ -86,18 +86,18 @@ func (r *Route) Validate() (err E.Error) {
 		}
 		fallthrough
 	case types.SchemeTCP, types.SchemeUDP:
-		r.LisURL = E.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Listening))
+		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		fallthrough
 	default:
 		if r.LoadBalance != nil && r.LoadBalance.Link == "" {
 			r.LoadBalance = nil
 		}
-		r.ProxyURL = E.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
-		r.Idlewatcher = E.Collect(errs, idlewatcher.ValidateConfig, r.Container)
+		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.Idlewatcher = gperr.Collect(errs, idlewatcher.ValidateConfig, r.Container)
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
-		errs.Adds("healthCheck.disable cannot be true when loadbalancer or idlewatcher is enabled")
+		errs.Adds("cannot disable healthcheck when loadbalancer or idle watcher is enabled")
 	}
 
 	if errs.HasError() {
@@ -118,10 +118,11 @@ func (r *Route) Validate() (err E.Error) {
 	return err
 }
 
-func (r *Route) Start(parent task.Parent) (err E.Error) {
+func (r *Route) Start(parent task.Parent) (err gperr.Error) {
 	if r.impl == nil {
-		return E.New("route not initialized")
+		return gperr.New("route not initialized")
 	}
+
 	return r.impl.Start(parent)
 }
 

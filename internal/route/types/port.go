@@ -3,7 +3,7 @@ package types
 import (
 	"strconv"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -13,8 +13,8 @@ type Port struct {
 }
 
 var (
-	ErrInvalidPortSyntax = E.New("invalid port syntax, expect [listening_port:]target_port")
-	ErrPortOutOfRange    = E.New("port out of range")
+	ErrInvalidPortSyntax = gperr.New("invalid port syntax, expect [listening_port:]target_port")
+	ErrPortOutOfRange    = gperr.New("port out of range")
 )
 
 // Parse implements strutils.Parser.
@@ -28,7 +28,7 @@ func (p *Port) Parse(v string) (err error) {
 		var err2 error
 		p.Listening, err = strconv.Atoi(parts[0])
 		p.Proxy, err2 = strconv.Atoi(parts[1])
-		err = E.Join(err, err2)
+		err = gperr.Join(err, err2)
 	default:
 		return ErrInvalidPortSyntax.Subject(v)
 	}

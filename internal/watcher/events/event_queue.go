@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
@@ -19,7 +19,7 @@ type (
 		onError       OnErrorFunc
 	}
 	OnFlushFunc = func(events []Event)
-	OnErrorFunc = func(err E.Error)
+	OnErrorFunc = func(err gperr.Error)
 )
 
 const eventQueueCapacity = 10
@@ -50,13 +50,13 @@ func NewEventQueue(queueTask *task.Task, flushInterval time.Duration, onFlush On
 	}
 }
 
-func (e *EventQueue) Start(eventCh <-chan Event, errCh <-chan E.Error) {
+func (e *EventQueue) Start(eventCh <-chan Event, errCh <-chan gperr.Error) {
 	origOnFlush := e.onFlush
 	// recover panic in onFlush when in production mode
 	e.onFlush = func(events []Event) {
 		defer func() {
 			if err := recover(); err != nil {
-				e.onError(E.New("recovered panic in onFlush").
+				e.onError(gperr.New("recovered panic in onFlush").
 					Withf("%v", err).
 					Subject(e.task.Name()))
 				if common.IsDebug {

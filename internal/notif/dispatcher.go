@@ -2,7 +2,7 @@ package notif
 
 import (
 	"github.com/rs/zerolog"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
@@ -89,29 +89,15 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 	task := disp.task.Subtask("dispatcher")
 	defer task.Finish("notif dispatched")
 
-	errs := E.NewBuilder(dispatchErr)
+	errs := gperr.NewBuilder(dispatchErr)
 	disp.providers.RangeAllParallel(func(p Provider) {
 		if err := notifyProvider(task.Context(), p, msg); err != nil {
-			errs.Add(E.PrependSubject(p.GetName(), err))
+			errs.Add(gperr.PrependSubject(p.GetName(), err))
 		}
 	})
 	if errs.HasError() {
-		E.LogError(errs.About(), errs.Error())
+		gperr.LogError(errs.About(), errs.Error())
 	} else {
 		logging.Debug().Str("title", msg.Title).Msgf("dispatched notif")
 	}
 }
-
-// Run implements zerolog.Hook.
-// func (disp *Dispatcher) Run(e *zerolog.Event, level zerolog.Level, message string) {
-// 	if strings.HasPrefix(message, dispatchErr) { // prevent recursion
-// 		return
-// 	}
-// 	switch level {
-// 	case zerolog.WarnLevel, zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel:
-// 		disp.logCh <- &LogMessage{
-// 			Level:   level,
-// 			Message: message,
-// 		}
-// 	}
-// }

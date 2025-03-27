@@ -1,8 +1,7 @@
 package provider
 
 import (
-	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/provider/types"
 	"github.com/yusing/go-proxy/internal/task"
@@ -12,19 +11,19 @@ import (
 type EventHandler struct {
 	provider *Provider
 
-	errs    *E.Builder
-	added   *E.Builder
-	removed *E.Builder
-	updated *E.Builder
+	errs    *gperr.Builder
+	added   *gperr.Builder
+	removed *gperr.Builder
+	updated *gperr.Builder
 }
 
 func (p *Provider) newEventHandler() *EventHandler {
 	return &EventHandler{
 		provider: p,
-		errs:     E.NewBuilder("event errors"),
-		added:    E.NewBuilder("added"),
-		removed:  E.NewBuilder("removed"),
-		updated:  E.NewBuilder("updated"),
+		errs:     gperr.NewBuilder("event errors"),
+		added:    gperr.NewBuilder("added"),
+		removed:  gperr.NewBuilder("removed"),
+		updated:  gperr.NewBuilder("updated"),
 	}
 }
 
@@ -121,7 +120,7 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 }
 
 func (handler *EventHandler) Log() {
-	results := E.NewBuilder("event occurred")
+	results := gperr.NewBuilder("event occurred")
 	results.AddFrom(handler.added, false)
 	results.AddFrom(handler.removed, false)
 	results.AddFrom(handler.updated, false)

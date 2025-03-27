@@ -1,18 +1,20 @@
 package rules
 
-import E "github.com/yusing/go-proxy/internal/error"
+import (
+	"github.com/yusing/go-proxy/internal/gperr"
+)
 
 var (
-	ErrUnterminatedQuotes     = E.New("unterminated quotes")
-	ErrUnsupportedEscapeChar  = E.New("unsupported escape char")
-	ErrUnknownDirective       = E.New("unknown directive")
-	ErrInvalidArguments       = E.New("invalid arguments")
-	ErrInvalidOnTarget        = E.New("invalid `rule.on` target")
-	ErrInvalidCommandSequence = E.New("invalid command sequence")
-	ErrInvalidSetTarget       = E.New("invalid `rule.set` target")
+	ErrUnterminatedQuotes     = gperr.New("unterminated quotes")
+	ErrUnsupportedEscapeChar  = gperr.New("unsupported escape char")
+	ErrUnknownDirective       = gperr.New("unknown directive")
+	ErrInvalidArguments       = gperr.New("invalid arguments")
+	ErrInvalidOnTarget        = gperr.New("invalid `rule.on` target")
+	ErrInvalidCommandSequence = gperr.New("invalid command sequence")
+	ErrInvalidSetTarget       = gperr.New("invalid `rule.set` target")
 
-	ErrExpectNoArg       = E.Wrap(ErrInvalidArguments, "expect no arg")
-	ErrExpectOneArg      = E.Wrap(ErrInvalidArguments, "expect 1 arg")
-	ErrExpectTwoArgs     = E.Wrap(ErrInvalidArguments, "expect 2 args")
-	ErrExpectKVOptionalV = E.Wrap(ErrInvalidArguments, "expect 'key' or 'key value'")
+	ErrExpectNoArg       = gperr.Wrap(ErrInvalidArguments, "expect no arg")
+	ErrExpectOneArg      = gperr.Wrap(ErrInvalidArguments, "expect 1 arg")
+	ErrExpectTwoArgs     = gperr.Wrap(ErrInvalidArguments, "expect 2 args")
+	ErrExpectKVOptionalV = gperr.Wrap(ErrInvalidArguments, "expect 'key' or 'key value'")
 )

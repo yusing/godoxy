@@ -3,15 +3,15 @@ package watcher
 import (
 	"context"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type fileWatcher struct {
 	relPath string
 	eventCh chan Event
-	errCh   chan E.Error
+	errCh   chan gperr.Error
 }
 
-func (fw *fileWatcher) Events(ctx context.Context) (<-chan Event, <-chan E.Error) {
+func (fw *fileWatcher) Events(ctx context.Context) (<-chan Event, <-chan gperr.Error) {
 	return fw.eventCh, fw.errCh
 }

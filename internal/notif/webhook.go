@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type Webhook struct {
@@ -27,7 +27,7 @@ var webhookTemplates = map[string]string{
 	"discord": discordPayload,
 }
 
-func (webhook *Webhook) Validate() E.Error {
+func (webhook *Webhook) Validate() gperr.Error {
 	if err := webhook.ProviderBase.Validate(); err != nil && !err.Is(ErrMissingToken) {
 		return err
 	}
@@ -37,16 +37,16 @@ func (webhook *Webhook) Validate() E.Error {
 		webhook.MIMEType = "application/json"
 	case "application/json", "application/x-www-form-urlencoded", "text/plain":
 	default:
-		return E.New("invalid mime_type, expect empty, 'application/json', 'application/x-www-form-urlencoded' or 'text/plain'")
+		return gperr.New("invalid mime_type, expect empty, 'application/json', 'application/x-www-form-urlencoded' or 'text/plain'")
 	}
 
 	switch webhook.Template {
 	case "":
 		if webhook.MIMEType == "application/json" && !json.Valid([]byte(webhook.Payload)) {
-			return E.New("invalid payload, expect valid JSON")
+			return gperr.New("invalid payload, expect valid JSON")
 		}
 		if webhook.Payload == "" {
-			return E.New("invalid payload, expect non-empty")
+			return gperr.New("invalid payload, expect non-empty")
 		}
 	case "discord":
 		webhook.ColorMode = "dec"
@@ -56,7 +56,7 @@ func (webhook *Webhook) Validate() E.Error {
 			webhook.Payload = discordPayload
 		}
 	default:
-		return E.New("invalid template, expect empty or 'discord'")
+		return gperr.New("invalid template, expect empty or 'discord'")
 	}
 
 	switch webhook.Method {
@@ -64,7 +64,7 @@ func (webhook *Webhook) Validate() E.Error {
 		webhook.Method = http.MethodPost
 	case http.MethodGet, http.MethodPost, http.MethodPut:
 	default:
-		return E.New("invalid method, expect empty, 'GET', 'POST' or 'PUT'")
+		return gperr.New("invalid method, expect empty, 'GET', 'POST' or 'PUT'")
 	}
 
 	switch webhook.ColorMode {
@@ -72,7 +72,7 @@ func (webhook *Webhook) Validate() E.Error {
 		webhook.ColorMode = "hex"
 	case "hex", "dec":
 	default:
-		return E.New("invalid color_mode, expect empty, 'hex' or 'dec'")
+		return gperr.New("invalid color_mode, expect empty, 'hex' or 'dec'")
 	}
 
 	return nil

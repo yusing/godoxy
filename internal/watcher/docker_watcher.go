@@ -7,7 +7,7 @@ import (
 	docker_events "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/yusing/go-proxy/internal/docker"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
 
@@ -51,13 +51,13 @@ func NewDockerWatcher(host string) DockerWatcher {
 	return DockerWatcher{host: host}
 }
 
-func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan E.Error) {
+func (w *DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan gperr.Error) {
 	return w.EventsWithOptions(ctx, optionsDefault)
 }
 
-func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan E.Error) {
+func (w *DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan gperr.Error) {
 	eventCh := make(chan Event)
-	errCh := make(chan E.Error)
+	errCh := make(chan gperr.Error)
 
 	go func() {
 		defer func() {

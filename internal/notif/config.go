@@ -1,7 +1,7 @@
 package notif
 
 import (
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -11,13 +11,13 @@ type NotificationConfig struct {
 }
 
 var (
-	ErrMissingNotifProvider     = E.New("missing notification provider")
-	ErrInvalidNotifProviderType = E.New("invalid notification provider type")
-	ErrUnknownNotifProvider     = E.New("unknown notification provider")
+	ErrMissingNotifProvider     = gperr.New("missing notification provider")
+	ErrInvalidNotifProviderType = gperr.New("invalid notification provider type")
+	ErrUnknownNotifProvider     = gperr.New("unknown notification provider")
 )
 
 // UnmarshalMap implements MapUnmarshaler.
-func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err E.Error) {
+func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) {
 	// extract provider name
 	providerName := m["provider"]
 	switch providerName := providerName.(type) {

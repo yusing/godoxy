@@ -58,13 +58,9 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 }
 
 // Start implements task.TaskStarter.
-func (mon *monitor) Start(parent task.Parent) E.Error {
+func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	if mon.config.Interval <= 0 {
-		return E.From(ErrNegativeInterval)
-	}
-
-	if common.PrometheusEnabled {
-		mon.metric = metrics.GetServiceMetrics().HealthStatus.With(metrics.HealthMetricLabels(mon.service))
+		return gperr.Wrap(ErrNegativeInterval)
 	}
 
 	mon.service = parent.Name()

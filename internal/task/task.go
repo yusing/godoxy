@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -19,7 +19,7 @@ type (
 		// and returns an error if it fails to start.
 		//
 		// callerSubtask.Finish must be called when start fails or the object is finished.
-		Start(parent Parent) E.Error
+		Start(parent Parent) gperr.Error
 		Task() *Task
 	}
 	TaskFinisher interface {

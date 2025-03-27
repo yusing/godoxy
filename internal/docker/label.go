@@ -1,17 +1,17 @@
 package docker
 
 import (
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type LabelMap = map[string]any
 
-var ErrInvalidLabel = E.New("invalid label")
+var ErrInvalidLabel = gperr.New("invalid label")
 
-func ParseLabels(labels map[string]string) (LabelMap, E.Error) {
+func ParseLabels(labels map[string]string) (LabelMap, gperr.Error) {
 	nestedMap := make(LabelMap)
-	errs := E.NewBuilder("labels error")
+	errs := gperr.NewBuilder("labels error")
 
 	for lbl, value := range labels {
 		parts := strutils.SplitRune(lbl, '.')
@@ -37,7 +37,7 @@ func ParseLabels(labels map[string]string) (LabelMap, E.Error) {
 				// Move deeper into the nested map
 				m, ok := currentMap[k].(LabelMap)
 				if !ok && currentMap[k] != "" {
-					errs.Add(E.Errorf("expect mapping, got %T", currentMap[k]).Subject(lbl))
+					errs.Add(gperr.Errorf("expect mapping, got %T", currentMap[k]).Subject(lbl))
 					continue
 				} else if !ok {
 					m = make(LabelMap)

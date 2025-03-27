@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,7 +16,7 @@ func TestParseOn(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		wantErr E.Error
+		wantErr gperr.Error
 	}{
 		// header
 		{

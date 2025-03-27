@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
 	U "github.com/yusing/go-proxy/internal/utils"
@@ -27,7 +27,7 @@ const (
 	aliasRefPrefixAlt = '$'
 )
 
-var ErrAliasRefIndexOutOfRange = E.New("index out of range")
+var ErrAliasRefIndexOutOfRange = gperr.New("index out of range")
 
 func DockerProviderImpl(name, dockerHost string) (ProviderImpl, error) {
 	if dockerHost == common.DockerHostFromEnv {
@@ -60,13 +60,12 @@ func (p *DockerProvider) NewWatcher() watcher.Watcher {
 	return watcher.NewDockerWatcher(p.dockerHost)
 }
 
-func (p *DockerProvider) loadRoutesImpl() (route.Routes, E.Error) {
-	containers, err := docker.ListContainers(p.dockerHost)
+func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 	if err != nil {
-		return nil, E.From(err)
+		return nil, gperr.Wrap(err)
 	}
 
-	errs := E.NewBuilder("")
+	errs := gperr.NewBuilder("")
 	routes := make(route.Routes)
 
 	for _, c := range containers {
@@ -93,7 +92,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, E.Error) {
 
 // Returns a list of proxy entries for a container.
 // Always non-nil.
-func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, E.Error) {
+func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, gperr.Error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
 		return nil, nil
 	}
@@ -109,7 +108,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 		}
 	}
 
-	errs := E.NewBuilder("label errors")
+	errs := gperr.NewBuilder("label errors")
 
 	m, err := docker.ParseLabels(container.Labels)
 	errs.Add(err)
@@ -118,7 +117,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 
 	for alias, entryMapAny := range m {
 		if len(alias) == 0 {
-			errs.Add(E.New("empty alias"))
+			errs.Add(gperr.New("empty alias"))
 			continue
 		}
 
@@ -132,7 +131,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 				panic(fmt.Errorf("invalid entry map type %T", entryMapAny))
 			}
 			if err := yaml.Unmarshal([]byte(yamlStr), &entryMap); err != nil {
-				errs.Add(E.From(err).Subject(alias))
+				errs.Add(gperr.Wrap(err).Subject(alias))
 				continue
 			}
 		}

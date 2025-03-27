@@ -3,7 +3,7 @@ package rules
 import (
 	"net/http"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -240,7 +240,7 @@ func (on *RuleOn) Parse(v string) error {
 	lines := strutils.SplitLine(v)
 	checkAnd := make(CheckMatchAll, 0, len(lines))
 
-	errs := E.NewBuilder("rule.on syntax errors")
+	errs := gperr.NewBuilder("rule.on syntax errors")
 	for i, line := range lines {
 		if line == "" {
 			continue
@@ -265,11 +265,11 @@ func (on *RuleOn) MarshalText() ([]byte, error) {
 	return []byte(on.String()), nil
 }
 
-func parseOn(line string) (Checker, E.Error) {
+func parseOn(line string) (Checker, gperr.Error) {
 	ors := strutils.SplitRune(line, '|')
 
 	if len(ors) > 1 {
-		errs := E.NewBuilder("rule.on syntax errors")
+		errs := gperr.NewBuilder("rule.on syntax errors")
 		checkOr := make(CheckMatchSingle, len(ors))
 		for i, or := range ors {
 			curCheckers, err := parseOn(or)

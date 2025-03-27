@@ -41,9 +41,7 @@ func NewCache() Cache {
 
 // Release clear the contents of the Cached and returns it to the pool.
 func (c Cache) Release() {
-	for _, k := range cacheKeys {
-		delete(c, k)
-	}
+	clear(c)
 	cachePool.Put(c)
 }
 

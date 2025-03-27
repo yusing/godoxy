@@ -6,13 +6,13 @@ import (
 	"path"
 	"strings"
 
-	E "github.com/yusing/go-proxy/internal/error"
-	gphttp "github.com/yusing/go-proxy/internal/net/http"
+	"github.com/yusing/go-proxy/internal/gperr"
+	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
 )
 
 type (
-	ValidateFunc      func(args []string) (any, E.Error)
+	ValidateFunc      func(args []string) (any, gperr.Error)
 	Tuple[T1, T2 any] struct {
 		First  T1
 		Second T2
@@ -29,7 +29,7 @@ func (t *Tuple[T1, T2]) String() string {
 }
 
 // toStrTuple returns *StrTuple.
-func toStrTuple(args []string) (any, E.Error) {
+func toStrTuple(args []string) (any, gperr.Error) {
 	if len(args) != 2 {
 		return nil, ErrExpectTwoArgs
 	}
@@ -37,7 +37,7 @@ func toStrTuple(args []string) (any, E.Error) {
 }
 
 // toKVOptionalV returns *StrTuple that value is optional.
-func toKVOptionalV(args []string) (any, E.Error) {
+func toKVOptionalV(args []string) (any, gperr.Error) {
 	switch len(args) {
 	case 1:
 		return &StrTuple{args[0], ""}, nil
@@ -49,7 +49,7 @@ func toKVOptionalV(args []string) (any, E.Error) {
 }
 
 // validateURL returns types.URL with the URL validated.
-func validateURL(args []string) (any, E.Error) {
+func validateURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -61,7 +61,7 @@ func validateURL(args []string) (any, E.Error) {
 }
 
 // validateAbsoluteURL returns types.URL with the URL validated.
-func validateAbsoluteURL(args []string) (any, E.Error) {
+func validateAbsoluteURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -79,7 +79,7 @@ func validateAbsoluteURL(args []string) (any, E.Error) {
 }
 
 // validateCIDR returns types.CIDR with the CIDR validated.
-func validateCIDR(args []string) (any, E.Error) {
+func validateCIDR(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -94,7 +94,7 @@ func validateCIDR(args []string) (any, E.Error) {
 }
 
 // validateURLPath returns string with the path validated.
-func validateURLPath(args []string) (any, E.Error) {
+func validateURLPath(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -112,8 +112,8 @@ func validateURLPath(args []string) (any, E.Error) {
 }
 
 // validateURLPaths returns []string with each element validated.
-func validateURLPaths(paths []string) (any, E.Error) {
-	errs := E.NewBuilder("invalid url paths")
+func validateURLPaths(paths []string) (any, gperr.Error) {
+	errs := gperr.NewBuilder("invalid url paths")
 	for i, p := range paths {
 		val, err := validateURLPath([]string{p})
 		if err != nil {
@@ -129,7 +129,7 @@ func validateURLPaths(paths []string) (any, E.Error) {
 }
 
 // validateFSPath returns string with the path validated.
-func validateFSPath(args []string) (any, E.Error) {
+func validateFSPath(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -141,7 +141,7 @@ func validateFSPath(args []string) (any, E.Error) {
 }
 
 // validateMethod returns string with the method validated.
-func validateMethod(args []string) (any, E.Error) {
+func validateMethod(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -153,7 +153,7 @@ func validateMethod(args []string) (any, E.Error) {
 }
 
 // validateUserBCryptPassword returns *HashedCrendential with the password validated.
-func validateUserBCryptPassword(args []string) (any, E.Error) {
+func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 	if len(args) != 2 {
 		return nil, ErrExpectTwoArgs
 	}
@@ -161,7 +161,7 @@ func validateUserBCryptPassword(args []string) (any, E.Error) {
 }
 
 // validateModField returns CommandHandler with the field validated.
-func validateModField(mod FieldModifier, args []string) (CommandHandler, E.Error) {
+func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.Error) {
 	setField, ok := modFields[args[0]]
 	if !ok {
 		return nil, ErrInvalidSetTarget.Subject(args[0])

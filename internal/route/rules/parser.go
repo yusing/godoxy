@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"unicode"
 
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 var escapedChars = map[rune]rune{
@@ -23,7 +23,7 @@ var escapedChars = map[rune]rune{
 //
 //	error 403 "Forbidden 'foo' 'bar'"
 //	error 403 Forbidden\ \"foo\"\ \"bar\".
-func parse(v string) (subject string, args []string, err E.Error) {
+func parse(v string) (subject string, args []string, err gperr.Error) {
 	buf := bytes.NewBuffer(make([]byte, 0, len(v)))
 
 	escaped := false

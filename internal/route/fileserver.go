@@ -6,10 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/yusing/go-proxy/internal/common"
-	gphttp "github.com/yusing/go-proxy/internal/net/http"
-	"github.com/yusing/go-proxy/internal/net/http/accesslog"
-	"github.com/yusing/go-proxy/internal/net/http/middleware"
-	metricslogger "github.com/yusing/go-proxy/internal/net/http/middleware/metrics_logger"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -35,12 +32,12 @@ func handler(root string) http.Handler {
 	return http.FileServer(http.Dir(root))
 }
 
-func NewFileServer(base *Route) (*FileServer, E.Error) {
+func NewFileServer(base *Route) (*FileServer, gperr.Error) {
 	s := &FileServer{Route: base}
 
 	s.Root = filepath.Clean(s.Root)
 	if !path.IsAbs(s.Root) {
-		return nil, E.New("`root` must be an absolute path")
+		return nil, gperr.New("`root` must be an absolute path")
 	}
 
 	s.handler = handler(s.Root)
@@ -57,7 +54,7 @@ func NewFileServer(base *Route) (*FileServer, E.Error) {
 }
 
 // Start implements task.TaskStarter.
-func (s *FileServer) Start(parent task.Parent) E.Error {
+func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	s.task = parent.Subtask("fileserver."+s.TargetName(), false)
 
 	pathPatterns := s.PathPatterns
@@ -66,7 +63,7 @@ func (s *FileServer) Start(parent task.Parent) E.Error {
 	case len(pathPatterns) == 1 && pathPatterns[0] == "/":
 	default:
 		mux := gphttp.NewServeMux()
-		patErrs := E.NewBuilder("invalid path pattern(s)")
+		patErrs := gperr.NewBuilder("invalid path pattern(s)")
 		for _, p := range pathPatterns {
 			patErrs.Add(mux.Handle(p, s.handler))
 		}
@@ -88,7 +85,7 @@ func (s *FileServer) Start(parent task.Parent) E.Error {
 		s.accessLogger, err = accesslog.NewFileAccessLogger(s.task, s.AccessLog)
 		if err != nil {
 			s.task.Finish(err)
-			return E.Wrap(err)
+			return gperr.Wrap(err)
 		}
 	}
 

@@ -2,15 +2,15 @@ package utils
 
 import (
 	"github.com/go-playground/validator/v10"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 var validate = validator.New()
 
-var ErrValidationError = E.New("validation error")
+var ErrValidationError = gperr.New("validation error")
 
 type CustomValidator interface {
-	Validate() E.Error
+	Validate() gperr.Error
 }
 
 func Validator() *validator.Validate {

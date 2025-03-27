@@ -8,7 +8,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/events"
@@ -24,7 +24,7 @@ type DirWatcher struct {
 	mu    sync.Mutex
 
 	eventCh chan Event
-	errCh   chan E.Error
+	errCh   chan gperr.Error
 
 	task *task.Task
 }
@@ -55,14 +55,14 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 		w:       w,
 		fwMap:   make(map[string]*fileWatcher),
 		eventCh: make(chan Event),
-		errCh:   make(chan E.Error),
+		errCh:   make(chan gperr.Error),
 		task:    parent.Subtask("dir_watcher(" + dirPath + ")"),
 	}
 	go helper.start()
 	return helper
 }
 
-func (h *DirWatcher) Events(_ context.Context) (<-chan Event, <-chan E.Error) {
+func (h *DirWatcher) Events(_ context.Context) (<-chan Event, <-chan gperr.Error) {
 	return h.eventCh, h.errCh
 }
 
@@ -78,7 +78,7 @@ func (h *DirWatcher) Add(relPath string) Watcher {
 	s = &fileWatcher{
 		relPath: relPath,
 		eventCh: make(chan Event),
-		errCh:   make(chan E.Error),
+		errCh:   make(chan gperr.Error),
 	}
 	h.fwMap[relPath] = s
 	return s
@@ -162,7 +162,7 @@ func (h *DirWatcher) start() {
 				return
 			}
 			select {
-			case h.errCh <- E.From(err):
+			case h.errCh <- gperr.Wrap(err):
 			default:
 			}
 		}

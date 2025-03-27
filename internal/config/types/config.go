@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/yusing/go-proxy/internal/autocert"
-	"github.com/yusing/go-proxy/internal/net/http/accesslog"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/utils"
 
@@ -34,7 +34,7 @@ type (
 
 	ConfigInstance interface {
 		Value() *Config
-		Reload() E.Error
+		Reload() gperr.Error
 		Statistics() map[string]any
 		RouteProviderList() []string
 		Context() context.Context
