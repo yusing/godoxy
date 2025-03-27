@@ -16,6 +16,12 @@ export type Providers = {
     docker?: {
         [name: string]: URL | "$DOCKER_HOST";
     };
+    /** List of GoDoxy agents
+     *
+     * @minItems 1
+     * @examples require(".").agentExamples
+     */
+    agents?: `${string}:${number}`[];
     /** List of notification providers
      *
      * @minItems 1
@@ -42,3 +48,4 @@ export declare const notificationExamples: readonly [{
     readonly template: "discord";
     readonly url: "https://discord.com/api/webhooks/1234/abcd";
 }];
+export declare const agentExamples: readonly ["10.0.2.3:8890", "10.0.2.4:8890"];

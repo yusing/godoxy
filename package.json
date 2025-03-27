@@ -1,11 +1,11 @@
 {
 	"name": "godoxy-schemas",
-	"version": "0.9.6",
+	"version": "0.10.0-3",
 	"description": "JSON Schema and typescript types for GoDoxy configuration",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/yusing/go-proxy"
+		"url": "https://github.com/yusing/godoxy"
 	},
 	"files": [
 		"schemas/",

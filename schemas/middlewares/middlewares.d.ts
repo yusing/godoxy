@@ -19,6 +19,11 @@ export type CustomErrorPage = {
 };
 export type RedirectHTTP = {
     use: "redirect_http" | "redirectHTTP" | "RedirectHTTP";
+    /** Bypass redirect */
+    bypass?: {
+        /** Bypass redirect for user agents */
+        user_agents?: string[];
+    };
 };
 export type SetXForwarded = {
     use: "set_x_forwarded" | "setXForwarded" | "SetXForwarded";

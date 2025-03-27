@@ -18,3 +18,4 @@ export const notificationExamples = [
         url: "https://discord.com/api/webhooks/1234/abcd",
     },
 ];
+export const agentExamples = ["10.0.2.3:8890", "10.0.2.4:8890"];
