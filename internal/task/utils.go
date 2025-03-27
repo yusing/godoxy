@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/logging"
@@ -72,4 +75,18 @@ func GracefulShutdown(timeout time.Duration) (err error) {
 			return context.DeadlineExceeded
 		}
 	}
+}
+
+func WaitExit(shutdownTimeout int) {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT)
+	signal.Notify(sig, syscall.SIGTERM)
+	signal.Notify(sig, syscall.SIGHUP)
+
+	// wait for signal
+	<-sig
+
+	// gracefully shutdown
+	logging.Info().Msg("shutting down")
+	_ = GracefulShutdown(time.Second * time.Duration(shutdownTimeout))
 }

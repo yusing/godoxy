@@ -138,17 +138,7 @@ func main() {
 
 	config.WatchChanges()
 
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT)
-	signal.Notify(sig, syscall.SIGTERM)
-	signal.Notify(sig, syscall.SIGHUP)
-
-	// wait for signal
-	<-sig
-
-	// gracefully shutdown
-	logging.Info().Msg("shutting down")
-	_ = task.GracefulShutdown(time.Second * time.Duration(cfg.Value().TimeoutShutdown))
+	task.WaitExit(cfg.Value().TimeoutShutdown)
 }
 
 func prepareDirectory(dir string) {
