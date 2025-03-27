@@ -3,14 +3,15 @@ package types
 import (
 	"context"
 	"regexp"
+	"sync"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/utils"
-
-	E "github.com/yusing/go-proxy/internal/error"
 )
 
 type (
@@ -23,9 +24,10 @@ type (
 		TimeoutShutdown int                      `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Providers struct {
-		Files        []string                   `json:"include" validate:"dive,filepath"`
-		Docker       map[string]string          `json:"docker" validate:"dive,unix_addr|url"`
-		Notification []notif.NotificationConfig `json:"notification"`
+		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
+		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
+		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty"`
+		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
 	}
 	Entrypoint struct {
 		Middlewares []map[string]any  `json:"middlewares"`
@@ -38,7 +40,16 @@ type (
 		Statistics() map[string]any
 		RouteProviderList() []string
 		Context() context.Context
+		GetAgent(agentAddrOrDockerHost string) (*agent.AgentConfig, bool)
+		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error)
+		ListAgents() []*agent.AgentConfig
+		AutoCertProvider() *autocert.Provider
 	}
+)
+
+var (
+	instance   ConfigInstance
+	instanceMu sync.RWMutex
 )
 
 func DefaultConfig() *Config {
@@ -50,7 +61,25 @@ func DefaultConfig() *Config {
 	}
 }
 
-func Validate(data []byte) E.Error {
+func GetInstance() ConfigInstance {
+	instanceMu.RLock()
+	defer instanceMu.RUnlock()
+	return instance
+}
+
+func SetInstance(cfg ConfigInstance) {
+	instanceMu.Lock()
+	defer instanceMu.Unlock()
+	instance = cfg
+}
+
+func HasInstance() bool {
+	instanceMu.RLock()
+	defer instanceMu.RUnlock()
+	return instance != nil
+}
+
+func Validate(data []byte) gperr.Error {
 	var model Config
 	return utils.DeserializeYAML(data, &model)
 }
@@ -63,6 +92,15 @@ func init() {
 		domains := fl.Field().Interface().([]string)
 		for _, domain := range domains {
 			if !matchDomainsRegex.MatchString(domain) {
+				return false
+			}
+		}
+		return true
+	})
+	utils.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
+		m := fl.Field().Interface().(map[string]string)
+		for k := range m {
+			if k == "" {
 				return false
 			}
 		}
