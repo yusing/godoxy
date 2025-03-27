@@ -44,11 +44,11 @@ var (
 	APIJWTTokenTTL = GetDurationEnv("API_JWT_TOKEN_TTL", time.Hour)
 	APIUser        = GetEnvString("API_USER", "admin")
 	APIPassword    = GetEnvString("API_PASSWORD", "password")
+
 	DebugDisableAuth = GetEnvBool("DEBUG_DISABLE_AUTH", false)
 
 	// OIDC Configuration.
 	OIDCIssuerURL     = GetEnvString("OIDC_ISSUER_URL", "")
-	OIDCLogoutURL     = GetEnvString("OIDC_LOGOUT_URL", "")
 	OIDCClientID      = GetEnvString("OIDC_CLIENT_ID", "")
 	OIDCClientSecret  = GetEnvString("OIDC_CLIENT_SECRET", "")
 	OIDCRedirectURL   = GetEnvString("OIDC_REDIRECT_URL", "")
