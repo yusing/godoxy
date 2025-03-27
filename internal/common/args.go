@@ -1,15 +1,5 @@
 package common
 
-import (
-	"flag"
-	"fmt"
-	"log"
-)
-
-type Args struct {
-	Command string
-}
-
 const (
 	CommandStart              = ""
 	CommandValidate           = "validate"
@@ -22,33 +12,20 @@ const (
 	CommandDebugListMTrace    = "debug-ls-mtrace"
 )
 
-var ValidCommands = []string{
-	CommandStart,
-	CommandValidate,
-	CommandListConfigs,
-	CommandListRoutes,
-	CommandListIcons,
-	CommandReload,
-	CommandDebugListEntries,
-	CommandDebugListProviders,
-	CommandDebugListMTrace,
-}
+type MainServerCommandValidator struct{}
 
-func validateArg(arg string) error {
-	for _, v := range ValidCommands {
-		if arg == v {
-			return nil
-		}
+func (v MainServerCommandValidator) IsCommandValid(cmd string) bool {
+	switch cmd {
+	case CommandStart,
+		CommandValidate,
+		CommandListConfigs,
+		CommandListRoutes,
+		CommandListIcons,
+		CommandReload,
+		CommandDebugListEntries,
+		CommandDebugListProviders,
+		CommandDebugListMTrace:
+		return true
 	}
-	return fmt.Errorf("invalid command %q", arg)
-}
-
-func GetArgs() Args {
-	var args Args
-	flag.Parse()
-	args.Command = flag.Arg(0)
-	if err := validateArg(args.Command); err != nil {
-		log.Fatalf("invalid command: %s", err)
-	}
-	return args
+	return false
 }

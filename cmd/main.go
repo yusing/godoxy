@@ -28,18 +28,21 @@ import (
 
 var rawLogger = log.New(os.Stdout, "", 0)
 
-func init() {
-	var out io.Writer = os.Stderr
-	if common.EnableLogStreaming {
-		out = zerolog.MultiLevelWriter(out, v1.GetMemLogger())
+func parallel(fns ...func()) {
+	var wg sync.WaitGroup
+	for _, fn := range fns {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fn()
+		}()
 	}
-	logging.InitLogger(out)
-	// logging.AddHook(v1.GetMemLogger())
+	wg.Wait()
 }
 
 func main() {
 	initProfiling()
-	args := common.GetArgs()
+	args := pkg.GetArgs(common.MainServerCommandValidator{})
 
 	switch args.Command {
 	case common.CommandReload:
@@ -76,7 +79,11 @@ func main() {
 	if args.Command == common.CommandStart {
 		logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
 		logging.Trace().Msg("trace enabled")
-		// logging.AddHook(notif.GetDispatcher())
+		parallel(
+			internal.InitIconListCache,
+			homepage.InitOverridesConfig,
+			favicon.InitIconCache,
+		)
 	} else {
 		logging.DiscardLogger()
 	}
@@ -120,10 +127,6 @@ func main() {
 		printJSON(cfg.DumpRouteProviders())
 		return
 	}
-
-	go internal.InitIconListCache()
-	go homepage.InitOverridesConfig()
-	go favicon.InitIconCache()
 
 	cfg.Start(&config.StartServersOptions{
 		Proxy: true,
