@@ -3,6 +3,7 @@ package logging
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -11,11 +12,10 @@ import (
 )
 
 var (
-	logger     zerolog.Logger
-	timeFmt    string
-	level      zerolog.Level
-	prefix     string
-	prefixHTML []byte
+	logger  zerolog.Logger
+	timeFmt string
+	level   zerolog.Level
+	prefix  string
 )
 
 func init() {
@@ -32,12 +32,6 @@ func init() {
 	}
 	prefixLength := len(timeFmt) + 5 // level takes 3 + 2 spaces
 	prefix = strings.Repeat(" ", prefixLength)
-	// prefixHTML = []byte(strings.Repeat("&nbsp;", prefixLength))
-	prefixHTML = []byte(prefix)
-
-	if zerolog.TraceLevel != -1 && zerolog.NoLevel != 6 {
-		panic("zerolog implementation changed")
-	}
 }
 
 func fmtMessage(msg string) string {
@@ -62,6 +56,9 @@ func InitLogger(out io.Writer) {
 	logger = zerolog.New(
 		writer,
 	).Level(level).With().Timestamp().Logger()
+	log.SetOutput(writer)
+	log.SetPrefix("")
+	log.SetFlags(0)
 }
 
 func DiscardLogger() { zerolog.SetGlobalLevel(zerolog.Disabled) }

@@ -1,20 +1,19 @@
-package v1
+package memlogger
 
 import (
 	"bytes"
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/api/v1/utils"
-	"github.com/yusing/go-proxy/internal/common"
-	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
@@ -27,15 +26,10 @@ type memLogger struct {
 	sync.RWMutex
 	notifyLock sync.RWMutex
 	connChans  F.Map[chan *logEntryRange, struct{}]
-
-	bufPool sync.Pool // used in hook mode
+	listeners  F.Map[chan []byte, struct{}]
 }
 
-type MemLogger interface {
-	io.Writer
-	// TODO: hook does not pass in fields, looking for a workaround to do server side log rendering
-	zerolog.Hook
-}
+type MemLogger io.Writer
 
 type buffer struct {
 	data []byte
@@ -45,52 +39,33 @@ const (
 	maxMemLogSize         = 16 * 1024
 	truncateSize          = maxMemLogSize / 2
 	initialWriteChunkSize = 4 * 1024
-	hookModeBufSize       = 256
 )
 
 var memLoggerInstance = &memLogger{
 	connChans: F.NewMapOf[chan *logEntryRange, struct{}](),
-	bufPool: sync.Pool{
-		New: func() any {
-			return &buffer{
-				data: make([]byte, 0, hookModeBufSize),
-			}
-		},
-	},
+	listeners: F.NewMapOf[chan []byte, struct{}](),
 }
 
 func init() {
-	if !common.EnableLogStreaming {
-		return
-	}
 	memLoggerInstance.Grow(maxMemLogSize)
-
-	if common.DebugMemLogger {
-		ticker := time.NewTicker(1 * time.Second)
-
-		go func() {
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-task.RootContextCanceled():
-					return
-				case <-ticker.C:
-					logging.Info().Msgf("mem logger size: %d, active conns: %d",
-						memLoggerInstance.Len(),
-						memLoggerInstance.connChans.Size())
-				}
-			}
-		}()
-	}
-}
-
-func LogsWS() func(config config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
-	return memLoggerInstance.ServeHTTP
+	w := zerolog.MultiLevelWriter(os.Stderr, memLoggerInstance)
+	logging.InitLogger(w)
 }
 
 func GetMemLogger() MemLogger {
 	return memLoggerInstance
+}
+
+func Handler() http.Handler {
+	return memLoggerInstance
+}
+
+func HandlerFunc() http.HandlerFunc {
+	return memLoggerInstance.ServeHTTP
+}
+
+func Events() (<-chan []byte, func()) {
+	return memLoggerInstance.events()
 }
 
 func (m *memLogger) truncateIfNeeded(n int) {
@@ -111,22 +86,35 @@ func (m *memLogger) truncateIfNeeded(n int) {
 }
 
 func (m *memLogger) notifyWS(pos, n int) {
-	if m.connChans.Size() > 0 {
-		timeout := time.NewTimer(1 * time.Second)
-		defer timeout.Stop()
+	if m.connChans.Size() == 0 && m.listeners.Size() == 0 {
+		return
+	}
 
-		m.notifyLock.RLock()
-		defer m.notifyLock.RUnlock()
-		m.connChans.Range(func(ch chan *logEntryRange, _ struct{}) bool {
+	timeout := time.NewTimer(3 * time.Second)
+	defer timeout.Stop()
+
+	m.notifyLock.RLock()
+	defer m.notifyLock.RUnlock()
+
+	m.connChans.Range(func(ch chan *logEntryRange, _ struct{}) bool {
+		select {
+		case ch <- &logEntryRange{pos, pos + n}:
+			return true
+		case <-timeout.C:
+			return false
+		}
+	})
+
+	if m.listeners.Size() > 0 {
+		msg := m.Buffer.Bytes()[pos : pos+n]
+		m.listeners.Range(func(ch chan []byte, _ struct{}) bool {
 			select {
-			case ch <- &logEntryRange{pos, pos + n}:
-				return true
 			case <-timeout.C:
-				logging.Warn().Msg("mem logger: timeout logging to channel")
 				return false
+			case ch <- msg:
+				return true
 			}
 		})
-		return
 	}
 }
 
@@ -136,29 +124,6 @@ func (m *memLogger) writeBuf(b []byte) (pos int, err error) {
 	pos = m.Len()
 	_, err = m.Buffer.Write(b)
 	return
-}
-
-// Run implements zerolog.Hook.
-func (m *memLogger) Run(e *zerolog.Event, level zerolog.Level, message string) {
-	bufStruct := m.bufPool.Get().(*buffer)
-	buf := bufStruct.data
-	defer func() {
-		bufStruct.data = bufStruct.data[:0]
-		m.bufPool.Put(bufStruct)
-	}()
-
-	buf = logging.FormatLogEntryHTML(level, message, buf)
-	n := len(buf)
-
-	m.truncateIfNeeded(n)
-
-	pos, err := m.writeBuf(buf)
-	if err != nil {
-		// not logging the error here, it will cause Run to be called again = infinite loop
-		return
-	}
-
-	m.notifyWS(pos, n)
 }
 
 // Write implements io.Writer.
@@ -176,17 +141,16 @@ func (m *memLogger) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (m *memLogger) ServeHTTP(config config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
-	conn, err := utils.InitiateWS(config, w, r)
+func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	conn, err := gpwebsocket.Initiate(w, r)
 	if err != nil {
-		utils.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 
 	logCh := make(chan *logEntryRange)
 	m.connChans.Store(logCh, struct{}{})
 
-	/* trunk-ignore(golangci-lint/errcheck) */
 	defer func() {
 		_ = conn.CloseNow()
 
@@ -197,11 +161,25 @@ func (m *memLogger) ServeHTTP(config config.ConfigInstance, w http.ResponseWrite
 	}()
 
 	if err := m.wsInitial(r.Context(), conn); err != nil {
-		utils.HandleErr(w, r, err)
+		gphttp.ServerError(w, r, err)
 		return
 	}
 
 	m.wsStreamLog(r.Context(), conn, logCh)
+}
+
+func (m *memLogger) events() (logs <-chan []byte, cancel func()) {
+	ch := make(chan []byte)
+	m.notifyLock.Lock()
+	defer m.notifyLock.Unlock()
+	m.listeners.Store(ch, struct{}{})
+
+	return ch, func() {
+		m.notifyLock.Lock()
+		defer m.notifyLock.Unlock()
+		m.listeners.Delete(ch)
+		close(ch)
+	}
 }
 
 func (m *memLogger) writeBytes(ctx context.Context, conn *websocket.Conn, b []byte) error {
