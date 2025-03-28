@@ -20,7 +20,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.2 // system info metrics
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.36.0 // encrypting password with bcrypt
-	golang.org/x/net v0.37.0 // HTTP header utilities
+	golang.org/x/net v0.38.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.28.0 // oauth2 authentication
 	golang.org/x/text v0.23.0 // string utilities
 	golang.org/x/time v0.11.0 // time utilities
