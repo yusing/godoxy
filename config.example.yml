@@ -15,7 +15,7 @@
 #   options:
 #     auth_token: c1234565789-abcdefghijklmnopqrst # your zone API token
 
-# 3. other providers, see https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
+# 3. other providers, see https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
 
 entrypoint:
   # Below define an example of middleware config
@@ -73,7 +73,7 @@ providers:
   #     url: https://discord.com/api/webhooks/...
   #     template: discord # this means use payload template from internal/notif/templates/discord.json
 
-# Check https://github.com/yusing/go-proxy/wiki/Certificates-and-domain-matching#domain-matching
+# Check https://github.com/yusing/godoxy/wiki/Certificates-and-domain-matching#domain-matching
 # for explaination of `match_domains`
 #
 # match_domains:
