@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/docker"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type (
@@ -18,11 +18,6 @@ type (
 		StopMethod    StopMethod    `json:"stop_method,omitempty"`
 		StopSignal    Signal        `json:"stop_signal,omitempty"`
 		StartEndpoint string        `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
-
-		DockerHost       string `json:"docker_host,omitempty"`
-		ContainerName    string `json:"container_name,omitempty"`
-		ContainerID      string `json:"container_id,omitempty"`
-		ContainerRunning bool   `json:"container_running,omitempty"`
 	}
 	StopMethod string
 	Signal     string
@@ -40,28 +35,19 @@ var validSignals = map[string]struct{}{
 	"INT": {}, "TERM": {}, "HUP": {}, "QUIT": {},
 }
 
-func ValidateConfig(cont *docker.Container) (*Config, E.Error) {
-	if cont == nil {
+func ValidateConfig(cont *docker.Container) (*Config, gperr.Error) {
+	if cont == nil || cont.IdleTimeout == "" {
 		return nil, nil
 	}
 
-	if cont.IdleTimeout == "" {
-		return &Config{
-			DockerHost:       cont.DockerHost,
-			ContainerName:    cont.ContainerName,
-			ContainerID:      cont.ContainerID,
-			ContainerRunning: cont.Running,
-		}, nil
-	}
+	errs := gperr.NewBuilder("invalid idlewatcher config")
 
-	errs := E.NewBuilder("invalid idlewatcher config")
-
-	idleTimeout := E.Collect(errs, validateDurationPostitive, cont.IdleTimeout)
-	wakeTimeout := E.Collect(errs, validateDurationPostitive, cont.WakeTimeout)
-	stopTimeout := E.Collect(errs, validateDurationPostitive, cont.StopTimeout)
-	stopMethod := E.Collect(errs, validateStopMethod, cont.StopMethod)
-	signal := E.Collect(errs, validateSignal, cont.StopSignal)
-	startEndpoint := E.Collect(errs, validateStartEndpoint, cont.StartEndpoint)
+	idleTimeout := gperr.Collect(errs, validateDurationPostitive, cont.IdleTimeout)
+	wakeTimeout := gperr.Collect(errs, validateDurationPostitive, cont.WakeTimeout)
+	stopTimeout := gperr.Collect(errs, validateDurationPostitive, cont.StopTimeout)
+	stopMethod := gperr.Collect(errs, validateStopMethod, cont.StopMethod)
+	signal := gperr.Collect(errs, validateSignal, cont.StopSignal)
+	startEndpoint := gperr.Collect(errs, validateStartEndpoint, cont.StartEndpoint)
 
 	if errs.HasError() {
 		return nil, errs.Error()
@@ -74,11 +60,6 @@ func ValidateConfig(cont *docker.Container) (*Config, E.Error) {
 		StopMethod:    stopMethod,
 		StopSignal:    signal,
 		StartEndpoint: startEndpoint,
-
-		DockerHost:       cont.DockerHost,
-		ContainerName:    cont.ContainerName,
-		ContainerID:      cont.ContainerID,
-		ContainerRunning: cont.Running,
 	}, nil
 }
 

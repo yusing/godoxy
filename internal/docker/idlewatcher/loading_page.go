@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 )
 
 type templateData struct {
@@ -23,11 +23,11 @@ func (w *Watcher) makeLoadingPageBody() []byte {
 	msg := w.ContainerName + " is starting..."
 
 	data := new(templateData)
-	data.CheckRedirectHeader = common.HeaderCheckRedirect
+	data.CheckRedirectHeader = httpheaders.HeaderGoDoxyCheckRedirect
 	data.Title = w.ContainerName
 	data.Message = strings.ReplaceAll(msg, " ", "&ensp;")
 
-	buf := bytes.NewBuffer(make([]byte, len(loadingPage)+len(data.Title)+len(data.Message)+len(common.HeaderCheckRedirect)))
+	buf := bytes.NewBuffer(make([]byte, len(loadingPage)+len(data.Title)+len(data.Message)+len(httpheaders.HeaderGoDoxyCheckRedirect)))
 	err := loadingPageTmpl.Execute(buf, data)
 	if err != nil { // should never happen in production
 		panic(err)
