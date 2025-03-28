@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/provider/types"
@@ -65,8 +66,15 @@ func NewDockerProvider(name string, dockerHost string) *Provider {
 	return p
 }
 
+func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
+	p := newProvider(types.ProviderTypeAgent)
+	agent := &AgentProvider{
+		AgentConfig: cfg,
+		docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
+	}
+	p.ProviderImpl = agent
 	p.watcher = p.NewWatcher()
-	return
+	return p
 }
 
 func (p *Provider) GetType() types.ProviderType {
@@ -78,7 +86,7 @@ func (p *Provider) MarshalText() ([]byte, error) {
 	return []byte(p.String()), nil
 }
 
-func (p *Provider) startRoute(parent task.Parent, r *route.Route) E.Error {
+func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
 	err := r.Start(parent)
 	if err != nil {
 		delete(p.routes, r.Alias)
@@ -150,6 +158,7 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 			delete(routes, alias)
 			continue
 		}
+		r.FinalizeHomepageConfig()
 	}
 	return routes, errs.Error()
 }
