@@ -1,21 +1,24 @@
 package route
 
 import (
+	"crypto/tls"
 	"net/http"
 
+	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
 	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	gphttp "github.com/yusing/go-proxy/internal/net/http"
-	"github.com/yusing/go-proxy/internal/net/http/accesslog"
-	"github.com/yusing/go-proxy/internal/net/http/loadbalancer"
-	loadbalance "github.com/yusing/go-proxy/internal/net/http/loadbalancer/types"
-	"github.com/yusing/go-proxy/internal/net/http/middleware"
-	metricslogger "github.com/yusing/go-proxy/internal/net/http/middleware/metrics_logger"
-	"github.com/yusing/go-proxy/internal/net/http/reverseproxy"
+	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer"
+	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
+	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
+	metricslogger "github.com/yusing/go-proxy/internal/net/gphttp/middleware/metrics_logger"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -40,22 +43,44 @@ type (
 
 func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	httpConfig := base.HTTPConfig
+	proxyURL := base.ProxyURL
 
-	if httpConfig.NoTLSVerify {
-		trans = gphttp.DefaultTransportNoTLS
-	}
-	if httpConfig.ResponseHeaderTimeout > 0 {
-		trans = trans.Clone()
-		trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
+	var trans *http.Transport
+	a := base.Agent()
+	if a != nil {
+		trans = a.Transport()
+		proxyURL = agent.HTTPProxyURL
+	} else {
+		trans = gphttp.NewTransport()
+		if httpConfig.NoTLSVerify {
+			trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		if httpConfig.ResponseHeaderTimeout > 0 {
+			trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
+		}
 	}
 
 	service := base.TargetName()
-	rp := reverseproxy.NewReverseProxy(service, base.ProxyURL, trans)
+	rp := reverseproxy.NewReverseProxy(service, proxyURL, trans)
 
 	if len(base.Middlewares) > 0 {
 		err := middleware.PatchReverseProxy(rp, base.Middlewares)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	if a != nil {
+		headers := &agentproxy.AgentProxyHeaders{
+			Host:                  base.ProxyURL.Host,
+			IsHTTPS:               base.ProxyURL.Scheme == "https",
+			SkipTLSVerify:         httpConfig.NoTLSVerify,
+			ResponseHeaderTimeout: int(httpConfig.ResponseHeaderTimeout.Seconds()),
+		}
+		ori := rp.HandlerFunc
+		rp.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+			agentproxy.SetAgentProxyHeaders(r, headers)
+			ori(w, r)
 		}
 	}
 
@@ -72,6 +97,9 @@ func (r *ReveseProxyRoute) String() string {
 
 // Start implements task.TaskStarter.
 func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
+	if existing, ok := routes.GetHTTPRoute(r.TargetName()); ok && !r.UseLoadBalance() {
+		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
+	}
 	r.task = parent.Subtask("http."+r.TargetName(), false)
 
 	switch {
@@ -85,15 +113,15 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.HealthMon = waker
 	case r.UseHealthCheck():
 		if r.IsDocker() {
-			client, err := docker.ConnectClient(r.Idlewatcher.DockerHost)
+			client, err := docker.NewClient(r.Container.DockerHost)
 			if err == nil {
-				fallback := monitor.NewHTTPHealthChecker(r.rp.TargetURL, r.HealthCheck)
-				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Idlewatcher.ContainerID, r.TargetName(), r.HealthCheck, fallback)
+				fallback := r.newHealthMonitor()
+				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Container.ContainerID, r.TargetName(), r.HealthCheck, fallback)
 				r.task.OnCancel("close_docker_client", client.Close)
 			}
 		}
 		if r.HealthMon == nil {
-			r.HealthMon = monitor.NewHTTPHealthMonitor(r.rp.TargetURL, r.HealthCheck)
+			r.HealthMon = r.newHealthMonitor()
 		}
 	}
 
@@ -177,6 +205,17 @@ func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {
 	return r.HealthMon
 }
 
+func (r *ReveseProxyRoute) newHealthMonitor() interface {
+	health.HealthMonitor
+	health.HealthChecker
+} {
+	if a := r.Agent(); a != nil {
+		target := monitor.AgentTargetFromURL(r.ProxyURL)
+		return monitor.NewAgentProxiedMonitor(a, r.HealthCheck, target)
+	}
+	return monitor.NewHTTPHealthMonitor(r.ProxyURL, r.HealthCheck)
+}
+
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
@@ -186,7 +225,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		linked = l.(*ReveseProxyRoute)
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
-		if linked.Homepage.IsEmpty() && !r.Homepage.IsEmpty() {
+		if linked.Homepage == nil {
 			linked.Homepage = r.Homepage
 		}
 	} else {
@@ -205,7 +244,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	}
 	r.loadBalancer = lb
 
-	server := loadbalance.NewServer(r.task.Name(), r.rp.TargetURL, r.LoadBalance.Weight, r.handler, r.HealthMon)
+	server := loadbalance.NewServer(r.task.Name(), r.ProxyURL, r.LoadBalance.Weight, r.handler, r.HealthMon)
 	lb.AddServer(server)
 	r.task.OnCancel("lb_remove_server", func() {
 		lb.RemoveServer(server)

@@ -3,6 +3,7 @@ package types
 import (
 	"net/http"
 
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/docker"
 	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/homepage"
@@ -10,7 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
-	loadbalance "github.com/yusing/go-proxy/internal/net/http/loadbalancer/types"
+	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 )
 
 type (
@@ -28,10 +29,14 @@ type (
 		IdlewatcherConfig() *idlewatcher.Config
 		HealthCheckConfig() *health.HealthCheckConfig
 		LoadBalanceConfig() *loadbalance.Config
-		HomepageConfig() *homepage.Item
+		HomepageConfig() *homepage.ItemConfig
+		HomepageItem() *homepage.Item
 		ContainerInfo() *docker.Container
 
+		Agent() *agent.AgentConfig
+
 		IsDocker() bool
+		IsAgent() bool
 		UseLoadBalance() bool
 		UseIdleWatcher() bool
 		UseHealthCheck() bool

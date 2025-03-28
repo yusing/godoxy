@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
@@ -47,6 +47,9 @@ func (r *StreamRoute) String() string {
 
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
+	if existing, ok := routes.GetStreamRoute(r.TargetName()); ok {
+		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
+	}
 	r.task = parent.Subtask("stream." + r.TargetName())
 	r.Stream = NewStream(r)
 	parent.OnCancel("finish", func() {
@@ -64,10 +67,10 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.HealthMon = waker
 	case r.UseHealthCheck():
 		if r.IsDocker() {
-			client, err := docker.ConnectClient(r.IdlewatcherConfig().DockerHost)
+			client, err := docker.NewClient(r.Container.DockerHost)
 			if err == nil {
 				fallback := monitor.NewRawHealthChecker(r.TargetURL(), r.HealthCheck)
-				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.IdlewatcherConfig().ContainerID, r.TargetName(), r.HealthCheck, fallback)
+				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Container.ContainerID, r.TargetName(), r.HealthCheck, fallback)
 				r.task.OnCancel("close_docker_client", client.Close)
 			}
 		}

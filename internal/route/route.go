@@ -2,21 +2,24 @@ package route
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/docker"
 	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
 	"github.com/yusing/go-proxy/internal/common"
-	E "github.com/yusing/go-proxy/internal/error"
-	"github.com/yusing/go-proxy/internal/net/http/accesslog"
-	loadbalance "github.com/yusing/go-proxy/internal/net/http/loadbalancer/types"
+	config "github.com/yusing/go-proxy/internal/config/types"
+	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/route/rules"
 	"github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -38,7 +41,7 @@ type (
 		HealthCheck  *health.HealthCheckConfig  `json:"healthcheck,omitempty"`
 		LoadBalance  *loadbalance.Config        `json:"load_balance,omitempty"`
 		Middlewares  map[string]docker.LabelMap `json:"middlewares,omitempty"`
-		Homepage     *homepage.Item             `json:"homepage,omitempty"`
+		Homepage     *homepage.ItemConfig       `json:"homepage,omitempty"`
 		AccessLog    *accesslog.Config          `json:"access_log,omitempty"`
 
 		Metadata `deserialize:"-"`
@@ -160,6 +163,17 @@ func (r *Route) Type() types.RouteType {
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
 
+func (r *Route) Agent() *agent.AgentConfig {
+	if r.Container == nil {
+		return nil
+	}
+	return r.Container.Agent
+}
+
+func (r *Route) IsAgent() bool {
+	return r.Container != nil && r.Container.Agent != nil
+}
+
 func (r *Route) HealthMonitor() health.HealthMonitor {
 	return r.impl.HealthMonitor()
 }
@@ -176,8 +190,16 @@ func (r *Route) LoadBalanceConfig() *loadbalance.Config {
 	return r.LoadBalance
 }
 
-func (r *Route) HomepageConfig() *homepage.Item {
-	return r.Homepage
+func (r *Route) HomepageConfig() *homepage.ItemConfig {
+	return r.Homepage.GetOverride(r.Alias)
+}
+
+func (r *Route) HomepageItem() *homepage.Item {
+	return &homepage.Item{
+		Alias:      r.Alias,
+		Provider:   r.Provider,
+		ItemConfig: r.HomepageConfig(),
+	}
 }
 
 func (r *Route) ContainerInfo() *docker.Container {
@@ -202,7 +224,7 @@ func (r *Route) ShouldExclude() bool {
 			return true
 		case r.IsZeroPort() && !r.UseIdleWatcher():
 			return true
-		case r.Container.IsDatabase && !r.Container.IsExplicit:
+		case !r.Container.IsExplicit && r.Container.IsBlacklisted():
 			return true
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
 			return true
@@ -244,67 +266,68 @@ func (r *Route) Finalize() {
 		switch {
 		case !isDocker:
 			r.Host = "localhost"
-		case cont.PrivateIP != "":
-			r.Host = cont.PrivateIP
-		case cont.PublicIP != "":
-			r.Host = cont.PublicIP
+		case cont.PrivateHostname != "":
+			r.Host = cont.PrivateHostname
+		case cont.PublicHostname != "":
+			r.Host = cont.PublicHostname
 		}
 	}
 
 	lp, pp := r.Port.Listening, r.Port.Proxy
 
 	if isDocker {
-		if port, ok := common.ServiceNamePortMapTCP[cont.ImageName]; ok {
+		scheme, port, ok := getSchemePortByImageName(cont.Image.Name)
+		if ok {
+			if r.Scheme == "" {
+				r.Scheme = types.Scheme(scheme)
+			}
 			if pp == 0 {
 				pp = port
 			}
-			if r.Scheme == "" {
-				r.Scheme = "tcp"
-			}
-		} else if port, ok := common.ImageNamePortMap[cont.ImageName]; ok {
-			if pp == 0 {
-				pp = port
-			}
-			if r.Scheme == "" {
-				r.Scheme = "http"
-			}
+		}
+	}
+
+	if scheme, port, ok := getSchemePortByAlias(r.Alias); ok {
+		if r.Scheme == "" {
+			r.Scheme = types.Scheme(scheme)
+		}
+		if pp == 0 {
+			pp = port
 		}
 	}
 
 	if pp == 0 {
 		switch {
-		case r.Scheme == "https":
-			pp = 443
-		case !isDocker:
-			pp = 80
-		default:
+		case isDocker:
 			pp = lowestPort(cont.PrivatePortMapping)
 			if pp == 0 {
 				pp = lowestPort(cont.PublicPortMapping)
 			}
+		case r.Scheme == "https":
+			pp = 443
+		default:
+			pp = 80
 		}
 	}
 
 	if isDocker {
+		if r.Scheme == "" {
+			for _, p := range cont.PublicPortMapping {
+				if p.PrivatePort == uint16(pp) && p.Type == "udp" {
+					r.Scheme = "udp"
+					break
+				}
+			}
+		}
 		// replace private port with public port if using public IP.
-		if r.Host == cont.PublicIP {
+		if r.Host == cont.PublicHostname {
 			if p, ok := cont.PrivatePortMapping[pp]; ok {
 				pp = int(p.PublicPort)
 			}
-		}
-		// replace public port with private port if using private IP.
-		if r.Host == cont.PrivateIP {
+		} else {
+			// replace public port with private port if using private IP.
 			if p, ok := cont.PublicPortMapping[pp]; ok {
 				pp = int(p.PrivatePort)
-			}
-		}
-
-		if r.Scheme == "" {
-			switch {
-			case r.Host == cont.PublicIP && cont.PublicPortMapping[pp].Type == "udp":
-				r.Scheme = "udp"
-			case r.Host == cont.PrivateIP && cont.PrivatePortMapping[pp].Type == "udp":
-				r.Scheme = "udp"
 			}
 		}
 	}
@@ -313,7 +336,7 @@ func (r *Route) Finalize() {
 		switch {
 		case lp != 0:
 			r.Scheme = "tcp"
-		case strings.HasSuffix(strconv.Itoa(pp), "443"):
+		case pp%1000 == 443:
 			r.Scheme = "https"
 		default: // assume its http
 			r.Scheme = "http"
@@ -323,7 +346,7 @@ func (r *Route) Finalize() {
 	r.Port.Listening, r.Port.Proxy = lp, pp
 
 	if r.HealthCheck == nil {
-		r.HealthCheck = health.DefaultHealthConfig
+		r.HealthCheck = health.DefaultHealthConfig()
 	}
 
 	if !r.HealthCheck.Disable {
@@ -346,13 +369,68 @@ func (r *Route) Finalize() {
 			cont.StopMethod = common.StopMethodDefault
 		}
 	}
+}
 
-	if r.Homepage.IsEmpty() {
-		r.Homepage = homepage.NewItem(r.Alias)
+func (r *Route) FinalizeHomepageConfig() {
+	if r.Alias == "" {
+		panic("alias is empty")
+	}
+
+	isDocker := r.Container != nil
+
+	if r.Homepage == nil {
+		r.Homepage = &homepage.ItemConfig{Show: true}
+	}
+	r.Homepage = r.Homepage.GetOverride(r.Alias)
+
+	hp := r.Homepage
+
+	var key string
+	if hp.Name == "" {
+		if r.Container != nil {
+			key = r.Container.Image.Name
+		} else {
+			key = r.Alias
+		}
+		displayName, ok := internal.GetDisplayName(key)
+		if ok {
+			hp.Name = displayName
+		} else {
+			hp.Name = strutils.Title(
+				strings.ReplaceAll(
+					strings.ReplaceAll(key, "-", " "),
+					"_", " ",
+				),
+			)
+		}
+	}
+
+	if hp.Category == "" {
+		if config.GetInstance().Value().Homepage.UseDefaultCategories {
+			if isDocker {
+				key = r.Container.Image.Name
+			} else {
+				key = strings.ToLower(r.Alias)
+			}
+			if category, ok := homepage.PredefinedCategories[key]; ok {
+				hp.Category = category
+			}
+		}
+
+		if hp.Category == "" {
+			switch {
+			case r.UseLoadBalance():
+				hp.Category = "Load-balanced"
+			case isDocker:
+				hp.Category = "Docker"
+			default:
+				hp.Category = "Others"
+			}
+		}
 	}
 }
 
-func lowestPort(ports map[int]dockertypes.Port) (res int) {
+func lowestPort(ports map[int]container.Port) (res int) {
 	cmp := (uint16)(65535)
 	for port, v := range ports {
 		if v.PrivatePort < cmp {

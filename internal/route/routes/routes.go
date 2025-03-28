@@ -10,6 +10,19 @@ var (
 	streamRoutes = F.NewMapOf[string, types.StreamRoute]()
 )
 
+func RangeRoutes(callback func(alias string, r types.Route)) {
+	httpRoutes.RangeAll(func(alias string, r types.HTTPRoute) {
+		callback(alias, r)
+	})
+	streamRoutes.RangeAll(func(alias string, r types.StreamRoute) {
+		callback(alias, r)
+	})
+}
+
+func NumRoutes() int {
+	return httpRoutes.Size() + streamRoutes.Size()
+}
+
 func GetHTTPRoutes() F.Map[string, types.HTTPRoute] {
 	return httpRoutes
 }
@@ -32,6 +45,14 @@ func GetHTTPRoute(alias string) (types.HTTPRoute, bool) {
 }
 
 func GetStreamRoute(alias string) (types.StreamRoute, bool) {
+	return streamRoutes.Load(alias)
+}
+
+func GetRoute(alias string) (types.Route, bool) {
+	r, ok := httpRoutes.Load(alias)
+	if ok {
+		return r, true
+	}
 	return streamRoutes.Load(alias)
 }
 
