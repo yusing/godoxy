@@ -31,7 +31,7 @@ func TestSplit(t *testing.T) {
 	for sep, rsep := range tests {
 		t.Run(sep, func(t *testing.T) {
 			expected := strings.Split(alphaNumeric, sep)
-			ExpectDeepEqual(t, SplitRune(alphaNumeric, rsep), expected)
+			ExpectEqual(t, SplitRune(alphaNumeric, rsep), expected)
 			ExpectEqual(t, JoinRune(expected, rsep), alphaNumeric)
 		})
 	}

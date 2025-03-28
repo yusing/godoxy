@@ -42,7 +42,7 @@ func TestDeserialize(t *testing.T) {
 		var s2 S
 		err := Deserialize(testStructSerialized, &s2)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, s2, testStruct)
+		ExpectEqual(t, s2, testStruct)
 	})
 }
 
@@ -177,21 +177,21 @@ func TestStringToSlice(t *testing.T) {
 		convertible, err := ConvertString("a,b,c", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, dst, []string{"a", "b", "c"})
+		ExpectEqual(t, dst, []string{"a", "b", "c"})
 	})
 	t.Run("yaml-like", func(t *testing.T) {
 		dst := make([]string, 0)
 		convertible, err := ConvertString("- a\n- b\n- c", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, dst, []string{"a", "b", "c"})
+		ExpectEqual(t, dst, []string{"a", "b", "c"})
 	})
 	t.Run("single-line-yaml-like", func(t *testing.T) {
 		dst := make([]string, 0)
 		convertible, err := ConvertString("- a", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, dst, []string{"a"})
+		ExpectEqual(t, dst, []string{"a"})
 	})
 }
 
@@ -215,7 +215,7 @@ func TestStringToMap(t *testing.T) {
 		convertible, err := ConvertString("  a: b\n  c: d", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, dst, map[string]string{"a": "b", "c": "d"})
+		ExpectEqual(t, dst, map[string]string{"a": "b", "c": "d"})
 	})
 }
 
@@ -242,7 +242,7 @@ func TestStringToStruct(t *testing.T) {
 		convertible, err := ConvertString("  A: a\n  B: 123", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, dst, struct {
+		ExpectEqual(t, dst, struct {
 			A string
 			B int
 		}{"a", 123})

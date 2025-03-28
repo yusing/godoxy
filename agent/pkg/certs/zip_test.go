@@ -13,7 +13,7 @@ func TestZipCert(t *testing.T) {
 
 	ca2, crt2, key2, err := ExtractCert(zipData)
 	ExpectNoError(t, err)
-	ExpectBytesEqual(t, ca, ca2)
-	ExpectBytesEqual(t, crt, crt2)
-	ExpectBytesEqual(t, key, key2)
+	ExpectEqual(t, ca, ca2)
+	ExpectEqual(t, crt, crt2)
+	ExpectEqual(t, key, key2)
 }

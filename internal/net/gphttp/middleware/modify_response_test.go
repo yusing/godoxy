@@ -48,9 +48,9 @@ func TestModifyResponse(t *testing.T) {
 	t.Run("set_options", func(t *testing.T) {
 		mr, err := ModifyResponse.New(opts)
 		ExpectNoError(t, err)
-		ExpectDeepEqual(t, mr.impl.(*modifyResponse).SetHeaders, opts["set_headers"].(map[string]string))
-		ExpectDeepEqual(t, mr.impl.(*modifyResponse).AddHeaders, opts["add_headers"].(map[string]string))
-		ExpectDeepEqual(t, mr.impl.(*modifyResponse).HideHeaders, opts["hide_headers"].([]string))
+		ExpectEqual(t, mr.impl.(*modifyResponse).SetHeaders, opts["set_headers"].(map[string]string))
+		ExpectEqual(t, mr.impl.(*modifyResponse).AddHeaders, opts["add_headers"].(map[string]string))
+		ExpectEqual(t, mr.impl.(*modifyResponse).HideHeaders, opts["hide_headers"].([]string))
 	})
 
 	t.Run("response_headers", func(t *testing.T) {

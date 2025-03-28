@@ -43,7 +43,7 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 			if err != nil {
 				ExpectNoError(t, err)
 			}
-			ExpectDeepEqual(t, cfg.HTTPConfig, tt.expected)
+			ExpectEqual(t, cfg.HTTPConfig, tt.expected)
 		})
 	}
 }

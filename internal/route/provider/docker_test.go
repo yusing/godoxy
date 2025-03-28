@@ -104,10 +104,10 @@ func TestApplyLabel(t *testing.T) {
 	ExpectTrue(t, a.NoTLSVerify)
 	ExpectTrue(t, b.NoTLSVerify)
 
-	ExpectDeepEqual(t, a.PathPatterns, pathPatternsExpect)
+	ExpectEqual(t, a.PathPatterns, pathPatternsExpect)
 	ExpectEqual(t, len(b.PathPatterns), 0)
 
-	ExpectDeepEqual(t, a.Middlewares, middlewaresExpect)
+	ExpectEqual(t, a.Middlewares, middlewaresExpect)
 	ExpectEqual(t, len(b.Middlewares), 0)
 
 	ExpectEqual(t, a.Container.IdleTimeout, "")

@@ -28,8 +28,8 @@ func TestPEMPair(t *testing.T) {
 			var pp PEMPair
 			err := pp.Load(p.String())
 			ExpectNoError(t, err)
-			ExpectBytesEqual(t, p.Cert, pp.Cert)
-			ExpectBytesEqual(t, p.Key, pp.Key)
+			ExpectEqual(t, p.Cert, pp.Cert)
+			ExpectEqual(t, p.Key, pp.Key)
 		})
 	}
 }

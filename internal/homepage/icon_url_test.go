@@ -118,7 +118,7 @@ func TestIconURL(t *testing.T) {
 			} else {
 				tc.wantValue.FullValue = tc.input
 				ExpectNoError(t, err)
-				ExpectDeepEqual(t, u, tc.wantValue)
+				ExpectEqual(t, u, tc.wantValue)
 			}
 		})
 	}

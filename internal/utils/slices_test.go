@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	utils "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestIntersect(t *testing.T) {
@@ -19,7 +19,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -30,7 +30,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 	})
 	t.Run("ints", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -54,7 +54,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 	})
 	t.Run("complex", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestIntersect(t *testing.T) {
 			slices.SortFunc(want, func(i T, j T) int {
 				return strings.Compare(i.A, j.A)
 			})
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -90,7 +90,7 @@ func TestIntersect(t *testing.T) {
 			slices.SortFunc(want, func(i T, j T) int {
 				return strings.Compare(i.A, j.A)
 			})
-			utils.ExpectDeepEqual(t, result, want)
+			ExpectEqual(t, result, want)
 		})
 	})
 }

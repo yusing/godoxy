@@ -26,7 +26,7 @@ func TestParseRetention(t *testing.T) {
 			if !test.shouldErr {
 				ExpectNoError(t, err)
 			} else {
-				ExpectDeepEqual(t, r, test.expected)
+				ExpectEqual(t, r, test.expected)
 			}
 		})
 	}

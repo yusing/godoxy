@@ -15,7 +15,7 @@ func TestAccessLoggerJSONKeepHeaders(t *testing.T) {
 	entry := getJSONEntry(t, config)
 	for k, v := range req.Header {
 		if k != "Cookie" {
-			ExpectDeepEqual(t, entry.Headers[k], v)
+			ExpectEqual(t, entry.Headers[k], v)
 		}
 	}
 
@@ -24,8 +24,8 @@ func TestAccessLoggerJSONKeepHeaders(t *testing.T) {
 		"User-Agent": FieldModeDrop,
 	}
 	entry = getJSONEntry(t, config)
-	ExpectDeepEqual(t, entry.Headers["Referer"], []string{RedactedValue})
-	ExpectDeepEqual(t, entry.Headers["User-Agent"], nil)
+	ExpectEqual(t, entry.Headers["Referer"], []string{RedactedValue})
+	ExpectEqual(t, entry.Headers["User-Agent"], nil)
 }
 
 func TestAccessLoggerJSONDropHeaders(t *testing.T) {
@@ -33,7 +33,7 @@ func TestAccessLoggerJSONDropHeaders(t *testing.T) {
 	config.Fields.Headers.Default = FieldModeDrop
 	entry := getJSONEntry(t, config)
 	for k := range req.Header {
-		ExpectDeepEqual(t, entry.Headers[k], nil)
+		ExpectEqual(t, entry.Headers[k], nil)
 	}
 
 	config.Fields.Headers.Config = map[string]FieldMode{
@@ -41,8 +41,8 @@ func TestAccessLoggerJSONDropHeaders(t *testing.T) {
 		"User-Agent": FieldModeRedact,
 	}
 	entry = getJSONEntry(t, config)
-	ExpectDeepEqual(t, entry.Headers["Referer"], []string{req.Header.Get("Referer")})
-	ExpectDeepEqual(t, entry.Headers["User-Agent"], []string{RedactedValue})
+	ExpectEqual(t, entry.Headers["Referer"], []string{req.Header.Get("Referer")})
+	ExpectEqual(t, entry.Headers["User-Agent"], []string{RedactedValue})
 }
 
 func TestAccessLoggerJSONRedactHeaders(t *testing.T) {
@@ -52,7 +52,7 @@ func TestAccessLoggerJSONRedactHeaders(t *testing.T) {
 	ExpectEqual(t, len(entry.Headers["Cookie"]), 0)
 	for k := range req.Header {
 		if k != "Cookie" {
-			ExpectDeepEqual(t, entry.Headers[k], []string{RedactedValue})
+			ExpectEqual(t, entry.Headers[k], []string{RedactedValue})
 		}
 	}
 }
@@ -83,14 +83,14 @@ func TestAccessLoggerJSONDropQuery(t *testing.T) {
 	config := DefaultConfig()
 	config.Fields.Query.Default = FieldModeDrop
 	entry := getJSONEntry(t, config)
-	ExpectDeepEqual(t, entry.Query["foo"], nil)
-	ExpectDeepEqual(t, entry.Query["bar"], nil)
+	ExpectEqual(t, entry.Query["foo"], nil)
+	ExpectEqual(t, entry.Query["bar"], nil)
 }
 
 func TestAccessLoggerJSONRedactQuery(t *testing.T) {
 	config := DefaultConfig()
 	config.Fields.Query.Default = FieldModeRedact
 	entry := getJSONEntry(t, config)
-	ExpectDeepEqual(t, entry.Query["foo"], []string{RedactedValue})
-	ExpectDeepEqual(t, entry.Query["bar"], []string{RedactedValue})
+	ExpectEqual(t, entry.Query["foo"], []string{RedactedValue})
+	ExpectEqual(t, entry.Query["bar"], []string{RedactedValue})
 }

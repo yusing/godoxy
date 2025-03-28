@@ -90,11 +90,11 @@ func TestSystemInfo(t *testing.T) {
 	// Compare original and decoded
 	ExpectEqual(t, decoded.Timestamp, testInfo.Timestamp)
 	ExpectEqual(t, *decoded.CPUAverage, *testInfo.CPUAverage)
-	ExpectDeepEqual(t, decoded.Memory, testInfo.Memory)
-	ExpectDeepEqual(t, decoded.Disks, testInfo.Disks)
-	ExpectDeepEqual(t, decoded.DisksIO, testInfo.DisksIO)
-	ExpectDeepEqual(t, decoded.Network, testInfo.Network)
-	ExpectDeepEqual(t, decoded.Sensors, testInfo.Sensors)
+	ExpectEqual(t, decoded.Memory, testInfo.Memory)
+	ExpectEqual(t, decoded.Disks, testInfo.Disks)
+	ExpectEqual(t, decoded.DisksIO, testInfo.DisksIO)
+	ExpectEqual(t, decoded.Network, testInfo.Network)
+	ExpectEqual(t, decoded.Sensors, testInfo.Sensors)
 
 	// Test nil fields
 	nilInfo := &SystemInfo{
@@ -108,7 +108,7 @@ func TestSystemInfo(t *testing.T) {
 	err = json.Unmarshal(data, &decodedNil)
 	ExpectNoError(t, err)
 
-	ExpectDeepEqual(t, decodedNil.Timestamp, nilInfo.Timestamp)
+	ExpectEqual(t, decodedNil.Timestamp, nilInfo.Timestamp)
 	ExpectTrue(t, decodedNil.CPUAverage == nil)
 	ExpectTrue(t, decodedNil.Memory == nil)
 	ExpectTrue(t, decodedNil.Disks == nil)

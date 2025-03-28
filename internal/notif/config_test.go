@@ -156,7 +156,7 @@ func TestNotificationConfig(t *testing.T) {
 			} else {
 				ExpectNoError(t, err)
 				ExpectEqual(t, provider.(string), cfg.ProviderName)
-				ExpectDeepEqual(t, cfg.Provider, tt.expected)
+				ExpectEqual(t, cfg.Provider, tt.expected)
 			}
 		})
 	}
