@@ -197,7 +197,7 @@ func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Reque
 		MaxAge:   300,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   common.APIJWTSecure,
 		Path:     "/",
 	})
 

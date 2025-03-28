@@ -36,6 +36,7 @@ var (
 
 	PrometheusEnabled = GetEnvBool("PROMETHEUS_ENABLED", false)
 
+	APIJWTSecure   = GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(GetEnvString("API_JWT_SECRET", ""))
 	APIJWTTokenTTL = GetDurationEnv("API_JWT_TOKEN_TTL", time.Hour)
 	APIUser        = GetEnvString("API_USER", "admin")

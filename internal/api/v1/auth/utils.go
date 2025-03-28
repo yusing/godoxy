@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -43,7 +44,7 @@ func setTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, 
 		MaxAge:   int(ttl.Seconds()),
 		Domain:   cookieFQDN(r),
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   common.APIJWTSecure,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -56,6 +57,7 @@ func clearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
 		MaxAge:   -1,
 		Domain:   cookieFQDN(r),
 		HttpOnly: true,
+		Secure:   common.APIJWTSecure,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
