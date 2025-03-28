@@ -11,9 +11,9 @@ import (
 
 type (
 	HealthCheckResult struct {
-		Healthy bool
-		Detail  string
-		Latency time.Duration
+		Healthy bool          `json:"healthy"`
+		Detail  string        `json:"detail"`
+		Latency time.Duration `json:"latency"`
 	}
 	WithHealthInfo interface {
 		Status() Status

@@ -34,6 +34,8 @@ const (
 	ActionContainerDie
 	ActionContainerDestroy
 
+	ActionForceReload
+
 	actionContainerWakeMask  = ActionContainerCreate | ActionContainerStart | ActionContainerUnpause
 	actionContainerSleepMask = ActionContainerKill | ActionContainerStop | ActionContainerPause | ActionContainerDie
 )

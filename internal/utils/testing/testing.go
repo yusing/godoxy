@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"reflect"
@@ -97,6 +98,14 @@ func ExpectEqualAny[T comparable](t *testing.T, got T, wants []T) {
 func ExpectDeepEqual[T any](t *testing.T, got T, want T) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected:\n%v, got\n%v", want, got)
+		t.FailNow()
+	}
+}
+
+func ExpectBytesEqual(t *testing.T, got []byte, want []byte) {
+	t.Helper()
+	if !bytes.Equal(got, want) {
 		t.Errorf("expected:\n%v, got\n%v", want, got)
 		t.FailNow()
 	}

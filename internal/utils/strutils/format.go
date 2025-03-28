@@ -2,6 +2,7 @@ package strutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +64,44 @@ func ParseBool(s string) bool {
 	default:
 		return false
 	}
+}
+
+func formatFloat(f float64) string {
+	f = math.Round(f*100) / 100
+	if f == 0 {
+		return "0"
+	}
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+func FormatByteSize[T ~int64 | ~uint64 | ~float64](size T) (value, unit string) {
+	const (
+		_ = (1 << (10 * iota))
+		kb
+		mb
+		gb
+		tb
+		pb
+	)
+	switch {
+	case size < kb:
+		return fmt.Sprintf("%v", size), "B"
+	case size < mb:
+		return formatFloat(float64(size) / kb), "KiB"
+	case size < gb:
+		return formatFloat(float64(size) / mb), "MiB"
+	case size < tb:
+		return formatFloat(float64(size) / gb), "GiB"
+	case size < pb:
+		return formatFloat(float64(size/gb) / kb), "TiB" // prevent overflow
+	default:
+		return formatFloat(float64(size/tb) / kb), "PiB" // prevent overflow
+	}
+}
+
+func FormatByteSizeWithUnit[T ~int64 | ~uint64 | ~float64](size T) string {
+	value, unit := FormatByteSize(size)
+	return value + " " + unit
 }
 
 func PortString(port uint16) string {

@@ -106,12 +106,6 @@ func (p BidirectionalPipe) Start() gperr.Error {
 	return b.Error()
 }
 
-var copyBufPool = sync.Pool{
-	New: func() any {
-		return make([]byte, copyBufSize)
-	},
-}
-
 type httpFlusher interface {
 	Flush() error
 }

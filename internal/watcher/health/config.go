@@ -14,7 +14,9 @@ type HealthCheckConfig struct {
 	Timeout  time.Duration `json:"timeout" validate:"omitempty,min=1s"`
 }
 
-var DefaultHealthConfig = &HealthCheckConfig{
-	Interval: common.HealthCheckIntervalDefault,
-	Timeout:  common.HealthCheckTimeoutDefault,
+func DefaultHealthConfig() *HealthCheckConfig {
+	return &HealthCheckConfig{
+		Interval: common.HealthCheckIntervalDefault,
+		Timeout:  common.HealthCheckTimeoutDefault,
+	}
 }
