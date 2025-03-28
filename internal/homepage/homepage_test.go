@@ -20,7 +20,7 @@ func TestOverrideItem(t *testing.T) {
 			Category: "App",
 		},
 	}
-	override := &ItemConfig{
+	want := &ItemConfig{
 		Show:     true,
 		Name:     "Bar",
 		Category: "Test",
@@ -30,7 +30,7 @@ func TestOverrideItem(t *testing.T) {
 		},
 	}
 	overrides := GetOverrideConfig()
-	overrides.OverrideItem(a.Alias, override)
-	overridden := a.GetOverride()
-	ExpectDeepEqual(t, overridden.ItemConfig, override)
+	overrides.OverrideItem(a.Alias, want)
+	got := a.GetOverride(a.Alias)
+	ExpectDeepEqual(t, got, want)
 }

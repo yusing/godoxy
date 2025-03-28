@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal"
-	E "github.com/yusing/go-proxy/internal/error"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type (
@@ -31,7 +31,7 @@ const (
 	IconSourceSelfhSt
 )
 
-var ErrInvalidIconURL = E.New("invalid icon url")
+var ErrInvalidIconURL = gperr.New("invalid icon url")
 
 func NewSelfhStIconURL(reference, format string) *IconURL {
 	return &IconURL{
