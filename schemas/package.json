@@ -13,12 +13,12 @@
 		"LICENSE"
 	],
 	"type": "module",
-	"main": "./schemas/index.ts",
+	"main": "./index.ts",
 	"exports": {
 		".": {
-			"types": "./schemas/index.d.ts",
-			"import": "./schemas/index.ts",
-			"require": "./schemas/index.js"
+			"types": "./index.d.ts",
+			"import": "./index.ts",
+			"require": "./index.js"
 		}
 	},
 	"devDependencies": {

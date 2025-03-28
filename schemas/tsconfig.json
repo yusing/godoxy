@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "declaration": true
   },
-  "include": ["schemas"]
+  "include": ["."]
 }

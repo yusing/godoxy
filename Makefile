@@ -103,7 +103,7 @@ gen-schema-single:
 	python3 -c "import json; f=open('schemas/${OUT}', 'r'); j=json.load(f); f.close(); f=open('schemas/${OUT}', 'w'); json.dump(j, f, separators=(',', ':'));"
 
 gen-schema:
-	bun --bun tsc
+	cd schemas && bun --bun tsc
 	make IN=config/config.ts \
 			CLASS=Config \
 			OUT=config.schema.json \
@@ -120,6 +120,10 @@ gen-schema:
 			CLASS=DockerRoutes \
 			OUT=docker_routes.schema.json \
 			gen-schema-single
+	cd ..
+
+publish-schema:
+	cd schemas && bun publish && cd ..
 
 update-schema-generator:
 	pnpm up -g typescript-json-schema
