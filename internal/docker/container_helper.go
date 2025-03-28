@@ -3,12 +3,12 @@ package docker
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type containerHelper struct {
-	*types.Container
+	*container.Summary
 }
 
 // getDeleteLabel gets the value of a label and then deletes it from the container.
@@ -32,10 +32,28 @@ func (c containerHelper) getName() string {
 	return strings.TrimPrefix(c.Names[0], "/")
 }
 
-func (c containerHelper) getImageName() string {
+func (c containerHelper) getMounts() []string {
+	m := make([]string, len(c.Mounts))
+	for i, v := range c.Mounts {
+		m[i] = v.Destination
+	}
+	return m
+}
+
+func (c containerHelper) parseImage() *ContainerImage {
 	colonSep := strutils.SplitRune(c.Image, ':')
 	slashSep := strutils.SplitRune(colonSep[0], '/')
-	return slashSep[len(slashSep)-1]
+	im := new(ContainerImage)
+	if len(slashSep) > 1 {
+		im.Author = strings.Join(slashSep[:len(slashSep)-1], "/")
+		im.Name = slashSep[len(slashSep)-1]
+	} else {
+		im.Name = slashSep[0]
+	}
+	if len(colonSep) > 1 {
+		im.Tag = colonSep[1]
+	}
+	return im
 }
 
 func (c containerHelper) getPublicPortMapping() PortMapping {
@@ -55,30 +73,4 @@ func (c containerHelper) getPrivatePortMapping() PortMapping {
 		res[int(v.PrivatePort)] = v
 	}
 	return res
-}
-
-var databaseMPs = map[string]struct{}{
-	"/var/lib/postgresql/data": {},
-	"/var/lib/mysql":           {},
-	"/var/lib/mongodb":         {},
-	"/var/lib/mariadb":         {},
-	"/var/lib/memcached":       {},
-	"/var/lib/rabbitmq":        {},
-}
-
-func (c containerHelper) isDatabase() bool {
-	for _, m := range c.Mounts {
-		if _, ok := databaseMPs[m.Destination]; ok {
-			return true
-		}
-	}
-
-	for _, v := range c.Ports {
-		switch v.PrivatePort {
-		// postgres, mysql or mariadb, redis, memcached, mongodb
-		case 5432, 3306, 6379, 11211, 27017:
-			return true
-		}
-	}
-	return false
 }

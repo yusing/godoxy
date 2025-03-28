@@ -7,7 +7,7 @@ import (
 )
 
 func Inspect(dockerHost string, containerID string) (*Container, error) {
-	client, err := ConnectClient(dockerHost)
+	client, err := NewClient(dockerHost)
 	if err != nil {
 		return nil, err
 	}
@@ -24,5 +24,5 @@ func (c *SharedClient) Inspect(containerID string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FromJSON(json, c.key), nil
+	return FromInspectResponse(json, c.key), nil
 }
