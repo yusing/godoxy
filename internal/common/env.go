@@ -95,7 +95,7 @@ func GetEnvInt(key string, defaultValue int) int {
 	return GetEnv(key, defaultValue, strconv.Atoi)
 }
 
-func GetAddrEnv(key, defaultValue, scheme string) (addr, host, port, fullURL string) {
+func GetAddrEnv(key, defaultValue, scheme string) (addr, host string, portInt int, fullURL string) {
 	addr = GetEnvString(key, defaultValue)
 	if addr == "" {
 		return
@@ -108,6 +108,10 @@ func GetAddrEnv(key, defaultValue, scheme string) (addr, host, port, fullURL str
 		host = "localhost"
 	}
 	fullURL = fmt.Sprintf("%s://%s:%s", scheme, host, port)
+	portInt, err = strconv.Atoi(port)
+	if err != nil {
+		log.Fatal().Msgf("env %s: invalid port: %s", key, port)
+	}
 	return
 }
 

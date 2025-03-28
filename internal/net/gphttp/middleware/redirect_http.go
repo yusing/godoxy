@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/common"
@@ -38,8 +39,8 @@ func (m *redirectHTTP) before(w http.ResponseWriter, r *http.Request) (proceed b
 		host = r.Host
 	}
 
-	if common.ProxyHTTPSPort != "443" {
-		r.URL.Host = host + ":" + common.ProxyHTTPSPort
+	if common.ProxyHTTPSPort != 443 {
+		r.URL.Host = host + ":" + strconv.Itoa(common.ProxyHTTPSPort)
 	} else {
 		r.URL.Host = host
 	}

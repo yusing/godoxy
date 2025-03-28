@@ -75,6 +75,17 @@ func (r *Route) Validate() (err gperr.Error) {
 	r.isValidated = true
 	r.Finalize()
 
+	// return error if route is localhost:<godoxy_port>
+	switch r.Host {
+	case "localhost", "127.0.0.1":
+		switch r.Port.Proxy {
+		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
+			if r.Scheme.IsReverseProxy() || r.Scheme == types.SchemeTCP {
+				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
+			}
+		}
+	}
+
 	errs := gperr.NewBuilder("entry validation failed")
 
 	switch r.Scheme {
