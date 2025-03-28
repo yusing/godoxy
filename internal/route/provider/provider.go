@@ -58,16 +58,13 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 	return
 }
 
-func NewDockerProvider(name string, dockerHost string) (p *Provider, err error) {
-	if name == "" {
-		return nil, ErrEmptyProviderName
-	}
+func NewDockerProvider(name string, dockerHost string) *Provider {
+	p := newProvider(types.ProviderTypeDocker)
+	p.ProviderImpl = DockerProviderImpl(name, dockerHost)
+	p.watcher = p.NewWatcher()
+	return p
+}
 
-	p = newProvider(types.ProviderTypeDocker)
-	p.ProviderImpl, err = DockerProviderImpl(name, dockerHost)
-	if err != nil {
-		return nil, err
-	}
 	p.watcher = p.NewWatcher()
 	return
 }
@@ -151,6 +148,7 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 		}
 		if r.ShouldExclude() {
 			delete(routes, alias)
+			continue
 		}
 	}
 	return routes, errs.Error()

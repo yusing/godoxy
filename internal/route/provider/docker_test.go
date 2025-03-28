@@ -39,8 +39,7 @@ func makeRoutes(cont *types.Container, dockerHostIP ...string) route.Routes {
 }
 
 func TestExplicitOnly(t *testing.T) {
-	p, err := NewDockerProvider("a!", "")
-	ExpectNoError(t, err)
+	p := NewDockerProvider("a!", "")
 	ExpectTrue(t, p.IsExplicitOnly())
 }
 
@@ -258,16 +257,16 @@ func TestPublicIPLocalhost(t *testing.T) {
 	c := &types.Container{Names: dummyNames, State: "running"}
 	r, ok := makeRoutes(c)["a"]
 	ExpectTrue(t, ok)
-	ExpectEqual(t, r.Container.PublicIP, "127.0.0.1")
-	ExpectEqual(t, r.Host, r.Container.PublicIP)
+	ExpectEqual(t, r.Container.PublicHostname, "127.0.0.1")
+	ExpectEqual(t, r.Host, r.Container.PublicHostname)
 }
 
 func TestPublicIPRemote(t *testing.T) {
 	c := &types.Container{Names: dummyNames, State: "running"}
 	raw, ok := makeRoutes(c, testIP)["a"]
 	ExpectTrue(t, ok)
-	ExpectEqual(t, raw.Container.PublicIP, testIP)
-	ExpectEqual(t, raw.Host, raw.Container.PublicIP)
+	ExpectEqual(t, raw.Container.PublicHostname, testIP)
+	ExpectEqual(t, raw.Host, raw.Container.PublicHostname)
 }
 
 func TestPrivateIPLocalhost(t *testing.T) {
@@ -283,8 +282,8 @@ func TestPrivateIPLocalhost(t *testing.T) {
 	}
 	r, ok := makeRoutes(c)["a"]
 	ExpectTrue(t, ok)
-	ExpectEqual(t, r.Container.PrivateIP, testDockerIP)
-	ExpectEqual(t, r.Host, r.Container.PrivateIP)
+	ExpectEqual(t, r.Container.PrivateHostname, testDockerIP)
+	ExpectEqual(t, r.Host, r.Container.PrivateHostname)
 }
 
 func TestPrivateIPRemote(t *testing.T) {
@@ -301,9 +300,9 @@ func TestPrivateIPRemote(t *testing.T) {
 	}
 	r, ok := makeRoutes(c, testIP)["a"]
 	ExpectTrue(t, ok)
-	ExpectEqual(t, r.Container.PrivateIP, "")
-	ExpectEqual(t, r.Container.PublicIP, testIP)
-	ExpectEqual(t, r.Host, r.Container.PublicIP)
+	ExpectEqual(t, r.Container.PrivateHostname, "")
+	ExpectEqual(t, r.Container.PublicHostname, testIP)
+	ExpectEqual(t, r.Host, r.Container.PublicHostname)
 }
 
 func TestStreamDefaultValues(t *testing.T) {

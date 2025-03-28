@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -22,8 +21,8 @@ var listOptions = container.ListOptions{
 	All: true,
 }
 
-func ListContainers(clientHost string) ([]types.Container, error) {
-	dockerClient, err := ConnectClient(clientHost)
+func ListContainers(clientHost string) ([]container.Summary, error) {
+	dockerClient, err := NewClient(clientHost)
 	if err != nil {
 		return nil, err
 	}
