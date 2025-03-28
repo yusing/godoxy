@@ -45,9 +45,9 @@ func fmtMessage(msg string) string {
 	return strutils.JoinRune(lines, '\n')
 }
 
-func InitLogger(out io.Writer) {
+func InitLogger(out ...io.Writer) {
 	writer := zerolog.ConsoleWriter{
-		Out:        out,
+		Out:        zerolog.MultiLevelWriter(out...),
 		TimeFormat: timeFmt,
 		FormatMessage: func(msgI interface{}) string { // pad spaces for each line
 			return fmtMessage(msgI.(string))

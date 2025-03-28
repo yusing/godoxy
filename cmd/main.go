@@ -15,6 +15,8 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/logging/memlogger"
+	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	"github.com/yusing/go-proxy/internal/metrics/uptime"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
@@ -73,12 +75,14 @@ func main() {
 	}
 
 	if args.Command == common.CommandStart {
+		logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
 		logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
 		logging.Trace().Msg("trace enabled")
 		parallel(
 			internal.InitIconListCache,
 			homepage.InitOverridesConfig,
 			favicon.InitIconCache,
+			systeminfo.Poller.Start,
 		)
 
 		if common.APIJWTSecret == nil {
@@ -111,6 +115,7 @@ func main() {
 	var err gperr.Error
 	if cfg, err = config.Load(); err != nil {
 		gperr.LogWarn("errors in config", err)
+		err = nil
 	}
 
 	switch args.Command {

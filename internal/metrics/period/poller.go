@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -42,9 +43,11 @@ const (
 	saveBaseDir = "data/metrics"
 )
 
-func init() {
+var initDataDirOnce sync.Once
+
+func initDataDir() {
 	if err := os.MkdirAll(saveBaseDir, 0o755); err != nil {
-		panic(fmt.Sprintf("failed to create metrics data directory: %s", err))
+		logging.Error().Err(err).Msg("failed to create metrics data directory")
 	}
 }
 
@@ -74,6 +77,7 @@ func (p *Poller[T, AggregateT]) load() error {
 }
 
 func (p *Poller[T, AggregateT]) save() error {
+	initDataDirOnce.Do(initDataDir)
 	entries, err := json.Marshal(p.period)
 	if err != nil {
 		return err
@@ -131,16 +135,16 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 
 func (p *Poller[T, AggregateT]) Start() {
 	t := task.RootTask("poller." + p.name)
-	go func() {
-		err := p.load()
-		if err != nil {
-			if !os.IsNotExist(err) {
-				logging.Error().Err(err).Msgf("failed to load last metrics data for %s", p.name)
-			}
-		} else {
-			logging.Debug().Msgf("Loaded last metrics data for %s, %d entries", p.name, p.period.Total())
+	err := p.load()
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logging.Error().Err(err).Msgf("failed to load last metrics data for %s", p.name)
 		}
+	} else {
+		logging.Debug().Msgf("Loaded last metrics data for %s, %d entries", p.name, p.period.Total())
+	}
 
+	go func() {
 		pollTicker := time.NewTicker(pollInterval)
 		gatherErrsTicker := time.NewTicker(gatherErrsInterval)
 		saveTicker := time.NewTicker(saveInterval)

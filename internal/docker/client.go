@@ -35,11 +35,6 @@ type (
 var (
 	clientMap   = make(map[string]*SharedClient, 10)
 	clientMapMu sync.RWMutex
-
-	clientOptEnvHost = []client.Opt{
-		client.WithHostFromEnv(),
-		client.WithAPIVersionNegotiation(),
-	}
 )
 
 const (
@@ -151,7 +146,10 @@ func NewClient(host string) (*SharedClient, error) {
 		case "":
 			return nil, errors.New("empty docker host")
 		case common.DockerHostFromEnv:
-			opt = clientOptEnvHost
+			opt = []client.Opt{
+				client.WithHostFromEnv(),
+				client.WithAPIVersionNegotiation(),
+			}
 		default:
 			helper, err := connhelper.GetConnectionHelper(host)
 			if err != nil {

@@ -5,13 +5,10 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
@@ -22,7 +19,7 @@ type logEntryRange struct {
 }
 
 type memLogger struct {
-	bytes.Buffer
+	*bytes.Buffer
 	sync.RWMutex
 	notifyLock sync.RWMutex
 	connChans  F.Map[chan *logEntryRange, struct{}]
@@ -42,14 +39,9 @@ const (
 )
 
 var memLoggerInstance = &memLogger{
+	Buffer:    bytes.NewBuffer(make([]byte, maxMemLogSize)),
 	connChans: F.NewMapOf[chan *logEntryRange, struct{}](),
 	listeners: F.NewMapOf[chan []byte, struct{}](),
-}
-
-func init() {
-	memLoggerInstance.Grow(maxMemLogSize)
-	w := zerolog.MultiLevelWriter(os.Stderr, memLoggerInstance)
-	logging.InitLogger(w)
 }
 
 func GetMemLogger() MemLogger {

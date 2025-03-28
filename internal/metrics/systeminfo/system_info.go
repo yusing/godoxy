@@ -96,10 +96,6 @@ var allQueries = []string{
 
 var Poller = period.NewPoller("system_info", getSystemInfo, aggregate)
 
-func init() {
-	Poller.Start()
-}
-
 func _() { // check if this behavior is not changed
 	var _ sensors.Warnings = disk.Warnings{}
 }
