@@ -1,6 +1,9 @@
 package strutils
 
-import "path"
+import (
+	"path"
+	"strings"
+)
 
 // SanitizeURI sanitizes a URI reference to ensure it is safe
 // It disallows URLs beginning with // or /\ as absolute URLs,
@@ -9,6 +12,9 @@ import "path"
 func SanitizeURI(uri string) string {
 	if uri == "" {
 		return "/"
+	}
+	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+		return uri
 	}
 	if uri[0] != '/' {
 		uri = "/" + uri

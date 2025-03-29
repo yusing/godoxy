@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -42,6 +41,10 @@ func (res *fetchResult) ContentType() string {
 	}
 	return res.contentType
 }
+
+const (
+	MaxRedirectDepth = 5
+)
 
 // GetFavIcon returns the favicon of the route
 //
@@ -195,7 +198,7 @@ func findIcon(r route.HTTPRoute, req *http.Request, uri string) *fetchResult {
 	}
 	if !result.OK() {
 		// fallback to parse html
-		result = findIconSlow(r, req, uri)
+		result = findIconSlow(r, req, uri, 0)
 	}
 	if result.OK() {
 		storeIconCache(key, result.icon)
@@ -203,7 +206,7 @@ func findIcon(r route.HTTPRoute, req *http.Request, uri string) *fetchResult {
 	return result
 }
 
-func findIconSlow(r route.HTTPRoute, req *http.Request, uri string) *fetchResult {
+func findIconSlow(r route.HTTPRoute, req *http.Request, uri string, depth int) *fetchResult {
 	ctx, cancel := context.WithTimeoutCause(req.Context(), 3*time.Second, errors.New("favicon request timeout"))
 	defer cancel()
 	newReq := req.WithContext(ctx)
@@ -229,11 +232,14 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string) *fetchResult
 			return &fetchResult{statusCode: http.StatusBadGateway, errMsg: "connection error"}
 		default:
 			if loc := c.Header().Get("Location"); loc != "" {
+				if depth > MaxRedirectDepth {
+					return &fetchResult{statusCode: http.StatusBadGateway, errMsg: "too many redirects"}
+				}
 				loc = strutils.SanitizeURI(loc)
 				if loc == "/" || loc == newReq.URL.Path {
 					return &fetchResult{statusCode: http.StatusBadGateway, errMsg: "circular redirect"}
 				}
-				return findIconSlow(r, req, loc)
+				return findIconSlow(r, req, loc, depth+1)
 			}
 		}
 		return &fetchResult{statusCode: c.status, errMsg: "upstream error: " + string(c.data)}
@@ -273,6 +279,6 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string) *fetchResult
 	case strings.HasPrefix(href, "http://"), strings.HasPrefix(href, "https://"):
 		return fetchIconAbsolute(href)
 	default:
-		return findIconSlow(r, req, path.Clean(href))
+		return findIconSlow(r, req, href, 0)
 	}
 }
