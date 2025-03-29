@@ -1,16 +1,22 @@
 package main
 
 import (
+	"os"
+
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/env"
 	"github.com/yusing/go-proxy/agent/pkg/server"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/logging/memlogger"
+	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
 )
 
 func main() {
+	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
+
 	ca := &agent.PEMPair{}
 	err := ca.Load(env.AgentCACert)
 	if err != nil {
@@ -49,6 +55,7 @@ Tips:
 	}
 
 	server.StartAgentServer(t, opts)
+	systeminfo.Poller.Start()
 
 	task.WaitExit(3)
 }
