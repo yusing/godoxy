@@ -3,7 +3,6 @@ package server
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 
@@ -20,11 +19,8 @@ type Options struct {
 }
 
 func StartAgentServer(parent task.Parent, opt Options) {
-	t := parent.Subtask("agent_server")
-
-	caCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: opt.CACert.Certificate[0]})
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCertPEM)
+	caCertPool.AddCert(opt.CACert.Leaf)
 
 	// Configure TLS
 	tlsConfig := &tls.Config{
@@ -44,8 +40,5 @@ func StartAgentServer(parent task.Parent, opt Options) {
 		TLSConfig: tlsConfig,
 	}
 
-	server.Start(t, agentServer, logger)
-	t.OnCancel("stop", func() {
-		server.Stop(agentServer, logger)
-	})
+	server.Start(parent, agentServer, logger)
 }
