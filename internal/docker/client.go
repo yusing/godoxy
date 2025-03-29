@@ -37,12 +37,14 @@ var (
 	clientMapMu sync.RWMutex
 )
 
+var initClientCleanerOnce sync.Once
+
 const (
 	cleanInterval = 10 * time.Second
 	clientTTLSecs = int64(10)
 )
 
-func init() {
+func initClientCleaner() {
 	cleaner := task.RootTask("docker_clients_cleaner")
 	go func() {
 		ticker := time.NewTicker(cleanInterval)
@@ -115,6 +117,8 @@ func (c *SharedClient) Close() {
 //   - Client: the Docker client connection.
 //   - error: an error if the connection failed.
 func NewClient(host string) (*SharedClient, error) {
+	initClientCleanerOnce.Do(initClientCleaner)
+
 	clientMapMu.Lock()
 	defer clientMapMu.Unlock()
 

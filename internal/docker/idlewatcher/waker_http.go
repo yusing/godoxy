@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 )
@@ -55,6 +56,10 @@ func (w *Watcher) cancelled(reqCtx context.Context, rw http.ResponseWriter) bool
 	}
 }
 
+func isFaviconPath(path string) bool {
+	return path == "/favicon.ico"
+}
+
 func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldNext bool) {
 	w.resetIdleTimer()
 
@@ -63,8 +68,15 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return true
 	}
 
+	// handle favicon request
+	if isFaviconPath(r.URL.Path) {
+		r.URL.RawQuery = "alias=" + w.route.TargetName()
+		favicon.GetFavIcon(rw, r)
+		return false
+	}
+
 	// Check if start endpoint is configured and request path matches
-	if w.StartEndpoint != "" && r.URL.Path != w.StartEndpoint {
+	if w.Config().StartEndpoint != "" && r.URL.Path != w.Config().StartEndpoint {
 		http.Error(rw, "Forbidden: Container can only be started via configured start endpoint", http.StatusForbidden)
 		return false
 	}
@@ -88,7 +100,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	ctx, cancel := context.WithTimeoutCause(r.Context(), w.WakeTimeout, errors.New("wake timeout"))
+	ctx, cancel := context.WithTimeoutCause(r.Context(), w.Config().WakeTimeout, errors.New("wake timeout"))
 	defer cancel()
 
 	if w.cancelled(ctx, rw) {

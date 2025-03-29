@@ -61,7 +61,7 @@ func (w *Watcher) wakeFromStream() error {
 		return wakeErr
 	}
 
-	ctx, cancel := context.WithTimeoutCause(w.task.Context(), w.WakeTimeout, errors.New("wake timeout"))
+	ctx, cancel := context.WithTimeoutCause(w.task.Context(), w.Config().WakeTimeout, errors.New("wake timeout"))
 	defer cancel()
 
 	for {

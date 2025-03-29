@@ -100,7 +100,7 @@ func (w *Watcher) Name() string {
 
 // String implements health.HealthMonitor.
 func (w *Watcher) String() string {
-	return w.ContainerName
+	return w.ContainerName()
 }
 
 // Uptime implements health.HealthMonitor.

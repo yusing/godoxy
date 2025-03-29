@@ -3,7 +3,6 @@ package idlewatcher
 import (
 	"bytes"
 	_ "embed"
-	"strings"
 	"text/template"
 
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
@@ -20,12 +19,12 @@ var loadingPage []byte
 var loadingPageTmpl = template.Must(template.New("loading_page").Parse(string(loadingPage)))
 
 func (w *Watcher) makeLoadingPageBody() []byte {
-	msg := w.ContainerName + " is starting..."
+	msg := w.ContainerName() + " is starting..."
 
 	data := new(templateData)
 	data.CheckRedirectHeader = httpheaders.HeaderGoDoxyCheckRedirect
-	data.Title = w.ContainerName
-	data.Message = strings.ReplaceAll(msg, " ", "&ensp;")
+	data.Title = w.route.HomepageItem().Name
+	data.Message = msg
 
 	buf := bytes.NewBuffer(make([]byte, len(loadingPage)+len(data.Title)+len(data.Message)+len(httpheaders.HeaderGoDoxyCheckRedirect)))
 	err := loadingPageTmpl.Execute(buf, data)

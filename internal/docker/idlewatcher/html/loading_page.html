@@ -1,88 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{{.Title}}</title>
-        <style>
-            /* Global Styles */
-            * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            body {
-                font-family: Inter, Arial, sans-serif;
-                font-size: 16px;
-                line-height: 1.5;
-                color: #fff;
-                background-color: #212121;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-            }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}}</title>
+    <style>
+      /* size variables */
+      :root {
+        --dot-size: 12px;
+        --logo-size: 100px;
+      }
+      /* Global Styles */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          "Open Sans",
+          "Helvetica Neue",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: #f8f9fa;
+        background-color: #121212;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        gap: 32px;
+        background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
+      }
 
-            /* Spinner Styles */
-            .spinner {
-                width: 120px;
-                height: 120px;
-                border: 16px solid #333;
-                border-radius: 50%;
-                border-top: 16px solid #66d9ef;
-                animation: spin 2s linear infinite;
-            }
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-                100% {
-                    transform: rotate(360deg);
-                }
-            }
+      /* Container */
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px;
+        border-radius: 16px;
+        background-color: rgba(30, 30, 30, 0.6);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(8px);
+        max-width: 90%;
+        transition: all 0.3s ease;
+      }
 
-            /* Error Styles */
-            .error {
-                display: inline-block;
-                text-align: center;
-                justify-content: center;
-            }
-            .error::before {
-                content: "\26A0"; /* Unicode for warning symbol */
-                font-size: 40px;
-                color: #ff9900;
-            }
+      /* Spinner Styles */
+      .loading-dots {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        padding-top: 20px;
+        padding-bottom: 6px;
+      }
+      .dot {
+        width: var(--dot-size);
+        height: var(--dot-size);
+        background-color: #66d9ef;
+        border-radius: 50%;
+        animation: bounce 1.3s infinite ease-in-out;
+      }
+      .dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          transform: translateY(0);
+        }
+        40% {
+          transform: translateY(-10px);
+        }
+      }
 
-            /* Message Styles */
-            .message {
-                font-size: 24px;
-                font-weight: bold;
-                padding-left: 32px;
-                text-align: center;
-            }
-        </style>
-    </head>
-    <body>
-        <script>
-            window.onload = async function () {
-                let resp = await fetch(window.location.href, {
-                    headers: {
-                        "{{.CheckRedirectHeader}}": "1",
-                    },
-                });
-                if (resp.ok) {
-                    window.location.href = resp.url;
-                } else {
-                    document.getElementById("message").innerText =
-                        await resp.text();
-                    document
-                        .getElementById("spinner")
-                        .classList.replace("spinner", "error");
-                }
-            };
-        </script>
-        <div id="spinner" class="spinner"></div>
-        <div id="message" class="message">{{.Message}}</div>
-    </body>
+      /* Message Styles */
+      .message {
+        font-size: 20px;
+        font-weight: 500;
+        text-align: center;
+        color: #f8f9fa;
+        max-width: 500px;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+      }
+
+      /* Logo */
+      .logo {
+        width: var(--logo-size);
+        height: var(--logo-size);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- icon handled by waker_http -->
+      <img class="logo" src="/favicon.ico" />
+      <div id="loading-dots" class="loading-dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+      <div id="message" class="message">{{.Message}}</div>
+    </div>
+    <script>
+      window.onload = async function () {
+        let resp = await fetch(window.location.href, {
+          headers: {
+            "{{.CheckRedirectHeader}}": "1",
+          },
+        });
+        if (resp.ok) {
+          window.location.href = resp.url;
+        } else {
+          document.getElementById("message").innerText = await resp.text();
+          document.getElementById("loading-dots").remove();
+        }
+      };
+    </script>
+  </body>
 </html>
