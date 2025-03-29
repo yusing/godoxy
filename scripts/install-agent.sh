@@ -3,7 +3,7 @@
 set -e
 
 check_pkg() {
-	if ! command -v $1 &>/dev/null; then
+	if ! command -v "$1" &>/dev/null; then
 		echo "$1 could not be found, please install it first"
 		exit 1
 	fi
@@ -49,10 +49,10 @@ fi
 arch=$(uname -m)
 if [ "$arch" = "x86_64" ]; then
 	filename="godoxy-agent-linux-amd64"
-elif [ "$arch" = "aarch64" ]; then
+elif [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
 	filename="godoxy-agent-linux-arm64"
 else
-	echo "Unsupported architecture: $arch, expect x86_64 or aarch64"
+	echo "Unsupported architecture: $arch, expect x86_64 or aarch64/arm64"
 	exit 1
 fi
 repo="yusing/godoxy"
@@ -61,7 +61,8 @@ name="godoxy-agent"
 bin_path="${install_path}/${name}"
 env_file="/etc/${name}.env"
 service_file="/etc/systemd/system/${name}.service"
-log_path="/var/log/${name}.log"
+log_path="/var/log/godoxy/${name}.log"
+log_dir=$(dirname "$log_path")
 data_path="/var/lib/${name}"
 
 # check if install path is writable
@@ -85,21 +86,35 @@ fi
 # check if command is uninstall
 if [ "$1" = "uninstall" ]; then
 	echo "Uninstalling the agent"
-	systemctl disable --now $name
+	systemctl disable --now $name || true
 	rm -f $bin_path
 	rm -f $env_file
 	rm -f $service_file
 	rm -rf $data_path
+	echo "Note: Log file at $log_path is preserved"
 	systemctl daemon-reload
 	echo "Agent uninstalled successfully"
 	exit 0
 fi
 
 echo "Finding the latest agent binary"
-bin_url=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/releases/latest | jq -r '.assets[] | select(.name | contains("'$filename'")) | .browser_download_url')
+api_response=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/releases/latest)
+if [ -z "$api_response" ]; then
+	echo "Failed to get response from GitHub API"
+	exit 1
+fi
 
-echo "Downloading the agent binary"
-curl -L "$bin_url" -o $bin_path
+bin_url=$(echo "$api_response" | jq -r '.assets[] | select(.name | contains("'$filename'")) | .browser_download_url')
+if [ -z "$bin_url" ] || [ "$bin_url" = "null" ]; then
+	echo "Failed to find binary for architecture: $arch"
+	exit 1
+fi
+
+echo "Downloading the agent binary from $bin_url"
+if ! curl -L -f "$bin_url" -o $bin_path; then
+	echo "Failed to download binary"
+	exit 1
+fi
 
 echo "Making the agent binary executable"
 chmod +x $bin_path
@@ -115,11 +130,18 @@ chmod 600 $env_file
 
 echo "Creating the data directory"
 mkdir -p $data_path
+chmod 700 $data_path
+
+echo "Creating log directory"
+mkdir -p "$log_dir"
+touch "$log_path"
+chmod 640 "$log_path"
 
 echo "Registering the agent as a service"
 cat <<EOF >$service_file
 [Unit]
 Description=GoDoxy Agent
+After=network.target
 After=docker.socket
 
 [Service]
@@ -136,6 +158,7 @@ StandardError=append:${log_path}
 ProtectSystem=full
 ProtectHome=true
 NoNewPrivileges=true
+ReadWritePaths=${data_path} ${log_path}
 
 # User and group
 User=root
@@ -144,6 +167,20 @@ Group=root
 [Install]
 WantedBy=multi-user.target
 EOF
+chmod 644 $service_file
+
 systemctl daemon-reload
-systemctl enable --now $name
+echo "Enabling and starting the agent service"
+if ! systemctl enable --now $name; then
+	echo "Failed to enable and start the service. Check with: systemctl status $name"
+	exit 1
+fi
+echo "Checking if the agent service is started successfully"
+if [ "$(systemctl is-active $name)" != "active" ]; then
+	echo "Agent service failed to start, details below:"
+	systemctl status $name
+	more $log_path
+	exit 1
+fi
+
 echo "Agent installed successfully"
