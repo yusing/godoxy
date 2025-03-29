@@ -122,7 +122,7 @@ cat <<EOF >$service_file
 Description=GoDoxy Agent
 After=docker.socket
 
-[Service]]
+[Service]
 Type=simple
 ExecStart=${bin_path}
 EnvironmentFile=${env_file}
