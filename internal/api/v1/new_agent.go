@@ -126,8 +126,8 @@ func VerifyNewAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := certs.AgentCertsFilename(data.Host)
-	if !strutils.IsValidFilename(filename) {
+	filename, ok := certs.AgentCertsFilepath(data.Host)
+	if !ok {
 		gphttp.ClientError(w, gphttp.ErrInvalidKey("host"))
 		return
 	}

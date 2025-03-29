@@ -131,7 +131,12 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 }
 
 func (cfg *AgentConfig) Start(parent task.Parent) gperr.Error {
-	certData, err := os.ReadFile(certs.AgentCertsFilename(cfg.Addr))
+	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
+	if !ok {
+		return gperr.New("invalid agent host").Subject(cfg.Addr)
+	}
+
+	certData, err := os.ReadFile(filepath)
 	if err != nil {
 		return gperr.Wrap(err, "failed to read agent certs")
 	}
