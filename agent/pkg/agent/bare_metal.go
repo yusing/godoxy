@@ -2,7 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"strings"
 	"text/template"
 )
 
@@ -20,5 +19,5 @@ func (c *AgentEnvConfig) Generate() (string, error) {
 	if err := installScriptTemplate.Execute(buf, c); err != nil {
 		return "", err
 	}
-	return strings.ReplaceAll(buf.String(), ";", "\\;"), nil
+	return buf.String(), nil
 }
