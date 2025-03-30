@@ -9,7 +9,7 @@ require (
 	github.com/docker/docker v28.0.4+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.8.0 // file watcher
 	github.com/go-acme/lego/v4 v4.22.2 // acme client
-	github.com/go-playground/validator/v10 v10.25.0 // validator
+	github.com/go-playground/validator/v10 v10.26.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/golang-jwt/jwt/v5 v5.2.2 // jwt for default auth
 	github.com/gotify/server/v2 v2.6.1 // reference the Message struct for json response
