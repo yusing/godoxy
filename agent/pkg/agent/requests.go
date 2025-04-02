@@ -1,11 +1,11 @@
 package agent
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/coder/websocket"
-	"golang.org/x/net/context"
 )
 
 func (cfg *AgentConfig) Do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
