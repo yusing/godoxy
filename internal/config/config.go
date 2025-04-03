@@ -80,9 +80,7 @@ func WatchChanges() {
 		t,
 		configEventFlushInterval,
 		OnConfigChange,
-		func(err gperr.Error) {
-			gperr.LogError("config reload error", err)
-		},
+		onReloadError,
 	)
 	eventQueue.Start(cfgWatcher.Events(t.Context()))
 }
@@ -103,6 +101,10 @@ func OnConfigChange(ev []events.Event) {
 		// recovered in event queue
 		panic(err)
 	}
+}
+
+func onReloadError(err gperr.Error) {
+	logging.Error().Msgf("config reload error: %s", err)
 }
 
 func Reload() gperr.Error {
