@@ -23,11 +23,3 @@ const (
 func StripANSI(s string) string {
 	return ansiRegexp.ReplaceAllString(s, "")
 }
-
-var ToHTMLClass = map[string]string{
-	"[91": "log-red",
-	"[92": "log-green",
-	"[93": "log-yellow",
-	"[96": "log-cyan",
-	"[97": "log-white",
-}
