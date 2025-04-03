@@ -45,6 +45,11 @@ func (set Set[T]) RangeAll(f func(T)) {
 }
 
 func (set Set[T]) RangeAllParallel(f func(T)) {
+	if set.Size() < minParallelSize {
+		set.RangeAll(f)
+		return
+	}
+
 	var wg sync.WaitGroup
 
 	set.Range(func(k T) bool {

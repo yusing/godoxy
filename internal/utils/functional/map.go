@@ -11,8 +11,6 @@ type Map[KT comparable, VT any] struct {
 	*xsync.MapOf[KT, VT]
 }
 
-const minParallelSize = 4
-
 func NewMapOf[KT comparable, VT any](options ...func(*xsync.MapConfig)) Map[KT, VT] {
 	return Map[KT, VT]{xsync.NewMapOf[KT, VT](options...)}
 }
