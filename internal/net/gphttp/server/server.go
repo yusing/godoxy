@@ -3,11 +3,11 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
@@ -31,6 +31,11 @@ type Options struct {
 	HTTPSAddr    string
 	CertProvider *autocert.Provider
 	Handler      http.Handler
+}
+
+type httpServer interface {
+	*http.Server | *http3.Server
+	Shutdown(ctx context.Context) error
 }
 
 func StartServer(parent task.Parent, opt Options) (s *Server) {
@@ -82,67 +87,74 @@ func NewServer(opt Options) (s *Server) {
 func (s *Server) Start(parent task.Parent) {
 	s.startTime = time.Now()
 	subtask := parent.Subtask("server."+s.Name, false)
+
+	if s.https != nil && common.HTTP3Enabled {
+		s.https.TLSConfig.NextProtos = []string{http3.NextProtoH3, "h2", "http/1.1"}
+		h3 := &http3.Server{
+			Addr:      s.https.Addr,
+			Handler:   s.https.Handler,
+			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
+		}
+		Start(subtask, h3, &s.l)
+		s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
+	}
+
 	Start(subtask, s.http, &s.l)
 	Start(subtask, s.https, &s.l)
 }
 
-func Start(parent task.Parent, srv *http.Server, logger *zerolog.Logger) {
+func Start[Server httpServer](parent task.Parent, srv Server, logger *zerolog.Logger) {
 	if srv == nil {
 		return
 	}
-	srv.BaseContext = func(l net.Listener) context.Context {
-		return parent.Context()
-	}
 
-	if common.IsDebug {
-		srv.ErrorLog = log.New(logger, "", 0)
-	}
+	setDebugLogger(srv, logger)
 
-	var proto string
-	if srv.TLSConfig == nil {
-		proto = "http"
-	} else {
-		proto = "https"
-	}
-
+	proto := proto(srv)
 	task := parent.Subtask(proto, false)
 
 	var lc net.ListenConfig
+	var serveFunc func() error
 
-	// Serve already closes the listener on return
-	l, err := lc.Listen(task.Context(), "tcp", srv.Addr)
-	if err != nil {
-		HandleError(logger, err, "failed to listen on port")
-		return
-	}
-
-	task.OnCancel("stop", func() {
-		Stop(srv, logger)
-	})
-
-	logger.Info().Str("addr", srv.Addr).Msg("server started")
-
-	go func() {
-		if srv.TLSConfig == nil {
-			err = srv.Serve(l)
-		} else {
-			err = srv.Serve(tls.NewListener(l, srv.TLSConfig))
+	switch srv := any(srv).(type) {
+	case *http.Server:
+		srv.BaseContext = func(l net.Listener) context.Context {
+			return parent.Context()
 		}
+		l, err := lc.Listen(task.Context(), "tcp", srv.Addr)
+		if err != nil {
+			HandleError(logger, err, "failed to listen on port")
+			return
+		}
+		if srv.TLSConfig != nil {
+			l = tls.NewListener(l, srv.TLSConfig)
+		}
+		serveFunc = getServeFunc(l, srv.Serve)
+	case *http3.Server:
+		l, err := lc.ListenPacket(task.Context(), "udp", srv.Addr)
+		if err != nil {
+			HandleError(logger, err, "failed to listen on port")
+			return
+		}
+		serveFunc = getServeFunc(l, srv.Serve)
+	}
+	task.OnCancel("stop", func() {
+		stop(srv, logger)
+	})
+	logStarted(srv, logger)
+	go func() {
+		err := serveFunc()
 		HandleError(logger, err, "failed to serve "+proto+" server")
 	}()
 }
 
-func Stop(srv *http.Server, logger *zerolog.Logger) {
+func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
 	if srv == nil {
 		return
 	}
 
-	var proto string
-	if srv.TLSConfig == nil {
-		proto = "http"
-	} else {
-		proto = "https"
-	}
+	proto := proto(srv)
 
 	ctx, cancel := context.WithTimeout(task.RootContext(), 3*time.Second)
 	defer cancel()
@@ -150,7 +162,7 @@ func Stop(srv *http.Server, logger *zerolog.Logger) {
 	if err := srv.Shutdown(ctx); err != nil {
 		HandleError(logger, err, "failed to shutdown "+proto+" server")
 	} else {
-		logger.Info().Str("addr", srv.Addr).Msgf("server stopped")
+		logger.Info().Str("proto", proto).Str("addr", addr(srv)).Msg("server stopped")
 	}
 }
 
