@@ -93,13 +93,10 @@ func (err *withSubject) MarshalJSON() ([]byte, error) {
 	for i, s := range err.Subjects {
 		subjects[len(err.Subjects)-i-1] = s
 	}
-	reversed := struct {
-		Subjects []string `json:"subjects"`
-		Err      error    `json:"err"`
-	}{
-		Subjects: subjects,
-		Err:      err.Err,
-	}
 
+	reversed := map[string]any{
+		"subjects": subjects,
+		"err":      err.Err,
+	}
 	return json.Marshal(reversed)
 }
