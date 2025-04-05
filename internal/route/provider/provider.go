@@ -9,7 +9,7 @@ import (
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/provider/types"
+	provider "github.com/yusing/go-proxy/internal/route/provider/types"
 	"github.com/yusing/go-proxy/internal/task"
 	W "github.com/yusing/go-proxy/internal/watcher"
 	"github.com/yusing/go-proxy/internal/watcher/events"
@@ -19,7 +19,7 @@ type (
 	Provider struct {
 		ProviderImpl
 
-		t      types.ProviderType
+		t      provider.Type
 		routes route.Routes
 	}
 	ProviderImpl interface {
@@ -40,21 +40,21 @@ var ErrEmptyProviderName = errors.New("empty provider name")
 
 func NewFileProvider(filename string) *Provider {
 	return &Provider{
-		t:            types.ProviderTypeFile,
+		t:            provider.TypeFile,
 		ProviderImpl: FileProviderImpl(filename),
 	}
 }
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
 	return &Provider{
-		t:            types.ProviderTypeDocker,
+		t:            provider.TypeDocker,
 		ProviderImpl: DockerProviderImpl(name, dockerHost),
 	}
 }
 
 func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	return &Provider{
-		t: types.ProviderTypeAgent,
+		t: provider.TypeAgent,
 		ProviderImpl: &AgentProvider{
 			AgentConfig: cfg,
 			docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
@@ -62,7 +62,7 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	}
 }
 
-func (p *Provider) Type() types.ProviderType {
+func (p *Provider) Type() provider.Type {
 	return p.t
 }
 

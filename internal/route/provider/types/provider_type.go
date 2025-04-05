@@ -1,9 +1,9 @@
-package types
+package provider
 
-type ProviderType string
+type Type string
 
 const (
-	ProviderTypeDocker ProviderType = "docker"
-	ProviderTypeFile   ProviderType = "file"
-	ProviderTypeAgent  ProviderType = "agent"
+	TypeDocker Type = "docker"
+	TypeFile   Type = "file"
+	TypeAgent  Type = "agent"
 )
