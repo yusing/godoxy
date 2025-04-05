@@ -28,9 +28,7 @@ ifeq ($(debug), 1)
 	CGO_ENABLED = 0
 	GODOXY_DEBUG = 1
 	BUILD_FLAGS += -gcflags=all='-N -l'
-endif
-
-ifeq ($(pprof), 1)
+else ifeq ($(pprof), 1)
 	CGO_ENABLED = 1
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
 	BUILD_FLAGS = -tags pprof
