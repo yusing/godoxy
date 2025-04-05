@@ -3,7 +3,6 @@ package provider
 import (
 	"errors"
 	"fmt"
-	"path"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -22,8 +21,6 @@ type (
 
 		t      types.ProviderType
 		routes route.Routes
-
-		watcher W.Watcher
 	}
 	ProviderImpl interface {
 		fmt.Stringer
@@ -41,43 +38,31 @@ const (
 
 var ErrEmptyProviderName = errors.New("empty provider name")
 
-func newProvider(t types.ProviderType) *Provider {
-	return &Provider{t: t}
-}
-
-func NewFileProvider(filename string) (p *Provider, err error) {
-	name := path.Base(filename)
-	if name == "" {
-		return nil, ErrEmptyProviderName
+func NewFileProvider(filename string) *Provider {
+	return &Provider{
+		t:            types.ProviderTypeFile,
+		ProviderImpl: FileProviderImpl(filename),
 	}
-	p = newProvider(types.ProviderTypeFile)
-	p.ProviderImpl, err = FileProviderImpl(filename)
-	if err != nil {
-		return nil, err
-	}
-	p.watcher = p.NewWatcher()
-	return
 }
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
-	p := newProvider(types.ProviderTypeDocker)
-	p.ProviderImpl = DockerProviderImpl(name, dockerHost)
-	p.watcher = p.NewWatcher()
-	return p
+	return &Provider{
+		t:            types.ProviderTypeDocker,
+		ProviderImpl: DockerProviderImpl(name, dockerHost),
+	}
 }
 
 func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
-	p := newProvider(types.ProviderTypeAgent)
-	agent := &AgentProvider{
-		AgentConfig: cfg,
-		docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
+	return &Provider{
+		t: types.ProviderTypeAgent,
+		ProviderImpl: &AgentProvider{
+			AgentConfig: cfg,
+			docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
+		},
 	}
-	p.ProviderImpl = agent
-	p.watcher = p.NewWatcher()
-	return p
 }
 
-func (p *Provider) GetType() types.ProviderType {
+func (p *Provider) Type() types.ProviderType {
 	return p.t
 }
 
@@ -105,6 +90,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 		errs.Add(p.startRoute(t, r))
 	}
 
+	watcher := p.NewWatcher()
 	eventQueue := events.NewEventQueue(
 		t.Subtask("event_queue", false),
 		providerEventFlushInterval,
@@ -118,7 +104,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 			gperr.LogError("event error", err, p.Logger())
 		},
 	)
-	eventQueue.Start(p.watcher.Events(t.Context()))
+	eventQueue.Start(watcher.Events(t.Context()))
 
 	if err := errs.Error(); err != nil {
 		return err.Subject(p.String())
