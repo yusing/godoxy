@@ -15,7 +15,7 @@ import (
 	"github.com/yusing/go-proxy/agent/pkg/certs"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/pkg"
 )
@@ -53,6 +53,15 @@ var (
 	HTTPProxyURL          = types.MustParseURL(APIBaseURL + EndpointProxyHTTP)
 	HTTPProxyURLPrefixLen = len(APIEndpointBase + EndpointProxyHTTP)
 )
+
+// TestAgentConfig is a helper function to create an AgentConfig for testing purposes.
+// Not used in production.
+func TestAgentConfig(name string, addr string) *AgentConfig {
+	return &AgentConfig{
+		name: name,
+		Addr: addr,
+	}
+}
 
 func IsDockerHostAgent(dockerHost string) bool {
 	return strings.HasPrefix(dockerHost, FakeDockerHostPrefix)

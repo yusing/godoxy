@@ -9,6 +9,14 @@ var validate = validator.New()
 
 var ErrValidationError = gperr.New("validation error")
 
+func Validate(v any) gperr.Error {
+	err := validate.Struct(v)
+	if err != nil {
+		return ErrValidationError.With(err)
+	}
+	return nil
+}
+
 type CustomValidator interface {
 	Validate() gperr.Error
 }
