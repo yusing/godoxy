@@ -73,7 +73,7 @@ func (handler *EventHandler) matchAny(events []watcher.Event, route *route.Route
 }
 
 func (handler *EventHandler) match(event watcher.Event, route *route.Route) bool {
-	switch handler.provider.GetType() {
+	switch handler.provider.Type() {
 	case types.ProviderTypeDocker, types.ProviderTypeAgent:
 		return route.Container.ContainerID == event.ActorID ||
 			route.Container.ContainerName == event.ActorName

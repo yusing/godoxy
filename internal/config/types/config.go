@@ -2,12 +2,15 @@ package types
 
 import (
 	"context"
+	"os"
+	"path"
 	"regexp"
 	"sync"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/autocert"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
@@ -24,10 +27,10 @@ type (
 		TimeoutShutdown int                      `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Providers struct {
-		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
-		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
-		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty"`
-		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
+		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"unique,dive,config_file_exists"`
+		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"unique,dive,unix_addr|url"`
+		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty" validate:"unique=Addr"`
+		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty" validate:"unique=ProviderName"`
 	}
 	Entrypoint struct {
 		Middlewares []map[string]any  `json:"middlewares"`
@@ -97,13 +100,9 @@ func init() {
 		}
 		return true
 	})
-	utils.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
-		m := fl.Field().Interface().(map[string]string)
-		for k := range m {
-			if k == "" {
-				return false
-			}
-		}
-		return true
+	utils.MustRegisterValidation("config_file_exists", func(fl validator.FieldLevel) bool {
+		filename := fl.Field().Interface().(string)
+		info, err := os.Stat(path.Join(common.ConfigBasePath, filename))
+		return err == nil && !info.IsDir()
 	})
 }

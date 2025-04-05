@@ -20,17 +20,12 @@ type FileProvider struct {
 	l        zerolog.Logger
 }
 
-func FileProviderImpl(filename string) (ProviderImpl, error) {
-	impl := &FileProvider{
+func FileProviderImpl(filename string) ProviderImpl {
+	return &FileProvider{
 		fileName: filename,
 		path:     path.Join(common.ConfigBasePath, filename),
 		l:        logging.With().Str("type", "file").Str("name", filename).Logger(),
 	}
-	_, err := os.Stat(impl.path)
-	if err != nil {
-		return nil, err
-	}
-	return impl, nil
 }
 
 func validate(data []byte) (routes route.Routes, err gperr.Error) {

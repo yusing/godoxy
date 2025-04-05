@@ -51,6 +51,8 @@ You may run "ls-config" to show or dump the current config.`
 
 var Validate = config.Validate
 
+var ErrProviderNameConflict = gperr.New("provider name conflict")
+
 func newConfig() *Config {
 	return &Config{
 		value:      config.DefaultConfig(),
@@ -263,14 +265,13 @@ func (cfg *Config) initAutoCert(autocertCfg *autocert.AutocertConfig) (err gperr
 }
 
 func (cfg *Config) errIfExists(p *proxy.Provider) gperr.Error {
-	if _, ok := cfg.providers.Load(p.String()); ok {
-		return gperr.Errorf("provider %s already exists", p.String())
+	if conflict, ok := cfg.providers.Load(p.String()); ok {
+		return ErrProviderNameConflict.
+			Subject(p.String()).
+			Withf("one is %q", conflict.Type()).
+			Withf("the other is %q", p.Type())
 	}
 	return nil
-}
-
-func (cfg *Config) storeProvider(p *proxy.Provider) {
-	cfg.providers.Store(p.String(), p)
 }
 
 func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
@@ -279,40 +280,33 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 
 	removeAllAgents()
 
+	routeProviders := make([]*proxy.Provider, 0, len(providers.Agents)+len(providers.Docker)+len(providers.Files))
+
 	for _, agent := range providers.Agents {
 		if err := agent.Init(cfg.task.Context()); err != nil {
 			errs.Add(err.Subject(agent.String()))
 			continue
 		}
 		addAgent(agent)
-		p := proxy.NewAgentProvider(agent)
-		if err := cfg.errIfExists(p); err != nil {
-			errs.Add(err.Subject(p.String()))
-			continue
-		}
-		cfg.storeProvider(p)
+		routeProviders = append(routeProviders, proxy.NewAgentProvider(agent))
 	}
 	for _, filename := range providers.Files {
-		p, err := proxy.NewFileProvider(filename)
-		if err == nil {
-			err = cfg.errIfExists(p)
-		}
-		if err != nil {
-			errs.Add(gperr.PrependSubject(filename, err))
-			continue
-		}
-		cfg.storeProvider(p)
+		routeProviders = append(routeProviders, proxy.NewFileProvider(filename))
 	}
 	for name, dockerHost := range providers.Docker {
-		p := proxy.NewDockerProvider(name, dockerHost)
+		routeProviders = append(routeProviders, proxy.NewDockerProvider(name, dockerHost))
+	}
+	if len(routeProviders) == 0 {
+		return nil
+	}
+
+	// check if all providers are unique (should not happen but just in case)
+	for _, p := range routeProviders {
 		if err := cfg.errIfExists(p); err != nil {
-			errs.Add(err.Subject(p.String()))
+			errs.Add(err)
 			continue
 		}
-		cfg.storeProvider(p)
-	}
-	if cfg.providers.Size() == 0 {
-		return nil
+		cfg.providers.Store(p.String(), p)
 	}
 
 	lenLongestName := 0
