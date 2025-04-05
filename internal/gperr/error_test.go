@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -18,11 +19,11 @@ func TestBaseWithSubject(t *testing.T) {
 	withSubjectf := err.Subjectf("%s %s", "foo", "bar")
 
 	ExpectError(t, err, withSubject)
-	ExpectEqual(t, withSubject.Error(), "foo: error")
+	ExpectEqual(t, ansi.StripANSI(withSubject.Error()), "foo: error")
 	ExpectTrue(t, withSubject.Is(err))
 
 	ExpectError(t, err, withSubjectf)
-	ExpectEqual(t, withSubjectf.Error(), "foo bar: error")
+	ExpectEqual(t, ansi.StripANSI(withSubjectf.Error()), "foo bar: error")
 	ExpectTrue(t, withSubjectf.Is(err))
 }
 
@@ -114,9 +115,9 @@ func TestErrorWith(t *testing.T) {
 func TestErrorStringSimple(t *testing.T) {
 	errFailure := New("generic failure")
 	ne := errFailure.Subject("foo bar")
-	ExpectEqual(t, ne.Error(), "foo bar: generic failure")
+	ExpectEqual(t, ansi.StripANSI(ne.Error()), "foo bar: generic failure")
 	ne = ne.Subject("baz")
-	ExpectEqual(t, ne.Error(), "baz > foo bar: generic failure")
+	ExpectEqual(t, ansi.StripANSI(ne.Error()), "baz > foo bar: generic failure")
 }
 
 func TestErrorStringNested(t *testing.T) {
@@ -153,5 +154,5 @@ func TestErrorStringNested(t *testing.T) {
       • action 3 > inner3: generic failure
         • 3
         • 3`
-	ExpectEqual(t, ne.Error(), want)
+	ExpectEqual(t, ansi.StripANSI(ne.Error()), want)
 }
