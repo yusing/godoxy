@@ -280,7 +280,7 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 	removeAllAgents()
 
 	for _, agent := range providers.Agents {
-		if err := agent.Start(cfg.task); err != nil {
+		if err := agent.Init(cfg.task.Context()); err != nil {
 			errs.Add(err.Subject(agent.String()))
 			continue
 		}

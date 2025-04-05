@@ -17,7 +17,6 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -80,7 +79,7 @@ func checkVersion(a, b string) bool {
 	return withoutBuildTime(a) == withoutBuildTime(b)
 }
 
-func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) error {
+func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
 		return err
@@ -102,7 +101,7 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	// create transport and http client
 	cfg.httpClient = cfg.NewHTTPClient()
 
-	ctx, cancel := context.WithTimeout(parent.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// check agent version
@@ -125,12 +124,11 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 
 	cfg.name = string(name)
 	cfg.l = logging.With().Str("agent", cfg.name).Logger()
-
-	logging.Info().Msgf("agent %q initialized", cfg.name)
+	cfg.l.Info().Msg("agent initialized")
 	return nil
 }
 
-func (cfg *AgentConfig) Start(parent task.Parent) gperr.Error {
+func (cfg *AgentConfig) Init(ctx context.Context) gperr.Error {
 	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
 	if !ok {
 		return gperr.New("invalid agent host").Subject(cfg.Addr)
@@ -146,7 +144,7 @@ func (cfg *AgentConfig) Start(parent task.Parent) gperr.Error {
 		return gperr.Wrap(err, "failed to extract agent certs")
 	}
 
-	return gperr.Wrap(cfg.StartWithCerts(parent, ca, crt, key))
+	return gperr.Wrap(cfg.InitWithCerts(ctx, ca, crt, key))
 }
 
 func (cfg *AgentConfig) NewHTTPClient() *http.Client {
