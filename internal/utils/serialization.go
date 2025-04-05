@@ -167,8 +167,8 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 	}
 }
 
-// Deserialize takes a SerializedObject and a target value, and assigns the values in the SerializedObject to the target value.
-// Deserialize ignores case differences between the field names in the SerializedObject and the target.
+// MapUnmarshalValidate takes a SerializedObject and a target value, and assigns the values in the SerializedObject to the target value.
+// MapUnmarshalValidate ignores case differences between the field names in the SerializedObject and the target.
 //
 // The target value must be a struct or a map[string]any.
 // If the target value is a struct , and implements the MapUnmarshaller interface,
@@ -180,7 +180,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 // If the target value is a map[string]any the SerializedObject will be deserialized into the map.
 //
 // The function returns an error if the target value is not a struct or a map[string]any, or if there is an error during deserialization.
-func Deserialize(src SerializedObject, dst any) (err gperr.Error) {
+func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 	dstV := reflect.ValueOf(dst)
 	dstT := dstV.Type()
 
@@ -341,9 +341,6 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 	case srcT.AssignableTo(dstT):
 		dst.Set(src)
 		return nil
-	// case srcT.ConvertibleTo(dstT):
-	// 	dst.Set(src.Convert(dstT))
-	// 	return nil
 	case srcKind == reflect.String:
 		if convertible, err := ConvertString(src.String(), dst); convertible {
 			return err
@@ -371,7 +368,7 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 		if !ok {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		return Deserialize(obj, dst.Addr().Interface())
+		return MapUnmarshalValidate(obj, dst.Addr().Interface())
 	case srcKind == reflect.Slice:
 		if src.Len() == 0 {
 			return nil
@@ -448,7 +445,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		dst.Set(reflect.ValueOf(i).Convert(dstT))
 		return
 	}
-	// check if (*T).Convertor is implemented
+	// check if target implements string parser
 	if parser, ok := dst.Addr().Interface().(strutils.Parser); ok {
 		return true, gperr.Wrap(parser.Parse(src))
 	}
@@ -458,7 +455,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	case reflect.Slice:
 		src = strings.TrimSpace(src)
 		isMultiline := strings.ContainsRune(src, '\n')
-		// one liner is comma separated list
+		// treats one liner without leading dash as comma separated list
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
 			dst.Set(reflect.MakeSlice(dst.Type(), len(values), len(values)))
@@ -493,21 +490,21 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	return true, Convert(reflect.ValueOf(tmp), dst)
 }
 
-func DeserializeYAML[T any](data []byte, target *T) gperr.Error {
+func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 	m := make(map[string]any)
 	if err := yaml.Unmarshal(data, m); err != nil {
 		return gperr.Wrap(err)
 	}
-	return Deserialize(m, target)
+	return MapUnmarshalValidate(m, target)
 }
 
-func DeserializeYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
+func UnmarshalValidateYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
 	if err = gperr.Wrap(yaml.Unmarshal(data, m)); err != nil {
 		return
 	}
 	m2 := make(map[string]V, len(m))
-	if err = Deserialize(m, m2); err != nil {
+	if err = MapUnmarshalValidate(m, m2); err != nil {
 		return
 	}
 	return functional.NewMapFrom(m2), nil

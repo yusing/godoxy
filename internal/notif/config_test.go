@@ -150,7 +150,7 @@ func TestNotificationConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var cfg NotificationConfig
 			provider := tt.cfg["provider"]
-			err := utils.Deserialize(tt.cfg, &cfg)
+			err := utils.MapUnmarshalValidate(tt.cfg, &cfg)
 			if tt.wantErr {
 				ExpectHasError(t, err)
 			} else {

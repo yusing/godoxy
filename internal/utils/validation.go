@@ -13,10 +13,6 @@ type CustomValidator interface {
 	Validate() gperr.Error
 }
 
-func Validator() *validator.Validate {
-	return validate
-}
-
 func MustRegisterValidation(tag string, fn validator.Func) {
 	err := validate.RegisterValidation(tag, fn)
 	if err != nil {

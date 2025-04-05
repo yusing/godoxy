@@ -40,7 +40,7 @@ func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PE
 
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
-	err := agentCfg.StartWithCerts(cfg.Task(), ca.Cert, client.Cert, client.Key)
+	err := agentCfg.InitWithCerts(cfg.Task().Context(), ca.Cert, client.Cert, client.Key)
 	if err != nil {
 		return 0, gperr.Wrap(err, "failed to start agent")
 	}

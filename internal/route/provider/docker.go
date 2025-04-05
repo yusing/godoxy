@@ -169,7 +169,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 		}
 
 		// deserialize map into entry object
-		err := U.Deserialize(entryMap, r)
+		err := U.MapUnmarshalValidate(entryMap, r)
 		if err != nil {
 			errs.Add(err.Subject(alias))
 		} else {
@@ -178,7 +178,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 	}
 	if wildcardProps != nil {
 		for _, re := range routes {
-			if err := U.Deserialize(wildcardProps, re); err != nil {
+			if err := U.MapUnmarshalValidate(wildcardProps, re); err != nil {
 				errs.Add(err.Subject(docker.WildcardAlias))
 				break
 			}

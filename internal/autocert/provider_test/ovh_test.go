@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
-	U "github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/utils"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"gopkg.in/yaml.v3"
 )
@@ -45,6 +45,6 @@ oauth2_config:
 	testYaml = testYaml[1:] // remove first \n
 	opt := make(map[string]any)
 	ExpectNoError(t, yaml.Unmarshal([]byte(testYaml), opt))
-	ExpectNoError(t, U.Deserialize(opt, cfg))
+	ExpectNoError(t, utils.MapUnmarshalValidate(opt, cfg))
 	ExpectEqual(t, cfg, cfgExpected)
 }

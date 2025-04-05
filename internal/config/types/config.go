@@ -81,7 +81,7 @@ func HasInstance() bool {
 
 func Validate(data []byte) gperr.Error {
 	var model Config
-	return utils.DeserializeYAML(data, &model)
+	return utils.UnmarshalValidateYAML(data, &model)
 }
 
 var matchDomainsRegex = regexp.MustCompile(`^[^\.]?([\w\d\-_]\.?)+[^\.]?$`)

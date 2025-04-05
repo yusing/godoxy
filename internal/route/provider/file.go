@@ -34,7 +34,7 @@ func FileProviderImpl(filename string) (ProviderImpl, error) {
 }
 
 func validate(data []byte) (routes route.Routes, err gperr.Error) {
-	err = utils.DeserializeYAML(data, &routes)
+	err = utils.UnmarshalValidateYAML(data, &routes)
 	return
 }
 

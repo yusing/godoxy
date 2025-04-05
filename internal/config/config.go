@@ -220,7 +220,7 @@ func (cfg *Config) load() gperr.Error {
 	}
 
 	model := config.DefaultConfig()
-	if err := utils.DeserializeYAML(data, model); err != nil {
+	if err := utils.UnmarshalValidateYAML(data, model); err != nil {
 		gperr.LogFatal(errMsg, err)
 	}
 

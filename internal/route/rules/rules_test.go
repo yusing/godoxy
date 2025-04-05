@@ -28,7 +28,7 @@ func TestParseRule(t *testing.T) {
 	var rules struct {
 		Rules Rules
 	}
-	err := utils.Deserialize(utils.SerializedObject{"rules": test}, &rules)
+	err := utils.MapUnmarshalValidate(utils.SerializedObject{"rules": test}, &rules)
 	ExpectNoError(t, err)
 	ExpectEqual(t, len(rules.Rules), len(test))
 	ExpectEqual(t, rules.Rules[0].Name, "test")

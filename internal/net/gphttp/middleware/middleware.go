@@ -118,7 +118,7 @@ func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
 	} else {
 		m.priority = DefaultPriority
 	}
-	return utils.Deserialize(optsRaw, m.impl)
+	return utils.MapUnmarshalValidate(optsRaw, m.impl)
 }
 
 func (m *Middleware) finalize() error {
