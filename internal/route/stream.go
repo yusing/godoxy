@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/idlewatcher"
 	"github.com/yusing/go-proxy/internal/logging"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"

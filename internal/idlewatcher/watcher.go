@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/docker"
-	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/gperr"
+	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/logging"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"

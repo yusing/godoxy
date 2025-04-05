@@ -3,7 +3,7 @@ package types
 import (
 	"net/http"
 
-	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
+	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 	F "github.com/yusing/go-proxy/internal/utils/functional"

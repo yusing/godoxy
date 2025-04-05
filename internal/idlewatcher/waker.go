@@ -3,8 +3,8 @@ package idlewatcher
 import (
 	"time"
 
-	"github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/gperr"
+	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/metrics"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	net "github.com/yusing/go-proxy/internal/net/types"
@@ -16,7 +16,7 @@ import (
 )
 
 type (
-	Waker = types.Waker
+	Waker = idlewatcher.Waker
 	waker struct {
 		_ U.NoCopy
 
