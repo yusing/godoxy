@@ -72,14 +72,13 @@ func (err *nestedError) Error() string {
 		return makeLine("<nil>", 0)
 	}
 
-	lines := make([]string, 0, 1+len(err.Extras))
 	if err.Err != nil {
+		lines := make([]string, 0, 1+len(err.Extras))
 		lines = append(lines, makeLine(err.Err.Error(), 0))
 		lines = append(lines, makeLines(err.Extras, 1)...)
-	} else {
-		lines = append(lines, makeLines(err.Extras, 0)...)
+		return strutils.JoinLines(lines)
 	}
-	return strutils.JoinLines(lines)
+	return strutils.JoinLines(makeLines(err.Extras, 0))
 }
 
 //go:inline
@@ -103,8 +102,10 @@ func makeLines(errs []error, level int) []string {
 		case *nestedError:
 			if err.Err != nil {
 				lines = append(lines, makeLine(err.Err.Error(), level))
+				lines = append(lines, makeLines(err.Extras, level+1)...)
+			} else {
+				lines = append(lines, makeLines(err.Extras, level)...)
 			}
-			lines = append(lines, makeLines(err.Extras, level+1)...)
 		default:
 			lines = append(lines, makeLine(err.Error(), level))
 		}
