@@ -2,6 +2,7 @@ package gperr
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
@@ -89,10 +90,8 @@ func (err *withSubject) Error() string {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (err *withSubject) MarshalJSON() ([]byte, error) {
-	subjects := make([]string, len(err.Subjects))
-	for i, s := range err.Subjects {
-		subjects[len(err.Subjects)-i-1] = s
-	}
+	subjects := slices.Clone(err.Subjects)
+	slices.Reverse(subjects)
 
 	reversed := map[string]any{
 		"subjects": subjects,
