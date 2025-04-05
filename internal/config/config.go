@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/api"
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
@@ -274,17 +275,42 @@ func (cfg *Config) errIfExists(p *proxy.Provider) gperr.Error {
 	return nil
 }
 
+func (cfg *Config) initAgents(agentCfgs []*agent.AgentConfig) gperr.Error {
+	var wg sync.WaitGroup
+	var errs gperr.Builder
+
+	wg.Add(len(agentCfgs))
+	for _, agentCfg := range agentCfgs {
+		go func(agentCfg *agent.AgentConfig) {
+			defer wg.Done()
+			if err := agentCfg.Init(cfg.task.Context()); err != nil {
+				errs.Add(err.Subject(agentCfg.String()))
+			} else {
+				addAgent(agentCfg)
+			}
+		}(agentCfg)
+	}
+	wg.Wait()
+	return errs.Error()
+}
+
 func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 	errs := gperr.NewBuilder("route provider errors")
 	results := gperr.NewBuilder("loaded route providers")
 
 	removeAllAgents()
 
-	routeProviders := make([]*proxy.Provider, 0, len(providers.Agents)+len(providers.Docker)+len(providers.Files))
+	n := len(providers.Agents) + len(providers.Docker) + len(providers.Files)
+	if n == 0 {
+		return nil
+	}
+
+	routeProviders := make([]*proxy.Provider, 0, n)
+
+	errs.Add(cfg.initAgents(providers.Agents))
 
 	for _, agent := range providers.Agents {
-		if err := agent.Init(cfg.task.Context()); err != nil {
-			errs.Add(err.Subject(agent.String()))
+		if !agent.IsInitialized() { // failed to initialize
 			continue
 		}
 		addAgent(agent)
@@ -295,9 +321,6 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 	}
 	for name, dockerHost := range providers.Docker {
 		routeProviders = append(routeProviders, proxy.NewDockerProvider(name, dockerHost))
-	}
-	if len(routeProviders) == 0 {
-		return nil
 	}
 
 	// check if all providers are unique (should not happen but just in case)

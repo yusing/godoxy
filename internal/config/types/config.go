@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
+	proxmox "github.com/yusing/go-proxy/internal/proxmox/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -29,6 +30,7 @@ type (
 	Providers struct {
 		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"unique,dive,config_file_exists"`
 		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"unique,dive,unix_addr|url"`
+		Proxmox      map[string]proxmox.Config  `json:"proxmox" yaml:"proxmox,omitempty"`
 		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty" validate:"unique=Addr"`
 		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty" validate:"unique=ProviderName"`
 	}

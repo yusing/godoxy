@@ -181,6 +181,10 @@ func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
 	return gphttp.DefaultDialer.DialContext(ctx, "tcp", cfg.Addr)
 }
 
+func (cfg *AgentConfig) IsInitialized() bool {
+	return cfg.name != ""
+}
+
 func (cfg *AgentConfig) Name() string {
 	return cfg.name
 }
