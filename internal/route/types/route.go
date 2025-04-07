@@ -1,4 +1,4 @@
-package types
+package route
 
 import (
 	"net/http"
@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 )
 
 type (
@@ -45,6 +46,10 @@ type (
 	HTTPRoute interface {
 		Route
 		http.Handler
+	}
+	ReverseProxyRoute interface {
+		HTTPRoute
+		ReverseProxy() *reverseproxy.ReverseProxy
 	}
 	StreamRoute interface {
 		Route

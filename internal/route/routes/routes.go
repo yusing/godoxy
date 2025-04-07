@@ -1,20 +1,20 @@
 package routes
 
 import (
-	"github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/go-proxy/internal/route/types"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
 var (
-	httpRoutes   = F.NewMapOf[string, types.HTTPRoute]()
-	streamRoutes = F.NewMapOf[string, types.StreamRoute]()
+	httpRoutes   = F.NewMapOf[string, route.HTTPRoute]()
+	streamRoutes = F.NewMapOf[string, route.StreamRoute]()
 )
 
-func RangeRoutes(callback func(alias string, r types.Route)) {
-	httpRoutes.RangeAll(func(alias string, r types.HTTPRoute) {
+func RangeRoutes(callback func(alias string, r route.Route)) {
+	httpRoutes.RangeAll(func(alias string, r route.HTTPRoute) {
 		callback(alias, r)
 	})
-	streamRoutes.RangeAll(func(alias string, r types.StreamRoute) {
+	streamRoutes.RangeAll(func(alias string, r route.StreamRoute) {
 		callback(alias, r)
 	})
 }
@@ -23,15 +23,15 @@ func NumRoutes() int {
 	return httpRoutes.Size() + streamRoutes.Size()
 }
 
-func GetHTTPRoutes() F.Map[string, types.HTTPRoute] {
+func GetHTTPRoutes() F.Map[string, route.HTTPRoute] {
 	return httpRoutes
 }
 
-func GetStreamRoutes() F.Map[string, types.StreamRoute] {
+func GetStreamRoutes() F.Map[string, route.StreamRoute] {
 	return streamRoutes
 }
 
-func GetHTTPRouteOrExact(alias, host string) (types.HTTPRoute, bool) {
+func GetHTTPRouteOrExact(alias, host string) (route.HTTPRoute, bool) {
 	r, ok := httpRoutes.Load(alias)
 	if ok {
 		return r, true
@@ -40,15 +40,15 @@ func GetHTTPRouteOrExact(alias, host string) (types.HTTPRoute, bool) {
 	return httpRoutes.Load(host)
 }
 
-func GetHTTPRoute(alias string) (types.HTTPRoute, bool) {
+func GetHTTPRoute(alias string) (route.HTTPRoute, bool) {
 	return httpRoutes.Load(alias)
 }
 
-func GetStreamRoute(alias string) (types.StreamRoute, bool) {
+func GetStreamRoute(alias string) (route.StreamRoute, bool) {
 	return streamRoutes.Load(alias)
 }
 
-func GetRoute(alias string) (types.Route, bool) {
+func GetRoute(alias string) (route.Route, bool) {
 	r, ok := httpRoutes.Load(alias)
 	if ok {
 		return r, true
@@ -56,11 +56,11 @@ func GetRoute(alias string) (types.Route, bool) {
 	return streamRoutes.Load(alias)
 }
 
-func SetHTTPRoute(alias string, r types.HTTPRoute) {
+func SetHTTPRoute(alias string, r route.HTTPRoute) {
 	httpRoutes.Store(alias, r)
 }
 
-func SetStreamRoute(alias string, r types.StreamRoute) {
+func SetStreamRoute(alias string, r route.StreamRoute) {
 	streamRoutes.Store(alias, r)
 }
 
@@ -73,6 +73,6 @@ func DeleteStreamRoute(alias string) {
 }
 
 func TestClear() {
-	httpRoutes = F.NewMapOf[string, types.HTTPRoute]()
-	streamRoutes = F.NewMapOf[string, types.StreamRoute]()
+	httpRoutes = F.NewMapOf[string, route.HTTPRoute]()
+	streamRoutes = F.NewMapOf[string, route.StreamRoute]()
 }

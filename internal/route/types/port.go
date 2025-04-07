@@ -1,4 +1,4 @@
-package types
+package route
 
 import (
 	"strconv"
@@ -8,8 +8,8 @@ import (
 )
 
 type Port struct {
-	Listening int `json:"listening"`
-	Proxy     int `json:"proxy"`
+	Listening int `json:"listening,omitempty"`
+	Proxy     int `json:"proxy,omitempty"`
 }
 
 var (

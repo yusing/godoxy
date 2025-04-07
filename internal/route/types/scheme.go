@@ -1,4 +1,4 @@
-package types
+package route
 
 import (
 	"github.com/yusing/go-proxy/internal/gperr"

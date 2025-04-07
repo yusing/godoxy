@@ -7,7 +7,7 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
-	"github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
@@ -15,9 +15,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("AlreadyValidated", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 			Metadata: Metadata{
 				isValidated: true,
 			},
@@ -29,9 +29,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("ReservedPort", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "localhost",
-			Port:   types.Port{Proxy: common.ProxyHTTPPort},
+			Port:   route.Port{Proxy: common.ProxyHTTPPort},
 		}
 		err := r.Validate()
 		require.Error(t, err, "Validate should return error for localhost with reserved port")
@@ -41,9 +41,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("ListeningPortWithHTTP", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80, Listening: 1234},
+			Port:   route.Port{Proxy: 80, Listening: 1234},
 		}
 		err := r.Validate()
 		require.Error(t, err, "Validate should return error for HTTP scheme with listening port")
@@ -53,9 +53,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("DisabledHealthCheckWithLoadBalancer", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 			HealthCheck: &health.HealthCheckConfig{
 				Disable: true,
 			},
@@ -71,9 +71,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("FileServerScheme", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeFileServer,
+			Scheme: route.SchemeFileServer,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 			Root:   "/tmp", // Root is required for file server
 		}
 		err := r.Validate()
@@ -84,9 +84,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("HTTPScheme", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for valid HTTP route")
@@ -96,9 +96,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("TCPScheme", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeTCP,
+			Scheme: route.SchemeTCP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80, Listening: 8080},
+			Port:   route.Port{Proxy: 80, Listening: 8080},
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for valid TCP route")
@@ -108,11 +108,11 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("DockerContainer", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 			Metadata: Metadata{
-				Container: &docker.Container{
+				DockerContainer: &docker.Container{
 					ContainerID: "test-id",
 					Image: &docker.ContainerImage{
 						Name: "test-image",
@@ -130,7 +130,7 @@ func TestRouteValidate(t *testing.T) {
 			Alias:  "test",
 			Scheme: "invalid",
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 		}
 		require.Panics(t, func() {
 			_ = r.Validate()
@@ -140,9 +140,9 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("ModifiedFields", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: types.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   types.Port{Proxy: 80},
+			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
 		require.NoError(t, err)

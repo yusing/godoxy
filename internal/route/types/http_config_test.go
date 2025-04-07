@@ -1,11 +1,11 @@
-package types_test
+package route_test
 
 import (
 	"testing"
 	"time"
 
 	. "github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
@@ -14,14 +14,14 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
-		expected types.HTTPConfig
+		expected route.HTTPConfig
 	}{
 		{
 			name: "no_tls_verify",
 			input: map[string]any{
 				"no_tls_verify": "true",
 			},
-			expected: types.HTTPConfig{
+			expected: route.HTTPConfig{
 				NoTLSVerify: true,
 			},
 		},
@@ -30,7 +30,7 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 			input: map[string]any{
 				"response_header_timeout": "1s",
 			},
-			expected: types.HTTPConfig{
+			expected: route.HTTPConfig{
 				ResponseHeaderTimeout: 1 * time.Second,
 			},
 		},
