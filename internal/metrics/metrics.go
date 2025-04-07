@@ -15,16 +15,9 @@ type (
 		HTTP5xx *Counter
 		HTTPReqElapsed *Gauge
 	}
-
-	ServiceMetrics struct {
-		HealthStatus *Gauge
-	}
 )
 
-var (
-	rm RouteMetrics
-	sm ServiceMetrics
-)
+var rm RouteMetrics
 
 const (
 	routerNamespace     = "router"
@@ -35,10 +28,6 @@ const (
 
 func GetRouteMetrics() *RouteMetrics {
 	return &rm
-}
-
-func GetServiceMetrics() *ServiceMetrics {
-	return &sm
 }
 
 func (rm *RouteMetrics) UnregisterService(service string) {
@@ -54,7 +43,6 @@ func init() {
 		return
 	}
 	initRouteMetrics()
-	initServiceMetrics()
 }
 
 func initRouteMetrics() {
@@ -91,15 +79,5 @@ func initRouteMetrics() {
 			Name:      "req_elapsed_ms",
 			Help:      "How long it took to process the request and respond a status code" + partitionsHelp,
 		}, lbls...),
-	}
-}
-
-func initServiceMetrics() {
-	sm = ServiceMetrics{
-		HealthStatus: NewGauge(prometheus.GaugeOpts{
-			Namespace: serviceNamespace,
-			Name:      "health_status",
-			Help:      "The health status of the router by service",
-		}, "service"),
 	}
 }

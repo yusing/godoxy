@@ -8,7 +8,6 @@ import (
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/metrics"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/task"
@@ -29,8 +28,6 @@ type (
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
-
-		metric *metrics.Gauge
 
 		task *task.Task
 	}
@@ -71,9 +68,6 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 		defer func() {
 			if mon.status.Load() != health.StatusError {
 				mon.status.Store(health.StatusUnknown)
-			}
-			if mon.metric != nil {
-				mon.metric.Reset()
 			}
 			mon.task.Finish(nil)
 		}()
@@ -229,9 +223,6 @@ func (mon *monitor) checkUpdateHealth() error {
 				Color:  notif.ColorError,
 			})
 		}
-	}
-	if mon.metric != nil {
-		mon.metric.Set(float64(status))
 	}
 
 	return nil

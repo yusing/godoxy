@@ -5,7 +5,6 @@ import (
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	"github.com/yusing/go-proxy/internal/metrics"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	route "github.com/yusing/go-proxy/internal/route/types"
@@ -23,7 +22,6 @@ type (
 		rp     *reverseproxy.ReverseProxy
 		stream net.Stream
 		hc     health.HealthChecker
-		metric *metrics.Gauge
 	}
 )
 
@@ -74,9 +72,6 @@ func NewStreamWaker(parent task.Parent, route route.Route, stream net.Stream) (W
 func (w *Watcher) Start(parent task.Parent) gperr.Error {
 	w.task.OnCancel("route_cleanup", func() {
 		parent.Finish(w.task.FinishCause())
-		if w.metric != nil {
-			w.metric.Reset()
-		}
 	})
 	return nil
 }
@@ -136,10 +131,6 @@ func (w *Watcher) checkUpdateState() (ready bool, err error) {
 
 	if !w.running() {
 		return false, nil
-	}
-
-	if w.metric != nil {
-		defer w.metric.Set(float64(w.Status()))
 	}
 
 	// the new container info not yet updated
