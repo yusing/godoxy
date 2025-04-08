@@ -11,11 +11,9 @@
 
 完整文檔請查閱 **[Wiki](https://github.com/yusing/godoxy/wiki)**（暫未有中文翻譯）
 
-<!-- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy) -->
-
 <a href="README.md">EN</a> | **中文**
+
+**Running demo: <https://godoxy.demo.6uo.me>**
 
 <img src="https://github.com/user-attachments/assets/4bb371f4-6e4c-425c-89b2-b9e962bdd46f" style="max-width: 650">
 

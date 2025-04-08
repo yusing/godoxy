@@ -13,9 +13,7 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 **EN** | <a href="README_CHT.md">中文</a>
 
-<!-- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy) -->
+**Running demo: <https://godoxy.demo.6uo.me>**
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
