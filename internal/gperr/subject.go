@@ -27,6 +27,10 @@ func PrependSubject(subject string, err error) error {
 		return nil
 	}
 
+	if subject == "" {
+		return err
+	}
+
 	//nolint:errorlint
 	switch err := err.(type) {
 	case *withSubject:
