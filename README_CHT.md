@@ -13,8 +13,6 @@
 
 <a href="README.md">EN</a> | **中文**
 
-**Running demo: <https://godoxy.demo.6uo.me>**
-
 <img src="https://github.com/user-attachments/assets/4bb371f4-6e4c-425c-89b2-b9e962bdd46f" style="max-width: 650">
 
 </div>
@@ -25,6 +23,7 @@
 
 - [GoDoxy](#godoxy)
   - [目錄](#目錄)
+  - [運行示例](#運行示例)
   - [主要特點](#主要特點)
   - [前置需求](#前置需求)
   - [安裝](#安裝)
@@ -34,6 +33,12 @@
     - [閒置休眠](#閒置休眠)
     - [監控](#監控)
   - [自行編譯](#自行編譯)
+
+## 運行示例
+
+<https://godoxy.demo.6uo.me>
+
+[![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
 
 ## 主要特點
 

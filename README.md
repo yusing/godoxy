@@ -13,8 +13,6 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 **EN** | <a href="README_CHT.md">中文</a>
 
-**Running demo: <https://godoxy.demo.6uo.me>**
-
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
 </div>
@@ -25,6 +23,7 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 - [GoDoxy](#godoxy)
   - [Table of content](#table-of-content)
+  - [Running demo](#running-demo)
   - [Key Features](#key-features)
   - [Prerequisites](#prerequisites)
   - [How does GoDoxy work](#how-does-godoxy-work)
@@ -35,6 +34,12 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
   - [Manual Setup](#manual-setup)
     - [Folder structrue](#folder-structrue)
   - [Build it yourself](#build-it-yourself)
+
+## Running demo
+
+<https://godoxy.demo.6uo.me>
+
+[![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
 
 ## Key Features
 
