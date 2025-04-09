@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"reflect"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -158,7 +157,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 				case reflect.Slice:
 					dst.Set(reflect.MakeSlice(dstT, 0, 0))
 				default:
-					err = gperr.Errorf("deserialize: %w for dst %s", ErrInvalidType, dstT.String())
+					err = gperr.Errorf("dive: %w for dst %s", ErrInvalidType, dstT.String())
 					return
 				}
 			}
@@ -189,7 +188,7 @@ func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 			dstV.Set(reflect.Zero(dstT))
 			return nil
 		}
-		return gperr.Errorf("deserialize: src is %w and dst is not settable\n%s", ErrNilValue, debug.Stack())
+		return gperr.Errorf("unmarshal: src is %w and dst is not settable", ErrNilValue)
 	}
 
 	if dstT.Implements(mapUnmarshalerType) {
@@ -209,7 +208,7 @@ func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 	// convert target fields to lower no-snake
 	// then check if the field of data is in the target
 
-	errs := gperr.NewBuilder("deserialize error")
+	errs := gperr.NewBuilder()
 
 	switch dstV.Kind() {
 	case reflect.Struct, reflect.Interface:
@@ -422,6 +421,9 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
+		if d < 0 {
+			return true, gperr.New("duration must be greater than 0 if defined")
+		}
 		dst.Set(reflect.ValueOf(d))
 		return
 	default:
@@ -440,7 +442,12 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			i, err = strconv.ParseFloat(src, dstT.Bits())
 		}
 		if err != nil {
-			return true, gperr.Wrap(err)
+			// avoid long error message
+			var numErr *strconv.NumError
+			if errors.As(err, &numErr) {
+				return true, gperr.Wrap(numErr.Err, dstT.Name()).Subject(src)
+			}
+			return true, gperr.Wrap(err).Subject(src)
 		}
 		dst.Set(reflect.ValueOf(i).Convert(dstT))
 		return
