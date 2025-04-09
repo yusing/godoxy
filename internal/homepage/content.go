@@ -1,4 +1,4 @@
-package favicon
+package homepage
 
 import (
 	"bufio"

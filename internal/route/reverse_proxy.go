@@ -173,7 +173,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		})
 	}
 
-	r.task.OnCancel("reset_favicon", func() { favicon.PruneRouteIconCache(r) })
+	r.task.OnCancel("reset_favicon", func() { homepage.PruneRouteIconCache(r) })
 	return nil
 }
 

@@ -1,4 +1,4 @@
-package favicon
+package homepage
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
-	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 )
@@ -82,17 +81,17 @@ func pruneExpiredIconCache() {
 	}
 }
 
-func routeKey(r route.HTTPRoute) string {
+func routeKey(r route) string {
 	return r.ProviderName() + ":" + r.TargetName()
 }
 
-func PruneRouteIconCache(route route.HTTPRoute) {
+func PruneRouteIconCache(route route) {
 	iconCacheMu.Lock()
 	defer iconCacheMu.Unlock()
 	delete(iconCache, routeKey(route))
 }
 
-func loadIconCache(key string) *fetchResult {
+func loadIconCache(key string) *FetchResult {
 	iconCacheMu.RLock()
 	defer iconCacheMu.RUnlock()
 
@@ -102,7 +101,7 @@ func loadIconCache(key string) *fetchResult {
 			Str("key", key).
 			Msg("icon found in cache")
 		icon.LastAccess = time.Now()
-		return &fetchResult{icon: icon.Icon}
+		return &FetchResult{Icon: icon.Icon}
 	}
 	return nil
 }

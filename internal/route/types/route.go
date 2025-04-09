@@ -24,6 +24,7 @@ type (
 		TargetName() string
 		TargetURL() *net.URL
 		HealthMonitor() health.HealthMonitor
+		Reference() string
 
 		Started() bool
 

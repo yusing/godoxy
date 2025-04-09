@@ -9,7 +9,6 @@ import (
 	"github.com/yusing/go-proxy/internal/api/v1/auth"
 	"github.com/yusing/go-proxy/internal/api/v1/certapi"
 	"github.com/yusing/go-proxy/internal/api/v1/dockerapi"
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -80,7 +79,7 @@ func NewHandler(cfg config.ConfigInstance) http.Handler {
 	mux.HandleFunc("POST", "/v1/file/validate/{type}", v1.ValidateFile, true)
 	mux.HandleFunc("GET", "/v1/health", v1.Health, true)
 	mux.HandleFunc("GET", "/v1/logs", memlogger.Handler(), true)
-	mux.HandleFunc("GET", "/v1/favicon", favicon.GetFavIcon, true)
+	mux.HandleFunc("GET", "/v1/favicon", v1.GetFavIcon, true)
 	mux.HandleFunc("POST", "/v1/homepage/set", v1.SetHomePageOverrides, true)
 	mux.HandleFunc("GET", "/v1/agents", v1.ListAgents, true)
 	mux.HandleFunc("GET", "/v1/agents/new", v1.NewAgent, true)

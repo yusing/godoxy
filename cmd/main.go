@@ -6,9 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/api/v1/auth"
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/api/v1/query"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
@@ -50,7 +48,7 @@ func main() {
 		rawLogger.Println("ok")
 		return
 	case common.CommandListIcons:
-		icons, err := internal.ListAvailableIcons()
+		icons, err := homepage.ListAvailableIcons()
 		if err != nil {
 			rawLogger.Fatal(err)
 		}
@@ -79,9 +77,9 @@ func main() {
 		logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
 		logging.Trace().Msg("trace enabled")
 		parallel(
-			internal.InitIconListCache,
+			homepage.InitIconListCache,
+			homepage.InitIconCache,
 			homepage.InitOverridesConfig,
-			favicon.InitIconCache,
 			systeminfo.Poller.Start,
 		)
 

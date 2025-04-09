@@ -147,6 +147,13 @@ func (r *Route) Started() bool {
 	return r.impl != nil
 }
 
+func (r *Route) Reference() string {
+	if r.Docker != nil {
+		return r.Docker.Image.Name
+	}
+	return r.Alias
+}
+
 func (r *Route) ProviderName() string {
 	return r.Provider
 }
@@ -390,21 +397,16 @@ func (r *Route) FinalizeHomepageConfig() {
 	r.Homepage = r.Homepage.GetOverride(r.Alias)
 
 	hp := r.Homepage
+	ref := r.Reference()
 
-	var key string
 	if hp.Name == "" {
-		if r.Container != nil {
-			key = r.Container.Image.Name
-		} else {
-			key = r.Alias
-		}
-		displayName, ok := internal.GetDisplayName(key)
+		displayName, ok := homepage.GetDisplayName(ref)
 		if ok {
 			hp.Name = displayName
 		} else {
 			hp.Name = strutils.Title(
 				strings.ReplaceAll(
-					strings.ReplaceAll(key, "-", " "),
+					strings.ReplaceAll(r.Alias, "-", " "),
 					"_", " ",
 				),
 			)
@@ -413,12 +415,7 @@ func (r *Route) FinalizeHomepageConfig() {
 
 	if hp.Category == "" {
 		if config.GetInstance().Value().Homepage.UseDefaultCategories {
-			if isDocker {
-				key = r.Container.Image.Name
-			} else {
-				key = strings.ToLower(r.Alias)
-			}
-			if category, ok := homepage.PredefinedCategories[key]; ok {
+			if category, ok := homepage.PredefinedCategories[ref]; ok {
 				hp.Category = category
 			}
 		}
