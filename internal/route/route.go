@@ -57,8 +57,7 @@ type (
 		ProxyURL    *net.URL            `json:"purl,omitempty"`
 		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
 
-		impl        route.Route
-		isValidated bool
+		impl route.Route
 	}
 	Routes map[string]*Route
 )
@@ -69,10 +68,6 @@ func (r Routes) Contains(alias string) bool {
 }
 
 func (r *Route) Validate() (err gperr.Error) {
-	if r.isValidated {
-		return nil
-	}
-	r.isValidated = true
 	r.Finalize()
 
 	// return error if route is localhost:<godoxy_port>

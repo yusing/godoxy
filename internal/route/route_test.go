@@ -12,20 +12,6 @@ import (
 )
 
 func TestRouteValidate(t *testing.T) {
-	t.Run("AlreadyValidated", func(t *testing.T) {
-		r := &Route{
-			Alias:  "test",
-			Scheme: route.SchemeHTTP,
-			Host:   "example.com",
-			Port:   route.Port{Proxy: 80},
-			Metadata: Metadata{
-				isValidated: true,
-			},
-		}
-		err := r.Validate()
-		require.NoError(t, err, "Validate should return nil for already validated route")
-	})
-
 	t.Run("ReservedPort", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
@@ -146,7 +132,6 @@ func TestRouteValidate(t *testing.T) {
 		}
 		err := r.Validate()
 		require.NoError(t, err)
-		require.True(t, r.isValidated)
 		require.NotNil(t, r.ProxyURL)
 		require.NotNil(t, r.HealthCheck)
 	})
