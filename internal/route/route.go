@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal"
+
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
@@ -53,8 +52,9 @@ type (
 		Provider  string            `json:"provider,omitempty"`
 
 		// private fields
-		LisURL      *net.URL            `json:"lurl,omitempty"`
-		ProxyURL    *net.URL            `json:"purl,omitempty"`
+		LisURL   *net.URL `json:"lurl,omitempty"`
+		ProxyURL *net.URL `json:"purl,omitempty"`
+
 		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
 
 		impl route.Route
@@ -83,26 +83,24 @@ func (r *Route) Validate() (err gperr.Error) {
 
 	errs := gperr.NewBuilder("entry validation failed")
 
-	switch r.Scheme {
-	case route.SchemeFileServer:
+	if r.Scheme == route.SchemeFileServer {
 		r.impl, err = NewFileServer(r)
 		if err != nil {
 			errs.Add(err)
 		}
+		r.ProxyURL = gperr.Collect(errs, net.ParseURL, "file://"+r.Root)
+		r.Host = ""
+		r.Port.Proxy = 0
+	} else {
+		switch r.Scheme {
 	case route.SchemeHTTP, route.SchemeHTTPS:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
-		fallthrough
 	case route.SchemeTCP, route.SchemeUDP:
 		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
-		fallthrough
-	default:
-		if r.LoadBalance != nil && r.LoadBalance.Link == "" {
-			r.LoadBalance = nil
 		}
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
-		r.Idlewatcher = gperr.Collect(errs, idlewatcher.ValidateConfig, r.Container)
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -371,16 +369,8 @@ func (r *Route) Finalize() {
 		}
 	}
 
-	if isDocker && cont.IdleTimeout != "" {
-		if cont.WakeTimeout == "" {
-			cont.WakeTimeout = common.WakeTimeoutDefault
-		}
-		if cont.StopTimeout == "" {
-			cont.StopTimeout = common.StopTimeoutDefault
-		}
-		if cont.StopMethod == "" {
-			cont.StopMethod = common.StopMethodDefault
-		}
+	if r.LoadBalance != nil && r.LoadBalance.Link == "" {
+		r.LoadBalance = nil
 	}
 }
 
@@ -433,7 +423,7 @@ func (r *Route) FinalizeHomepageConfig() {
 	}
 }
 
-func lowestPort(ports map[int]container.Port) (res int) {
+func lowestPort(ports docker.PortMapping) (res int) {
 	cmp := (uint16)(65535)
 	for port, v := range ports {
 		if v.PrivatePort < cmp {
