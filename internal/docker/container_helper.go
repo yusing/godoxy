@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -62,15 +63,15 @@ func (c containerHelper) getPublicPortMapping() PortMapping {
 		if v.PublicPort == 0 {
 			continue
 		}
-		res[int(v.PublicPort)] = v
+		res[int(v.PublicPort)] = &v
 	}
-	return res
+	return utils.FitMap(res)
 }
 
 func (c containerHelper) getPrivatePortMapping() PortMapping {
-	res := make(PortMapping)
+	res := make(PortMapping, len(c.Ports))
 	for _, v := range c.Ports {
-		res[int(v.PrivatePort)] = v
+		res[int(v.PrivatePort)] = &v
 	}
 	return res
 }

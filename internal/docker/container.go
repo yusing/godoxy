@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	PortMapping = map[int]container.Port
+	PortMapping = map[int]*container.Port
 	Container   struct {
 		_ U.NoCopy
 
@@ -58,20 +58,11 @@ var DummyContainer = new(Container)
 func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 	isExplicit := false
 	helper := containerHelper{c}
-	for lbl := range c.Labels {
-		if strings.HasPrefix(lbl, NSProxy+".") {
-			isExplicit = true
-		} else {
-			delete(c.Labels, lbl)
-		}
-	}
 	res = &Container{
 		DockerHost:    dockerHost,
 		Image:         helper.parseImage(),
 		ContainerName: helper.getName(),
 		ContainerID:   c.ID,
-
-		Labels: c.Labels,
 
 		Mounts: helper.getMounts(),
 
@@ -100,11 +91,20 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 
 	res.setPrivateHostname(helper)
 	res.setPublicHostname()
+
+	for lbl := range c.Labels {
+		if strings.HasPrefix(lbl, NSProxy+".") {
+			isExplicit = true
+		} else {
+			delete(c.Labels, lbl)
+		}
+	}
+	res.RouteConfig = utils.FitMap(c.Labels)
 	return
 }
 
 func FromInspectResponse(json container.InspectResponse, dockerHost string) *Container {
-	ports := make([]container.Port, 0)
+	ports := make([]container.Port, 0, len(json.NetworkSettings.Ports))
 	for k, bindings := range json.NetworkSettings.Ports {
 		proto, privPortStr := nat.SplitProtoPort(string(k))
 		privPort, _ := strconv.ParseUint(privPortStr, 10, 16)
