@@ -44,7 +44,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		result, err = monitor.NewHTTPHealthChecker(types.NewURL(&url.URL{
+		result, err = monitor.NewHTTPHealthMonitor(types.NewURL(&url.URL{
 			Scheme: scheme,
 			Host:   host,
 			Path:   path,
@@ -63,7 +63,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		result, err = monitor.NewRawHealthChecker(types.NewURL(&url.URL{
+		result, err = monitor.NewRawHealthMonitor(types.NewURL(&url.URL{
 			Scheme: scheme,
 			Host:   host,
 		}), defaultHealthConfig).CheckHealth()

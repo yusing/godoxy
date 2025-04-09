@@ -34,4 +34,8 @@ type (
 		Config() *HealthCheckConfig
 		UpdateURL(url *types.URL)
 	}
+	HealthMonCheck interface {
+		HealthMonitor
+		HealthChecker
+	}
 )

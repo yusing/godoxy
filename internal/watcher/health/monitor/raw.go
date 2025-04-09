@@ -25,10 +25,6 @@ func NewRawHealthMonitor(url *types.URL, config *health.HealthCheckConfig) *RawH
 	return mon
 }
 
-func NewRawHealthChecker(url *types.URL, config *health.HealthCheckConfig) health.HealthChecker {
-	return NewRawHealthMonitor(url, config)
-}
-
 func (mon *RawHealthMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()

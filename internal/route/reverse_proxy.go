@@ -112,17 +112,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.handler = waker
 		r.HealthMon = waker
 	case r.UseHealthCheck():
-		if r.IsDocker() {
-			client, err := docker.NewClient(r.Container.DockerHost)
-			if err == nil {
-				fallback := r.newHealthMonitor()
-				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Container.ContainerID, r.TargetName(), r.HealthCheck, fallback)
-				r.task.OnCancel("close_docker_client", client.Close)
-			}
-		}
-		if r.HealthMon == nil {
-			r.HealthMon = r.newHealthMonitor()
-		}
+		r.HealthMon = monitor.NewMonitor(r)
 	}
 
 	if r.UseAccessLog() {
@@ -203,17 +193,6 @@ func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {
 	return r.HealthMon
-}
-
-func (r *ReveseProxyRoute) newHealthMonitor() interface {
-	health.HealthMonitor
-	health.HealthChecker
-} {
-	if a := r.Agent(); a != nil {
-		target := monitor.AgentTargetFromURL(r.ProxyURL)
-		return monitor.NewAgentProxiedMonitor(a, r.HealthCheck, target)
-	}
-	return monitor.NewHTTPHealthMonitor(r.ProxyURL, r.HealthCheck)
 }
 
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {

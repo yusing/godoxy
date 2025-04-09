@@ -37,10 +37,6 @@ func NewHTTPHealthMonitor(url *types.URL, config *health.HealthCheckConfig) *HTT
 	return mon
 }
 
-func NewHTTPHealthChecker(url *types.URL, config *health.HealthCheckConfig) health.HealthChecker {
-	return NewHTTPHealthMonitor(url, config)
-}
-
 func (mon *HTTPHealthMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
