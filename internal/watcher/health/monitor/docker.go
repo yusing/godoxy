@@ -25,7 +25,9 @@ func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias stri
 }
 
 func (mon *DockerHealthMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
-	cont, err := mon.client.ContainerInspect(mon.task.Context(), mon.containerID)
+	ctx, cancel := mon.ContextWithTimeout("docker health check timed out")
+	defer cancel()
+	cont, err := mon.client.ContainerInspect(ctx, mon.containerID)
 	if err != nil {
 		return mon.fallback.CheckHealth()
 	}
