@@ -25,7 +25,7 @@ echo "Using ${DOWNLOAD_TOOL} for downloads"
 REPO="yusing/godoxy"
 BRANCH=${BRANCH:-"main"}
 REPO_URL="https://github.com/$REPO"
-WIKI_URL="${REPO_URL}/wiki"
+# WIKI_URL="${REPO_URL}/wiki"
 BASE_URL="${REPO_URL}/raw/${BRANCH}"
 
 # Config paths
@@ -36,6 +36,7 @@ COMPOSE_FILE_NAME="compose.yml"
 COMPOSE_EXAMPLE_FILE_NAME="compose.example.yml"
 CONFIG_FILE_NAME="config.yml"
 CONFIG_EXAMPLE_FILE_NAME="config.example.yml"
+CONFIG_FILE_PATH="${CONFIG_BASE_PATH}/${CONFIG_FILE_NAME}"
 
 echo "Setting up GoDoxy"
 echo "Branch: ${BRANCH}"
@@ -99,6 +100,11 @@ fetch_file() {
 	local remote_file="$1"
 	local out_file="$2"
 
+	if [ "$SCRIPT_DEBUG" = "1" ]; then
+		cp "$remote_file" "$out_file"
+		return
+	fi
+
 	if has_file_or_dir "$out_file"; then
 		if [ "$remote_file" = "$out_file" ]; then
 			echo "\"$out_file\" already exists, not overwriting"
@@ -120,6 +126,14 @@ fetch_file() {
 	echo "Done"
 }
 
+set_env_var() {
+	local key="$1"
+	local value="$2"
+	# uncomment line if it is commented
+	sed -i "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
+	sed -i "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
+}
+
 ask_while_empty() {
 	local prompt="$1"
 	local var_name="$2"
@@ -131,6 +145,32 @@ ask_while_empty() {
 		fi
 	done
 	eval "$var_name=\"$value\""
+}
+
+ask_multiple_choice() {
+	local var_name="$1"
+	local prompt="$2"
+	shift 2
+	local choices=("$@")
+	local n_choices="${#choices[@]}"
+	local value=""
+	local valid=0
+	while [ $valid -eq 0 ]; do
+		echo -e "$prompt"
+		for i in "${!choices[@]}"; do
+			echo "$((i + 1)). ${choices[$i]}"
+		done
+		read -p "Enter your choice: " value
+		if [ -z "$value" ]; then
+			echo "Error: $var_name cannot be empty, please try again"
+		fi
+		if [ "$value" -gt "$n_choices" ] || [ "$value" -lt 1 ]; then
+			echo "Error: invalid choice, please try again"
+		else
+			valid=1
+		fi
+	done
+	eval "$var_name=\"${choices[$((value - 1))]}\""
 }
 
 get_timezone() {
@@ -159,31 +199,67 @@ mkdir_if_not_exists "$CONFIG_BASE_PATH"
 # 2. .env file
 fetch_file "$DOT_ENV_EXAMPLE_PATH" "$DOT_ENV_PATH"
 
-# set random JWT secret
-JWT_SECRET=$(openssl rand -base64 32)
-sed -i "s|GODOXY_API_JWT_SECRET=.*|GODOXY_API_JWT_SECRET=${JWT_SECRET}|" "$DOT_ENV_PATH"
-
 # set timezone
 get_timezone
 if [ -n "$TIMEZONE" ]; then
-	sed -i "s|TZ=.*|TZ=${TIMEZONE}|" "$DOT_ENV_PATH"
+	set_env_var "TZ" "$TIMEZONE"
 fi
 
 # 3. docker-compose.yml
 fetch_file "$COMPOSE_EXAMPLE_FILE_NAME" "$COMPOSE_FILE_NAME"
 
 # 4. config.yml
-fetch_file "$CONFIG_EXAMPLE_FILE_NAME" "${CONFIG_BASE_PATH}/${CONFIG_FILE_NAME}"
+fetch_file "$CONFIG_EXAMPLE_FILE_NAME" "$CONFIG_FILE_PATH"
+
+ask_while_empty "Enter base domain (e.g. domain.com): " BASE_DOMAIN
 
 # 5. setup authentication
 
-# ask for user and password
-echo "Setting up login user"
-ask_while_empty "Enter login username: " LOGIN_USERNAME
-ask_while_empty "Enter login password: " LOGIN_PASSWORD
-echo "Setting up login user \"$LOGIN_USERNAME\" with password \"$LOGIN_PASSWORD\""
-sed -i "s|GODOXY_API_USERNAME=.*|GODOXY_API_USERNAME=${LOGIN_USERNAME}|" "$DOT_ENV_PATH"
-sed -i "s|GODOXY_API_PASSWORD=.*|GODOXY_API_PASSWORD=${LOGIN_PASSWORD}|" "$DOT_ENV_PATH"
+# ask for authentication method
+ask_multiple_choice AUTH_METHOD "Select authentication method:" \
+	"Username/Password" \
+	"OIDC" \
+	"None"
+
+if [ "$AUTH_METHOD" == "Username/Password" ]; then
+	# set random JWT secret
+	echo "Setting up JWT secret"
+	JWT_SECRET=$(openssl rand -base64 32)
+	set_env_var "GODOXY_API_JWT_SECRET" "$JWT_SECRET"
+
+	# ask for user and password
+	echo "Setting up login user"
+	ask_while_empty "Enter login username: " LOGIN_USER
+	ask_while_empty "Enter login password: " LOGIN_PASSWORD
+	echo "Setting up login user \"$LOGIN_USER\" with password \"$LOGIN_PASSWORD\""
+	set_env_var "GODOXY_API_USER" "$LOGIN_USER"
+	set_env_var "GODOXY_API_PASSWORD" "$LOGIN_PASSWORD"
+elif [ "$AUTH_METHOD" == "OIDC" ]; then
+	# ask for OIDC base domain
+	set_env_var "GODOXY_OIDC_REDIRECT_URL" "https://godoxy.${BASE_DOMAIN}/api/auth/callback"
+
+	# ask for OIDC issuer url
+	ask_while_empty "Enter OIDC issuer url (e.g. https://pocket-id.domain.com): " OIDC_ISSUER_URL
+	set_env_var "GODOXY_OIDC_ISSUER_URL" "$OIDC_ISSUER_URL"
+
+	# ask for OIDC client id
+	ask_while_empty "Enter OIDC client id: " OIDC_CLIENT_ID
+	set_env_var "GODOXY_OIDC_CLIENT_ID" "$OIDC_CLIENT_ID"
+
+	# ask for OIDC client secret
+	ask_while_empty "Enter OIDC client secret: " OIDC_CLIENT_SECRET
+	set_env_var "GODOXY_OIDC_CLIENT_SECRET" "$OIDC_CLIENT_SECRET"
+
+	# ask for allowed users
+	ask_while_empty "Enter allowed users (comma-separated): " OIDC_ALLOWED_USERS
+	set_env_var "GODOXY_OIDC_ALLOWED_USERS" "$OIDC_ALLOWED_USERS"
+
+	# ask for allowed groups
+	read -p "Enter allowed groups (comma-separated, leave empty for all): " OIDC_ALLOWED_GROUPS
+	[ -n "$OIDC_ALLOWED_GROUPS" ] && set_env_var "GODOXY_OIDC_ALLOWED_GROUPS" "$OIDC_ALLOWED_GROUPS"
+else
+	echo "Skipping authentication setup"
+fi
 
 # 6. setup autocert
 
@@ -195,31 +271,67 @@ ask_while_empty "Do you want to enable autocert? (y/n): " ENABLE_AUTOCERT
 if [ "$ENABLE_AUTOCERT" == "y" ]; then
 	# ask for domain
 	echo "Setting up autocert"
-	ask_while_empty "Enter domain (e.g. example.com): " DOMAIN
+	skip=false
 
 	# ask for email
 	ask_while_empty "Enter email for Let's Encrypt: " EMAIL
 
-	# ask if using cloudflare
-	ask_while_empty "Is cloudflare the current DNS nameserver? (y/n): " USE_CLOUDFLARE
+	# select dns provider
+	ask_multiple_choice DNS_PROVIDER "Select DNS provider:" \
+		"Cloudflare" \
+		"CloudDNS" \
+		"DuckDNS" \
+		"Other"
 
-	# ask for cloudflare api key
-	if [ "$USE_CLOUDFLARE" = "y" ]; then
-		ask_while_empty "Enter cloudflare zone api key: " CLOUDFLARE_API_KEY
-		cat <<EOF >>"$CONFIG_BASE_PATH/$CONFIG_FILE_NAME"
-autocert:
-  provider: cloudflare
-  email: $EMAIL
-  domains:
-    - "*.${DOMAIN}"
-    - "${DOMAIN}"
-  options:
-    auth_token: "$CLOUDFLARE_API_KEY"
-EOF
+	# ask for dns provider credentials
+	if [ "$DNS_PROVIDER" == "Cloudflare" ]; then
+		provider="cloudflare"
+		read -p "Enter cloudflare zone api key: " auth_token
+		options=("auth_token: \"$auth_token\"")
+	elif [ "$DNS_PROVIDER" == "CloudDNS" ]; then
+		provider="clouddns"
+		read -p "Enter clouddns client_id: " client_id
+		read -p "Enter clouddns email: " email
+		read -p "Enter clouddns password: " password
+		options=(
+			"client_id: \"$client_id\""
+			"email: \"$email\""
+			"password: \"$password\""
+		)
+	elif [ "$DNS_PROVIDER" == "DuckDNS" ]; then
+		provider="duckdns"
+		read -p "Enter duckdns token: " token
+		options=("token: \"$token\"")
 	else
-		echo "Not using cloudflare, skipping autocert setup"
-		echo "Please refer to ${WIKI_URL}/Supported-DNS-01-Providers for more information"
+		echo "Please submit an issue on ${REPO_URL}/issues for adding your DNS provider"
+		echo "Skipping autocert setup"
+		skip=true
+	fi
+	if [ "$skip" == false ]; then
+		autocert_config="
+autocert:
+  provider: \"${provider}\"
+  email: \"${EMAIL}\"
+  domains:
+    - \"*.${BASE_DOMAIN}\"
+    - \"${BASE_DOMAIN}\"
+  options:
+"
+		for option in "${options[@]}"; do
+			autocert_config+="    ${option}\n"
+		done
+		autocert_config+="\n"
+		echo -e "${autocert_config}$(<"$CONFIG_FILE_PATH")" >"$CONFIG_FILE_PATH"
 	fi
 fi
 
 echo "Setup finished"
+echo "Starting GoDoxy"
+if [ "$SCRIPT_DEBUG" != "1" ]; then
+	if docker compose up -d; then
+		docker compose logs -f
+	else
+		echo "Error: Failed to start GoDoxy"
+		exit 1
+	fi
+fi
