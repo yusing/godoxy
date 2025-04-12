@@ -41,6 +41,18 @@ func Wrap(err error, message ...string) Error {
 	return &baseError{fmt.Errorf("%s: %w", message[0], err)}
 }
 
+func Unwrap(err error) Error {
+	//nolint:errorlint
+	switch err := err.(type) {
+	case interface{ Unwrap() []error }:
+		return &nestedError{Extras: err.Unwrap()}
+	case interface{ Unwrap() error }:
+		return &baseError{err.Unwrap()}
+	default:
+		return &baseError{err}
+	}
+}
+
 func wrap(err error) Error {
 	if err == nil {
 		return nil
