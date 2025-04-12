@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
-	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 )
@@ -134,7 +133,7 @@ func NewClient(host string) (*SharedClient, error) {
 	var dial func(ctx context.Context) (net.Conn, error)
 
 	if agent.IsDockerHostAgent(host) {
-		cfg, ok := config.GetInstance().GetAgent(host)
+		cfg, ok := agent.Agents.Get(host)
 		if !ok {
 			panic(fmt.Errorf("agent %q not found", host))
 		}

@@ -83,7 +83,7 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 
 	if agent.IsDockerHostAgent(dockerHost) {
 		var ok bool
-		res.Agent, ok = config.GetInstance().GetAgent(dockerHost)
+		res.Agent, ok = agent.Agents.Get(dockerHost)
 		if !ok {
 			logging.Error().Msgf("agent %q not found", dockerHost)
 		}

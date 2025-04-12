@@ -277,8 +277,8 @@ func (cfg *Config) errIfExists(p *proxy.Provider) gperr.Error {
 
 func (cfg *Config) initAgents(agentCfgs []*agent.AgentConfig) gperr.Error {
 	var wg sync.WaitGroup
-	var errs gperr.Builder
 
+	errs := gperr.NewBuilderWithConcurrency()
 	wg.Add(len(agentCfgs))
 	for _, agentCfg := range agentCfgs {
 		go func(agentCfg *agent.AgentConfig) {
@@ -286,7 +286,7 @@ func (cfg *Config) initAgents(agentCfgs []*agent.AgentConfig) gperr.Error {
 			if err := agentCfg.Init(cfg.task.Context()); err != nil {
 				errs.Add(err.Subject(agentCfg.String()))
 			} else {
-				addAgent(agentCfg)
+				agent.Agents.Add(agentCfg)
 			}
 		}(agentCfg)
 	}
@@ -298,7 +298,7 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 	errs := gperr.NewBuilder("route provider errors")
 	results := gperr.NewBuilder("loaded route providers")
 
-	removeAllAgents()
+	agent.Agents.Clear()
 
 	n := len(providers.Agents) + len(providers.Docker) + len(providers.Files)
 	if n == 0 {
@@ -309,12 +309,12 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 
 	errs.Add(cfg.initAgents(providers.Agents))
 
-	for _, agent := range providers.Agents {
-		if !agent.IsInitialized() { // failed to initialize
+	for _, a := range providers.Agents {
+		if !a.IsInitialized() { // failed to initialize
 			continue
 		}
-		addAgent(agent)
-		routeProviders = append(routeProviders, proxy.NewAgentProvider(agent))
+		agent.Agents.Add(a)
+		routeProviders = append(routeProviders, proxy.NewAgentProvider(a))
 	}
 	for _, filename := range providers.Files {
 		routeProviders = append(routeProviders, proxy.NewFileProvider(filename))
@@ -338,6 +338,8 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 			lenLongestName = len(k)
 		}
 	})
+	errs.EnableConcurrency()
+	results.EnableConcurrency()
 	cfg.providers.RangeAllParallel(func(_ string, p *proxy.Provider) {
 		if err := p.LoadRoutes(); err != nil {
 			errs.Add(err.Subject(p.String()))

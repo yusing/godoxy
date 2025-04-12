@@ -8,6 +8,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -44,7 +45,7 @@ func getDockerClients() (DockerClients, gperr.Error) {
 		dockerClients[name] = dockerClient
 	}
 
-	for _, agent := range cfg.ListAgents() {
+	for _, agent := range agent.Agents.Iter {
 		dockerClient, err := docker.NewClient(agent.FakeDockerHost())
 		if err != nil {
 			connErrs.Add(err)
@@ -56,7 +57,7 @@ func getDockerClients() (DockerClients, gperr.Error) {
 	return dockerClients, connErrs.Error()
 }
 
-func getDockerClient(w http.ResponseWriter, server string) (*docker.SharedClient, bool, error) {
+func getDockerClient(server string) (*docker.SharedClient, bool, error) {
 	cfg := config.GetInstance()
 	var host string
 	for name, h := range cfg.Value().Providers.Docker {
@@ -65,7 +66,7 @@ func getDockerClient(w http.ResponseWriter, server string) (*docker.SharedClient
 			break
 		}
 	}
-	for _, agent := range cfg.ListAgents() {
+	for _, agent := range agent.Agents.Iter {
 		if agent.Name() == server {
 			host = agent.FakeDockerHost()
 			break
@@ -119,6 +120,6 @@ func serveHTTP[V any, T ResultType[V]](w http.ResponseWriter, r *http.Request, g
 		})
 	} else {
 		result, err := getResult(r.Context(), dockerClients)
-		handleResult[V, T](w, err, result)
+		handleResult[V](w, err, result)
 	}
 }

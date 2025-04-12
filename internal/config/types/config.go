@@ -45,9 +45,7 @@ type (
 		Statistics() map[string]any
 		RouteProviderList() []string
 		Context() context.Context
-		GetAgent(agentAddrOrDockerHost string) (*agent.AgentConfig, bool)
 		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error)
-		ListAgents() []*agent.AgentConfig
 		AutoCertProvider() *autocert.Provider
 	}
 )

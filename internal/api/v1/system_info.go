@@ -3,8 +3,8 @@ package v1
 import (
 	"net/http"
 
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
-	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
@@ -12,7 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 )
 
-func SystemInfo(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
+func SystemInfo(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	agentAddr := query.Get("agent_addr")
 	query.Del("agent_addr")
@@ -21,7 +21,7 @@ func SystemInfo(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	agent, ok := cfg.GetAgent(agentAddr)
+	agent, ok := agent.Agents.Get(agentAddr)
 	if !ok {
 		gphttp.NotFound(w, "agent_addr")
 		return

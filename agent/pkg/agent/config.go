@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -16,7 +16,6 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -49,8 +48,8 @@ const (
 )
 
 var (
-	AgentURL              = types.MustParseURL(APIBaseURL)
-	HTTPProxyURL          = types.MustParseURL(APIBaseURL + EndpointProxyHTTP)
+	AgentURL, _           = url.Parse(APIBaseURL)
+	HTTPProxyURL, _       = url.Parse(APIBaseURL + EndpointProxyHTTP)
 	HTTPProxyURLPrefixLen = len(APIEndpointBase + EndpointProxyHTTP)
 )
 
