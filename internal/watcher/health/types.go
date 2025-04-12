@@ -1,12 +1,12 @@
 package health
 
 import (
-	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type (
@@ -24,15 +24,15 @@ type (
 		task.TaskStarter
 		task.TaskFinisher
 		fmt.Stringer
-		json.Marshaler
+		utils.MapMarshaller
 		WithHealthInfo
 		Name() string
 	}
 	HealthChecker interface {
 		CheckHealth() (result *HealthCheckResult, err error)
-		URL() *types.URL
+		URL() *url.URL
 		Config() *HealthCheckConfig
-		UpdateURL(url *types.URL)
+		UpdateURL(url *url.URL)
 	}
 	HealthMonCheck interface {
 		HealthMonitor

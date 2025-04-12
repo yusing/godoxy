@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/types"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -23,7 +22,7 @@ func TestSetRealIPOpts(t *testing.T) {
 	}
 	optExpected := &RealIPOpts{
 		Header: httpheaders.HeaderXRealIP,
-		From: []*types.CIDR{
+		From: []*net.IPNet{
 			{
 				IP:   net.ParseIP("127.0.0.0"),
 				Mask: net.IPv4Mask(255, 0, 0, 0),

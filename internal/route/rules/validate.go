@@ -2,13 +2,14 @@ package rules
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 )
 
 type (
@@ -48,24 +49,24 @@ func toKVOptionalV(args []string) (any, gperr.Error) {
 	}
 }
 
-// validateURL returns types.URL with the URL validated.
+// validateURL returns url.URL with the URL validated.
 func validateURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	u, err := types.ParseURL(args[0])
+	u, err := url.Parse(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
 	return u, nil
 }
 
-// validateAbsoluteURL returns types.URL with the URL validated.
+// validateAbsoluteURL returns url.URL with the URL validated.
 func validateAbsoluteURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	u, err := types.ParseURL(args[0])
+	u, err := url.Parse(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
@@ -86,7 +87,7 @@ func validateCIDR(args []string) (any, gperr.Error) {
 	if !strings.Contains(args[0], "/") {
 		args[0] += "/32"
 	}
-	cidr, err := types.ParseCIDR(args[0])
+	_, cidr, err := net.ParseCIDR(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

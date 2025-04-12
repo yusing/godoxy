@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"net"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -42,7 +45,14 @@ var (
 	tagAliases     = "aliases"     // declare aliases for fields
 )
 
-var mapUnmarshalerType = reflect.TypeFor[MapUnmarshaller]()
+var (
+	typeDuration = reflect.TypeFor[time.Duration]()
+	typeURL      = reflect.TypeFor[url.URL]()
+	typeCIDR     = reflect.TypeFor[*net.IPNet]()
+
+	typeMapMarshaller  = reflect.TypeFor[MapMarshaller]()
+	typeMapUnmarshaler = reflect.TypeFor[MapUnmarshaller]()
+)
 
 var defaultValues = functional.NewMapOf[reflect.Type, func() any]()
 
@@ -196,7 +206,7 @@ func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 		return gperr.Errorf("unmarshal: src is %w and dst is not settable", ErrNilValue)
 	}
 
-	if dstT.Implements(mapUnmarshalerType) {
+	if dstT.Implements(typeMapUnmarshaler) {
 		dstV, _, err = dive(dstV)
 		if err != nil {
 			return err
@@ -370,7 +380,7 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 		}
 		obj, ok := src.Interface().(SerializedObject)
 		if !ok {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
+			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 		}
 		return MapUnmarshalValidate(obj, dst.Addr().Interface())
 	case srcKind == reflect.Slice:
@@ -378,7 +388,7 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 			return nil
 		}
 		if dstT.Kind() != reflect.Slice {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
+			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 		}
 		sliceErrs := gperr.NewBuilder("slice conversion errors")
 		newSlice := reflect.MakeSlice(dstT, src.Len(), src.Len())
@@ -402,6 +412,10 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 }
 
+func nilPointer[T any]() reflect.Value {
+	return reflect.ValueOf((*T)(nil))
+}
+
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
@@ -417,10 +431,10 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		return
 	}
 	switch dstT {
-	case reflect.TypeFor[time.Duration]():
+	case typeDuration:
 		if src == "" {
 			dst.Set(reflect.Zero(dstT))
-			return
+			return false, nil
 		}
 		d, err := time.ParseDuration(src)
 		if err != nil {
@@ -431,7 +445,31 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		}
 		dst.Set(reflect.ValueOf(d))
 		return
-	default:
+	case typeURL:
+		if src == "" {
+			dst.Addr().Set(nilPointer[*url.URL]())
+			return
+		}
+		u, err := url.Parse(src)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		dst.Set(reflect.ValueOf(u).Elem())
+		return
+	case typeCIDR:
+		if src == "" {
+			dst.Addr().Set(nilPointer[*net.IPNet]())
+			return
+		}
+		if !strings.Contains(src, "/") {
+			src += "/32" // single IP
+		}
+		_, ipnet, err := net.ParseCIDR(src)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		dst.Set(reflect.ValueOf(ipnet).Elem())
+		return
 	}
 	if dstKind := dst.Kind(); isIntFloat(dstKind) {
 		var i any

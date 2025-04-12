@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -24,7 +23,7 @@ type (
 		Key, Value string
 	}
 	Host string
-	CIDR struct{ types.CIDR }
+	CIDR struct{ net.IPNet }
 )
 
 var ErrInvalidHTTPHeaderFilter = gperr.New("invalid http header filter")

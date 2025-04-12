@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/notif"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
@@ -23,7 +23,7 @@ type (
 	monitor         struct {
 		service string
 		config  *health.HealthCheckConfig
-		url     atomic.Value[*types.URL]
+		url     atomic.Value[*url.URL]
 
 		status     atomic.Value[health.Status]
 		lastResult atomic.Value[*health.HealthCheckResult]
@@ -63,7 +63,7 @@ func NewMonitor(r route.Route) health.HealthMonCheck {
 	return mon
 }
 
-func newMonitor(url *types.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+func newMonitor(url *url.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	mon := &monitor{
 		config:      config,
 		checkHealth: healthCheckFunc,
@@ -135,12 +135,12 @@ func (mon *monitor) Finish(reason any) {
 }
 
 // UpdateURL implements HealthChecker.
-func (mon *monitor) UpdateURL(url *types.URL) {
+func (mon *monitor) UpdateURL(url *url.URL) {
 	mon.url.Store(url)
 }
 
 // URL implements HealthChecker.
-func (mon *monitor) URL() *types.URL {
+func (mon *monitor) URL() *url.URL {
 	return mon.url.Load()
 }
 
@@ -179,8 +179,8 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
-// MarshalJSON implements json.Marshaler of HealthMonitor.
-func (mon *monitor) MarshalJSON() ([]byte, error) {
+// MarshalMap implements health.HealthMonitor.
+func (mon *monitor) MarshalMap() map[string]any {
 	res := mon.lastResult.Load()
 	if res == nil {
 		res = &health.HealthCheckResult{
@@ -188,7 +188,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	return (&JSONRepresentation{
+	return (&health.JSONRepresentation{
 		Name:     mon.service,
 		Config:   mon.config,
 		Status:   mon.status.Load(),
@@ -198,7 +198,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 		LastSeen: GetLastSeen(mon.service),
 		Detail:   res.Detail,
 		URL:      mon.url.Load(),
-	}).MarshalJSON()
+	}).MarshalMap()
 }
 
 func (mon *monitor) checkUpdateHealth() error {

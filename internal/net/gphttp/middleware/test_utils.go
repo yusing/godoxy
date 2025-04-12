@@ -7,11 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -80,11 +80,11 @@ type TestResult struct {
 
 type testArgs struct {
 	middlewareOpt OptionsRaw
-	upstreamURL   *types.URL
+	upstreamURL   *url.URL
 
 	realRoundTrip bool
 
-	reqURL    *types.URL
+	reqURL    *url.URL
 	reqMethod string
 	headers   http.Header
 	body      []byte
@@ -96,13 +96,13 @@ type testArgs struct {
 
 func (args *testArgs) setDefaults() {
 	if args.reqURL == nil {
-		args.reqURL = Must(types.ParseURL("https://example.com"))
+		args.reqURL = Must(url.Parse("https://example.com"))
 	}
 	if args.reqMethod == "" {
 		args.reqMethod = http.MethodGet
 	}
 	if args.upstreamURL == nil {
-		args.upstreamURL = Must(types.ParseURL("https://10.0.0.1:8443")) // dummy url, no actual effect
+		args.upstreamURL = Must(url.Parse("https://10.0.0.1:8443")) // dummy url, no actual effect
 	}
 	if args.respHeaders == nil {
 		args.respHeaders = http.Header{}

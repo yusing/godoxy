@@ -1,34 +1,32 @@
-package monitor
+package health
 
 import (
-	"encoding/json"
+	"net/url"
 	"strconv"
 	"time"
 
-	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 type JSONRepresentation struct {
 	Name     string
-	Config   *health.HealthCheckConfig
-	Status   health.Status
+	Config   *HealthCheckConfig
+	Status   Status
 	Started  time.Time
 	Uptime   time.Duration
 	Latency  time.Duration
 	LastSeen time.Time
 	Detail   string
-	URL      *net.URL
+	URL      *url.URL
 	Extra    map[string]any
 }
 
-func (jsonRepr *JSONRepresentation) MarshalJSON() ([]byte, error) {
+func (jsonRepr *JSONRepresentation) MarshalMap() map[string]any {
 	url := jsonRepr.URL.String()
 	if url == "http://:0" {
 		url = ""
 	}
-	return json.Marshal(map[string]any{
+	return map[string]any{
 		"name":        jsonRepr.Name,
 		"config":      jsonRepr.Config,
 		"started":     jsonRepr.Started.Unix(),
@@ -43,5 +41,5 @@ func (jsonRepr *JSONRepresentation) MarshalJSON() ([]byte, error) {
 		"detail":      jsonRepr.Detail,
 		"url":         url,
 		"extra":       jsonRepr.Extra,
-	})
+	}
 }

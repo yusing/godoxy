@@ -1,6 +1,7 @@
 package accesslog_test
 
 import (
+	"net"
 	"net/http"
 	"testing"
 
@@ -155,8 +156,11 @@ func TestHeaderFilter(t *testing.T) {
 }
 
 func TestCIDRFilter(t *testing.T) {
-	cidr := []*CIDR{
-		strutils.MustParse[*CIDR]("192.168.10.0/24"),
+	cidr := []*CIDR{{
+		net.IPNet{
+			IP:   net.ParseIP("192.168.10.0"),
+			Mask: net.CIDRMask(24, 32),
+		}},
 	}
 	ExpectEqual(t, cidr[0].String(), "192.168.10.0/24")
 	inCIDR := &http.Request{

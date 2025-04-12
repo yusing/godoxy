@@ -6,10 +6,9 @@ import (
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
 	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
@@ -104,10 +103,10 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	switch {
 	case r.UseIdleWatcher():
-		waker, err := idlewatcher.NewHTTPWaker(parent, r, r.rp)
+		waker, err := idlewatcher.NewWatcher(parent, r)
 		if err != nil {
 			r.task.Finish(err)
-			return err
+			return gperr.Wrap(err, "idlewatcher error")
 		}
 		r.handler = waker
 		r.HealthMon = waker
@@ -189,6 +188,10 @@ func (r *ReveseProxyRoute) Finish(reason any) {
 
 func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.handler.ServeHTTP(w, req)
+}
+
+func (r *ReveseProxyRoute) ReverseProxy() *reverseproxy.ReverseProxy {
+	return r.rp
 }
 
 func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {

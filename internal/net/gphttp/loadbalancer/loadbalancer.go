@@ -13,7 +13,6 @@ import (
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
-	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
 // TODO: stats of each server.
@@ -240,14 +239,14 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	lb.impl.ServeHTTP(srvs, rw, r)
 }
 
-// MarshalJSON implements health.HealthMonitor.
-func (lb *LoadBalancer) MarshalJSON() ([]byte, error) {
+// MarshalMap implements health.HealthMonitor.
+func (lb *LoadBalancer) MarshalMap() map[string]any {
 	extra := make(map[string]any)
 	lb.pool.RangeAll(func(k string, v Server) {
 		extra[v.Key()] = v
 	})
 
-	return (&monitor.JSONRepresentation{
+	return (&health.JSONRepresentation{
 		Name:    lb.Name(),
 		Status:  lb.Status(),
 		Started: lb.startTime,
@@ -256,7 +255,7 @@ func (lb *LoadBalancer) MarshalJSON() ([]byte, error) {
 			"config": lb.Config,
 			"pool":   extra,
 		},
-	}).MarshalJSON()
+	}).MarshalMap()
 }
 
 // Name implements health.HealthMonitor.

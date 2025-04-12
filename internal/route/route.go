@@ -10,7 +10,6 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -52,8 +51,8 @@ type (
 		Provider  string            `json:"provider,omitempty"`
 
 		// private fields
-		LisURL   *net.URL `json:"lurl,omitempty"`
-		ProxyURL *net.URL `json:"purl,omitempty"`
+		LisURL   *url.URL `json:"lurl,omitempty"`
+		ProxyURL *url.URL `json:"purl,omitempty"`
 
 		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
 
@@ -88,7 +87,7 @@ func (r *Route) Validate() (err gperr.Error) {
 		if err != nil {
 			errs.Add(err)
 		}
-		r.ProxyURL = gperr.Collect(errs, net.ParseURL, "file://"+r.Root)
+		r.ProxyURL = gperr.Collect(errs, url.Parse, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
 	} else {
@@ -98,9 +97,9 @@ func (r *Route) Validate() (err gperr.Error) {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
 	case route.SchemeTCP, route.SchemeUDP:
-		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+			r.LisURL = gperr.Collect(errs, url.Parse, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		}
-		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(errs, url.Parse, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -160,7 +159,7 @@ func (r *Route) TargetName() string {
 	return r.Alias
 }
 
-func (r *Route) TargetURL() *net.URL {
+func (r *Route) TargetURL() *url.URL {
 	return r.ProxyURL
 }
 

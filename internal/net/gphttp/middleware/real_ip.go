@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/types"
 )
 
 // https://nginx.org/en/docs/http/ngx_http_realip_module.html
@@ -19,7 +18,7 @@ type (
 		// Header is the name of the header to use for the real client IP
 		Header string `validate:"required"`
 		// From is a list of Address / CIDRs to trust
-		From []*types.CIDR `validate:"required,min=1"`
+		From []*net.IPNet `validate:"required,min=1"`
 		/*
 			If recursive search is disabled,
 			the original client address that matches one of the trusted addresses is replaced by
@@ -36,7 +35,7 @@ var (
 	RealIP            = NewMiddleware[realIP]()
 	realIPOptsDefault = RealIPOpts{
 		Header: "X-Real-IP",
-		From:   []*types.CIDR{},
+		From:   []*net.IPNet{},
 	}
 )
 

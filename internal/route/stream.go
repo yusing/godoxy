@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -58,10 +57,10 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 
 	switch {
 	case r.UseIdleWatcher():
-		waker, err := idlewatcher.NewStreamWaker(parent, r, r.Stream)
+		waker, err := idlewatcher.NewWatcher(parent, r)
 		if err != nil {
 			r.task.Finish(err)
-			return err
+			return gperr.Wrap(err, "idlewatcher error")
 		}
 		r.Stream = waker
 		r.HealthMon = waker

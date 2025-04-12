@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
@@ -18,8 +17,8 @@ type (
 		cachedAddr F.Map[string, bool] // cache for trusted IPs
 	}
 	CIDRWhitelistOpts struct {
-		Allow      []*types.CIDR `validate:"min=1"`
-		StatusCode int           `json:"status_code" aliases:"status" validate:"omitempty,status_code"`
+		Allow      []*net.IPNet `validate:"min=1"`
+		StatusCode int          `json:"status_code" aliases:"status" validate:"omitempty,status_code"`
 		Message    string
 	}
 )
@@ -27,7 +26,7 @@ type (
 var (
 	CIDRWhiteList         = NewMiddleware[cidrWhitelist]()
 	cidrWhitelistDefaults = CIDRWhitelistOpts{
-		Allow:      []*types.CIDR{},
+		Allow:      []*net.IPNet{},
 		StatusCode: http.StatusForbidden,
 		Message:    "IP not allowed",
 	}

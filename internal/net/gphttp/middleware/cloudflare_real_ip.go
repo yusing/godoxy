@@ -11,7 +11,6 @@ import (
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -33,7 +32,7 @@ var (
 	cfCIDRsMu         sync.Mutex
 
 	// RFC 1918.
-	localCIDRs = []*types.CIDR{
+	localCIDRs = []*net.IPNet{
 		{IP: net.IPv4(127, 0, 0, 1), Mask: net.IPv4Mask(255, 255, 255, 255)}, // 127.0.0.1/32
 		{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},        // 10.0.0.0/8
 		{IP: net.IPv4(172, 16, 0, 0), Mask: net.IPv4Mask(255, 240, 0, 0)},    // 172.16.0.0/12
@@ -68,7 +67,7 @@ func (cri *cloudflareRealIP) getTracer() *Tracer {
 	return cri.realIP.getTracer()
 }
 
-func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
+func tryFetchCFCIDR() (cfCIDRs []*net.IPNet) {
 	if time.Since(cfCIDRsLastUpdate.Load()) < cfCIDRsUpdateInterval {
 		return
 	}
@@ -83,7 +82,7 @@ func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
 	if common.IsTest {
 		cfCIDRs = localCIDRs
 	} else {
-		cfCIDRs = make([]*types.CIDR, 0, 30)
+		cfCIDRs = make([]*net.IPNet, 0, 30)
 		err := errors.Join(
 			fetchUpdateCFIPRange(cfIPv4CIDRsEndpoint, &cfCIDRs),
 			fetchUpdateCFIPRange(cfIPv6CIDRsEndpoint, &cfCIDRs),
@@ -103,7 +102,7 @@ func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
 	return
 }
 
-func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*types.CIDR) error {
+func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*net.IPNet) error {
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		return err
@@ -124,7 +123,7 @@ func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*types.CIDR) error {
 			return fmt.Errorf("cloudflare responeded an invalid CIDR: %s", line)
 		}
 
-		*cfCIDRs = append(*cfCIDRs, (*types.CIDR)(cidr))
+		*cfCIDRs = append(*cfCIDRs, (*net.IPNet)(cidr))
 	}
 	*cfCIDRs = append(*cfCIDRs, localCIDRs...)
 	return nil

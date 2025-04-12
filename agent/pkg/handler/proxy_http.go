@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -55,9 +54,9 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logging.Debug().Msgf("proxy http request: %s %s", r.Method, r.URL.String())
 
-	rp := reverseproxy.NewReverseProxy("agent", types.NewURL(&url.URL{
+	rp := reverseproxy.NewReverseProxy("agent", &url.URL{
 		Scheme: scheme,
 		Host:   host,
-	}), transport)
+	}, transport)
 	rp.ServeHTTP(w, r)
 }

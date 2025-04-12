@@ -2,15 +2,14 @@ package homepage
 
 import (
 	"net/http"
-
-	net "github.com/yusing/go-proxy/internal/net/types"
+	"net/url"
 )
 
 type route interface {
 	TargetName() string
 	ProviderName() string
 	Reference() string
-	TargetURL() *net.URL
+	TargetURL() *url.URL
 }
 
 type httpRoute interface {
