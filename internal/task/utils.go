@@ -2,7 +2,6 @@ package task
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"os/signal"
@@ -66,12 +65,7 @@ func GracefulShutdown(timeout time.Duration) (err error) {
 		case <-root.finished:
 			return
 		case <-after:
-			b, err := json.Marshal(DebugTaskList())
-			if err != nil {
-				logging.Warn().Err(err).Msg("failed to marshal tasks")
-				return context.DeadlineExceeded
-			}
-			logging.Warn().RawJSON("tasks", b).Msgf("Timeout waiting for these %d tasks to finish", allTasks.Size())
+			logging.Warn().Msgf("Timeout waiting for %d tasks to finish", allTasks.Size())
 			return context.DeadlineExceeded
 		}
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	route "github.com/yusing/go-proxy/internal/route/types"
-	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -28,7 +27,6 @@ const (
 	ListRouteProviders     = "route_providers"
 	ListHomepageCategories = "homepage_categories"
 	ListIcons              = "icons"
-	ListTasks              = "tasks"
 )
 
 func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
@@ -76,8 +74,6 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 			icons = []string{}
 		}
 		gphttp.RespondJSON(w, r, icons)
-	case ListTasks:
-		gphttp.RespondJSON(w, r, task.DebugTaskList())
 	default:
 		gphttp.BadRequest(w, fmt.Sprintf("invalid what: %s", what))
 	}
