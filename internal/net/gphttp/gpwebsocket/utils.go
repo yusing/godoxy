@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/go-proxy/internal/utils"
 )
 
 func warnNoMatchDomains() {
@@ -83,4 +85,19 @@ func WriteText(r *http.Request, conn *websocket.Conn, msg string) bool {
 		return false
 	}
 	return true
+}
+
+// DynamicJSONHandler serves a JSON response depending on the request type.
+//
+// If the request is a websocket, it serves the data for the given interval.
+//
+// Otherwise, it serves the data once.
+func DynamicJSONHandler[ResultType any](w http.ResponseWriter, r *http.Request, getter func() ResultType, interval time.Duration) {
+	if httpheaders.IsWebsocket(r.Header) {
+		Periodic(w, r, interval, func(conn *websocket.Conn) error {
+			return wsjson.Write(r.Context(), conn, utils.ToJSONObject(getter()))
+		})
+	} else {
+		gphttp.RespondJSON(w, r, getter())
+	}
 }
