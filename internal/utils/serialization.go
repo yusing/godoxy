@@ -18,9 +18,14 @@ import (
 
 type SerializedObject = map[string]any
 
-type MapUnmarshaller interface {
+type (
+	MapMarshaller interface {
+		MarshalMap() map[string]any
+	}
+	MapUnmarshaller interface {
 	UnmarshalMap(m map[string]any) gperr.Error
 }
+)
 
 var (
 	ErrInvalidType           = gperr.New("invalid type")

@@ -24,5 +24,5 @@ func (c *SharedClient) Inspect(containerID string) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FromInspectResponse(json, c.key), nil
+	return FromInspectResponse(json, c.DaemonHost()), nil
 }

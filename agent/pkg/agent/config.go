@@ -70,6 +70,11 @@ func GetAgentAddrFromDockerHost(dockerHost string) string {
 	return dockerHost[FakeDockerHostPrefixLen:]
 }
 
+// Key implements pool.Object
+func (cfg *AgentConfig) Key() string {
+	return cfg.Addr
+}
+
 func (cfg *AgentConfig) FakeDockerHost() string {
 	return FakeDockerHostPrefix + cfg.Addr
 }
@@ -192,9 +197,10 @@ func (cfg *AgentConfig) String() string {
 	return cfg.name + "@" + cfg.Addr
 }
 
-func (cfg *AgentConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
+// MarshalMap implements pool.Object
+func (cfg *AgentConfig) MarshalMap() map[string]any {
+	return map[string]any{
 		"name": cfg.Name(),
 		"addr": cfg.Addr,
-	})
+	}
 }

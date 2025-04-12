@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/api/v1/auth"
+	debugapi "github.com/yusing/go-proxy/internal/api/v1/debug"
 	"github.com/yusing/go-proxy/internal/api/v1/query"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
@@ -145,6 +146,8 @@ func main() {
 
 	uptime.Poller.Start()
 	config.WatchChanges()
+
+	debugapi.StartServer(cfg)
 
 	task.WaitExit(cfg.Value().TimeoutShutdown)
 }
