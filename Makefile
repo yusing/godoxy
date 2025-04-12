@@ -27,7 +27,7 @@ endif
 ifeq ($(debug), 1)
 	CGO_ENABLED = 0
 	GODOXY_DEBUG = 1
-	BUILD_FLAGS += -gcflags=all='-N -l'
+	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 1
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
@@ -66,6 +66,10 @@ build:
 
 run:
 	[ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${CMD_PATH}
+
+debug:
+	make NAME="godoxy-test" debug=1 build
+	sh -c 'HTTP_ADDR=:81 HTTPS_ADDR=:8443 API_ADDR=:8899 DEBUG=1 bin/godoxy-test'
 
 mtrace:
 	bin/godoxy debug-ls-mtrace > mtrace.json
