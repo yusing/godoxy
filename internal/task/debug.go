@@ -2,6 +2,7 @@ package task
 
 import (
 	"iter"
+	"strconv"
 	"strings"
 )
 
@@ -42,19 +43,12 @@ func (t *Task) Key() string {
 	return t.name
 }
 
-func toBool(v uint32) bool {
-	if v > 0 {
-		return true
-	}
-	return false
-}
-
 func (t *Task) callbackList() []map[string]any {
 	list := make([]map[string]any, 0, len(t.callbacks))
 	for cb := range t.callbacks {
 		list = append(list, map[string]any{
 			"about":         cb.about,
-			"wait_children": cb.waitChildren,
+			"wait_children": strconv.FormatBool(cb.waitChildren),
 		})
 	}
 	return list
@@ -62,9 +56,10 @@ func (t *Task) callbackList() []map[string]any {
 
 func (t *Task) MarshalMap() map[string]any {
 	return map[string]any{
-		"name":         t.name,
-		"childrens":    t.children,
-		"callbacks":    t.callbackList(),
-		"finishCalled": toBool(t.finishedCalled),
+		"name":          t.name,
+		"need_finish":   strconv.FormatBool(t.needFinish),
+		"childrens":     t.children,
+		"callbacks":     t.callbackList(),
+		"finish_called": t.finishedCalled,
 	}
 }

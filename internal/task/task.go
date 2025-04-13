@@ -45,7 +45,8 @@ type (
 		callbacks     map[*Callback]struct{}
 		callbacksDone chan struct{}
 
-		finished chan struct{}
+		needFinish bool
+		finished   chan struct{}
 		// finishedCalled == 1 Finish has been called
 		// but does not mean that the task is finished yet
 		// this is used to avoid calling Finish twice
@@ -145,10 +146,11 @@ func (t *Task) Subtask(name string, needFinish ...bool) *Task {
 
 	ctx, cancel := context.WithCancelCause(t.ctx)
 	child := &Task{
-		parent:   t,
-		finished: make(chan struct{}),
-		ctx:      ctx,
-		cancel:   cancel,
+		parent:     t,
+		needFinish: nf,
+		finished:   make(chan struct{}),
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 	if t != root {
 		child.name = t.name + "." + name
