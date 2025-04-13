@@ -22,7 +22,10 @@ type JSONRepresentation struct {
 }
 
 func (jsonRepr *JSONRepresentation) MarshalMap() map[string]any {
-	url := jsonRepr.URL.String()
+	var url string
+	if jsonRepr.URL != nil {
+		url = jsonRepr.URL.String()
+	}
 	if url == "http://:0" {
 		url = ""
 	}
