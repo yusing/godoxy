@@ -20,6 +20,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/migrations"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -39,6 +40,9 @@ func parallel(fns ...func()) {
 
 func main() {
 	initProfiling()
+	if err := migrations.RunMigrations(); err != nil {
+		gperr.LogFatal("migration error", err)
+	}
 	args := pkg.GetArgs(common.MainServerCommandValidator{})
 
 	switch args.Command {

@@ -125,7 +125,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 
 	versionStr := string(version)
 	// skip version check for dev versions
-	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion()) {
+	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion().String()) {
 		return gperr.Errorf("agent version mismatch: server: %s, agent: %s", pkg.GetVersion(), versionStr)
 	}
 
