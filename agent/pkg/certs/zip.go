@@ -59,7 +59,7 @@ func AgentCertsFilepath(host string) (filepathOut string, ok bool) {
 	if !isValidAgentHost(host) {
 		return "", false
 	}
-	return filepath.Join(common.AgentCertsBasePath, host+".zip"), true
+	return filepath.Join(common.CertsDir, host+".zip"), true
 }
 
 func ExtractCert(data []byte) (ca, crt, key []byte, err error) {

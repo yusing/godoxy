@@ -27,7 +27,7 @@ func fileType(file string) FileType {
 	switch {
 	case strings.HasPrefix(path.Base(file), "config."):
 		return FileTypeConfig
-	case strings.HasPrefix(file, common.MiddlewareComposeBasePath):
+	case strings.HasPrefix(file, common.MiddlewareComposeDir):
 		return FileTypeMiddleware
 	}
 	return FileTypeProvider
@@ -43,9 +43,9 @@ func (t FileType) IsValid() bool {
 
 func (t FileType) GetPath(filename string) string {
 	if t == FileTypeMiddleware {
-		return path.Join(common.MiddlewareComposeBasePath, filename)
+		return path.Join(common.MiddlewareComposeDir, filename)
 	}
-	return path.Join(common.ConfigBasePath, filename)
+	return path.Join(common.ConfigDir, filename)
 }
 
 func getArgs(r *http.Request) (fileType FileType, filename string, err error) {

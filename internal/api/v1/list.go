@@ -94,7 +94,7 @@ func listRoute(which string) any {
 }
 
 func listFiles(w http.ResponseWriter, r *http.Request) {
-	files, err := utils.ListFiles(common.ConfigBasePath, 0, true)
+	files, err := utils.ListFiles(common.ConfigDir, 0, true)
 	if err != nil {
 		gphttp.ServerError(w, r, err)
 		return
@@ -107,17 +107,17 @@ func listFiles(w http.ResponseWriter, r *http.Request) {
 
 	for _, file := range files {
 		t := fileType(file)
-		file = strings.TrimPrefix(file, common.ConfigBasePath+"/")
+		file = strings.TrimPrefix(file, common.ConfigDir+"/")
 		resp[t] = append(resp[t], file)
 	}
 
-	mids, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0, true)
+	mids, err := utils.ListFiles(common.MiddlewareComposeDir, 0, true)
 	if err != nil {
 		gphttp.ServerError(w, r, err)
 		return
 	}
 	for _, mid := range mids {
-		mid = strings.TrimPrefix(mid, common.MiddlewareComposeBasePath+"/")
+		mid = strings.TrimPrefix(mid, common.MiddlewareComposeDir+"/")
 		resp[FileTypeMiddleware] = append(resp[FileTypeMiddleware], mid)
 	}
 	gphttp.RespondJSON(w, r, resp)

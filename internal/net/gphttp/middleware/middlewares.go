@@ -55,7 +55,7 @@ func All() map[string]*Middleware {
 
 func LoadComposeFiles() {
 	errs := gperr.NewBuilder("middleware compile errors")
-	middlewareDefs, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0)
+	middlewareDefs, err := utils.ListFiles(common.MiddlewareComposeDir, 0)
 	if err != nil {
 		logging.Err(err).Msg("failed to list middleware definitions")
 		return

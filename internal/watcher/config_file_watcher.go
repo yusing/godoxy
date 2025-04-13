@@ -19,7 +19,7 @@ func NewConfigFileWatcher(filename string) Watcher {
 
 	if configDirWatcher == nil {
 		t := task.RootTask("config_dir_watcher", false)
-		configDirWatcher = NewDirectoryWatcher(t, common.ConfigBasePath)
+		configDirWatcher = NewDirectoryWatcher(t, common.ConfigDir)
 	}
 	return configDirWatcher.Add(filename)
 }
