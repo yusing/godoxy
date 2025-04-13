@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
@@ -39,14 +40,12 @@ const (
 	pollInterval       = 1 * time.Second
 	gatherErrsInterval = 30 * time.Second
 	saveInterval       = 5 * time.Minute
-
-	saveBaseDir = "data/metrics"
 )
 
 var initDataDirOnce sync.Once
 
 func initDataDir() {
-	if err := os.MkdirAll(saveBaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(common.MetricsDataDir, 0o755); err != nil {
 		logging.Error().Err(err).Msg("failed to create metrics data directory")
 	}
 }
@@ -65,7 +64,7 @@ func NewPoller[T any, AggregateT json.Marshaler](
 }
 
 func (p *Poller[T, AggregateT]) savePath() string {
-	return filepath.Join(saveBaseDir, fmt.Sprintf("%s.json", p.name))
+	return filepath.Join(common.MetricsDataDir, fmt.Sprintf("%s.json", p.name))
 }
 
 func (p *Poller[T, AggregateT]) load() error {
