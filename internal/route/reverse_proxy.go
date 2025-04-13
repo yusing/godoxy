@@ -116,7 +116,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	if r.UseAccessLog() {
 		var err error
-		r.rp.AccessLogger, err = accesslog.NewFileAccessLogger(r.task, r.AccessLog)
+		r.rp.AccessLogger, err = accesslog.NewAccessLogger(r.task, r.AccessLog)
 		if err != nil {
 			r.task.Finish(err)
 			return gperr.Wrap(err)

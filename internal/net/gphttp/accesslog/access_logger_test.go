@@ -56,7 +56,7 @@ func fmtLog(cfg *Config) (ts string, line string) {
 	var buf bytes.Buffer
 
 	t := time.Now()
-	logger := NewAccessLogger(testTask, nil, cfg)
+	logger := NewMockAccessLogger(testTask, cfg)
 	logger.Formatter.SetGetTimeNow(func() time.Time {
 		return t
 	})

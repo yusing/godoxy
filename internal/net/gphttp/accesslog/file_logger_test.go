@@ -16,7 +16,6 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 
 	cfg := DefaultConfig()
 	cfg.Path = "test.log"
-	parent := task.RootTask("test", false)
 
 	loggerCount := 10
 	accessLogIOs := make([]AccessLogIO, loggerCount)
@@ -33,9 +32,9 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			logger, err := NewFileAccessLogger(parent, cfg)
+			file, err := newFileIO(cfg.Path)
 			ExpectNoError(t, err)
-			accessLogIOs[index] = logger.io
+			accessLogIOs[index] = file
 		}(i)
 	}
 
@@ -59,7 +58,7 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	loggers := make([]*AccessLogger, loggerCount)
 
 	for i := range loggerCount {
-		loggers[i] = NewAccessLogger(parent, &file, cfg)
+		loggers[i] = NewAccessLoggerWithIO(parent, &file, cfg)
 	}
 
 	var wg sync.WaitGroup

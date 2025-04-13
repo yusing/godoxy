@@ -2,11 +2,15 @@ package accesslog
 
 import (
 	"bytes"
-	"io"
+	ioPkg "io"
 	"time"
 )
 
 func (l *AccessLogger) rotate() (err error) {
+	io, ok := l.io.(supportRotate)
+	if !ok {
+		return nil
+	}
 	// Get retention configuration
 	config := l.Config().Retention
 	var shouldKeep func(t time.Time, lineCount int) bool
@@ -24,7 +28,7 @@ func (l *AccessLogger) rotate() (err error) {
 		return nil // No retention policy set
 	}
 
-	s := NewBackScanner(l.io, defaultChunkSize)
+	s := NewBackScanner(io, defaultChunkSize)
 	nRead := 0
 	nLines := 0
 	for s.Scan() {
@@ -40,11 +44,11 @@ func (l *AccessLogger) rotate() (err error) {
 	}
 
 	beg := int64(nRead)
-	if _, err := l.io.Seek(-beg, io.SeekEnd); err != nil {
+	if _, err := io.Seek(-beg, ioPkg.SeekEnd); err != nil {
 		return err
 	}
 	buf := make([]byte, nRead)
-	if _, err := l.io.Read(buf); err != nil {
+	if _, err := io.Read(buf); err != nil {
 		return err
 	}
 
@@ -55,8 +59,13 @@ func (l *AccessLogger) rotate() (err error) {
 }
 
 func (l *AccessLogger) writeTruncate(buf []byte) (err error) {
+	io, ok := l.io.(supportRotate)
+	if !ok {
+		return nil
+	}
+
 	// Seek to beginning and truncate
-	if _, err := l.io.Seek(0, 0); err != nil {
+	if _, err := io.Seek(0, 0); err != nil {
 		return err
 	}
 
@@ -70,13 +79,13 @@ func (l *AccessLogger) writeTruncate(buf []byte) (err error) {
 	}
 
 	// Truncate file
-	if err = l.io.Truncate(int64(nWritten)); err != nil {
+	if err = io.Truncate(int64(nWritten)); err != nil {
 		return err
 	}
 
 	// check bytes written == buffer size
 	if nWritten != len(buf) {
-		return io.ErrShortWrite
+		return ioPkg.ErrShortWrite
 	}
 	return
 }

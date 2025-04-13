@@ -7,7 +7,7 @@ import (
 
 // BackScanner provides an interface to read a file backward line by line.
 type BackScanner struct {
-	file      AccessLogIO
+	file      supportRotate
 	chunkSize int
 	offset    int64
 	buffer    []byte
@@ -18,7 +18,7 @@ type BackScanner struct {
 
 // NewBackScanner creates a new Scanner to read the file backward.
 // chunkSize determines the size of each read chunk from the end of the file.
-func NewBackScanner(file AccessLogIO, chunkSize int) *BackScanner {
+func NewBackScanner(file supportRotate, chunkSize int) *BackScanner {
 	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
 		return &BackScanner{err: err}

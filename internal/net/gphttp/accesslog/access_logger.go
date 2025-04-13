@@ -25,11 +25,15 @@ type (
 	}
 
 	AccessLogIO interface {
+		io.Writer
+		sync.Locker
+		Name() string // file name or path
+	}
+
+	supportRotate interface {
 		io.ReadWriteCloser
 		io.ReadWriteSeeker
 		io.ReaderAt
-		sync.Locker
-		Name() string // file name or path
 		Truncate(size int64) error
 	}
 
@@ -40,7 +44,33 @@ type (
 	}
 )
 
-func NewAccessLogger(parent task.Parent, io AccessLogIO, cfg *Config) *AccessLogger {
+func NewAccessLogger(parent task.Parent, cfg *Config) (*AccessLogger, error) {
+	var ios []AccessLogIO
+
+	if cfg.Stdout {
+		ios = append(ios, stdoutIO)
+	}
+
+	if cfg.Path != "" {
+		io, err := newFileIO(cfg.Path)
+		if err != nil {
+			return nil, err
+		}
+		ios = append(ios, io)
+	}
+
+	if len(ios) == 0 {
+		return nil, nil
+	}
+
+	return NewAccessLoggerWithIO(parent, NewMultiWriter(ios...), cfg), nil
+}
+
+func NewMockAccessLogger(parent task.Parent, cfg *Config) *AccessLogger {
+	return NewAccessLoggerWithIO(parent, &MockFile{}, cfg)
+}
+
+func NewAccessLoggerWithIO(parent task.Parent, io AccessLogIO, cfg *Config) *AccessLogger {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = DefaultBufferSize
 	}
@@ -152,7 +182,9 @@ func (l *AccessLogger) Flush() error {
 func (l *AccessLogger) close() {
 	l.io.Lock()
 	defer l.io.Unlock()
-	l.io.Close()
+	if r, ok := l.io.(io.Closer); ok {
+		r.Close()
+	}
 }
 
 func (l *AccessLogger) write(data []byte) {

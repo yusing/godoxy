@@ -1,6 +1,10 @@
 package accesslog
 
-import "github.com/yusing/go-proxy/internal/utils"
+import (
+	"errors"
+
+	"github.com/yusing/go-proxy/internal/utils"
+)
 
 type (
 	Format  string
@@ -19,7 +23,8 @@ type (
 	Config struct {
 		BufferSize int        `json:"buffer_size"`
 		Format     Format     `json:"format" validate:"oneof=common combined json"`
-		Path       string     `json:"path" validate:"required"`
+		Path       string     `json:"path"`
+		Stdout     bool       `json:"stdout"`
 		Filters    Filters    `json:"filters"`
 		Fields     Fields     `json:"fields"`
 		Retention  *Retention `json:"retention"`
@@ -33,6 +38,13 @@ var (
 )
 
 const DefaultBufferSize = 64 * 1024 // 64KB
+
+func (cfg *Config) Validate() error {
+	if cfg.Path == "" && !cfg.Stdout {
+		return errors.New("path or stdout is required")
+	}
+	return nil
+}
 
 func DefaultConfig() *Config {
 	return &Config{
