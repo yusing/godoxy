@@ -167,7 +167,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.addToLoadBalancer(parent)
 	} else {
 		routes.SetHTTPRoute(r.TargetName(), r)
-		r.task.OnCancel("entrypoint_remove_route", func() {
+		r.task.OnFinished("entrypoint_remove_route", func() {
 			routes.DeleteHTTPRoute(r.TargetName())
 		})
 	}

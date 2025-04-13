@@ -84,7 +84,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	go r.acceptConnections()
 
 	routes.SetStreamRoute(r.TargetName(), r)
-	r.task.OnCancel("entrypoint_remove_route", func() {
+	r.task.OnFinished("entrypoint_remove_route", func() {
 		routes.DeleteStreamRoute(r.TargetName())
 	})
 	return nil
