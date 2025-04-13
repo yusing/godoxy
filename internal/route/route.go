@@ -2,6 +2,7 @@ package route
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
@@ -92,11 +93,11 @@ func (r *Route) Validate() (err gperr.Error) {
 		r.Port.Proxy = 0
 	} else {
 		switch r.Scheme {
-	case route.SchemeHTTP, route.SchemeHTTPS:
-		if r.Port.Listening != 0 {
-			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
-		}
-	case route.SchemeTCP, route.SchemeUDP:
+		case route.SchemeHTTP, route.SchemeHTTPS:
+			if r.Port.Listening != 0 {
+				errs.Addf("unexpected listening port for %s scheme", r.Scheme)
+			}
+		case route.SchemeTCP, route.SchemeUDP:
 			r.LisURL = gperr.Collect(errs, url.Parse, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		}
 		r.ProxyURL = gperr.Collect(errs, url.Parse, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
@@ -145,8 +146,8 @@ func (r *Route) Started() bool {
 }
 
 func (r *Route) Reference() string {
-	if r.Docker != nil {
-		return r.Docker.Image.Name
+	if r.Container != nil {
+		return r.Container.Image.Name
 	}
 	return r.Alias
 }
@@ -378,7 +379,7 @@ func (r *Route) FinalizeHomepageConfig() {
 		panic("alias is empty")
 	}
 
-	isDocker := r.Container != nil
+	isDocker := r.IsDocker()
 
 	if r.Homepage == nil {
 		r.Homepage = &homepage.ItemConfig{Show: true}

@@ -52,7 +52,7 @@ func NewMonitor(r route.Route) health.HealthMonCheck {
 		}
 	}
 	if r.IsDocker() {
-		cont := r.DockerContainer()
+		cont := r.ContainerInfo()
 		client, err := docker.NewClient(cont.DockerHost)
 		if err != nil {
 			return mon

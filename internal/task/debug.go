@@ -51,7 +51,7 @@ func toBool(v uint32) bool {
 
 func (t *Task) callbackList() []map[string]any {
 	list := make([]map[string]any, 0, len(t.callbacks))
-	for cb, _ := range t.callbacks {
+	for cb := range t.callbacks {
 		list = append(list, map[string]any{
 			"about":         cb.about,
 			"wait_children": cb.waitChildren,
