@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"net"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -12,7 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestDeserialize(t *testing.T) {
+func TestUnmarshal(t *testing.T) {
 	type S struct {
 		I   int
 		S   string
@@ -41,7 +43,7 @@ func TestDeserialize(t *testing.T) {
 		}
 	)
 
-	t.Run("deserialize", func(t *testing.T) {
+	t.Run("unmarshal", func(t *testing.T) {
 		var s2 S
 		err := MapUnmarshalValidate(testStructSerialized, &s2)
 		ExpectNoError(t, err)
@@ -49,7 +51,7 @@ func TestDeserialize(t *testing.T) {
 	})
 }
 
-func TestDeserializeAnonymousField(t *testing.T) {
+func TestUnmarshalAnonymousField(t *testing.T) {
 	type Anon struct {
 		A, B int
 	}
@@ -77,59 +79,31 @@ func TestDeserializeAnonymousField(t *testing.T) {
 }
 
 func TestStringIntConvert(t *testing.T) {
-	s := "127"
-
 	test := struct {
-		i8  int8
-		i16 int16
-		i32 int32
-		i64 int64
-		u8  uint8
-		u16 uint16
-		u32 uint32
-		u64 uint64
+		I8  int8
+		I16 int16
+		I32 int32
+		I64 int64
+		U8  uint8
+		U16 uint16
+		U32 uint32
+		U64 uint64
 	}{}
 
-	ok, err := ConvertString(s, reflect.ValueOf(&test.i8))
-
+	refl := reflect.ValueOf(&test)
+	for i := range refl.Elem().NumField() {
+		field := refl.Elem().Field(i)
+		t.Run(fmt.Sprintf("field_%s", field.Type().Name()), func(t *testing.T) {
+			ok, err := ConvertString("127", field)
 	ExpectTrue(t, ok)
 	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.i8, int8(127))
+			ExpectEqualValues(t, field.Interface(), 127)
 
-	ok, err = ConvertString(s, reflect.ValueOf(&test.i16))
-	ExpectTrue(t, ok)
+			err = Convert(reflect.ValueOf(uint8(64)), field)
 	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.i16, int16(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.i32))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.i32, int32(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.i64))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.i64, int64(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.u8))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.u8, uint8(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.u16))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.u16, uint16(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.u32))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.u32, uint32(127))
-
-	ok, err = ConvertString(s, reflect.ValueOf(&test.u64))
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, test.u64, uint64(127))
+			ExpectEqualValues(t, field.Interface(), 64)
+		})
+	}
 }
 
 type testModel struct {
@@ -164,8 +138,8 @@ func TestConvertor(t *testing.T) {
 		ExpectEqualValues(t, m.Test.foo, 123)
 		ExpectEqualValues(t, m.Test.bar, "123")
 
-		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Baz": 123}, m))
-		ExpectEqualValues(t, m.Baz, "123")
+		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Baz": 456}, m))
+		ExpectEqualValues(t, m.Baz, "456")
 	})
 
 	t.Run("invalid", func(t *testing.T) {
@@ -237,18 +211,28 @@ func BenchmarkStringToMapYAML(b *testing.B) {
 }
 
 func TestStringToStruct(t *testing.T) {
-	t.Run("yaml-like", func(t *testing.T) {
-		dst := struct {
+	type T struct {
 			A string
 			B int
-		}{}
+	}
+	t.Run("yaml-like simple", func(t *testing.T) {
+		var dst T
 		convertible, err := ConvertString("  A: a\n  B: 123", reflect.ValueOf(&dst))
 		ExpectTrue(t, convertible)
 		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst, struct {
-			A string
-			B int
-		}{"a", 123})
+		ExpectEqualValues(t, dst.A, "a")
+		ExpectEqualValues(t, dst.B, 123)
+	})
+
+	type T2 struct {
+		URL  *url.URL
+		CIDR *net.IPNet
+	}
+	t.Run("yaml-like complex", func(t *testing.T) {
+		var dst T2
+		convertible, err := ConvertString("  URL: http://example.com\n  CIDR: 1.2.3.0/24", reflect.ValueOf(&dst))
+		ExpectTrue(t, convertible)
+		ExpectNoError(t, err)
 	})
 }
 

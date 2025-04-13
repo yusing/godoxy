@@ -23,7 +23,7 @@ type (
 		Key, Value string
 	}
 	Host string
-	CIDR struct{ net.IPNet }
+	CIDR net.IPNet
 )
 
 var ErrInvalidHTTPHeaderFilter = gperr.New("invalid http header filter")
@@ -85,7 +85,7 @@ func (h Host) Fulfill(req *http.Request, res *http.Response) bool {
 	return req.Host == string(h)
 }
 
-func (cidr CIDR) Fulfill(req *http.Request, res *http.Response) bool {
+func (cidr *CIDR) Fulfill(req *http.Request, res *http.Response) bool {
 	ip, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		ip = req.RemoteAddr
@@ -94,5 +94,9 @@ func (cidr CIDR) Fulfill(req *http.Request, res *http.Response) bool {
 	if netIP == nil {
 		return false
 	}
-	return cidr.Contains(netIP)
+	return (*net.IPNet)(cidr).Contains(netIP)
+}
+
+func (cidr *CIDR) String() string {
+	return (*net.IPNet)(cidr).String()
 }
