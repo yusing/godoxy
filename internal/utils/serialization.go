@@ -308,6 +308,20 @@ func isIntFloat(t reflect.Kind) bool {
 	return t >= reflect.Bool && t <= reflect.Float64
 }
 
+func itoa(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(v.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', -1, 64)
+	}
+	panic("invalid call on itoa")
+}
+
 // Convert attempts to convert the src to dst.
 //
 // If src is a map, it is deserialized into dst.
@@ -365,19 +379,11 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 		}
 	case isIntFloat(srcKind):
 		if dst.Kind() == reflect.String {
-			var strV string
-			switch {
-			case src.CanInt():
-				strV = strconv.FormatInt(src.Int(), 10)
-			case srcKind == reflect.Bool:
-				strV = strconv.FormatBool(src.Bool())
-			case src.CanUint():
-				strV = strconv.FormatUint(src.Uint(), 10)
-			case src.CanFloat():
-				strV = strconv.FormatFloat(src.Float(), 'f', -1, 64)
-			}
-			dst.Set(reflect.ValueOf(strV))
+			dst.Set(reflect.ValueOf(itoa(src)))
 			return nil
+		}
+		if dst.Addr().Type().Implements(typeStrParser) {
+			return Convert(reflect.ValueOf(itoa(src)), dst)
 		}
 		if !isIntFloat(dstT.Kind()) || !src.CanConvert(dstT) {
 			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
@@ -445,7 +451,8 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		dst = dst.Elem()
 		dstT = dst.Type()
 	}
-	if dst.Kind() == reflect.String {
+	dstKind := dst.Kind()
+	if dstKind == reflect.String {
 		dst.SetString(src)
 		return
 	}
@@ -482,7 +489,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		setSameOrEmbedddType(reflect.ValueOf(ipnet).Elem(), dst)
 		return
 	}
-	if dstKind := dst.Kind(); isIntFloat(dstKind) {
+	if isIntFloat(dstKind) {
 		var i any
 		var err error
 		switch {
@@ -512,7 +519,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	}
 	// yaml like
 	var tmp any
-	switch dst.Kind() {
+	switch dstKind {
+	case reflect.Map, reflect.Struct:
+		rawMap := make(SerializedObject)
+		err := yaml.Unmarshal([]byte(src), &rawMap)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		tmp = rawMap
 	case reflect.Slice:
 		src = strings.TrimSpace(src)
 		isMultiline := strings.ContainsRune(src, '\n')
@@ -538,13 +552,6 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			return true, gperr.Wrap(err)
 		}
 		tmp = sl
-	case reflect.Map, reflect.Struct:
-		rawMap := make(SerializedObject)
-		err := yaml.Unmarshal([]byte(src), &rawMap)
-		if err != nil {
-			return true, gperr.Wrap(err)
-		}
-		tmp = rawMap
 	default:
 		return false, nil
 	}

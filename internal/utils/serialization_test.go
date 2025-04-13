@@ -7,9 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
-	"time"
 
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"gopkg.in/yaml.v3"
 )
@@ -95,12 +93,12 @@ func TestStringIntConvert(t *testing.T) {
 		field := refl.Elem().Field(i)
 		t.Run(fmt.Sprintf("field_%s", field.Type().Name()), func(t *testing.T) {
 			ok, err := ConvertString("127", field)
-	ExpectTrue(t, ok)
-	ExpectNoError(t, err)
+			ExpectTrue(t, ok)
+			ExpectNoError(t, err)
 			ExpectEqualValues(t, field.Interface(), 127)
 
 			err = Convert(reflect.ValueOf(uint8(64)), field)
-	ExpectNoError(t, err)
+			ExpectNoError(t, err)
 			ExpectEqualValues(t, field.Interface(), 64)
 		})
 	}
@@ -212,8 +210,8 @@ func BenchmarkStringToMapYAML(b *testing.B) {
 
 func TestStringToStruct(t *testing.T) {
 	type T struct {
-			A string
-			B int
+		A string
+		B int
 	}
 	t.Run("yaml-like simple", func(t *testing.T) {
 		var dst T
