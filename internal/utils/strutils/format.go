@@ -53,8 +53,55 @@ func FormatLastSeen(t time.Time) string {
 	return FormatTime(t)
 }
 
+func roundString(f float64) string {
+	return strconv.Itoa(int(math.Round(f)))
+}
+
 func FormatTime(t time.Time) string {
-	return t.Format("2006-01-02 15:04:05")
+	if t.IsZero() {
+		return "never"
+	}
+	return FormatTimeWithReference(t, time.Now())
+}
+
+func FormatUnixTime(t int64) string {
+	return FormatTime(time.Unix(t, 0))
+}
+
+func FormatTimeWithReference(t, ref time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+	diff := t.Sub(ref)
+	absDiff := diff.Abs()
+	switch {
+	case absDiff < time.Second:
+		return "now"
+	case absDiff < 3*time.Second:
+		if diff < 0 {
+			return "just now"
+		}
+		fallthrough
+	case absDiff < 60*time.Second:
+		if diff < 0 {
+			return roundString(absDiff.Seconds()) + " seconds ago"
+		}
+		return "in " + roundString(absDiff.Seconds()) + " seconds"
+	case absDiff < 60*time.Minute:
+		if diff < 0 {
+			return roundString(absDiff.Minutes()) + " minutes ago"
+		}
+		return "in " + roundString(absDiff.Minutes()) + " minutes"
+	case absDiff < 24*time.Hour:
+		if diff < 0 {
+			return roundString(absDiff.Hours()) + " hours ago"
+		}
+		return "in " + roundString(absDiff.Hours()) + " hours"
+	case t.Year() == ref.Year():
+		return t.Format("01-02 15:04:05")
+	default:
+		return t.Format("2006-01-02 15:04:05")
+	}
 }
 
 func ParseBool(s string) bool {
