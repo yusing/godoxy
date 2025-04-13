@@ -22,7 +22,7 @@ import (
 func StartServer(cfg config.ConfigInstance) {
 	srv := server.NewServer(server.Options{
 		Name:     "debug",
-		HTTPAddr: ":8899",
+		HTTPAddr: "127.0.0.1:7777",
 		Handler:  newHandler(cfg),
 	})
 	srv.Start(task.RootTask("debug_server", false))
@@ -67,7 +67,7 @@ func iterMap[K comparable, V debuggable](m func() map[K]V) iter.Seq2[K, V] {
 func newHandler(cfg config.ConfigInstance) http.Handler {
 	mux := servemux.NewServeMux(cfg)
 	mux.HandleFunc("GET", "/tasks", jsonHandler(task.AllTasks()))
-	mux.HandleFunc("GET", "/idlewatcher", jsonHandler(iterMap(idlewatcher.Watchers)))
+	mux.HandleFunc("GET", "/idlewatcher", jsonHandler(idlewatcher.Watchers()))
 	mux.HandleFunc("GET", "/agents", jsonHandler(agent.Agents.Iter))
 	mux.HandleFunc("GET", "/proxmox", jsonHandler(proxmox.Clients.Iter))
 	mux.HandleFunc("GET", "/docker", jsonHandler(iterMap(docker.Clients)))

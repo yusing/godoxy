@@ -50,6 +50,8 @@ export GODEBUG
 export GORACE
 export BUILD_FLAGS
 
+.PHONY: debug
+
 test:
 	GODOXY_TEST=1 go test ./internal/...
 
