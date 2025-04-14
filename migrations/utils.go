@@ -6,8 +6,12 @@ import (
 )
 
 func mv(old, new string) error {
-	if _, err := os.Stat(old); os.IsNotExist(err) {
+	_, err := os.Stat(old)
+	if err != nil && os.IsNotExist(err) {
 		return nil
+	}
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(new), 0o755); err != nil {
 		return err
