@@ -26,6 +26,10 @@ func (p Pool[T]) Add(obj T) {
 	p.m.Store(obj.Key(), obj)
 }
 
+func (p Pool[T]) Del(obj T) {
+	p.m.Delete(obj.Key())
+}
+
 func (p Pool[T]) Get(key string) (T, bool) {
 	return p.m.Load(key)
 }

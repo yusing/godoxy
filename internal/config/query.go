@@ -63,20 +63,23 @@ func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PE
 		return 0, gperr.New("agent already exists")
 	}
 
-	var agentCfg agent.AgentConfig
+	agentCfg := new(agent.AgentConfig)
 	agentCfg.Addr = host
 	err := agentCfg.InitWithCerts(cfg.task.Context(), ca.Cert, client.Cert, client.Key)
 	if err != nil {
 		return 0, gperr.Wrap(err, "failed to start agent")
 	}
-	agent.Agents.Add(&agentCfg)
+	// must add it first to let LoadRoutes() reference from it
+	agent.Agents.Add(agentCfg)
 
-	provider := provider.NewAgentProvider(&agentCfg)
+	provider := provider.NewAgentProvider(agentCfg)
 	if err := cfg.errIfExists(provider); err != nil {
+		agent.Agents.Del(agentCfg)
 		return 0, err
 	}
 	err = provider.LoadRoutes()
 	if err != nil {
+		agent.Agents.Del(agentCfg)
 		return 0, gperr.Wrap(err, "failed to load routes")
 	}
 	return provider.NumRoutes(), nil
