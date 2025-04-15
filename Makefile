@@ -31,12 +31,12 @@ ifeq ($(debug), 1)
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 1
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
-	BUILD_FLAGS = -tags pprof
+	BUILD_FLAGS += -tags pprof
 	VERSION := ${VERSION}-pprof
 else
 	CGO_ENABLED = 0
 	LDFLAGS += -s -w
-	BUILD_FLAGS = -pgo=auto -tags production
+	BUILD_FLAGS += -pgo=auto -tags production
 endif
 
 BUILD_FLAGS += -ldflags='$(LDFLAGS)'
@@ -93,44 +93,6 @@ cloc:
 
 link-binary:
 	ln -s /app/${NAME} bin/run
-
-# To generate schema
-# comment out this part from typescript-json-schema.js#L884
-#
-#	if (indexType.flags !== ts.TypeFlags.Number && !isIndexedObject) {
-#			throw new Error("Not supported: IndexSignatureDeclaration with index symbol other than a number or a string");
-#	}
-
-gen-schema-single:
-	bun --bun run typescript-json-schema --noExtraProps --required --skipLibCheck --tsNodeRegister=true -o schemas/${OUT} schemas/${IN} ${CLASS}
-	# minify
-	python3 -c "import json; f=open('schemas/${OUT}', 'r'); j=json.load(f); f.close(); f=open('schemas/${OUT}', 'w'); json.dump(j, f, separators=(',', ':'));"
-
-gen-schema:
-	cd schemas && bun --bun tsc
-	make IN=config/config.ts \
-			CLASS=Config \
-			OUT=config.schema.json \
-			gen-schema-single
-	make IN=providers/routes.ts \
-			CLASS=Routes \
-			OUT=routes.schema.json \
-			gen-schema-single
-	make IN=middlewares/middleware_compose.ts \
-			CLASS=MiddlewareCompose \
-			OUT=middleware_compose.schema.json \
-			gen-schema-single
-	make IN=docker.ts \
-			CLASS=DockerRoutes \
-			OUT=docker_routes.schema.json \
-			gen-schema-single
-	cd ..
-
-publish-schema:
-	cd schemas && bun publish && cd ..
-
-update-schema-generator:
-	pnpm up -g typescript-json-schema
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)

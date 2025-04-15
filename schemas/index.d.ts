@@ -16,4 +16,23 @@ import ConfigSchema from "./config.schema.json";
 import DockerRoutesSchema from "./docker_routes.schema.json";
 import MiddlewareComposeSchema from "./middleware_compose.schema.json";
 import RoutesSchema from "./routes.schema.json";
-export { AccessLog, Autocert, Config, ConfigSchema, DockerRoutesSchema, Entrypoint, GoDoxy, Healthcheck, Homepage, IdleWatcher, LoadBalance, MiddlewareCompose, MiddlewareComposeSchema, Middlewares, Notification, Providers, Routes, RoutesSchema, };
+export {
+  AccessLog,
+  Autocert,
+  Config,
+  ConfigSchema,
+  DockerRoutesSchema,
+  Entrypoint,
+  GoDoxy,
+  Healthcheck,
+  Homepage,
+  IdleWatcher,
+  LoadBalance,
+  MiddlewareCompose,
+  MiddlewareComposeSchema,
+  Middlewares,
+  Notification,
+  Providers,
+  Routes,
+  RoutesSchema,
+};

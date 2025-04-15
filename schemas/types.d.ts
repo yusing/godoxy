@@ -4,7 +4,17 @@
 export type Null = null;
 export type Nullable<T> = T | Null;
 export type NullOrEmptyMap = {} | Null;
-export declare const HTTP_METHODS: readonly ["GET", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "HEAD", "OPTIONS", "TRACE"];
+export declare const HTTP_METHODS: readonly [
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "CONNECT",
+  "HEAD",
+  "OPTIONS",
+  "TRACE",
+];
 export type HTTPMethod = (typeof HTTP_METHODS)[number];
 /**
  * HTTP Header
@@ -49,7 +59,13 @@ export type IPv4 = string & {};
  * @type string
  */
 export type IPv6 = string & {};
-export type CIDR = `${number}.${number}.${number}.${number}` | `${string}:${string}:${string}:${string}:${string}:${string}:${string}:${string}` | `${number}.${number}.${number}.${number}/${number}` | `::${number}` | `${string}::/${number}` | `${string}:${string}::/${number}`;
+export type CIDR =
+  | `${number}.${number}.${number}.${number}`
+  | `${string}:${string}:${string}:${string}:${string}:${string}:${string}:${string}`
+  | `${number}.${number}.${number}.${number}/${number}`
+  | `::${number}`
+  | `${string}::/${number}`
+  | `${string}:${string}::/${number}`;
 /**
  * @type integer
  * @minimum 0
