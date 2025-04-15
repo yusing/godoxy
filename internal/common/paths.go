@@ -28,4 +28,6 @@ var RequiredDirectories = []string{
 	ConfigDir,
 	ErrorPagesDir,
 	MiddlewareComposeDir,
+	DataDir,
+	MetricsDataDir,
 }
