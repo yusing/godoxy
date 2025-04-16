@@ -20,6 +20,10 @@ type field struct {
 	marshal    marshalFunc
 }
 
+func (f *field) appendKV(v reflect.Value, buf []byte) []byte {
+	return f.marshal(v, append(buf, f.quotedNameWithCol...))
+}
+
 const (
 	tagOmitEmpty    = "omitempty"
 	tagString       = "string" // https://pkg.go.dev/github.com/yusing/go-proxy/pkg/json#Marshal
@@ -28,13 +32,56 @@ const (
 	tagUseMarshaler = "use_marshaler"
 )
 
-func flattenFields(t reflect.Type) []*field {
-	fields, ok := flattenFieldsCache.Load(t)
-	if ok {
-		return fields
+func appendStruct(v reflect.Value, buf []byte) []byte {
+	if res, ok := appendWithCachedFunc(v, buf); ok {
+		return res
 	}
 
-	fields = make([]*field, 0, t.NumField())
+	if res, ok := appendWithCustomMarshaler(v, buf); ok {
+		return res
+	}
+
+	t := v.Type()
+	fields := flattenFields(t)
+	marshalFn := func(v reflect.Value, buf []byte) []byte {
+		return appendFields(v, fields, buf)
+	}
+	cacheMarshalFunc(t, marshalFn)
+	return marshalFn(v, buf)
+}
+
+func appendFields(v reflect.Value, fields []*field, buf []byte) []byte {
+	buf = append(buf, '{')
+	oldN := len(buf)
+
+	for _, f := range fields {
+		cur := v.Field(f.index)
+		if f.omitEmpty && f.checkEmpty(cur) {
+			continue
+		}
+		if !f.hasInner {
+			buf = f.appendKV(cur, buf)
+			buf = append(buf, ',')
+		} else {
+			if f.isPtr {
+				cur = cur.Elem()
+			}
+			for _, inner := range f.inner {
+				buf = inner.appendKV(cur.Field(inner.index), buf)
+				buf = append(buf, ',')
+			}
+		}
+	}
+
+	n := len(buf)
+	if oldN != n {
+		buf = buf[:n-1]
+	}
+	return append(buf, '}')
+}
+
+func flattenFields(t reflect.Type) []*field {
+	fields := make([]*field, 0, t.NumField())
 	for i := range t.NumField() {
 		structField := t.Field(i)
 		if !structField.IsExported() {
@@ -95,11 +142,5 @@ func flattenFields(t reflect.Type) []*field {
 		}
 		f.quotedNameWithCol = strconv.Quote(f.quotedNameWithCol) + ":"
 	}
-
-	flattenFieldsCache.Store(t, fields)
 	return fields
-}
-
-func (f *field) appendKV(v reflect.Value, buf []byte) []byte {
-	return f.marshal(v, append(buf, f.quotedNameWithCol...))
 }
