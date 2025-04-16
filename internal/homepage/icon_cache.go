@@ -1,9 +1,10 @@
 package homepage
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"

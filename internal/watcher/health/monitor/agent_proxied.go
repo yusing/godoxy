@@ -1,10 +1,11 @@
 package monitor
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/watcher/health"

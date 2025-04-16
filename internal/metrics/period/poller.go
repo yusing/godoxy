@@ -2,7 +2,6 @@ package period
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 type (

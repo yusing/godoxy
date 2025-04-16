@@ -5,8 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"encoding/json"
-
+	"github.com/yusing/go-proxy/pkg/json"
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
 
@@ -94,7 +93,7 @@ func (err *withSubject) Error() string {
 	return sb.String()
 }
 
-func (err *withSubject) MarshalJSON() ([]byte, error) {
+func (err *withSubject) MarshalJSONTo(buf []byte) []byte {
 	subjects := slices.Clone(err.Subjects)
 	slices.Reverse(subjects)
 
@@ -102,5 +101,5 @@ func (err *withSubject) MarshalJSON() ([]byte, error) {
 		"subjects": subjects,
 		"err":      err.Err,
 	}
-	return json.Marshal(reversed)
+	return json.MarshalTo(reversed, buf)
 }

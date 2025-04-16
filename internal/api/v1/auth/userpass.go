@@ -1,10 +1,11 @@
 package auth
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/go-proxy/internal/common"

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"net"
 	"net/url"
@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yusing/go-proxy/pkg/json"
+
 	"github.com/go-playground/validator/v10"
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"gopkg.in/yaml.v3"
 )
 
 type SerializedObject = map[string]any
@@ -24,8 +26,11 @@ type (
 	MapMarshaler interface {
 		MarshalMap() map[string]any
 	}
-	MapUnmarshaller interface {
+	MapUnmarshaler interface {
 		UnmarshalMap(m map[string]any) gperr.Error
+	}
+	Marshaler interface {
+		MarshalJSONTo(buf *bytes.Buffer) error
 	}
 )
 
@@ -50,12 +55,8 @@ var (
 	typeURL      = reflect.TypeFor[url.URL]()
 	typeCIDR     = reflect.TypeFor[net.IPNet]()
 
-	typeMapMarshaller  = reflect.TypeFor[MapMarshaler]()
-	typeMapUnmarshaler = reflect.TypeFor[MapUnmarshaller]()
-	typeJSONMarshaller = reflect.TypeFor[json.Marshaler]()
+	typeMapUnmarshaler = reflect.TypeFor[MapUnmarshaler]()
 	typeStrParser      = reflect.TypeFor[strutils.Parser]()
-
-	typeAny = reflect.TypeOf((*any)(nil)).Elem()
 )
 
 var defaultValues = functional.NewMapOf[reflect.Type, func() any]()
@@ -92,14 +93,14 @@ func extractFields(t reflect.Type) (all, anonymous []reflect.StructField) {
 		if !field.IsExported() {
 			continue
 		}
+		// not checking tagJSON because json:"-" is for skipping json.Marshal
 		if field.Tag.Get(tagDeserialize) == "-" {
 			continue
 		}
 		if field.Anonymous {
-			f1, f2 := extractFields(field.Type)
-			fields = append(fields, f1...)
+			nested, _ := extractFields(field.Type)
+			fields = append(fields, nested...)
 			anonymous = append(anonymous, field)
-			anonymous = append(anonymous, f2...)
 		} else {
 			fields = append(fields, field)
 		}
@@ -215,7 +216,7 @@ func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 		if err != nil {
 			return err
 		}
-		return dstV.Addr().Interface().(MapUnmarshaller).UnmarshalMap(src)
+		return dstV.Addr().Interface().(MapUnmarshaler).UnmarshalMap(src)
 	}
 
 	dstV, dstT, err = dive(dstV)
@@ -560,7 +561,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 
 func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 	m := make(map[string]any)
-	if err := yaml.Unmarshal(data, m); err != nil {
+	if err := yaml.Unmarshal(data, &m); err != nil {
 		return gperr.Wrap(err)
 	}
 	return MapUnmarshalValidate(m, target)
@@ -568,7 +569,7 @@ func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 
 func UnmarshalValidateYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
-	if err = gperr.Wrap(yaml.Unmarshal(data, m)); err != nil {
+	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
 		return
 	}
 	m2 := make(map[string]V, len(m))

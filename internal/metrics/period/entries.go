@@ -1,8 +1,9 @@
 package period
 
 import (
-	"encoding/json"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 type Entries[T any] struct {
@@ -48,11 +49,11 @@ func (e *Entries[T]) Get() []*T {
 	return res
 }
 
-func (e *Entries[T]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+func (e *Entries[T]) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(map[string]any{
 		"entries":  e.Get(),
 		"interval": e.interval,
-	})
+	}, buf)
 }
 
 func (e *Entries[T]) UnmarshalJSON(data []byte) error {

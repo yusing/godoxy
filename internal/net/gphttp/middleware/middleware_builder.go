@@ -6,8 +6,8 @@ import (
 	"path"
 	"sort"
 
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"gopkg.in/yaml.v3"
 )
 
 var ErrMissingMiddlewareUse = gperr.New("missing middleware 'use' field")

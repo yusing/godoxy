@@ -1,8 +1,9 @@
 package homepage
 
 import (
-	"encoding/json"
 	"strings"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -42,7 +43,7 @@ func (cfg *ItemConfig) GetOverride(alias string) *ItemConfig {
 	return overrideConfigInstance.GetOverride(alias, cfg)
 }
 
-func (item *Item) MarshalJSON() ([]byte, error) {
+func (item *Item) MarshalJSONTo(buf []byte) []byte {
 	var url *string
 	if !strings.ContainsRune(item.Alias, '.') {
 		godoxyCfg := config.GetInstance().Value()
@@ -55,7 +56,7 @@ func (item *Item) MarshalJSON() ([]byte, error) {
 	} else {
 		url = &item.Alias
 	}
-	return json.Marshal(map[string]any{
+	return json.MarshalTo(map[string]any{
 		"show":          item.Show,
 		"alias":         item.Alias,
 		"provider":      item.Provider,
@@ -66,7 +67,7 @@ func (item *Item) MarshalJSON() ([]byte, error) {
 		"description":   item.Description,
 		"sort_order":    item.SortOrder,
 		"widget_config": item.WidgetConfig,
-	})
+	}, buf)
 }
 
 func (c Homepage) Add(item *Item) {

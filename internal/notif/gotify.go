@@ -2,10 +2,11 @@ package notif
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/gotify/server/v2/model"
 	"github.com/rs/zerolog"

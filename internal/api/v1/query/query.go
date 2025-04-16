@@ -1,10 +1,11 @@
 package query
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	v1 "github.com/yusing/go-proxy/internal/api/v1"
 	"github.com/yusing/go-proxy/internal/common"

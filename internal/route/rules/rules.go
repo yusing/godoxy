@@ -1,8 +1,9 @@
 package rules
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 type (
@@ -40,8 +41,8 @@ type (
 	*/
 	Rule struct {
 		Name string  `json:"name"`
-		On   RuleOn  `json:"on"`
-		Do   Command `json:"do"`
+		On   RuleOn  `json:"on,string"`
+		Do   Command `json:"do,string"`
 	}
 )
 
@@ -102,12 +103,12 @@ func (rules Rules) BuildHandler(caller string, up http.Handler) http.HandlerFunc
 	}
 }
 
-func (rules Rules) MarshalJSON() ([]byte, error) {
+func (rules Rules) MarshalJSONTo(buf []byte) []byte {
 	names := make([]string, len(rules))
 	for i, rule := range rules {
 		names[i] = rule.Name
 	}
-	return json.Marshal(names)
+	return json.MarshalTo(names, buf)
 }
 
 func (rule *Rule) String() string {

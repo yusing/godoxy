@@ -5,6 +5,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/yusing/go-proxy/internal/route/provider"
 	"github.com/yusing/go-proxy/internal/utils"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
-	"gopkg.in/yaml.v3"
 )
 
 func TestFileProviderValidate(t *testing.T) {

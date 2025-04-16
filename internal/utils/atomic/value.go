@@ -1,8 +1,9 @@
 package atomic
 
 import (
-	"encoding/json"
 	"sync/atomic"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 type Value[T any] struct {
@@ -29,6 +30,6 @@ func (a *Value[T]) Swap(v T) T {
 	return zero
 }
 
-func (a *Value[T]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(a.Load())
+func (a *Value[T]) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(a.Load(), buf)
 }

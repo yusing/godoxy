@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/client"
+	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
@@ -14,7 +15,6 @@ import (
 	U "github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher"
-	"gopkg.in/yaml.v3"
 )
 
 type DockerProvider struct {

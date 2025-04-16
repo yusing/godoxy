@@ -2,12 +2,13 @@ package accesslog
 
 import (
 	"bytes"
-	"encoding/json"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/logging"
 )

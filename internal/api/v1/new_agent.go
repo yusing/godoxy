@@ -1,12 +1,13 @@
 package v1
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	_ "embed"
 

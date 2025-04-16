@@ -2,12 +2,13 @@ package accesslog_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"

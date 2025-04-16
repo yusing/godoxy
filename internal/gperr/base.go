@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"encoding/json"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 // baseError is an immutable wrapper around an error.
@@ -49,6 +49,6 @@ func (err *baseError) Error() string {
 	return err.Err.Error()
 }
 
-func (err *baseError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(err.Err)
+func (err *baseError) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(err.Err, buf)
 }

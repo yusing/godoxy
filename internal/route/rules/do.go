@@ -300,7 +300,3 @@ func (cmd *Command) isBypass() bool {
 func (cmd *Command) String() string {
 	return cmd.raw
 }
-
-func (cmd *Command) MarshalText() ([]byte, error) {
-	return []byte(cmd.String()), nil
-}

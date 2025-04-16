@@ -1,6 +1,8 @@
 package health
 
-import "encoding/json"
+import (
+	"github.com/yusing/go-proxy/pkg/json"
+)
 
 type Status uint8
 
@@ -33,10 +35,6 @@ func (s Status) String() string {
 	default:
 		return "unknown"
 	}
-}
-
-func (s Status) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.String() + `"`), nil
 }
 
 func (s *Status) UnmarshalJSON(data []byte) error {
