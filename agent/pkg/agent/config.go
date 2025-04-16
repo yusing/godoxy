@@ -81,14 +81,6 @@ func (cfg *AgentConfig) Parse(addr string) error {
 	return nil
 }
 
-func withoutBuildTime(version string) string {
-	return strings.Split(version, "-")[0]
-}
-
-func checkVersion(a, b string) bool {
-	return withoutBuildTime(a) == withoutBuildTime(b)
-}
-
 func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
@@ -120,10 +112,10 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 		return err
 	}
 
-	versionStr := string(version)
-	// skip version check for dev versions
-	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion().String()) {
-		return gperr.Errorf("agent version mismatch: server: %s, agent: %s", pkg.GetVersion(), versionStr)
+	agentVer := pkg.ParseVersion(string(version))
+	serverVer := pkg.GetVersion()
+	if !agentVer.IsEqual(serverVer) {
+		return gperr.Errorf("agent version mismatch: server: %s, agent: %s", serverVer, agentVer)
 	}
 
 	// get agent name

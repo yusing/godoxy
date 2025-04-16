@@ -20,7 +20,7 @@ func GetLastVersion() Version {
 }
 
 func init() {
-	currentVersion = parseVersion(version)
+	currentVersion = ParseVersion(version)
 
 	// ignore errors
 	versionFile := filepath.Join(common.DataDir, "version")
@@ -28,7 +28,7 @@ func init() {
 	f, err := os.OpenFile(versionFile, os.O_RDWR|os.O_CREATE, 0o644)
 	if err == nil {
 		_, err = fmt.Fscanf(f, "%s", &lastVersionStr)
-		lastVersion = parseVersion(lastVersionStr)
+		lastVersion = ParseVersion(lastVersionStr)
 	}
 	if err != nil && !os.IsNotExist(err) {
 		logging.Warn().Err(err).Msg("failed to read version file")
@@ -89,7 +89,7 @@ var (
 	lastVersion    Version
 )
 
-func parseVersion(v string) (ver Version) {
+func ParseVersion(v string) (ver Version) {
 	if v == "" {
 		return
 	}
