@@ -24,6 +24,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
+COPY migrations ./migrations
 
 ARG VERSION
 ENV VERSION=${VERSION}
