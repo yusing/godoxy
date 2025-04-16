@@ -15,7 +15,7 @@ type nestedError struct {
 
 func (err nestedError) Subject(subject string) Error {
 	if err.Err == nil {
-		err.Err = newError(subject)
+		err.Err = PrependSubject(subject, errStr(""))
 	} else {
 		err.Err = PrependSubject(subject, err.Err)
 	}

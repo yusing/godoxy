@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/api/v1/auth"
+	debugapi "github.com/yusing/go-proxy/internal/api/v1/debug"
 	"github.com/yusing/go-proxy/internal/api/v1/query"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/migrations"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -38,6 +40,9 @@ func parallel(fns ...func()) {
 
 func main() {
 	initProfiling()
+	if err := migrations.RunMigrations(); err != nil {
+		gperr.LogFatal("migration error", err)
+	}
 	args := pkg.GetArgs(common.MainServerCommandValidator{})
 
 	switch args.Command {
@@ -145,6 +150,8 @@ func main() {
 
 	uptime.Poller.Start()
 	config.WatchChanges()
+
+	debugapi.StartServer(cfg)
 
 	task.WaitExit(cfg.Value().TimeoutShutdown)
 }

@@ -2,6 +2,7 @@ package route
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/docker"
@@ -22,7 +23,7 @@ type (
 		task.TaskFinisher
 		ProviderName() string
 		TargetName() string
-		TargetURL() *net.URL
+		TargetURL() *url.URL
 		HealthMonitor() health.HealthMonitor
 		Reference() string
 

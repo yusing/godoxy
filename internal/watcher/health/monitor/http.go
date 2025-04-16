@@ -4,9 +4,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/pkg"
 )
@@ -26,7 +26,7 @@ var pinger = &http.Client{
 	},
 }
 
-func NewHTTPHealthMonitor(url *types.URL, config *health.HealthCheckConfig) *HTTPHealthMonitor {
+func NewHTTPHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *HTTPHealthMonitor {
 	mon := new(HTTPHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	if config.UseGet {
@@ -53,7 +53,7 @@ func (mon *HTTPHealthMonitor) CheckHealth() (result *health.HealthCheckResult, e
 	}
 	req.Close = true
 	req.Header.Set("Connection", "close")
-	req.Header.Set("User-Agent", "GoDoxy/"+pkg.GetVersion())
+	req.Header.Set("User-Agent", "GoDoxy/"+pkg.GetVersion().String())
 
 	start := time.Now()
 	resp, respErr := pinger.Do(req)

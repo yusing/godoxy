@@ -16,8 +16,6 @@ import (
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
 
-const errPagesBasePath = common.ErrorPagesBasePath
-
 var (
 	setupOnce      sync.Once
 	dirWatcher     W.Watcher
@@ -26,7 +24,7 @@ var (
 
 func setup() {
 	t := task.RootTask("error_page", false)
-	dirWatcher = W.NewDirectoryWatcher(t, errPagesBasePath)
+	dirWatcher = W.NewDirectoryWatcher(t, common.ErrorPagesDir)
 	loadContent()
 	go watchDir()
 }
@@ -46,7 +44,7 @@ func GetErrorPageByStatus(statusCode int) (content []byte, ok bool) {
 }
 
 func loadContent() {
-	files, err := U.ListFiles(errPagesBasePath, 0)
+	files, err := U.ListFiles(common.ErrorPagesDir, 0)
 	if err != nil {
 		logging.Err(err).Msg("failed to list error page resources")
 		return

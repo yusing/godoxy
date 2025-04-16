@@ -2,6 +2,7 @@ package rules
 
 import (
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -95,7 +95,7 @@ var commands = map[string]struct {
 		},
 		validate: validateURL,
 		build: func(args any) CommandHandler {
-			target := args.(*types.URL).String()
+			target := args.(*url.URL).String()
 			return ReturningCommand(func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 			})
@@ -160,7 +160,7 @@ var commands = map[string]struct {
 		},
 		validate: validateAbsoluteURL,
 		build: func(args any) CommandHandler {
-			target := args.(*types.URL)
+			target := args.(*url.URL)
 			if target.Scheme == "" {
 				target.Scheme = "http"
 			}

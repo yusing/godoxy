@@ -11,6 +11,7 @@ error_pages/
 !examples/error_pages/
 profiles/
 data/
+debug/
 
 logs/
 log/

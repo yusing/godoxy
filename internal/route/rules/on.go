@@ -1,10 +1,10 @@
 package rules
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -205,7 +205,7 @@ var checkers = map[string]struct {
 		},
 		validate: validateCIDR,
 		builder: func(args any) CheckFunc {
-			cidr := args.(types.CIDR)
+			cidr := args.(*net.IPNet)
 			return func(cached Cache, r *http.Request) bool {
 				ip := cached.GetRemoteIP(r)
 				if ip == nil {

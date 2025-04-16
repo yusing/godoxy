@@ -1,18 +1,20 @@
 package autocert
 
 import (
+	"path/filepath"
+
 	"github.com/go-acme/lego/v4/providers/dns/clouddns"
 	"github.com/go-acme/lego/v4/providers/dns/cloudflare"
 	"github.com/go-acme/lego/v4/providers/dns/duckdns"
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
 	"github.com/go-acme/lego/v4/providers/dns/porkbun"
+	"github.com/yusing/go-proxy/internal/common"
 )
 
-const (
-	certBasePath       = "certs/"
-	CertFileDefault    = certBasePath + "cert.crt"
-	KeyFileDefault     = certBasePath + "priv.key"
-	ACMEKeyFileDefault = certBasePath + "acme.key"
+var (
+	CertFileDefault    = filepath.Join(common.CertsDir, "cert.crt")
+	KeyFileDefault     = filepath.Join(common.CertsDir, "priv.key")
+	ACMEKeyFileDefault = filepath.Join(common.CertsDir, "acme.key")
 )
 
 const (

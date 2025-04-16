@@ -4,13 +4,32 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
 
-func FormatDuration(d time.Duration) string {
+func AppendDuration(d time.Duration, buf []byte) []byte {
+	if d < 0 {
+		buf = append(buf, '-')
+		d = -d
+	}
+
+	if d == 0 {
+		return append(buf, []byte("0 Seconds")...)
+	}
+
+	switch {
+	case d < time.Millisecond:
+		buf = strconv.AppendInt(buf, int64(d.Nanoseconds()), 10)
+		buf = append(buf, []byte(" ns")...)
+		return buf
+	case d < time.Second:
+		buf = strconv.AppendInt(buf, int64(d.Milliseconds()), 10)
+		buf = append(buf, []byte(" ms")...)
+		return buf
+	}
+
 	// Get total seconds from duration
 	totalSeconds := int64(d.Seconds())
 
@@ -20,30 +39,27 @@ func FormatDuration(d time.Duration) string {
 	minutes := (totalSeconds % 3600) / 60
 	seconds := totalSeconds % 60
 
-	// Create a slice to hold parts of the duration
-	var parts []string
-
 	if days > 0 {
-		parts = append(parts, fmt.Sprintf("%d day%s", days, pluralize(days)))
+		buf = strconv.AppendInt(buf, days, 10)
+		buf = fmt.Appendf(buf, "day%s, ", Pluralize(days))
 	}
 	if hours > 0 {
-		parts = append(parts, fmt.Sprintf("%d hour%s", hours, pluralize(hours)))
+		buf = strconv.AppendInt(buf, hours, 10)
+		buf = fmt.Appendf(buf, "hour%s, ", Pluralize(hours))
 	}
 	if minutes > 0 {
-		parts = append(parts, fmt.Sprintf("%d minute%s", minutes, pluralize(minutes)))
+		buf = strconv.AppendInt(buf, minutes, 10)
+		buf = fmt.Appendf(buf, "minute%s, ", Pluralize(minutes))
 	}
 	if seconds > 0 && totalSeconds < 3600 {
-		parts = append(parts, fmt.Sprintf("%d second%s", seconds, pluralize(seconds)))
+		buf = strconv.AppendInt(buf, seconds, 10)
+		buf = fmt.Appendf(buf, "second%s, ", Pluralize(seconds))
 	}
+	return buf[:len(buf)-2]
+}
 
-	// Join the parts with appropriate connectors
-	if len(parts) == 0 {
-		return "0 Seconds"
-	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
+func FormatDuration(d time.Duration) string {
+	return string(AppendDuration(d, nil))
 }
 
 func FormatLastSeen(t time.Time) string {
@@ -53,28 +69,93 @@ func FormatLastSeen(t time.Time) string {
 	return FormatTime(t)
 }
 
-func FormatTime(t time.Time) string {
-	return t.Format("2006-01-02 15:04:05")
+func appendRound(f float64, buf []byte) []byte {
+	return strconv.AppendInt(buf, int64(math.Round(f)), 10)
 }
 
-func ParseBool(s string) bool {
-	switch strings.ToLower(s) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func formatFloat(f float64) string {
+func appendFloat(f float64, buf []byte) []byte {
 	f = math.Round(f*100) / 100
 	if f == 0 {
-		return "0"
+		return buf
 	}
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	return strconv.AppendFloat(buf, f, 'f', -1, 64)
 }
 
-func FormatByteSize[T ~int64 | ~uint64 | ~float64](size T) (value, unit string) {
+func AppendTime(t time.Time, buf []byte) []byte {
+	if t.IsZero() {
+		return append(buf, []byte("never")...)
+	}
+	return AppendTimeWithReference(t, time.Now(), buf)
+}
+
+func FormatTime(t time.Time) string {
+	return string(AppendTime(t, nil))
+}
+
+func FormatUnixTime(t int64) string {
+	return FormatTime(time.Unix(t, 0))
+}
+
+func FormatTimeWithReference(t, ref time.Time) string {
+	return string(AppendTimeWithReference(t, ref, nil))
+}
+
+func AppendTimeWithReference(t, ref time.Time, buf []byte) []byte {
+	if t.IsZero() {
+		return append(buf, []byte("never")...)
+	}
+	diff := t.Sub(ref)
+	absDiff := diff.Abs()
+	switch {
+	case absDiff < time.Second:
+		return append(buf, []byte("now")...)
+	case absDiff < 3*time.Second:
+		if diff < 0 {
+			return append(buf, []byte("just now")...)
+		}
+		fallthrough
+	case absDiff < 60*time.Second:
+		if diff < 0 {
+			buf = appendRound(absDiff.Seconds(), buf)
+			buf = append(buf, []byte(" seconds ago")...)
+		} else {
+			buf = append(buf, []byte("in ")...)
+			buf = appendRound(absDiff.Seconds(), buf)
+			buf = append(buf, []byte(" seconds")...)
+		}
+		return buf
+	case absDiff < 60*time.Minute:
+		if diff < 0 {
+			buf = appendRound(absDiff.Minutes(), buf)
+			buf = append(buf, []byte(" minutes ago")...)
+		} else {
+			buf = append(buf, []byte("in ")...)
+			buf = appendRound(absDiff.Minutes(), buf)
+			buf = append(buf, []byte(" minutes")...)
+		}
+		return buf
+	case absDiff < 24*time.Hour:
+		if diff < 0 {
+			buf = appendRound(absDiff.Hours(), buf)
+			buf = append(buf, []byte(" hours ago")...)
+		} else {
+			buf = append(buf, []byte("in ")...)
+			buf = appendRound(absDiff.Hours(), buf)
+			buf = append(buf, []byte(" hours")...)
+		}
+		return buf
+	case t.Year() == ref.Year():
+		return t.AppendFormat(buf, "01-02 15:04:05")
+	default:
+		return t.AppendFormat(buf, "2006-01-02 15:04:05")
+	}
+}
+
+func FormatByteSize(size int64) string {
+	return string(AppendByteSize(size, nil))
+}
+
+func AppendByteSize[T ~int64 | ~uint64 | ~float64](size T, buf []byte) []byte {
 	const (
 		_ = (1 << (10 * iota))
 		kb
@@ -85,27 +166,32 @@ func FormatByteSize[T ~int64 | ~uint64 | ~float64](size T) (value, unit string) 
 	)
 	switch {
 	case size < kb:
-		return fmt.Sprintf("%v", size), "B"
+		switch any(size).(type) {
+		case int64:
+			buf = strconv.AppendInt(buf, int64(size), 10)
+		case uint64:
+			buf = strconv.AppendUint(buf, uint64(size), 10)
+		case float64:
+			buf = appendFloat(float64(size), buf)
+		}
+		buf = append(buf, []byte(" B")...)
 	case size < mb:
-		return formatFloat(float64(size) / kb), "KiB"
+		buf = appendFloat(float64(size)/kb, buf)
+		buf = append(buf, []byte(" KiB")...)
 	case size < gb:
-		return formatFloat(float64(size) / mb), "MiB"
+		buf = appendFloat(float64(size)/mb, buf)
+		buf = append(buf, []byte(" MiB")...)
 	case size < tb:
-		return formatFloat(float64(size) / gb), "GiB"
+		buf = appendFloat(float64(size)/gb, buf)
+		buf = append(buf, []byte(" GiB")...)
 	case size < pb:
-		return formatFloat(float64(size/gb) / kb), "TiB" // prevent overflow
+		buf = appendFloat(float64(size/gb)/kb, buf)
+		buf = append(buf, []byte(" TiB")...)
 	default:
-		return formatFloat(float64(size/tb) / kb), "PiB" // prevent overflow
+		buf = appendFloat(float64(size/tb)/kb, buf)
+		buf = append(buf, []byte(" PiB")...)
 	}
-}
-
-func FormatByteSizeWithUnit[T ~int64 | ~uint64 | ~float64](size T) string {
-	value, unit := FormatByteSize(size)
-	return value + " " + unit
-}
-
-func PortString(port uint16) string {
-	return strconv.FormatUint(uint64(port), 10)
+	return buf
 }
 
 func DoYouMean(s string) string {
@@ -115,7 +201,7 @@ func DoYouMean(s string) string {
 	return "Did you mean " + ansi.HighlightGreen + s + ansi.Reset + "?"
 }
 
-func pluralize(n int64) string {
+func Pluralize(n int64) string {
 	if n > 1 {
 		return "s"
 	}

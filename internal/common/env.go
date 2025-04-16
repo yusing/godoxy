@@ -19,6 +19,8 @@ var (
 	IsDebug = GetEnvBool("DEBUG", IsTest)
 	IsTrace = GetEnvBool("TRACE", false) && IsDebug
 
+	RootDir = GetEnvString("ROOT_DIR", "./")
+
 	HTTP3Enabled = GetEnvBool("HTTP3_ENABLED", true)
 
 	ProxyHTTPAddr,

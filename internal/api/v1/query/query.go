@@ -58,7 +58,3 @@ func ListRoutes() (map[string]map[string]any, gperr.Error) {
 func ListMiddlewareTraces() (middleware.Traces, gperr.Error) {
 	return List[middleware.Traces](v1.ListMiddlewareTraces)
 }
-
-func DebugListTasks() (map[string]any, gperr.Error) {
-	return List[map[string]any](v1.ListTasks)
-}

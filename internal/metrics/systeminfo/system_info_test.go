@@ -10,6 +10,73 @@ import (
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
+func TestExcludeDisks(t *testing.T) {
+	tests := []struct {
+		name          string
+		shouldExclude bool
+	}{
+		{
+			name:          "nvme0",
+			shouldExclude: false,
+		},
+		{
+			name:          "nvme0n1",
+			shouldExclude: true,
+		},
+		{
+			name:          "nvme0n1p1",
+			shouldExclude: true,
+		},
+		{
+			name:          "sda",
+			shouldExclude: false,
+		},
+		{
+			name:          "sda1",
+			shouldExclude: true,
+		},
+		{
+			name:          "hda",
+			shouldExclude: false,
+		},
+		{
+			name:          "vda",
+			shouldExclude: false,
+		},
+		{
+			name:          "xvda",
+			shouldExclude: false,
+		},
+		{
+			name:          "xva",
+			shouldExclude: true,
+		},
+		{
+			name:          "loop0",
+			shouldExclude: true,
+		},
+		{
+			name:          "mmcblk0",
+			shouldExclude: false,
+		},
+		{
+			name:          "mmcblk0p1",
+			shouldExclude: true,
+		},
+		{
+			name:          "ab",
+			shouldExclude: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldExcludeDisk(tt.name)
+			ExpectEqual(t, result, tt.shouldExclude)
+		})
+	}
+}
+
 // Create test data
 var cpuAvg = 45.67
 var testInfo = &SystemInfo{
@@ -118,7 +185,7 @@ func TestSystemInfo(t *testing.T) {
 
 func TestSerialize(t *testing.T) {
 	entries := make([]*SystemInfo, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		entries[i] = testInfo
 	}
 	for _, query := range allQueries {
@@ -140,9 +207,9 @@ func TestSerialize(t *testing.T) {
 	}
 }
 
-func BenchmarkSerialize(b *testing.B) {
+func BenchmarkJSONMarshal(b *testing.B) {
 	entries := make([]*SystemInfo, b.N)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		entries[i] = testInfo
 	}
 	queries := map[string]Aggregated{}
@@ -153,14 +220,14 @@ func BenchmarkSerialize(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.Run("optimized", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			for _, query := range allQueries {
 				_, _ = queries[query].MarshalJSON()
 			}
 		}
 	})
 	b.Run("json", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			for _, query := range allQueries {
 				_, _ = json.Marshal([]map[string]any(queries[query]))
 			}

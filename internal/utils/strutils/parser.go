@@ -2,6 +2,7 @@ package strutils
 
 import (
 	"reflect"
+	"strconv"
 )
 
 type Parser interface {
@@ -23,4 +24,12 @@ func MustParse[T Parser](from string) T {
 		panic("must failed: " + err.Error())
 	}
 	return t
+}
+
+func ParseBool(from string) bool {
+	b, err := strconv.ParseBool(from)
+	if err != nil {
+		return false
+	}
+	return b
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
-	proxmox "github.com/yusing/go-proxy/internal/proxmox/types"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -28,11 +28,11 @@ type (
 		TimeoutShutdown int                      `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Providers struct {
-		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"unique,dive,config_file_exists"`
-		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"unique,dive,unix_addr|url"`
-		Proxmox      map[string]proxmox.Config  `json:"proxmox" yaml:"proxmox,omitempty"`
-		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty" validate:"unique=Addr"`
-		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty" validate:"unique=ProviderName"`
+		Files        []string                   `json:"include" validate:"unique,dive,config_file_exists"`
+		Docker       map[string]string          `json:"docker" validate:"unique,dive,unix_addr|url"`
+		Proxmox      []proxmox.Config           `json:"proxmox"`
+		Agents       []*agent.AgentConfig       `json:"agents" validate:"unique=Addr"`
+		Notification []notif.NotificationConfig `json:"notification" validate:"unique=ProviderName"`
 	}
 	Entrypoint struct {
 		Middlewares []map[string]any  `json:"middlewares"`
@@ -45,9 +45,7 @@ type (
 		Statistics() map[string]any
 		RouteProviderList() []string
 		Context() context.Context
-		GetAgent(agentAddrOrDockerHost string) (*agent.AgentConfig, bool)
 		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error)
-		ListAgents() []*agent.AgentConfig
 		AutoCertProvider() *autocert.Provider
 	}
 )
@@ -104,7 +102,7 @@ func init() {
 	})
 	utils.MustRegisterValidation("config_file_exists", func(fl validator.FieldLevel) bool {
 		filename := fl.Field().Interface().(string)
-		info, err := os.Stat(path.Join(common.ConfigBasePath, filename))
+		info, err := os.Stat(path.Join(common.ConfigDir, filename))
 		return err == nil && !info.IsDir()
 	})
 }

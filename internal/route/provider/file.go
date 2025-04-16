@@ -23,7 +23,7 @@ type FileProvider struct {
 func FileProviderImpl(filename string) ProviderImpl {
 	return &FileProvider{
 		fileName: filename,
-		path:     path.Join(common.ConfigBasePath, filename),
+		path:     path.Join(common.ConfigDir, filename),
 		l:        logging.With().Str("type", "file").Str("name", filename).Logger(),
 	}
 }

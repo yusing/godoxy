@@ -2,9 +2,9 @@ package monitor
 
 import (
 	"net"
+	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func NewRawHealthMonitor(url *types.URL, config *health.HealthCheckConfig) *RawHealthMonitor {
+func NewRawHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *RawHealthMonitor {
 	mon := new(RawHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	mon.dialer = &net.Dialer{

@@ -1,9 +1,10 @@
 package gperr
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+
+	"encoding/json"
 )
 
 func newError(message string) error {
@@ -39,6 +40,18 @@ func Wrap(err error, message ...string) Error {
 		return err
 	}
 	return &baseError{fmt.Errorf("%s: %w", message[0], err)}
+}
+
+func Unwrap(err error) Error {
+	//nolint:errorlint
+	switch err := err.(type) {
+	case interface{ Unwrap() []error }:
+		return &nestedError{Extras: err.Unwrap()}
+	case interface{ Unwrap() error }:
+		return &baseError{err.Unwrap()}
+	default:
+		return &baseError{err}
+	}
 }
 
 func wrap(err error) Error {

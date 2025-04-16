@@ -19,11 +19,11 @@ var loadingPage []byte
 var loadingPageTmpl = template.Must(template.New("loading_page").Parse(string(loadingPage)))
 
 func (w *Watcher) makeLoadingPageBody() []byte {
-	msg := w.ContainerName() + " is starting..."
+	msg := w.cfg.ContainerName() + " is starting..."
 
 	data := new(templateData)
 	data.CheckRedirectHeader = httpheaders.HeaderGoDoxyCheckRedirect
-	data.Title = w.route.HomepageItem().Name
+	data.Title = w.cfg.ContainerName()
 	data.Message = msg
 
 	buf := bytes.NewBuffer(make([]byte, len(loadingPage)+len(data.Title)+len(data.Message)+len(httpheaders.HeaderGoDoxyCheckRedirect)))

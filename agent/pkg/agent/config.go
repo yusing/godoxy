@@ -4,19 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/agent/pkg/certs"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -26,7 +23,6 @@ type AgentConfig struct {
 	httpClient *http.Client
 	tlsConfig  *tls.Config
 	name       string
-	l          zerolog.Logger
 }
 
 const (
@@ -49,8 +45,8 @@ const (
 )
 
 var (
-	AgentURL              = types.MustParseURL(APIBaseURL)
-	HTTPProxyURL          = types.MustParseURL(APIBaseURL + EndpointProxyHTTP)
+	AgentURL, _           = url.Parse(APIBaseURL)
+	HTTPProxyURL, _       = url.Parse(APIBaseURL + EndpointProxyHTTP)
 	HTTPProxyURLPrefixLen = len(APIEndpointBase + EndpointProxyHTTP)
 )
 
@@ -69,6 +65,11 @@ func IsDockerHostAgent(dockerHost string) bool {
 
 func GetAgentAddrFromDockerHost(dockerHost string) string {
 	return dockerHost[FakeDockerHostPrefixLen:]
+}
+
+// Key implements pool.Object
+func (cfg *AgentConfig) Key() string {
+	return cfg.Addr
 }
 
 func (cfg *AgentConfig) FakeDockerHost() string {
@@ -121,7 +122,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 
 	versionStr := string(version)
 	// skip version check for dev versions
-	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion()) {
+	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion().String()) {
 		return gperr.Errorf("agent version mismatch: server: %s, agent: %s", pkg.GetVersion(), versionStr)
 	}
 
@@ -132,8 +133,6 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 	}
 
 	cfg.name = string(name)
-	cfg.l = logging.With().Str("agent", cfg.name).Logger()
-	cfg.l.Info().Msg("agent initialized")
 	return nil
 }
 
@@ -193,9 +192,10 @@ func (cfg *AgentConfig) String() string {
 	return cfg.name + "@" + cfg.Addr
 }
 
-func (cfg *AgentConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
+// MarshalMap implements pool.Object
+func (cfg *AgentConfig) MarshalMap() map[string]any {
+	return map[string]any{
 		"name": cfg.Name(),
 		"addr": cfg.Addr,
-	})
+	}
 }

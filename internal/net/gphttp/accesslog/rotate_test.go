@@ -33,7 +33,7 @@ func TestParseLogTime(t *testing.T) {
 
 func TestRetentionCommonFormat(t *testing.T) {
 	var file MockFile
-	logger := NewAccessLogger(task.RootTask("test", false), &file, &Config{
+	logger := NewAccessLoggerWithIO(task.RootTask("test", false), &file, &Config{
 		Format:     FormatCommon,
 		BufferSize: 1024,
 	})

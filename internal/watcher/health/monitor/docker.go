@@ -1,9 +1,9 @@
 package monitor
 
 import (
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/internal/docker"
 
-	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
@@ -48,7 +48,7 @@ func (mon *DockerHealthMonitor) CheckHealth() (result *health.HealthCheckResult,
 		return mon.fallback.CheckHealth()
 	}
 	result = new(health.HealthCheckResult)
-	result.Healthy = cont.State.Health.Status == dockerTypes.Healthy
+	result.Healthy = cont.State.Health.Status == container.Healthy
 	if len(cont.State.Health.Log) > 0 {
 		lastLog := cont.State.Health.Log[len(cont.State.Health.Log)-1]
 		result.Detail = lastLog.Output

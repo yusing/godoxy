@@ -56,7 +56,7 @@ func TestFileProviderValidate(t *testing.T) {
 			cfg := config.DefaultConfig()
 			if tt.init != nil {
 				for _, filename := range tt.filenames {
-					filepath := path.Join(common.ConfigBasePath, filename)
+					filepath := path.Join(common.ConfigDir, filename)
 					assert.NoError(t, tt.init(filepath))
 				}
 			}
@@ -67,7 +67,7 @@ func TestFileProviderValidate(t *testing.T) {
 			})), cfg)
 			if tt.cleanup != nil {
 				for _, filename := range tt.filenames {
-					filepath := path.Join(common.ConfigBasePath, filename)
+					filepath := path.Join(common.ConfigDir, filename)
 					assert.NoError(t, tt.cleanup(filepath))
 				}
 			}

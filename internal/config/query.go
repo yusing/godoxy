@@ -1,6 +1,10 @@
 package config
 
 import (
+	"slices"
+
+	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/provider"
 )
@@ -50,4 +54,33 @@ func (cfg *Config) Statistics() map[string]any {
 		"streams":         streams,
 		"providers":       providerStats,
 	}
+}
+
+func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error) {
+	if slices.ContainsFunc(cfg.value.Providers.Agents, func(a *agent.AgentConfig) bool {
+		return a.Addr == host
+	}) {
+		return 0, gperr.New("agent already exists")
+	}
+
+	agentCfg := new(agent.AgentConfig)
+	agentCfg.Addr = host
+	err := agentCfg.InitWithCerts(cfg.task.Context(), ca.Cert, client.Cert, client.Key)
+	if err != nil {
+		return 0, gperr.Wrap(err, "failed to start agent")
+	}
+	// must add it first to let LoadRoutes() reference from it
+	agent.Agents.Add(agentCfg)
+
+	provider := provider.NewAgentProvider(agentCfg)
+	if err := cfg.errIfExists(provider); err != nil {
+		agent.Agents.Del(agentCfg)
+		return 0, err
+	}
+	err = provider.LoadRoutes()
+	if err != nil {
+		agent.Agents.Del(agentCfg)
+		return 0, gperr.Wrap(err, "failed to load routes")
+	}
+	return provider.NumRoutes(), nil
 }

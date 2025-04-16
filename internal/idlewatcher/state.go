@@ -1,7 +1,9 @@
 package idlewatcher
 
+import idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
+
 func (w *Watcher) running() bool {
-	return w.state.Load().running
+	return w.state.Load().status == idlewatcher.ContainerStatusRunning
 }
 
 func (w *Watcher) ready() bool {
@@ -14,26 +16,29 @@ func (w *Watcher) error() error {
 
 func (w *Watcher) setReady() {
 	w.state.Store(&containerState{
-		running: true,
-		ready:   true,
+		status: idlewatcher.ContainerStatusRunning,
+		ready:  true,
 	})
 }
 
 func (w *Watcher) setStarting() {
 	w.state.Store(&containerState{
-		running: true,
-		ready:   false,
+		status: idlewatcher.ContainerStatusRunning,
+		ready:  false,
 	})
 }
 
-func (w *Watcher) setNapping() {
-	w.setError(nil)
+func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
+	w.state.Store(&containerState{
+		status: status,
+		ready:  false,
+	})
 }
 
 func (w *Watcher) setError(err error) {
 	w.state.Store(&containerState{
-		running: false,
-		ready:   false,
-		err:     err,
+		status: idlewatcher.ContainerStatusError,
+		ready:  false,
+		err:    err,
 	})
 }

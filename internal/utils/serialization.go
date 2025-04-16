@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"net"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -18,9 +20,14 @@ import (
 
 type SerializedObject = map[string]any
 
-type MapUnmarshaller interface {
-	UnmarshalMap(m map[string]any) gperr.Error
-}
+type (
+	MapMarshaler interface {
+		MarshalMap() map[string]any
+	}
+	MapUnmarshaller interface {
+		UnmarshalMap(m map[string]any) gperr.Error
+	}
+)
 
 var (
 	ErrInvalidType           = gperr.New("invalid type")
@@ -37,7 +44,19 @@ var (
 	tagAliases     = "aliases"     // declare aliases for fields
 )
 
-var mapUnmarshalerType = reflect.TypeFor[MapUnmarshaller]()
+var (
+	typeDuration = reflect.TypeFor[time.Duration]()
+	typeTime     = reflect.TypeFor[time.Time]()
+	typeURL      = reflect.TypeFor[url.URL]()
+	typeCIDR     = reflect.TypeFor[net.IPNet]()
+
+	typeMapMarshaller  = reflect.TypeFor[MapMarshaler]()
+	typeMapUnmarshaler = reflect.TypeFor[MapUnmarshaller]()
+	typeJSONMarshaller = reflect.TypeFor[json.Marshaler]()
+	typeStrParser      = reflect.TypeFor[strutils.Parser]()
+
+	typeAny = reflect.TypeOf((*any)(nil)).Elem()
+)
 
 var defaultValues = functional.NewMapOf[reflect.Type, func() any]()
 
@@ -191,7 +210,7 @@ func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
 		return gperr.Errorf("unmarshal: src is %w and dst is not settable", ErrNilValue)
 	}
 
-	if dstT.Implements(mapUnmarshalerType) {
+	if dstT.Implements(typeMapUnmarshaler) {
 		dstV, _, err = dive(dstV)
 		if err != nil {
 			return err
@@ -289,6 +308,20 @@ func isIntFloat(t reflect.Kind) bool {
 	return t >= reflect.Bool && t <= reflect.Float64
 }
 
+func itoa(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(v.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', -1, 64)
+	}
+	panic("invalid call on itoa")
+}
+
 // Convert attempts to convert the src to dst.
 //
 // If src is a map, it is deserialized into dst.
@@ -345,27 +378,25 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 			return err
 		}
 	case isIntFloat(srcKind):
-		var strV string
-		switch {
-		case src.CanInt():
-			strV = strconv.FormatInt(src.Int(), 10)
-		case srcKind == reflect.Bool:
-			strV = strconv.FormatBool(src.Bool())
-		case src.CanUint():
-			strV = strconv.FormatUint(src.Uint(), 10)
-		case src.CanFloat():
-			strV = strconv.FormatFloat(src.Float(), 'f', -1, 64)
+		if dst.Kind() == reflect.String {
+			dst.Set(reflect.ValueOf(itoa(src)))
+			return nil
 		}
-		if convertible, err := ConvertString(strV, dst); convertible {
-			return err
+		if dst.Addr().Type().Implements(typeStrParser) {
+			return Convert(reflect.ValueOf(itoa(src)), dst)
 		}
+		if !isIntFloat(dstT.Kind()) || !src.CanConvert(dstT) {
+			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
+		}
+		dst.Set(src.Convert(dstT))
+		return nil
 	case srcKind == reflect.Map:
 		if src.Len() == 0 {
 			return nil
 		}
 		obj, ok := src.Interface().(SerializedObject)
 		if !ok {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
+			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 		}
 		return MapUnmarshalValidate(obj, dst.Addr().Interface())
 	case srcKind == reflect.Slice:
@@ -373,7 +404,7 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 			return nil
 		}
 		if dstT.Kind() != reflect.Slice {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
+			return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 		}
 		sliceErrs := gperr.NewBuilder("slice conversion errors")
 		newSlice := reflect.MakeSlice(dstT, src.Len(), src.Len())
@@ -397,6 +428,19 @@ func Convert(src reflect.Value, dst reflect.Value) gperr.Error {
 	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 }
 
+func isSameOrEmbededType(src, dst reflect.Type) bool {
+	return src == dst || src.ConvertibleTo(dst)
+}
+
+func setSameOrEmbedddType(src, dst reflect.Value) {
+	dstT := dst.Type()
+	if src.Type().AssignableTo(dstT) {
+		dst.Set(src)
+	} else {
+		dst.Set(src.Convert(dstT))
+	}
+}
+
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
@@ -407,16 +451,17 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		dst = dst.Elem()
 		dstT = dst.Type()
 	}
-	if dst.Kind() == reflect.String {
+	dstKind := dst.Kind()
+	if dstKind == reflect.String {
 		dst.SetString(src)
 		return
 	}
-	switch dstT {
-	case reflect.TypeFor[time.Duration]():
-		if src == "" {
-			dst.Set(reflect.Zero(dstT))
-			return
-		}
+	if src == "" {
+		dst.Set(reflect.Zero(dstT))
+		return
+	}
+	switch {
+	case dstT == typeDuration:
 		d, err := time.ParseDuration(src)
 		if err != nil {
 			return true, gperr.Wrap(err)
@@ -426,9 +471,25 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		}
 		dst.Set(reflect.ValueOf(d))
 		return
-	default:
+	case isSameOrEmbededType(dstT, typeURL):
+		u, err := url.Parse(src)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		setSameOrEmbedddType(reflect.ValueOf(u).Elem(), dst)
+		return
+	case isSameOrEmbededType(dstT, typeCIDR):
+		if !strings.ContainsRune(src, '/') {
+			src += "/32" // single IP
+		}
+		_, ipnet, err := net.ParseCIDR(src)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		setSameOrEmbedddType(reflect.ValueOf(ipnet).Elem(), dst)
+		return
 	}
-	if dstKind := dst.Kind(); isIntFloat(dstKind) {
+	if isIntFloat(dstKind) {
 		var i any
 		var err error
 		switch {
@@ -458,7 +519,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	}
 	// yaml like
 	var tmp any
-	switch dst.Kind() {
+	switch dstKind {
+	case reflect.Map, reflect.Struct:
+		rawMap := make(SerializedObject)
+		err := yaml.Unmarshal([]byte(src), &rawMap)
+		if err != nil {
+			return true, gperr.Wrap(err)
+		}
+		tmp = rawMap
 	case reflect.Slice:
 		src = strings.TrimSpace(src)
 		isMultiline := strings.ContainsRune(src, '\n')
@@ -484,13 +552,6 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			return true, gperr.Wrap(err)
 		}
 		tmp = sl
-	case reflect.Map, reflect.Struct:
-		rawMap := make(SerializedObject)
-		err := yaml.Unmarshal([]byte(src), &rawMap)
-		if err != nil {
-			return true, gperr.Wrap(err)
-		}
-		tmp = rawMap
 	default:
 		return false, nil
 	}

@@ -1,9 +1,11 @@
 package gperr
 
 import (
-	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
+
+	"encoding/json"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
@@ -64,7 +66,7 @@ func (err *withSubject) Prepend(subject string) *withSubject {
 }
 
 func (err *withSubject) Is(other error) bool {
-	return err.Err == other
+	return errors.Is(other, err.Err)
 }
 
 func (err *withSubject) Unwrap() error {
@@ -92,7 +94,6 @@ func (err *withSubject) Error() string {
 	return sb.String()
 }
 
-// MarshalJSON implements the json.Marshaler interface.
 func (err *withSubject) MarshalJSON() ([]byte, error) {
 	subjects := slices.Clone(err.Subjects)
 	slices.Reverse(subjects)

@@ -5,7 +5,8 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
+![Demo](https://img.shields.io/website?url=https%3A%2F%2Fgodoxy.demo.6uo.me&label=Demo&link=https%3A%2F%2Fgodoxy.demo.6uo.me)
+[![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 輕量、易用、 [高效能](https://github.com/yusing/godoxy/wiki/Benchmarks)，且帶有主頁和配置面板的反向代理
 
@@ -68,7 +69,10 @@
 
 ## 安裝
 
-**注意：** GoDoxy 設計為（且僅在）`host` 網路模式下運作，請勿更改。如需更改監聽埠，請修改 `.env`。
+> [!NOTE]
+> GoDoxy 僅在 `host` 網路模式下運作，請勿更改。
+>
+> 如需更改監聽埠，請修改 `.env`。
 
 1. 準備一個新目錄用於 docker compose 和配置文件。
 
@@ -78,9 +82,7 @@
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
     ```
 
-3. 啟動容器 `docker compose up -d` 並等待就緒
-
-4. 現在可以在 WebUI `https://godoxy.yourdomain.com` 進行額外配置
+3. 現在可以在 WebUI `https://godoxy.yourdomain.com` 進行額外配置
 
 [🔼回到頂部](#目錄)
 

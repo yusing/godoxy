@@ -172,6 +172,45 @@ func (s *SystemInfo) collectMemoryInfo(ctx context.Context) error {
 	return nil
 }
 
+func shouldExcludeDisk(name string) bool {
+	// include only sd* and nvme* disk devices
+	// but not partitions like nvme0p1
+
+	if len(name) < 3 {
+		return true
+	}
+	switch {
+	case strings.HasPrefix(name, "nvme"),
+		strings.HasPrefix(name, "mmcblk"): // NVMe/SD/MMC
+		s := name[len(name)-2]
+		// skip namespaces/partitions
+		switch s {
+		case 'p', 'n':
+			return true
+		default:
+			return false
+		}
+	}
+	switch name[0] {
+	case 's', 'h', 'v': // SCSI/SATA/virtio disks
+		if name[1] != 'd' {
+			return true
+		}
+	case 'x': // Xen virtual disks
+		if name[1:3] != "vd" {
+			return true
+		}
+	default:
+		return true
+	}
+	last := name[len(name)-1]
+	if last >= '0' && last <= '9' {
+		// skip partitions
+		return true
+	}
+	return false
+}
+
 func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInfo) error {
 	ioCounters, err := disk.IOCountersWithContext(ctx)
 	if err != nil {
@@ -179,33 +218,8 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 	}
 	s.DisksIO = make(map[string]*DiskIO, len(ioCounters))
 	for name, io := range ioCounters {
-		// include only /dev/sd* and /dev/nvme* disk devices
-		if len(name) < 3 {
+		if shouldExcludeDisk(name) {
 			continue
-		}
-		switch {
-		case strings.HasPrefix(name, "nvme"),
-			strings.HasPrefix(name, "mmcblk"): // NVMe/SD/MMC
-			if name[len(name)-2] == 'p' {
-				continue // skip partitions
-			}
-		default:
-			switch name[0] {
-			case 's', 'h', 'v': // SCSI/SATA/virtio disks
-				if name[1] != 'd' {
-					continue
-				}
-			case 'x': // Xen virtual disks
-				if name[1:3] != "vd" {
-					continue
-				}
-			default:
-				continue
-			}
-			last := name[len(name)-1]
-			if last >= '0' && last <= '9' {
-				continue // skip partitions
-			}
 		}
 		s.DisksIO[name] = &DiskIO{
 			ReadBytes:  io.ReadBytes,

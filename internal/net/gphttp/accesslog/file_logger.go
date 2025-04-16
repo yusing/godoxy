@@ -3,11 +3,10 @@ package accesslog
 import (
 	"fmt"
 	"os"
-	"path"
+	pathPkg "path"
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -27,16 +26,16 @@ var (
 	openedFilesMu sync.Mutex
 )
 
-func NewFileAccessLogger(parent task.Parent, cfg *Config) (*AccessLogger, error) {
+func newFileIO(path string) (AccessLogIO, error) {
 	openedFilesMu.Lock()
 
 	var file *File
-	path := path.Clean(cfg.Path)
+	path = pathPkg.Clean(path)
 	if opened, ok := openedFiles[path]; ok {
 		opened.refCount.Add()
 		file = opened
 	} else {
-		f, err := os.OpenFile(cfg.Path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
 		if err != nil {
 			openedFilesMu.Unlock()
 			return nil, fmt.Errorf("access log open error: %w", err)
@@ -47,7 +46,7 @@ func NewFileAccessLogger(parent task.Parent, cfg *Config) (*AccessLogger, error)
 	}
 
 	openedFilesMu.Unlock()
-	return NewAccessLogger(parent, file, cfg), nil
+	return file, nil
 }
 
 func (f *File) Close() error {

@@ -42,20 +42,6 @@ func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (w *Watcher) cancelled(reqCtx context.Context, rw http.ResponseWriter) bool {
-	select {
-	case <-reqCtx.Done():
-		w.WakeDebug().Str("cause", context.Cause(reqCtx).Error()).Msg("canceled")
-		return true
-	case <-w.task.Context().Done():
-		w.WakeDebug().Str("cause", w.task.FinishCause().Error()).Msg("canceled")
-		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
-		return true
-	default:
-		return false
-	}
-}
-
 func isFaviconPath(path string) bool {
 	return path == "/favicon.ico"
 }
@@ -70,13 +56,13 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// handle favicon request
 	if isFaviconPath(r.URL.Path) {
-		r.URL.RawQuery = "alias=" + w.route.TargetName()
+		r.URL.RawQuery = "alias=" + w.rp.TargetName
 		favicon.GetFavIcon(rw, r)
 		return false
 	}
 
 	// Check if start endpoint is configured and request path matches
-	if w.Config().StartEndpoint != "" && r.URL.Path != w.Config().StartEndpoint {
+	if w.cfg.StartEndpoint != "" && r.URL.Path != w.cfg.StartEndpoint {
 		http.Error(rw, "Forbidden: Container can only be started via configured start endpoint", http.StatusForbidden)
 		return false
 	}
@@ -95,44 +81,48 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		rw.Header().Add("Cache-Control", "must-revalidate")
 		rw.Header().Add("Connection", "close")
 		if _, err := rw.Write(body); err != nil {
-			w.Err(err).Msg("error writing http response")
+			return false
 		}
 		return false
 	}
 
-	ctx, cancel := context.WithTimeoutCause(r.Context(), w.Config().WakeTimeout, errors.New("wake timeout"))
+	ctx, cancel := context.WithTimeoutCause(r.Context(), w.cfg.WakeTimeout, errors.New("wake timeout"))
 	defer cancel()
 
-	if w.cancelled(ctx, rw) {
+	if w.cancelled(ctx) {
+		gphttp.ServerError(rw, r, context.Cause(ctx), http.StatusServiceUnavailable)
 		return false
 	}
 
-	w.WakeTrace().Msg("signal received")
+	w.l.Trace().Msg("signal received")
 	err := w.wakeIfStopped()
 	if err != nil {
-		w.WakeError(err)
-		http.Error(rw, "Error waking container", http.StatusInternalServerError)
+		gphttp.ServerError(rw, r, err)
 		return false
 	}
 
+	var ready bool
+
 	for {
-		if w.cancelled(ctx, rw) {
+		w.resetIdleTimer()
+
+		if w.cancelled(ctx) {
+			gphttp.ServerError(rw, r, context.Cause(ctx), http.StatusServiceUnavailable)
 			return false
 		}
 
-		ready, err := w.checkUpdateState()
+		w, ready, err = checkUpdateState(w.Key())
 		if err != nil {
-			http.Error(rw, "Error waking container", http.StatusInternalServerError)
+			gphttp.ServerError(rw, r, err)
 			return false
 		}
 		if ready {
-			w.resetIdleTimer()
 			if isCheckRedirect {
-				w.Debug().Msgf("redirecting to %s ...", w.hc.URL())
+				w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, redirecting")
 				rw.WriteHeader(http.StatusOK)
 				return false
 			}
-			w.Debug().Msgf("passing through to %s ...", w.hc.URL())
+			w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
 			return true
 		}
 

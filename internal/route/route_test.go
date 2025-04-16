@@ -98,7 +98,7 @@ func TestRouteValidate(t *testing.T) {
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
 			Metadata: Metadata{
-				DockerContainer: &docker.Container{
+				Container: &docker.Container{
 					ContainerID: "test-id",
 					Image: &docker.ContainerImage{
 						Name: "test-image",

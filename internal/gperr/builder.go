@@ -24,6 +24,10 @@ type Builder struct {
 	rwLock
 }
 
+type multiline struct {
+	*Builder
+}
+
 // NewBuilder creates a new Builder.
 //
 // If about is not provided, the Builder will not have a subject
@@ -78,12 +82,15 @@ func (b *Builder) Add(err error) *Builder {
 		return b
 	}
 
-	wrapped := wrap(err)
-
 	b.Lock()
 	defer b.Unlock()
 
-	switch err := wrapped.(type) {
+	b.add(err)
+	return b
+}
+
+func (b *Builder) add(err error) {
+	switch err := err.(type) {
 	case *baseError:
 		b.errs = append(b.errs, err.Err)
 	case *nestedError:
@@ -92,11 +99,11 @@ func (b *Builder) Add(err error) *Builder {
 		} else {
 			b.errs = append(b.errs, err)
 		}
+	case *MultilineError:
+		b.add(&err.nestedError)
 	default:
-		panic("bug: should not reach here")
+		b.errs = append(b.errs, err)
 	}
-
-	return b
 }
 
 func (b *Builder) Adds(err string) *Builder {
@@ -144,8 +151,9 @@ func (b *Builder) AddRange(errs ...error) *Builder {
 	b.Lock()
 	defer b.Unlock()
 
-	b.errs = append(b.errs, nonNilErrs...)
-
+	for _, err := range nonNilErrs {
+		b.add(err)
+	}
 	return b
 }
 

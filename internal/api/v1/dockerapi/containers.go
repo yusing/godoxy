@@ -18,7 +18,7 @@ type Container struct {
 }
 
 func Containers(w http.ResponseWriter, r *http.Request) {
-	serveHTTP[Container, []Container](w, r, GetContainers)
+	serveHTTP[Container](w, r, GetContainers)
 }
 
 func GetContainers(ctx context.Context, dockerClients DockerClients) ([]Container, gperr.Error) {

@@ -8,5 +8,5 @@ import (
 )
 
 func GetVersion(w http.ResponseWriter, r *http.Request) {
-	gphttp.WriteBody(w, []byte(pkg.GetVersion()))
+	gphttp.WriteBody(w, []byte(pkg.GetVersion().String()))
 }

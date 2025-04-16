@@ -66,8 +66,8 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 		return nil, gperr.Wrap(err)
 	}
 
-	errs := gperr.NewBuilder("")
-	routes := make(route.Routes)
+	errs := gperr.NewBuilder()
+	routes := make(route.Routes, len(containers))
 
 	for _, c := range containers {
 		container := docker.FromDocker(&c, p.dockerHost)
@@ -111,7 +111,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 
 	errs := gperr.NewBuilder("label errors")
 
-	m, err := docker.ParseLabels(container.Labels)
+	m, err := docker.ParseLabels(container.RouteConfig)
 	errs.Add(err)
 
 	var wildcardProps docker.LabelMap

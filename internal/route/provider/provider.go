@@ -128,7 +128,7 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 	if err != nil && len(routes) == 0 {
 		return route.Routes{}, err
 	}
-	errs := gperr.NewBuilder("routes error")
+	errs := gperr.NewBuilder()
 	errs.Add(err)
 	// check for exclusion
 	// set alias and provider, then validate

@@ -36,7 +36,7 @@ require (
 
 // favicon extraction
 require (
-	github.com/PuerkitoBio/goquery v1.10.2 // parsing HTML for extract fav icon
+	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 )
 
@@ -63,6 +63,8 @@ require (
 	github.com/stretchr/testify v1.10.0 // testing utilities
 )
 
+require github.com/luthermonson/go-proxmox v0.2.2
+
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
@@ -73,7 +75,7 @@ require (
 	github.com/cloudflare/cloudflare-go v0.115.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/diskfs/go-diskfs v1.5.2 // indirect
+	github.com/diskfs/go-diskfs v1.6.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -111,7 +113,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect

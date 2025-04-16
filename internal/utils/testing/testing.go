@@ -21,50 +21,55 @@ func Must[Result any](r Result, err error) Result {
 	return r
 }
 
-func ExpectNoError(t *testing.T, err error) {
+func ExpectNoError(t *testing.T, err error, msgAndArgs ...any) {
 	t.Helper()
-	require.NoError(t, err)
+	require.NoError(t, err, msgAndArgs...)
 }
 
-func ExpectHasError(t *testing.T, err error) {
+func ExpectHasError(t *testing.T, err error, msgAndArgs ...any) {
 	t.Helper()
-	require.Error(t, err)
+	require.Error(t, err, msgAndArgs...)
 }
 
-func ExpectError(t *testing.T, expected error, err error) {
+func ExpectError(t *testing.T, expected error, err error, msgAndArgs ...any) {
 	t.Helper()
-	require.ErrorIs(t, err, expected)
+	require.ErrorIs(t, err, expected, msgAndArgs...)
 }
 
-func ExpectErrorT[T error](t *testing.T, err error) {
+func ExpectErrorT[T error](t *testing.T, err error, msgAndArgs ...any) {
 	t.Helper()
 	var errAs T
-	require.ErrorAs(t, err, &errAs)
+	require.ErrorAs(t, err, &errAs, msgAndArgs...)
 }
 
-func ExpectEqual[T any](t *testing.T, got T, want T) {
+func ExpectEqual[T any](t *testing.T, got T, want T, msgAndArgs ...any) {
 	t.Helper()
-	require.EqualValues(t, got, want)
+	require.Equal(t, want, got, msgAndArgs...)
 }
 
-func ExpectContains[T any](t *testing.T, got T, wants []T) {
+func ExpectEqualValues(t *testing.T, got any, want any, msgAndArgs ...any) {
 	t.Helper()
-	require.Contains(t, wants, got)
+	require.EqualValues(t, want, got, msgAndArgs...)
 }
 
-func ExpectTrue(t *testing.T, got bool) {
+func ExpectContains[T any](t *testing.T, got T, wants []T, msgAndArgs ...any) {
 	t.Helper()
-	require.True(t, got)
+	require.Contains(t, wants, got, msgAndArgs...)
 }
 
-func ExpectFalse(t *testing.T, got bool) {
+func ExpectTrue(t *testing.T, got bool, msgAndArgs ...any) {
 	t.Helper()
-	require.False(t, got)
+	require.True(t, got, msgAndArgs...)
 }
 
-func ExpectType[T any](t *testing.T, got any) (_ T) {
+func ExpectFalse(t *testing.T, got bool, msgAndArgs ...any) {
+	t.Helper()
+	require.False(t, got, msgAndArgs...)
+}
+
+func ExpectType[T any](t *testing.T, got any, msgAndArgs ...any) (_ T) {
 	t.Helper()
 	_, ok := got.(T)
-	require.True(t, ok)
+	require.True(t, ok, msgAndArgs...)
 	return got.(T)
 }
