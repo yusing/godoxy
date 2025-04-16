@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/yusing/go-proxy/pkg/json"
+	stdJSON "encoding/json"
 )
 
 func newError(message string) error {
@@ -73,7 +73,7 @@ func IsJSONMarshallable(err error) bool {
 	case *baseError:
 		return IsJSONMarshallable(err.Err)
 	default:
-		var v json.Marshaler
+		var v stdJSON.Marshaler
 		return errors.As(err, &v)
 	}
 }
