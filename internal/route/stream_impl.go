@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/types"
+	gpnet "github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -15,7 +15,7 @@ type (
 	Stream struct {
 		*StreamRoute
 
-		listener   types.StreamListener
+		listener   gpnet.StreamListener
 		targetAddr net.Addr
 	}
 )
@@ -56,7 +56,7 @@ func (stream *Stream) Setup() error {
 		}
 		// in case ListeningPort was zero, get the actual port
 		stream.Port.Listening = tcpListener.Addr().(*net.TCPAddr).Port
-		stream.listener = types.NetListener(tcpListener)
+		stream.listener = gpnet.NetListener(tcpListener)
 	case "udp":
 		stream.targetAddr, err = net.ResolveUDPAddr("udp", stream.ProxyURL.Host)
 		if err != nil {
@@ -80,7 +80,7 @@ func (stream *Stream) Setup() error {
 	return nil
 }
 
-func (stream *Stream) Accept() (conn types.StreamConn, err error) {
+func (stream *Stream) Accept() (conn gpnet.StreamConn, err error) {
 	if stream.listener == nil {
 		return nil, errors.New("listener is nil")
 	}
@@ -100,7 +100,7 @@ func (stream *Stream) Accept() (conn types.StreamConn, err error) {
 	}
 }
 
-func (stream *Stream) Handle(conn types.StreamConn) error {
+func (stream *Stream) Handle(conn gpnet.StreamConn) error {
 	switch conn := conn.(type) {
 	case *UDPConn:
 		switch stream := stream.listener.(type) {

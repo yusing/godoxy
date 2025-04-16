@@ -8,7 +8,7 @@ import (
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/types"
+	gpnet "github.com/yusing/go-proxy/internal/net/types"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
@@ -57,7 +57,7 @@ func (w *UDPForwarder) Addr() net.Addr {
 	return w.forwarder.LocalAddr()
 }
 
-func (w *UDPForwarder) Accept() (types.StreamConn, error) {
+func (w *UDPForwarder) Accept() (gpnet.StreamConn, error) {
 	buf := newUDPBuf()
 	addr, err := w.readFromListener(buf)
 	if err != nil {
@@ -161,7 +161,7 @@ func (w *UDPForwarder) getInitConn(conn *UDPConn, key string) (*UDPConn, error) 
 	return dst, nil
 }
 
-func (w *UDPForwarder) Handle(streamConn types.StreamConn) error {
+func (w *UDPForwarder) Handle(streamConn gpnet.StreamConn) error {
 	conn, ok := streamConn.(*UDPConn)
 	if !ok {
 		panic("unexpected conn type")
