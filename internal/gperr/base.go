@@ -1,9 +1,10 @@
 package gperr
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 // baseError is an immutable wrapper around an error.
@@ -48,17 +49,6 @@ func (err *baseError) Error() string {
 	return err.Err.Error()
 }
 
-// MarshalJSON implements the json.Marshaler interface.
-func (err *baseError) MarshalJSON() ([]byte, error) {
-	//nolint:errorlint
-	switch err := err.Err.(type) {
-	case Error, *withSubject:
-		return json.Marshal(err)
-	case json.Marshaler:
-		return err.MarshalJSON()
-	case interface{ MarshalText() ([]byte, error) }:
-		return err.MarshalText()
-	default:
-		return json.Marshal(err.Error())
-	}
+func (err *baseError) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(err.Err, buf)
 }

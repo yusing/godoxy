@@ -1,9 +1,10 @@
 package gperr
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 func newError(message string) error {
