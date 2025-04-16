@@ -42,9 +42,6 @@ const (
 )
 
 func (n *Node) LXCAction(ctx context.Context, vmid int, action LXCAction) error {
-	ctx, cancel := context.WithTimeout(ctx, proxmoxReqTimeout)
-	defer cancel()
-
 	var upid proxmox.UPID
 	if err := n.client.Post(ctx, fmt.Sprintf("/nodes/%s/lxc/%d/status/%s", n.name, vmid, action), nil, &upid); err != nil {
 		return err
