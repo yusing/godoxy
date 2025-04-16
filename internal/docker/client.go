@@ -27,6 +27,7 @@ type (
 		refCount uint32
 		closedOn int64
 
+		key  string
 		addr string
 		dial func(ctx context.Context) (net.Conn, error)
 	}
@@ -179,6 +180,7 @@ func NewClient(host string) (*SharedClient, error) {
 		Client:   client,
 		refCount: 1,
 		addr:     addr,
+		key:      host,
 		dial:     dial,
 	}
 
@@ -197,7 +199,7 @@ func NewClient(host string) (*SharedClient, error) {
 }
 
 func (c *SharedClient) Key() string {
-	return c.DaemonHost()
+	return c.key
 }
 
 func (c *SharedClient) Address() string {

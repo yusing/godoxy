@@ -79,13 +79,15 @@ func flattenFields(t reflect.Type) []*field {
 			f.marshal = appendMarshal
 		}
 		if structField.Anonymous {
-			if structField.Type.Kind() == reflect.Pointer {
-				f.inner = flattenFields(structField.Type.Elem())
+			t := structField.Type
+			if t.Kind() == reflect.Pointer {
+				t = t.Elem()
 				f.omitEmpty = true
-			} else {
-				f.inner = flattenFields(structField.Type)
 			}
-			f.hasInner = len(f.inner) > 0
+			if t.Kind() == reflect.Struct {
+				f.inner = flattenFields(t)
+				f.hasInner = len(f.inner) > 0
+			}
 		}
 		fields = append(fields, f)
 		if f.omitEmpty {
