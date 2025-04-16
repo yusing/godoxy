@@ -7,18 +7,17 @@ import (
 type Map[V any] map[string]V
 
 func (m Map[V]) MarshalJSONTo(buf []byte) []byte {
+	oldN := len(buf)
 	buf = append(buf, '{')
-	i := 0
-	n := len(m)
 	for k, v := range m {
 		buf = AppendString(buf, k)
 		buf = append(buf, ':')
 		buf = appendMarshal(reflect.ValueOf(v), buf)
-		if i != n-1 {
-			buf = append(buf, ',')
-		}
-		i++
+		buf = append(buf, ',')
 	}
-	buf = append(buf, '}')
-	return buf
+	n := len(buf)
+	if oldN != n {
+		buf = buf[:n-1]
+	}
+	return append(buf, '}')
 }

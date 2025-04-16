@@ -3,7 +3,6 @@ package json
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -20,6 +19,10 @@ type field struct {
 	marshal    marshalFunc
 }
 
+func (f *field) appendKV(v reflect.Value, buf []byte) []byte {
+	return f.marshal(v, append(buf, f.quotedNameWithCol...))
+}
+
 const (
 	tagOmitEmpty    = "omitempty"
 	tagString       = "string" // https://pkg.go.dev/github.com/yusing/go-proxy/pkg/json#Marshal
@@ -28,19 +31,64 @@ const (
 	tagUseMarshaler = "use_marshaler"
 )
 
-func flattenFields(t reflect.Type) []*field {
-	fields, ok := flattenFieldsCache.Load(t)
-	if ok {
-		return fields
+func appendStruct(v reflect.Value, buf []byte) []byte {
+	if res, ok := appendWithCachedFunc(v, buf); ok {
+		return res
 	}
 
-	fields = make([]*field, 0, t.NumField())
-	for i := range t.NumField() {
+	if res, ok := appendWithCustomMarshaler(v, buf); ok {
+		return res
+	}
+
+	t := v.Type()
+	fields := flattenFields(t)
+	marshalFn := func(v reflect.Value, buf []byte) []byte {
+		return appendFields(v, fields, buf)
+	}
+	cacheMarshalFunc(t, marshalFn)
+	return marshalFn(v, buf)
+}
+
+func appendFields(v reflect.Value, fields []*field, buf []byte) []byte {
+	buf = append(buf, '{')
+	oldN := len(buf)
+
+	for _, f := range fields {
+		cur := v.Field(f.index)
+		if f.omitEmpty && f.checkEmpty(cur) {
+			continue
+		}
+		if !f.hasInner {
+			buf = f.appendKV(cur, buf)
+			buf = append(buf, ',')
+			continue
+		}
+		if f.isPtr {
+			cur = cur.Elem()
+		}
+		for _, inner := range f.inner {
+			buf = inner.appendKV(cur.Field(inner.index), buf)
+			buf = append(buf, ',')
+		}
+	}
+
+	n := len(buf)
+	if oldN != n {
+		buf = buf[:n-1]
+	}
+	return append(buf, '}')
+}
+
+func flattenFields(t reflect.Type) []*field {
+	n := t.NumField()
+	fields := make([]*field, 0, n)
+	for i := range n {
 		structField := t.Field(i)
 		if !structField.IsExported() {
 			continue
 		}
-		kind := structField.Type.Kind()
+		t := structField.Type
+		kind := t.Kind()
 		f := &field{
 			index: i,
 			isPtr: kind == reflect.Pointer,
@@ -55,6 +103,7 @@ func flattenFields(t reflect.Type) []*field {
 				switch parts[1] {
 				case tagOmitEmpty:
 					f.omitEmpty = true
+					f.checkEmpty = checkEmptyFuncs[kind]
 				case tagString:
 					f.marshal = appendStringRepr
 				case tagByteSize:
@@ -79,27 +128,21 @@ func flattenFields(t reflect.Type) []*field {
 			f.marshal = appendMarshal
 		}
 		if structField.Anonymous {
-			t := structField.Type
-			if t.Kind() == reflect.Pointer {
+			if kind == reflect.Pointer {
 				t = t.Elem()
+				kind = t.Kind()
+				f.isPtr = true
 				f.omitEmpty = true
+				f.checkEmpty = checkEmptyFuncs[kind]
 			}
-			if t.Kind() == reflect.Struct {
+			if kind == reflect.Struct {
 				f.inner = flattenFields(t)
 				f.hasInner = len(f.inner) > 0
 			}
 		}
 		fields = append(fields, f)
-		if f.omitEmpty {
-			f.checkEmpty = checkEmptyFuncs[kind]
-		}
-		f.quotedNameWithCol = strconv.Quote(f.quotedNameWithCol) + ":"
+		quotedNameWithCol := AppendString(nil, f.quotedNameWithCol)
+		f.quotedNameWithCol = string(quotedNameWithCol) + ":"
 	}
-
-	flattenFieldsCache.Store(t, fields)
 	return fields
-}
-
-func (f *field) appendKV(v reflect.Value, buf []byte) []byte {
-	return f.marshal(v, append(buf, f.quotedNameWithCol...))
 }

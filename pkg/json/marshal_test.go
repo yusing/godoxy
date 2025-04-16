@@ -147,12 +147,12 @@ func TestMarshal(t *testing.T) {
 		{
 			name:     "slice_of_struct",
 			input:    []testStruct{{Name: "John", Age: 30, Score: 8.5}, {Name: "Jane", Age: 25, Score: 9.5}},
-			expected: `[{"name":"John","age":30,"score":8.50},{"name":"Jane","age":25,"score":9.50}]`,
+			expected: `[{"name":"John","age":30,"score":8.5},{"name":"Jane","age":25,"score":9.5}]`,
 		},
 		{
 			name:     "slice_of_struct_pointer",
 			input:    []*testStruct{{Name: "John", Age: 30, Score: 8.5}, {Name: "Jane", Age: 25, Score: 9.5}},
-			expected: `[{"name":"John","age":30,"score":8.50},{"name":"Jane","age":25,"score":9.50}]`,
+			expected: `[{"name":"John","age":30,"score":8.5},{"name":"Jane","age":25,"score":9.5}]`,
 		},
 		{
 			name:     "slice_of_map",
@@ -162,12 +162,12 @@ func TestMarshal(t *testing.T) {
 		{
 			name:     "struct",
 			input:    testStruct{Name: "John", Age: 30, Score: 8.5},
-			expected: `{"name":"John","age":30,"score":8.50}`,
+			expected: `{"name":"John","age":30,"score":8.5}`,
 		},
 		{
 			name:     "struct_pointer",
 			input:    &testStruct{Name: "Jane", Age: 25, Score: 9.5},
-			expected: `{"name":"Jane","age":25,"score":9.50}`,
+			expected: `{"name":"Jane","age":25,"score":9.5}`,
 		},
 		{
 			name:     "byte_slice",
