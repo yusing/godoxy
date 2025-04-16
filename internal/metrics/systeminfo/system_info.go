@@ -3,7 +3,6 @@ package systeminfo
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/metrics/period"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 // json tags are left for tests
@@ -55,7 +55,7 @@ type (
 		DownloadSpeed float64 `json:"download_speed"`
 	}
 	Sensors    []sensors.TemperatureStat
-	Aggregated []map[string]any
+	Aggregated = json.MapSlice[any]
 )
 
 type SystemInfo struct {
@@ -295,8 +295,8 @@ func (s *SystemInfo) collectSensorsInfo(ctx context.Context) error {
 }
 
 // explicitly implement MarshalJSON to avoid reflection
-func (s *SystemInfo) MarshalJSON() ([]byte, error) {
-	b := bytes.NewBuffer(make([]byte, 0, 1024))
+func (s *SystemInfo) MarshalJSONTo(buf []byte) []byte {
+	b := bytes.NewBuffer(buf)
 
 	b.WriteRune('{')
 
@@ -315,7 +315,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	// memory
 	b.WriteString(`,"memory":`)
 	if s.Memory != nil {
-		b.WriteString(fmt.Sprintf(
+		b.Write(fmt.Appendf(nil,
 			`{"total":%d,"available":%d,"used":%d,"used_percent":%s}`,
 			s.Memory.Total,
 			s.Memory.Available,
@@ -329,13 +329,13 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	// disk
 	b.WriteString(`,"disks":`)
 	if len(s.Disks) > 0 {
-		b.WriteString("{")
+		b.WriteRune('{')
 		first := true
 		for device, disk := range s.Disks {
 			if !first {
 				b.WriteRune(',')
 			}
-			b.WriteString(fmt.Sprintf(
+			b.Write(fmt.Appendf(nil,
 				`"%s":{"device":%q,"path":%q,"fstype":%q,"total":%d,"free":%d,"used":%d,"used_percent":%s}`,
 				device,
 				device,
@@ -362,7 +362,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 			if !first {
 				b.WriteRune(',')
 			}
-			b.WriteString(fmt.Sprintf(
+			b.Write(fmt.Appendf(nil,
 				`"%s":{"name":%q,"read_bytes":%d,"write_bytes":%d,"read_speed":%s,"write_speed":%s,"iops":%d}`,
 				name,
 				name,
@@ -382,7 +382,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	// network
 	b.WriteString(`,"network":`)
 	if s.Network != nil {
-		b.WriteString(fmt.Sprintf(
+		b.Write(fmt.Appendf(nil,
 			`{"bytes_sent":%d,"bytes_recv":%d,"upload_speed":%s,"download_speed":%s}`,
 			s.Network.BytesSent,
 			s.Network.BytesRecv,
@@ -396,13 +396,13 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	// sensors
 	b.WriteString(`,"sensors":`)
 	if len(s.Sensors) > 0 {
-		b.WriteString("{")
+		b.WriteRune('{')
 		first := true
 		for _, sensor := range s.Sensors {
 			if !first {
 				b.WriteRune(',')
 			}
-			b.WriteString(fmt.Sprintf(
+			b.Write(fmt.Appendf(nil,
 				`%q:{"name":%q,"temperature":%s,"high":%s,"critical":%s}`,
 				sensor.SensorKey,
 				sensor.SensorKey,
@@ -418,7 +418,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	}
 
 	b.WriteRune('}')
-	return []byte(b.String()), nil
+	return b.Bytes()
 }
 
 func (s *Sensors) UnmarshalJSON(data []byte) error {
@@ -559,44 +559,4 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		return -1, nil
 	}
 	return len(aggregated), aggregated
-}
-
-func (result Aggregated) MarshalJSON() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-
-	buf.WriteByte('[')
-	i := 0
-	n := len(result)
-	for _, entry := range result {
-		buf.WriteRune('{')
-		j := 0
-		m := len(entry)
-		for k, v := range entry {
-			buf.WriteByte('"')
-			buf.WriteString(k)
-			buf.WriteByte('"')
-			buf.WriteByte(':')
-			switch v := v.(type) {
-			case float64:
-				buf.WriteString(strconv.FormatFloat(v, 'f', 2, 64))
-			case uint64:
-				buf.WriteString(strconv.FormatUint(v, 10))
-			case int64:
-				buf.WriteString(strconv.FormatInt(v, 10))
-			default:
-				panic(fmt.Sprintf("unexpected type: %T", v))
-			}
-			if j != m-1 {
-				buf.WriteByte(',')
-			}
-			j++
-		}
-		buf.WriteByte('}')
-		if i != n-1 {
-			buf.WriteByte(',')
-		}
-		i++
-	}
-	buf.WriteByte(']')
-	return buf.Bytes(), nil
 }

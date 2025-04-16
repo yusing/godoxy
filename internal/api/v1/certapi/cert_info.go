@@ -1,8 +1,9 @@
 package certapi
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	config "github.com/yusing/go-proxy/internal/config/types"
 )

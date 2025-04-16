@@ -194,6 +194,6 @@ func (l *AccessLogger) write(data []byte) {
 	if err != nil {
 		l.handleErr(err)
 	} else {
-		logging.Debug().Msg("access log flushed to " + l.io.Name())
+		logging.Trace().Msg("access log flushed to " + l.io.Name())
 	}
 }

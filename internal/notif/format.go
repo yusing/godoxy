@@ -2,7 +2,8 @@ package notif
 
 import (
 	"bytes"
-	"encoding/json"
+
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 func formatMarkdown(extras LogFields) string {

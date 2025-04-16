@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"encoding/json"
 	"net/http"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -158,12 +159,12 @@ func (m *Middleware) String() string {
 	return m.name
 }
 
-func (m *Middleware) MarshalJSON() ([]byte, error) {
-	return json.MarshalIndent(map[string]any{
+func (m *Middleware) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(map[string]any{
 		"name":     m.name,
 		"options":  m.impl,
 		"priority": m.priority,
-	}, "", "  ")
+	}, buf)
 }
 
 func (m *Middleware) ModifyRequest(next http.HandlerFunc, w http.ResponseWriter, r *http.Request) {

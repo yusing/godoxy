@@ -2,7 +2,6 @@ package uptime
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"sort"
 	"time"
@@ -13,20 +12,15 @@ import (
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]*routequery.HealthInfoRaw `json:"statuses"`
-		Timestamp int64                                `json:"timestamp"`
+		Map       json.Map[*routequery.HealthInfoRaw] `json:"statuses"`
+		Timestamp int64                               `json:"timestamp"`
 	}
-	Status struct {
-		Status    health.Status `json:"status"`
-		Latency   int64         `json:"latency"`
-		Timestamp int64         `json:"timestamp"`
-	}
-	RouteStatuses map[string][]*Status
-	Aggregated    []map[string]any
+	Aggregated = json.MapSlice[any]
 )
 
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
@@ -123,8 +117,4 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		}
 	}
 	return result
-}
-
-func (result Aggregated) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]map[string]any(result))
 }

@@ -2,11 +2,12 @@ package notif
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/gperr"
 )
@@ -101,10 +102,7 @@ func (webhook *Webhook) makeRespError(resp *http.Response) error {
 }
 
 func (webhook *Webhook) MakeBody(logMsg *LogMessage) (io.Reader, error) {
-	title, err := json.Marshal(logMsg.Title)
-	if err != nil {
-		return nil, err
-	}
+	title := json.String(logMsg.Title)
 	fields, err := formatDiscord(logMsg.Extras)
 	if err != nil {
 		return nil, err
@@ -115,13 +113,10 @@ func (webhook *Webhook) MakeBody(logMsg *LogMessage) (io.Reader, error) {
 	} else {
 		color = logMsg.Color.DecString()
 	}
-	message, err := json.Marshal(formatMarkdown(logMsg.Extras))
-	if err != nil {
-		return nil, err
-	}
+	message := json.String(formatMarkdown(logMsg.Extras))
 	plTempl := strings.NewReplacer(
-		"$title", string(title),
-		"$message", string(message),
+		"$title", title,
+		"$message", message,
 		"$fields", fields,
 		"$color", color,
 	)

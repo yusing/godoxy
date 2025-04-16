@@ -2,9 +2,10 @@ package dockerapi
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"sort"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	dockerSystem "github.com/docker/docker/api/types/system"
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -13,8 +14,8 @@ import (
 
 type dockerInfo dockerSystem.Info
 
-func (d *dockerInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+func (d *dockerInfo) MarshalJSONTo(buf []byte) []byte {
+	return json.MarshalTo(map[string]any{
 		"name":    d.Name,
 		"version": d.ServerVersion,
 		"containers": map[string]int{
@@ -25,8 +26,8 @@ func (d *dockerInfo) MarshalJSON() ([]byte, error) {
 		},
 		"images": d.Images,
 		"n_cpu":  d.NCPU,
-		"memory": strutils.FormatByteSizeWithUnit(d.MemTotal),
-	})
+		"memory": strutils.FormatByteSize(d.MemTotal),
+	}, buf)
 }
 
 func DockerInfo(w http.ResponseWriter, r *http.Request) {

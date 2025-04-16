@@ -26,8 +26,8 @@ func getHealthInfo(r route.Route) map[string]string {
 }
 
 type HealthInfoRaw struct {
-	Status  health.Status
-	Latency time.Duration
+	Status  health.Status `json:"status,string"`
+	Latency time.Duration `json:"latency"`
 }
 
 func getHealthInfoRaw(r route.Route) *HealthInfoRaw {

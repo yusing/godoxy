@@ -261,10 +261,6 @@ func (on *RuleOn) String() string {
 	return on.raw
 }
 
-func (on *RuleOn) MarshalText() ([]byte, error) {
-	return []byte(on.String()), nil
-}
-
 func parseOn(line string) (Checker, gperr.Error) {
 	ors := strutils.SplitRune(line, '|')
 

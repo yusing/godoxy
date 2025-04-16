@@ -24,7 +24,7 @@ type (
 		task.TaskStarter
 		task.TaskFinisher
 		fmt.Stringer
-		utils.MapMarshaller
+		utils.MapMarshaler
 		WithHealthInfo
 		Name() string
 	}

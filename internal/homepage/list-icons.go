@@ -1,11 +1,12 @@
 package homepage
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/yusing/go-proxy/internal/common"

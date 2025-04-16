@@ -3,11 +3,12 @@ package middleware
 import (
 	"bytes"
 	_ "embed"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"

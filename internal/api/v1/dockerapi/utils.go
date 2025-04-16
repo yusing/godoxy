@@ -2,9 +2,10 @@ package dockerapi
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"

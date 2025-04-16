@@ -1,12 +1,12 @@
 package v1
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 const (

@@ -1,13 +1,14 @@
 package handler_test
 
 import (
-	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/go-proxy/agent/pkg/agent"

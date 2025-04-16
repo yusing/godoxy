@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/yusing/go-proxy/internal/common"

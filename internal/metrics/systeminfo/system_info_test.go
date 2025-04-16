@@ -1,14 +1,22 @@
 package systeminfo
 
 import (
-	"encoding/json"
 	"net/url"
 	"reflect"
 	"testing"
 
 	"github.com/shirou/gopsutil/v4/sensors"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/go-proxy/pkg/json"
 )
+
+func TestPoller(t *testing.T) {
+	for _, query := range allQueries {
+		t.Run(query, func(t *testing.T) {
+			Poller.Test(t, url.Values{"aggregate": []string{query}})
+		})
+	}
+}
 
 func TestExcludeDisks(t *testing.T) {
 	tests := []struct {
@@ -191,8 +199,7 @@ func TestSerialize(t *testing.T) {
 	for _, query := range allQueries {
 		t.Run(query, func(t *testing.T) {
 			_, result := aggregate(entries, url.Values{"aggregate": []string{query}})
-			s, err := result.MarshalJSON()
-			ExpectNoError(t, err)
+			s := result.MarshalJSONTo(nil)
 			var v []map[string]any
 			ExpectNoError(t, json.Unmarshal(s, &v))
 			ExpectEqual(t, len(v), len(result))
@@ -205,32 +212,4 @@ func TestSerialize(t *testing.T) {
 			}
 		})
 	}
-}
-
-func BenchmarkJSONMarshal(b *testing.B) {
-	entries := make([]*SystemInfo, b.N)
-	for i := range b.N {
-		entries[i] = testInfo
-	}
-	queries := map[string]Aggregated{}
-	for _, query := range allQueries {
-		_, result := aggregate(entries, url.Values{"aggregate": []string{query}})
-		queries[query] = result
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.Run("optimized", func(b *testing.B) {
-		for b.Loop() {
-			for _, query := range allQueries {
-				_, _ = queries[query].MarshalJSON()
-			}
-		}
-	})
-	b.Run("json", func(b *testing.B) {
-		for b.Loop() {
-			for _, query := range allQueries {
-				_, _ = json.Marshal([]map[string]any(queries[query]))
-			}
-		}
-	})
 }
