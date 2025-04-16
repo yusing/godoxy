@@ -58,12 +58,17 @@ func Ping(ctx context.Context, ip net.IP) (bool, error) {
 	}
 	defer conn.Close()
 
+	err = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err != nil {
+		return false, err
+	}
+
 	_, err = conn.WriteTo(msgBytes, &net.IPAddr{IP: ip})
 	if err != nil {
 		return false, err
 	}
 
-	err = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if err != nil {
 		return false, err
 	}
@@ -90,7 +95,7 @@ func Ping(ctx context.Context, ip net.IP) (bool, error) {
 }
 
 var pingDialer = &net.Dialer{
-	Timeout: 1 * time.Second,
+	Timeout: 2 * time.Second,
 }
 
 // PingWithTCPFallback pings the IP address using ICMP and TCP fallback.
