@@ -19,6 +19,7 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/notif"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	proxy "github.com/yusing/go-proxy/internal/route/provider"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -215,23 +216,22 @@ func (cfg *Config) StartServers(opts ...*StartServersOptions) {
 }
 
 func (cfg *Config) load() gperr.Error {
-	const errMsg = "config load error"
-
 	data, err := os.ReadFile(common.ConfigPath)
 	if err != nil {
-		gperr.LogFatal(errMsg, err)
+		gperr.LogFatal("error reading config", err)
 	}
 
 	model := config.DefaultConfig()
 	if err := utils.UnmarshalValidateYAML(data, model); err != nil {
-		gperr.LogFatal(errMsg, err)
+		gperr.LogFatal("error unmarshalling config", err)
 	}
 
 	// errors are non fatal below
-	errs := gperr.NewBuilder(errMsg)
+	errs := gperr.NewBuilder()
 	errs.Add(cfg.entrypoint.SetMiddlewares(model.Entrypoint.Middlewares))
 	errs.Add(cfg.entrypoint.SetAccessLogger(cfg.task, model.Entrypoint.AccessLog))
 	cfg.initNotification(model.Providers.Notification)
+	errs.Add(cfg.initProxmox(model.Providers.Proxmox))
 	errs.Add(cfg.initAutoCert(model.AutoCert))
 	errs.Add(cfg.loadRouteProviders(&model.Providers))
 
@@ -254,6 +254,18 @@ func (cfg *Config) initNotification(notifCfg []notif.NotificationConfig) {
 	for _, notifier := range notifCfg {
 		dispatcher.RegisterProvider(&notifier)
 	}
+}
+
+func (cfg *Config) initProxmox(proxmoxCfgs []proxmox.Config) (err gperr.Error) {
+	errs := gperr.NewBuilder("proxmox config errors")
+	for _, proxmoxCfg := range proxmoxCfgs {
+		if err := proxmoxCfg.Init(); err != nil {
+			errs.Add(err.Subject(proxmoxCfg.URL))
+		} else {
+			proxmox.Clients.Add(proxmoxCfg.Client())
+		}
+	}
+	return errs.Error()
 }
 
 func (cfg *Config) initAutoCert(autocertCfg *autocert.AutocertConfig) (err gperr.Error) {

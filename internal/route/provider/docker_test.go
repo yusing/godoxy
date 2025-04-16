@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/yusing/go-proxy/internal/common"
 	D "github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/route"
 	T "github.com/yusing/go-proxy/internal/route/types"
@@ -69,10 +68,10 @@ func TestApplyLabel(t *testing.T) {
 		Labels: map[string]string{
 			D.LabelAliases:          "a,b",
 			D.LabelIdleTimeout:      "",
-			D.LabelStopMethod:       common.StopMethodDefault,
+			D.LabelStopMethod:       "stop",
 			D.LabelStopSignal:       "SIGTERM",
-			D.LabelStopTimeout:      common.StopTimeoutDefault,
-			D.LabelWakeTimeout:      common.WakeTimeoutDefault,
+			D.LabelStopTimeout:      "1h",
+			D.LabelWakeTimeout:      "10s",
 			"proxy.*.no_tls_verify": "true",
 			"proxy.*.scheme":        "https",
 			"proxy.*.host":          "app",
@@ -110,20 +109,16 @@ func TestApplyLabel(t *testing.T) {
 	ExpectEqual(t, a.Middlewares, middlewaresExpect)
 	ExpectEqual(t, len(b.Middlewares), 0)
 
-	ExpectEqual(t, a.Container.IdleTimeout, "")
-	ExpectEqual(t, b.Container.IdleTimeout, "")
-
-	ExpectEqual(t, a.Container.StopTimeout, common.StopTimeoutDefault)
-	ExpectEqual(t, b.Container.StopTimeout, common.StopTimeoutDefault)
-
-	ExpectEqual(t, a.Container.StopMethod, common.StopMethodDefault)
-	ExpectEqual(t, b.Container.StopMethod, common.StopMethodDefault)
-
-	ExpectEqual(t, a.Container.WakeTimeout, common.WakeTimeoutDefault)
-	ExpectEqual(t, b.Container.WakeTimeout, common.WakeTimeoutDefault)
-
-	ExpectEqual(t, a.Container.StopSignal, "SIGTERM")
-	ExpectEqual(t, b.Container.StopSignal, "SIGTERM")
+	ExpectEqual(t, a.Container.IdlewatcherConfig.IdleTimeout, 0)
+	ExpectEqual(t, b.Container.IdlewatcherConfig.IdleTimeout, 0)
+	ExpectEqual(t, a.Container.IdlewatcherConfig.StopTimeout, time.Hour)
+	ExpectEqual(t, b.Container.IdlewatcherConfig.StopTimeout, time.Hour)
+	ExpectEqual(t, a.Container.IdlewatcherConfig.StopMethod, "stop")
+	ExpectEqual(t, b.Container.IdlewatcherConfig.StopMethod, "stop")
+	ExpectEqual(t, a.Container.IdlewatcherConfig.WakeTimeout, 10*time.Second)
+	ExpectEqual(t, b.Container.IdlewatcherConfig.WakeTimeout, 10*time.Second)
+	ExpectEqual(t, a.Container.IdlewatcherConfig.StopSignal, "SIGTERM")
+	ExpectEqual(t, b.Container.IdlewatcherConfig.StopSignal, "SIGTERM")
 
 	ExpectEqual(t, a.Homepage.Show, true)
 	ExpectEqual(t, a.Homepage.Icon.Value, "png/adguard-home.png")

@@ -11,10 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/agent/pkg/certs"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/pkg"
 )
@@ -25,7 +23,6 @@ type AgentConfig struct {
 	httpClient *http.Client
 	tlsConfig  *tls.Config
 	name       string
-	l          zerolog.Logger
 }
 
 const (
@@ -136,8 +133,6 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 	}
 
 	cfg.name = string(name)
-	cfg.l = logging.With().Str("agent", cfg.name).Logger()
-	cfg.l.Info().Msg("agent initialized")
 	return nil
 }
 

@@ -111,7 +111,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 
 	errs := gperr.NewBuilder("label errors")
 
-	m, err := docker.ParseLabels(container.Labels)
+	m, err := docker.ParseLabels(container.RouteConfig)
 	errs.Add(err)
 
 	var wildcardProps docker.LabelMap

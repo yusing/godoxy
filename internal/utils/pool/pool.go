@@ -3,31 +3,39 @@ package pool
 import (
 	"sort"
 
+	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/functional"
 )
 
 type (
 	Pool[T Object] struct {
-		m functional.Map[string, T]
+		m    functional.Map[string, T]
+		name string
 	}
 	Object interface {
 		Key() string
 		Name() string
-		utils.MapMarshaller
+		utils.MapMarshaler
 	}
 )
 
-func New[T Object]() Pool[T] {
-	return Pool[T]{functional.NewMapOf[string, T]()}
+func New[T Object](name string) Pool[T] {
+	return Pool[T]{functional.NewMapOf[string, T](), name}
+}
+
+func (p Pool[T]) Name() string {
+	return p.name
 }
 
 func (p Pool[T]) Add(obj T) {
 	p.m.Store(obj.Key(), obj)
+	logging.Info().Msgf("%s: added %s", p.name, obj.Name())
 }
 
 func (p Pool[T]) Del(obj T) {
 	p.m.Delete(obj.Key())
+	logging.Info().Msgf("%s: removed %s", p.name, obj.Name())
 }
 
 func (p Pool[T]) Get(key string) (T, bool) {

@@ -6,7 +6,7 @@ import (
 
 type agents struct{ pool.Pool[*AgentConfig] }
 
-var Agents = agents{pool.New[*AgentConfig]()}
+var Agents = agents{pool.New[*AgentConfig]("agents")}
 
 func (agents agents) Get(agentAddrOrDockerHost string) (*AgentConfig, bool) {
 	if !IsDockerHostAgent(agentAddrOrDockerHost) {

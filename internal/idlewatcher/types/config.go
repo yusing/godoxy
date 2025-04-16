@@ -1,110 +1,128 @@
 package idlewatcher
 
 import (
-	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 type (
 	Config struct {
-		IdleTimeout   time.Duration `json:"idle_timeout,omitempty"`
-		WakeTimeout   time.Duration `json:"wake_timeout,omitempty"`
-		StopTimeout   int           `json:"stop_timeout,omitempty"` // docker api takes integer seconds for timeout argument
-		StopMethod    StopMethod    `json:"stop_method,omitempty"`
+		Proxmox *ProxmoxConfig `json:"proxmox,omitempty"`
+		Docker  *DockerConfig  `json:"docker,omitempty"`
+
+		IdleTimeout   time.Duration `json:"idle_timeout"`
+		WakeTimeout   time.Duration `json:"wake_timeout"`
+		StopTimeout   time.Duration `json:"stop_timeout"`
+		StopMethod    StopMethod    `json:"stop_method"`
 		StopSignal    Signal        `json:"stop_signal,omitempty"`
 		StartEndpoint string        `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
 	}
 	StopMethod string
 	Signal     string
+
+	DockerConfig struct {
+		DockerHost    string `json:"docker_host" validate:"required"`
+		ContainerID   string `json:"container_id" validate:"required"`
+		ContainerName string `json:"container_name" validate:"required"`
+	}
+	ProxmoxConfig struct {
+		Node string `json:"node" validate:"required"`
+		VMID int    `json:"vmid" validate:"required"`
+	}
 )
 
 const (
+	WakeTimeoutDefault = 30 * time.Second
+	StopTimeoutDefault = 1 * time.Minute
+
 	StopMethodPause StopMethod = "pause"
 	StopMethodStop  StopMethod = "stop"
 	StopMethodKill  StopMethod = "kill"
 )
 
-var validSignals = map[string]struct{}{
-	"":       {},
-	"SIGINT": {}, "SIGTERM": {}, "SIGHUP": {}, "SIGQUIT": {},
-	"INT": {}, "TERM": {}, "HUP": {}, "QUIT": {},
+func (c *Config) Key() string {
+	if c.Docker != nil {
+		return c.Docker.ContainerID
+	}
+	return c.Proxmox.Node + ":" + strconv.Itoa(c.Proxmox.VMID)
 }
 
-func ValidateConfig(cont *docker.Container) (*Config, gperr.Error) {
-	if cont == nil || cont.IdleTimeout == "" {
-		return nil, nil
+func (c *Config) ContainerName() string {
+	if c.Docker != nil {
+		return c.Docker.ContainerName
 	}
-
-	errs := gperr.NewBuilder("invalid idlewatcher config")
-
-	idleTimeout := gperr.Collect(errs, validateDurationPostitive, cont.IdleTimeout)
-	wakeTimeout := gperr.Collect(errs, validateDurationPostitive, cont.WakeTimeout)
-	stopTimeout := gperr.Collect(errs, validateDurationPostitive, cont.StopTimeout)
-	stopMethod := gperr.Collect(errs, validateStopMethod, cont.StopMethod)
-	signal := gperr.Collect(errs, validateSignal, cont.StopSignal)
-	startEndpoint := gperr.Collect(errs, validateStartEndpoint, cont.StartEndpoint)
-
-	if errs.HasError() {
-		return nil, errs.Error()
-	}
-
-	return &Config{
-		IdleTimeout:   idleTimeout,
-		WakeTimeout:   wakeTimeout,
-		StopTimeout:   int(stopTimeout.Seconds()),
-		StopMethod:    stopMethod,
-		StopSignal:    signal,
-		StartEndpoint: startEndpoint,
-	}, nil
+	return "lxc " + strconv.Itoa(c.Proxmox.VMID)
 }
 
-func validateDurationPostitive(value string) (time.Duration, error) {
-	d, err := time.ParseDuration(value)
-	if err != nil {
-		return 0, err
+func (c *Config) Validate() gperr.Error {
+	if c.IdleTimeout == 0 { // no idle timeout means no idle watcher
+		return nil
 	}
-	if d < 0 {
-		return 0, errors.New("duration must be positive")
-	}
-	return d, nil
+	errs := gperr.NewBuilder("idlewatcher config validation error")
+	errs.AddRange(
+		c.validateProvider(),
+		c.validateTimeouts(),
+		c.validateStopMethod(),
+		c.validateStopSignal(),
+		c.validateStartEndpoint(),
+	)
+	return errs.Error()
 }
 
-func validateSignal(s string) (Signal, error) {
-	if _, ok := validSignals[s]; ok {
-		return Signal(s), nil
+func (c *Config) validateProvider() error {
+	if c.Docker == nil && c.Proxmox == nil {
+		return gperr.New("missing idlewatcher provider config")
 	}
-	return "", errors.New("invalid signal " + s)
+	return nil
 }
 
-func validateStopMethod(s string) (StopMethod, error) {
-	sm := StopMethod(s)
-	switch sm {
+func (c *Config) validateTimeouts() error {
+	if c.WakeTimeout == 0 {
+		c.WakeTimeout = WakeTimeoutDefault
+	}
+	if c.StopTimeout == 0 {
+		c.StopTimeout = StopTimeoutDefault
+	}
+	return nil
+}
+
+func (c *Config) validateStopMethod() error {
+	switch c.StopMethod {
+	case "":
+		c.StopMethod = StopMethodStop
+		return nil
 	case StopMethodPause, StopMethodStop, StopMethodKill:
-		return sm, nil
+		return nil
 	default:
-		return "", errors.New("invalid stop method " + s)
+		return gperr.New("invalid stop method").Subject(string(c.StopMethod))
 	}
 }
 
-func validateStartEndpoint(s string) (string, error) {
-	if s == "" {
-		return "", nil
+func (c *Config) validateStopSignal() error {
+	switch c.StopSignal {
+	case "", "SIGINT", "SIGTERM", "SIGQUIT", "SIGHUP", "INT", "TERM", "QUIT", "HUP":
+		return nil
+	default:
+		return gperr.New("invalid stop signal").Subject(string(c.StopSignal))
+	}
+}
+
+func (c *Config) validateStartEndpoint() error {
+	if c.StartEndpoint == "" {
+		return nil
 	}
 	// checks needed as of Go 1.6 because of change https://github.com/golang/go/commit/617c93ce740c3c3cc28cdd1a0d712be183d0b328#diff-6c2d018290e298803c0c9419d8739885L195
 	// emulate browser and strip the '#' suffix prior to validation. see issue-#237
-	if i := strings.Index(s, "#"); i > -1 {
-		s = s[:i]
+	if i := strings.Index(c.StartEndpoint, "#"); i > -1 {
+		c.StartEndpoint = c.StartEndpoint[:i]
 	}
-	if len(s) == 0 {
-		return "", errors.New("start endpoint must not be empty if defined")
+	if len(c.StartEndpoint) == 0 {
+		return gperr.New("start endpoint must not be empty if defined")
 	}
-	if _, err := url.ParseRequestURI(s); err != nil {
-		return "", err
-	}
-	return s, nil
+	_, err := url.ParseRequestURI(c.StartEndpoint)
+	return err
 }

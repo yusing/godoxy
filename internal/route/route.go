@@ -1,9 +1,11 @@
 package route
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 
@@ -11,6 +13,9 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
+	"github.com/yusing/go-proxy/internal/logging"
+	gpnet "github.com/yusing/go-proxy/internal/net"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -43,6 +48,8 @@ type (
 		Homepage     *homepage.ItemConfig       `json:"homepage,omitempty"`
 		AccessLog    *accesslog.Config          `json:"access_log,omitempty"`
 
+		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
+
 		Metadata `deserialize:"-"`
 	}
 
@@ -55,12 +62,12 @@ type (
 		LisURL   *url.URL `json:"lurl,omitempty"`
 		ProxyURL *url.URL `json:"purl,omitempty"`
 
-		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
-
 		impl route.Route
 	}
 	Routes map[string]*Route
 )
+
+const DefaultHost = "localhost"
 
 func (r Routes) Contains(alias string) bool {
 	_, ok := r[alias]
@@ -77,6 +84,70 @@ func (r *Route) Validate() (err gperr.Error) {
 		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
 			if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
 				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
+			}
+		}
+	}
+
+	if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
+		node := r.Idlewatcher.Proxmox.Node
+		vmid := r.Idlewatcher.Proxmox.VMID
+		if node == "" {
+			return gperr.Errorf("node (proxmox node name) is required")
+		}
+		if vmid <= 0 {
+			return gperr.Errorf("vmid (lxc id) is required")
+		}
+		if r.Host == DefaultHost {
+			containerName := r.Idlewatcher.ContainerName()
+			// get ip addresses of the vmid
+			node, ok := proxmox.Nodes.Get(node)
+			if !ok {
+				return gperr.Errorf("proxmox node %s not found in pool", node)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			ips, err := node.LXCGetIPs(ctx, vmid)
+			if err != nil {
+				return gperr.Errorf("failed to get ip addresses of vmid %d: %w", vmid, err)
+			}
+
+			if len(ips) == 0 {
+				return gperr.Multiline().
+					Addf("no ip addresses found for %s", containerName).
+					Adds("make sure you have set static ip address for container instead of dhcp").
+					Subject(containerName)
+			}
+
+			l := logging.With().Str("container", containerName).Logger()
+
+			l.Info().Msg("checking if container is running")
+			running, err := node.LXCIsRunning(ctx, vmid)
+			if err != nil {
+				return gperr.New("failed to check container state").With(err)
+			}
+
+			if !running {
+				l.Info().Msg("starting container")
+				if err := node.LXCAction(ctx, vmid, proxmox.LXCStart); err != nil {
+					return gperr.New("failed to start container").With(err)
+				}
+			}
+
+			l.Info().Msgf("finding reachable ip addresses")
+			for _, ip := range ips {
+				if ok, _ := gpnet.PingWithTCPFallback(ctx, ip, r.Port.Proxy); ok {
+					r.Host = ip.String()
+					l.Info().Msgf("using ip %s", r.Host)
+					break
+				}
+			}
+			if r.Host == DefaultHost {
+				return gperr.Multiline().
+					Addf("no reachable ip addresses found, tried %d IPs", len(ips)).
+					AddLines(ips).
+					Subject(containerName)
 			}
 		}
 	}
@@ -190,6 +261,10 @@ func (r *Route) HealthMonitor() health.HealthMonitor {
 }
 
 func (r *Route) IdlewatcherConfig() *idlewatcher.Config {
+	cont := r.Container
+	if cont != nil && cont.IdlewatcherConfig != nil {
+		return cont.IdlewatcherConfig
+	}
 	return r.Idlewatcher
 }
 
@@ -255,7 +330,8 @@ func (r *Route) UseLoadBalance() bool {
 }
 
 func (r *Route) UseIdleWatcher() bool {
-	return r.Idlewatcher != nil && r.Idlewatcher.IdleTimeout > 0
+	cfg := r.IdlewatcherConfig()
+	return cfg != nil && cfg.IdleTimeout > 0
 }
 
 func (r *Route) UseHealthCheck() bool {
@@ -276,7 +352,7 @@ func (r *Route) Finalize() {
 	if r.Host == "" {
 		switch {
 		case !isDocker:
-			r.Host = "localhost"
+			r.Host = DefaultHost
 		case cont.PrivateHostname != "":
 			r.Host = cont.PrivateHostname
 		case cont.PublicHostname != "":
