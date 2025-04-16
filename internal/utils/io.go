@@ -145,7 +145,7 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 		buf = make([]byte, 0, size)
 	} else {
 		buf = copyBufPool.Get().([]byte)
-		defer copyBufPool.Put(buf)
+		defer copyBufPool.Put(buf[:0])
 	}
 	// close both as soon as one of them is done
 	wCloser, wCanClose := dst.Writer.(io.Closer)
