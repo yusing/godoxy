@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/utils"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
-	"gopkg.in/yaml.v3"
 )
 
 // type Config struct {

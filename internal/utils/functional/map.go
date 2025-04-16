@@ -3,8 +3,8 @@ package functional
 import (
 	"sync"
 
+	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v3"
-	"gopkg.in/yaml.v3"
 )
 
 type Map[KT comparable, VT any] struct {

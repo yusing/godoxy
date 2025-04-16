@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"gopkg.in/yaml.v3"
 )
 
 type SerializedObject = map[string]any
