@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/utils"
 )
 
 func warnNoMatchDomains() {
@@ -95,7 +94,7 @@ func WriteText(r *http.Request, conn *websocket.Conn, msg string) bool {
 func DynamicJSONHandler[ResultType any](w http.ResponseWriter, r *http.Request, getter func() ResultType, interval time.Duration) {
 	if httpheaders.IsWebsocket(r.Header) {
 		Periodic(w, r, interval, func(conn *websocket.Conn) error {
-			return wsjson.Write(r.Context(), conn, utils.ToJSONObject(getter()))
+			return wsjson.Write(r.Context(), conn, getter())
 		})
 	} else {
 		gphttp.RespondJSON(w, r, getter())

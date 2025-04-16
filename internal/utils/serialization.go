@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"net"
@@ -22,12 +21,12 @@ import (
 type SerializedObject = map[string]any
 
 type (
-	MapMarshaller interface {
+	MapMarshaler interface {
 		MarshalMap() map[string]any
 	}
 	MapUnmarshaller interface {
-	UnmarshalMap(m map[string]any) gperr.Error
-}
+		UnmarshalMap(m map[string]any) gperr.Error
+	}
 )
 
 var (
@@ -51,9 +50,10 @@ var (
 	typeURL      = reflect.TypeFor[url.URL]()
 	typeCIDR     = reflect.TypeFor[net.IPNet]()
 
-	typeMapMarshaller  = reflect.TypeFor[MapMarshaller]()
+	typeMapMarshaller  = reflect.TypeFor[MapMarshaler]()
 	typeMapUnmarshaler = reflect.TypeFor[MapUnmarshaller]()
 	typeJSONMarshaller = reflect.TypeFor[json.Marshaler]()
+	typeStrParser      = reflect.TypeFor[strutils.Parser]()
 
 	typeAny = reflect.TypeOf((*any)(nil)).Elem()
 )

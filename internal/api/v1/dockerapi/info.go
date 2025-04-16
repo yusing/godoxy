@@ -25,7 +25,7 @@ func (d *dockerInfo) MarshalJSON() ([]byte, error) {
 		},
 		"images": d.Images,
 		"n_cpu":  d.NCPU,
-		"memory": strutils.FormatByteSizeWithUnit(d.MemTotal),
+		"memory": strutils.FormatByteSize(d.MemTotal),
 	})
 }
 
