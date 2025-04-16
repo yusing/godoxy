@@ -560,7 +560,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 
 func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 	m := make(map[string]any)
-	if err := yaml.Unmarshal(data, m); err != nil {
+	if err := yaml.Unmarshal(data, &m); err != nil {
 		return gperr.Wrap(err)
 	}
 	return MapUnmarshalValidate(m, target)
@@ -568,7 +568,7 @@ func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 
 func UnmarshalValidateYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
-	if err = gperr.Wrap(yaml.Unmarshal(data, m)); err != nil {
+	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
 		return
 	}
 	m2 := make(map[string]V, len(m))
