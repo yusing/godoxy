@@ -50,7 +50,7 @@ func jsonHandler[T debuggable](getData iter.Seq2[string, T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gpwebsocket.DynamicJSONHandler(w, r, func() []map[string]any {
 			return toSortedSlice(getData)
-		}, 1*time.Second)
+		}, 200*time.Millisecond)
 	}
 }
 
