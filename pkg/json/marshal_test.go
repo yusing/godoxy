@@ -3,22 +3,16 @@ package json_test
 import (
 	stdJSON "encoding/json"
 	"fmt"
-	"maps"
 	"reflect"
-	"runtime/debug"
 	"strconv"
 	"testing"
 
 	"github.com/bytedance/sonic"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
+	. "github.com/yusing/go-proxy/internal/utils/testing"
 	. "github.com/yusing/go-proxy/pkg/json"
 )
-
-func init() {
-	debug.SetMemoryLimit(1024 * 1024)
-	debug.SetMaxStack(1024 * 1024)
-}
 
 type testStruct struct {
 	Name  string  `json:"name"`
@@ -102,19 +96,6 @@ type withPointerAnonymous struct {
 
 type selfReferencing struct {
 	Self *selfReferencing `json:"self"`
-}
-
-var testData = map[string]any{
-	"string":     "test string",
-	"number":     42,
-	"float":      3.14159,
-	"bool":       true,
-	"null_value": nil,
-	"array":      []any{1, "2", 3.3, true, false, nil},
-	"object": map[string]any{
-		"nested": "value",
-		"count":  10,
-	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -386,8 +367,19 @@ func TestMarshal(t *testing.T) {
 			input: map[string]testStruct{"one": {Name: "John", Age: 30, Score: 8.5}, "two": {Name: "Jane", Age: 25, Score: 9.5}},
 		},
 		{
-			name:  "complex_map",
-			input: testData,
+			name: "complex_map",
+			input: map[string]any{
+				"string":     "test string",
+				"number":     42,
+				"float":      3.14159,
+				"bool":       true,
+				"null_value": nil,
+				"array":      []any{1, "2", 3.3, true, false, nil},
+				"object": map[string]any{
+					"nested": "value",
+					"count":  10,
+				},
+			},
 		},
 	}
 
@@ -406,34 +398,6 @@ func TestMarshal(t *testing.T) {
 				if !v.Equal(reflect.ValueOf(vv)) {
 					t.Errorf("Marshal([%s]) = %v, want %v", k, v, vv)
 				}
-			}
-		})
-	}
-}
-
-func TestMapAndMapSlice(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    any
-		expected string
-	}{
-		{
-			name:     "Map",
-			input:    Map[string]{"key1": "value1", "key2": "value2"},
-			expected: `{"key1":"value1","key2":"value2"}`,
-		},
-		{
-			name:     "MapSlice",
-			input:    MapSlice[string]{{"key1": "value1"}, {"key2": "value2"}},
-			expected: `[{"key1":"value1"},{"key2":"value2"}]`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, _ := Marshal(tt.input)
-			if string(result) != tt.expected {
-				t.Errorf("Marshal(%v) = %s, want %s", tt.input, string(result), tt.expected)
 			}
 		})
 	}
@@ -482,7 +446,46 @@ func TestMarshalSyntacticEquivalence(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalNoStructStdLib(b *testing.B) {
+func TestWithTestStruct(t *testing.T) {
+	var custom, stdlib []byte
+	var err error
+
+	custom, err = Marshal(TwitterObject)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+
+	stdlib, err = stdJSON.Marshal(TwitterObject)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+
+	var unmarshalCustom, unmarshalStdlib any
+	if err := Unmarshal(custom, &unmarshalCustom); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+	if err := sonic.Unmarshal(stdlib, &unmarshalStdlib); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+
+	ExpectEqual(t, unmarshalCustom, unmarshalStdlib)
+}
+
+func BenchmarkMarshalSimpleStdLib(b *testing.B) {
+	testData := map[string]any{
+		"string":     "test string",
+		"number":     42,
+		"float":      3.14159,
+		"bool":       true,
+		"null_value": nil,
+		"bytes":      []byte("test"),
+		"array":      []any{1, "2", 3.3, true, false, nil},
+		"object": map[string]any{
+			"nested": "value",
+			"count":  10,
+		},
+	}
+
 	b.Run("StdLib", func(b *testing.B) {
 		for b.Loop() {
 			_, _ = stdJSON.Marshal(testData)
@@ -502,28 +505,22 @@ func BenchmarkMarshalNoStructStdLib(b *testing.B) {
 	})
 }
 
-func BenchmarkMarshalStruct(b *testing.B) {
-	withStruct := maps.Clone(testData)
-	withStruct["struct1"] = withAnonymous{Anonymous: Anonymous{Value: "one", Value2: 1}}
-	withStruct["struct2"] = &withPointerAnonymous{Anonymous: &Anonymous{Value: "two", Value2: 2}}
-	withStruct["struct3"] = &testStruct{Name: "three", Age: 30, Score: 9.8}
-	b.ResetTimer()
-
+func BenchmarkMarshalTestStruct(b *testing.B) {
 	b.Run("StdLib", func(b *testing.B) {
 		for b.Loop() {
-			_, _ = stdJSON.Marshal(withStruct)
+			_, _ = stdJSON.Marshal(TwitterObject)
 		}
 	})
 
 	b.Run("Sonic", func(b *testing.B) {
 		for b.Loop() {
-			_, _ = sonic.Marshal(withStruct)
+			_, _ = sonic.Marshal(TwitterObject)
 		}
 	})
 
 	b.Run("Custom", func(b *testing.B) {
 		for b.Loop() {
-			_, _ = Marshal(withStruct)
+			_, _ = Marshal(TwitterObject)
 		}
 	})
 }

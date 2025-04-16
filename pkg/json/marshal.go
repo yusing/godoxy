@@ -108,7 +108,7 @@ func appendUint(v reflect.Value, buf []byte) []byte {
 }
 
 func appendFloat(v reflect.Value, buf []byte) []byte {
-	return strconv.AppendFloat(buf, v.Float(), 'f', 2, 64)
+	return strconv.AppendFloat(buf, v.Float(), 'f', -1, 64)
 }
 
 func appendWithCustomMarshaler(v reflect.Value, buf []byte) (res []byte, ok bool) {
