@@ -20,7 +20,6 @@ var (
 	marshalFuncByKind map[reflect.Kind]marshalFunc
 
 	marshalFuncsByType = newCacheMap[reflect.Type, marshalFunc]()
-	flattenFieldsCache = newCacheMap[reflect.Type, []*field]()
 
 	nilValue = reflect.ValueOf(nil)
 )
@@ -44,6 +43,7 @@ func init() {
 		reflect.Map:       appendMap,
 		reflect.Slice:     appendArray,
 		reflect.Array:     appendArray,
+		reflect.Struct:    appendStruct,
 		reflect.Pointer:   appendPtrInterface,
 		reflect.Interface: appendPtrInterface,
 	}
@@ -69,22 +69,24 @@ func must(buf []byte, err error) []byte {
 	return buf
 }
 
+func appendMarshalAny(v any, buf []byte) []byte {
+	return appendMarshal(reflect.ValueOf(v), buf)
+}
+
 func appendMarshal(v reflect.Value, buf []byte) []byte {
 	if v == nilValue {
 		return append(buf, "null"...)
 	}
 	kind := v.Kind()
-	if kind == reflect.Struct {
-		if res, ok := appendWithCachedFunc(v, buf); ok {
-			return res
-		}
-		return appendStruct(v, buf)
-	}
 	marshalFunc, ok := marshalFuncByKind[kind]
 	if !ok {
 		panic(fmt.Errorf("unsupported type: %s", v.Type()))
 	}
 	return marshalFunc(v, buf)
+}
+
+func cacheMarshalFunc(t reflect.Type, marshalFunc marshalFunc) {
+	marshalFuncsByType.Store(t, marshalFunc)
 }
 
 func appendWithCachedFunc(v reflect.Value, buf []byte) (res []byte, ok bool) {
@@ -108,7 +110,7 @@ func appendUint(v reflect.Value, buf []byte) []byte {
 }
 
 func appendFloat(v reflect.Value, buf []byte) []byte {
-	return strconv.AppendFloat(buf, v.Float(), 'f', 2, 64)
+	return strconv.AppendFloat(buf, v.Float(), 'f', -1, 64)
 }
 
 func appendWithCustomMarshaler(v reflect.Value, buf []byte) (res []byte, ok bool) {
@@ -154,40 +156,6 @@ func appendKV(k reflect.Value, v reflect.Value, buf []byte) []byte {
 	return appendMarshal(v, buf)
 }
 
-func appendStruct(v reflect.Value, buf []byte) []byte {
-	if res, ok := appendWithCustomMarshaler(v, buf); ok {
-		return res
-	}
-	buf = append(buf, '{')
-	oldN := len(buf)
-	fields := flattenFields(v.Type())
-
-	for _, f := range fields {
-		cur := v.Field(f.index)
-		if f.omitEmpty && f.checkEmpty(cur) {
-			continue
-		}
-		if !f.hasInner {
-			buf = f.appendKV(cur, buf)
-			buf = append(buf, ',')
-		} else {
-			if f.isPtr {
-				cur = cur.Elem()
-			}
-			for _, inner := range f.inner {
-				buf = inner.appendKV(cur.Field(inner.index), buf)
-				buf = append(buf, ',')
-			}
-		}
-	}
-
-	n := len(buf)
-	if oldN != n {
-		buf = buf[:n-1]
-	}
-	return append(buf, '}')
-}
-
 func appendMap(v reflect.Value, buf []byte) []byte {
 	if v.Type().Key().Kind() != reflect.String {
 		panic(fmt.Errorf("map key must be string: %s", v.Type()))
@@ -228,10 +196,6 @@ func appendArray(v reflect.Value, buf []byte) []byte {
 		buf = buf[:n-1]
 	}
 	return append(buf, ']')
-}
-
-func cacheMarshalFunc(t reflect.Type, marshalFunc marshalFunc) {
-	marshalFuncsByType.Store(t, marshalFunc)
 }
 
 func appendPtrInterface(v reflect.Value, buf []byte) []byte {
