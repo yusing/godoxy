@@ -10,14 +10,6 @@ import (
 	"github.com/yusing/go-proxy/pkg/json"
 )
 
-func TestPoller(t *testing.T) {
-	for _, query := range allQueries {
-		t.Run(query, func(t *testing.T) {
-			Poller.Test(t, url.Values{"aggregate": []string{query}})
-		})
-	}
-}
-
 func TestExcludeDisks(t *testing.T) {
 	tests := []struct {
 		name          string

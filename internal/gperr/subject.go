@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/pkg/json"
-
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
 
