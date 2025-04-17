@@ -8,9 +8,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/stretchr/testify/require"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 	. "github.com/yusing/go-proxy/pkg/json"
 )
 
@@ -350,7 +349,7 @@ func TestMarshal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, _ := Marshal(tt.input)
-			require.Equal(t, tt.expected, string(result))
+			expect.Equal(t, string(result), tt.expected)
 		})
 	}
 
@@ -468,7 +467,7 @@ func TestWithTestStruct(t *testing.T) {
 		t.Fatalf("Unmarshal error: %v", err)
 	}
 
-	ExpectEqual(t, unmarshalCustom, unmarshalStdlib)
+	expect.Equal(t, unmarshalCustom, unmarshalStdlib)
 }
 
 func BenchmarkMarshalSimpleStdLib(b *testing.B) {

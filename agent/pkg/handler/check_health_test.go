@@ -10,10 +10,11 @@ import (
 
 	"github.com/yusing/go-proxy/pkg/json"
 
-	"github.com/stretchr/testify/require"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/handler"
 	"github.com/yusing/go-proxy/internal/watcher/health"
+
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestCheckHealthHTTP(t *testing.T) {
@@ -79,12 +80,12 @@ func TestCheckHealthHTTP(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, agent.APIEndpointBase+agent.EndpointHealth+"?"+query.Encode(), nil)
 			handler.CheckHealth(recorder, request)
 
-			require.Equal(t, recorder.Code, tt.expectedStatus)
+			expect.Equal(t, recorder.Code, tt.expectedStatus)
 
 			if tt.expectedStatus == http.StatusOK {
 				var result health.HealthCheckResult
-				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
-				require.Equal(t, result.Healthy, tt.expectedHealthy)
+				expect.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
+				expect.Equal(t, result.Healthy, tt.expectedHealthy)
 			}
 		})
 	}
@@ -124,32 +125,32 @@ func TestCheckHealthFileServer(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, agent.APIEndpointBase+agent.EndpointHealth+"?"+query.Encode(), nil)
 			handler.CheckHealth(recorder, request)
 
-			require.Equal(t, recorder.Code, tt.expectedStatus)
+			expect.Equal(t, recorder.Code, tt.expectedStatus)
 
 			var result health.HealthCheckResult
-			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
-			require.Equal(t, result.Healthy, tt.expectedHealthy)
-			require.Equal(t, result.Detail, tt.expectedDetail)
+			expect.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
+			expect.Equal(t, result.Healthy, tt.expectedHealthy)
+			expect.Equal(t, result.Detail, tt.expectedDetail)
 		})
 	}
 }
 
 func TestCheckHealthTCPUDP(t *testing.T) {
 	tcp, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
+	expect.NoError(t, err)
 	go func() {
 		conn, err := tcp.Accept()
-		require.NoError(t, err)
+		expect.NoError(t, err)
 		conn.Close()
 	}()
 
 	udp, err := net.ListenPacket("udp", "localhost:0")
-	require.NoError(t, err)
+	expect.NoError(t, err)
 	go func() {
 		buf := make([]byte, 1024)
 		n, addr, err := udp.ReadFrom(buf)
-		require.NoError(t, err)
-		require.Equal(t, string(buf[:n]), "ping")
+		expect.NoError(t, err)
+		expect.Equal(t, string(buf[:n]), "ping")
 		_, _ = udp.WriteTo([]byte("pong"), addr)
 		udp.Close()
 	}()
@@ -207,11 +208,11 @@ func TestCheckHealthTCPUDP(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, agent.APIEndpointBase+agent.EndpointHealth+"?"+query.Encode(), nil)
 			handler.CheckHealth(recorder, request)
 
-			require.Equal(t, recorder.Code, tt.expectedStatus)
+			expect.Equal(t, recorder.Code, tt.expectedStatus)
 
 			var result health.HealthCheckResult
-			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
-			require.Equal(t, result.Healthy, tt.expectedHealthy)
+			expect.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
+			expect.Equal(t, result.Healthy, tt.expectedHealthy)
 		})
 	}
 }

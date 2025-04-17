@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 type testPriority struct {
@@ -28,10 +28,10 @@ func TestMiddlewarePriority(t *testing.T) {
 			"priority": p,
 			"value":    i,
 		})
-		ExpectNoError(t, err)
+		expect.NoError(t, err)
 		chain[i] = mid
 	}
 	res, err := newMiddlewaresTest(chain, nil)
-	ExpectNoError(t, err)
-	ExpectEqual(t, strings.Join(res.ResponseHeaders["Test-Value"], ","), "3,0,1,2")
+	expect.NoError(t, err)
+	expect.Equal(t, strings.Join(res.ResponseHeaders["Test-Value"], ","), "3,0,1,2")
 }

@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestContainerExplicit(t *testing.T) {
@@ -37,7 +38,7 @@ func TestContainerExplicit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, "")
-			ExpectEqual(t, c.IsExplicit, tt.isExplicit)
+			expect.Equal(t, c.IsExplicit, tt.isExplicit)
 		})
 	}
 }

@@ -3,7 +3,7 @@ package rules
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParseCommands(t *testing.T) {
@@ -126,9 +126,9 @@ func TestParseCommands(t *testing.T) {
 			cmd := Command{}
 			err := cmd.Parse(tt.input)
 			if tt.wantErr != nil {
-				ExpectError(t, tt.wantErr, err)
+				expect.ErrorIs(t, tt.wantErr, err)
 			} else {
-				ExpectNoError(t, err)
+				expect.NoError(t, err)
 			}
 		})
 	}

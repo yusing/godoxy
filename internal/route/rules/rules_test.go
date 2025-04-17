@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParseRule(t *testing.T) {
@@ -29,18 +29,18 @@ func TestParseRule(t *testing.T) {
 		Rules Rules
 	}
 	err := utils.MapUnmarshalValidate(utils.SerializedObject{"rules": test}, &rules)
-	ExpectNoError(t, err)
-	ExpectEqual(t, len(rules.Rules), len(test))
-	ExpectEqual(t, rules.Rules[0].Name, "test")
-	ExpectEqual(t, rules.Rules[0].On.String(), "method POST")
-	ExpectEqual(t, rules.Rules[0].Do.String(), "error 403 Forbidden")
+	expect.NoError(t, err)
+	expect.Equal(t, len(rules.Rules), len(test))
+	expect.Equal(t, rules.Rules[0].Name, "test")
+	expect.Equal(t, rules.Rules[0].On.String(), "method POST")
+	expect.Equal(t, rules.Rules[0].Do.String(), "error 403 Forbidden")
 
-	ExpectEqual(t, rules.Rules[1].Name, "auth")
-	ExpectEqual(t, rules.Rules[1].On.String(), `basic_auth "username" "password" | basic_auth username2 "password2" | basic_auth "username3" "password3"`)
-	ExpectEqual(t, rules.Rules[1].Do.String(), "bypass")
+	expect.Equal(t, rules.Rules[1].Name, "auth")
+	expect.Equal(t, rules.Rules[1].On.String(), `basic_auth "username" "password" | basic_auth username2 "password2" | basic_auth "username3" "password3"`)
+	expect.Equal(t, rules.Rules[1].Do.String(), "bypass")
 
-	ExpectEqual(t, rules.Rules[2].Name, "default")
-	ExpectEqual(t, rules.Rules[2].Do.String(), "require_basic_auth any_realm")
+	expect.Equal(t, rules.Rules[2].Name, "default")
+	expect.Equal(t, rules.Rules[2].Do.String(), "require_basic_auth any_realm")
 }
 
 // TODO: real tests.

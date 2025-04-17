@@ -3,10 +3,10 @@ package provider
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/docker"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 
 	_ "embed"
 )
@@ -18,19 +18,19 @@ func TestParseDockerLabels(t *testing.T) {
 	var provider DockerProvider
 
 	labels := make(map[string]string)
-	ExpectNoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
+	expect.NoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
 
 	routes, err := provider.routesFromContainerLabels(
-		docker.FromDocker(&types.Container{
+		docker.FromDocker(&container.Summary{
 			Names:  []string{"container"},
 			Labels: labels,
 			State:  "running",
-			Ports: []types.Port{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 1234, PublicPort: 1234},
 			},
 		}, "/var/run/docker.sock"),
 	)
-	ExpectNoError(t, err)
-	ExpectTrue(t, routes.Contains("app"))
-	ExpectTrue(t, routes.Contains("app1"))
+	expect.NoError(t, err)
+	expect.True(t, routes.Contains("app"))
+	expect.True(t, routes.Contains("app1"))
 }

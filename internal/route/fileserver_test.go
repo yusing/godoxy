@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestPathTraversalAttack(t *testing.T) {
@@ -108,7 +108,7 @@ func TestPathTraversalAttack(t *testing.T) {
 				t.Errorf("Expected status 404 or 400, got %d in url %s", resp.StatusCode, u.String())
 			}
 
-			u = Must(url.Parse(ts.URL + "/" + p))
+			u = expect.Must(url.Parse(ts.URL + "/" + p))
 			resp, err = http.DefaultClient.Do(&http.Request{
 				Method: http.MethodGet,
 				URL:    u,

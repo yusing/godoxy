@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -120,9 +120,9 @@ func TestParseOn(t *testing.T) {
 			on := &RuleOn{}
 			err := on.Parse(tt.input)
 			if tt.wantErr != nil {
-				ExpectError(t, tt.wantErr, err)
+				expect.ErrorIs(t, tt.wantErr, err)
 			} else {
-				ExpectNoError(t, err)
+				expect.NoError(t, err)
 			}
 		})
 	}
@@ -212,7 +212,7 @@ func TestOnCorrectness(t *testing.T) {
 		},
 		{
 			name:    "basic_auth_correct",
-			checker: "basic_auth user " + string(Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
+			checker: "basic_auth user " + string(expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
 			input: &http.Request{
 				Header: http.Header{
 					"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte("user:password"))}, // "user:password"
@@ -222,7 +222,7 @@ func TestOnCorrectness(t *testing.T) {
 		},
 		{
 			name:    "basic_auth_incorrect",
-			checker: "basic_auth user " + string(Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
+			checker: "basic_auth user " + string(expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
 			input: &http.Request{
 				Header: http.Header{
 					"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte("user:incorrect"))}, // "user:wrong"
@@ -269,7 +269,7 @@ func TestOnCorrectness(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			on, err := parseOn(tt.checker)
-			ExpectNoError(t, err)
+			expect.NoError(t, err)
 			got := on.Check(Cache{}, tt.input)
 			if tt.want != got {
 				t.Errorf("want %v, got %v", tt.want, got)

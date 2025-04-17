@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParseRetention(t *testing.T) {
@@ -24,9 +24,9 @@ func TestParseRetention(t *testing.T) {
 			r := &Retention{}
 			err := r.Parse(test.input)
 			if !test.shouldErr {
-				ExpectNoError(t, err)
+				expect.NoError(t, err)
 			} else {
-				ExpectEqual(t, r, test.expected)
+				expect.Equal(t, r, test.expected)
 			}
 		})
 	}

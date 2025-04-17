@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/utils/strutils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 var alphaNumeric = func() string {
@@ -31,8 +31,8 @@ func TestSplit(t *testing.T) {
 	for sep, rsep := range tests {
 		t.Run(sep, func(t *testing.T) {
 			expected := strings.Split(alphaNumeric, sep)
-			ExpectEqual(t, SplitRune(alphaNumeric, rsep), expected)
-			ExpectEqual(t, JoinRune(expected, rsep), alphaNumeric)
+			expect.Equal(t, SplitRune(alphaNumeric, rsep), expected)
+			expect.Equal(t, JoinRune(expected, rsep), alphaNumeric)
 		})
 	}
 }

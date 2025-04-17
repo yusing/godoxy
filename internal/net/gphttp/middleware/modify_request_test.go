@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestModifyRequest(t *testing.T) {
@@ -44,15 +44,15 @@ func TestModifyRequest(t *testing.T) {
 
 	t.Run("set_options", func(t *testing.T) {
 		mr, err := ModifyRequest.New(opts)
-		ExpectNoError(t, err)
-		ExpectEqual(t, mr.impl.(*modifyRequest).SetHeaders, opts["set_headers"].(map[string]string))
-		ExpectEqual(t, mr.impl.(*modifyRequest).AddHeaders, opts["add_headers"].(map[string]string))
-		ExpectEqual(t, mr.impl.(*modifyRequest).HideHeaders, opts["hide_headers"].([]string))
+		expect.NoError(t, err)
+		expect.Equal(t, mr.impl.(*modifyRequest).SetHeaders, opts["set_headers"].(map[string]string))
+		expect.Equal(t, mr.impl.(*modifyRequest).AddHeaders, opts["add_headers"].(map[string]string))
+		expect.Equal(t, mr.impl.(*modifyRequest).HideHeaders, opts["hide_headers"].([]string))
 	})
 
 	t.Run("request_headers", func(t *testing.T) {
-		reqURL := Must(url.Parse("https://my.app/?arg_1=b"))
-		upstreamURL := Must(url.Parse("http://test.example.com"))
+		reqURL := expect.Must(url.Parse("https://my.app/?arg_1=b"))
+		upstreamURL := expect.Must(url.Parse("http://test.example.com"))
 		result, err := newMiddlewareTest(ModifyRequest, &testArgs{
 			middlewareOpt: opts,
 			reqURL:        reqURL,
@@ -62,38 +62,38 @@ func TestModifyRequest(t *testing.T) {
 				"Content-Type": []string{"application/json"},
 			},
 		})
-		ExpectNoError(t, err)
-		ExpectEqual(t, result.RequestHeaders.Get("User-Agent"), "go-proxy/v0.5.0")
-		ExpectEqual(t, result.RequestHeaders.Get("Host"), "test.example.com")
-		ExpectTrue(t, slices.Contains(result.RequestHeaders.Values("Accept-Encoding"), "test-value"))
-		ExpectEqual(t, result.RequestHeaders.Get("Accept"), "")
+		expect.NoError(t, err)
+		expect.Equal(t, result.RequestHeaders.Get("User-Agent"), "go-proxy/v0.5.0")
+		expect.Equal(t, result.RequestHeaders.Get("Host"), "test.example.com")
+		expect.True(t, slices.Contains(result.RequestHeaders.Values("Accept-Encoding"), "test-value"))
+		expect.Equal(t, result.RequestHeaders.Get("Accept"), "")
 
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Method"), "GET")
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Scheme"), reqURL.Scheme)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Host"), reqURL.Hostname())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Port"), reqURL.Port())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Addr"), reqURL.Host)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Path"), reqURL.Path)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Query"), reqURL.RawQuery)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Url"), reqURL.String())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Uri"), reqURL.RequestURI())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Content-Type"), "application/json")
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Content-Length"), "100")
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Method"), "GET")
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Scheme"), reqURL.Scheme)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Host"), reqURL.Hostname())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Port"), reqURL.Port())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Addr"), reqURL.Host)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Path"), reqURL.Path)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Query"), reqURL.RawQuery)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Url"), reqURL.String())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Uri"), reqURL.RequestURI())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Content-Type"), "application/json")
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Content-Length"), "100")
 
 		remoteHost, remotePort, _ := net.SplitHostPort(result.RemoteAddr)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Remote-Host"), remoteHost)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Remote-Port"), remotePort)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Remote-Addr"), result.RemoteAddr)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Remote-Host"), remoteHost)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Remote-Port"), remotePort)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Remote-Addr"), result.RemoteAddr)
 
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Upstream-Scheme"), upstreamURL.Scheme)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Upstream-Host"), upstreamURL.Hostname())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Upstream-Port"), upstreamURL.Port())
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Upstream-Addr"), upstreamURL.Host)
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Upstream-Url"), upstreamURL.String())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Upstream-Scheme"), upstreamURL.Scheme)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Upstream-Host"), upstreamURL.Hostname())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Upstream-Port"), upstreamURL.Port())
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Upstream-Addr"), upstreamURL.Host)
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Upstream-Url"), upstreamURL.String())
 
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Header-Content-Type"), "application/json")
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Header-Content-Type"), "application/json")
 
-		ExpectEqual(t, result.RequestHeaders.Get("X-Test-Arg-Arg_1"), "b")
+		expect.Equal(t, result.RequestHeaders.Get("X-Test-Arg-Arg_1"), "b")
 	})
 
 	t.Run("add_prefix", func(t *testing.T) {
@@ -128,8 +128,8 @@ func TestModifyRequest(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				reqURL := Must(url.Parse("https://my.app" + tt.path))
-				upstreamURL := Must(url.Parse(tt.upstreamURL))
+				reqURL := expect.Must(url.Parse("https://my.app" + tt.path))
+				upstreamURL := expect.Must(url.Parse(tt.upstreamURL))
 
 				opts["add_prefix"] = tt.addPrefix
 				result, err := newMiddlewareTest(ModifyRequest, &testArgs{
@@ -137,8 +137,8 @@ func TestModifyRequest(t *testing.T) {
 					reqURL:        reqURL,
 					upstreamURL:   upstreamURL,
 				})
-				ExpectNoError(t, err)
-				ExpectEqual(t, result.RequestHeaders.Get("X-Test-Req-Path"), tt.expectedPath)
+				expect.NoError(t, err)
+				expect.Equal(t, result.RequestHeaders.Get("X-Test-Req-Path"), tt.expectedPath)
 			})
 		}
 	})

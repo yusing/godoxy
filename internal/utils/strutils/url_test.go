@@ -3,7 +3,7 @@ package strutils
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestSanitizeURI(t *testing.T) {
@@ -57,7 +57,7 @@ func TestSanitizeURI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeURI(tt.input)
-			require.Equal(t, tt.expected, result)
+			expect.Equal(t, result, tt.expected)
 		})
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/yusing/go-proxy/pkg/json"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 //go:embed test_data/middleware_compose.yml
@@ -16,7 +16,7 @@ var testMiddlewareCompose []byte
 func TestBuild(t *testing.T) {
 	errs := gperr.NewBuilder("")
 	middlewares := BuildMiddlewaresFromYAML("", testMiddlewareCompose, errs)
-	ExpectNoError(t, errs.Error())
+	expect.NoError(t, errs.Error())
 	json.Marshal(middlewares)
 	// t.Log(string(data))
 	// TODO: test

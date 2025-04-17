@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"github.com/shirou/gopsutil/v4/sensors"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"github.com/yusing/go-proxy/pkg/json"
+
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestExcludeDisks(t *testing.T) {
@@ -72,7 +73,7 @@ func TestExcludeDisks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := shouldExcludeDisk(tt.name)
-			ExpectEqual(t, result, tt.shouldExclude)
+			expect.Equal(t, result, tt.shouldExclude)
 		})
 	}
 }
@@ -147,21 +148,21 @@ var testInfo = &SystemInfo{
 func TestSystemInfo(t *testing.T) {
 	// Test marshaling
 	data, err := json.Marshal(testInfo)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	// Test unmarshaling back
 	var decoded SystemInfo
 	err = json.Unmarshal(data, &decoded)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	// Compare original and decoded
-	ExpectEqual(t, decoded.Timestamp, testInfo.Timestamp)
-	ExpectEqual(t, *decoded.CPUAverage, *testInfo.CPUAverage)
-	ExpectEqual(t, decoded.Memory, testInfo.Memory)
-	ExpectEqual(t, decoded.Disks, testInfo.Disks)
-	ExpectEqual(t, decoded.DisksIO, testInfo.DisksIO)
-	ExpectEqual(t, decoded.Network, testInfo.Network)
-	ExpectEqual(t, decoded.Sensors, testInfo.Sensors)
+	expect.Equal(t, decoded.Timestamp, testInfo.Timestamp)
+	expect.Equal(t, *decoded.CPUAverage, *testInfo.CPUAverage)
+	expect.Equal(t, decoded.Memory, testInfo.Memory)
+	expect.Equal(t, decoded.Disks, testInfo.Disks)
+	expect.Equal(t, decoded.DisksIO, testInfo.DisksIO)
+	expect.Equal(t, decoded.Network, testInfo.Network)
+	expect.Equal(t, decoded.Sensors, testInfo.Sensors)
 
 	// Test nil fields
 	nilInfo := &SystemInfo{
@@ -169,18 +170,18 @@ func TestSystemInfo(t *testing.T) {
 	}
 
 	data, err = json.Marshal(nilInfo)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	var decodedNil SystemInfo
 	err = json.Unmarshal(data, &decodedNil)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
-	ExpectEqual(t, decodedNil.Timestamp, nilInfo.Timestamp)
-	ExpectTrue(t, decodedNil.CPUAverage == nil)
-	ExpectTrue(t, decodedNil.Memory == nil)
-	ExpectTrue(t, decodedNil.Disks == nil)
-	ExpectTrue(t, decodedNil.Network == nil)
-	ExpectTrue(t, decodedNil.Sensors == nil)
+	expect.Equal(t, decodedNil.Timestamp, nilInfo.Timestamp)
+	expect.True(t, decodedNil.CPUAverage == nil)
+	expect.True(t, decodedNil.Memory == nil)
+	expect.True(t, decodedNil.Disks == nil)
+	expect.True(t, decodedNil.Network == nil)
+	expect.True(t, decodedNil.Sensors == nil)
 }
 
 func TestSerialize(t *testing.T) {
@@ -193,13 +194,13 @@ func TestSerialize(t *testing.T) {
 			_, result := aggregate(entries, url.Values{"aggregate": []string{query}})
 			s := result.MarshalJSONTo(nil)
 			var v []map[string]any
-			ExpectNoError(t, json.Unmarshal(s, &v))
-			ExpectEqual(t, len(v), len(result))
+			expect.NoError(t, json.Unmarshal(s, &v))
+			expect.Equal(t, len(v), len(result))
 			for i, m := range v {
 				for k, v := range m {
 					// some int64 values are converted to float64 on json.Unmarshal
 					vv := reflect.ValueOf(result[i][k])
-					ExpectEqual(t, reflect.ValueOf(v).Convert(vv.Type()).Interface(), vv.Interface())
+					expect.Equal(t, reflect.ValueOf(v).Convert(vv.Type()).Interface(), vv.Interface())
 				}
 			}
 		})

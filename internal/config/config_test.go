@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
-	"github.com/stretchr/testify/assert"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/route/provider"
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestFileProviderValidate(t *testing.T) {
@@ -57,10 +56,10 @@ func TestFileProviderValidate(t *testing.T) {
 			if tt.init != nil {
 				for _, filename := range tt.filenames {
 					filepath := path.Join(common.ConfigDir, filename)
-					assert.NoError(t, tt.init(filepath))
+					expect.NoError(t, tt.init(filepath))
 				}
 			}
-			err := utils.UnmarshalValidateYAML(Must(yaml.Marshal(map[string]any{
+			err := utils.UnmarshalValidateYAML(expect.Must(yaml.Marshal(map[string]any{
 				"providers": map[string]any{
 					"include": tt.filenames,
 				},
@@ -68,13 +67,13 @@ func TestFileProviderValidate(t *testing.T) {
 			if tt.cleanup != nil {
 				for _, filename := range tt.filenames {
 					filepath := path.Join(common.ConfigDir, filename)
-					assert.NoError(t, tt.cleanup(filepath))
+					expect.NoError(t, tt.cleanup(filepath))
 				}
 			}
 			if tt.expectedErrorContains != "" {
-				assert.ErrorContains(t, err, tt.expectedErrorContains)
+				expect.ErrorContains(t, err, tt.expectedErrorContains)
 			} else {
-				assert.NoError(t, err)
+				expect.NoError(t, err)
 			}
 		})
 	}
@@ -129,9 +128,9 @@ func TestLoadRouteProviders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := utils.Validate(tt.providers)
 			if tt.expectedError {
-				assert.ErrorContains(t, err, "unique")
+				expect.ErrorContains(t, err, "unique")
 			} else {
-				assert.NoError(t, err)
+				expect.NoError(t, err)
 			}
 		})
 	}
@@ -142,9 +141,9 @@ func TestProviderNameUniqueness(t *testing.T) {
 	docker := provider.NewDockerProvider("routes", "unix:///var/run/docker.sock")
 	agent := provider.NewAgentProvider(agent.TestAgentConfig("routes", "192.168.1.100:8080"))
 
-	assert.True(t, file.String() != docker.String())
-	assert.True(t, file.String() != agent.String())
-	assert.True(t, docker.String() != agent.String())
+	expect.NotEqual(t, file.String(), docker.String())
+	expect.NotEqual(t, file.String(), agent.String())
+	expect.NotEqual(t, docker.String(), agent.String())
 }
 
 func TestFileProviderNameFromFilename(t *testing.T) {
@@ -160,7 +159,7 @@ func TestFileProviderNameFromFilename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.filename, func(t *testing.T) {
 			p := provider.NewFileProvider(tt.filename)
-			assert.Equal(t, tt.expectedName, p.ShortName())
+			expect.Equal(t, tt.expectedName, p.ShortName())
 		})
 	}
 }
@@ -179,7 +178,7 @@ func TestDockerProviderString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := provider.NewDockerProvider(tt.name, tt.dockerHost)
-			assert.Equal(t, tt.expected, p.String())
+			expect.Equal(t, tt.expected, p.String())
 		})
 	}
 }
@@ -196,7 +195,7 @@ func TestExplicitOnlyProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := provider.NewDockerProvider(tt.name, "unix:///var/run/docker.sock")
-			assert.Equal(t, tt.expectedFlag, p.IsExplicitOnly())
+			expect.Equal(t, tt.expectedFlag, p.IsExplicitOnly())
 		})
 	}
 }

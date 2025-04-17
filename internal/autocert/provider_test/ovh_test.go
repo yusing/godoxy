@@ -6,7 +6,8 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 // type Config struct {
@@ -44,7 +45,7 @@ oauth2_config:
 	}
 	testYaml = testYaml[1:] // remove first \n
 	opt := make(map[string]any)
-	ExpectNoError(t, yaml.Unmarshal([]byte(testYaml), &opt))
-	ExpectNoError(t, utils.MapUnmarshalValidate(opt, cfg))
-	ExpectEqual(t, cfg, cfgExpected)
+	expect.NoError(t, yaml.Unmarshal([]byte(testYaml), &opt))
+	expect.NoError(t, utils.MapUnmarshalValidate(opt, cfg))
+	expect.Equal(t, cfg, cfgExpected)
 }

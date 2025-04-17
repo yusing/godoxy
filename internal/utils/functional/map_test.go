@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/utils/functional"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestNewMapFrom(t *testing.T) {
@@ -13,8 +13,8 @@ func TestNewMapFrom(t *testing.T) {
 		"b": 2,
 		"c": 3,
 	})
-	ExpectEqual(t, m.Size(), 3)
-	ExpectTrue(t, m.Has("a"))
-	ExpectTrue(t, m.Has("b"))
-	ExpectTrue(t, m.Has("c"))
+	expect.Equal(t, m.Size(), 3)
+	expect.True(t, m.Has("a"))
+	expect.True(t, m.Has("b"))
+	expect.True(t, m.Has("c"))
 }

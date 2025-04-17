@@ -8,7 +8,7 @@ import (
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParseLogTime(t *testing.T) {
@@ -26,7 +26,7 @@ func TestParseLogTime(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test, func(t *testing.T) {
 			actual := ParseLogTime([]byte(test))
-			ExpectTrue(t, actual.Equal(testTime))
+			expect.True(t, actual.Equal(testTime))
 		})
 	}
 }
@@ -43,16 +43,16 @@ func TestRetentionCommonFormat(t *testing.T) {
 	logger.Flush()
 	// test.Finish(nil)
 
-	ExpectEqual(t, logger.Config().Retention, nil)
-	ExpectTrue(t, file.Len() > 0)
-	ExpectEqual(t, file.LineCount(), 10)
+	expect.Equal(t, logger.Config().Retention, nil)
+	expect.True(t, file.Len() > 0)
+	expect.Equal(t, file.LineCount(), 10)
 
 	t.Run("keep last", func(t *testing.T) {
 		logger.Config().Retention = strutils.MustParse[*Retention]("last 5")
-		ExpectEqual(t, logger.Config().Retention.Days, 0)
-		ExpectEqual(t, logger.Config().Retention.Last, 5)
-		ExpectNoError(t, logger.Rotate())
-		ExpectEqual(t, file.LineCount(), 5)
+		expect.Equal(t, logger.Config().Retention.Days, 0)
+		expect.Equal(t, logger.Config().Retention.Last, 5)
+		expect.NoError(t, logger.Rotate())
+		expect.Equal(t, file.LineCount(), 5)
 	})
 
 	_ = file.Truncate(0)
@@ -65,14 +65,14 @@ func TestRetentionCommonFormat(t *testing.T) {
 		logger.Log(req, resp)
 	}
 	logger.Flush()
-	ExpectEqual(t, file.LineCount(), 10)
+	expect.Equal(t, file.LineCount(), 10)
 
 	t.Run("keep days", func(t *testing.T) {
 		logger.Config().Retention = strutils.MustParse[*Retention]("3 days")
-		ExpectEqual(t, logger.Config().Retention.Days, 3)
-		ExpectEqual(t, logger.Config().Retention.Last, 0)
-		ExpectNoError(t, logger.Rotate())
-		ExpectEqual(t, file.LineCount(), 3)
+		expect.Equal(t, logger.Config().Retention.Days, 3)
+		expect.Equal(t, logger.Config().Retention.Last, 0)
+		expect.NoError(t, logger.Rotate())
+		expect.Equal(t, file.LineCount(), 3)
 		rotated := string(file.Content())
 		_ = file.Truncate(0)
 		for i := range 3 {
@@ -81,6 +81,6 @@ func TestRetentionCommonFormat(t *testing.T) {
 			}
 			logger.Log(req, resp)
 		}
-		ExpectEqual(t, rotated, string(file.Content()))
+		expect.Equal(t, rotated, string(file.Content()))
 	})
 }

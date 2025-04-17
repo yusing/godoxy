@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParser(t *testing.T) {
@@ -68,15 +68,15 @@ func TestParser(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			subject, args, err := parse(tt.input)
 			if tt.wantErr != nil {
-				ExpectError(t, tt.wantErr, err)
+				expect.ErrorIs(t, tt.wantErr, err)
 				return
 			}
 			// t.Log(subject, args, err)
-			ExpectNoError(t, err)
-			ExpectEqual(t, subject, tt.subject)
-			ExpectEqual(t, len(args), len(tt.args))
+			expect.NoError(t, err)
+			expect.Equal(t, subject, tt.subject)
+			expect.Equal(t, len(args), len(tt.args))
 			for i, arg := range args {
-				ExpectEqual(t, arg, tt.args[i])
+				expect.Equal(t, arg, tt.args[i])
 			}
 		})
 	}
@@ -89,7 +89,7 @@ func TestParser(t *testing.T) {
 		for i, test := range tests {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				_, _, err := parse(test)
-				ExpectError(t, ErrUnterminatedQuotes, err)
+				expect.ErrorIs(t, ErrUnterminatedQuotes, err)
 			})
 		}
 	})

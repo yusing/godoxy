@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestWrapMultiline(t *testing.T) {
@@ -25,5 +25,5 @@ func TestPrependSubjectMultiline(t *testing.T) {
 
 	builder := NewBuilder()
 	builder.Add(multiline)
-	require.Equal(t, len(builder.errs), len(multiline.Extras), builder.errs)
+	expect.Equal(t, len(multiline.Extras), len(builder.errs))
 }

@@ -2,18 +2,17 @@ package gperr_test
 
 import (
 	"context"
-	"errors"
 	"io"
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/gperr"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestBuilderEmpty(t *testing.T) {
 	eb := NewBuilder("foo")
-	ExpectTrue(t, errors.Is(eb.Error(), nil))
-	ExpectFalse(t, eb.HasError())
+	expect.NoError(t, eb.Error())
+	expect.False(t, eb.HasError())
 }
 
 func TestBuilderAddNil(t *testing.T) {
@@ -26,17 +25,17 @@ func TestBuilderAddNil(t *testing.T) {
 		eb.Add(err)
 	}
 	eb.AddRange(nil, nil, err)
-	ExpectFalse(t, eb.HasError())
-	ExpectTrue(t, eb.Error() == nil)
+	expect.False(t, eb.HasError())
+	expect.NoError(t, eb.Error())
 }
 
 func TestBuilderIs(t *testing.T) {
 	eb := NewBuilder("foo")
 	eb.Add(context.Canceled)
 	eb.Add(io.ErrShortBuffer)
-	ExpectTrue(t, eb.HasError())
-	ExpectError(t, io.ErrShortBuffer, eb.Error())
-	ExpectError(t, context.Canceled, eb.Error())
+	expect.True(t, eb.HasError())
+	expect.ErrorIs(t, io.ErrShortBuffer, eb.Error())
+	expect.ErrorIs(t, context.Canceled, eb.Error())
 }
 
 func TestBuilderNested(t *testing.T) {
@@ -51,5 +50,5 @@ func TestBuilderNested(t *testing.T) {
     • Inner: 2
   • Action 2
     • Inner: 3`
-	ExpectEqual(t, got, expected)
+	expect.Equal(t, got, expected)
 }

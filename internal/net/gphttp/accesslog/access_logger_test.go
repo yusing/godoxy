@@ -12,7 +12,7 @@ import (
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 
 var (
 	testTask = task.RootTask("test", false)
-	testURL  = Must(url.Parse("http://" + host + uri))
+	testURL  = expect.Must(url.Parse("http://" + host + uri))
 	req      = &http.Request{
 		RemoteAddr: remote,
 		Method:     method,
@@ -69,7 +69,7 @@ func TestAccessLoggerCommon(t *testing.T) {
 	config := DefaultConfig()
 	config.Format = FormatCommon
 	ts, log := fmtLog(config)
-	ExpectEqual(t, log,
+	expect.Equal(t, log,
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
 			host, remote, ts, method, uri, proto, status, contentLength,
 		),
@@ -80,7 +80,7 @@ func TestAccessLoggerCombined(t *testing.T) {
 	config := DefaultConfig()
 	config.Format = FormatCombined
 	ts, log := fmtLog(config)
-	ExpectEqual(t, log,
+	expect.Equal(t, log,
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"",
 			host, remote, ts, method, uri, proto, status, contentLength, referer, ua,
 		),
@@ -92,7 +92,7 @@ func TestAccessLoggerRedactQuery(t *testing.T) {
 	config.Format = FormatCommon
 	config.Fields.Query.Default = FieldModeRedact
 	ts, log := fmtLog(config)
-	ExpectEqual(t, log,
+	expect.Equal(t, log,
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
 			host, remote, ts, method, uriRedacted, proto, status, contentLength,
 		),
@@ -124,27 +124,27 @@ func getJSONEntry(t *testing.T, config *Config) JSONLogEntry {
 	var entry JSONLogEntry
 	_, log := fmtLog(config)
 	err := json.Unmarshal([]byte(log), &entry)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	return entry
 }
 
 func TestAccessLoggerJSON(t *testing.T) {
 	config := DefaultConfig()
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, entry.IP, remote)
-	ExpectEqual(t, entry.Method, method)
-	ExpectEqual(t, entry.Scheme, "http")
-	ExpectEqual(t, entry.Host, testURL.Host)
-	ExpectEqual(t, entry.URI, testURL.RequestURI())
-	ExpectEqual(t, entry.Protocol, proto)
-	ExpectEqual(t, entry.Status, status)
-	ExpectEqual(t, entry.ContentType, "text/plain")
-	ExpectEqual(t, entry.Size, contentLength)
-	ExpectEqual(t, entry.Referer, referer)
-	ExpectEqual(t, entry.UserAgent, ua)
-	ExpectEqual(t, len(entry.Headers), 0)
-	ExpectEqual(t, len(entry.Cookies), 0)
+	expect.Equal(t, entry.IP, remote)
+	expect.Equal(t, entry.Method, method)
+	expect.Equal(t, entry.Scheme, "http")
+	expect.Equal(t, entry.Host, testURL.Host)
+	expect.Equal(t, entry.URI, testURL.RequestURI())
+	expect.Equal(t, entry.Protocol, proto)
+	expect.Equal(t, entry.Status, status)
+	expect.Equal(t, entry.ContentType, "text/plain")
+	expect.Equal(t, entry.Size, contentLength)
+	expect.Equal(t, entry.Referer, referer)
+	expect.Equal(t, entry.UserAgent, ua)
+	expect.Equal(t, len(entry.Headers), 0)
+	expect.Equal(t, len(entry.Cookies), 0)
 	if status >= 400 {
-		ExpectEqual(t, entry.Error, http.StatusText(status))
+		expect.Equal(t, entry.Error, http.StatusText(status))
 	}
 }

@@ -33,3 +33,12 @@ func (a *Value[T]) Swap(v T) T {
 func (a *Value[T]) MarshalJSONTo(buf []byte) []byte {
 	return json.MarshalTo(a.Load(), buf)
 }
+
+func (a *Value[T]) UnmarshalJSON(data []byte) error {
+	var v T
+	err := json.Unmarshal(data, &v)
+	if err == nil {
+		a.Store(v)
+	}
+	return err
+}

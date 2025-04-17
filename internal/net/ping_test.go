@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestPing(t *testing.T) {
@@ -17,7 +17,7 @@ func TestPing(t *testing.T) {
 		if errors.Is(err, os.ErrPermission) {
 			t.Skip("permission denied")
 		}
-		require.NoError(t, err)
-		require.True(t, ok)
+		expect.NoError(t, err)
+		expect.True(t, ok)
 	})
 }

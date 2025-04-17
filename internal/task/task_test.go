@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func testTask() *Task {
@@ -35,7 +35,7 @@ func TestChildTaskCancellation(t *testing.T) {
 
 	select {
 	case <-child.Context().Done():
-		ExpectError(t, context.Canceled, child.Context().Err())
+		expect.ErrorIs(t, context.Canceled, child.Context().Err())
 	default:
 		t.Fatal("subTask context was not canceled as expected")
 	}
@@ -55,10 +55,10 @@ func TestTaskOnCancelOnFinished(t *testing.T) {
 		shouldTrueOnFinish = true
 	})
 
-	ExpectFalse(t, shouldTrueOnFinish)
+	expect.False(t, shouldTrueOnFinish)
 	task.Finish(nil)
-	ExpectTrue(t, shouldTrueOnCancel)
-	ExpectTrue(t, shouldTrueOnFinish)
+	expect.True(t, shouldTrueOnCancel)
+	expect.True(t, shouldTrueOnFinish)
 }
 
 func TestCommonFlowWithGracefulShutdown(t *testing.T) {
@@ -83,19 +83,19 @@ func TestCommonFlowWithGracefulShutdown(t *testing.T) {
 		}
 	}()
 
-	ExpectNoError(t, GracefulShutdown(1*time.Second))
-	ExpectTrue(t, finished)
+	expect.NoError(t, GracefulShutdown(1*time.Second))
+	expect.True(t, finished)
 
 	<-root.finished
-	ExpectError(t, context.Canceled, task.Context().Err())
-	ExpectError(t, ErrProgramExiting, task.FinishCause())
+	expect.ErrorIs(t, context.Canceled, task.Context().Err())
+	expect.ErrorIs(t, ErrProgramExiting, task.FinishCause())
 }
 
 func TestTimeoutOnGracefulShutdown(t *testing.T) {
 	t.Cleanup(testCleanup)
 	_ = testTask()
 
-	ExpectError(t, context.DeadlineExceeded, GracefulShutdown(time.Millisecond))
+	expect.ErrorIs(t, context.DeadlineExceeded, GracefulShutdown(time.Millisecond))
 }
 
 func TestFinishMultipleCalls(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 
 	_ "embed"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 //go:embed all_fields.yaml
@@ -13,5 +13,5 @@ var testAllFieldsYAML []byte
 
 func TestFile(t *testing.T) {
 	_, err := validate(testAllFieldsYAML)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 }

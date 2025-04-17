@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestNotificationConfig(t *testing.T) {
@@ -152,11 +152,11 @@ func TestNotificationConfig(t *testing.T) {
 			provider := tt.cfg["provider"]
 			err := utils.MapUnmarshalValidate(tt.cfg, &cfg)
 			if tt.wantErr {
-				ExpectHasError(t, err)
+				expect.HasError(t, err)
 			} else {
-				ExpectNoError(t, err)
-				ExpectEqual(t, provider.(string), cfg.ProviderName)
-				ExpectEqual(t, cfg.Provider, tt.expected)
+				expect.NoError(t, err)
+				expect.Equal(t, provider.(string), cfg.ProviderName)
+				expect.Equal(t, cfg.Provider, tt.expected)
 			}
 		})
 	}

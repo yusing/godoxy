@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 
 	"github.com/yusing/go-proxy/internal/task"
 )
@@ -22,10 +22,10 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 
 	// make test log file
 	file, err := os.Create(cfg.Path)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	file.Close()
 	t.Cleanup(func() {
-		ExpectNoError(t, os.Remove(cfg.Path))
+		expect.NoError(t, os.Remove(cfg.Path))
 	})
 
 	for i := range loggerCount {
@@ -33,7 +33,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			file, err := newFileIO(cfg.Path)
-			ExpectNoError(t, err)
+			expect.NoError(t, err)
 			accessLogIOs[index] = file
 		}(i)
 	}
@@ -42,7 +42,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 
 	firstIO := accessLogIOs[0]
 	for _, io := range accessLogIOs {
-		ExpectEqual(t, io, firstIO)
+		expect.Equal(t, io, firstIO)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 
 	expected := loggerCount * logCountPerLogger
 	actual := file.LineCount()
-	ExpectEqual(t, actual, expected)
+	expect.Equal(t, actual, expected)
 }
 
 func parallelLog(logger *AccessLogger, req *http.Request, resp *http.Response, n int) {

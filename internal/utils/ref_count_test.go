@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestRefCounterAddSub(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRefCounterAddSub(t *testing.T) {
 	}
 
 	wg.Wait()
-	ExpectEqual(t, int(rc.refCount), 0)
+	expect.Equal(t, int(rc.refCount), 0)
 
 	select {
 	case <-rc.Zero():
@@ -48,7 +48,7 @@ func TestRefCounterMultipleAddSub(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	ExpectEqual(t, int(rc.refCount), numAdds+1)
+	expect.Equal(t, int(rc.refCount), numAdds+1)
 
 	wg.Add(numSubs)
 	for range numSubs {
@@ -58,7 +58,7 @@ func TestRefCounterMultipleAddSub(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	ExpectEqual(t, int(rc.refCount), numAdds+1-numSubs)
+	expect.Equal(t, int(rc.refCount), numAdds+1-numSubs)
 
 	rc.Sub()
 	select {

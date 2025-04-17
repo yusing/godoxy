@@ -8,59 +8,59 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestNewAgent(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
-	ExpectTrue(t, ca != nil)
-	ExpectTrue(t, srv != nil)
-	ExpectTrue(t, client != nil)
+	expect.NoError(t, err)
+	expect.True(t, ca != nil)
+	expect.True(t, srv != nil)
+	expect.True(t, client != nil)
 }
 
 func TestPEMPair(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	for i, p := range []*PEMPair{ca, srv, client} {
 		t.Run(fmt.Sprintf("load-%d", i), func(t *testing.T) {
 			var pp PEMPair
 			err := pp.Load(p.String())
-			ExpectNoError(t, err)
-			ExpectEqual(t, p.Cert, pp.Cert)
-			ExpectEqual(t, p.Key, pp.Key)
+			expect.NoError(t, err)
+			expect.Equal(t, p.Cert, pp.Cert)
+			expect.Equal(t, p.Key, pp.Key)
 		})
 	}
 }
 
 func TestPEMPairToTLSCert(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	for i, p := range []*PEMPair{ca, srv, client} {
 		t.Run(fmt.Sprintf("toTLSCert-%d", i), func(t *testing.T) {
 			cert, err := p.ToTLSCert()
-			ExpectNoError(t, err)
-			ExpectTrue(t, cert != nil)
+			expect.NoError(t, err)
+			expect.True(t, cert != nil)
 		})
 	}
 }
 
 func TestServerClient(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	srvTLS, err := srv.ToTLSCert()
-	ExpectNoError(t, err)
-	ExpectTrue(t, srvTLS != nil)
+	expect.NoError(t, err)
+	expect.True(t, srvTLS != nil)
 
 	clientTLS, err := client.ToTLSCert()
-	ExpectNoError(t, err)
-	ExpectTrue(t, clientTLS != nil)
+	expect.NoError(t, err)
+	expect.True(t, clientTLS != nil)
 
 	caPool := x509.NewCertPool()
-	ExpectTrue(t, caPool.AppendCertsFromPEM(ca.Cert))
+	expect.True(t, caPool.AppendCertsFromPEM(ca.Cert))
 
 	srvTLSConfig := &tls.Config{
 		Certificates: []tls.Certificate{*srvTLS},
@@ -86,6 +86,6 @@ func TestServerClient(t *testing.T) {
 	}
 
 	resp, err := httpClient.Get(server.URL)
-	ExpectNoError(t, err)
-	ExpectEqual(t, resp.StatusCode, http.StatusOK)
+	expect.NoError(t, err)
+	expect.Equal(t, resp.StatusCode, http.StatusOK)
 }

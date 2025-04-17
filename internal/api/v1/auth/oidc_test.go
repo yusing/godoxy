@@ -17,7 +17,7 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"golang.org/x/oauth2"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 // setupMockOIDC configures mock OIDC provider for testing.
@@ -75,7 +75,7 @@ func (j *provider) SignClaims(t *testing.T, claims jwt.Claims) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = keyID
 	signed, err := token.SignedString(j.key)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	return signed
 }
 
@@ -84,7 +84,7 @@ func setupProvider(t *testing.T) *provider {
 
 	// Generate an RSA key pair for the test.
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	// Build the matching public JWK that will be served by the endpoint.
 	jwk := buildRSAJWK(t, &privKey.PublicKey, keyID)
@@ -227,12 +227,12 @@ func TestOIDCCallbackHandler(t *testing.T) {
 			}
 
 			if tt.wantStatus == http.StatusTemporaryRedirect {
-				setCookie := Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
-				ExpectEqual(t, setCookie.Name, defaultAuth.TokenCookieName())
-				ExpectTrue(t, setCookie.Value != "")
-				ExpectEqual(t, setCookie.Path, "/")
-				ExpectEqual(t, setCookie.SameSite, http.SameSiteLaxMode)
-				ExpectEqual(t, setCookie.HttpOnly, true)
+				setCookie := expect.Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
+				expect.Equal(t, setCookie.Name, defaultAuth.TokenCookieName())
+				expect.True(t, setCookie.Value != "")
+				expect.Equal(t, setCookie.Path, "/")
+				expect.Equal(t, setCookie.SameSite, http.SameSiteLaxMode)
+				expect.Equal(t, setCookie.HttpOnly, true)
 			}
 		})
 	}
@@ -245,7 +245,7 @@ func TestInitOIDC(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ExpectNoError(t, json.NewEncoder(w).Encode(discoveryDocument(t, server)))
+		expect.NoError(t, json.NewEncoder(w).Encode(discoveryDocument(t, server)))
 	})
 	server = httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -446,9 +446,9 @@ func TestCheckToken(t *testing.T) {
 			// Call CheckToken and verify the result.
 			err := auth.CheckToken(req)
 			if tc.wantErr == nil {
-				ExpectNoError(t, err)
+				expect.NoError(t, err)
 			} else {
-				ExpectError(t, tc.wantErr, err)
+				expect.ErrorIs(t, tc.wantErr, err)
 			}
 		})
 	}

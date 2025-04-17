@@ -3,7 +3,7 @@ package homepage
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestOverrideItem(t *testing.T) {
@@ -32,5 +32,5 @@ func TestOverrideItem(t *testing.T) {
 	overrides := GetOverrideConfig()
 	overrides.OverrideItem(a.Alias, want)
 	got := a.GetOverride(a.Alias)
-	ExpectEqual(t, got, want)
+	expect.Equal(t, got, want)
 }

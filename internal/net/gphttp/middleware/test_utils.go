@@ -8,11 +8,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 
-	"github.com/yusing/go-proxy/pkg/json"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/go-proxy/pkg/json"
 )
 
 //go:embed test_data/sample_headers.json
@@ -96,13 +96,13 @@ type testArgs struct {
 
 func (args *testArgs) setDefaults() {
 	if args.reqURL == nil {
-		args.reqURL = Must(url.Parse("https://example.com"))
+		args.reqURL = expect.Must(url.Parse("https://example.com"))
 	}
 	if args.reqMethod == "" {
 		args.reqMethod = http.MethodGet
 	}
 	if args.upstreamURL == nil {
-		args.upstreamURL = Must(url.Parse("https://10.0.0.1:8443")) // dummy url, no actual effect
+		args.upstreamURL = expect.Must(url.Parse("https://10.0.0.1:8443")) // dummy url, no actual effect
 	}
 	if args.respHeaders == nil {
 		args.respHeaders = http.Header{}

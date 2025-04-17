@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestUnmarshal(t *testing.T) {
@@ -44,8 +44,8 @@ func TestUnmarshal(t *testing.T) {
 	t.Run("unmarshal", func(t *testing.T) {
 		var s2 S
 		err := MapUnmarshalValidate(testStructSerialized, &s2)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, s2, testStruct)
+		expect.NoError(t, err)
+		expect.Values(t, s2, testStruct)
 	})
 }
 
@@ -64,16 +64,16 @@ func TestUnmarshalAnonymousField(t *testing.T) {
 	// all, anon := extractFields(reflect.TypeOf(s2))
 	// t.Fatalf("anon %v, all %v", anon, all)
 	err := MapUnmarshalValidate(map[string]any{"a": 1, "b": 2, "c": 3}, &s)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, s.A, 1)
-	ExpectEqualValues(t, s.B, 2)
-	ExpectEqualValues(t, s.C, 3)
+	expect.NoError(t, err)
+	expect.Values(t, s.A, 1)
+	expect.Values(t, s.B, 2)
+	expect.Values(t, s.C, 3)
 
 	err = MapUnmarshalValidate(map[string]any{"a": 1, "b": 2, "c": 3}, &s2)
-	ExpectNoError(t, err)
-	ExpectEqualValues(t, s2.A, 1)
-	ExpectEqualValues(t, s2.B, 2)
-	ExpectEqualValues(t, s2.C, 3)
+	expect.NoError(t, err)
+	expect.Values(t, s2.A, 1)
+	expect.Values(t, s2.B, 2)
+	expect.Values(t, s2.C, 3)
 }
 
 func TestStringIntConvert(t *testing.T) {
@@ -93,13 +93,13 @@ func TestStringIntConvert(t *testing.T) {
 		field := refl.Elem().Field(i)
 		t.Run(fmt.Sprintf("field_%s", field.Type().Name()), func(t *testing.T) {
 			ok, err := ConvertString("127", field)
-			ExpectTrue(t, ok)
-			ExpectNoError(t, err)
-			ExpectEqualValues(t, field.Interface(), 127)
+			expect.True(t, ok)
+			expect.NoError(t, err)
+			expect.Values(t, field.Interface(), 127)
 
 			err = Convert(reflect.ValueOf(uint8(64)), field)
-			ExpectNoError(t, err)
-			ExpectEqualValues(t, field.Interface(), 64)
+			expect.NoError(t, err)
+			expect.Values(t, field.Interface(), 64)
 		})
 	}
 }
@@ -123,26 +123,26 @@ func (c *testType) Parse(v string) (err error) {
 func TestConvertor(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		m := new(testModel)
-		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
+		expect.NoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
 
-		ExpectEqualValues(t, m.Test.foo, 123)
-		ExpectEqualValues(t, m.Test.bar, "123")
+		expect.Values(t, m.Test.foo, 123)
+		expect.Values(t, m.Test.bar, "123")
 	})
 
 	t.Run("int_to_string", func(t *testing.T) {
 		m := new(testModel)
-		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
+		expect.NoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
 
-		ExpectEqualValues(t, m.Test.foo, 123)
-		ExpectEqualValues(t, m.Test.bar, "123")
+		expect.Values(t, m.Test.foo, 123)
+		expect.Values(t, m.Test.bar, "123")
 
-		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Baz": 456}, m))
-		ExpectEqualValues(t, m.Baz, "456")
+		expect.NoError(t, MapUnmarshalValidate(map[string]any{"Baz": 456}, m))
+		expect.Values(t, m.Baz, "456")
 	})
 
 	t.Run("invalid", func(t *testing.T) {
 		m := new(testModel)
-		ExpectError(t, ErrUnsupportedConversion, MapUnmarshalValidate(map[string]any{"Test": struct{}{}}, m))
+		expect.ErrorIs(t, ErrUnsupportedConversion, MapUnmarshalValidate(map[string]any{"Test": struct{}{}}, m))
 	})
 }
 
@@ -150,23 +150,23 @@ func TestStringToSlice(t *testing.T) {
 	t.Run("comma_separated", func(t *testing.T) {
 		dst := make([]string, 0)
 		convertible, err := ConvertString("a,b,c", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst, []string{"a", "b", "c"})
+		expect.True(t, convertible)
+		expect.NoError(t, err)
+		expect.Values(t, dst, []string{"a", "b", "c"})
 	})
 	t.Run("yaml-like", func(t *testing.T) {
 		dst := make([]string, 0)
 		convertible, err := ConvertString("- a\n- b\n- c", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst, []string{"a", "b", "c"})
+		expect.True(t, convertible)
+		expect.NoError(t, err)
+		expect.Values(t, dst, []string{"a", "b", "c"})
 	})
 	t.Run("single-line-yaml-like", func(t *testing.T) {
 		dst := make([]string, 0)
 		convertible, err := ConvertString("- a", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst, []string{"a"})
+		expect.True(t, convertible)
+		expect.NoError(t, err)
+		expect.Values(t, dst, []string{"a"})
 	})
 }
 
@@ -188,9 +188,9 @@ func TestStringToMap(t *testing.T) {
 	t.Run("yaml-like", func(t *testing.T) {
 		dst := make(map[string]string)
 		convertible, err := ConvertString("  a: b\n  c: d", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst, map[string]string{"a": "b", "c": "d"})
+		expect.True(t, convertible)
+		expect.NoError(t, err)
+		expect.Values(t, dst, map[string]string{"a": "b", "c": "d"})
 	})
 }
 
@@ -216,10 +216,10 @@ func TestStringToStruct(t *testing.T) {
 	t.Run("yaml-like simple", func(t *testing.T) {
 		var dst T
 		convertible, err := ConvertString("  A: a\n  B: 123", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
-		ExpectEqualValues(t, dst.A, "a")
-		ExpectEqualValues(t, dst.B, 123)
+		expect.True(t, convertible)
+		expect.NoError(t, err)
+		expect.Values(t, dst.A, "a")
+		expect.Values(t, dst.B, 123)
 	})
 
 	type T2 struct {
@@ -229,8 +229,8 @@ func TestStringToStruct(t *testing.T) {
 	t.Run("yaml-like complex", func(t *testing.T) {
 		var dst T2
 		convertible, err := ConvertString("  URL: http://example.com\n  CIDR: 1.2.3.0/24", reflect.ValueOf(&dst))
-		ExpectTrue(t, convertible)
-		ExpectNoError(t, err)
+		expect.True(t, convertible)
+		expect.NoError(t, err)
 	})
 }
 
