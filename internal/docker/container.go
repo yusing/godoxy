@@ -52,7 +52,15 @@ type (
 var DummyContainer = new(Container)
 
 func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
-	isExplicit := false
+	var isExplicit bool
+	for lbl := range c.Labels {
+		if strings.HasPrefix(lbl, NSProxy+".") {
+			isExplicit = true
+		} else {
+			delete(c.Labels, lbl)
+		}
+	}
+
 	helper := containerHelper{c}
 	res = &Container{
 		DockerHost:    dockerHost,
@@ -83,13 +91,6 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 	res.setPublicHostname()
 	res.loadDeleteIdlewatcherLabels(helper)
 
-	for lbl := range c.Labels {
-		if strings.HasPrefix(lbl, NSProxy+".") {
-			isExplicit = true
-		} else {
-			delete(c.Labels, lbl)
-		}
-	}
 	res.RouteConfig = utils.FitMap(c.Labels)
 	return
 }
