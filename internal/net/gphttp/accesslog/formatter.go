@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/pkg/json"
-
-	"github.com/yusing/go-proxy/internal/logging"
 )
 
 type (
@@ -20,25 +19,6 @@ type (
 	}
 	CombinedFormatter struct{ CommonFormatter }
 	JSONFormatter     struct{ CommonFormatter }
-
-	JSONLogEntry struct {
-		Time        string              `json:"time"`
-		IP          string              `json:"ip"`
-		Method      string              `json:"method"`
-		Scheme      string              `json:"scheme"`
-		Host        string              `json:"host"`
-		URI         string              `json:"uri"`
-		Protocol    string              `json:"protocol"`
-		Status      int                 `json:"status"`
-		Error       string              `json:"error,omitempty"`
-		ContentType string              `json:"type"`
-		Size        int64               `json:"size"`
-		Referer     string              `json:"referer"`
-		UserAgent   string              `json:"useragent"`
-		Query       map[string][]string `json:"query,omitempty"`
-		Headers     map[string][]string `json:"headers,omitempty"`
-		Cookies     map[string]string   `json:"cookies,omitempty"`
-	}
 )
 
 const LogTimeFormat = "02/Jan/2006:15:04:05 -0700"
@@ -109,37 +89,36 @@ func (f *JSONFormatter) Format(line *bytes.Buffer, req *http.Request, res *http.
 	headers := f.cfg.Headers.ProcessHeaders(req.Header)
 	headers.Del("Cookie")
 	cookies := f.cfg.Cookies.ProcessCookies(req.Cookies())
+	contentType := res.Header.Get("Content-Type")
 
-	entry := JSONLogEntry{
-		Time:        f.GetTimeNow().Format(LogTimeFormat),
-		IP:          clientIP(req),
-		Method:      req.Method,
-		Scheme:      scheme(req),
-		Host:        req.Host,
-		URI:         requestURI(req.URL, query),
-		Protocol:    req.Proto,
-		Status:      res.StatusCode,
-		ContentType: res.Header.Get("Content-Type"),
-		Size:        res.ContentLength,
-		Referer:     req.Referer(),
-		UserAgent:   req.UserAgent(),
-		Query:       query,
-		Headers:     headers,
-		Cookies:     cookies,
-	}
+	queryBytes, _ := json.Marshal(query)
+	headersBytes, _ := json.Marshal(headers)
+	cookiesBytes, _ := json.Marshal(cookies)
+
+	logger := zerolog.New(line).With().Logger()
+	event := logger.Info().
+		Str("time", f.GetTimeNow().Format(LogTimeFormat)).
+		Str("ip", clientIP(req)).
+		Str("method", req.Method).
+		Str("scheme", scheme(req)).
+		Str("host", req.Host).
+		Str("uri", requestURI(req.URL, query)).
+		Str("protocol", req.Proto).
+		Int("status", res.StatusCode).
+		Str("type", contentType).
+		Int64("size", res.ContentLength).
+		Str("referer", req.Referer()).
+		Str("useragent", req.UserAgent()).
+		RawJSON("query", queryBytes).
+		RawJSON("headers", headersBytes).
+		RawJSON("cookies", cookiesBytes)
 
 	if res.StatusCode >= 400 {
-		entry.Error = res.Status
+		if res.Status != "" {
+			event.Str("error", res.Status)
+		} else {
+			event.Str("error", http.StatusText(res.StatusCode))
+		}
 	}
-
-	if entry.ContentType == "" {
-		// try to get content type from request
-		entry.ContentType = req.Header.Get("Content-Type")
-	}
-
-	marshaller := json.NewEncoder(line)
-	err := marshaller.Encode(entry)
-	if err != nil {
-		logging.Err(err).Msg("failed to marshal json log")
-	}
+	event.Send()
 }
