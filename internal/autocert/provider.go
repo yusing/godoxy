@@ -43,6 +43,12 @@ type (
 
 var ErrGetCertFailure = errors.New("get certificate failed")
 
+func TestProvider(cert *tls.Certificate) *Provider {
+	return &Provider{
+		tlsCert: cert,
+	}
+}
+
 func (p *Provider) GetCert(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if p.tlsCert == nil {
 		return nil, ErrGetCertFailure
@@ -173,7 +179,7 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 		timer := time.NewTimer(time.Until(renewalTime))
 		defer timer.Stop()
 
-		task := parent.Subtask("cert-renew-scheduler")
+		task := parent.Subtask("cert-renew-scheduler", true)
 		defer task.Finish(nil)
 
 		for {
