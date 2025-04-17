@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -77,7 +78,8 @@ func (p *Poller[T, AggregateT]) load() error {
 
 func (p *Poller[T, AggregateT]) save() error {
 	initDataDirOnce.Do(initDataDir)
-	entries, err := json.Marshal(p.period)
+	// marshal with original types (e.g. avoid converting time.Duration to string representation)
+	entries, err := sonic.Marshal(p.period)
 	if err != nil {
 		return err
 	}
