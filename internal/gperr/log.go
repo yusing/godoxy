@@ -6,14 +6,14 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 )
 
-func log(_ string, err error, level zerolog.Level, logger ...*zerolog.Logger) {
+func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) {
 	var l *zerolog.Logger
 	if len(logger) > 0 {
 		l = logger[0]
 	} else {
 		l = logging.GetLogger()
 	}
-	l.WithLevel(level).Msg(err.Error())
+	l.WithLevel(level).Msg(New(highlight(msg)).With(err).Error())
 }
 
 func LogFatal(msg string, err error, logger ...*zerolog.Logger) {
