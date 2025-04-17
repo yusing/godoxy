@@ -60,15 +60,15 @@ func InitIconListCache() {
 		DisplayNames: make(ReferenceDisplayNameMap),
 		IconList:     []string{},
 	}
-	// err := utils.LoadJSONIfExist(common.IconListCachePath, iconsCache)
-	// if err != nil {
-	// 	logging.Error().Err(err).Msg("failed to load icon list cache config")
-	// } else if len(iconsCache.IconList) > 0 {
-	// 	logging.Info().
-	// 		Int("icons", len(iconsCache.IconList)).
-	// 		Int("display_names", len(iconsCache.DisplayNames)).
-	// 		Msg("icon list cache loaded")
-	// }
+	err := utils.LoadJSONIfExist(common.IconListCachePath, iconsCache)
+	if err != nil {
+		logging.Error().Err(err).Msg("failed to load icon list cache config")
+	} else if len(iconsCache.IconList) > 0 {
+		logging.Info().
+			Int("icons", len(iconsCache.IconList)).
+			Int("display_names", len(iconsCache.DisplayNames)).
+			Msg("icon list cache loaded")
+	}
 }
 
 func ListAvailableIcons() (*Cache, error) {

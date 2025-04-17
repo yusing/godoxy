@@ -133,7 +133,7 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 }
 
 func (p *Poller[T, AggregateT]) Start() {
-	t := task.RootTask("poller." + p.name)
+	t := task.RootTask("poller."+p.name, true)
 	err := p.load()
 	if err != nil {
 		if !os.IsNotExist(err) {

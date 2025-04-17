@@ -96,7 +96,9 @@ func (s *Server) Start(parent task.Parent) {
 			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
 		}
 		Start(subtask, h3, &s.l)
-		s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+		if s.http != nil {
+			s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+		}
 		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 	}
 

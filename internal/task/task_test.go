@@ -17,7 +17,7 @@ func TestChildTaskCancellation(t *testing.T) {
 	t.Cleanup(testCleanup)
 
 	parent := testTask()
-	child := parent.Subtask("")
+	child := parent.Subtask("child", false)
 
 	go func() {
 		defer child.Finish(nil)

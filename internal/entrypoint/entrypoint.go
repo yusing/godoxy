@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -20,7 +19,7 @@ import (
 type Entrypoint struct {
 	middleware    *middleware.Middleware
 	accessLogger  *accesslog.AccessLogger
-	findRouteFunc func(host string) (route.HTTPRoute, error)
+	findRouteFunc func(host string) (routes.HTTPRoute, error)
 }
 
 var ErrNoSuchRoute = errors.New("no such route")
@@ -108,7 +107,7 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func findRouteAnyDomain(host string) (route.HTTPRoute, error) {
+func findRouteAnyDomain(host string) (routes.HTTPRoute, error) {
 	hostSplit := strutils.SplitRune(host, '.')
 	target := hostSplit[0]
 
@@ -118,19 +117,19 @@ func findRouteAnyDomain(host string) (route.HTTPRoute, error) {
 	return nil, fmt.Errorf("%w: %s", ErrNoSuchRoute, target)
 }
 
-func findRouteByDomains(domains []string) func(host string) (route.HTTPRoute, error) {
-	return func(host string) (route.HTTPRoute, error) {
+func findRouteByDomains(domains []string) func(host string) (routes.HTTPRoute, error) {
+	return func(host string) (routes.HTTPRoute, error) {
 		for _, domain := range domains {
 			if strings.HasSuffix(host, domain) {
 				target := strings.TrimSuffix(host, domain)
-				if r, ok := routes.GetHTTPRoute(target); ok {
+				if r, ok := routes.HTTP.Get(target); ok {
 					return r, nil
 				}
 			}
 		}
 
 		// fallback to exact match
-		if r, ok := routes.GetHTTPRoute(host); ok {
+		if r, ok := routes.HTTP.Get(host); ok {
 			return r, nil
 		}
 		return nil, fmt.Errorf("%w: %s", ErrNoSuchRoute, host)

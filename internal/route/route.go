@@ -24,6 +24,7 @@ import (
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/rules"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -62,7 +63,7 @@ type (
 		LisURL   *url.URL `json:"lurl,omitempty"`
 		ProxyURL *url.URL `json:"purl,omitempty"`
 
-		impl route.Route
+		impl routes.Route
 	}
 	Routes map[string]*Route
 )
@@ -76,17 +77,6 @@ func (r Routes) Contains(alias string) bool {
 
 func (r *Route) Validate() (err gperr.Error) {
 	r.Finalize()
-
-	// return error if route is localhost:<godoxy_port>
-	switch r.Host {
-	case "localhost", "127.0.0.1":
-		switch r.Port.Proxy {
-		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
-			if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
-				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
-			}
-		}
-	}
 
 	if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 		node := r.Idlewatcher.Proxmox.Node
@@ -148,6 +138,17 @@ func (r *Route) Validate() (err gperr.Error) {
 					Addf("no reachable ip addresses found, tried %d IPs", len(ips)).
 					AddLines(ips).
 					Subject(containerName)
+			}
+		}
+	}
+
+	// return error if route is localhost:<godoxy_port>
+	switch r.Host {
+	case "localhost", "127.0.0.1":
+		switch r.Port.Proxy {
+		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
+			if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
+				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
 			}
 		}
 	}
@@ -227,7 +228,17 @@ func (r *Route) ProviderName() string {
 	return r.Provider
 }
 
-func (r *Route) TargetName() string {
+// Name implements pool.Object.
+func (r *Route) Name() string {
+	return r.Alias
+}
+
+// Key implements pool.Object.
+func (r *Route) Key() string {
+	return r.Alias
+}
+
+func (r *Route) String() string {
 	return r.Alias
 }
 

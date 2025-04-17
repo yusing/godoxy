@@ -21,7 +21,7 @@ type DirWatcher struct {
 	w   *fsnotify.Watcher
 
 	fwMap map[string]*fileWatcher
-	mu    sync.Mutex
+	mu    sync.RWMutex
 
 	eventCh chan Event
 	errCh   chan gperr.Error
@@ -56,7 +56,7 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 		fwMap:   make(map[string]*fileWatcher),
 		eventCh: make(chan Event),
 		errCh:   make(chan gperr.Error),
-		task:    parent.Subtask("dir_watcher(" + dirPath + ")"),
+		task:    parent.Subtask("dir_watcher("+dirPath+")", true),
 	}
 	go helper.start()
 	return helper
@@ -95,7 +95,9 @@ func (h *DirWatcher) cleanup() {
 		close(fw.eventCh)
 		close(fw.errCh)
 	}
+	h.fwMap = nil
 	h.task.Finish(nil)
+	h.Info().Msg("directory watcher closed")
 }
 
 func (h *DirWatcher) start() {
@@ -143,9 +145,9 @@ func (h *DirWatcher) start() {
 			}
 
 			// send event to file watcher too
-			h.mu.Lock()
+			h.mu.RLock()
 			w, ok := h.fwMap[relPath]
-			h.mu.Unlock()
+			h.mu.RUnlock()
 			if ok {
 				select {
 				case w.eventCh <- msg:

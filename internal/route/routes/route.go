@@ -1,4 +1,4 @@
-package route
+package routes
 
 import (
 	"net/http"
@@ -10,6 +10,7 @@ import (
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils/pool"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
@@ -21,8 +22,8 @@ type (
 	Route interface {
 		task.TaskStarter
 		task.TaskFinisher
+		pool.Object
 		ProviderName() string
-		TargetName() string
 		TargetURL() *url.URL
 		HealthMonitor() health.HealthMonitor
 		Reference() string

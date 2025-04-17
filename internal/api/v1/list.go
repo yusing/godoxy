@@ -11,7 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	"github.com/yusing/go-proxy/internal/route/routes/routequery"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
@@ -45,7 +45,7 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 			gphttp.RespondJSON(w, r, route)
 		}
 	case ListRoutes:
-		gphttp.RespondJSON(w, r, routequery.RoutesByAlias(route.RouteType(r.FormValue("type"))))
+		gphttp.RespondJSON(w, r, routes.ByAlias(route.RouteType(r.FormValue("type"))))
 	case ListFiles:
 		listFiles(w, r)
 	case ListMiddlewares:
@@ -55,11 +55,11 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 	case ListMatchDomains:
 		gphttp.RespondJSON(w, r, cfg.Value().MatchDomains)
 	case ListHomepageConfig:
-		gphttp.RespondJSON(w, r, routequery.HomepageConfig(r.FormValue("category"), r.FormValue("provider")))
+		gphttp.RespondJSON(w, r, routes.HomepageConfig(r.FormValue("category"), r.FormValue("provider")))
 	case ListRouteProviders:
 		gphttp.RespondJSON(w, r, cfg.RouteProviderList())
 	case ListHomepageCategories:
-		gphttp.RespondJSON(w, r, routequery.HomepageCategories())
+		gphttp.RespondJSON(w, r, routes.HomepageCategories())
 	case ListIcons:
 		limit, err := strconv.Atoi(r.FormValue("limit"))
 		if err != nil {
@@ -83,9 +83,9 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 // otherwise, return a single Route with alias which or nil if not found.
 func listRoute(which string) any {
 	if which == "" || which == "all" {
-		return routequery.RoutesByAlias()
+		return routes.ByAlias()
 	}
-	routes := routequery.RoutesByAlias()
+	routes := routes.ByAlias()
 	route, ok := routes[which]
 	if !ok {
 		return nil

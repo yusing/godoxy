@@ -25,8 +25,8 @@ func testCleanup() {
 }
 
 // RootTask returns a new Task with the given name, derived from the root context.
-func RootTask(name string, needFinish ...bool) *Task {
-	return root.Subtask(name, needFinish...)
+func RootTask(name string, needFinish bool) *Task {
+	return root.Subtask(name, needFinish)
 }
 
 func newRoot() *Task {
@@ -66,6 +66,9 @@ func GracefulShutdown(timeout time.Duration) (err error) {
 			return
 		case <-after:
 			logging.Warn().Msgf("Timeout waiting for %d tasks to finish", allTasks.Size())
+			for t := range allTasks.Range {
+				logging.Warn().Msgf("Task %s is still running", t.name)
+			}
 			return context.DeadlineExceeded
 		}
 	}

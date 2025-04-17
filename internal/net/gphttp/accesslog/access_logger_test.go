@@ -23,7 +23,7 @@ const (
 	referer       = "https://www.google.com/"
 	proto         = "HTTP/1.1"
 	ua            = "Go-http-client/1.1"
-	status        = http.StatusOK
+	status        = http.StatusNotFound
 	contentLength = 100
 	method        = http.MethodGet
 )
@@ -99,6 +99,25 @@ func TestAccessLoggerRedactQuery(t *testing.T) {
 	)
 }
 
+type JSONLogEntry struct {
+	Time        string              `json:"time"`
+	IP          string              `json:"ip"`
+	Method      string              `json:"method"`
+	Scheme      string              `json:"scheme"`
+	Host        string              `json:"host"`
+	URI         string              `json:"uri"`
+	Protocol    string              `json:"protocol"`
+	Status      int                 `json:"status"`
+	Error       string              `json:"error,omitempty"`
+	ContentType string              `json:"type"`
+	Size        int64               `json:"size"`
+	Referer     string              `json:"referer"`
+	UserAgent   string              `json:"useragent"`
+	Query       map[string][]string `json:"query,omitempty"`
+	Headers     map[string][]string `json:"headers,omitempty"`
+	Cookies     map[string]string   `json:"cookies,omitempty"`
+}
+
 func getJSONEntry(t *testing.T, config *Config) JSONLogEntry {
 	t.Helper()
 	config.Format = FormatJSON
@@ -125,4 +144,7 @@ func TestAccessLoggerJSON(t *testing.T) {
 	ExpectEqual(t, entry.UserAgent, ua)
 	ExpectEqual(t, len(entry.Headers), 0)
 	ExpectEqual(t, len(entry.Cookies), 0)
+	if status >= 400 {
+		ExpectEqual(t, entry.Error, http.StatusText(status))
+	}
 }

@@ -3,25 +3,23 @@ package pool
 import (
 	"sort"
 
+	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/functional"
 )
 
 type (
 	Pool[T Object] struct {
-		m    functional.Map[string, T]
+		m    *xsync.MapOf[string, T]
 		name string
 	}
 	Object interface {
 		Key() string
 		Name() string
-		utils.MapMarshaler
 	}
 )
 
 func New[T Object](name string) Pool[T] {
-	return Pool[T]{functional.NewMapOf[string, T](), name}
+	return Pool[T]{xsync.NewMapOf[string, T](), name}
 }
 
 func (p Pool[T]) Name() string {
@@ -29,6 +27,7 @@ func (p Pool[T]) Name() string {
 }
 
 func (p Pool[T]) Add(obj T) {
+	p.checkExists(obj.Key())
 	p.m.Store(obj.Key(), obj)
 	logging.Info().Msgf("%s: added %s", p.name, obj.Name())
 }
@@ -50,8 +49,8 @@ func (p Pool[T]) Clear() {
 	p.m.Clear()
 }
 
-func (p Pool[T]) Base() functional.Map[string, T] {
-	return p.m
+func (p Pool[T]) Iter(fn func(k string, v T) bool) {
+	p.m.Range(fn)
 }
 
 func (p Pool[T]) Slice() []T {
@@ -63,12 +62,4 @@ func (p Pool[T]) Slice() []T {
 		return slice[i].Name() < slice[j].Name()
 	})
 	return slice
-}
-
-func (p Pool[T]) Iter(fn func(k string, v T) bool) {
-	p.m.Range(fn)
-}
-
-func (p Pool[T]) IterAll(fn func(k string, v T)) {
-	p.m.RangeAll(fn)
 }

@@ -1,13 +1,11 @@
 package gpnet
 
 import (
-	"fmt"
 	"net"
 )
 
 type (
 	Stream interface {
-		fmt.Stringer
 		StreamListener
 		Setup() error
 		Handle(conn StreamConn) error
