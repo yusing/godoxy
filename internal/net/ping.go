@@ -94,24 +94,20 @@ func Ping(ctx context.Context, ip net.IP) (bool, error) {
 	}
 }
 
-var pingDialer = &net.Dialer{
-	Timeout: 2 * time.Second,
-}
-
 // PingWithTCPFallback pings the IP address using ICMP and TCP fallback.
 //
 // If the ICMP ping fails due to permission error, it will try to connect to the specified port.
 func PingWithTCPFallback(ctx context.Context, ip net.IP, port int) (bool, error) {
 	ok, err := Ping(ctx, ip)
-	if err != nil {
-		if !errors.Is(err, os.ErrPermission) {
-			return false, err
-		}
-	} else {
+	if err == nil {
 		return ok, nil
 	}
+	if !errors.Is(err, os.ErrPermission) {
+		return false, err
+	}
 
-	conn, err := pingDialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", ip, port))
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		return false, err
 	}
