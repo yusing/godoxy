@@ -123,8 +123,7 @@ func fetchIcon(ctx context.Context, filetype, filename string) *FetchResult {
 }
 
 func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
-	key := routeKey(r)
-	if result := loadIconCache(key); result != nil {
+	if result := loadIconCache(r.Key()); result != nil {
 		return result
 	}
 
@@ -136,7 +135,7 @@ func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
 		}
 	}
 	if result.OK() {
-		storeIconCache(key, result.Icon)
+		storeIconCache(r.Key(), result)
 	}
 	return result
 }

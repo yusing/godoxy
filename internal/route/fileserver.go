@@ -57,7 +57,7 @@ func NewFileServer(base *Route) (*FileServer, gperr.Error) {
 
 // Start implements task.TaskStarter.
 func (s *FileServer) Start(parent task.Parent) gperr.Error {
-	s.task = parent.Subtask("fileserver."+s.TargetName(), false)
+	s.task = parent.Subtask("fileserver."+s.Name(), false)
 
 	pathPatterns := s.PathPatterns
 	switch {
@@ -92,7 +92,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	}
 
 	if common.PrometheusEnabled {
-		metricsLogger := metricslogger.NewMetricsLogger(s.TargetName())
+		metricsLogger := metricslogger.NewMetricsLogger(s.Name())
 		s.handler = metricsLogger.GetHandler(s.handler)
 		s.task.OnCancel("reset_metrics", metricsLogger.ResetMetrics)
 	}
@@ -104,9 +104,9 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	routes.SetHTTPRoute(s.TargetName(), s)
+	routes.HTTP.Add(s)
 	s.task.OnCancel("entrypoint_remove_route", func() {
-		routes.DeleteHTTPRoute(s.TargetName())
+		routes.HTTP.Del(s)
 	})
 	return nil
 }

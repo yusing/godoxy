@@ -101,14 +101,10 @@ func pruneExpiredIconCache() {
 	}
 }
 
-func routeKey(r route) string {
-	return r.ProviderName() + ":" + r.TargetName()
-}
-
 func PruneRouteIconCache(route route) {
 	iconCacheMu.Lock()
 	defer iconCacheMu.Unlock()
-	delete(iconCache, routeKey(route))
+	delete(iconCache, route.Key())
 }
 
 func loadIconCache(key string) *FetchResult {
@@ -150,8 +146,8 @@ func (e *cacheEntry) UnmarshalJSON(data []byte) error {
 		err := json.Unmarshal(data, &e)
 		// return only if unmarshal is successful
 		// otherwise fallback to base64
-	if err == nil {
-		return nil
+		if err == nil {
+			return nil
 		}
 	}
 	// fallback to base64

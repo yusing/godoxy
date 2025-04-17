@@ -10,7 +10,7 @@ var Agents = agents{pool.New[*AgentConfig]("agents")}
 
 func (agents agents) Get(agentAddrOrDockerHost string) (*AgentConfig, bool) {
 	if !IsDockerHostAgent(agentAddrOrDockerHost) {
-		return agents.Base().Load(agentAddrOrDockerHost)
+		return agents.Get(agentAddrOrDockerHost)
 	}
-	return agents.Base().Load(GetAgentAddrFromDockerHost(agentAddrOrDockerHost))
+	return agents.Get(GetAgentAddrFromDockerHost(agentAddrOrDockerHost))
 }

@@ -59,7 +59,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		}
 	}
 
-	service := base.TargetName()
+	service := base.Name()
 	rp := reverseproxy.NewReverseProxy(service, proxyURL, trans)
 
 	if len(base.Middlewares) > 0 {
@@ -90,16 +90,12 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	return r, nil
 }
 
-func (r *ReveseProxyRoute) String() string {
-	return r.TargetName()
-}
-
 // Start implements task.TaskStarter.
 func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
-	if existing, ok := routes.GetHTTPRoute(r.TargetName()); ok && !r.UseLoadBalance() {
+	if existing, ok := routes.HTTP.Get(r.Key()); ok && !r.UseLoadBalance() {
 		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
 	}
-	r.task = parent.Subtask("http."+r.TargetName(), false)
+	r.task = parent.Subtask("http."+r.Name(), false)
 
 	switch {
 	case r.UseIdleWatcher():
@@ -132,7 +128,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 			r.handler = r.rp
 		default:
 			logging.Warn().
-				Str("route", r.TargetName()).
+				Str("route", r.Name()).
 				Msg("`path_patterns` for reverse proxy is deprecated. Use `rules` instead.")
 			mux := gphttp.NewServeMux()
 			patErrs := gperr.NewBuilder("invalid path pattern(s)")
@@ -148,7 +144,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	if len(r.Rules) > 0 {
-		r.handler = r.Rules.BuildHandler(r.TargetName(), r.handler)
+		r.handler = r.Rules.BuildHandler(r.Name(), r.handler)
 	}
 
 	if r.HealthMon != nil {
@@ -158,7 +154,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	if common.PrometheusEnabled {
-		metricsLogger := metricslogger.NewMetricsLogger(r.TargetName())
+		metricsLogger := metricslogger.NewMetricsLogger(r.Name())
 		r.handler = metricsLogger.GetHandler(r.handler)
 		r.task.OnCancel("reset_metrics", metricsLogger.ResetMetrics)
 	}
@@ -166,9 +162,9 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	if r.UseLoadBalance() {
 		r.addToLoadBalancer(parent)
 	} else {
-		routes.SetHTTPRoute(r.TargetName(), r)
+		routes.HTTP.Add(r)
 		r.task.OnFinished("entrypoint_remove_route", func() {
-			routes.DeleteHTTPRoute(r.TargetName())
+			routes.HTTP.Del(r)
 		})
 	}
 
@@ -201,7 +197,7 @@ func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
-	l, ok := routes.GetHTTPRoute(cfg.Link)
+	l, ok := routes.HTTP.Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {
 		linked = l.(*ReveseProxyRoute)
@@ -222,7 +218,10 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 			loadBalancer: lb,
 			handler:      lb,
 		}
-		routes.SetHTTPRoute(cfg.Link, linked)
+		routes.HTTP.Add(linked)
+		r.task.OnFinished("entrypoint_remove_route", func() {
+			routes.HTTP.Del(linked)
+		})
 	}
 	r.loadBalancer = lb
 

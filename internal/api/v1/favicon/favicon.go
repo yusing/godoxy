@@ -47,7 +47,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// try with route.Icon
-	r, ok := routes.GetHTTPRoute(alias)
+	r, ok := routes.HTTP.Get(alias)
 	if !ok {
 		gphttp.ClientError(w, errors.New("no such route"), http.StatusNotFound)
 		return

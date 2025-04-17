@@ -11,7 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/notif"
-	route "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -37,15 +37,15 @@ type (
 
 var ErrNegativeInterval = errors.New("negative interval")
 
-func NewMonitor(r route.Route) health.HealthMonCheck {
+func NewMonitor(r routes.Route) health.HealthMonCheck {
 	var mon health.HealthMonCheck
 	if r.IsAgent() {
 		mon = NewAgentProxiedMonitor(r.Agent(), r.HealthCheckConfig(), AgentTargetFromURL(r.TargetURL()))
 	} else {
 		switch r := r.(type) {
-		case route.HTTPRoute:
+		case routes.HTTPRoute:
 			mon = NewHTTPHealthMonitor(r.TargetURL(), r.HealthCheckConfig())
-		case route.StreamRoute:
+		case routes.StreamRoute:
 			mon = NewRawHealthMonitor(r.TargetURL(), r.HealthCheckConfig())
 		default:
 			logging.Panic().Msgf("unexpected route type: %T", r)
@@ -58,7 +58,7 @@ func NewMonitor(r route.Route) health.HealthMonCheck {
 			return mon
 		}
 		r.Task().OnCancel("close_docker_client", client.Close)
-		return NewDockerHealthMonitor(client, cont.ContainerID, r.TargetName(), r.HealthCheckConfig(), mon)
+		return NewDockerHealthMonitor(client, cont.ContainerID, r.Name(), r.HealthCheckConfig(), mon)
 	}
 	return mon
 }

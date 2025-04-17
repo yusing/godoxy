@@ -13,7 +13,7 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	net "github.com/yusing/go-proxy/internal/net/types"
-	route "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	U "github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
@@ -80,7 +80,7 @@ var (
 const reqTimeout = 3 * time.Second
 
 // TODO: fix stream type
-func NewWatcher(parent task.Parent, r route.Route) (*Watcher, error) {
+func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	cfg := r.IdlewatcherConfig()
 	key := cfg.Key()
 
@@ -126,9 +126,9 @@ func NewWatcher(parent task.Parent, r route.Route) (*Watcher, error) {
 		Logger()
 
 	switch r := r.(type) {
-	case route.ReverseProxyRoute:
+	case routes.ReverseProxyRoute:
 		w.rp = r.ReverseProxy()
-	case route.StreamRoute:
+	case routes.StreamRoute:
 		w.stream = r
 	default:
 		return nil, gperr.New("unexpected route type")
@@ -153,7 +153,7 @@ func NewWatcher(parent task.Parent, r route.Route) (*Watcher, error) {
 
 	w.state.Store(&containerState{status: status})
 
-	w.task = parent.Subtask("idlewatcher."+r.TargetName(), true)
+	w.task = parent.Subtask("idlewatcher."+r.Name(), true)
 
 	watcherMapMu.Lock()
 	defer watcherMapMu.Unlock()
