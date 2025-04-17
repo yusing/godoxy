@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils/synk"
 )
 
 type (
@@ -20,7 +21,7 @@ type (
 		io       AccessLogIO
 		buffered *bufio.Writer
 
-		lineBufPool sync.Pool // buffer pool for formatting a single log line
+		lineBufPool *synk.BytesPool // buffer pool for formatting a single log line
 		Formatter
 	}
 
@@ -78,7 +79,7 @@ func NewAccessLoggerWithIO(parent task.Parent, io AccessLogIO, cfg *Config) *Acc
 		cfg.BufferSize = 4096
 	}
 	l := &AccessLogger{
-		task:     parent.Subtask("accesslog"),
+		task:     parent.Subtask("accesslog."+io.Name(), true),
 		cfg:      cfg,
 		io:       io,
 		buffered: bufio.NewWriterSize(io, cfg.BufferSize),
@@ -96,9 +97,7 @@ func NewAccessLoggerWithIO(parent task.Parent, io AccessLogIO, cfg *Config) *Acc
 		panic("invalid access log format")
 	}
 
-	l.lineBufPool.New = func() any {
-		return bytes.NewBuffer(make([]byte, 0, 1024))
-	}
+	l.lineBufPool = synk.NewBytesPool(1024, synk.DefaultMaxBytes)
 	go l.start()
 	return l
 }
@@ -118,12 +117,11 @@ func (l *AccessLogger) Log(req *http.Request, res *http.Response) {
 		return
 	}
 
-	line := l.lineBufPool.Get().(*bytes.Buffer)
-	line.Reset()
+	line := l.lineBufPool.Get()
 	defer l.lineBufPool.Put(line)
-	l.Formatter.Format(line, req, res)
-	line.WriteRune('\n')
-	l.write(line.Bytes())
+	l.Formatter.Format(bytes.NewBuffer(line), req, res)
+	line = append(line, '\n')
+	l.write(line)
 }
 
 func (l *AccessLogger) LogError(req *http.Request, err error) {

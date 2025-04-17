@@ -2,9 +2,9 @@ package json
 
 import (
 	"reflect"
-	"sync"
 
 	"github.com/bytedance/sonic"
+	"github.com/yusing/go-proxy/internal/utils/synk"
 )
 
 type Marshaler interface {
@@ -38,8 +38,8 @@ var (
 //
 //   - It does not support maps other than string-keyed maps.
 func Marshal(v any) ([]byte, error) {
-	buf := newBytes()
-	defer putBytes(buf)
+	buf := bytesPool.Get()
+	defer bytesPool.Put(buf)
 	return cloneBytes(appendMarshal(reflect.ValueOf(v), buf)), nil
 }
 
@@ -47,21 +47,9 @@ func MarshalTo(v any, buf []byte) []byte {
 	return appendMarshal(reflect.ValueOf(v), buf)
 }
 
-const bufSize = 8192
+const initBufSize = 4096
 
-var bytesPool = sync.Pool{
-	New: func() any {
-		return make([]byte, 0, bufSize)
-	},
-}
-
-func newBytes() []byte {
-	return bytesPool.Get().([]byte)
-}
-
-func putBytes(buf []byte) {
-	bytesPool.Put(buf[:0])
-}
+var bytesPool = synk.NewBytesPool(initBufSize, synk.DefaultMaxBytes)
 
 func cloneBytes(buf []byte) (res []byte) {
 	return append(res, buf...)
