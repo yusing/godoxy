@@ -160,7 +160,7 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	watcherMap[key] = w
 	go func() {
 		cause := w.watchUntilDestroy()
-		if cause.Is(causeContainerDestroy) {
+		if cause.Is(causeContainerDestroy) || cause.Is(task.ErrProgramExiting) {
 			watcherMapMu.Lock()
 			defer watcherMapMu.Unlock()
 			delete(watcherMap, key)
@@ -173,7 +173,11 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 		w.provider.Close()
 		w.task.Finish(cause)
 	}()
-	w.l.Info().Msg("idlewatcher started")
+	if exists {
+		w.l.Info().Msg("idlewatcher reloaded")
+	} else {
+		w.l.Info().Msg("idlewatcher started")
+	}
 	return w, nil
 }
 
