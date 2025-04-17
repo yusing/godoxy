@@ -192,6 +192,9 @@ func appendArray(v reflect.Value, buf []byte) []byte {
 }
 
 func appendPtrInterface(v reflect.Value, buf []byte) []byte {
+	if res, ok := appendWithCustomMarshaler(v, buf); ok {
+		return res
+	}
 	return appendMarshal(v.Elem(), buf)
 }
 
