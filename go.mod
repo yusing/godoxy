@@ -7,7 +7,7 @@ go 1.24.2
 require (
 	github.com/bytedance/sonic v1.13.2 // faster json unmarshal (for marshal it's using custom implementation)
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
-	github.com/go-acme/lego/v4 v4.22.2 // acme client
+	github.com/go-acme/lego/v4 v4.23.1 // acme client
 	github.com/go-playground/validator/v10 v10.26.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/goccy/go-yaml v1.17.1 // yaml parsing for different config files
@@ -44,8 +44,8 @@ require (
 // docker
 
 require (
-	github.com/docker/cli v28.0.4+incompatible // docker cli
-	github.com/docker/docker v28.0.4+incompatible // docker daemon
+	github.com/docker/cli v28.1.0+incompatible // docker cli
+	github.com/docker/docker v28.1.0+incompatible // docker daemon
 	github.com/docker/go-connections v0.5.0 // docker connection utilities
 )
 
@@ -106,6 +106,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.65 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
