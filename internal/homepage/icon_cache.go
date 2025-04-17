@@ -1,6 +1,7 @@
 package homepage
 
 import (
+	"encoding/base64"
 	"sync"
 	"time"
 
@@ -10,11 +11,13 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/utils/atomic"
 )
 
 type cacheEntry struct {
-	Icon       []byte    `json:"icon"`
-	LastAccess time.Time `json:"lastAccess"`
+	Icon        []byte                  `json:"icon"`
+	ContentType string                  `json:"content_type"`
+	LastAccess  atomic.Value[time.Time] `json:"last_access"`
 }
 
 // cache key can be absolute url or route name.
@@ -25,7 +28,9 @@ var (
 
 const (
 	iconCacheTTL    = 3 * 24 * time.Hour
-	cleanUpInterval = time.Hour
+	cleanUpInterval = time.Minute
+	maxCacheSize    = 1024 * 1024 // 1MB
+	maxCacheEntries = 100
 )
 
 func InitIconCache() {
@@ -77,6 +82,20 @@ func pruneExpiredIconCache() {
 			nPruned++
 		}
 	}
+	if len(iconCache) > maxCacheEntries {
+		newIconCache := make(map[string]*cacheEntry, maxCacheEntries)
+		i := 0
+		for key, icon := range iconCache {
+			if i == maxCacheEntries {
+				break
+			}
+			if !icon.IsExpired() {
+				newIconCache[key] = icon
+				i++
+			}
+		}
+		iconCache = newIconCache
+	}
 	if nPruned > 0 {
 		logging.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
 	}
@@ -97,41 +116,49 @@ func loadIconCache(key string) *FetchResult {
 	defer iconCacheMu.RUnlock()
 
 	icon, ok := iconCache[key]
-	if ok && icon != nil {
+	if ok && len(icon.Icon) > 0 {
 		logging.Debug().
 			Str("key", key).
 			Msg("icon found in cache")
-		icon.LastAccess = time.Now()
-		return &FetchResult{Icon: icon.Icon}
+		icon.LastAccess.Store(time.Now())
+		return &FetchResult{Icon: icon.Icon, contentType: icon.ContentType}
 	}
 	return nil
 }
 
-func storeIconCache(key string, icon []byte) {
+func storeIconCache(key string, result *FetchResult) {
+	icon := result.Icon
+	if len(icon) > maxCacheSize {
+		logging.Debug().Int("size", len(icon)).Msg("icon cache size exceeds max cache size")
+		return
+	}
 	iconCacheMu.Lock()
 	defer iconCacheMu.Unlock()
-	iconCache[key] = &cacheEntry{Icon: icon, LastAccess: time.Now()}
+	entry := &cacheEntry{Icon: icon, ContentType: result.contentType}
+	entry.LastAccess.Store(time.Now())
+	iconCache[key] = entry
+	logging.Debug().Str("key", key).Int("size", len(icon)).Msg("stored icon cache")
 }
 
 func (e *cacheEntry) IsExpired() bool {
-	return time.Since(e.LastAccess) > iconCacheTTL
+	return time.Since(e.LastAccess.Load()) > iconCacheTTL
 }
 
 func (e *cacheEntry) UnmarshalJSON(data []byte) error {
-	attempt := struct {
-		Icon       []byte    `json:"icon"`
-		LastAccess time.Time `json:"lastAccess"`
-	}{}
-	err := json.Unmarshal(data, &attempt)
+	// check if data is json
+	if json.Valid(data) {
+		err := json.Unmarshal(data, &e)
+		// return only if unmarshal is successful
+		// otherwise fallback to base64
 	if err == nil {
-		e.Icon = attempt.Icon
-		e.LastAccess = attempt.LastAccess
 		return nil
+		}
 	}
-	// fallback to bytes
-	err = json.Unmarshal(data, &e.Icon)
+	// fallback to base64
+	icon, err := base64.StdEncoding.DecodeString(string(data))
 	if err == nil {
-		e.LastAccess = time.Now()
+		e.Icon = icon
+		e.LastAccess.Store(time.Now())
 		return nil
 	}
 	return err

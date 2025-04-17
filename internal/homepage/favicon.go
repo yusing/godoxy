@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,8 +25,10 @@ type FetchResult struct {
 	contentType string
 }
 
+const faviconFetchTimeout = 3 * time.Second
+
 func (res *FetchResult) OK() bool {
-	return res.Icon != nil
+	return len(res.Icon) > 0
 }
 
 func (res *FetchResult) ContentType() string {
@@ -40,39 +43,55 @@ func (res *FetchResult) ContentType() string {
 
 const maxRedirectDepth = 5
 
-func FetchFavIconFromURL(iconURL *IconURL) *FetchResult {
+func FetchFavIconFromURL(ctx context.Context, iconURL *IconURL) *FetchResult {
 	switch iconURL.IconSource {
 	case IconSourceAbsolute:
-		return fetchIconAbsolute(iconURL.URL())
+		return fetchIconAbsolute(ctx, iconURL.URL())
 	case IconSourceRelative:
 		return &FetchResult{StatusCode: http.StatusBadRequest, ErrMsg: "unexpected relative icon"}
 	case IconSourceWalkXCode, IconSourceSelfhSt:
-		return fetchKnownIcon(iconURL)
+		return fetchKnownIcon(ctx, iconURL)
 	}
 	return &FetchResult{StatusCode: http.StatusBadRequest, ErrMsg: "invalid icon source"}
 }
 
-func fetchIconAbsolute(url string) *FetchResult {
+func fetchIconAbsolute(ctx context.Context, url string) *FetchResult {
 	if result := loadIconCache(url); result != nil {
 		return result
 	}
 
-	resp, err := gphttp.Get(url)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		if err == nil {
-			err = errors.New(resp.Status)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "request timeout"}
 		}
+		return &FetchResult{StatusCode: http.StatusInternalServerError, ErrMsg: err.Error()}
+	}
+
+	resp, err := gphttp.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+	}
+	if err != nil || resp.StatusCode != http.StatusOK {
 		return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "connection error"}
 	}
 
-	defer resp.Body.Close()
 	icon, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &FetchResult{StatusCode: http.StatusInternalServerError, ErrMsg: "internal error"}
 	}
 
-	storeIconCache(url, icon)
-	return &FetchResult{Icon: icon}
+	if len(icon) == 0 {
+		return &FetchResult{StatusCode: http.StatusNotFound, ErrMsg: "empty icon"}
+	}
+
+	res := &FetchResult{Icon: icon}
+	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
+		res.contentType = contentType
+	}
+	// else leave it empty
+	storeIconCache(url, res)
+	return res
 }
 
 var nameSanitizer = strings.NewReplacer(
@@ -86,21 +105,21 @@ func sanitizeName(name string) string {
 	return strings.ToLower(nameSanitizer.Replace(name))
 }
 
-func fetchKnownIcon(url *IconURL) *FetchResult {
+func fetchKnownIcon(ctx context.Context, url *IconURL) *FetchResult {
 	// if icon isn't in the list, no need to fetch
 	if !url.HasIcon() {
 		return &FetchResult{StatusCode: http.StatusNotFound, ErrMsg: "no such icon"}
 	}
 
-	return fetchIconAbsolute(url.URL())
+	return fetchIconAbsolute(ctx, url.URL())
 }
 
-func fetchIcon(filetype, filename string) *FetchResult {
-	result := fetchKnownIcon(NewSelfhStIconURL(filename, filetype))
-	if result.Icon == nil {
+func fetchIcon(ctx context.Context, filetype, filename string) *FetchResult {
+	result := fetchKnownIcon(ctx, NewSelfhStIconURL(filename, filetype))
+	if result.OK() {
 		return result
 	}
-	return fetchKnownIcon(NewWalkXCodeIconURL(filename, filetype))
+	return fetchKnownIcon(ctx, NewWalkXCodeIconURL(filename, filetype))
 }
 
 func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
@@ -109,11 +128,11 @@ func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
 		return result
 	}
 
-	result := fetchIcon("png", sanitizeName(r.Reference()))
+	result := fetchIcon(ctx, "png", sanitizeName(r.Reference()))
 	if !result.OK() {
 		if r, ok := r.(httpRoute); ok {
 			// fallback to parse html
-			result = findIconSlow(ctx, r, uri, 0)
+			result = findIconSlow(ctx, r, uri, nil)
 		}
 	}
 	if result.OK() {
@@ -122,8 +141,18 @@ func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
 	return result
 }
 
-func findIconSlow(ctx context.Context, r httpRoute, uri string, depth int) *FetchResult {
-	ctx, cancel := context.WithTimeoutCause(ctx, 3*time.Second, errors.New("favicon request timeout"))
+func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) *FetchResult {
+	select {
+	case <-ctx.Done():
+		return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "request timeout"}
+	default:
+	}
+
+	if len(stack) > maxRedirectDepth {
+		return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "too many redirects"}
+	}
+
+	ctx, cancel := context.WithTimeoutCause(ctx, faviconFetchTimeout, errors.New("favicon request timeout"))
 	defer cancel()
 
 	newReq, err := http.NewRequestWithContext(ctx, "GET", r.TargetURL().String(), nil)
@@ -149,14 +178,13 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, depth int) *Fetc
 			return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "connection error"}
 		default:
 			if loc := c.Header().Get("Location"); loc != "" {
-				if depth > maxRedirectDepth {
-					return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "too many redirects"}
-				}
 				loc = strutils.SanitizeURI(loc)
-				if loc == "/" || loc == newReq.URL.Path {
+				if loc == "/" || loc == newReq.URL.Path || slices.Contains(stack, loc) {
 					return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "circular redirect"}
 				}
-				return findIconSlow(ctx, r, loc, depth+1)
+				// append current path to stack
+				// handles redirect to the same path with different query
+				return findIconSlow(ctx, r, loc, append(stack, newReq.URL.Path))
 			}
 		}
 		return &FetchResult{StatusCode: c.status, ErrMsg: "upstream error: " + string(c.data)}
@@ -188,8 +216,8 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, depth int) *Fetc
 	}
 	switch {
 	case strings.HasPrefix(href, "http://"), strings.HasPrefix(href, "https://"):
-		return fetchIconAbsolute(href)
+		return fetchIconAbsolute(ctx, href)
 	default:
-		return findIconSlow(ctx, r, href, 0)
+		return findIconSlow(ctx, r, href, append(stack, newReq.URL.Path))
 	}
 }

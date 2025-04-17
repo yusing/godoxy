@@ -24,4 +24,5 @@ var (
 	Get  = httpClient.Get
 	Post = httpClient.Post
 	Head = httpClient.Head
+	Do   = httpClient.Do
 )
