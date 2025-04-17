@@ -36,7 +36,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 			gphttp.ClientError(w, err, http.StatusBadRequest)
 			return
 		}
-		fetchResult := homepage.FetchFavIconFromURL(&iconURL)
+		fetchResult := homepage.FetchFavIconFromURL(req.Context(), &iconURL)
 		if !fetchResult.OK() {
 			http.Error(w, fetchResult.ErrMsg, fetchResult.StatusCode)
 			return
@@ -59,7 +59,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
 			result = homepage.FindIcon(req.Context(), r, hp.Icon.Value)
 		} else {
-			result = homepage.FetchFavIconFromURL(hp.Icon)
+			result = homepage.FetchFavIconFromURL(req.Context(), hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
