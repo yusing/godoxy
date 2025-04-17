@@ -158,6 +158,16 @@ func TestFormatDuration(t *testing.T) {
 			duration: 1*24*time.Hour + 12*time.Hour,
 			expected: "1 day and 12 hours",
 		},
+		{
+			name:     "days and hours and minutes",
+			duration: 1*24*time.Hour + 12*time.Hour + 30*time.Minute,
+			expected: "1 day, 12 hours and 30 minutes",
+		},
+		{
+			name:     "days and hours and minutes and seconds (ignore seconds)",
+			duration: 1*24*time.Hour + 12*time.Hour + 30*time.Minute + 15*time.Second,
+			expected: "1 day, 12 hours and 30 minutes",
+		},
 	}
 
 	for _, tt := range tests {

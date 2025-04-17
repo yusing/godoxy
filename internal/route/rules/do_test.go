@@ -1,12 +1,14 @@
 package rules
 
 import (
+	"os"
 	"testing"
 
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestParseCommands(t *testing.T) {
+	tmpDir := t.TempDir()
 	tests := []struct {
 		name    string
 		input   string
@@ -42,7 +44,7 @@ func TestParseCommands(t *testing.T) {
 		// serve tests
 		{
 			name:    "serve_valid",
-			input:   "serve /var/www",
+			input:   "serve " + tmpDir,
 			wantErr: nil,
 		},
 		{
@@ -54,6 +56,11 @@ func TestParseCommands(t *testing.T) {
 			name:    "serve_too_many_args",
 			input:   "serve / / /",
 			wantErr: ErrInvalidArguments,
+		},
+		{
+			name:    "serve_non_existent_path",
+			input:   "serve " + tmpDir + "/non-existent",
+			wantErr: os.ErrNotExist,
 		},
 		// redirect tests
 		{

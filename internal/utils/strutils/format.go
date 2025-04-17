@@ -9,6 +9,13 @@ import (
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
 
+// AppendDuration appends a duration to a buffer with the following format:
+//   - 1 ns
+//   - 1 ms
+//   - 1 seconds
+//   - 1 minutes and 1 seconds
+//   - 1 hours, 1 minutes and 1 seconds
+//   - 1 days, 1 hours and 1 minutes (ignore seconds if days >= 1)
 func AppendDuration(d time.Duration, buf []byte) []byte {
 	if d < 0 {
 		buf = append(buf, '-')
@@ -39,23 +46,37 @@ func AppendDuration(d time.Duration, buf []byte) []byte {
 	minutes := (totalSeconds % 3600) / 60
 	seconds := totalSeconds % 60
 
+	idxPartBeg := 0
 	if days > 0 {
 		buf = strconv.AppendInt(buf, days, 10)
-		buf = fmt.Appendf(buf, "day%s, ", Pluralize(days))
+		buf = fmt.Appendf(buf, " day%s, ", Pluralize(days))
 	}
 	if hours > 0 {
+		idxPartBeg = len(buf) - 2
 		buf = strconv.AppendInt(buf, hours, 10)
-		buf = fmt.Appendf(buf, "hour%s, ", Pluralize(hours))
+		buf = fmt.Appendf(buf, " hour%s, ", Pluralize(hours))
 	}
 	if minutes > 0 {
+		idxPartBeg = len(buf) - 2
 		buf = strconv.AppendInt(buf, minutes, 10)
-		buf = fmt.Appendf(buf, "minute%s, ", Pluralize(minutes))
+		buf = fmt.Appendf(buf, " minute%s, ", Pluralize(minutes))
 	}
 	if seconds > 0 && totalSeconds < 3600 {
+		idxPartBeg = len(buf) - 2
 		buf = strconv.AppendInt(buf, seconds, 10)
-		buf = fmt.Appendf(buf, "second%s, ", Pluralize(seconds))
+		buf = fmt.Appendf(buf, " second%s, ", Pluralize(seconds))
 	}
-	return buf[:len(buf)-2]
+	// remove last comma and space
+	buf = buf[:len(buf)-2]
+	if idxPartBeg > 0 && idxPartBeg < len(buf) {
+		// replace last part ', ' with ' and ' in-place, alloc-free
+		// ', ' is 2 bytes, ' and ' is 5 bytes, so we need to make room for 3 more bytes
+		tailLen := len(buf) - (idxPartBeg + 2)
+		buf = append(buf, "000"...) // append 3 bytes for ' and '
+		copy(buf[idxPartBeg+5:], buf[idxPartBeg+2:idxPartBeg+2+tailLen]) // shift tail right by 3
+		copy(buf[idxPartBeg:], " and ") // overwrite ', ' with ' and '
+	}
+	return buf
 }
 
 func FormatDuration(d time.Duration) string {

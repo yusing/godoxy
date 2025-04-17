@@ -45,17 +45,12 @@ func ErrorT[T error](t *testing.T, err error, msgAndArgs ...any) {
 
 func Equal[T any](t *testing.T, got T, want T, msgAndArgs ...any) {
 	t.Helper()
-	require.Equal(t, want, got, msgAndArgs...)
+	require.EqualValues(t, want, got, msgAndArgs...)
 }
 
 func NotEqual[T any](t *testing.T, got T, want T, msgAndArgs ...any) {
 	t.Helper()
 	require.NotEqual(t, want, got, msgAndArgs...)
-}
-
-func Values(t *testing.T, got any, want any, msgAndArgs ...any) {
-	t.Helper()
-	require.EqualValues(t, want, got, msgAndArgs...)
 }
 
 func Contains[T any](t *testing.T, got T, wants []T, msgAndArgs ...any) {

@@ -15,7 +15,10 @@ import (
 var testDockerLabelsYAML []byte
 
 func TestParseDockerLabels(t *testing.T) {
-	var provider DockerProvider
+	provider := &DockerProvider{
+		name: "test",
+		dockerHost: "unix:///var/run/docker.sock",
+	}
 
 	labels := make(map[string]string)
 	expect.NoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))

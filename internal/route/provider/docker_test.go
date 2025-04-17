@@ -22,6 +22,7 @@ const (
 
 func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 	var p DockerProvider
+
 	var host string
 	if len(dockerHostIP) > 0 {
 		host = "tcp://" + dockerHostIP[0] + ":2375"
@@ -30,6 +31,7 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 	}
 	cont.ID = "test"
 	p.name = "test"
+	p.dockerHost = host
 	routes := expect.Must(p.routesFromContainerLabels(D.FromDocker(cont, host)))
 	for _, r := range routes {
 		r.Finalize()
@@ -67,7 +69,7 @@ func TestApplyLabel(t *testing.T) {
 		Names: dummyNames,
 		Labels: map[string]string{
 			D.LabelAliases:          "a,b",
-			D.LabelIdleTimeout:      "",
+			D.LabelIdleTimeout:      "10s",
 			D.LabelStopMethod:       "stop",
 			D.LabelStopSignal:       "SIGTERM",
 			D.LabelStopTimeout:      "1h",
@@ -109,8 +111,13 @@ func TestApplyLabel(t *testing.T) {
 	expect.Equal(t, a.Middlewares, middlewaresExpect)
 	expect.Equal(t, len(b.Middlewares), 0)
 
-	expect.Equal(t, a.Container.IdlewatcherConfig.IdleTimeout, 0)
-	expect.Equal(t, b.Container.IdlewatcherConfig.IdleTimeout, 0)
+	expect.NotNil(t, a.Container)
+	expect.NotNil(t, b.Container)
+	expect.NotNil(t, a.Container.IdlewatcherConfig)
+	expect.NotNil(t, b.Container.IdlewatcherConfig)
+
+	expect.Equal(t, a.Container.IdlewatcherConfig.IdleTimeout, 10*time.Second)
+	expect.Equal(t, b.Container.IdlewatcherConfig.IdleTimeout, 10*time.Second)
 	expect.Equal(t, a.Container.IdlewatcherConfig.StopTimeout, time.Hour)
 	expect.Equal(t, b.Container.IdlewatcherConfig.StopTimeout, time.Hour)
 	expect.Equal(t, a.Container.IdlewatcherConfig.StopMethod, "stop")

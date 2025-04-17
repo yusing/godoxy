@@ -49,6 +49,9 @@ func (p *DockerProvider) ShortName() string {
 }
 
 func (p *DockerProvider) IsExplicitOnly() bool {
+	if p.name == "" { // tests
+		return false
+	}
 	return p.name[len(p.name)-1] == '!'
 }
 

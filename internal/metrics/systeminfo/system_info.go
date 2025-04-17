@@ -1,7 +1,6 @@
 package systeminfo
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -295,48 +294,46 @@ func (s *SystemInfo) collectSensorsInfo(ctx context.Context) error {
 }
 
 // explicitly implement MarshalJSON to avoid reflection
-func (s *SystemInfo) MarshalJSONTo(buf []byte) []byte {
-	b := bytes.NewBuffer(buf)
-
-	b.WriteRune('{')
+func (s *SystemInfo) MarshalJSONTo(b []byte) []byte {
+	b = append(b, '{')
 
 	// timestamp
-	b.WriteString(`"timestamp":`)
-	b.WriteString(strconv.FormatInt(s.Timestamp, 10))
+	b = append(b, `"timestamp":`...)
+	b = strconv.AppendInt(b, s.Timestamp, 10)
 
 	// cpu_average
-	b.WriteString(`,"cpu_average":`)
+	b = append(b, `,"cpu_average":`...)
 	if s.CPUAverage != nil {
-		b.WriteString(strconv.FormatFloat(*s.CPUAverage, 'f', 2, 64))
+		b = strconv.AppendFloat(b, *s.CPUAverage, 'f', 2, 64)
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
 	// memory
-	b.WriteString(`,"memory":`)
+	b = append(b, `,"memory":`...)
 	if s.Memory != nil {
-		b.Write(fmt.Appendf(nil,
+		b = fmt.Appendf(b,
 			`{"total":%d,"available":%d,"used":%d,"used_percent":%s}`,
 			s.Memory.Total,
 			s.Memory.Available,
 			s.Memory.Used,
 			strconv.FormatFloat(s.Memory.UsedPercent, 'f', 2, 64),
-		))
+		)
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
 	// disk
-	b.WriteString(`,"disks":`)
+	b = append(b, `,"disks":`...)
 	if len(s.Disks) > 0 {
-		b.WriteRune('{')
+		b = append(b, '{')
 		first := true
 		for device, disk := range s.Disks {
 			if !first {
-				b.WriteRune(',')
+				b = append(b, ',')
 			}
-			b.Write(fmt.Appendf(nil,
-				`"%s":{"device":%q,"path":%q,"fstype":%q,"total":%d,"free":%d,"used":%d,"used_percent":%s}`,
+			b = fmt.Appendf(b,
+				`"%s":{"device":%q,"path":%q,"fstype":%q,"total":%d,"free":%d,"used":%d,"used_percent":%.2f}`,
 				device,
 				device,
 				disk.Path,
@@ -344,81 +341,81 @@ func (s *SystemInfo) MarshalJSONTo(buf []byte) []byte {
 				disk.Total,
 				disk.Free,
 				disk.Used,
-				strconv.FormatFloat(float64(disk.UsedPercent), 'f', 2, 32),
-			))
+				disk.UsedPercent,
+			)
 			first = false
 		}
-		b.WriteRune('}')
+		b = append(b, '}')
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
 	// disks_io
-	b.WriteString(`,"disks_io":`)
+	b = append(b, `,"disks_io":`...)
 	if len(s.DisksIO) > 0 {
-		b.WriteString("{")
+		b = append(b, '{')
 		first := true
 		for name, usage := range s.DisksIO {
 			if !first {
-				b.WriteRune(',')
+				b = append(b, ',')
 			}
-			b.Write(fmt.Appendf(nil,
-				`"%s":{"name":%q,"read_bytes":%d,"write_bytes":%d,"read_speed":%s,"write_speed":%s,"iops":%d}`,
+			b = fmt.Appendf(b,
+				`"%s":{"name":%q,"read_bytes":%d,"write_bytes":%d,"read_speed":%.2f,"write_speed":%.2f,"iops":%d}`,
 				name,
 				name,
 				usage.ReadBytes,
 				usage.WriteBytes,
-				strconv.FormatFloat(usage.ReadSpeed, 'f', 2, 64),
-				strconv.FormatFloat(usage.WriteSpeed, 'f', 2, 64),
+				usage.ReadSpeed,
+				usage.WriteSpeed,
 				usage.Iops,
-			))
+			)
 			first = false
 		}
-		b.WriteRune('}')
+		b = append(b, '}')
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
 	// network
-	b.WriteString(`,"network":`)
+	b = append(b, `,"network":`...)
 	if s.Network != nil {
-		b.Write(fmt.Appendf(nil,
-			`{"bytes_sent":%d,"bytes_recv":%d,"upload_speed":%s,"download_speed":%s}`,
+		b = fmt.Appendf(b,
+			`{"bytes_sent":%d,"bytes_recv":%d,"upload_speed":%.2f,"download_speed":%.2f}`,
 			s.Network.BytesSent,
 			s.Network.BytesRecv,
-			strconv.FormatFloat(s.Network.UploadSpeed, 'f', 2, 64),
-			strconv.FormatFloat(s.Network.DownloadSpeed, 'f', 2, 64),
-		))
+			s.Network.UploadSpeed,
+			s.Network.DownloadSpeed,
+		)
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
 	// sensors
-	b.WriteString(`,"sensors":`)
+	b = append(b, `,"sensors":`...)
 	if len(s.Sensors) > 0 {
-		b.WriteRune('{')
+		b = append(b, '{')
 		first := true
 		for _, sensor := range s.Sensors {
 			if !first {
-				b.WriteRune(',')
+				b = append(b, ',')
 			}
-			b.Write(fmt.Appendf(nil,
-				`%q:{"name":%q,"temperature":%s,"high":%s,"critical":%s}`,
+			b = fmt.Appendf(b,
+				`"%s":{"name":%q,"temperature":%.2f,"high":%.2f,"critical":%.2f}`,
 				sensor.SensorKey,
 				sensor.SensorKey,
-				strconv.FormatFloat(float64(sensor.Temperature), 'f', 2, 32),
-				strconv.FormatFloat(float64(sensor.High), 'f', 2, 32),
-				strconv.FormatFloat(float64(sensor.Critical), 'f', 2, 32),
-			))
+				sensor.Temperature,
+				sensor.High,
+				sensor.Critical,
+			)
 			first = false
 		}
-		b.WriteRune('}')
+		b = append(b, '}')
 	} else {
-		b.WriteString("null")
+		b = append(b, "null"...)
 	}
 
-	b.WriteRune('}')
-	return b.Bytes()
+	b = append(b, '}')
+	return b
 }
 
 func (s *Sensors) UnmarshalJSON(data []byte) error {
