@@ -57,7 +57,7 @@ func (t *Task) callbackList() []map[string]any {
 func (t *Task) MarshalMap() map[string]any {
 	return map[string]any{
 		"name":          t.name,
-		"need_finish":   strconv.FormatBool(t.needFinish),
+		"need_finish":   strconv.FormatBool(t.waitFinish),
 		"childrens":     t.children,
 		"callbacks":     t.callbackList(),
 		"finish_called": t.finishedCalled,

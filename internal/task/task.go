@@ -45,7 +45,7 @@ type (
 		callbacks     map[*Callback]struct{}
 		callbacksDone chan struct{}
 
-		needFinish bool
+		waitFinish bool
 		finished   chan struct{}
 		// finishedCalled == 1 Finish has been called
 		// but does not mean that the task is finished yet
@@ -59,7 +59,7 @@ type (
 	}
 	Parent interface {
 		Context() context.Context
-		Subtask(name string, needFinish ...bool) *Task
+		Subtask(name string, waitFinish bool) *Task
 		Name() string
 		Finish(reason any)
 		OnCancel(name string, f func())
@@ -141,13 +141,11 @@ func (t *Task) finish(reason any) {
 // Subtask returns a new subtask with the given name, derived from the parent's context.
 //
 // This should not be called after Finish is called.
-func (t *Task) Subtask(name string, needFinish ...bool) *Task {
-	nf := len(needFinish) == 0 || needFinish[0]
-
+func (t *Task) Subtask(name string, waitFinish bool) *Task {
 	ctx, cancel := context.WithCancelCause(t.ctx)
 	child := &Task{
 		parent:     t,
-		needFinish: nf,
+		waitFinish: waitFinish,
 		finished:   make(chan struct{}),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -161,7 +159,7 @@ func (t *Task) Subtask(name string, needFinish ...bool) *Task {
 	allTasks.Add(child)
 	t.addChildCount()
 
-	if !nf {
+	if !waitFinish {
 		go func() {
 			<-child.ctx.Done()
 			child.Finish(nil)

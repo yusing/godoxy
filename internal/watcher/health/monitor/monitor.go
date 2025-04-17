@@ -88,7 +88,7 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	}
 
 	mon.service = parent.Name()
-	mon.task = parent.Subtask("health_monitor")
+	mon.task = parent.Subtask("health_monitor", true)
 
 	go func() {
 		logger := logging.With().Str("name", mon.service).Logger()

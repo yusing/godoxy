@@ -33,7 +33,7 @@ const dispatchErr = "notification dispatch error"
 
 func StartNotifDispatcher(parent task.Parent) *Dispatcher {
 	dispatcher = &Dispatcher{
-		task:      parent.Subtask("notification"),
+		task:      parent.Subtask("notification", true),
 		logCh:     make(chan *LogMessage),
 		providers: F.NewSet[Provider](),
 	}
@@ -86,7 +86,7 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 	if true {
 		return
 	}
-	task := disp.task.Subtask("dispatcher")
+	task := disp.task.Subtask("dispatcher", true)
 	defer task.Finish("notif dispatched")
 
 	errs := gperr.NewBuilder(dispatchErr)
