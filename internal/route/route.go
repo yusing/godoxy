@@ -118,18 +118,24 @@ func (r *Route) Validate() (err gperr.Error) {
 		return errs.Error()
 	}
 
+	var impl types.Route
 	switch r.Scheme {
 	case types.SchemeFileServer:
-		r.impl, err = NewFileServer(r)
+		impl, err = NewFileServer(r)
 	case types.SchemeHTTP, types.SchemeHTTPS:
-		r.impl, err = NewReverseProxyRoute(r)
+		impl, err = NewReverseProxyRoute(r)
 	case types.SchemeTCP, types.SchemeUDP:
-		r.impl, err = NewStreamRoute(r)
+		impl, err = NewStreamRoute(r)
 	default:
 		panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 	}
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	r.impl = impl
+	return nil
 }
 
 func (r *Route) Start(parent task.Parent) (err gperr.Error) {
