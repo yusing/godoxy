@@ -201,17 +201,12 @@ func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Reque
 		Path:     "/",
 	})
 
-	redirURL := auth.oauthConfig.AuthCodeURL(state)
+	var redirURL string
 	if auth.isMiddleware {
-		u, err := r.URL.Parse(redirURL)
-		if err != nil {
-			gphttp.ServerError(w, r, err)
-			return
-		}
-		q := u.Query()
-		q.Set("redirect_uri", "https://"+r.Host+OIDCMiddlewareCallbackPath+q.Get("redirect_uri"))
-		u.RawQuery = q.Encode()
-		redirURL = u.String()
+		optOverrideRedirectURL := oauth2.SetAuthURLParam("redirect_uri", "https://"+r.Host+OIDCMiddlewareCallbackPath)
+		redirURL = auth.oauthConfig.AuthCodeURL(state, optOverrideRedirectURL)
+	} else {
+		redirURL = auth.oauthConfig.AuthCodeURL(state)
 	}
 	http.Redirect(w, r, redirURL, http.StatusTemporaryRedirect)
 }
