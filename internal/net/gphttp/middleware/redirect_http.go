@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 )
 
 type redirectHTTP struct {
@@ -46,7 +45,5 @@ func (m *redirectHTTP) before(w http.ResponseWriter, r *http.Request) (proceed b
 	}
 
 	http.Redirect(w, r, r.URL.String(), http.StatusPermanentRedirect)
-
-	logging.Debug().Str("url", r.URL.String()).Str("user_agent", r.UserAgent()).Msg("redirect to https")
 	return false
 }
