@@ -128,7 +128,8 @@ func (auth *UserPassAuth) LoginCallbackHandler(w http.ResponseWriter, r *http.Re
 }
 
 func (auth *UserPassAuth) LogoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	DefaultLogoutCallbackHandler(auth, w, r)
+	clearTokenCookie(w, r, auth.TokenCookieName())
+	auth.RedirectLoginPage(w, r)
 }
 
 func (auth *UserPassAuth) validatePassword(user, pass string) error {

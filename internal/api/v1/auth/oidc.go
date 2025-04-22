@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -28,7 +26,6 @@ type (
 		oidcEndSessionURL *url.URL
 		allowedUsers      []string
 		allowedGroups     []string
-		isMiddleware      bool
 	}
 
 	providerJSON struct {
@@ -40,11 +37,17 @@ type (
 const CookieOauthState = "godoxy_oidc_state"
 
 const (
-	OIDCMiddlewareCallbackPath = "/auth/callback"
-	OIDCLogoutPath             = "/auth/logout"
+	OIDCAuthCallbackPath = "/auth/callback"
+	OIDCPostAuthPath     = "/auth/postauth"
+	OIDCLogoutPath       = "/auth/logout"
 )
 
-func NewOIDCProvider(issuerURL, clientID, clientSecret, redirectURL string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
+var (
+	ErrMissingState = errors.New("missing state cookie")
+	ErrInvalidState = errors.New("invalid oauth state")
+)
+
+func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
 	if len(allowedUsers)+len(allowedGroups) == 0 {
 		return nil, errors.New("OIDC users, groups, or both must not be empty")
 	}
@@ -62,11 +65,15 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret, redirectURL string, allo
 			Msg("failed to parse end session URL")
 	}
 
+	logging.Debug().
+		Str("issuer", issuerURL).
+		Str("end_session_endpoint", provider.EndSessionEndpoint()).
+		Msg("end session URL")
 	return &OIDCProvider{
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
-			RedirectURL:  redirectURL,
+			RedirectURL:  "",
 			Endpoint:     provider.Endpoint(),
 			Scopes:       strutils.CommaSeperatedList(common.OIDCScopes),
 		},
@@ -86,7 +93,6 @@ func NewOIDCProviderFromEnv() (*OIDCProvider, error) {
 		common.OIDCIssuerURL,
 		common.OIDCClientID,
 		common.OIDCClientSecret,
-		common.OIDCRedirectURL,
 		common.OIDCAllowedUsers,
 		common.OIDCAllowedGroups,
 	)
@@ -96,17 +102,62 @@ func (auth *OIDCProvider) TokenCookieName() string {
 	return "godoxy_oidc_token"
 }
 
-func (auth *OIDCProvider) SetIsMiddleware(enabled bool) {
-	auth.isMiddleware = enabled
-	auth.oauthConfig.RedirectURL = ""
-}
-
 func (auth *OIDCProvider) SetAllowedUsers(users []string) {
 	auth.allowedUsers = users
 }
 
 func (auth *OIDCProvider) SetAllowedGroups(groups []string) {
 	auth.allowedGroups = groups
+}
+
+func (auth *OIDCProvider) getVerifyStateCookie(r *http.Request) (string, error) {
+	state, err := r.Cookie(CookieOauthState)
+	if err != nil {
+		return "", ErrMissingState
+	}
+	if r.URL.Query().Get("state") != state.Value {
+		return "", ErrInvalidState
+	}
+	return state.Value, nil
+}
+
+func optRedirectPostAuth(r *http.Request) oauth2.AuthCodeOption {
+	return oauth2.SetAuthURLParam("redirect_uri", "https://"+r.Host+OIDCPostAuthPath)
+}
+
+func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
+	logging.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("handle auth")
+
+	switch r.Method {
+	case http.MethodHead:
+		w.WriteHeader(http.StatusOK)
+		return
+	case http.MethodGet:
+		break
+	default:
+		gphttp.Forbidden(w, "method not allowed")
+		return
+	}
+
+	switch r.URL.Path {
+	case OIDCAuthCallbackPath:
+		state := generateState()
+		http.SetCookie(w, &http.Cookie{
+			Name:     CookieOauthState,
+			Value:    state,
+			MaxAge:   300,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   common.APIJWTSecure,
+			Path:     "/",
+		})
+		// redirect user to Idp
+		http.Redirect(w, r, auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r)), http.StatusTemporaryRedirect)
+	case OIDCPostAuthPath:
+		auth.PostAuthCallbackHandler(w, r)
+	default:
+		auth.LogoutHandler(w, r)
+	}
 }
 
 func (auth *OIDCProvider) CheckToken(r *http.Request) error {
@@ -143,80 +194,25 @@ func (auth *OIDCProvider) CheckToken(r *http.Request) error {
 	return nil
 }
 
-// generateState generates a random string for OIDC state.
-const oidcStateLength = 32
-
-func generateState() (string, error) {
-	b := make([]byte, oidcStateLength)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(b)[:oidcStateLength], nil
-}
-
-// RedirectOIDC initiates the OIDC login flow.
 func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Request) {
-	state, err := generateState()
-	if err != nil {
-		gphttp.ServerError(w, r, err)
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     CookieOauthState,
-		Value:    state,
-		MaxAge:   300,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   common.APIJWTSecure,
-		Path:     "/",
-	})
-
-	var redirURL string
-	if auth.isMiddleware {
-		optOverrideRedirectURL := oauth2.SetAuthURLParam("redirect_uri", "https://"+r.Host+OIDCMiddlewareCallbackPath)
-		redirURL = auth.oauthConfig.AuthCodeURL(state, optOverrideRedirectURL)
-	} else {
-		redirURL = auth.oauthConfig.AuthCodeURL(state)
-	}
-	http.Redirect(w, r, redirURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-func (auth *OIDCProvider) cloneConfig() *oauth2.Config {
-	cfg := *auth.oauthConfig
-	return &cfg
-}
-
-func (auth *OIDCProvider) exchange(r *http.Request) (*oauth2.Token, error) {
-	var cfg *oauth2.Config
-	if auth.isMiddleware {
-		cfg = auth.cloneConfig()
-		cfg.RedirectURL = "https://" + r.Host + OIDCMiddlewareCallbackPath
-	}
-	return cfg.Exchange(r.Context(), r.URL.Query().Get("code"))
-}
-
-// OIDCCallbackHandler handles the OIDC callback.
-func (auth *OIDCProvider) LoginCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	// For testing purposes, skip provider verification
 	if common.IsTest {
 		auth.handleTestCallback(w, r)
 		return
 	}
 
-	state, err := r.Cookie(CookieOauthState)
+	_, err := auth.getVerifyStateCookie(r)
 	if err != nil {
-		gphttp.BadRequest(w, "missing state cookie")
+		gphttp.BadRequest(w, err.Error())
 		return
 	}
 
-	query := r.URL.Query()
-	if query.Get("state") != state.Value {
-		gphttp.BadRequest(w, "invalid oauth state")
-		return
-	}
-
-	oauth2Token, err := auth.exchange(r)
+	code := r.URL.Query().Get("code")
+	oauth2Token, err := auth.oauthConfig.Exchange(r.Context(), code, optRedirectPostAuth(r))
 	if err != nil {
 		gphttp.ServerError(w, r, fmt.Errorf("failed to exchange token: %w", err))
 		return
@@ -240,23 +236,26 @@ func (auth *OIDCProvider) LoginCallbackHandler(w http.ResponseWriter, r *http.Re
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-func (auth *OIDCProvider) LogoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if auth.oidcEndSessionURL == nil {
-		DefaultLogoutCallbackHandler(auth, w, r)
+		clearTokenCookie(w, r, auth.TokenCookieName())
+		http.Redirect(w, r, OIDCAuthCallbackPath, http.StatusTemporaryRedirect)
 		return
 	}
 
 	token, err := r.Cookie(auth.TokenCookieName())
-	if err != nil {
-		gphttp.BadRequest(w, "missing token cookie")
-		return
+	if err == nil {
+		query := auth.oidcEndSessionURL.Query()
+		query.Add("id_token_hint", token.Value)
+
+		logoutURL := *auth.oidcEndSessionURL
+		logoutURL.RawQuery = query.Encode()
+
+		clearTokenCookie(w, r, auth.TokenCookieName())
+		http.Redirect(w, r, logoutURL.String(), http.StatusFound)
 	}
-	clearTokenCookie(w, r, auth.TokenCookieName())
 
-	logoutURL := *auth.oidcEndSessionURL
-	logoutURL.Query().Add("id_token_hint", token.Value)
-
-	http.Redirect(w, r, logoutURL.String(), http.StatusFound)
+	http.Redirect(w, r, OIDCAuthCallbackPath, http.StatusTemporaryRedirect)
 }
 
 // handleTestCallback handles OIDC callback in test environment.

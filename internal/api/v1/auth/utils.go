@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"net"
 	"net/http"
 	"time"
@@ -73,8 +75,11 @@ func clearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
 	})
 }
 
-// DefaultLogoutCallbackHandler clears the token cookie and redirects to the login page..
-func DefaultLogoutCallbackHandler(auth Provider, w http.ResponseWriter, r *http.Request) {
-	clearTokenCookie(w, r, auth.TokenCookieName())
-	auth.RedirectLoginPage(w, r)
+// generateState generates a random string for OIDC state.
+const oidcStateLength = 32
+
+func generateState() string {
+	b := make([]byte, oidcStateLength)
+	_, _ = rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)[:oidcStateLength]
 }

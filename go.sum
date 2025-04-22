@@ -66,8 +66,8 @@ github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJA
 github.com/goccy/go-json v0.10.5 h1:Fq85nIqj+gXn/S5ahsiTlK3TmC85qgirsdTP/+DeaC4=
 github.com/goccy/go-json v0.10.5/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
-github.com/godoxy-app/go-oidc/v3 v3.14.1 h1:QWes6QTEeyZQ40fluO8HLqF/D9W0Nj/Zm7UYhTTUJ+k=
-github.com/godoxy-app/go-oidc/v3 v3.14.1/go.mod h1:ZRZLrEz7MmMe1kRzRsYqYmWKN2EHlPVGn71GMbrLLt4=
+github.com/godoxy-app/go-oidc/v3 v3.14.2 h1:y1sosR6N7IpMiREM8I8w68zrUhh5P0Hg+6wERmuhFAc=
+github.com/godoxy-app/go-oidc/v3 v3.14.2/go.mod h1:ZRZLrEz7MmMe1kRzRsYqYmWKN2EHlPVGn71GMbrLLt4=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/golang-jwt/jwt/v5 v5.2.2 h1:Rl4B7itRWVtYIHFrSNd7vhTiz9UpLdi6gZhZ3wEeDy8=

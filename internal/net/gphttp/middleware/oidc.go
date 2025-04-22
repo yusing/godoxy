@@ -14,8 +14,7 @@ type oidcMiddleware struct {
 	AllowedUsers  []string `json:"allowed_users"`
 	AllowedGroups []string `json:"allowed_groups"`
 
-	auth    auth.Provider
-	authMux *http.ServeMux
+	auth *auth.OIDCProvider
 
 	isInitialized int32
 	initMu        sync.Mutex
@@ -55,7 +54,6 @@ func (amw *oidcMiddleware) initSlow() error {
 		return err
 	}
 
-	authProvider.SetIsMiddleware(true)
 	if len(amw.AllowedUsers) > 0 {
 		authProvider.SetAllowedUsers(amw.AllowedUsers)
 	}
@@ -63,27 +61,24 @@ func (amw *oidcMiddleware) initSlow() error {
 		authProvider.SetAllowedGroups(amw.AllowedGroups)
 	}
 
-	amw.authMux = http.NewServeMux()
-	amw.authMux.HandleFunc(auth.OIDCMiddlewareCallbackPath, authProvider.LoginCallbackHandler)
-	amw.authMux.HandleFunc("/", authProvider.RedirectLoginPage)
 	amw.auth = authProvider
 	return nil
 }
 
 func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	if err := amw.init(); err != nil {
-		// no need to log here, main OIDC may already failed and logged
+		// no need to log here, main OIDC should've already failed and logged
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false
 	}
 
 	if r.URL.Path == auth.OIDCLogoutPath {
-		amw.auth.LogoutCallbackHandler(w, r)
+		amw.auth.LogoutHandler(w, r)
 		return false
 	}
 	if err := amw.auth.CheckToken(r); err != nil {
 		if errors.Is(err, auth.ErrMissingToken) {
-			amw.authMux.ServeHTTP(w, r)
+			amw.auth.HandleAuth(w, r)
 		} else {
 			auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), auth.OIDCLogoutPath)
 		}

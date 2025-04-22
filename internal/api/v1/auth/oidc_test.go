@@ -155,10 +155,10 @@ func TestOIDCLoginHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/auth/redirect", nil)
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
-			defaultAuth.RedirectLoginPage(w, req)
+			defaultAuth.(*OIDCProvider).HandleAuth(w, req)
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCLoginHandler() status = %v, want %v", got, tt.wantStatus)
@@ -219,7 +219,7 @@ func TestOIDCCallbackHandler(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 
-			defaultAuth.LoginCallbackHandler(w, req)
+			defaultAuth.(*OIDCProvider).PostAuthCallbackHandler(w, req)
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCCallbackHandler() status = %v, want %v", got, tt.wantStatus)
@@ -270,7 +270,6 @@ func TestInitOIDC(t *testing.T) {
 			issuerURL:    server.URL,
 			clientID:     "client_id",
 			clientSecret: "client_secret",
-			redirectURL:  "https://example.com/callback",
 			allowedUsers: []string{"user1", "user2"},
 			wantErr:      false,
 		},
@@ -279,7 +278,6 @@ func TestInitOIDC(t *testing.T) {
 			issuerURL:     server.URL,
 			clientID:      "client_id",
 			clientSecret:  "client_secret",
-			redirectURL:   "https://example.com/callback",
 			allowedGroups: []string{"group1", "group2"},
 			wantErr:       false,
 		},
@@ -288,7 +286,6 @@ func TestInitOIDC(t *testing.T) {
 			issuerURL:     server.URL,
 			clientID:      "client_id",
 			clientSecret:  "client_secret",
-			redirectURL:   "https://example.com/callback",
 			logoutURL:     "https://example.com/logout",
 			allowedUsers:  []string{"user1", "user2"},
 			allowedGroups: []string{"group1", "group2"},
@@ -299,14 +296,13 @@ func TestInitOIDC(t *testing.T) {
 			issuerURL:    "https://example.com",
 			clientID:     "client_id",
 			clientSecret: "client_secret",
-			redirectURL:  "https://example.com/callback",
 			wantErr:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewOIDCProvider(tt.issuerURL, tt.clientID, tt.clientSecret, tt.redirectURL, tt.allowedUsers, tt.allowedGroups)
+			_, err := NewOIDCProvider(tt.issuerURL, tt.clientID, tt.clientSecret, tt.allowedUsers, tt.allowedGroups)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitOIDC() error = %v, wantErr %v", err, tt.wantErr)
 			}

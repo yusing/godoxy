@@ -27,7 +27,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // yaml parsing for different config files
 )
 
-replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.1
+replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.2
 
 require (
 	github.com/docker/cli v28.1.1+incompatible

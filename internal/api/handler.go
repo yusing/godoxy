@@ -98,21 +98,21 @@ func NewHandler(cfg config.ConfigInstance) http.Handler {
 		logging.Info().Msg("prometheus metrics enabled")
 	}
 
-	defaultAuth := auth.GetDefaultAuth()
-	if defaultAuth != nil {
-		mux.HandleFunc("GET", "/v1/auth/redirect", defaultAuth.RedirectLoginPage)
-		mux.HandleFunc("GET", "/v1/auth/check", func(w http.ResponseWriter, r *http.Request) {
-			if err := defaultAuth.CheckToken(r); err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-		})
-		mux.HandleFunc("GET,POST", "/v1/auth/callback", defaultAuth.LoginCallbackHandler)
-		mux.HandleFunc("GET,POST", "/v1/auth/logout", defaultAuth.LogoutCallbackHandler)
-	} else {
-		mux.HandleFunc("GET", "/v1/auth/check", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-	}
+	// defaultAuth := auth.GetDefaultAuth()
+	// if defaultAuth != nil {
+	// 	mux.HandleFunc("GET", "/v1/auth/redirect", defaultAuth.RedirectLoginPage)
+	// 	mux.HandleFunc("GET", "/v1/auth/check", func(w http.ResponseWriter, r *http.Request) {
+	// 		if err := defaultAuth.CheckToken(r); err != nil {
+	// 			http.Error(w, err.Error(), http.StatusUnauthorized)
+	// 			return
+	// 		}
+	// 	})
+	// 	mux.HandleFunc("GET,POST", "/v1/auth/callback", defaultAuth.LoginCallbackHandler)
+	// 	mux.HandleFunc("GET,POST", "/v1/auth/logout", defaultAuth.LogoutCallbackHandler)
+	// } else {
+	// 	mux.HandleFunc("GET", "/v1/auth/check", func(w http.ResponseWriter, r *http.Request) {
+	// 		w.WriteHeader(http.StatusOK)
+	// 	})
+	// }
 	return mux
 }
