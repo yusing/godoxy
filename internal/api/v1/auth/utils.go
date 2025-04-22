@@ -25,10 +25,20 @@ var (
 //	"abc.example.com" -> "example.com"
 //	"example.com" -> ""
 func cookieFQDN(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.Host)
-	if err != nil {
-		host = r.Host
+	var host string
+	// check if it's from backend
+	switch r.Host {
+	case common.APIHTTPAddr:
+		// use XFH
+		host = r.Header.Get("X-Forwarded-Host")
+	default:
+		var err error
+		host, _, err = net.SplitHostPort(r.Host)
+		if err != nil {
+			host = r.Host
+		}
 	}
+
 	parts := strutils.SplitRune(host, '.')
 	if len(parts) < 2 {
 		return ""
