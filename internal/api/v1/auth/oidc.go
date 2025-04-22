@@ -65,10 +65,6 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 			Msg("failed to parse end session URL")
 	}
 
-	logging.Debug().
-		Str("issuer", issuerURL).
-		Str("end_session_endpoint", provider.EndSessionEndpoint()).
-		Msg("end session URL")
 	return &OIDCProvider{
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
@@ -126,8 +122,6 @@ func optRedirectPostAuth(r *http.Request) oauth2.AuthCodeOption {
 }
 
 func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
-	logging.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("handle auth")
-
 	switch r.Method {
 	case http.MethodHead:
 		w.WriteHeader(http.StatusOK)
