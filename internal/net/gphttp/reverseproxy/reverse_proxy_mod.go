@@ -380,6 +380,8 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 		}()
 	}
 
+	httpheaders.RemoveServiceHeaders(res.Header)
+
 	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
 	if res.StatusCode == http.StatusSwitchingProtocols {
 		if !p.modifyResponse(rw, res, req, outreq) {

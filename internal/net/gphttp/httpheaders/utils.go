@@ -82,6 +82,11 @@ func RemoveHop(h http.Header) {
 	}
 }
 
+func RemoveServiceHeaders(h http.Header) {
+	h.Del("X-Powered-By")
+	h.Del("Server")
+}
+
 func CopyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
