@@ -182,13 +182,18 @@ func (auth *OIDCProvider) RedirectLoginPage(w http.ResponseWriter, r *http.Reque
 	http.Redirect(w, r, redirURL, http.StatusTemporaryRedirect)
 }
 
+func (auth *OIDCProvider) cloneConfig() *oauth2.Config {
+	cfg := *auth.oauthConfig
+	return &cfg
+}
+
 func (auth *OIDCProvider) exchange(r *http.Request) (*oauth2.Token, error) {
+	var cfg *oauth2.Config
 	if auth.isMiddleware {
-		cfg := *auth.oauthConfig
+		cfg = auth.cloneConfig()
 		cfg.RedirectURL = "https://" + r.Host + OIDCMiddlewareCallbackPath
-		return cfg.Exchange(r.Context(), r.URL.Query().Get("code"))
 	}
-	return auth.oauthConfig.Exchange(r.Context(), r.URL.Query().Get("code"))
+	return cfg.Exchange(r.Context(), r.URL.Query().Get("code"))
 }
 
 // OIDCCallbackHandler handles the OIDC callback.
