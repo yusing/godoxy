@@ -59,6 +59,7 @@ type (
 
 		impl        types.Route
 		isValidated bool
+		lastError   gperr.Error
 	}
 	Routes map[string]*Route
 )
@@ -68,9 +69,9 @@ func (r Routes) Contains(alias string) bool {
 	return ok
 }
 
-func (r *Route) Validate() (err gperr.Error) {
+func (r *Route) Validate() gperr.Error {
 	if r.isValidated {
-		return nil
+		return r.lastError
 	}
 	r.isValidated = true
 	r.Finalize()
@@ -87,6 +88,9 @@ func (r *Route) Validate() (err gperr.Error) {
 	}
 
 	errs := gperr.NewBuilder("entry validation failed")
+
+	var impl types.Route
+	var err gperr.Error
 
 	switch r.Scheme {
 	case types.SchemeFileServer:
@@ -115,10 +119,10 @@ func (r *Route) Validate() (err gperr.Error) {
 	}
 
 	if errs.HasError() {
-		return errs.Error()
+		r.lastError = errs.Error()
+		return r.lastError
 	}
 
-	var impl types.Route
 	switch r.Scheme {
 	case types.SchemeFileServer:
 		impl, err = NewFileServer(r)
@@ -131,6 +135,7 @@ func (r *Route) Validate() (err gperr.Error) {
 	}
 
 	if err != nil {
+		r.lastError = err
 		return err
 	}
 
@@ -139,7 +144,7 @@ func (r *Route) Validate() (err gperr.Error) {
 }
 
 func (r *Route) Start(parent task.Parent) (err gperr.Error) {
-	if r.impl == nil {
+	if r.impl == nil { // should not happen
 		return gperr.New("route not initialized")
 	}
 
