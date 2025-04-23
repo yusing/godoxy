@@ -89,7 +89,7 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 	task := disp.task.Subtask("dispatcher")
 	defer task.Finish("notif dispatched")
 
-	errs := gperr.NewBuilder(dispatchErr)
+	errs := gperr.NewBuilderWithConcurrency(dispatchErr)
 	disp.providers.RangeAllParallel(func(p Provider) {
 		if err := notifyProvider(task.Context(), p, msg); err != nil {
 			errs.Add(gperr.PrependSubject(p.GetName(), err))

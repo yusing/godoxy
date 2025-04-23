@@ -319,6 +319,7 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 			lenLongestName = len(k)
 		}
 	})
+	results.EnableConcurrency()
 	cfg.providers.RangeAllParallel(func(_ string, p *proxy.Provider) {
 		if err := p.LoadRoutes(); err != nil {
 			errs.Add(err.Subject(p.String()))

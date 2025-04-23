@@ -87,33 +87,6 @@ func (m Map[KT, VT]) CollectErrors(do func(k KT, v VT) error) []error {
 	return errs
 }
 
-// CollectErrors calls the given function for each key-value pair in the map,
-// then returns a slice of errors collected.
-func (m Map[KT, VT]) CollectErrorsParallel(do func(k KT, v VT) error) []error {
-	if m.Size() < minParallelSize {
-		return m.CollectErrors(do)
-	}
-
-	var errs []error
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	m.Range(func(k KT, v VT) bool {
-		wg.Add(1)
-		go func() {
-			if err := do(k, v); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-			}
-			wg.Done()
-		}()
-		return true
-	})
-	wg.Wait()
-	return errs
-}
-
 func (m Map[KT, VT]) Has(k KT) bool {
 	_, ok := m.Load(k)
 	return ok
