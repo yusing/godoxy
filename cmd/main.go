@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/go-proxy/internal/config"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
-	"github.com/yusing/go-proxy/internal/jsonstore"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
@@ -80,7 +79,6 @@ func main() {
 		logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
 		logging.Trace().Msg("trace enabled")
 		parallel(
-			jsonstore.Initialize,
 			internal.InitIconListCache,
 			homepage.InitOverridesConfig,
 			favicon.InitIconCache,

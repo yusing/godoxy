@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"net"
 	"net/http"
 	"time"
 
@@ -11,35 +10,34 @@ import (
 )
 
 var (
-	ErrMissingToken   = gperr.New("missing token")
-	ErrInvalidToken   = gperr.New("invalid token")
-	ErrUserNotAllowed = gperr.New("user not allowed")
+	ErrMissingOAuthToken   = gperr.New("missing oauth token")
+	ErrMissingSessionToken = gperr.New("missing session token")
+	ErrInvalidOAuthToken   = gperr.New("invalid oauth token")
+	ErrInvalidSessionToken = gperr.New("invalid session token")
+	ErrUserNotAllowed      = gperr.New("user not allowed")
 )
 
-// cookieFQDN returns the fully qualified domain name of the request host
+func requestHost(r *http.Request) string {
+	// check if it's from backend
+	switch r.Host {
+	case common.APIHTTPAddr:
+		// use XFH
+		return r.Header.Get("X-Forwarded-Host")
+	default:
+		return r.Host
+	}
+}
+
+// cookieDomain returns the fully qualified domain name of the request host
 // with subdomain stripped.
 //
 // If the request host does not have a subdomain,
 // an empty string is returned
 //
-//	"abc.example.com" -> "example.com"
-//	"example.com" -> ""
-func cookieFQDN(r *http.Request) string {
-	var host string
-	// check if it's from backend
-	switch r.Host {
-	case common.APIHTTPAddr:
-		// use XFH
-		host = r.Header.Get("X-Forwarded-Host")
-	default:
-		var err error
-		host, _, err = net.SplitHostPort(r.Host)
-		if err != nil {
-			host = r.Host
-		}
-	}
-
-	parts := strutils.SplitRune(host, '.')
+//	"abc.example.com" -> ".example.com" (cross subdomain)
+//	"example.com" -> "" (same domain only)
+func cookieDomain(r *http.Request) string {
+	parts := strutils.SplitRune(requestHost(r), '.')
 	if len(parts) < 2 {
 		return ""
 	}
@@ -52,7 +50,7 @@ func setTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, 
 		Name:     name,
 		Value:    value,
 		MaxAge:   int(ttl.Seconds()),
-		Domain:   cookieFQDN(r),
+		Domain:   cookieDomain(r),
 		HttpOnly: true,
 		Secure:   common.APIJWTSecure,
 		SameSite: http.SameSiteLaxMode,
@@ -65,7 +63,7 @@ func clearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
 		Name:     name,
 		Value:    "",
 		MaxAge:   -1,
-		Domain:   cookieFQDN(r),
+		Domain:   cookieDomain(r),
 		HttpOnly: true,
 		Secure:   common.APIJWTSecure,
 		SameSite: http.SameSiteLaxMode,

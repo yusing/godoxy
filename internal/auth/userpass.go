@@ -76,7 +76,7 @@ func (auth *UserPassAuth) NewToken() (token string, err error) {
 func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	jwtCookie, err := r.Cookie(auth.TokenCookieName())
 	if err != nil {
-		return ErrMissingToken
+		return ErrMissingSessionToken
 	}
 	var claims UserPassClaims
 	token, err := jwt.ParseWithClaims(jwtCookie.Value, &claims, func(t *jwt.Token) (interface{}, error) {
@@ -90,7 +90,7 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	}
 	switch {
 	case !token.Valid:
-		return ErrInvalidToken
+		return ErrInvalidSessionToken
 	case claims.Username != auth.username:
 		return ErrUserNotAllowed.Subject(claims.Username)
 	case claims.ExpiresAt.Before(time.Now()):
@@ -100,11 +100,7 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	return nil
 }
 
-func (auth *UserPassAuth) RedirectLoginPage(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-}
-
-func (auth *UserPassAuth) LoginCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		User string `json:"username"`
 		Pass string `json:"password"`
@@ -127,9 +123,9 @@ func (auth *UserPassAuth) LoginCallbackHandler(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusOK)
 }
 
-func (auth *UserPassAuth) LogoutCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	clearTokenCookie(w, r, auth.TokenCookieName())
-	auth.RedirectLoginPage(w, r)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (auth *UserPassAuth) validatePassword(user, pass string) error {

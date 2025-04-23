@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -35,7 +36,8 @@ func setupMockOIDC(t *testing.T) {
 			},
 			Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
 		},
-		oidcProvider: provider,
+		endSessionURL: Must(url.Parse("http://mock-provider/logout")),
+		oidcProvider:  provider,
 		oidcVerifier: provider.Verifier(&oidc.Config{
 			ClientID: "test-client",
 		}),
@@ -148,14 +150,14 @@ func TestOIDCLoginHandler(t *testing.T) {
 	}{
 		{
 			name:         "Success - Redirects to provider",
-			wantStatus:   http.StatusTemporaryRedirect,
+			wantStatus:   http.StatusFound,
 			wantRedirect: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequest(http.MethodGet, OIDCAuthInitPath, nil)
 			w := httptest.NewRecorder()
 
 			defaultAuth.(*OIDCProvider).HandleAuth(w, req)
@@ -194,7 +196,7 @@ func TestOIDCCallbackHandler(t *testing.T) {
 			state:      "valid-state",
 			code:       "valid-code",
 			setupMocks: true,
-			wantStatus: http.StatusTemporaryRedirect,
+			wantStatus: http.StatusFound,
 		},
 		{
 			name:       "Failure - Missing state",
@@ -396,7 +398,7 @@ func TestCheckToken(t *testing.T) {
 				"preferred_username": "user1",
 				"groups":             []string{"group1"},
 			},
-			wantErr: ErrInvalidToken,
+			wantErr: ErrInvalidOAuthToken,
 		},
 		{
 			name: "Error - Server returns incorrect audience",
@@ -407,7 +409,7 @@ func TestCheckToken(t *testing.T) {
 				"preferred_username": "user1",
 				"groups":             []string{"group1"},
 			},
-			wantErr: ErrInvalidToken,
+			wantErr: ErrInvalidOAuthToken,
 		},
 		{
 			name: "Error - Server returns expired token",
@@ -418,7 +420,7 @@ func TestCheckToken(t *testing.T) {
 				"preferred_username": "user1",
 				"groups":             []string{"group1"},
 			},
-			wantErr: ErrInvalidToken,
+			wantErr: ErrInvalidOAuthToken,
 		},
 	}
 	for _, tc := range tests {
@@ -446,5 +448,37 @@ func TestCheckToken(t *testing.T) {
 				ExpectError(t, tc.wantErr, err)
 			}
 		})
+	}
+}
+
+func TestLogoutHandler(t *testing.T) {
+	t.Helper()
+
+	setupMockOIDC(t)
+
+	req := httptest.NewRequest(http.MethodGet, OIDCLogoutPath, nil)
+	w := httptest.NewRecorder()
+
+	req.AddCookie(&http.Cookie{
+		Name:  CookieOauthToken,
+		Value: "test-token",
+	})
+	req.AddCookie(&http.Cookie{
+		Name:  CookieOauthSessionToken,
+		Value: "test-session-token",
+	})
+
+	defaultAuth.(*OIDCProvider).LogoutHandler(w, req)
+
+	if got := w.Code; got != http.StatusFound {
+		t.Errorf("LogoutHandler() status = %v, want %v", got, http.StatusFound)
+	}
+
+	if got := w.Header().Get("Location"); got == "" {
+		t.Error("LogoutHandler() missing redirect location")
+	}
+
+	if len(w.Header().Values("Set-Cookie")) != 2 {
+		t.Error("LogoutHandler() did not clear all cookies")
 	}
 }

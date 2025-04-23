@@ -72,18 +72,13 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 		return false
 	}
 
-	if r.URL.Path == auth.OIDCLogoutPath {
-		amw.auth.LogoutHandler(w, r)
-		return false
-	}
-
 	err := amw.auth.CheckToken(r)
 	if err == nil {
 		return true
 	}
 
 	switch {
-	case errors.Is(err, auth.ErrMissingToken):
+	case errors.Is(err, auth.ErrMissingOAuthToken):
 		amw.auth.HandleAuth(w, r)
 	default:
 		auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), auth.OIDCLogoutPath)

@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -33,18 +34,23 @@ type sessionClaims struct {
 
 type sessionID string
 
-var oauthRefreshTokens jsonstore.JSONStore[oauthRefreshToken]
+var oauthRefreshTokens jsonstore.Typed[oauthRefreshToken]
 
 var (
 	defaultRefreshTokenExpiry = 30 * 24 * time.Hour // 1 month
 	refreshBefore             = 30 * time.Second
 )
 
+var (
+	errNoRefreshToken      = errors.New("no refresh token")
+	ErrRefreshTokenFailure = errors.New("failed to refresh token")
+)
+
 const sessionTokenIssuer = "GoDoxy"
 
 func init() {
 	if IsOIDCEnabled() {
-		oauthRefreshTokens = jsonstore.NewStore[oauthRefreshToken]("oauth_refresh_tokens")
+		oauthRefreshTokens = jsonstore.Store[oauthRefreshToken]("oauth_refresh_tokens")
 	}
 }
 
@@ -66,6 +72,9 @@ func newSession(username string, groups []string) Session {
 	}
 }
 
+// getOnceOAuthRefreshToken returns the refresh token for the given session.
+//
+// The token is removed from the store after retrieval.
 func getOnceOAuthRefreshToken(claims *Session) (*oauthRefreshToken, bool) {
 	token, ok := oauthRefreshTokens.Load(string(claims.SessionID))
 	if !ok {
@@ -82,15 +91,16 @@ func getOnceOAuthRefreshToken(claims *Session) (*oauthRefreshToken, bool) {
 }
 
 func storeOAuthRefreshToken(sessionID sessionID, username, token string) {
-	logging.Debug().Str("username", username).Msg("setting oauth refresh token")
 	oauthRefreshTokens.Store(string(sessionID), oauthRefreshToken{
 		Username:     username,
 		RefreshToken: token,
 		Expiry:       time.Now().Add(defaultRefreshTokenExpiry),
 	})
+	logging.Debug().Str("username", username).Msg("stored oauth refresh token")
 }
 
 func invalidateOAuthRefreshToken(sessionID sessionID) {
+	logging.Debug().Str("session_id", string(sessionID)).Msg("invalidating oauth refresh token")
 	oauthRefreshTokens.Delete(string(sessionID))
 }
 
@@ -125,26 +135,20 @@ func (auth *OIDCProvider) parseSessionJWT(sessionJWT string) (claims *sessionCla
 	return claims, sessionToken.Valid && claims.Issuer == sessionTokenIssuer, nil
 }
 
-func (auth *OIDCProvider) TryRefreshToken(w http.ResponseWriter, r *http.Request) error {
-	// check for session token
-	sessionCookie, err := r.Cookie(CookieOauthSessionToken)
-	if err != nil {
-		return ErrMissingToken
-	}
-
+func (auth *OIDCProvider) TryRefreshToken(w http.ResponseWriter, r *http.Request, sessionJWT string) error {
 	// verify the session cookie
-	claims, valid, err := auth.parseSessionJWT(sessionCookie.Value)
+	claims, valid, err := auth.parseSessionJWT(sessionJWT)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidToken, err)
+		return fmt.Errorf("%w: %w", ErrInvalidSessionToken, err)
 	}
 	if !valid {
-		return ErrInvalidToken
+		return ErrInvalidSessionToken
 	}
 
 	// check if refresh is possible
 	refreshToken, ok := getOnceOAuthRefreshToken(&claims.Session)
 	if !ok {
-		return ErrMissingToken
+		return errNoRefreshToken
 	}
 
 	if !auth.checkAllowed(claims.Username, claims.Groups) {

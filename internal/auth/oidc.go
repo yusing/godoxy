@@ -39,20 +39,17 @@ type (
 const (
 	CookieOauthState        = "godoxy_oidc_state"
 	CookieOauthSessionID    = "godoxy_session_id"
-	CookieOauthToken        = "godoxy_token"
+	CookieOauthToken        = "godoxy_oauth_token"
 	CookieOauthSessionToken = "godoxy_session_token"
 )
 
 const (
-	OIDCAuthCallbackPath = "/auth/callback"
-	OIDCPostAuthPath     = "/auth/postauth"
-	OIDCLogoutPath       = "/auth/logout"
+	OIDCAuthInitPath = "/auth/init"
+	OIDCPostAuthPath = "/auth/postauth"
+	OIDCLogoutPath   = "/auth/logout"
 )
 
-var (
-	ErrMissingIDToken      = errors.New("missing id_token")
-	ErrRefreshTokenFailure = errors.New("failed to refresh token")
-)
+var errMissingIDToken = errors.New("missing id_token field from oauth token")
 
 // generateState generates a random string for OIDC state.
 const oidcStateLength = 32
@@ -118,14 +115,17 @@ func (auth *OIDCProvider) SetAllowedGroups(groups []string) {
 	auth.allowedGroups = groups
 }
 
+// optRedirectPostAuth returns an oauth2 option that sets the "redirect_uri"
+// parameter of the authorization URL to the post auth path of the current
+// request host.
 func optRedirectPostAuth(r *http.Request) oauth2.AuthCodeOption {
-	return oauth2.SetAuthURLParam("redirect_uri", "https://"+r.Host+OIDCPostAuthPath)
+	return oauth2.SetAuthURLParam("redirect_uri", "https://"+requestHost(r)+OIDCPostAuthPath)
 }
 
 func (auth *OIDCProvider) getIdToken(ctx context.Context, oauthToken *oauth2.Token) (string, *oidc.IDToken, error) {
 	idTokenJWT, ok := oauthToken.Extra("id_token").(string)
 	if !ok {
-		return "", nil, ErrMissingIDToken
+		return "", nil, errMissingIDToken
 	}
 	idToken, err := auth.oidcVerifier.Verify(ctx, idTokenJWT)
 	if err != nil {
@@ -135,32 +135,35 @@ func (auth *OIDCProvider) getIdToken(ctx context.Context, oauthToken *oauth2.Tok
 }
 
 func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
-	// check for session token
-	_, err := r.Cookie(CookieOauthSessionToken)
-	if err == nil {
-		err := auth.TryRefreshToken(w, r)
-		if err != nil {
-			logging.Debug().Err(err).Msg("failed to refresh token")
-			auth.LogoutHandler(w, r)
-		} else {
-			http.Redirect(w, r, "/", http.StatusFound)
-		}
-		return
-	}
-
 	switch r.URL.Path {
-	case OIDCAuthCallbackPath:
-		state := generateState()
-		setTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
-		// redirect user to Idp
-		http.Redirect(w, r, auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r)), http.StatusFound)
+	case OIDCAuthInitPath:
+		auth.LoginHandler(w, r)
 	case OIDCPostAuthPath:
 		auth.PostAuthCallbackHandler(w, r)
 	case OIDCLogoutPath:
 		auth.LogoutHandler(w, r)
 	default:
-		http.Redirect(w, r, OIDCAuthCallbackPath, http.StatusFound)
+		http.Redirect(w, r, OIDCAuthInitPath, http.StatusFound)
 	}
+}
+
+func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	// check for session token
+	sessionToken, err := r.Cookie(CookieOauthSessionToken)
+	if err == nil {
+		err = auth.TryRefreshToken(w, r, sessionToken.Value)
+		if err != nil {
+			logging.Debug().Err(err).Msg("failed to refresh token")
+			auth.clearCookie(w, r)
+		}
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	state := generateState()
+	setTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
+	// redirect user to Idp
+	http.Redirect(w, r, auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r)), http.StatusFound)
 }
 
 func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
@@ -188,17 +191,17 @@ func (auth *OIDCProvider) checkAllowed(user string, groups []string) bool {
 func (auth *OIDCProvider) CheckToken(r *http.Request) error {
 	tokenCookie, err := r.Cookie(CookieOauthToken)
 	if err != nil {
-		return ErrMissingToken
+		return ErrMissingOAuthToken
 	}
 
 	idToken, err := auth.oidcVerifier.Verify(r.Context(), tokenCookie.Value)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidToken, err)
+		return fmt.Errorf("%w: %w", ErrInvalidOAuthToken, err)
 	}
 
 	claims, err := parseClaims(idToken)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidToken, err)
+		return fmt.Errorf("%w: %w", ErrInvalidOAuthToken, err)
 	}
 
 	if !auth.checkAllowed(claims.Username, claims.Groups) {
@@ -270,6 +273,7 @@ func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) 
 	if auth.endSessionURL != nil && oauthToken != nil {
 		query := auth.endSessionURL.Query()
 		query.Set("id_token_hint", oauthToken.Value)
+		query.Set("post_logout_redirect_uri", "https://"+requestHost(r))
 
 		clone := *auth.endSessionURL
 		clone.RawQuery = query.Encode()

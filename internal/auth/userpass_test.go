@@ -98,7 +98,7 @@ func TestUserPassLoginCallbackHandler(t *testing.T) {
 			Host: "app.example.com",
 			Body: io.NopCloser(bytes.NewReader(Must(json.Marshal(tt.creds)))),
 		}
-		auth.LoginCallbackHandler(w, req)
+		auth.LoginHandler(w, req)
 		if tt.wantErr {
 			ExpectEqual(t, w.Code, http.StatusUnauthorized)
 		} else {
