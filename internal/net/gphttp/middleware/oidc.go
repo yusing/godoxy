@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/yusing/go-proxy/internal/api/v1/auth"
+	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/gperr"
 )
 
@@ -76,13 +76,17 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 		amw.auth.LogoutHandler(w, r)
 		return false
 	}
-	if err := amw.auth.CheckToken(r); err != nil {
-		if errors.Is(err, auth.ErrMissingToken) {
-			amw.auth.HandleAuth(w, r)
-		} else {
-			auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), auth.OIDCLogoutPath)
-		}
-		return false
+
+	err := amw.auth.CheckToken(r)
+	if err == nil {
+		return true
 	}
-	return true
+
+	switch {
+	case errors.Is(err, auth.ErrMissingToken):
+		amw.auth.HandleAuth(w, r)
+	default:
+		auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), auth.OIDCLogoutPath)
+	}
+	return false
 }

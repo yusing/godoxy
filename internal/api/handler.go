@@ -6,10 +6,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	v1 "github.com/yusing/go-proxy/internal/api/v1"
-	"github.com/yusing/go-proxy/internal/api/v1/auth"
 	"github.com/yusing/go-proxy/internal/api/v1/certapi"
 	"github.com/yusing/go-proxy/internal/api/v1/dockerapi"
 	"github.com/yusing/go-proxy/internal/api/v1/favicon"
+	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging"

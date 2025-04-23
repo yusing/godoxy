@@ -1,10 +1,7 @@
 package auth
 
-import (
-	"net/http"
-)
+import "net/http"
 
 type Provider interface {
-	TokenCookieName() string
 	CheckToken(r *http.Request) error
 }

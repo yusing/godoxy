@@ -7,13 +7,14 @@ import (
 	"sync"
 
 	"github.com/yusing/go-proxy/internal"
-	"github.com/yusing/go-proxy/internal/api/v1/auth"
 	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/api/v1/query"
+	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
+	"github.com/yusing/go-proxy/internal/jsonstore"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
@@ -79,6 +80,7 @@ func main() {
 		logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
 		logging.Trace().Msg("trace enabled")
 		parallel(
+			jsonstore.Initialize,
 			internal.InitIconListCache,
 			homepage.InitOverridesConfig,
 			favicon.InitIconCache,

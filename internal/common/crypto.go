@@ -13,7 +13,7 @@ func decodeJWTKey(key string) []byte {
 	}
 	bytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
-		log.Panic().Err(err).Msg("failed to decode jwt key")
+		log.Fatal().Str("key", key).Err(err).Msg("failed to decode secret")
 	}
 	return bytes
 }
@@ -22,7 +22,7 @@ func RandomJWTKey() []byte {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
 	if err != nil {
-		log.Panic().Err(err).Msg("failed to generate random jwt key")
+		log.Fatal().Err(err).Msg("failed to generate random jwt key")
 	}
 	return key
 }

@@ -38,7 +38,7 @@ var (
 
 	APIJWTSecure   = GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(GetEnvString("API_JWT_SECRET", ""))
-	APIJWTTokenTTL = GetDurationEnv("API_JWT_TOKEN_TTL", time.Hour)
+	APIJWTTokenTTL = GetDurationEnv("API_JWT_TOKEN_TTL", 24*time.Hour)
 	APIUser        = GetEnvString("API_USER", "admin")
 	APIPassword    = GetEnvString("API_PASSWORD", "password")
 

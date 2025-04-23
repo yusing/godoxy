@@ -23,6 +23,8 @@ const (
 	ComposeFileName        = "compose.yml"
 	ComposeExampleFileName = "compose.example.yml"
 
+	DataDir = "data"
+
 	ErrorPagesBasePath = "error_pages"
 
 	AgentCertsBasePath = "certs"

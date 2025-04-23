@@ -227,7 +227,7 @@ func TestOIDCCallbackHandler(t *testing.T) {
 
 			if tt.wantStatus == http.StatusTemporaryRedirect {
 				setCookie := Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
-				ExpectEqual(t, setCookie.Name, defaultAuth.TokenCookieName())
+				ExpectEqual(t, setCookie.Name, CookieOauthToken)
 				ExpectTrue(t, setCookie.Value != "")
 				ExpectEqual(t, setCookie.Path, "/")
 				ExpectEqual(t, setCookie.SameSite, http.SameSiteLaxMode)
@@ -434,7 +434,7 @@ func TestCheckToken(t *testing.T) {
 			// Craft a test HTTP request that includes the token as a cookie.
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.AddCookie(&http.Cookie{
-				Name:  auth.TokenCookieName(),
+				Name:  CookieOauthToken,
 				Value: signedToken,
 			})
 
