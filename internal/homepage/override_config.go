@@ -4,9 +4,7 @@ import (
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/jsonstore"
 )
 
 type OverrideConfig struct {
@@ -17,34 +15,7 @@ type OverrideConfig struct {
 	mu             sync.RWMutex
 }
 
-var overrideConfigInstance = &OverrideConfig{
-	ItemOverrides:  make(map[string]*ItemConfig),
-	DisplayOrder:   make(map[string]int),
-	CategoryOrder:  make(map[string]int),
-	ItemVisibility: make(map[string]bool),
-}
-
-func InitOverridesConfig() {
-	overrideConfigInstance.mu.Lock()
-	defer overrideConfigInstance.mu.Unlock()
-
-	err := utils.LoadJSONIfExist(common.HomepageJSONConfigPath, overrideConfigInstance)
-	if err != nil {
-		logging.Error().Err(err).Msg("failed to load homepage overrides config")
-	} else if len(overrideConfigInstance.ItemOverrides) > 0 {
-		logging.Info().
-			Int("count", len(overrideConfigInstance.ItemOverrides)).
-			Msg("homepage overrides config loaded")
-	}
-	task.OnProgramExit("save_homepage_json_config", func() {
-		if len(overrideConfigInstance.ItemOverrides) == 0 {
-			return
-		}
-		if err := utils.SaveJSON(common.HomepageJSONConfigPath, overrideConfigInstance, 0o644); err != nil {
-			logging.Error().Err(err).Msg("failed to save homepage overrides config")
-		}
-	})
-}
+var overrideConfigInstance = jsonstore.Object[OverrideConfig](common.NamespaceHomepageOverrides)
 
 func GetOverrideConfig() *OverrideConfig {
 	return overrideConfigInstance

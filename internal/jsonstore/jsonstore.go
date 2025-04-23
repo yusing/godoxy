@@ -2,6 +2,7 @@ package jsonstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -46,6 +47,8 @@ func load() error {
 	for ns, store := range stores.m {
 		if err := utils.LoadJSONIfExist(filepath.Join(storesPath, string(ns)+".json"), &store); err != nil {
 			errs.Add(err)
+		} else {
+			logging.Info().Str("name", string(ns)).Msg("store loaded")
 		}
 	}
 	return errs.Error()
@@ -72,6 +75,21 @@ func Store[VT any](namespace namespace) Typed[VT] {
 	m := Typed[VT]{MapOf: xsync.NewMapOf[string, VT]()}
 	stores.m[namespace] = m
 	return m
+}
+
+func Object[VT any](namespace namespace) *VT {
+	stores.Lock()
+	defer stores.Unlock()
+	if s, ok := stores.m[namespace]; ok {
+		v, ok := s.(*VT)
+		if ok {
+			return v
+		}
+		panic(fmt.Errorf("type mismatch: %T != %T", s, v))
+	}
+	v := new(VT)
+	stores.m[namespace] = v
+	return v
 }
 
 func (s Typed[VT]) MarshalJSON() ([]byte, error) {

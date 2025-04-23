@@ -10,13 +10,16 @@ const (
 	DotEnvPath        = ".env"
 	DotEnvExamplePath = ".env.example"
 
-	ConfigBasePath         = "config"
-	ConfigFileName         = "config.yml"
-	ConfigExampleFileName  = "config.example.yml"
-	ConfigPath             = ConfigBasePath + "/" + ConfigFileName
-	HomepageJSONConfigPath = ConfigBasePath + "/.homepage.json"
-	IconListCachePath      = ConfigBasePath + "/.icon_list_cache.json"
-	IconCachePath          = ConfigBasePath + "/.icon_cache.json"
+	ConfigBasePath        = "config"
+	ConfigFileName        = "config.yml"
+	ConfigExampleFileName = "config.example.yml"
+	ConfigPath            = ConfigBasePath + "/" + ConfigFileName
+
+	IconListCachePath = ConfigBasePath + "/.icon_list_cache.json"
+	IconCachePath     = ConfigBasePath + "/.icon_cache.json"
+
+	NamespaceHomepageOverrides = ".homepage"
+	NamespaceIconCache         = ".icon_cache"
 
 	MiddlewareComposeBasePath = ConfigBasePath + "/middlewares"
 

@@ -2,14 +2,13 @@ package favicon
 
 import (
 	"encoding/json"
-	"sync"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/go-proxy/internal/jsonstore"
 	"github.com/yusing/go-proxy/internal/logging"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type cacheEntry struct {
@@ -18,27 +17,14 @@ type cacheEntry struct {
 }
 
 // cache key can be absolute url or route name.
-var (
-	iconCache   = make(map[string]*cacheEntry)
-	iconCacheMu sync.RWMutex
-)
+var iconCache = jsonstore.Store[*cacheEntry](common.NamespaceIconCache)
 
 const (
 	iconCacheTTL    = 3 * 24 * time.Hour
 	cleanUpInterval = time.Hour
 )
 
-func InitIconCache() {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-
-	err := utils.LoadJSONIfExist(common.IconCachePath, &iconCache)
-	if err != nil {
-		logging.Error().Err(err).Msg("failed to load icon cache")
-	} else if len(iconCache) > 0 {
-		logging.Info().Int("count", len(iconCache)).Msg("icon cache loaded")
-	}
-
+func init() {
 	go func() {
 		cleanupTicker := time.NewTicker(cleanUpInterval)
 		defer cleanupTicker.Stop()
@@ -51,29 +37,13 @@ func InitIconCache() {
 			}
 		}
 	}()
-
-	task.OnProgramExit("save_favicon_cache", func() {
-		iconCacheMu.Lock()
-		defer iconCacheMu.Unlock()
-
-		if len(iconCache) == 0 {
-			return
-		}
-
-		if err := utils.SaveJSON(common.IconCachePath, &iconCache, 0o644); err != nil {
-			logging.Error().Err(err).Msg("failed to save icon cache")
-		}
-	})
 }
 
 func pruneExpiredIconCache() {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-
 	nPruned := 0
-	for key, icon := range iconCache {
+	for key, icon := range iconCache.Range {
 		if icon.IsExpired() {
-			delete(iconCache, key)
+			iconCache.Delete(key)
 			nPruned++
 		}
 	}
@@ -87,16 +57,11 @@ func routeKey(r route.HTTPRoute) string {
 }
 
 func PruneRouteIconCache(route route.HTTPRoute) {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-	delete(iconCache, routeKey(route))
+	iconCache.Delete(routeKey(route))
 }
 
 func loadIconCache(key string) *fetchResult {
-	iconCacheMu.RLock()
-	defer iconCacheMu.RUnlock()
-
-	icon, ok := iconCache[key]
+	icon, ok := iconCache.Load(key)
 	if ok && icon != nil {
 		logging.Debug().
 			Str("key", key).
@@ -108,9 +73,7 @@ func loadIconCache(key string) *fetchResult {
 }
 
 func storeIconCache(key string, icon []byte) {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-	iconCache[key] = &cacheEntry{Icon: icon, LastAccess: time.Now()}
+	iconCache.Store(key, &cacheEntry{Icon: icon, LastAccess: time.Now()})
 }
 
 func (e *cacheEntry) IsExpired() bool {

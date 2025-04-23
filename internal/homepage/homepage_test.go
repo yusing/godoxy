@@ -7,7 +7,6 @@ import (
 )
 
 func TestOverrideItem(t *testing.T) {
-	InitOverridesConfig()
 	a := &Item{
 		Alias: "foo",
 		ItemConfig: &ItemConfig{
