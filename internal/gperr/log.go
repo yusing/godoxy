@@ -13,7 +13,7 @@ func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) 
 	} else {
 		l = logging.GetLogger()
 	}
-	l.WithLevel(level).Msg(msg + ": " + err.Error())
+	l.WithLevel(level).Msg(New(highlight(msg)).With(err).Error())
 }
 
 func LogFatal(msg string, err error, logger ...*zerolog.Logger) {

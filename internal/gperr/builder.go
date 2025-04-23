@@ -5,44 +5,69 @@ import (
 	"sync"
 )
 
+type noLock struct{}
+
+func (noLock) Lock()    {}
+func (noLock) Unlock()  {}
+func (noLock) RLock()   {}
+func (noLock) RUnlock() {}
+
+type rwLock interface {
+	sync.Locker
+	RLock()
+	RUnlock()
+}
+
 type Builder struct {
 	about string
 	errs  []error
-	sync.Mutex
+	rwLock
 }
 
-func NewBuilder(about string) *Builder {
-	return &Builder{about: about}
+type multiline struct {
+	*Builder
+}
+
+// NewBuilder creates a new Builder.
+//
+// If about is not provided, the Builder will not have a subject
+// and will expand when adding to another builder.
+func NewBuilder(about ...string) *Builder {
+	if len(about) == 0 {
+		return &Builder{rwLock: noLock{}}
+	}
+	return &Builder{about: about[0], rwLock: noLock{}}
+}
+
+func NewBuilderWithConcurrency(about ...string) *Builder {
+	if len(about) == 0 {
+		return &Builder{rwLock: new(sync.RWMutex)}
+	}
+	return &Builder{about: about[0], rwLock: new(sync.RWMutex)}
+}
+
+func (b *Builder) EnableConcurrency() {
+	b.rwLock = new(sync.RWMutex)
 }
 
 func (b *Builder) About() string {
-	if !b.HasError() {
-		return ""
-	}
 	return b.about
 }
 
-//go:inline
 func (b *Builder) HasError() bool {
+	// no need to lock, when this is called, the Builder is not used anymore
 	return len(b.errs) > 0
 }
 
-func (b *Builder) error() Error {
-	if !b.HasError() {
+func (b *Builder) Error() Error {
+	if len(b.errs) == 0 {
 		return nil
 	}
 	return &nestedError{Err: New(b.about), Extras: b.errs}
 }
 
-func (b *Builder) Error() Error {
-	if len(b.errs) == 1 {
-		return wrap(b.errs[0])
-	}
-	return b.error()
-}
-
 func (b *Builder) String() string {
-	err := b.error()
+	err := b.Error()
 	if err == nil {
 		return ""
 	}
@@ -52,15 +77,19 @@ func (b *Builder) String() string {
 // Add adds an error to the Builder.
 //
 // adding nil is no-op.
-func (b *Builder) Add(err error) *Builder {
+func (b *Builder) Add(err error) {
 	if err == nil {
-		return b
+		return
 	}
 
 	b.Lock()
 	defer b.Unlock()
 
-	switch err := wrap(err).(type) {
+	b.add(err)
+}
+
+func (b *Builder) add(err error) {
+	switch err := err.(type) {
 	case *baseError:
 		b.errs = append(b.errs, err.Err)
 	case *nestedError:
@@ -69,21 +98,20 @@ func (b *Builder) Add(err error) *Builder {
 		} else {
 			b.errs = append(b.errs, err)
 		}
+	case *MultilineError:
+		b.add(&err.nestedError)
 	default:
-		panic("bug: should not reach here")
+		b.errs = append(b.errs, err)
 	}
-
-	return b
 }
 
-func (b *Builder) Adds(err string) *Builder {
+func (b *Builder) Adds(err string) {
 	b.Lock()
 	defer b.Unlock()
 	b.errs = append(b.errs, newError(err))
-	return b
 }
 
-func (b *Builder) Addf(format string, args ...any) *Builder {
+func (b *Builder) Addf(format string, args ...any) {
 	if len(args) > 0 {
 		b.Lock()
 		defer b.Unlock()
@@ -91,13 +119,11 @@ func (b *Builder) Addf(format string, args ...any) *Builder {
 	} else {
 		b.Adds(format)
 	}
-
-	return b
 }
 
-func (b *Builder) AddFrom(other *Builder, flatten bool) *Builder {
+func (b *Builder) AddFrom(other *Builder, flatten bool) {
 	if other == nil || !other.HasError() {
-		return b
+		return
 	}
 
 	b.Lock()
@@ -105,26 +131,32 @@ func (b *Builder) AddFrom(other *Builder, flatten bool) *Builder {
 	if flatten {
 		b.errs = append(b.errs, other.errs...)
 	} else {
-		b.errs = append(b.errs, other.error())
+		b.errs = append(b.errs, other.Error())
 	}
-	return b
 }
 
-func (b *Builder) AddRange(errs ...error) *Builder {
-	b.Lock()
-	defer b.Unlock()
-
+func (b *Builder) AddRange(errs ...error) {
+	nonNilErrs := make([]error, 0, len(errs))
 	for _, err := range errs {
 		if err != nil {
-			b.errs = append(b.errs, err)
+			nonNilErrs = append(nonNilErrs, err)
 		}
 	}
 
-	return b
+	b.Lock()
+	defer b.Unlock()
+
+	for _, err := range nonNilErrs {
+		b.add(err)
+	}
 }
 
 func (b *Builder) ForEach(fn func(error)) {
-	for _, err := range b.errs {
+	b.RLock()
+	errs := b.errs
+	b.RUnlock()
+
+	for _, err := range errs {
 		fn(err)
 	}
 }

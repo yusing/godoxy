@@ -2,6 +2,7 @@ package gperr
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
@@ -59,7 +60,7 @@ func (err *withSubject) Prepend(subject string) *withSubject {
 }
 
 func (err *withSubject) Is(other error) bool {
-	return err.Err == other
+	return errors.Is(other, err.Err)
 }
 
 func (err *withSubject) Unwrap() error {

@@ -53,6 +53,18 @@ func wrap(err error) Error {
 	return &baseError{err}
 }
 
+func Unwrap(err error) Error {
+	//nolint:errorlint
+	switch err := err.(type) {
+	case interface{ Unwrap() []error }:
+		return &nestedError{Extras: err.Unwrap()}
+	case interface{ Unwrap() error }:
+		return &baseError{err.Unwrap()}
+	default:
+		return &baseError{err}
+	}
+}
+
 func IsJSONMarshallable(err error) bool {
 	switch err := err.(type) {
 	case *nestedError, *withSubject:
