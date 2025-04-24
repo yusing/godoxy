@@ -6,7 +6,6 @@ import (
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
@@ -15,7 +14,6 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	metricslogger "github.com/yusing/go-proxy/internal/net/gphttp/middleware/metrics_logger"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
@@ -130,12 +128,6 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		if err := r.HealthMon.Start(r.task); err != nil {
 			return err
 		}
-	}
-
-	if common.PrometheusEnabled {
-		metricsLogger := metricslogger.NewMetricsLogger(r.Name())
-		r.handler = metricsLogger.GetHandler(r.handler)
-		r.task.OnCancel("reset_metrics", metricsLogger.ResetMetrics)
 	}
 
 	if r.UseLoadBalance() {

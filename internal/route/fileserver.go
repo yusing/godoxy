@@ -5,12 +5,10 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	metricslogger "github.com/yusing/go-proxy/internal/net/gphttp/middleware/metrics_logger"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -89,12 +87,6 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 			s.task.Finish(err)
 			return gperr.Wrap(err)
 		}
-	}
-
-	if common.PrometheusEnabled {
-		metricsLogger := metricslogger.NewMetricsLogger(s.Name())
-		s.handler = metricsLogger.GetHandler(s.handler)
-		s.task.OnCancel("reset_metrics", metricsLogger.ResetMetrics)
 	}
 
 	if s.UseHealthCheck() {
