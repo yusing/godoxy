@@ -84,7 +84,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 
 	if s.UseAccessLog() {
 		var err error
-		s.accessLogger, err = accesslog.NewFileAccessLogger(s.task, s.AccessLog)
+		s.accessLogger, err = accesslog.NewAccessLogger(s.task, s.AccessLog)
 		if err != nil {
 			s.task.Finish(err)
 			return gperr.Wrap(err)

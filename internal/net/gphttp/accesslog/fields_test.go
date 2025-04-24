@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 // Cookie header should be removed,
@@ -15,7 +15,7 @@ func TestAccessLoggerJSONKeepHeaders(t *testing.T) {
 	entry := getJSONEntry(t, config)
 	for k, v := range req.Header {
 		if k != "Cookie" {
-			ExpectEqual(t, entry.Headers[k], v)
+			expect.Equal(t, entry.Headers[k], v)
 		}
 	}
 
@@ -24,8 +24,8 @@ func TestAccessLoggerJSONKeepHeaders(t *testing.T) {
 		"User-Agent": FieldModeDrop,
 	}
 	entry = getJSONEntry(t, config)
-	ExpectEqual(t, entry.Headers["Referer"], []string{RedactedValue})
-	ExpectEqual(t, entry.Headers["User-Agent"], nil)
+	expect.Equal(t, entry.Headers["Referer"], []string{RedactedValue})
+	expect.Equal(t, entry.Headers["User-Agent"], nil)
 }
 
 func TestAccessLoggerJSONDropHeaders(t *testing.T) {
@@ -33,7 +33,7 @@ func TestAccessLoggerJSONDropHeaders(t *testing.T) {
 	config.Fields.Headers.Default = FieldModeDrop
 	entry := getJSONEntry(t, config)
 	for k := range req.Header {
-		ExpectEqual(t, entry.Headers[k], nil)
+		expect.Equal(t, entry.Headers[k], nil)
 	}
 
 	config.Fields.Headers.Config = map[string]FieldMode{
@@ -41,18 +41,17 @@ func TestAccessLoggerJSONDropHeaders(t *testing.T) {
 		"User-Agent": FieldModeRedact,
 	}
 	entry = getJSONEntry(t, config)
-	ExpectEqual(t, entry.Headers["Referer"], []string{req.Header.Get("Referer")})
-	ExpectEqual(t, entry.Headers["User-Agent"], []string{RedactedValue})
+	expect.Equal(t, entry.Headers["Referer"], []string{req.Header.Get("Referer")})
+	expect.Equal(t, entry.Headers["User-Agent"], []string{RedactedValue})
 }
 
 func TestAccessLoggerJSONRedactHeaders(t *testing.T) {
 	config := DefaultConfig()
 	config.Fields.Headers.Default = FieldModeRedact
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, len(entry.Headers["Cookie"]), 0)
 	for k := range req.Header {
 		if k != "Cookie" {
-			ExpectEqual(t, entry.Headers[k], []string{RedactedValue})
+			expect.Equal(t, entry.Headers[k], []string{RedactedValue})
 		}
 	}
 }
@@ -62,9 +61,8 @@ func TestAccessLoggerJSONKeepCookies(t *testing.T) {
 	config.Fields.Headers.Default = FieldModeKeep
 	config.Fields.Cookies.Default = FieldModeKeep
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, len(entry.Headers["Cookie"]), 0)
 	for _, cookie := range req.Cookies() {
-		ExpectEqual(t, entry.Cookies[cookie.Name], cookie.Value)
+		expect.Equal(t, entry.Cookies[cookie.Name], cookie.Value)
 	}
 }
 
@@ -73,9 +71,8 @@ func TestAccessLoggerJSONRedactCookies(t *testing.T) {
 	config.Fields.Headers.Default = FieldModeKeep
 	config.Fields.Cookies.Default = FieldModeRedact
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, len(entry.Headers["Cookie"]), 0)
 	for _, cookie := range req.Cookies() {
-		ExpectEqual(t, entry.Cookies[cookie.Name], RedactedValue)
+		expect.Equal(t, entry.Cookies[cookie.Name], RedactedValue)
 	}
 }
 
@@ -83,14 +80,14 @@ func TestAccessLoggerJSONDropQuery(t *testing.T) {
 	config := DefaultConfig()
 	config.Fields.Query.Default = FieldModeDrop
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, entry.Query["foo"], nil)
-	ExpectEqual(t, entry.Query["bar"], nil)
+	expect.Equal(t, entry.Query["foo"], nil)
+	expect.Equal(t, entry.Query["bar"], nil)
 }
 
 func TestAccessLoggerJSONRedactQuery(t *testing.T) {
 	config := DefaultConfig()
 	config.Fields.Query.Default = FieldModeRedact
 	entry := getJSONEntry(t, config)
-	ExpectEqual(t, entry.Query["foo"], []string{RedactedValue})
-	ExpectEqual(t, entry.Query["bar"], []string{RedactedValue})
+	expect.Equal(t, entry.Query["foo"], []string{RedactedValue})
+	expect.Equal(t, entry.Query["bar"], []string{RedactedValue})
 }

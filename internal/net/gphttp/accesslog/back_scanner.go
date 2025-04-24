@@ -2,32 +2,40 @@ package accesslog
 
 import (
 	"bytes"
+	"errors"
 	"io"
 )
 
 // BackScanner provides an interface to read a file backward line by line.
 type BackScanner struct {
-	file      AccessLogIO
-	chunkSize int
-	offset    int64
-	buffer    []byte
-	line      []byte
-	err       error
+	file      supportRotate
 	size      int64
+	chunkSize int
+	chunkBuf  []byte
+
+	offset int64
+	chunk  []byte
+	line   []byte
+	err    error
 }
 
 // NewBackScanner creates a new Scanner to read the file backward.
 // chunkSize determines the size of each read chunk from the end of the file.
-func NewBackScanner(file AccessLogIO, chunkSize int) *BackScanner {
+func NewBackScanner(file supportRotate, chunkSize int) *BackScanner {
 	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
 		return &BackScanner{err: err}
 	}
+	return newBackScanner(file, size, make([]byte, chunkSize))
+}
+
+func newBackScanner(file supportRotate, fileSize int64, buf []byte) *BackScanner {
 	return &BackScanner{
 		file:      file,
-		chunkSize: chunkSize,
-		offset:    size,
-		size:      size,
+		size:      fileSize,
+		offset:    fileSize,
+		chunkSize: len(buf),
+		chunkBuf:  buf,
 	}
 }
 
@@ -41,9 +49,9 @@ func (s *BackScanner) Scan() bool {
 	// Read chunks until a newline is found or the file is fully read
 	for {
 		// Check if there's a line in the buffer
-		if idx := bytes.LastIndexByte(s.buffer, '\n'); idx >= 0 {
-			s.line = s.buffer[idx+1:]
-			s.buffer = s.buffer[:idx]
+		if idx := bytes.LastIndexByte(s.chunk, '\n'); idx >= 0 {
+			s.line = s.chunk[idx+1:]
+			s.chunk = s.chunk[:idx]
 			if len(s.line) > 0 {
 				return true
 			}
@@ -53,9 +61,9 @@ func (s *BackScanner) Scan() bool {
 		for {
 			if s.offset <= 0 {
 				// No more data to read; check remaining buffer
-				if len(s.buffer) > 0 {
-					s.line = s.buffer
-					s.buffer = nil
+				if len(s.chunk) > 0 {
+					s.line = s.chunk
+					s.chunk = nil
 					return true
 				}
 				return false
@@ -63,22 +71,27 @@ func (s *BackScanner) Scan() bool {
 
 			newOffset := max(0, s.offset-int64(s.chunkSize))
 			chunkSize := s.offset - newOffset
-			chunk := make([]byte, chunkSize)
+			chunk := s.chunkBuf[:chunkSize]
 
 			n, err := s.file.ReadAt(chunk, newOffset)
-			if err != nil && err != io.EOF {
-				s.err = err
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					s.err = err
+				}
+				return false
+			} else if n == 0 {
 				return false
 			}
 
 			// Prepend the chunk to the buffer
-			s.buffer = append(chunk[:n], s.buffer...)
+			clone := append([]byte{}, chunk[:n]...)
+			s.chunk = append(clone, s.chunk...)
 			s.offset = newOffset
 
 			// Check for newline in the updated buffer
-			if idx := bytes.LastIndexByte(s.buffer, '\n'); idx >= 0 {
-				s.line = s.buffer[idx+1:]
-				s.buffer = s.buffer[:idx]
+			if idx := bytes.LastIndexByte(s.chunk, '\n'); idx >= 0 {
+				s.line = s.chunk[idx+1:]
+				s.chunk = s.chunk[:idx]
 				if len(s.line) > 0 {
 					return true
 				}
@@ -101,4 +114,13 @@ func (s *BackScanner) FileSize() int64 {
 // Err returns the first non-EOF error encountered by the scanner.
 func (s *BackScanner) Err() error {
 	return s.err
+}
+
+func (s *BackScanner) Reset() error {
+	_, err := s.file.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+	*s = *newBackScanner(s.file, s.size, s.chunkBuf)
+	return nil
 }

@@ -2,42 +2,20 @@ package accesslog
 
 import (
 	"bytes"
-	"encoding/json"
+	"iter"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
-	"time"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog"
 )
 
 type (
 	CommonFormatter struct {
-		cfg        *Fields
-		GetTimeNow func() time.Time // for testing purposes only
+		cfg *Fields
 	}
 	CombinedFormatter struct{ CommonFormatter }
 	JSONFormatter     struct{ CommonFormatter }
-
-	JSONLogEntry struct {
-		Time        string              `json:"time"`
-		IP          string              `json:"ip"`
-		Method      string              `json:"method"`
-		Scheme      string              `json:"scheme"`
-		Host        string              `json:"host"`
-		URI         string              `json:"uri"`
-		Protocol    string              `json:"protocol"`
-		Status      int                 `json:"status"`
-		Error       string              `json:"error,omitempty"`
-		ContentType string              `json:"type"`
-		Size        int64               `json:"size"`
-		Referer     string              `json:"referer"`
-		UserAgent   string              `json:"useragent"`
-		Query       map[string][]string `json:"query,omitempty"`
-		Headers     map[string][]string `json:"headers,omitempty"`
-		Cookies     map[string]string   `json:"cookies,omitempty"`
-	}
 )
 
 const LogTimeFormat = "02/Jan/2006:15:04:05 -0700"
@@ -49,12 +27,24 @@ func scheme(req *http.Request) string {
 	return "http"
 }
 
-func requestURI(u *url.URL, query url.Values) string {
-	uri := u.EscapedPath()
-	if len(query) > 0 {
-		uri += "?" + query.Encode()
+func appendRequestURI(line []byte, req *http.Request, query iter.Seq2[string, []string]) []byte {
+	uri := req.URL.EscapedPath()
+	line = append(line, uri...)
+	isFirst := true
+	for k, v := range query {
+		if isFirst {
+			line = append(line, '?')
+			isFirst = false
+		} else {
+			line = append(line, '&')
+		}
+		line = append(line, k...)
+		line = append(line, '=')
+		for _, v := range v {
+			line = append(line, v...)
+		}
 	}
-	return uri
+	return line
 }
 
 func clientIP(req *http.Request) string {
@@ -65,80 +55,102 @@ func clientIP(req *http.Request) string {
 	return req.RemoteAddr
 }
 
-// debug only.
-func (f *CommonFormatter) SetGetTimeNow(getTimeNow func() time.Time) {
-	f.GetTimeNow = getTimeNow
+func (f *CommonFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
+	query := f.cfg.Query.IterQuery(req.URL.Query())
+
+	line = append(line, req.Host...)
+	line = append(line, ' ')
+
+	line = append(line, clientIP(req)...)
+	line = append(line, " - - ["...)
+
+	line = TimeNow().AppendFormat(line, LogTimeFormat)
+	line = append(line, `] "`...)
+
+	line = append(line, req.Method...)
+	line = append(line, ' ')
+	line = appendRequestURI(line, req, query)
+	line = append(line, ' ')
+	line = append(line, req.Proto...)
+	line = append(line, '"')
+	line = append(line, ' ')
+
+	line = strconv.AppendInt(line, int64(res.StatusCode), 10)
+	line = append(line, ' ')
+	line = strconv.AppendInt(line, res.ContentLength, 10)
+	return line
 }
 
-func (f *CommonFormatter) Format(line *bytes.Buffer, req *http.Request, res *http.Response) {
-	query := f.cfg.Query.ProcessQuery(req.URL.Query())
-
-	line.WriteString(req.Host)
-	line.WriteRune(' ')
-
-	line.WriteString(clientIP(req))
-	line.WriteString(" - - [")
-
-	line.WriteString(f.GetTimeNow().Format(LogTimeFormat))
-	line.WriteString("] \"")
-
-	line.WriteString(req.Method)
-	line.WriteRune(' ')
-	line.WriteString(requestURI(req.URL, query))
-	line.WriteRune(' ')
-	line.WriteString(req.Proto)
-	line.WriteString("\" ")
-
-	line.WriteString(strconv.Itoa(res.StatusCode))
-	line.WriteRune(' ')
-	line.WriteString(strconv.FormatInt(res.ContentLength, 10))
+func (f *CombinedFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
+	line = f.CommonFormatter.AppendLog(line, req, res)
+	line = append(line, " \""...)
+	line = append(line, req.Referer()...)
+	line = append(line, "\" \""...)
+	line = append(line, req.UserAgent()...)
+	line = append(line, '"')
+	return line
 }
 
-func (f *CombinedFormatter) Format(line *bytes.Buffer, req *http.Request, res *http.Response) {
-	f.CommonFormatter.Format(line, req, res)
-	line.WriteString(" \"")
-	line.WriteString(req.Referer())
-	line.WriteString("\" \"")
-	line.WriteString(req.UserAgent())
-	line.WriteRune('"')
+type zeroLogStringStringMapMarshaler struct {
+	values map[string]string
 }
 
-func (f *JSONFormatter) Format(line *bytes.Buffer, req *http.Request, res *http.Response) {
-	query := f.cfg.Query.ProcessQuery(req.URL.Query())
-	headers := f.cfg.Headers.ProcessHeaders(req.Header)
-	headers.Del("Cookie")
-	cookies := f.cfg.Cookies.ProcessCookies(req.Cookies())
-
-	entry := JSONLogEntry{
-		Time:        f.GetTimeNow().Format(LogTimeFormat),
-		IP:          clientIP(req),
-		Method:      req.Method,
-		Scheme:      scheme(req),
-		Host:        req.Host,
-		URI:         requestURI(req.URL, query),
-		Protocol:    req.Proto,
-		Status:      res.StatusCode,
-		ContentType: res.Header.Get("Content-Type"),
-		Size:        res.ContentLength,
-		Referer:     req.Referer(),
-		UserAgent:   req.UserAgent(),
-		Query:       query,
-		Headers:     headers,
-		Cookies:     cookies,
+func (z *zeroLogStringStringMapMarshaler) MarshalZerologObject(e *zerolog.Event) {
+	if len(z.values) == 0 {
+		return
 	}
+	for k, v := range z.values {
+		e.Str(k, v)
+	}
+}
+
+type zeroLogStringStringSliceMapMarshaler struct {
+	values map[string][]string
+}
+
+func (z *zeroLogStringStringSliceMapMarshaler) MarshalZerologObject(e *zerolog.Event) {
+	if len(z.values) == 0 {
+		return
+	}
+	for k, v := range z.values {
+		e.Strs(k, v)
+	}
+}
+
+func (f *JSONFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
+	query := f.cfg.Query.ZerologQuery(req.URL.Query())
+	headers := f.cfg.Headers.ZerologHeaders(req.Header)
+	cookies := f.cfg.Cookies.ZerologCookies(req.Cookies())
+	contentType := res.Header.Get("Content-Type")
+
+	writer := bytes.NewBuffer(line)
+	logger := zerolog.New(writer).With().Logger()
+	event := logger.Info().
+		Str("time", TimeNow().Format(LogTimeFormat)).
+		Str("ip", clientIP(req)).
+		Str("method", req.Method).
+		Str("scheme", scheme(req)).
+		Str("host", req.Host).
+		Str("path", req.URL.Path).
+		Str("protocol", req.Proto).
+		Int("status", res.StatusCode).
+		Str("type", contentType).
+		Int64("size", res.ContentLength).
+		Str("referer", req.Referer()).
+		Str("useragent", req.UserAgent()).
+		Object("query", query).
+		Object("headers", headers).
+		Object("cookies", cookies)
 
 	if res.StatusCode >= 400 {
-		entry.Error = res.Status
+		if res.Status != "" {
+			event.Str("error", res.Status)
+		} else {
+			event.Str("error", http.StatusText(res.StatusCode))
+		}
 	}
 
-	if entry.ContentType == "" {
-		// try to get content type from request
-		entry.ContentType = req.Header.Get("Content-Type")
-	}
-
-	marshaller := json.NewEncoder(line)
-	err := marshaller.Encode(entry)
-	if err != nil {
-		logging.Err(err).Msg("failed to marshal json log")
-	}
+	// NOTE: zerolog will append a newline to the buffer
+	event.Send()
+	return writer.Bytes()
 }

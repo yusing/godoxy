@@ -6,7 +6,7 @@ import (
 	"github.com/yusing/go-proxy/internal/docker"
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -27,27 +27,27 @@ func TestNewConfig(t *testing.T) {
 		"proxy.fields.cookies.config.foo":   "keep",
 	}
 	parsed, err := docker.ParseLabels(labels)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	var config Config
 	err = utils.Deserialize(parsed, &config)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
-	ExpectEqual(t, config.BufferSize, 10)
-	ExpectEqual(t, config.Format, FormatCombined)
-	ExpectEqual(t, config.Path, "/tmp/access.log")
-	ExpectEqual(t, config.Filters.StatusCodes.Values, []*StatusCodeRange{{Start: 200, End: 299}})
-	ExpectEqual(t, len(config.Filters.Method.Values), 2)
-	ExpectEqual(t, config.Filters.Method.Values, []HTTPMethod{"GET", "POST"})
-	ExpectEqual(t, len(config.Filters.Headers.Values), 2)
-	ExpectEqual(t, config.Filters.Headers.Values, []*HTTPHeader{{Key: "foo", Value: "bar"}, {Key: "baz", Value: ""}})
-	ExpectTrue(t, config.Filters.Headers.Negative)
-	ExpectEqual(t, len(config.Filters.CIDR.Values), 1)
-	ExpectEqual(t, config.Filters.CIDR.Values[0].String(), "192.168.10.0/24")
-	ExpectEqual(t, config.Fields.Headers.Default, FieldModeKeep)
-	ExpectEqual(t, config.Fields.Headers.Config["foo"], FieldModeRedact)
-	ExpectEqual(t, config.Fields.Query.Default, FieldModeDrop)
-	ExpectEqual(t, config.Fields.Query.Config["foo"], FieldModeKeep)
-	ExpectEqual(t, config.Fields.Cookies.Default, FieldModeRedact)
-	ExpectEqual(t, config.Fields.Cookies.Config["foo"], FieldModeKeep)
+	expect.Equal(t, config.BufferSize, 10)
+	expect.Equal(t, config.Format, FormatCombined)
+	expect.Equal(t, config.Path, "/tmp/access.log")
+	expect.Equal(t, config.Filters.StatusCodes.Values, []*StatusCodeRange{{Start: 200, End: 299}})
+	expect.Equal(t, len(config.Filters.Method.Values), 2)
+	expect.Equal(t, config.Filters.Method.Values, []HTTPMethod{"GET", "POST"})
+	expect.Equal(t, len(config.Filters.Headers.Values), 2)
+	expect.Equal(t, config.Filters.Headers.Values, []*HTTPHeader{{Key: "foo", Value: "bar"}, {Key: "baz", Value: ""}})
+	expect.True(t, config.Filters.Headers.Negative)
+	expect.Equal(t, len(config.Filters.CIDR.Values), 1)
+	expect.Equal(t, config.Filters.CIDR.Values[0].String(), "192.168.10.0/24")
+	expect.Equal(t, config.Fields.Headers.Default, FieldModeKeep)
+	expect.Equal(t, config.Fields.Headers.Config["foo"], FieldModeRedact)
+	expect.Equal(t, config.Fields.Query.Default, FieldModeDrop)
+	expect.Equal(t, config.Fields.Query.Config["foo"], FieldModeKeep)
+	expect.Equal(t, config.Fields.Cookies.Default, FieldModeRedact)
+	expect.Equal(t, config.Fields.Cookies.Config["foo"], FieldModeKeep)
 }

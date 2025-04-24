@@ -60,7 +60,7 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Config)
 		return
 	}
 
-	ep.accessLogger, err = accesslog.NewFileAccessLogger(parent, cfg)
+	ep.accessLogger, err = accesslog.NewAccessLogger(parent, cfg)
 	if err != nil {
 		return
 	}

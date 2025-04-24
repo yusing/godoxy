@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/types"
+	gpnet "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -24,7 +24,9 @@ type (
 		Key, Value string
 	}
 	Host string
-	CIDR struct{ types.CIDR }
+	CIDR struct {
+		gpnet.CIDR
+	}
 )
 
 var ErrInvalidHTTPHeaderFilter = gperr.New("invalid http header filter")
@@ -86,7 +88,7 @@ func (h Host) Fulfill(req *http.Request, res *http.Response) bool {
 	return req.Host == string(h)
 }
 
-func (cidr CIDR) Fulfill(req *http.Request, res *http.Response) bool {
+func (cidr *CIDR) Fulfill(req *http.Request, res *http.Response) bool {
 	ip, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		ip = req.RemoteAddr

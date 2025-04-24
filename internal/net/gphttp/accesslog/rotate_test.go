@@ -1,6 +1,7 @@
 package accesslog_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -8,79 +9,280 @@ import (
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
+)
+
+var (
+	testTime    = expect.Must(time.Parse(time.RFC3339, "2024-01-31T03:04:05Z"))
+	testTimeStr = testTime.Format(LogTimeFormat)
 )
 
 func TestParseLogTime(t *testing.T) {
-	tests := []string{
-		`{"foo":"bar","time":"%s","bar":"baz"}`,
-		`example.com 192.168.1.1 - - [%s] "GET / HTTP/1.1" 200 1234`,
-	}
-	testTime := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
-	testTimeStr := testTime.Format(LogTimeFormat)
+	t.Run("valid time", func(t *testing.T) {
+		tests := []string{
+			`{"foo":"bar","time":"%s","bar":"baz"}`,
+			`example.com 192.168.1.1 - - [%s] "GET / HTTP/1.1" 200 1234`,
+		}
 
-	for i, test := range tests {
-		tests[i] = fmt.Sprintf(test, testTimeStr)
-	}
+		for i, test := range tests {
+			tests[i] = fmt.Sprintf(test, testTimeStr)
+		}
 
-	for _, test := range tests {
-		t.Run(test, func(t *testing.T) {
-			actual := ParseLogTime([]byte(test))
-			ExpectTrue(t, actual.Equal(testTime))
+		for _, test := range tests {
+			t.Run(test, func(t *testing.T) {
+				extracted := ExtractTime([]byte(test))
+				expect.Equal(t, string(extracted), testTimeStr)
+				got := ParseLogTime([]byte(test))
+				expect.True(t, got.Equal(testTime), "expected %s, got %s", testTime, got)
+			})
+		}
+	})
+
+	t.Run("invalid time", func(t *testing.T) {
+		tests := []string{
+			`{"foo":"bar","time":"invalid","bar":"baz"}`,
+			`example.com 192.168.1.1 - - [invalid] "GET / HTTP/1.1" 200 1234`,
+		}
+		for _, test := range tests {
+			t.Run(test, func(t *testing.T) {
+				expect.True(t, ParseLogTime([]byte(test)).IsZero(), "expected zero time, got %s", ParseLogTime([]byte(test)))
+			})
+		}
+	})
+}
+
+func TestRotateKeepLast(t *testing.T) {
+	for _, format := range AvailableFormats {
+		t.Run(string(format)+" keep last", func(t *testing.T) {
+			file := NewMockFile()
+			MockTimeNow(testTime)
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format: format,
+			})
+			expect.Nil(t, logger.Config().Retention)
+
+			for range 10 {
+				logger.Log(req, resp)
+			}
+			expect.NoError(t, logger.Flush())
+
+			expect.Greater(t, file.Len(), int64(0))
+			expect.Equal(t, file.NumLines(), 10)
+
+			retention := strutils.MustParse[*Retention]("last 5")
+			expect.Equal(t, retention.Days, 0)
+			expect.Equal(t, retention.Last, 5)
+			expect.Equal(t, retention.KeepSize, 0)
+			logger.Config().Retention = retention
+
+			result, err := logger.Rotate()
+			expect.NoError(t, err)
+			expect.Equal(t, file.NumLines(), int(retention.Last))
+			expect.Equal(t, result.NumLinesKeep, int(retention.Last))
+			expect.Equal(t, result.NumLinesInvalid, 0)
+		})
+
+		t.Run(string(format)+" keep days", func(t *testing.T) {
+			file := NewMockFile()
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format: format,
+			})
+			expect.Nil(t, logger.Config().Retention)
+			nLines := 10
+			for i := range nLines {
+				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				logger.Log(req, resp)
+			}
+			logger.Flush()
+			expect.Equal(t, file.NumLines(), nLines)
+
+			retention := strutils.MustParse[*Retention]("3 days")
+			expect.Equal(t, retention.Days, 3)
+			expect.Equal(t, retention.Last, 0)
+			expect.Equal(t, retention.KeepSize, 0)
+			logger.Config().Retention = retention
+
+			MockTimeNow(testTime)
+			result, err := logger.Rotate()
+			expect.NoError(t, err)
+			expect.Equal(t, file.NumLines(), int(retention.Days))
+			expect.Equal(t, result.NumLinesKeep, int(retention.Days))
+			expect.Equal(t, result.NumLinesInvalid, 0)
+
+			rotated := file.Content()
+			rotatedLines := bytes.Split(rotated, []byte("\n"))
+			for i, line := range rotatedLines {
+				if i >= int(retention.Days) { // may ends with a newline
+					break
+				}
+				timeBytes := ExtractTime(line)
+				got, err := time.Parse(LogTimeFormat, string(timeBytes))
+				expect.NoError(t, err)
+				want := testTime.AddDate(0, 0, -int(retention.Days)+i+1)
+				expect.True(t, got.Equal(want), "expected %s, got %s", want, got)
+			}
 		})
 	}
 }
 
-func TestRetentionCommonFormat(t *testing.T) {
-	var file MockFile
-	logger := NewAccessLogger(task.RootTask("test", false), &file, &Config{
-		Format:     FormatCommon,
-		BufferSize: 1024,
-	})
-	for range 10 {
-		logger.Log(req, resp)
-	}
-	logger.Flush()
-	// test.Finish(nil)
-
-	ExpectEqual(t, logger.Config().Retention, nil)
-	ExpectTrue(t, file.Len() > 0)
-	ExpectEqual(t, file.LineCount(), 10)
-
-	t.Run("keep last", func(t *testing.T) {
-		logger.Config().Retention = strutils.MustParse[*Retention]("last 5")
-		ExpectEqual(t, logger.Config().Retention.Days, 0)
-		ExpectEqual(t, logger.Config().Retention.Last, 5)
-		ExpectNoError(t, logger.Rotate())
-		ExpectEqual(t, file.LineCount(), 5)
-	})
-
-	_ = file.Truncate(0)
-
-	timeNow := time.Now()
-	for i := range 10 {
-		logger.Formatter.(*CommonFormatter).GetTimeNow = func() time.Time {
-			return timeNow.AddDate(0, 0, -10+i)
-		}
-		logger.Log(req, resp)
-	}
-	logger.Flush()
-	ExpectEqual(t, file.LineCount(), 10)
-
-	t.Run("keep days", func(t *testing.T) {
-		logger.Config().Retention = strutils.MustParse[*Retention]("3 days")
-		ExpectEqual(t, logger.Config().Retention.Days, 3)
-		ExpectEqual(t, logger.Config().Retention.Last, 0)
-		ExpectNoError(t, logger.Rotate())
-		ExpectEqual(t, file.LineCount(), 3)
-		rotated := string(file.Content())
-		_ = file.Truncate(0)
-		for i := range 3 {
-			logger.Formatter.(*CommonFormatter).GetTimeNow = func() time.Time {
-				return timeNow.AddDate(0, 0, -3+i)
+func TestRotateKeepFileSize(t *testing.T) {
+	for _, format := range AvailableFormats {
+		t.Run(string(format)+" keep size no rotation", func(t *testing.T) {
+			file := NewMockFile()
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format: format,
+			})
+			expect.Nil(t, logger.Config().Retention)
+			nLines := 10
+			for i := range nLines {
+				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				logger.Log(req, resp)
 			}
+			logger.Flush()
+			expect.Equal(t, file.NumLines(), nLines)
+
+			retention := strutils.MustParse[*Retention]("100 KB")
+			expect.Equal(t, retention.KeepSize, 100*1024)
+			expect.Equal(t, retention.Days, 0)
+			expect.Equal(t, retention.Last, 0)
+			logger.Config().Retention = retention
+
+			MockTimeNow(testTime)
+			result, err := logger.Rotate()
+			expect.NoError(t, err)
+
+			// file should be untouched as 100KB > 10 lines * bytes per line
+			expect.Equal(t, result.NumBytesKeep, file.Len())
+			expect.Equal(t, result.NumBytesRead, 0, "should not read any bytes")
+		})
+	}
+
+	t.Run("keep size with rotation", func(t *testing.T) {
+		file := NewMockFile()
+		logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+			Format: FormatJSON,
+		})
+		expect.Nil(t, logger.Config().Retention)
+		nLines := 100
+		for i := range nLines {
+			MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
 			logger.Log(req, resp)
 		}
-		ExpectEqual(t, rotated, string(file.Content()))
+		logger.Flush()
+		expect.Equal(t, file.NumLines(), nLines)
+
+		retention := strutils.MustParse[*Retention]("10 KB")
+		expect.Equal(t, retention.KeepSize, 10*1024)
+		expect.Equal(t, retention.Days, 0)
+		expect.Equal(t, retention.Last, 0)
+		logger.Config().Retention = retention
+
+		MockTimeNow(testTime)
+		result, err := logger.Rotate()
+		expect.NoError(t, err)
+		expect.Equal(t, result.NumBytesKeep, int64(retention.KeepSize))
+		expect.Equal(t, file.Len(), int64(retention.KeepSize))
+		expect.Equal(t, result.NumBytesRead, 0, "should not read any bytes")
 	})
+}
+
+// skipping invalid lines is not supported for keep file_size
+func TestRotateSkipInvalidTime(t *testing.T) {
+	for _, format := range AvailableFormats {
+		t.Run(string(format), func(t *testing.T) {
+			file := NewMockFile()
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format: format,
+			})
+			expect.Nil(t, logger.Config().Retention)
+			nLines := 10
+			for i := range nLines {
+				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				logger.Log(req, resp)
+				logger.Flush()
+
+				n, err := file.Write([]byte("invalid time\n"))
+				expect.NoError(t, err)
+				expect.Equal(t, n, len("invalid time\n"))
+			}
+			expect.Equal(t, file.NumLines(), 2*nLines)
+
+			retention := strutils.MustParse[*Retention]("3 days")
+			expect.Equal(t, retention.Days, 3)
+			expect.Equal(t, retention.Last, 0)
+			logger.Config().Retention = retention
+
+			result, err := logger.Rotate()
+			expect.NoError(t, err)
+			// should read one invalid line after every valid line
+			expect.Equal(t, result.NumLinesKeep, int(retention.Days))
+			expect.Equal(t, result.NumLinesInvalid, nLines-int(retention.Days)*2)
+			expect.Equal(t, file.NumLines(), int(retention.Days))
+		})
+	}
+}
+
+func BenchmarkRotate(b *testing.B) {
+	tests := []*Retention{
+		{Days: 30},
+		{Last: 100},
+		{KeepSize: 24 * 1024},
+	}
+	for _, retention := range tests {
+		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
+			file := NewMockFile()
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format:    FormatJSON,
+				Retention: retention,
+			})
+			for i := range 100 {
+				MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
+				logger.Log(req, resp)
+			}
+			logger.Flush()
+			content := file.Content()
+			b.ResetTimer()
+			for b.Loop() {
+				b.StopTimer()
+				file = NewMockFile()
+				_, _ = file.Write(content)
+				b.StartTimer()
+				_, _ = logger.Rotate()
+			}
+		})
+	}
+}
+
+func BenchmarkRotateWithInvalidTime(b *testing.B) {
+	tests := []*Retention{
+		{Days: 30},
+		{Last: 100},
+		{KeepSize: 24 * 1024},
+	}
+	for _, retention := range tests {
+		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
+			file := NewMockFile()
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+				Format:    FormatJSON,
+				Retention: retention,
+			})
+			for i := range 10000 {
+				MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))
+				logger.Log(req, resp)
+				if i%10 == 0 {
+					_, _ = file.Write([]byte("invalid time\n"))
+				}
+			}
+			logger.Flush()
+			content := file.Content()
+			b.ResetTimer()
+			for b.Loop() {
+				b.StopTimer()
+				file = NewMockFile()
+				_, _ = file.Write(content)
+				b.StartTimer()
+				_, _ = logger.Rotate()
+			}
+		})
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 
 	"github.com/yusing/go-proxy/internal/task"
 )
@@ -16,26 +16,25 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 
 	cfg := DefaultConfig()
 	cfg.Path = "test.log"
-	parent := task.RootTask("test", false)
 
 	loggerCount := 10
 	accessLogIOs := make([]AccessLogIO, loggerCount)
 
 	// make test log file
 	file, err := os.Create(cfg.Path)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	file.Close()
 	t.Cleanup(func() {
-		ExpectNoError(t, os.Remove(cfg.Path))
+		expect.NoError(t, os.Remove(cfg.Path))
 	})
 
 	for i := range loggerCount {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			logger, err := NewFileAccessLogger(parent, cfg)
-			ExpectNoError(t, err)
-			accessLogIOs[index] = logger.io
+			file, err := newFileIO(cfg.Path)
+			expect.NoError(t, err)
+			accessLogIOs[index] = file
 		}(i)
 	}
 
@@ -43,12 +42,12 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 
 	firstIO := accessLogIOs[0]
 	for _, io := range accessLogIOs {
-		ExpectEqual(t, io, firstIO)
+		expect.Equal(t, io, firstIO)
 	}
 }
 
 func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
-	var file MockFile
+	file := NewMockFile()
 
 	cfg := DefaultConfig()
 	cfg.BufferSize = 1024
@@ -59,15 +58,15 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	loggers := make([]*AccessLogger, loggerCount)
 
 	for i := range loggerCount {
-		loggers[i] = NewAccessLogger(parent, &file, cfg)
+		loggers[i] = NewAccessLoggerWithIO(parent, file, cfg)
 	}
 
 	var wg sync.WaitGroup
 	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
 	resp := &http.Response{StatusCode: http.StatusOK}
 
+	wg.Add(len(loggers))
 	for _, logger := range loggers {
-		wg.Add(1)
 		go func(l *AccessLogger) {
 			defer wg.Done()
 			parallelLog(l, req, resp, logCountPerLogger)
@@ -78,8 +77,8 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	wg.Wait()
 
 	expected := loggerCount * logCountPerLogger
-	actual := file.LineCount()
-	ExpectEqual(t, actual, expected)
+	actual := file.NumLines()
+	expect.Equal(t, actual, expected)
 }
 
 func parallelLog(logger *AccessLogger, req *http.Request, resp *http.Response, n int) {
