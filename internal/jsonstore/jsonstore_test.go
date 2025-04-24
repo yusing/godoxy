@@ -12,19 +12,52 @@ func TestNewJSON(t *testing.T) {
 	}
 }
 
-func TestSaveLoad(t *testing.T) {
+func TestSaveLoadStore(t *testing.T) {
 	storesPath = t.TempDir()
 	store := Store[string]("test")
 	store.Store("a", "1")
 	if err := save(); err != nil {
 		t.Fatal(err)
 	}
-	stores.m = nil
 	if err := load(); err != nil {
 		t.Fatal(err)
 	}
-	store = Store[string]("test")
-	if v, _ := store.Load("a"); v != "1" {
-		t.Fatal("expected 1, got", v)
+	loaded := Store[string]("test")
+	v, ok := loaded.Load("a")
+	if !ok {
+		t.Fatal("expected key exists")
+	}
+	if v != "1" {
+		t.Fatalf("expected 1, got %q", v)
+	}
+	if loaded.MapOf == store.MapOf {
+		t.Fatal("expected different objects")
+	}
+}
+
+type testObject struct {
+	I int    `json:"i"`
+	S string `json:"s"`
+}
+
+func (*testObject) Initialize() {}
+
+func TestSaveLoadObject(t *testing.T) {
+	storesPath = t.TempDir()
+	obj := Object[*testObject]("test")
+	obj.I = 1
+	obj.S = "1"
+	if err := save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := load(); err != nil {
+		t.Fatal(err)
+	}
+	loaded := Object[*testObject]("test")
+	if loaded.I != 1 || loaded.S != "1" {
+		t.Fatalf("expected 1, got %d, %s", loaded.I, loaded.S)
+	}
+	if loaded == obj {
+		t.Fatal("expected different objects")
 	}
 }

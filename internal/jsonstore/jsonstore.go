@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
+
+	"maps"
 
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/yusing/go-proxy/internal/common"
@@ -16,16 +19,29 @@ import (
 
 type namespace string
 
-type Typed[VT any] struct {
+type MapStore[VT any] struct {
 	*xsync.MapOf[string, VT]
 }
 
-type storesMap struct {
-	sync.RWMutex
-	m map[namespace]any
+type ObjectStore[Pointer Initializer] struct {
+	ptr Pointer
 }
 
-var stores = storesMap{m: make(map[namespace]any)}
+type Initializer interface {
+	Initialize()
+}
+
+type storeByNamespace struct {
+	sync.RWMutex
+	m map[namespace]store
+}
+
+type store interface {
+	json.Marshaler
+	json.Unmarshaler
+}
+
+var stores = storeByNamespace{m: make(map[namespace]store)}
 var storesPath = common.DataDir
 
 func init() {
@@ -44,12 +60,16 @@ func load() error {
 	stores.Lock()
 	defer stores.Unlock()
 	errs := gperr.NewBuilder("failed to load data stores")
-	for ns, store := range stores.m {
-		if err := utils.LoadJSONIfExist(filepath.Join(storesPath, string(ns)+".json"), &store); err != nil {
+	for ns, obj := range stores.m {
+		if init, ok := obj.(Initializer); ok {
+			init.Initialize()
+		}
+		if err := utils.LoadJSONIfExist(filepath.Join(storesPath, string(ns)+".json"), &obj); err != nil {
 			errs.Add(err)
 		} else {
 			logging.Info().Str("name", string(ns)).Msg("store loaded")
 		}
+		stores.m[ns] = obj
 	}
 	return errs.Error()
 }
@@ -66,41 +86,42 @@ func save() error {
 	return errs.Error()
 }
 
-func Store[VT any](namespace namespace) Typed[VT] {
+func Store[VT any](namespace namespace) MapStore[VT] {
 	stores.Lock()
 	defer stores.Unlock()
 	if s, ok := stores.m[namespace]; ok {
-		return s.(Typed[VT])
-	}
-	m := Typed[VT]{MapOf: xsync.NewMapOf[string, VT]()}
-	stores.m[namespace] = m
-	return m
-}
-
-func Object[VT any](namespace namespace) *VT {
-	stores.Lock()
-	defer stores.Unlock()
-	if s, ok := stores.m[namespace]; ok {
-		v, ok := s.(*VT)
-		if ok {
-			return v
+		v, ok := s.(*MapStore[VT])
+		if !ok {
+			panic(fmt.Errorf("type mismatch: %T != %T", s, v))
 		}
-		panic(fmt.Errorf("type mismatch: %T != %T", s, v))
+		return *v
 	}
-	v := new(VT)
-	stores.m[namespace] = v
-	return v
+	m := &MapStore[VT]{MapOf: xsync.NewMapOf[string, VT]()}
+	stores.m[namespace] = m
+	return *m
 }
 
-func (s Typed[VT]) MarshalJSON() ([]byte, error) {
-	tmp := make(map[string]VT, s.Size())
-	for k, v := range s.Range {
-		tmp[k] = v
+func Object[Ptr Initializer](namespace namespace) Ptr {
+	stores.Lock()
+	defer stores.Unlock()
+	if s, ok := stores.m[namespace]; ok {
+		v, ok := s.(*ObjectStore[Ptr])
+		if !ok {
+			panic(fmt.Errorf("type mismatch: %T != %T", s, v))
+		}
+		return v.ptr
 	}
-	return json.Marshal(tmp)
+	obj := &ObjectStore[Ptr]{}
+	obj.init()
+	stores.m[namespace] = obj
+	return obj.ptr
 }
 
-func (s Typed[VT]) UnmarshalJSON(data []byte) error {
+func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(maps.Collect(s.Range))
+}
+
+func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 	tmp := make(map[string]VT)
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -110,4 +131,18 @@ func (s Typed[VT]) UnmarshalJSON(data []byte) error {
 		s.MapOf.Store(k, v)
 	}
 	return nil
+}
+
+func (obj *ObjectStore[Ptr]) init() {
+	obj.ptr = reflect.New(reflect.TypeFor[Ptr]().Elem()).Interface().(Ptr)
+	obj.ptr.Initialize()
+}
+
+func (obj ObjectStore[Ptr]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(obj.ptr)
+}
+
+func (obj *ObjectStore[Ptr]) UnmarshalJSON(data []byte) error {
+	obj.init()
+	return json.Unmarshal(data, obj.ptr)
 }

@@ -34,7 +34,7 @@ type sessionClaims struct {
 
 type sessionID string
 
-var oauthRefreshTokens jsonstore.Typed[oauthRefreshToken]
+var oauthRefreshTokens jsonstore.MapStore[oauthRefreshToken]
 
 var (
 	defaultRefreshTokenExpiry = 30 * 24 * time.Hour // 1 month

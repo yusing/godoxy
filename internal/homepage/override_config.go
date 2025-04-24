@@ -1,6 +1,7 @@
 package homepage
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/common"
@@ -15,10 +16,17 @@ type OverrideConfig struct {
 	mu             sync.RWMutex
 }
 
-var overrideConfigInstance = jsonstore.Object[OverrideConfig](common.NamespaceHomepageOverrides)
+var overrideConfigInstance = jsonstore.Object[*OverrideConfig](common.NamespaceHomepageOverrides)
 
 func GetOverrideConfig() *OverrideConfig {
 	return overrideConfigInstance
+}
+
+func (c *OverrideConfig) Initialize() {
+	c.ItemOverrides = make(map[string]*ItemConfig)
+	c.DisplayOrder = make(map[string]int)
+	c.CategoryOrder = make(map[string]int)
+	c.ItemVisibility = make(map[string]bool)
 }
 
 func (c *OverrideConfig) OverrideItem(alias string, override *ItemConfig) {
@@ -30,9 +38,7 @@ func (c *OverrideConfig) OverrideItem(alias string, override *ItemConfig) {
 func (c *OverrideConfig) OverrideItems(items map[string]*ItemConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for key, value := range items {
-		c.ItemOverrides[key] = value
-	}
+	maps.Copy(c.ItemOverrides, items)
 }
 
 func (c *OverrideConfig) GetOverride(alias string, item *ItemConfig) *ItemConfig {
