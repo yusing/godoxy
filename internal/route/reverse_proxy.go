@@ -109,6 +109,10 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.HealthMon = monitor.NewMonitor(r)
 	}
 
+	if r.handler == nil {
+		r.handler = r.rp
+	}
+
 	if r.UseAccessLog() {
 		var err error
 		r.rp.AccessLogger, err = accesslog.NewAccessLogger(r.task, r.AccessLog)
