@@ -3,7 +3,7 @@ package homepage
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestIconURL(t *testing.T) {
@@ -114,11 +114,11 @@ func TestIconURL(t *testing.T) {
 			u := &IconURL{}
 			err := u.Parse(tc.input)
 			if tc.wantErr {
-				ExpectError(t, ErrInvalidIconURL, err)
+				expect.ErrorIs(t, ErrInvalidIconURL, err)
 			} else {
 				tc.wantValue.FullValue = tc.input
-				ExpectNoError(t, err)
-				ExpectEqual(t, u, tc.wantValue)
+				expect.NoError(t, err)
+				expect.Equal(t, u, tc.wantValue)
 			}
 		})
 	}

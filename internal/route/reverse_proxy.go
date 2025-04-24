@@ -6,9 +6,9 @@ import (
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
@@ -143,7 +143,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		})
 	}
 
-	r.task.OnCancel("reset_favicon", func() { favicon.PruneRouteIconCache(r) })
+	r.task.OnCancel("reset_favicon", func() { homepage.PruneRouteIconCache(r) })
 	return nil
 }
 

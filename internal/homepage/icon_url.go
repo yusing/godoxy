@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/gperr"
 )
 
@@ -62,10 +61,10 @@ func NewWalkXCodeIconURL(name, format string) *IconURL {
 // otherwise returns true.
 func (u *IconURL) HasIcon() bool {
 	if u.IconSource == IconSourceSelfhSt {
-		return internal.HasSelfhstIcon(u.Extra.Name, u.Extra.FileType)
+		return HasSelfhstIcon(u.Extra.Name, u.Extra.FileType)
 	}
 	if u.IconSource == IconSourceWalkXCode {
-		return internal.HasWalkxCodeIcon(u.Extra.Name, u.Extra.FileType)
+		return HasWalkxCodeIcon(u.Extra.Name, u.Extra.FileType)
 	}
 	return true
 }
