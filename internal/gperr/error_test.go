@@ -5,11 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestBaseString(t *testing.T) {
-	ExpectEqual(t, New("error").Error(), "error")
+	expect.Equal(t, New("error").Error(), "error")
 }
 
 func TestBaseWithSubject(t *testing.T) {
@@ -17,13 +18,13 @@ func TestBaseWithSubject(t *testing.T) {
 	withSubject := err.Subject("foo")
 	withSubjectf := err.Subjectf("%s %s", "foo", "bar")
 
-	ExpectError(t, err, withSubject)
-	ExpectEqual(t, withSubject.Error(), "foo: error")
-	ExpectTrue(t, withSubject.Is(err))
+	expect.ErrorIs(t, err, withSubject)
+	expect.Equal(t, ansi.StripANSI(withSubject.Error()), "foo: error")
+	expect.True(t, withSubject.Is(err))
 
-	ExpectError(t, err, withSubjectf)
-	ExpectEqual(t, withSubjectf.Error(), "foo bar: error")
-	ExpectTrue(t, withSubjectf.Is(err))
+	expect.ErrorIs(t, err, withSubjectf)
+	expect.Equal(t, ansi.StripANSI(withSubjectf.Error()), "foo bar: error")
+	expect.True(t, withSubjectf.Is(err))
 }
 
 func TestBaseWithExtra(t *testing.T) {
@@ -31,22 +32,22 @@ func TestBaseWithExtra(t *testing.T) {
 	extra := New("bar").Subject("baz")
 	withExtra := err.With(extra)
 
-	ExpectTrue(t, withExtra.Is(extra))
-	ExpectTrue(t, withExtra.Is(err))
+	expect.True(t, withExtra.Is(extra))
+	expect.True(t, withExtra.Is(err))
 
-	ExpectTrue(t, errors.Is(withExtra, extra))
-	ExpectTrue(t, errors.Is(withExtra, err))
+	expect.True(t, errors.Is(withExtra, extra))
+	expect.True(t, errors.Is(withExtra, err))
 
-	ExpectTrue(t, strings.Contains(withExtra.Error(), err.Error()))
-	ExpectTrue(t, strings.Contains(withExtra.Error(), extra.Error()))
-	ExpectTrue(t, strings.Contains(withExtra.Error(), "baz"))
+	expect.True(t, strings.Contains(withExtra.Error(), err.Error()))
+	expect.True(t, strings.Contains(withExtra.Error(), extra.Error()))
+	expect.True(t, strings.Contains(withExtra.Error(), "baz"))
 }
 
 func TestBaseUnwrap(t *testing.T) {
 	err := errors.New("err")
 	wrapped := Wrap(err)
 
-	ExpectError(t, err, errors.Unwrap(wrapped))
+	expect.ErrorIs(t, err, errors.Unwrap(wrapped))
 }
 
 func TestNestedUnwrap(t *testing.T) {
@@ -55,24 +56,24 @@ func TestNestedUnwrap(t *testing.T) {
 	wrapped := Wrap(err).Subject("foo").With(err2.Subject("bar"))
 
 	unwrapper, ok := wrapped.(interface{ Unwrap() []error })
-	ExpectTrue(t, ok)
+	expect.True(t, ok)
 
-	ExpectError(t, err, wrapped)
-	ExpectError(t, err2, wrapped)
-	ExpectEqual(t, len(unwrapper.Unwrap()), 2)
+	expect.ErrorIs(t, err, wrapped)
+	expect.ErrorIs(t, err2, wrapped)
+	expect.Equal(t, len(unwrapper.Unwrap()), 2)
 }
 
 func TestErrorIs(t *testing.T) {
 	from := errors.New("error")
 	err := Wrap(from)
-	ExpectError(t, from, err)
+	expect.ErrorIs(t, from, err)
 
-	ExpectTrue(t, err.Is(from))
-	ExpectFalse(t, err.Is(New("error")))
+	expect.True(t, err.Is(from))
+	expect.False(t, err.Is(New("error")))
 
-	ExpectTrue(t, errors.Is(err.Subject("foo"), from))
-	ExpectTrue(t, errors.Is(err.Withf("foo"), from))
-	ExpectTrue(t, errors.Is(err.Subject("foo").Withf("bar"), from))
+	expect.True(t, errors.Is(err.Subject("foo"), from))
+	expect.True(t, errors.Is(err.Withf("foo"), from))
+	expect.True(t, errors.Is(err.Subject("foo").Withf("bar"), from))
 }
 
 func TestErrorImmutability(t *testing.T) {
@@ -82,14 +83,14 @@ func TestErrorImmutability(t *testing.T) {
 	for range 3 {
 		// t.Logf("%d: %v %T %s", i, errors.Unwrap(err), err, err)
 		_ = err.Subject("foo")
-		ExpectFalse(t, strings.Contains(err.Error(), "foo"))
+		expect.False(t, strings.Contains(err.Error(), "foo"))
 
 		_ = err.With(err2)
-		ExpectFalse(t, strings.Contains(err.Error(), "extra"))
-		ExpectFalse(t, err.Is(err2))
+		expect.False(t, strings.Contains(err.Error(), "extra"))
+		expect.False(t, err.Is(err2))
 
 		err = err.Subject("bar").Withf("baz")
-		ExpectTrue(t, err != nil)
+		expect.True(t, err != nil)
 	}
 }
 
@@ -99,24 +100,24 @@ func TestErrorWith(t *testing.T) {
 
 	err3 := err1.With(err2)
 
-	ExpectTrue(t, err3.Is(err1))
-	ExpectTrue(t, err3.Is(err2))
+	expect.True(t, err3.Is(err1))
+	expect.True(t, err3.Is(err2))
 
 	_ = err2.Subject("foo")
 
-	ExpectTrue(t, err3.Is(err1))
-	ExpectTrue(t, err3.Is(err2))
+	expect.True(t, err3.Is(err1))
+	expect.True(t, err3.Is(err2))
 
 	// check if err3 is affected by err2.Subject
-	ExpectFalse(t, strings.Contains(err3.Error(), "foo"))
+	expect.False(t, strings.Contains(err3.Error(), "foo"))
 }
 
 func TestErrorStringSimple(t *testing.T) {
 	errFailure := New("generic failure")
 	ne := errFailure.Subject("foo bar")
-	ExpectEqual(t, ne.Error(), "foo bar: generic failure")
+	expect.Equal(t, ansi.StripANSI(ne.Error()), "foo bar: generic failure")
 	ne = ne.Subject("baz")
-	ExpectEqual(t, ne.Error(), "baz > foo bar: generic failure")
+	expect.Equal(t, ansi.StripANSI(ne.Error()), "baz > foo bar: generic failure")
 }
 
 func TestErrorStringNested(t *testing.T) {
@@ -153,5 +154,5 @@ func TestErrorStringNested(t *testing.T) {
       • action 3 > inner3: generic failure
         • 3
         • 3`
-	ExpectEqual(t, ne.Error(), want)
+	expect.Equal(t, ansi.StripANSI(ne.Error()), want)
 }
