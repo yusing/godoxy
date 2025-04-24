@@ -76,7 +76,7 @@ func TestClone(t *testing.T) {
 	if !reflect.DeepEqual(k, cl) {
 		t.Errorf("Clone() = %v, want %v", cl, k)
 	}
-	cl.With("new")
+	cl = cl.With("new")
 	if cl == k {
 		t.Error("Clone() returns same pointer")
 	}

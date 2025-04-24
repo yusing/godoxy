@@ -10,7 +10,7 @@ func TestStoreNil(t *testing.T) {
 	if v.Load() != nil {
 		t.Fatal("expected nil")
 	}
-	if v.IsNil() {
+	if !v.IsNil() {
 		t.Fatal("expected true")
 	}
 }
