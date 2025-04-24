@@ -21,7 +21,7 @@ var listOptions = container.ListOptions{
 	All: true,
 }
 
-func ListContainers(clientHost string) ([]container.Summary, error) {
+func ListContainers(clientHost string) ([]container.SummaryTrimmed, error) {
 	dockerClient, err := NewClient(clientHost)
 	if err != nil {
 		return nil, err

@@ -5,13 +5,11 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/idlewatcher"
 	"github.com/yusing/go-proxy/internal/logging"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
@@ -30,53 +28,36 @@ type StreamRoute struct {
 	l zerolog.Logger
 }
 
-func NewStreamRoute(base *Route) (route.Route, gperr.Error) {
+func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
 	return &StreamRoute{
 		Route: base,
 		l: logging.With().
 			Str("type", string(base.Scheme)).
-			Str("name", base.TargetName()).
+			Str("name", base.Name()).
 			Logger(),
 	}, nil
 }
 
-func (r *StreamRoute) String() string {
-	return "stream " + r.TargetName()
-}
-
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
-	if existing, ok := routes.GetStreamRoute(r.TargetName()); ok {
+	if existing, ok := routes.Stream.Get(r.Key()); ok {
 		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
 	}
-	r.task = parent.Subtask("stream." + r.TargetName())
+	r.task = parent.Subtask("stream." + r.Name())
 	r.Stream = NewStream(r)
-	parent.OnCancel("finish", func() {
-		r.task.Finish(nil)
-	})
 
 	switch {
 	case r.UseIdleWatcher():
-		waker, err := idlewatcher.NewStreamWaker(parent, r, r.Stream)
+		waker, err := idlewatcher.NewWatcher(parent, r)
 		if err != nil {
 			r.task.Finish(err)
-			return err
+			return gperr.Wrap(err, "idlewatcher error")
 		}
 		r.Stream = waker
 		r.HealthMon = waker
 	case r.UseHealthCheck():
-		if r.IsDocker() {
-			client, err := docker.NewClient(r.Container.DockerHost)
-			if err == nil {
-				fallback := monitor.NewRawHealthChecker(r.TargetURL(), r.HealthCheck)
-				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Container.ContainerID, r.TargetName(), r.HealthCheck, fallback)
-				r.task.OnCancel("close_docker_client", client.Close)
-			}
-		}
-		if r.HealthMon == nil {
-			r.HealthMon = monitor.NewRawHealthMonitor(r.TargetURL(), r.HealthCheck)
-		}
+		r.HealthMon = monitor.NewMonitor(r)
 	}
 
 	if err := r.Stream.Setup(); err != nil {
@@ -94,9 +75,9 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 
 	go r.acceptConnections()
 
-	routes.SetStreamRoute(r.TargetName(), r)
-	r.task.OnCancel("entrypoint_remove_route", func() {
-		routes.DeleteStreamRoute(r.TargetName())
+	routes.Stream.Add(r)
+	r.task.OnFinished("entrypoint_remove_route", func() {
+		routes.Stream.Del(r)
 	})
 	return nil
 }

@@ -1,7 +1,5 @@
 package health
 
-import "encoding/json"
-
 type Status uint8
 
 const (
@@ -33,32 +31,6 @@ func (s Status) String() string {
 	default:
 		return "unknown"
 	}
-}
-
-func (s Status) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.String() + `"`), nil
-}
-
-func (s *Status) UnmarshalJSON(data []byte) error {
-	var str string
-	if err := json.Unmarshal(data, &str); err != nil {
-		return err
-	}
-	switch str {
-	case "healthy":
-		*s = StatusHealthy
-	case "unhealthy":
-		*s = StatusUnhealthy
-	case "napping":
-		*s = StatusNapping
-	case "starting":
-		*s = StatusStarting
-	case "error":
-		*s = StatusError
-	default:
-		*s = StatusUnknown
-	}
-	return nil
 }
 
 func (s Status) Good() bool {

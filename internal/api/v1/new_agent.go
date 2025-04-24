@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/go-proxy/agent/pkg/certs"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 func NewAgent(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +55,7 @@ func NewAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nightly := strutils.ParseBool(q.Get("nightly"))
+	nightly, _ := strconv.ParseBool(q.Get("nightly"))
 	var image string
 	if nightly {
 		image = agent.DockerImageNightly

@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
+	"github.com/yusing/go-proxy/internal/gperr"
+	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/utils"
 	U "github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type (
@@ -26,7 +27,8 @@ type (
 
 		Agent *agent.AgentConfig `json:"agent"`
 
-		Labels map[string]string `json:"-"`
+		Labels            map[string]string   `json:"-"`
+		IdlewatcherConfig *idlewatcher.Config `json:"idlewatcher_config"`
 
 		Mounts []string `json:"mounts"`
 
@@ -35,16 +37,10 @@ type (
 		PublicHostname     string      `json:"public_hostname"`
 		PrivateHostname    string      `json:"private_hostname"`
 
-		Aliases       []string `json:"aliases"`
-		IsExcluded    bool     `json:"is_excluded"`
-		IsExplicit    bool     `json:"is_explicit"`
-		IdleTimeout   string   `json:"idle_timeout,omitempty"`
-		WakeTimeout   string   `json:"wake_timeout,omitempty"`
-		StopMethod    string   `json:"stop_method,omitempty"`
-		StopTimeout   string   `json:"stop_timeout,omitempty"` // stop_method = "stop" only
-		StopSignal    string   `json:"stop_signal,omitempty"`  // stop_method = "stop" | "kill" only
-		StartEndpoint string   `json:"start_endpoint,omitempty"`
-		Running       bool     `json:"running"`
+		Aliases    []string `json:"aliases"`
+		IsExcluded bool     `json:"is_excluded"`
+		IsExplicit bool     `json:"is_explicit"`
+		Running    bool     `json:"running"`
 	}
 	ContainerImage struct {
 		Author string `json:"author,omitempty"`
@@ -55,7 +51,7 @@ type (
 
 var DummyContainer = new(Container)
 
-func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
+func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container) {
 	isExplicit := false
 	helper := containerHelper{c}
 	for lbl := range c.Labels {
@@ -65,6 +61,8 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 			delete(c.Labels, lbl)
 		}
 	}
+
+	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
 	res = &Container{
 		DockerHost:    dockerHost,
 		Image:         helper.parseImage(),
@@ -78,16 +76,10 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 		PublicPortMapping:  helper.getPublicPortMapping(),
 		PrivatePortMapping: helper.getPrivatePortMapping(),
 
-		Aliases:       helper.getAliases(),
-		IsExcluded:    strutils.ParseBool(helper.getDeleteLabel(LabelExclude)),
-		IsExplicit:    isExplicit,
-		IdleTimeout:   helper.getDeleteLabel(LabelIdleTimeout),
-		WakeTimeout:   helper.getDeleteLabel(LabelWakeTimeout),
-		StopMethod:    helper.getDeleteLabel(LabelStopMethod),
-		StopTimeout:   helper.getDeleteLabel(LabelStopTimeout),
-		StopSignal:    helper.getDeleteLabel(LabelStopSignal),
-		StartEndpoint: helper.getDeleteLabel(LabelStartEndpoint),
-		Running:       c.Status == "running" || c.State == "running",
+		Aliases:    helper.getAliases(),
+		IsExcluded: isExcluded,
+		IsExplicit: isExplicit,
+		Running:    c.Status == "running" || c.State == "running",
 	}
 
 	if agent.IsDockerHostAgent(dockerHost) {
@@ -100,42 +92,8 @@ func FromDocker(c *container.Summary, dockerHost string) (res *Container) {
 
 	res.setPrivateHostname(helper)
 	res.setPublicHostname()
+	res.loadDeleteIdlewatcherLabels(helper)
 	return
-}
-
-func FromInspectResponse(json container.InspectResponse, dockerHost string) *Container {
-	ports := make([]container.Port, 0)
-	for k, bindings := range json.NetworkSettings.Ports {
-		proto, privPortStr := nat.SplitProtoPort(string(k))
-		privPort, _ := strconv.ParseUint(privPortStr, 10, 16)
-		ports = append(ports, container.Port{
-			PrivatePort: uint16(privPort),
-			Type:        proto,
-		})
-		for _, v := range bindings {
-			pubPort, _ := strconv.ParseUint(v.HostPort, 10, 16)
-			ports = append(ports, container.Port{
-				IP:          v.HostIP,
-				PublicPort:  uint16(pubPort),
-				PrivatePort: uint16(privPort),
-				Type:        proto,
-			})
-		}
-	}
-	cont := FromDocker(&container.Summary{
-		ID:     json.ID,
-		Names:  []string{strings.TrimPrefix(json.Name, "/")},
-		Image:  json.Image,
-		Ports:  ports,
-		Labels: json.Config.Labels,
-		State:  json.State.Status,
-		Status: json.State.Status,
-		Mounts: json.Mounts,
-		NetworkSettings: &container.NetworkSettingsSummary{
-			Networks: json.NetworkSettings.Networks,
-		},
-	}, dockerHost)
-	return cont
 }
 
 func (c *Container) IsBlacklisted() bool {
@@ -198,5 +156,33 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 		}
 		c.PrivateHostname = v.IPAddress
 		return
+	}
+}
+
+func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
+	cfg := map[string]any{
+		"idle_timeout":   helper.getDeleteLabel(LabelIdleTimeout),
+		"wake_timeout":   helper.getDeleteLabel(LabelWakeTimeout),
+		"stop_method":    helper.getDeleteLabel(LabelStopMethod),
+		"stop_timeout":   helper.getDeleteLabel(LabelStopTimeout),
+		"stop_signal":    helper.getDeleteLabel(LabelStopSignal),
+		"start_endpoint": helper.getDeleteLabel(LabelStartEndpoint),
+	}
+	// set only if idlewatcher is enabled
+	idleTimeout := cfg["idle_timeout"]
+	if idleTimeout != "" {
+		idwCfg := &idlewatcher.Config{
+			Docker: &idlewatcher.DockerConfig{
+				DockerHost:    c.DockerHost,
+				ContainerID:   c.ContainerID,
+				ContainerName: c.ContainerName,
+			},
+		}
+		err := utils.Deserialize(cfg, idwCfg)
+		if err != nil {
+			gperr.LogWarn("invalid idlewatcher config", gperr.PrependSubject(c.ContainerName, err))
+		} else {
+			c.IdlewatcherConfig = idwCfg
+		}
 	}
 }

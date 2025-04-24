@@ -2,6 +2,7 @@ package dockerapi
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/coder/websocket"
 	"github.com/docker/docker/api/types/container"
@@ -9,15 +10,14 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 func Logs(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	server := r.PathValue("server")
 	containerID := r.PathValue("container")
-	stdout := strutils.ParseBool(query.Get("stdout"))
-	stderr := strutils.ParseBool(query.Get("stderr"))
+	stdout, _ := strconv.ParseBool(query.Get("stdout"))
+	stderr, _ := strconv.ParseBool(query.Get("stderr"))
 	since := query.Get("from")
 	until := query.Get("to")
 	levels := query.Get("levels") // TODO: implement levels

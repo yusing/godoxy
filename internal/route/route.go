@@ -1,17 +1,22 @@
 package route
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/docker"
-	idlewatcher "github.com/yusing/go-proxy/internal/docker/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
+	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
+	"github.com/yusing/go-proxy/internal/logging"
+	netutils "github.com/yusing/go-proxy/internal/net"
 	net "github.com/yusing/go-proxy/internal/net/types"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -20,8 +25,9 @@ import (
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/rules"
-	"github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -30,12 +36,12 @@ type (
 		_ utils.NoCopy
 
 		Alias  string       `json:"alias"`
-		Scheme types.Scheme `json:"scheme,omitempty"`
+		Scheme route.Scheme `json:"scheme,omitempty"`
 		Host   string       `json:"host,omitempty"`
-		Port   types.Port   `json:"port,omitempty"`
+		Port   route.Port   `json:"port,omitempty"`
 		Root   string       `json:"root,omitempty"`
 
-		types.HTTPConfig
+		route.HTTPConfig
 		PathPatterns []string                   `json:"path_patterns,omitempty"`
 		Rules        rules.Rules                `json:"rules,omitempty" validate:"omitempty,unique=Name"`
 		HealthCheck  *health.HealthCheckConfig  `json:"healthcheck,omitempty"`
@@ -43,6 +49,8 @@ type (
 		Middlewares  map[string]docker.LabelMap `json:"middlewares,omitempty"`
 		Homepage     *homepage.ItemConfig       `json:"homepage,omitempty"`
 		AccessLog    *accesslog.Config          `json:"access_log,omitempty"`
+
+		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
 
 		Metadata `deserialize:"-"`
 	}
@@ -53,16 +61,17 @@ type (
 		Provider  string            `json:"provider,omitempty"`
 
 		// private fields
-		LisURL      *net.URL            `json:"lurl,omitempty"`
-		ProxyURL    *net.URL            `json:"purl,omitempty"`
-		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
+		LisURL   *net.URL `json:"lurl,omitempty"`
+		ProxyURL *net.URL `json:"purl,omitempty"`
 
-		impl        types.Route
+		impl        routes.Route
 		isValidated bool
 		lastError   gperr.Error
 	}
 	Routes map[string]*Route
 )
+
+const DefaultHost = "localhost"
 
 func (r Routes) Contains(alias string) bool {
 	_, ok := r[alias]
@@ -76,12 +85,79 @@ func (r *Route) Validate() gperr.Error {
 	r.isValidated = true
 	r.Finalize()
 
+	if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
+		node := r.Idlewatcher.Proxmox.Node
+		vmid := r.Idlewatcher.Proxmox.VMID
+		if node == "" {
+			return gperr.Errorf("node (proxmox node name) is required")
+		}
+		if vmid <= 0 {
+			return gperr.Errorf("vmid (lxc id) is required")
+		}
+		if r.Host == DefaultHost {
+			containerName := r.Idlewatcher.ContainerName()
+			// get ip addresses of the vmid
+			node, ok := proxmox.Nodes.Get(node)
+			if !ok {
+				return gperr.Errorf("proxmox node %s not found in pool", node)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			ips, err := node.LXCGetIPs(ctx, vmid)
+			if err != nil {
+				return gperr.Errorf("failed to get ip addresses of vmid %d: %w", vmid, err)
+			}
+
+			if len(ips) == 0 {
+				return gperr.Multiline().
+					Addf("no ip addresses found for %s", containerName).
+					Adds("make sure you have set static ip address for container instead of dhcp").
+					Subject(containerName)
+			}
+
+			l := logging.With().Str("container", containerName).Logger()
+
+			l.Info().Msg("checking if container is running")
+			running, err := node.LXCIsRunning(ctx, vmid)
+			if err != nil {
+				return gperr.New("failed to check container state").With(err)
+			}
+
+			if !running {
+				l.Info().Msg("starting container")
+				if err := node.LXCAction(ctx, vmid, proxmox.LXCStart); err != nil {
+					return gperr.New("failed to start container").With(err)
+				}
+			}
+
+			l.Info().Msgf("finding reachable ip addresses")
+			errs := gperr.NewBuilder("failed to find reachable ip addresses")
+			for _, ip := range ips {
+				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
+					errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
+				} else {
+					r.Host = ip.String()
+					l.Info().Msgf("using ip %s", r.Host)
+					break
+				}
+			}
+			if r.Host == DefaultHost {
+				return gperr.Multiline().
+					Addf("no reachable ip addresses found, tried %d IPs", len(ips)).
+					With(errs.Error()).
+					Subject(containerName)
+			}
+		}
+	}
+
 	// return error if route is localhost:<godoxy_port>
 	switch r.Host {
 	case "localhost", "127.0.0.1":
 		switch r.Port.Proxy {
 		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
-			if r.Scheme.IsReverseProxy() || r.Scheme == types.SchemeTCP {
+			if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
 				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
 			}
 		}
@@ -89,29 +165,27 @@ func (r *Route) Validate() gperr.Error {
 
 	errs := gperr.NewBuilder("entry validation failed")
 
-	var impl types.Route
+	var impl routes.Route
 	var err gperr.Error
 
-	switch r.Scheme {
-	case types.SchemeFileServer:
+	if r.Scheme == route.SchemeFileServer {
 		r.impl, err = NewFileServer(r)
 		if err != nil {
 			errs.Add(err)
 		}
-	case types.SchemeHTTP, types.SchemeHTTPS:
-		if r.Port.Listening != 0 {
-			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
-		}
-		fallthrough
-	case types.SchemeTCP, types.SchemeUDP:
-		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
-		fallthrough
-	default:
-		if r.LoadBalance != nil && r.LoadBalance.Link == "" {
-			r.LoadBalance = nil
+		r.ProxyURL = gperr.Collect(errs, net.ParseURL, "file://"+r.Root)
+		r.Host = ""
+		r.Port.Proxy = 0
+	} else {
+		switch r.Scheme {
+		case route.SchemeHTTP, route.SchemeHTTPS:
+			if r.Port.Listening != 0 {
+				errs.Addf("unexpected listening port for %s scheme", r.Scheme)
+			}
+		case route.SchemeTCP, route.SchemeUDP:
+			r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		}
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
-		r.Idlewatcher = gperr.Collect(errs, idlewatcher.ValidateConfig, r.Container)
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -120,15 +194,15 @@ func (r *Route) Validate() gperr.Error {
 
 	if errs.HasError() {
 		r.lastError = errs.Error()
-		return r.lastError
+		return errs.Error()
 	}
 
 	switch r.Scheme {
-	case types.SchemeFileServer:
+	case route.SchemeFileServer:
 		impl, err = NewFileServer(r)
-	case types.SchemeHTTP, types.SchemeHTTPS:
+	case route.SchemeHTTP, route.SchemeHTTPS:
 		impl, err = NewReverseProxyRoute(r)
-	case types.SchemeTCP, types.SchemeUDP:
+	case route.SchemeTCP, route.SchemeUDP:
 		impl, err = NewStreamRoute(r)
 	default:
 		panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
@@ -167,20 +241,33 @@ func (r *Route) ProviderName() string {
 	return r.Provider
 }
 
-func (r *Route) TargetName() string {
-	return r.Alias
-}
-
 func (r *Route) TargetURL() *net.URL {
 	return r.ProxyURL
 }
 
-func (r *Route) Type() types.RouteType {
+func (r *Route) Reference() string {
+	if r.Container != nil {
+		return r.Container.Image.Name
+	}
+	return r.Alias
+}
+
+// Name implements pool.Object.
+func (r *Route) Name() string {
+	return r.Alias
+}
+
+// Key implements pool.Object.
+func (r *Route) Key() string {
+	return r.Alias
+}
+
+func (r *Route) Type() route.RouteType {
 	switch r.Scheme {
-	case types.SchemeHTTP, types.SchemeHTTPS, types.SchemeFileServer:
-		return types.RouteTypeHTTP
-	case types.SchemeTCP, types.SchemeUDP:
-		return types.RouteTypeStream
+	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeFileServer:
+		return route.RouteTypeHTTP
+	case route.SchemeTCP, route.SchemeUDP:
+		return route.RouteTypeStream
 	}
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
@@ -301,7 +388,7 @@ func (r *Route) Finalize() {
 		scheme, port, ok := getSchemePortByImageName(cont.Image.Name)
 		if ok {
 			if r.Scheme == "" {
-				r.Scheme = types.Scheme(scheme)
+				r.Scheme = route.Scheme(scheme)
 			}
 			if pp == 0 {
 				pp = port
@@ -311,7 +398,7 @@ func (r *Route) Finalize() {
 
 	if scheme, port, ok := getSchemePortByAlias(r.Alias); ok {
 		if r.Scheme == "" {
-			r.Scheme = types.Scheme(scheme)
+			r.Scheme = route.Scheme(scheme)
 		}
 		if pp == 0 {
 			pp = port
@@ -377,18 +464,6 @@ func (r *Route) Finalize() {
 		}
 		if r.HealthCheck.Timeout == 0 {
 			r.HealthCheck.Timeout = common.HealthCheckTimeoutDefault
-		}
-	}
-
-	if isDocker && cont.IdleTimeout != "" {
-		if cont.WakeTimeout == "" {
-			cont.WakeTimeout = common.WakeTimeoutDefault
-		}
-		if cont.StopTimeout == "" {
-			cont.StopTimeout = common.StopTimeoutDefault
-		}
-		if cont.StopMethod == "" {
-			cont.StopMethod = common.StopMethodDefault
 		}
 	}
 }

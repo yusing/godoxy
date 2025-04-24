@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/yusing/go-proxy/internal/common"
 	D "github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/route"
 	T "github.com/yusing/go-proxy/internal/route/types"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 var dummyNames = []string{"/a"}
@@ -21,7 +21,7 @@ const (
 	testDockerIP = "172.17.0.123"
 )
 
-func makeRoutes(cont *types.Container, dockerHostIP ...string) route.Routes {
+func makeRoutes(cont *container.SummaryTrimmed, dockerHostIP ...string) route.Routes {
 	var p DockerProvider
 	var host string
 	if len(dockerHostIP) > 0 {
@@ -64,15 +64,15 @@ func TestApplyLabel(t *testing.T) {
 			},
 		},
 	}
-	entries := makeRoutes(&types.Container{
+	entries := makeRoutes(&container.SummaryTrimmed{
 		Names: dummyNames,
 		Labels: map[string]string{
 			D.LabelAliases:          "a,b",
-			D.LabelIdleTimeout:      "",
-			D.LabelStopMethod:       common.StopMethodDefault,
+			D.LabelIdleTimeout:      "10s",
+			D.LabelStopMethod:       "stop",
 			D.LabelStopSignal:       "SIGTERM",
-			D.LabelStopTimeout:      common.StopTimeoutDefault,
-			D.LabelWakeTimeout:      common.WakeTimeoutDefault,
+			D.LabelStopTimeout:      "1h",
+			D.LabelWakeTimeout:      "10s",
 			"proxy.*.no_tls_verify": "true",
 			"proxy.*.scheme":        "https",
 			"proxy.*.host":          "app",
@@ -88,54 +88,55 @@ func TestApplyLabel(t *testing.T) {
 	})
 
 	a, ok := entries["a"]
-	ExpectTrue(t, ok)
+	expect.True(t, ok)
 	b, ok := entries["b"]
-	ExpectTrue(t, ok)
+	expect.True(t, ok)
 
-	ExpectEqual(t, a.Scheme, "https")
-	ExpectEqual(t, b.Scheme, "https")
+	expect.Equal(t, a.Scheme, "https")
+	expect.Equal(t, b.Scheme, "https")
 
-	ExpectEqual(t, a.Host, "app")
-	ExpectEqual(t, b.Host, "app")
+	expect.Equal(t, a.Host, "app")
+	expect.Equal(t, b.Host, "app")
 
-	ExpectEqual(t, a.Port.Proxy, 4567)
-	ExpectEqual(t, b.Port.Proxy, 4567)
+	expect.Equal(t, a.Port.Proxy, 4567)
+	expect.Equal(t, b.Port.Proxy, 4567)
 
-	ExpectTrue(t, a.NoTLSVerify)
-	ExpectTrue(t, b.NoTLSVerify)
+	expect.True(t, a.NoTLSVerify)
+	expect.True(t, b.NoTLSVerify)
 
-	ExpectEqual(t, a.PathPatterns, pathPatternsExpect)
-	ExpectEqual(t, len(b.PathPatterns), 0)
+	expect.Equal(t, a.PathPatterns, pathPatternsExpect)
+	expect.Equal(t, len(b.PathPatterns), 0)
 
-	ExpectEqual(t, a.Middlewares, middlewaresExpect)
-	ExpectEqual(t, len(b.Middlewares), 0)
+	expect.Equal(t, a.Middlewares, middlewaresExpect)
+	expect.Equal(t, len(b.Middlewares), 0)
 
-	ExpectEqual(t, a.Container.IdleTimeout, "")
-	ExpectEqual(t, b.Container.IdleTimeout, "")
+	expect.NotNil(t, a.Container)
+	expect.NotNil(t, b.Container)
+	expect.NotNil(t, a.Container.IdlewatcherConfig)
+	expect.NotNil(t, b.Container.IdlewatcherConfig)
 
-	ExpectEqual(t, a.Container.StopTimeout, common.StopTimeoutDefault)
-	ExpectEqual(t, b.Container.StopTimeout, common.StopTimeoutDefault)
+	expect.Equal(t, a.Container.IdlewatcherConfig.IdleTimeout, 10*time.Second)
+	expect.Equal(t, b.Container.IdlewatcherConfig.IdleTimeout, 10*time.Second)
+	expect.Equal(t, a.Container.IdlewatcherConfig.StopTimeout, time.Hour)
+	expect.Equal(t, b.Container.IdlewatcherConfig.StopTimeout, time.Hour)
+	expect.Equal(t, a.Container.IdlewatcherConfig.StopMethod, "stop")
+	expect.Equal(t, b.Container.IdlewatcherConfig.StopMethod, "stop")
+	expect.Equal(t, a.Container.IdlewatcherConfig.WakeTimeout, 10*time.Second)
+	expect.Equal(t, b.Container.IdlewatcherConfig.WakeTimeout, 10*time.Second)
+	expect.Equal(t, a.Container.IdlewatcherConfig.StopSignal, "SIGTERM")
+	expect.Equal(t, b.Container.IdlewatcherConfig.StopSignal, "SIGTERM")
 
-	ExpectEqual(t, a.Container.StopMethod, common.StopMethodDefault)
-	ExpectEqual(t, b.Container.StopMethod, common.StopMethodDefault)
+	expect.Equal(t, a.Homepage.Show, true)
+	expect.Equal(t, a.Homepage.Icon.Value, "png/adguard-home.png")
+	expect.Equal(t, a.Homepage.Icon.Extra.FileType, "png")
+	expect.Equal(t, a.Homepage.Icon.Extra.Name, "adguard-home")
 
-	ExpectEqual(t, a.Container.WakeTimeout, common.WakeTimeoutDefault)
-	ExpectEqual(t, b.Container.WakeTimeout, common.WakeTimeoutDefault)
-
-	ExpectEqual(t, a.Container.StopSignal, "SIGTERM")
-	ExpectEqual(t, b.Container.StopSignal, "SIGTERM")
-
-	ExpectEqual(t, a.Homepage.Show, true)
-	ExpectEqual(t, a.Homepage.Icon.Value, "png/adguard-home.png")
-	ExpectEqual(t, a.Homepage.Icon.Extra.FileType, "png")
-	ExpectEqual(t, a.Homepage.Icon.Extra.Name, "adguard-home")
-
-	ExpectEqual(t, a.HealthCheck.Path, "/ping")
-	ExpectEqual(t, a.HealthCheck.Interval, 10*time.Second)
+	expect.Equal(t, a.HealthCheck.Path, "/ping")
+	expect.Equal(t, a.HealthCheck.Interval, 10*time.Second)
 }
 
 func TestApplyLabelWithAlias(t *testing.T) {
-	entries := makeRoutes(&types.Container{
+	entries := makeRoutes(&container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -162,7 +163,7 @@ func TestApplyLabelWithAlias(t *testing.T) {
 }
 
 func TestApplyLabelWithRef(t *testing.T) {
-	entries := makeRoutes(&types.Container{
+	entries := makeRoutes(&container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -190,7 +191,7 @@ func TestApplyLabelWithRef(t *testing.T) {
 }
 
 func TestApplyLabelWithRefIndexError(t *testing.T) {
-	c := D.FromDocker(&types.Container{
+	c := D.FromDocker(&container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -204,7 +205,7 @@ func TestApplyLabelWithRefIndexError(t *testing.T) {
 	_, err := p.routesFromContainerLabels(c)
 	ExpectError(t, ErrAliasRefIndexOutOfRange, err)
 
-	c = D.FromDocker(&types.Container{
+	c = D.FromDocker(&container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -217,7 +218,7 @@ func TestApplyLabelWithRefIndexError(t *testing.T) {
 }
 
 func TestDynamicAliases(t *testing.T) {
-	c := &types.Container{
+	c := &container.SummaryTrimmed{
 		Names: []string{"app1"},
 		State: "running",
 		Labels: map[string]string{
@@ -240,7 +241,7 @@ func TestDynamicAliases(t *testing.T) {
 }
 
 func TestDisableHealthCheck(t *testing.T) {
-	c := &types.Container{
+	c := &container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -254,7 +255,7 @@ func TestDisableHealthCheck(t *testing.T) {
 }
 
 func TestPublicIPLocalhost(t *testing.T) {
-	c := &types.Container{Names: dummyNames, State: "running"}
+	c := &container.SummaryTrimmed{Names: dummyNames, State: "running"}
 	r, ok := makeRoutes(c)["a"]
 	ExpectTrue(t, ok)
 	ExpectEqual(t, r.Container.PublicHostname, "127.0.0.1")
@@ -262,7 +263,7 @@ func TestPublicIPLocalhost(t *testing.T) {
 }
 
 func TestPublicIPRemote(t *testing.T) {
-	c := &types.Container{Names: dummyNames, State: "running"}
+	c := &container.SummaryTrimmed{Names: dummyNames, State: "running"}
 	raw, ok := makeRoutes(c, testIP)["a"]
 	ExpectTrue(t, ok)
 	ExpectEqual(t, raw.Container.PublicHostname, testIP)
@@ -270,10 +271,10 @@ func TestPublicIPRemote(t *testing.T) {
 }
 
 func TestPrivateIPLocalhost(t *testing.T) {
-	c := &types.Container{
+	c := &container.SummaryTrimmed{
 		Names: dummyNames,
-		NetworkSettings: &types.SummaryNetworkSettings{
-			Networks: map[string]*network.EndpointSettings{
+		NetworkSettings: &container.NetworkSettingsSummaryTrimmed{
+			Networks: map[string]*struct{ IPAddress string }{
 				"network": {
 					IPAddress: testDockerIP,
 				},
@@ -287,11 +288,11 @@ func TestPrivateIPLocalhost(t *testing.T) {
 }
 
 func TestPrivateIPRemote(t *testing.T) {
-	c := &types.Container{
+	c := &container.SummaryTrimmed{
 		Names: dummyNames,
 		State: "running",
-		NetworkSettings: &types.SummaryNetworkSettings{
-			Networks: map[string]*network.EndpointSettings{
+		NetworkSettings: &container.NetworkSettingsSummaryTrimmed{
+			Networks: map[string]*struct{ IPAddress string }{
 				"network": {
 					IPAddress: testDockerIP,
 				},
@@ -309,11 +310,11 @@ func TestStreamDefaultValues(t *testing.T) {
 	privPort := uint16(1234)
 	pubPort := uint16(4567)
 	privIP := "172.17.0.123"
-	cont := &types.Container{
+	cont := &container.SummaryTrimmed{
 		Names: []string{"a"},
 		State: "running",
-		NetworkSettings: &types.SummaryNetworkSettings{
-			Networks: map[string]*network.EndpointSettings{
+		NetworkSettings: &container.NetworkSettingsSummaryTrimmed{
+			Networks: map[string]*struct{ IPAddress string }{
 				"network": {
 					IPAddress: privIP,
 				},
@@ -346,7 +347,7 @@ func TestStreamDefaultValues(t *testing.T) {
 }
 
 func TestExplicitExclude(t *testing.T) {
-	r, ok := makeRoutes(&types.Container{
+	r, ok := makeRoutes(&container.SummaryTrimmed{
 		Names: dummyNames,
 		Labels: map[string]string{
 			D.LabelAliases:          "a",
@@ -360,17 +361,17 @@ func TestExplicitExclude(t *testing.T) {
 
 func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("mount path detection", func(t *testing.T) {
-		r, ok := makeRoutes(&types.Container{
+		r, ok := makeRoutes(&container.SummaryTrimmed{
 			Names: dummyNames,
-			Mounts: []types.MountPoint{
-				{Source: "/data", Destination: "/var/lib/postgresql/data"},
+			Mounts: []container.MountPointTrimmed{
+				{Destination: "/var/lib/postgresql/data"},
 			},
 		})["a"]
 		ExpectTrue(t, ok)
 		ExpectTrue(t, r.ShouldExclude())
 	})
 	t.Run("exposed port detection", func(t *testing.T) {
-		r, ok := makeRoutes(&types.Container{
+		r, ok := makeRoutes(&container.SummaryTrimmed{
 			Names: dummyNames,
 			Ports: []types.Port{
 				{Type: "tcp", PrivatePort: 5432, PublicPort: 5432},

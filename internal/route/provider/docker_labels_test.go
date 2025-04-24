@@ -3,7 +3,7 @@ package provider
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/internal/docker"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"gopkg.in/yaml.v3"
@@ -21,11 +21,11 @@ func TestParseDockerLabels(t *testing.T) {
 	ExpectNoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
 
 	routes, err := provider.routesFromContainerLabels(
-		docker.FromDocker(&types.Container{
+		docker.FromDocker(&container.SummaryTrimmed{
 			Names:  []string{"container"},
 			Labels: labels,
 			State:  "running",
-			Ports: []types.Port{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 1234, PublicPort: 1234},
 			},
 		}, "/var/run/docker.sock"),

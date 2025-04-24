@@ -8,7 +8,7 @@ import (
 )
 
 type containerHelper struct {
-	*container.Summary
+	*container.SummaryTrimmed
 }
 
 // getDeleteLabel gets the value of a label and then deletes it from the container.

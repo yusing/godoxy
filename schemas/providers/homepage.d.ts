@@ -3,19 +3,19 @@ import { URL } from "../types";
  * @additionalProperties false
  */
 export type HomepageConfig = {
-    /** Whether show in dashboard
-     *
-     * @default true
-     */
-    show?: boolean;
-    name?: string;
-    icon?: URL | WalkxcodeIcon | ExternalIcon | TargetRelativeIconPath;
-    description?: string;
-    url?: URL;
-    category?: string;
-    widget_config?: {
-        [key: string]: any;
-    };
+  /** Whether show in dashboard
+   *
+   * @default true
+   */
+  show?: boolean;
+  name?: string;
+  icon?: URL | WalkxcodeIcon | ExternalIcon | TargetRelativeIconPath;
+  description?: string;
+  url?: URL;
+  category?: string;
+  widget_config?: {
+    [key: string]: any;
+  };
 };
 /** Walkxcode icon
  *

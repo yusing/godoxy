@@ -1,9 +1,9 @@
-package types
+package idlewatcher
 
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestValidateStartEndpoint(t *testing.T) {
@@ -35,9 +35,10 @@ func TestValidateStartEndpoint(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s, err := validateStartEndpoint(tc.input)
+			cfg := Config{StartEndpoint: tc.input}
+			err := cfg.validateStartEndpoint()
 			if err == nil {
-				ExpectEqual(t, s, tc.input)
+				expect.Equal(t, cfg.StartEndpoint, tc.input)
 			}
 			if (err != nil) != tc.wantErr {
 				t.Errorf("validateStartEndpoint() error = %v, wantErr %t", err, tc.wantErr)

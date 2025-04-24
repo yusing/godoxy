@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
@@ -24,7 +23,7 @@ type (
 	}
 )
 
-func AgentTargetFromURL(url *types.URL) *AgentCheckHealthTarget {
+func AgentTargetFromURL(url *url.URL) *AgentCheckHealthTarget {
 	return &AgentCheckHealthTarget{
 		Scheme: url.Scheme,
 		Host:   url.Host,
@@ -40,12 +39,12 @@ func (target *AgentCheckHealthTarget) buildQuery() string {
 	return query.Encode()
 }
 
-func (target *AgentCheckHealthTarget) displayURL() *types.URL {
-	return types.NewURL(&url.URL{
+func (target *AgentCheckHealthTarget) displayURL() *url.URL {
+	return &url.URL{
 		Scheme: target.Scheme,
 		Host:   target.Host,
 		Path:   target.Path,
-	})
+	}
 }
 
 func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *health.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {

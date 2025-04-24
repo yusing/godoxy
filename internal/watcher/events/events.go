@@ -36,8 +36,8 @@ const (
 
 	ActionForceReload
 
-	actionContainerWakeMask  = ActionContainerCreate | ActionContainerStart | ActionContainerUnpause
-	actionContainerSleepMask = ActionContainerKill | ActionContainerStop | ActionContainerPause | ActionContainerDie
+	actionContainerStartMask = ActionContainerCreate | ActionContainerStart | ActionContainerUnpause
+	actionContainerStopMask  = ActionContainerKill | ActionContainerStop | ActionContainerDie
 )
 
 const (
@@ -83,10 +83,14 @@ func (a Action) String() string {
 	return actionNameMap[a]
 }
 
-func (a Action) IsContainerWake() bool {
-	return a&actionContainerWakeMask != 0
+func (a Action) IsContainerStart() bool {
+	return a&actionContainerStartMask != 0
 }
 
-func (a Action) IsContainerSleep() bool {
-	return a&actionContainerSleepMask != 0
+func (a Action) IsContainerStop() bool {
+	return a&actionContainerStopMask != 0
+}
+
+func (a Action) IsContainerPause() bool {
+	return a == ActionContainerPause
 }

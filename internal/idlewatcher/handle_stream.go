@@ -3,11 +3,10 @@ package idlewatcher
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/types"
+	gpnet "github.com/yusing/go-proxy/internal/net/types"
 )
 
 // Setup implements types.Stream.
@@ -21,19 +20,19 @@ func (w *Watcher) Setup() error {
 }
 
 // Accept implements types.Stream.
-func (w *Watcher) Accept() (conn types.StreamConn, err error) {
+func (w *Watcher) Accept() (conn gpnet.StreamConn, err error) {
 	conn, err = w.stream.Accept()
 	if err != nil {
 		return
 	}
 	if wakeErr := w.wakeFromStream(); wakeErr != nil {
-		w.WakeError(wakeErr)
+		w.l.Err(wakeErr).Msg("error waking container")
 	}
 	return
 }
 
 // Handle implements types.Stream.
-func (w *Watcher) Handle(conn types.StreamConn) error {
+func (w *Watcher) Handle(conn gpnet.StreamConn) error {
 	if err := w.wakeFromStream(); err != nil {
 		return err
 	}
@@ -53,35 +52,29 @@ func (w *Watcher) wakeFromStream() error {
 		return nil
 	}
 
-	w.WakeDebug().Msg("wake signal received")
-	wakeErr := w.wakeIfStopped()
-	if wakeErr != nil {
-		wakeErr = fmt.Errorf("%s failed: %w", w.String(), wakeErr)
-		w.WakeError(wakeErr)
-		return wakeErr
+	w.l.Debug().Msg("wake signal received")
+	err := w.wakeIfStopped()
+	if err != nil {
+		return err
 	}
 
-	ctx, cancel := context.WithTimeoutCause(w.task.Context(), w.Config().WakeTimeout, errors.New("wake timeout"))
+	ctx, cancel := context.WithTimeoutCause(w.task.Context(), w.cfg.WakeTimeout, errors.New("wake timeout"))
 	defer cancel()
 
+	var ready bool
+
 	for {
-		select {
-		case <-w.task.Context().Done():
-			cause := w.task.FinishCause()
-			w.WakeDebug().Str("cause", cause.Error()).Msg("canceled")
-			return cause
-		case <-ctx.Done():
-			cause := context.Cause(ctx)
-			w.WakeDebug().Str("cause", cause.Error()).Msg("timeout")
-			return cause
-		default:
+		if w.cancelled(ctx) {
+			return context.Cause(ctx)
 		}
 
-		if ready, err := w.checkUpdateState(); err != nil {
+		w, ready, err = checkUpdateState(w.Key())
+		if err != nil {
 			return err
-		} else if ready {
+		}
+		if ready {
 			w.resetIdleTimer()
-			w.Debug().Msg("container is ready, passing through to " + w.hc.URL().String())
+			w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
 			return nil
 		}
 

@@ -7,7 +7,7 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/jsonstore"
 	"github.com/yusing/go-proxy/internal/logging"
-	route "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
@@ -52,11 +52,11 @@ func pruneExpiredIconCache() {
 	}
 }
 
-func routeKey(r route.HTTPRoute) string {
-	return r.ProviderName() + ":" + r.TargetName()
+func routeKey(r routes.HTTPRoute) string {
+	return r.ProviderName() + ":" + r.Name()
 }
 
-func PruneRouteIconCache(route route.HTTPRoute) {
+func PruneRouteIconCache(route routes.HTTPRoute) {
 	iconCache.Delete(routeKey(route))
 }
 

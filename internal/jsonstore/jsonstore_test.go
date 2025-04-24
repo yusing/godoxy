@@ -1,7 +1,6 @@
 package jsonstore
 
 import (
-	"path/filepath"
 	"testing"
 )
 
@@ -14,8 +13,7 @@ func TestNewJSON(t *testing.T) {
 }
 
 func TestSaveLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-	storesPath = filepath.Join(tmpDir, "data.json")
+	storesPath = t.TempDir()
 	store := Store[string]("test")
 	store.Store("a", "1")
 	if err := save(); err != nil {

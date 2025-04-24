@@ -5,37 +5,43 @@ import (
 
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
-var (
-	r  route.ReveseProxyRoute
-	ep = NewEntrypoint()
-)
+var ep = NewEntrypoint()
+
+func addRoute(alias string) {
+	routes.HTTP.Add(&route.ReveseProxyRoute{
+		Route: &route.Route{
+			Alias: alias,
+		},
+	})
+}
 
 func run(t *testing.T, match []string, noMatch []string) {
 	t.Helper()
-	t.Cleanup(routes.TestClear)
+	t.Cleanup(routes.Clear)
 	t.Cleanup(func() { ep.SetFindRouteDomains(nil) })
 
 	for _, test := range match {
 		t.Run(test, func(t *testing.T) {
 			found, err := ep.findRouteFunc(test)
-			ExpectNoError(t, err)
-			ExpectTrue(t, found == &r)
+			expect.NoError(t, err)
+			expect.NotNil(t, found)
 		})
 	}
 
 	for _, test := range noMatch {
 		t.Run(test, func(t *testing.T) {
 			_, err := ep.findRouteFunc(test)
-			ExpectError(t, ErrNoSuchRoute, err)
+			expect.ErrorIs(t, ErrNoSuchRoute, err)
 		})
 	}
 }
 
 func TestFindRouteAnyDomain(t *testing.T) {
-	routes.SetHTTPRoute("app1", &r)
+	addRoute("app1")
 
 	tests := []string{
 		"app1.com",
@@ -66,7 +72,7 @@ func TestFindRouteExactHostMatch(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		routes.SetHTTPRoute(test, &r)
+		addRoute(test)
 	}
 
 	run(t, tests, testsNoMatch)
@@ -78,7 +84,7 @@ func TestFindRouteByDomains(t *testing.T) {
 		".sub.domain.com",
 	})
 
-	routes.SetHTTPRoute("app1", &r)
+	addRoute("app1")
 
 	tests := []string{
 		"app1.domain.com",
@@ -103,7 +109,7 @@ func TestFindRouteByDomainsExactMatch(t *testing.T) {
 		".sub.domain.com",
 	})
 
-	routes.SetHTTPRoute("app1.foo.bar", &r)
+	addRoute("app1.foo.bar")
 
 	tests := []string{
 		"app1.foo.bar", // exact match

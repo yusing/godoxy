@@ -59,7 +59,7 @@ func save() error {
 	defer stores.Unlock()
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores.m {
-		if err := utils.SaveJSON(filepath.Join(common.DataDir, string(ns)+".json"), &store, 0o644); err != nil {
+		if err := utils.SaveJSON(filepath.Join(storesPath, string(ns)+".json"), &store, 0o644); err != nil {
 			errs.Add(err)
 		}
 	}

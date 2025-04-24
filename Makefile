@@ -27,18 +27,16 @@ endif
 ifeq ($(debug), 1)
 	CGO_ENABLED = 0
 	GODOXY_DEBUG = 1
-	BUILD_FLAGS += -gcflags=all='-N -l'
-endif
-
-ifeq ($(pprof), 1)
+	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug
+else ifeq ($(pprof), 1)
 	CGO_ENABLED = 1
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
-	BUILD_FLAGS = -tags pprof
+	BUILD_FLAGS += -tags pprof
 	VERSION := ${VERSION}-pprof
 else
 	CGO_ENABLED = 0
 	LDFLAGS += -s -w
-	BUILD_FLAGS = -pgo=auto -tags production
+	BUILD_FLAGS += -pgo=auto -tags production
 endif
 
 BUILD_FLAGS += -ldflags='$(LDFLAGS)'
@@ -52,6 +50,14 @@ export GODEBUG
 export GORACE
 export BUILD_FLAGS
 
+ifeq ($(shell id -u), 0)
+	SETCAP_CMD = setcap
+else
+	SETCAP_CMD = sudo setcap
+endif
+
+.PHONY: debug
+
 test:
 	GODOXY_TEST=1 go test ./internal/...
 
@@ -61,13 +67,16 @@ get:
 build:
 	mkdir -p bin
 	go build ${BUILD_FLAGS} -o bin/${NAME} ${CMD_PATH}
-	if [ $(shell id -u) -eq 0 ]; \
-		then setcap CAP_NET_BIND_SERVICE=+eip bin/${NAME}; \
-		else sudo setcap CAP_NET_BIND_SERVICE=+eip bin/${NAME}; \
-	fi
+
+	# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
+	$(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep bin/${NAME}
 
 run:
 	[ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${CMD_PATH}
+
+debug:
+	make NAME="godoxy-test" debug=1 build
+	sh -c 'HTTP_ADDR=:81 HTTPS_ADDR=:8443 API_ADDR=:8899 DEBUG=1 bin/godoxy-test'
 
 mtrace:
 	bin/godoxy debug-ls-mtrace > mtrace.json
@@ -89,44 +98,6 @@ cloc:
 
 link-binary:
 	ln -s /app/${NAME} bin/run
-
-# To generate schema
-# comment out this part from typescript-json-schema.js#L884
-#
-#	if (indexType.flags !== ts.TypeFlags.Number && !isIndexedObject) {
-#			throw new Error("Not supported: IndexSignatureDeclaration with index symbol other than a number or a string");
-#	}
-
-gen-schema-single:
-	bun --bun run typescript-json-schema --noExtraProps --required --skipLibCheck --tsNodeRegister=true -o schemas/${OUT} schemas/${IN} ${CLASS}
-	# minify
-	python3 -c "import json; f=open('schemas/${OUT}', 'r'); j=json.load(f); f.close(); f=open('schemas/${OUT}', 'w'); json.dump(j, f, separators=(',', ':'));"
-
-gen-schema:
-	cd schemas && bun --bun tsc
-	make IN=config/config.ts \
-			CLASS=Config \
-			OUT=config.schema.json \
-			gen-schema-single
-	make IN=providers/routes.ts \
-			CLASS=Routes \
-			OUT=routes.schema.json \
-			gen-schema-single
-	make IN=middlewares/middleware_compose.ts \
-			CLASS=MiddlewareCompose \
-			OUT=middleware_compose.schema.json \
-			gen-schema-single
-	make IN=docker.ts \
-			CLASS=DockerRoutes \
-			OUT=docker_routes.schema.json \
-			gen-schema-single
-	cd ..
-
-publish-schema:
-	cd schemas && bun publish && cd ..
-
-update-schema-generator:
-	pnpm up -g typescript-json-schema
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)

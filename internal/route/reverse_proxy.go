@@ -8,10 +8,8 @@ import (
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
 	"github.com/yusing/go-proxy/internal/api/v1/favicon"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/docker/idlewatcher"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/idlewatcher"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer"
@@ -60,7 +58,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		}
 	}
 
-	service := base.TargetName()
+	service := base.Name()
 	rp := reverseproxy.NewReverseProxy(service, proxyURL, trans)
 
 	if len(base.Middlewares) > 0 {
@@ -91,38 +89,24 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	return r, nil
 }
 
-func (r *ReveseProxyRoute) String() string {
-	return r.TargetName()
-}
-
 // Start implements task.TaskStarter.
 func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
-	if existing, ok := routes.GetHTTPRoute(r.TargetName()); ok && !r.UseLoadBalance() {
+	if existing, ok := routes.HTTP.Get(r.Key()); ok && !r.UseLoadBalance() {
 		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
 	}
-	r.task = parent.Subtask("http."+r.TargetName(), false)
+	r.task = parent.Subtask("http."+r.Name(), false)
 
 	switch {
 	case r.UseIdleWatcher():
-		waker, err := idlewatcher.NewHTTPWaker(parent, r, r.rp)
+		waker, err := idlewatcher.NewWatcher(parent, r)
 		if err != nil {
 			r.task.Finish(err)
-			return err
+			return gperr.Wrap(err)
 		}
 		r.handler = waker
 		r.HealthMon = waker
 	case r.UseHealthCheck():
-		if r.IsDocker() {
-			client, err := docker.NewClient(r.Container.DockerHost)
-			if err == nil {
-				fallback := r.newHealthMonitor()
-				r.HealthMon = monitor.NewDockerHealthMonitor(client, r.Container.ContainerID, r.TargetName(), r.HealthCheck, fallback)
-				r.task.OnCancel("close_docker_client", client.Close)
-			}
-		}
-		if r.HealthMon == nil {
-			r.HealthMon = r.newHealthMonitor()
-		}
+		r.HealthMon = monitor.NewMonitor(r)
 	}
 
 	if r.UseAccessLog() {
@@ -134,32 +118,8 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	if r.handler == nil {
-		pathPatterns := r.PathPatterns
-		switch {
-		case len(pathPatterns) == 0:
-			r.handler = r.rp
-		case len(pathPatterns) == 1 && pathPatterns[0] == "/":
-			r.handler = r.rp
-		default:
-			logging.Warn().
-				Str("route", r.TargetName()).
-				Msg("`path_patterns` for reverse proxy is deprecated. Use `rules` instead.")
-			mux := gphttp.NewServeMux()
-			patErrs := gperr.NewBuilder("invalid path pattern(s)")
-			for _, p := range pathPatterns {
-				patErrs.Add(mux.HandleFunc(p, r.rp.HandlerFunc))
-			}
-			if err := patErrs.Error(); err != nil {
-				r.task.Finish(err)
-				return err
-			}
-			r.handler = mux
-		}
-	}
-
 	if len(r.Rules) > 0 {
-		r.handler = r.Rules.BuildHandler(r.TargetName(), r.handler)
+		r.handler = r.Rules.BuildHandler(r.Name(), r.handler)
 	}
 
 	if r.HealthMon != nil {
@@ -169,7 +129,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	if common.PrometheusEnabled {
-		metricsLogger := metricslogger.NewMetricsLogger(r.TargetName())
+		metricsLogger := metricslogger.NewMetricsLogger(r.Name())
 		r.handler = metricsLogger.GetHandler(r.handler)
 		r.task.OnCancel("reset_metrics", metricsLogger.ResetMetrics)
 	}
@@ -177,9 +137,9 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	if r.UseLoadBalance() {
 		r.addToLoadBalancer(parent)
 	} else {
-		routes.SetHTTPRoute(r.TargetName(), r)
-		r.task.OnCancel("entrypoint_remove_route", func() {
-			routes.DeleteHTTPRoute(r.TargetName())
+		routes.HTTP.Add(r)
+		r.task.OnFinished("entrypoint_remove_route", func() {
+			routes.HTTP.Del(r)
 		})
 	}
 
@@ -205,21 +165,10 @@ func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {
 	return r.HealthMon
 }
 
-func (r *ReveseProxyRoute) newHealthMonitor() interface {
-	health.HealthMonitor
-	health.HealthChecker
-} {
-	if a := r.Agent(); a != nil {
-		target := monitor.AgentTargetFromURL(r.ProxyURL)
-		return monitor.NewAgentProxiedMonitor(a, r.HealthCheck, target)
-	}
-	return monitor.NewHTTPHealthMonitor(r.ProxyURL, r.HealthCheck)
-}
-
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
-	l, ok := routes.GetHTTPRoute(cfg.Link)
+	l, ok := routes.HTTP.Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {
 		linked = l.(*ReveseProxyRoute)
@@ -240,7 +189,10 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 			loadBalancer: lb,
 			handler:      lb,
 		}
-		routes.SetHTTPRoute(cfg.Link, linked)
+		routes.HTTP.Add(linked)
+		r.task.OnFinished("entrypoint_remove_route", func() {
+			routes.HTTP.Del(linked)
+		})
 	}
 	r.loadBalancer = lb
 

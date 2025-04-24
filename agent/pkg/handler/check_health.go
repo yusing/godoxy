@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
@@ -44,11 +43,11 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		result, err = monitor.NewHTTPHealthChecker(types.NewURL(&url.URL{
+		result, err = monitor.NewHTTPHealthMonitor(&url.URL{
 			Scheme: scheme,
 			Host:   host,
 			Path:   path,
-		}), defaultHealthConfig).CheckHealth()
+		}, defaultHealthConfig).CheckHealth()
 	case "tcp", "udp":
 		host := query.Get("host")
 		if host == "" {
@@ -63,10 +62,10 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		result, err = monitor.NewRawHealthChecker(types.NewURL(&url.URL{
+		result, err = monitor.NewRawHealthMonitor(&url.URL{
 			Scheme: scheme,
 			Host:   host,
-		}), defaultHealthConfig).CheckHealth()
+		}, defaultHealthConfig).CheckHealth()
 	}
 
 	if err != nil {

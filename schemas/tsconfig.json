@@ -5,12 +5,14 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Node",
-    "strict": true,
-    "esModuleInterop": true,
+    "strict": false,
+    "esModuleInterop": false,
     "forceConsistentCasingInFileNames": true,
-    "allowJs": true,
+    "allowJs": false,
     "resolveJsonModule": true,
-    "declaration": true
+    "declaration": true,
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["."]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
 }

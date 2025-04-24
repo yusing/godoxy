@@ -13,13 +13,12 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	host := r.Header.Get(agentproxy.HeaderXProxyHost)
-	isHTTPS := strutils.ParseBool(r.Header.Get(agentproxy.HeaderXProxyHTTPS))
-	skipTLSVerify := strutils.ParseBool(r.Header.Get(agentproxy.HeaderXProxySkipTLSVerify))
+	isHTTPS, _ := strconv.ParseBool(r.Header.Get(agentproxy.HeaderXProxyHTTPS))
+	skipTLSVerify, _ := strconv.ParseBool(r.Header.Get(agentproxy.HeaderXProxySkipTLSVerify))
 	responseHeaderTimeout, err := strconv.Atoi(r.Header.Get(agentproxy.HeaderXProxyResponseHeaderTimeout))
 	if err != nil {
 		responseHeaderTimeout = 0

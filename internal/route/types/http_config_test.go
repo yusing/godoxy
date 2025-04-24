@@ -1,27 +1,27 @@
-package types_test
+package route_test
 
 import (
 	"testing"
 	"time"
 
 	. "github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestHTTPConfigDeserialize(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
-		expected types.HTTPConfig
+		expected route.HTTPConfig
 	}{
 		{
 			name: "no_tls_verify",
 			input: map[string]any{
 				"no_tls_verify": "true",
 			},
-			expected: types.HTTPConfig{
+			expected: route.HTTPConfig{
 				NoTLSVerify: true,
 			},
 		},
@@ -30,7 +30,7 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 			input: map[string]any{
 				"response_header_timeout": "1s",
 			},
-			expected: types.HTTPConfig{
+			expected: route.HTTPConfig{
 				ResponseHeaderTimeout: 1 * time.Second,
 			},
 		},
@@ -39,11 +39,12 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Route{}
+			tt.input["host"] = "internal"
 			err := utils.Deserialize(tt.input, &cfg)
 			if err != nil {
-				ExpectNoError(t, err)
+				expect.NoError(t, err)
 			}
-			ExpectEqual(t, cfg.HTTPConfig, tt.expected)
+			expect.Equal(t, cfg.HTTPConfig, tt.expected)
 		})
 	}
 }

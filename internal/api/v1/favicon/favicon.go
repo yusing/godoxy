@@ -17,7 +17,6 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -83,7 +82,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// try with route.Homepage.Icon
-	r, ok := routes.GetHTTPRoute(alias)
+	r, ok := routes.HTTP.Get(alias)
 	if !ok {
 		gphttp.ClientError(w, errors.New("no such route"), http.StatusNotFound)
 		return
@@ -185,13 +184,13 @@ func fetchIcon(filetype, filename string) *fetchResult {
 	return fetchKnownIcon(homepage.NewWalkXCodeIconURL(filename, filetype))
 }
 
-func findIcon(r route.HTTPRoute, req *http.Request, uri string) *fetchResult {
+func findIcon(r routes.HTTPRoute, req *http.Request, uri string) *fetchResult {
 	key := routeKey(r)
 	if result := loadIconCache(key); result != nil {
 		return result
 	}
 
-	result := fetchIcon("png", sanitizeName(r.TargetName()))
+	result := fetchIcon("png", sanitizeName(r.Name()))
 	cont := r.ContainerInfo()
 	if !result.OK() && cont != nil {
 		result = fetchIcon("png", sanitizeName(cont.Image.Name))
@@ -206,7 +205,7 @@ func findIcon(r route.HTTPRoute, req *http.Request, uri string) *fetchResult {
 	return result
 }
 
-func findIconSlow(r route.HTTPRoute, req *http.Request, uri string, depth int) *fetchResult {
+func findIconSlow(r routes.HTTPRoute, req *http.Request, uri string, depth int) *fetchResult {
 	ctx, cancel := context.WithTimeoutCause(req.Context(), 3*time.Second, errors.New("favicon request timeout"))
 	defer cancel()
 	newReq := req.WithContext(ctx)
@@ -214,7 +213,7 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string, depth int) *
 	u, err := url.ParseRequestURI(strutils.SanitizeURI(uri))
 	if err != nil {
 		logging.Error().Err(err).
-			Str("route", r.TargetName()).
+			Str("route", r.Name()).
 			Str("path", uri).
 			Msg("failed to parse uri")
 		return &fetchResult{statusCode: http.StatusInternalServerError, errMsg: "cannot parse uri"}
@@ -252,7 +251,7 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string, depth int) *
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(c.data))
 	if err != nil {
 		logging.Error().Err(err).
-			Str("route", r.TargetName()).
+			Str("route", r.Name()).
 			Msg("failed to parse html")
 		return &fetchResult{statusCode: http.StatusInternalServerError, errMsg: "internal error"}
 	}
@@ -269,7 +268,7 @@ func findIconSlow(r route.HTTPRoute, req *http.Request, uri string, depth int) *
 		dataURI, err := dataurl.DecodeString(href)
 		if err != nil {
 			logging.Error().Err(err).
-				Str("route", r.TargetName()).
+				Str("route", r.Name()).
 				Msg("failed to decode favicon")
 			return &fetchResult{statusCode: http.StatusInternalServerError, errMsg: "internal error"}
 		}

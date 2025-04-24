@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
+	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/metrics"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/notif"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -22,7 +23,7 @@ type (
 	monitor         struct {
 		service string
 		config  *health.HealthCheckConfig
-		url     atomic.Value[*types.URL]
+		url     atomic.Value[*url.URL]
 
 		status     atomic.Value[health.Status]
 		lastResult atomic.Value[*health.HealthCheckResult]
@@ -30,15 +31,39 @@ type (
 		checkHealth HealthCheckFunc
 		startTime   time.Time
 
-		metric *metrics.Gauge
-
 		task *task.Task
 	}
 )
 
 var ErrNegativeInterval = errors.New("negative interval")
 
-func newMonitor(url *types.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+func NewMonitor(r routes.Route) health.HealthMonCheck {
+	var mon health.HealthMonCheck
+	if r.IsAgent() {
+		mon = NewAgentProxiedMonitor(r.Agent(), r.HealthCheckConfig(), AgentTargetFromURL(&r.TargetURL().URL))
+	} else {
+		switch r := r.(type) {
+		case routes.HTTPRoute:
+			mon = NewHTTPHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
+		case routes.StreamRoute:
+			mon = NewRawHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
+		default:
+			logging.Panic().Msgf("unexpected route type: %T", r)
+		}
+	}
+	if r.IsDocker() {
+		cont := r.ContainerInfo()
+		client, err := docker.NewClient(cont.DockerHost)
+		if err != nil {
+			return mon
+		}
+		r.Task().OnCancel("close_docker_client", client.Close)
+		return NewDockerHealthMonitor(client, cont.ContainerID, r.Name(), r.HealthCheckConfig(), mon)
+	}
+	return mon
+}
+
+func newMonitor(url *url.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	mon := &monitor{
 		config:      config,
 		checkHealth: healthCheckFunc,
@@ -63,7 +88,7 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	}
 
 	mon.service = parent.Name()
-	mon.task = parent.Subtask("health_monitor")
+	mon.task = parent.Subtask("health_monitor", true)
 
 	go func() {
 		logger := logging.With().Str("name", mon.service).Logger()
@@ -71,9 +96,6 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 		defer func() {
 			if mon.status.Load() != health.StatusError {
 				mon.status.Store(health.StatusUnknown)
-			}
-			if mon.metric != nil {
-				mon.metric.Reset()
 			}
 			mon.task.Finish(nil)
 		}()
@@ -113,12 +135,12 @@ func (mon *monitor) Finish(reason any) {
 }
 
 // UpdateURL implements HealthChecker.
-func (mon *monitor) UpdateURL(url *types.URL) {
+func (mon *monitor) UpdateURL(url *url.URL) {
 	mon.url.Store(url)
 }
 
 // URL implements HealthChecker.
-func (mon *monitor) URL() *types.URL {
+func (mon *monitor) URL() *url.URL {
 	return mon.url.Load()
 }
 
@@ -157,8 +179,8 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
-// MarshalJSON implements json.Marshaler of HealthMonitor.
-func (mon *monitor) MarshalJSON() ([]byte, error) {
+// MarshalMap implements health.HealthMonitor.
+func (mon *monitor) MarshalMap() map[string]any {
 	res := mon.lastResult.Load()
 	if res == nil {
 		res = &health.HealthCheckResult{
@@ -166,7 +188,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	return (&JSONRepresentation{
+	return (&health.JSONRepresentation{
 		Name:     mon.service,
 		Config:   mon.config,
 		Status:   mon.status.Load(),
@@ -176,7 +198,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 		LastSeen: GetLastSeen(mon.service),
 		Detail:   res.Detail,
 		URL:      mon.url.Load(),
-	}).MarshalJSON()
+	}).MarshalMap()
 }
 
 func (mon *monitor) checkUpdateHealth() error {
@@ -229,9 +251,6 @@ func (mon *monitor) checkUpdateHealth() error {
 				Color:  notif.ColorError,
 			})
 		}
-	}
-	if mon.metric != nil {
-		mon.metric.Set(float64(status))
 	}
 
 	return nil

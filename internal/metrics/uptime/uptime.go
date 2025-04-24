@@ -11,14 +11,13 @@ import (
 	"github.com/yusing/go-proxy/internal/metrics/period"
 	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/route/routes/routequery"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]*routequery.HealthInfoRaw `json:"statuses"`
-		Timestamp int64                                `json:"timestamp"`
+		Map       map[string]*routes.HealthInfoRaw `json:"statuses"`
+		Timestamp int64                            `json:"timestamp"`
 	}
 	Status struct {
 		Status    health.Status `json:"status"`
@@ -33,7 +32,7 @@ var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ *StatusByAlias) (*StatusByAlias, error) {
 	return &StatusByAlias{
-		Map:       routequery.HealthInfo(),
+		Map:       routes.HealthInfo(),
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -117,7 +116,7 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 			"avg_latency": latency,
 			"statuses":    statuses,
 		}
-		r, ok := routes.GetRoute(alias)
+		r, ok := routes.Get(alias)
 		if ok {
 			result[i]["display_name"] = r.HomepageConfig().Name
 		}

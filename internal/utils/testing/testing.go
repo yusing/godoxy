@@ -1,4 +1,4 @@
-package utils
+package expect
 
 import (
 	"os"
@@ -12,13 +12,6 @@ func init() {
 	if common.IsTest {
 		os.Args = append([]string{os.Args[0], "-test.v"}, os.Args[1:]...)
 	}
-}
-
-func Must[Result any](r Result, err error) Result {
-	if err != nil {
-		panic(err)
-	}
-	return r
 }
 
 func ExpectNoError(t *testing.T, err error) {
