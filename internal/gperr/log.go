@@ -1,6 +1,8 @@
 package gperr
 
 import (
+	"os"
+
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -14,6 +16,12 @@ func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) 
 		l = logging.GetLogger()
 	}
 	l.WithLevel(level).Msg(New(highlight(msg)).With(err).Error())
+	switch level {
+	case zerolog.FatalLevel:
+		os.Exit(1)
+	case zerolog.PanicLevel:
+		panic(err)
+	}
 }
 
 func LogFatal(msg string, err error, logger ...*zerolog.Logger) {
