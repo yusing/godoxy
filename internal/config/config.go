@@ -265,6 +265,10 @@ func (cfg *Config) initAutoCert(autocertCfg *autocert.Config) gperr.Error {
 		return nil
 	}
 
+	if autocertCfg == nil {
+		autocertCfg = new(autocert.Config)
+	}
+
 	user, legoCfg, err := autocertCfg.GetLegoConfig()
 	if err != nil {
 		return err

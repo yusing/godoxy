@@ -82,10 +82,6 @@ func (cfg *Config) Validate() gperr.Error {
 }
 
 func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
-	if cfg == nil {
-		cfg = new(Config)
-	}
-
 	if err := cfg.Validate(); err != nil {
 		return nil, nil, err
 	}

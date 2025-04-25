@@ -76,7 +76,7 @@ func (p *Provider) ObtainCert() error {
 		return nil
 	}
 
-	if p.cfg.Provider == ProviderLocal {
+	if p.cfg.Provider == ProviderPseudo {
 		t := time.NewTicker(1000 * time.Millisecond)
 		defer t.Stop()
 		logging.Info().Msg("init client for pseudo provider")
