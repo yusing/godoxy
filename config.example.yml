@@ -17,6 +17,25 @@
 
 # 3. other providers, see https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
 
+# acl:
+#   default: allow # or deny (default: allow)
+#   allow_local: true # or false (default: true)
+#   allow:
+#     - ip:1.2.3.4
+#     - cidr:1.2.3.4/32
+#     - country:US
+#     - timezone:Asia/Shanghai
+#   deny:
+#     - ip:1.2.3.4
+#     - cidr:1.2.3.4/32
+#     - country:US
+#     - timezone:Asia/Shanghai
+#   log: # warning: logging ACL can be slow based on the number of incoming connections and configured rules
+#     buffer_size: 65536 # (default: 64KB)
+#     path: /app/logs/acl.log # (default: none)
+#     stdout: false # (default: false)
+#     keep: last 10 # (default: none)
+
 entrypoint:
   # Below define an example of middleware config
   # 1. block non local IP connections
@@ -72,6 +91,14 @@ providers:
   #     provider: webhook
   #     url: https://discord.com/api/webhooks/...
   #     template: discord # this means use payload template from internal/notif/templates/discord.json
+
+  # Proxmox providers (for idlesleep support for proxmox LXCs)
+  #
+  # proxmox:
+  #   - url: https://pve.domain.com:8006/api2/json
+  #     token_id: root@pam!abcdef
+  #     secret: aaaa-bbbb-cccc-dddd
+  #     no_tls_verify: true
 
 # Check https://github.com/yusing/godoxy/wiki/Certificates-and-domain-matching#domain-matching
 # for explaination of `match_domains`

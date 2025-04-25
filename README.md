@@ -27,8 +27,8 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
   - [Running demo](#running-demo)
   - [Key Features](#key-features)
   - [Prerequisites](#prerequisites)
-  - [How does GoDoxy work](#how-does-godoxy-work)
   - [Setup](#setup)
+  - [How does GoDoxy work](#how-does-godoxy-work)
   - [Screenshots](#screenshots)
     - [idlesleeper](#idlesleeper)
     - [Metrics and Logs](#metrics-and-logs)
@@ -44,39 +44,45 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 ## Key Features
 
-- Easy to use
-  - Effortless configuration
-  - Simple multi-node setup with GoDoxy agents or Docker Socket Proxies
-  - Error messages is clear and detailed, easy troubleshooting
-- **Auto SSL** with Let's Encrypt (See [Supported DNS-01 Challenge Providers](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
-- **Auto hot-reload** on container state / config file changes
-- **Container aware**: create routes dynamically from running docker containers
-- **idlesleeper**: stop and wake containers based on traffic _(optional, see [screenshots](#idlesleeper))_
-- HTTP reserve proxy and TCP/UDP port forwarding
-- **OpenID Connect integration**: SSO and secure your apps easily
-- [HTTP middleware](https://github.com/yusing/go-proxy/wiki/Middlewares) and [Custom error pages support](https://github.com/yusing/go-proxy/wiki/Middlewares#custom-error-pages)
-- **Web UI with App dashboard, config editor, _uptime and system metrics_, _docker logs viewer_**
-- Supports **linux/amd64** and **linux/arm64**
-- Written in **[Go](https://go.dev)**
+- **Simple**
+  - Effortless configuration with [simple labels](https://github.com/yusing/godoxy/wiki/Docker-labels-and-Route-Files) or WebUI
+  - [Simple multi-node setup](https://github.com/yusing/godoxy/wiki/Configurations#multi-docker-nodes-setup)
+  - Detailed error messages for easy troubleshooting.
+- **ACL**: connection / request level access control
+  - IP/CIDR
+  - Country **(Maxmind account required)**
+  - Timezone **(Maxmind account required)**
+  - **Access logging**
+- **Advanced Automation**
+  - Automatic SSL certificate management with Let's Encrypt ([using DNS-01 Challenge](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
+  - Auto-configuration for Docker containers
+  - Hot-reloading of configurations and container state changes
+- **Idle-sleep**: stop and wake containers based on traffic _(see [screenshots](#idlesleeper))_
+  - Docker containers
+  - Proxmox LXCs
+- **Traffic Management**
+  - HTTP reserve proxy
+  - TCP/UDP port forwarding
+  - **OpenID Connect support**: SSO and secure your apps easily
+- **Customization**
+  - [HTTP middlewares](https://github.com/yusing/go-proxy/wiki/Middlewares)
+  - [Custom error pages support](https://github.com/yusing/go-proxy/wiki/Middlewares#custom-error-pages)
+- **Web UI**
+  - App Dashboard
+  - Config Editor
+  - Uptime and System Metrics
+  - Docker Logs Viewer
+- **Cross-Platform support**
+  - Supports **linux/amd64** and **linux/arm64**
+- **Efficient and Performant**
+  - Written in **[Go](https://go.dev)**
 
 ## Prerequisites
 
-Setup Wildcard DNS Record(s) for machine running `GoDoxy`, e.g.
+Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 
 - A Record: `*.domain.com` -> `10.0.10.1`
 - AAAA Record (if you use IPv6): `*.domain.com` -> `::ffff:a00:a01`
-
-## How does GoDoxy work
-
-1. List all the containers
-2. Read container name, labels and port configurations for each of them
-3. Create a route if applicable (a route is like a "Virtual Host" in NPM)
-4. Watch for container / config changes and update automatically
-
-> [!NOTE]
-> GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
->
-> For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
 
 ## Setup
 
@@ -89,11 +95,23 @@ Setup Wildcard DNS Record(s) for machine running `GoDoxy`, e.g.
 
 2. Run setup script inside the directory, or [set up manually](#manual-setup)
 
-    ```shell
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
-    ```
+   ```shell
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
+   ```
 
 3. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
+
+## How does GoDoxy work
+
+1. List all the containers
+2. Read container name, labels and port configurations for each of them
+3. Create a route if applicable (a route is like a "Virtual Host" in NPM)
+4. Watch for container / config changes and update automatically
+
+> [!NOTE]
+> GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
+>
+> For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
 
 ## Screenshots
 
