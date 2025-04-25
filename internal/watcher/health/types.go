@@ -1,6 +1,7 @@
 package health
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -25,6 +26,7 @@ type (
 		fmt.Stringer
 		WithHealthInfo
 		Name() string
+		json.Marshaler
 	}
 	HealthChecker interface {
 		CheckHealth() (result *HealthCheckResult, err error)

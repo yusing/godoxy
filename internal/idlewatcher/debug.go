@@ -1,6 +1,7 @@
 package idlewatcher
 
 import (
+	"encoding/json"
 	"iter"
 	"strconv"
 
@@ -11,9 +12,9 @@ type watcherDebug struct {
 	*Watcher
 }
 
-func (w watcherDebug) MarshalMap() map[string]any {
+func (w watcherDebug) MarshalJSON() ([]byte, error) {
 	state := w.state.Load()
-	return map[string]any{
+	return json.Marshal(map[string]any{
 		"name": w.Name(),
 		"state": map[string]string{
 			"status": string(state.status),
@@ -23,7 +24,7 @@ func (w watcherDebug) MarshalMap() map[string]any {
 		"expires":    strutils.FormatTime(w.expires()),
 		"last_reset": strutils.FormatTime(w.lastReset.Load()),
 		"config":     w.cfg,
-	}
+	})
 }
 
 func Watchers() iter.Seq2[string, watcherDebug] {

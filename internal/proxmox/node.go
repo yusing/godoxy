@@ -2,6 +2,7 @@ package proxmox
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -38,11 +39,11 @@ func (n *Node) String() string {
 	return fmt.Sprintf("%s (%s)", n.name, n.id)
 }
 
-func (n *Node) MarshalMap() map[string]any {
-	return map[string]any{
+func (n *Node) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
 		"name": n.name,
 		"id":   n.id,
-	}
+	})
 }
 
 func (n *Node) Get(ctx context.Context, path string, v any) error {

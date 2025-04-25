@@ -102,8 +102,8 @@ func checkUpdateState(key string) (w *Watcher, ready bool, err error) {
 	return w, false, nil
 }
 
-// MarshalMap implements health.HealthMonitor.
-func (w *Watcher) MarshalMap() map[string]any {
+// MarshalJSON implements health.HealthMonitor.
+func (w *Watcher) MarshalJSON() ([]byte, error) {
 	url := w.hc.URL()
 	if url.Port() == "0" {
 		url = nil
@@ -118,5 +118,5 @@ func (w *Watcher) MarshalMap() map[string]any {
 		Config: dummyHealthCheckConfig,
 		URL:    url,
 		Detail: detail,
-	}).MarshalMap()
+	}).MarshalJSON()
 }

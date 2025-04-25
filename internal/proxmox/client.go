@@ -2,6 +2,7 @@ package proxmox
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/luthermonson/go-proxmox"
@@ -45,9 +46,8 @@ func (c *Client) Name() string {
 	return c.Cluster.Name
 }
 
-// MarshalMap implements pool.Object
-func (c *Client) MarshalMap() map[string]any {
-	return map[string]any{
+func (c *Client) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
 		"version": c.Version,
 		"cluster": map[string]any{
 			"name":    c.Cluster.Name,
@@ -56,7 +56,7 @@ func (c *Client) MarshalMap() map[string]any {
 			"nodes":   c.Cluster.Nodes,
 			"quorate": c.Cluster.Quorate,
 		},
-	}
+	})
 }
 
 func (c *Client) NumNodes() int {

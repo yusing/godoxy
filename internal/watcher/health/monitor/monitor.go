@@ -179,8 +179,8 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
-// MarshalMap implements health.HealthMonitor.
-func (mon *monitor) MarshalMap() map[string]any {
+// MarshalJSON implements health.HealthMonitor.
+func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
 	if res == nil {
 		res = &health.HealthCheckResult{
@@ -198,7 +198,7 @@ func (mon *monitor) MarshalMap() map[string]any {
 		LastSeen: GetLastSeen(mon.service),
 		Detail:   res.Detail,
 		URL:      mon.url.Load(),
-	}).MarshalMap()
+	}).MarshalJSON()
 }
 
 func (mon *monitor) checkUpdateHealth() error {

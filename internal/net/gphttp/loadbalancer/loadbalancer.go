@@ -237,8 +237,8 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	lb.impl.ServeHTTP(srvs, rw, r)
 }
 
-// MarshalMap implements health.HealthMonitor.
-func (lb *LoadBalancer) MarshalMap() map[string]any {
+// MarshalJSON implements health.HealthMonitor.
+func (lb *LoadBalancer) MarshalJSON() ([]byte, error) {
 	extra := make(map[string]any)
 	for _, srv := range lb.pool.Iter {
 		extra[srv.Key()] = srv
@@ -252,11 +252,12 @@ func (lb *LoadBalancer) MarshalMap() map[string]any {
 		Detail:  fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size()),
 		Started: lb.startTime,
 		Uptime:  lb.Uptime(),
+		Latency: lb.Latency(),
 		Extra: map[string]any{
 			"config": lb.Config,
 			"pool":   extra,
 		},
-	}).MarshalMap()
+	}).MarshalJSON()
 }
 
 // Name implements health.HealthMonitor.

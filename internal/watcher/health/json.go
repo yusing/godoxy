@@ -1,6 +1,7 @@
 package health
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"time"
@@ -21,7 +22,7 @@ type JSONRepresentation struct {
 	Extra    map[string]any
 }
 
-func (jsonRepr *JSONRepresentation) MarshalMap() map[string]any {
+func (jsonRepr *JSONRepresentation) MarshalJSON() ([]byte, error) {
 	var url string
 	if jsonRepr.URL != nil {
 		url = jsonRepr.URL.String()
@@ -29,7 +30,7 @@ func (jsonRepr *JSONRepresentation) MarshalMap() map[string]any {
 	if url == "http://:0" {
 		url = ""
 	}
-	return map[string]any{
+	return json.Marshal(map[string]any{
 		"name":        jsonRepr.Name,
 		"config":      jsonRepr.Config,
 		"started":     jsonRepr.Started.Unix(),
@@ -44,5 +45,5 @@ func (jsonRepr *JSONRepresentation) MarshalMap() map[string]any {
 		"detail":      jsonRepr.Detail,
 		"url":         url,
 		"extra":       jsonRepr.Extra,
-	}
+	})
 }
