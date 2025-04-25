@@ -100,7 +100,7 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	return nil
 }
 
-func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		User string `json:"username"`
 		Pass string `json:"password"`
@@ -123,8 +123,8 @@ func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/", http.StatusFound)
+func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/login", http.StatusFound) // redirects to WebUI login page
 }
 
 func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
