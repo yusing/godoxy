@@ -45,7 +45,7 @@ const (
 	HealthCheckIntervalDefault = 5 * time.Second
 	HealthCheckTimeoutDefault  = 5 * time.Second
 
-	WakeTimeoutDefault = "30s"
-	StopTimeoutDefault = "30s"
+	WakeTimeoutDefault = "3m"
+	StopTimeoutDefault = "3m"
 	StopMethodDefault  = "stop"
 )
