@@ -44,8 +44,8 @@ const (
 )
 
 const (
-	OIDCAuthInitPath = "/auth/init"
-	OIDCPostAuthPath = "/auth/postauth"
+	OIDCAuthInitPath = "/"
+	OIDCPostAuthPath = "/auth/callback"
 	OIDCLogoutPath   = "/auth/logout"
 )
 

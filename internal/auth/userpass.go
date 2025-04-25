@@ -123,6 +123,10 @@ func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
 func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	clearTokenCookie(w, r, auth.TokenCookieName())
 	http.Redirect(w, r, "/", http.StatusFound)

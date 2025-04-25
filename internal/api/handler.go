@@ -96,12 +96,8 @@ func NewHandler(cfg config.ConfigInstance) http.Handler {
 	}
 
 	mux.HandleFunc("GET", "/v1/auth/check", auth.AuthCheckHandler)
-	mux.HandleFunc("GET", "/v1/auth/login", defaultAuth.LoginHandler)
-	mux.HandleFunc("GET", "/v1/auth/callback", defaultAuth.LoginHandler)
+	mux.HandleFunc("GET", "/v1/auth/redirect", defaultAuth.LoginHandler)
+	mux.HandleFunc("GET", "/v1/auth/callback", defaultAuth.PostAuthCallbackHandler)
 	mux.HandleFunc("GET,POST", "/v1/auth/logout", defaultAuth.LogoutHandler)
-	switch authProvider := defaultAuth.(type) {
-	case *auth.OIDCProvider:
-		mux.HandleFunc("GET", "/v1/auth/postauth", authProvider.PostAuthCallbackHandler)
-	}
 	return mux
 }
