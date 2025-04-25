@@ -16,7 +16,6 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"golang.org/x/oauth2"
 )
 
@@ -84,7 +83,7 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 			ClientSecret: clientSecret,
 			RedirectURL:  "",
 			Endpoint:     provider.Endpoint(),
-			Scopes:       strutils.CommaSeperatedList(common.OIDCScopes),
+			Scopes:       common.OIDCScopes,
 		},
 		oidcProvider: provider,
 		oidcVerifier: provider.Verifier(&oidc.Config{

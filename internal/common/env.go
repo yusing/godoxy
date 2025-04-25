@@ -48,7 +48,7 @@ var (
 	OIDCIssuerURL     = GetEnvString("OIDC_ISSUER_URL", "")
 	OIDCClientID      = GetEnvString("OIDC_CLIENT_ID", "")
 	OIDCClientSecret  = GetEnvString("OIDC_CLIENT_SECRET", "")
-	OIDCScopes        = GetEnvString("OIDC_SCOPES", "openid, profile, email")
+	OIDCScopes        = GetCommaSepEnv("OIDC_SCOPES", "openid, profile, email")
 	OIDCAllowedUsers  = GetCommaSepEnv("OIDC_ALLOWED_USERS", "")
 	OIDCAllowedGroups = GetCommaSepEnv("OIDC_ALLOWED_GROUPS", "")
 
