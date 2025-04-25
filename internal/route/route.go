@@ -168,23 +168,18 @@ func (r *Route) Validate() gperr.Error {
 	var impl routes.Route
 	var err gperr.Error
 
-	if r.Scheme == route.SchemeFileServer {
-		r.impl, err = NewFileServer(r)
-		if err != nil {
-			errs.Add(err)
-		}
+	switch r.Scheme {
+	case route.SchemeFileServer:
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
-	} else {
-		switch r.Scheme {
-		case route.SchemeHTTP, route.SchemeHTTPS:
-			if r.Port.Listening != 0 {
-				errs.Addf("unexpected listening port for %s scheme", r.Scheme)
-			}
-		case route.SchemeTCP, route.SchemeUDP:
-			r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+	case route.SchemeHTTP, route.SchemeHTTPS:
+		if r.Port.Listening != 0 {
+			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
+		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+	case route.SchemeTCP, route.SchemeUDP:
+		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
@@ -338,7 +333,7 @@ func (r *Route) ShouldExclude() bool {
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
 			return true
 		}
-	} else if r.IsZeroPort() {
+	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
 		return true
 	}
 	if strings.HasPrefix(r.Alias, "x-") ||
