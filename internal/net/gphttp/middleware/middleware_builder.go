@@ -6,8 +6,8 @@ import (
 	"path"
 	"sort"
 
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"gopkg.in/yaml.v3"
 )
 
 var ErrMissingMiddlewareUse = gperr.New("missing middleware 'use' field")
@@ -43,8 +43,8 @@ func BuildMiddlewaresFromYAML(source string, data []byte, eb *gperr.Builder) map
 func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gperr.Error) {
 	middlewares := make([]*Middleware, 0, len(middlewaresMap))
 
-	errs := gperr.NewBuilder("middlewares compile error")
-	invalidOpts := gperr.NewBuilder("options compile error")
+	errs := gperr.NewBuilder()
+	invalidOpts := gperr.NewBuilder()
 
 	for name, opts := range middlewaresMap {
 		m, err := Get(name)
@@ -55,7 +55,7 @@ func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gp
 
 		m, err = m.New(opts)
 		if err != nil {
-			invalidOpts.Add(err.Subject(name))
+			invalidOpts.Add(err.Subject("middlewares." + name))
 			continue
 		}
 		middlewares = append(middlewares, m)

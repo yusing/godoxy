@@ -3,8 +3,8 @@ package functional
 import (
 	"sync"
 
+	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v3"
-	"gopkg.in/yaml.v3"
 )
 
 type Map[KT comparable, VT any] struct {
@@ -97,7 +97,7 @@ func (m Map[KT, VT]) String() string {
 	m.RangeAll(func(k KT, v VT) {
 		tmp[k] = v
 	})
-	data, err := yaml.Marshal(tmp)
+	data, err := yaml.Marshal(&tmp)
 	if err != nil {
 		return err.Error()
 	}

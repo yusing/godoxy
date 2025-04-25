@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/docker"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
-	"gopkg.in/yaml.v3"
 
 	_ "embed"
 )

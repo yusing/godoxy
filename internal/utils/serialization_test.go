@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
-	"gopkg.in/yaml.v3"
 )
 
 func TestDeserialize(t *testing.T) {
