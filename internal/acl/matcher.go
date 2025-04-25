@@ -14,16 +14,16 @@ const (
 	MatcherTypeIP       = "ip"
 	MatcherTypeCIDR     = "cidr"
 	MatcherTypeTimeZone = "tz"
-	MatcherTypeISO      = "iso"
+	MatcherTypeCountry  = "country"
 )
 
 var errMatcherFormat = gperr.Multiline().AddLines(
 	"invalid matcher format, expect {type}:{value}",
-	"Available types: ip|cidr|tz|iso",
+	"Available types: ip|cidr|tz|country",
 	"ip:127.0.0.1",
 	"cidr:127.0.0.0/8",
 	"tz:Asia/Shanghai",
-	"iso:GB",
+	"country:GB",
 )
 var (
 	errSyntax               = gperr.New("syntax error")
@@ -56,11 +56,11 @@ func (cfg *Config) parseMatcher(s string) (matcher, gperr.Error) {
 			return nil, errMaxMindNotConfigured
 		}
 		return cfg.MaxMind.matchTimeZone(parts[1]), nil
-	case MatcherTypeISO:
+	case MatcherTypeCountry:
 		if cfg.MaxMind == nil {
 			return nil, errMaxMindNotConfigured
 		}
-		return cfg.MaxMind.matchISO(parts[1]), nil
+		return cfg.MaxMind.matchISOCode(parts[1]), nil
 	default:
 		return nil, errSyntax
 	}
@@ -88,7 +88,7 @@ func (cfg *MaxMindConfig) matchTimeZone(tz string) matcher {
 	}
 }
 
-func (cfg *MaxMindConfig) matchISO(iso string) matcher {
+func (cfg *MaxMindConfig) matchISOCode(iso string) matcher {
 	return func(ip *acl.IPInfo) bool {
 		city, ok := cfg.lookupCity(ip)
 		if !ok {
