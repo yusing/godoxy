@@ -5,6 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
+![Demo](https://img.shields.io/website?url=https%3A%2F%2Fgodoxy.demo.6uo.me&label=Demo&link=https%3A%2F%2Fgodoxy.demo.6uo.me)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Benchmarks) reverse proxy with WebUI.
@@ -12,10 +13,6 @@ A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Be
 For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki)**
 
 **EN** | <a href="README_CHT.md">中文</a>
-
-<!-- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy) -->
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
@@ -27,6 +24,7 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 - [GoDoxy](#godoxy)
   - [Table of content](#table-of-content)
+  - [Running demo](#running-demo)
   - [Key Features](#key-features)
   - [Prerequisites](#prerequisites)
   - [How does GoDoxy work](#how-does-godoxy-work)
@@ -38,24 +36,28 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
     - [Folder structrue](#folder-structrue)
   - [Build it yourself](#build-it-yourself)
 
+## Running demo
+
+<https://godoxy.demo.6uo.me>
+
+[![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
+
 ## Key Features
 
 - Easy to use
   - Effortless configuration
   - Simple multi-node setup with GoDoxy agents or Docker Socket Proxies
   - Error messages is clear and detailed, easy troubleshooting
-- Auto SSL with Let's Encrypt (See [Supported DNS-01 Challenge Providers](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
-- Auto hot-reload on container state / config file changes
-- Container aware: create routes dynamically from running docker containers
+- **Auto SSL** with Let's Encrypt (See [Supported DNS-01 Challenge Providers](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
+- **Auto hot-reload** on container state / config file changes
+- **Container aware**: create routes dynamically from running docker containers
 - **idlesleeper**: stop and wake containers based on traffic _(optional, see [screenshots](#idlesleeper))_
 - HTTP reserve proxy and TCP/UDP port forwarding
-- OpenID Connect integration: SSO and secure your apps easily
+- **OpenID Connect integration**: SSO and secure your apps easily
 - [HTTP middleware](https://github.com/yusing/go-proxy/wiki/Middlewares) and [Custom error pages support](https://github.com/yusing/go-proxy/wiki/Middlewares#custom-error-pages)
 - **Web UI with App dashboard, config editor, _uptime and system metrics_, _docker logs viewer_**
-- Supports linux/amd64 and linux/arm64
+- Supports **linux/amd64** and **linux/arm64**
 - Written in **[Go](https://go.dev)**
-
-[🔼Back to top](#table-of-content)
 
 ## Prerequisites
 
@@ -71,13 +73,17 @@ Setup Wildcard DNS Record(s) for machine running `GoDoxy`, e.g.
 3. Create a route if applicable (a route is like a "Virtual Host" in NPM)
 4. Watch for container / config changes and update automatically
 
-GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
-
-For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
+> [!NOTE]
+> GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
+>
+> For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
 
 ## Setup
 
-**NOTE:** GoDoxy is designed to be (and only works when) running in `host` network mode, do not change it. To change listening ports, modify `.env`.
+> [!NOTE]
+> GoDoxy is designed to be running in `host` network mode, do not change it.
+>
+> To change listening ports, modify `.env`.
 
 1. Prepare a new directory for docker compose and config files.
 
@@ -87,11 +93,7 @@ For example, with the label `proxy.aliases: qbt` you can access your app via `qb
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
     ```
 
-3. Start the container `docker compose up -d` and wait for it to be ready
-
-4. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
-
-[🔼Back to top](#table-of-content)
+3. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
 
 ## Screenshots
 
@@ -123,8 +125,6 @@ For example, with the label `proxy.aliases: qbt` you can access your app via `qb
     </tr>
   </table>
 </div>
-
-[🔼Back to top](#table-of-content)
 
 ## Manual Setup
 
