@@ -72,6 +72,11 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 		return false
 	}
 
+	if r.URL.Path == auth.OIDCLogoutPath {
+		amw.auth.LogoutHandler(w, r)
+		return true
+	}
+
 	err := amw.auth.CheckToken(r)
 	if err == nil {
 		return true
