@@ -53,7 +53,7 @@ func (mon *HTTPHealthMonitor) CheckHealth() (result *health.HealthCheckResult, e
 	}
 	req.Close = true
 	req.Header.Set("Connection", "close")
-	req.Header.Set("User-Agent", "GoDoxy/"+pkg.GetVersion())
+	req.Header.Set("User-Agent", "GoDoxy/"+pkg.GetVersion().String())
 
 	start := time.Now()
 	resp, respErr := pinger.Do(req)

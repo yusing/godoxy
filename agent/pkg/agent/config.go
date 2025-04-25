@@ -80,14 +80,6 @@ func (cfg *AgentConfig) Parse(addr string) error {
 	return nil
 }
 
-func withoutBuildTime(version string) string {
-	return strings.Split(version, "-")[0]
-}
-
-func checkVersion(a, b string) bool {
-	return withoutBuildTime(a) == withoutBuildTime(b)
-}
-
 func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
@@ -113,18 +105,6 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	ctx, cancel := context.WithTimeout(parent.Context(), 5*time.Second)
 	defer cancel()
 
-	// check agent version
-	version, _, err := cfg.Fetch(ctx, EndpointVersion)
-	if err != nil {
-		return err
-	}
-
-	versionStr := string(version)
-	// skip version check for dev versions
-	if strings.HasPrefix(versionStr, "v") && !checkVersion(versionStr, pkg.GetVersion()) {
-		return gperr.Errorf("agent version mismatch: server: %s, agent: %s", pkg.GetVersion(), versionStr)
-	}
-
 	// get agent name
 	name, _, err := cfg.Fetch(ctx, EndpointName)
 	if err != nil {
@@ -132,7 +112,20 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	}
 
 	cfg.name = string(name)
+
 	cfg.l = logging.With().Str("agent", cfg.name).Logger()
+
+	// check agent version
+	agentVersionBytes, _, err := cfg.Fetch(ctx, EndpointVersion)
+	if err != nil {
+		return err
+	}
+
+	agentVersion := string(agentVersionBytes)
+
+	if pkg.GetVersion().IsNewerMajorThan(pkg.ParseVersion(agentVersion)) {
+		logging.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, pkg.GetVersion(), agentVersion)
+	}
 
 	logging.Info().Msgf("agent %q initialized", cfg.name)
 	return nil

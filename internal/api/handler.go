@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/metrics/uptime"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/go-proxy/pkg"
 )
 
 type (
@@ -65,7 +66,7 @@ func (mux ServeMux) HandleFunc(methods, endpoint string, h any, requireAuth ...b
 func NewHandler(cfg config.ConfigInstance) http.Handler {
 	mux := ServeMux{http.NewServeMux(), cfg}
 	mux.HandleFunc("GET", "/v1", v1.Index)
-	mux.HandleFunc("GET", "/v1/version", v1.GetVersion)
+	mux.HandleFunc("GET", "/v1/version", pkg.GetVersionHTTPHandler())
 
 	mux.HandleFunc("GET", "/v1/stats", v1.Stats, true)
 	mux.HandleFunc("POST", "/v1/reload", v1.Reload, true)

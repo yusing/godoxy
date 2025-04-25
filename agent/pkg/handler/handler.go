@@ -37,9 +37,7 @@ func NewAgentHandler() http.Handler {
 	mux := ServeMux{http.NewServeMux()}
 
 	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
-	mux.HandleMethods("GET", agent.EndpointVersion, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(pkg.GetVersion()))
-	})
+	mux.HandleMethods("GET", agent.EndpointVersion, pkg.GetVersionHTTPHandler())
 	mux.HandleMethods("GET", agent.EndpointName, func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, env.AgentName)
 	})
