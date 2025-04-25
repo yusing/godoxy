@@ -16,6 +16,23 @@ const (
 	IdlingMask  = StatusNapping | StatusStarting
 )
 
+func NewStatus(s string) Status {
+	switch s {
+	case "healthy":
+		return StatusHealthy
+	case "unhealthy":
+		return StatusUnhealthy
+	case "napping":
+		return StatusNapping
+	case "starting":
+		return StatusStarting
+	case "error":
+		return StatusError
+	default:
+		return StatusUnknown
+	}
+}
+
 func (s Status) String() string {
 	switch s {
 	case StatusHealthy:

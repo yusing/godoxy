@@ -37,6 +37,14 @@ func getStatuses(ctx context.Context, _ *StatusByAlias) (*StatusByAlias, error) 
 	}, nil
 }
 
+func (s *Status) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"status":    s.Status.String(),
+		"latency":   s.Latency,
+		"timestamp": s.Timestamp,
+	})
+}
+
 func aggregateStatuses(entries []*StatusByAlias, query url.Values) (int, Aggregated) {
 	limit := metricsutils.QueryInt(query, "limit", 0)
 	offset := metricsutils.QueryInt(query, "offset", 0)

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/homepage"
@@ -27,6 +28,27 @@ func getHealthInfo(r Route) map[string]string {
 type HealthInfoRaw struct {
 	Status  health.Status `json:"status"`
 	Latency time.Duration `json:"latency"`
+}
+
+func (info *HealthInfoRaw) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"status":  info.Status.String(),
+		"latency": info.Latency.Milliseconds(),
+	})
+}
+
+func (info *HealthInfoRaw) UnmarshalJSON(data []byte) error {
+	var v map[string]any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	if status, ok := v["status"].(string); ok {
+		info.Status = health.NewStatus(status)
+	}
+	if latency, ok := v["latency"].(float64); ok {
+		info.Latency = time.Duration(latency)
+	}
+	return nil
 }
 
 func getHealthInfoRaw(r Route) *HealthInfoRaw {
