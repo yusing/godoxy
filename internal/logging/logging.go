@@ -4,6 +4,7 @@ package logging
 import (
 	"io"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -32,6 +33,7 @@ func init() {
 	}
 	prefixLength := len(timeFmt) + 5 // level takes 3 + 2 spaces
 	prefix = strings.Repeat(" ", prefixLength)
+	InitLogger(os.Stdout)
 }
 
 func fmtMessage(msg string) string {

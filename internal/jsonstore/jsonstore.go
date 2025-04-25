@@ -2,10 +2,9 @@ package jsonstore
 
 import (
 	"encoding/json"
-	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 
 	"maps"
 
@@ -31,24 +30,16 @@ type Initializer interface {
 	Initialize()
 }
 
-type storeByNamespace struct {
-	sync.RWMutex
-	m map[namespace]store
-}
-
 type store interface {
+	Initializer
 	json.Marshaler
 	json.Unmarshaler
 }
 
-var stores = storeByNamespace{m: make(map[namespace]store)}
+var stores = make(map[namespace]store)
 var storesPath = common.DataDir
 
 func init() {
-	if err := load(); err != nil {
-		logging.Error().Err(err).Msg("failed to load stores")
-	}
-
 	task.OnProgramExit("save_stores", func() {
 		if err := save(); err != nil {
 			logging.Error().Err(err).Msg("failed to save stores")
@@ -56,29 +47,36 @@ func init() {
 	})
 }
 
-func load() error {
-	stores.Lock()
-	defer stores.Unlock()
-	errs := gperr.NewBuilder("failed to load data stores")
-	for ns, obj := range stores.m {
-		if init, ok := obj.(Initializer); ok {
-			init.Initialize()
+func loadNS[T store](ns namespace) T {
+	store := reflect.New(reflect.TypeFor[T]().Elem()).Interface().(T)
+	store.Initialize()
+	path := filepath.Join(storesPath, string(ns)+".json")
+	file, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logging.Err(err).
+				Str("path", path).
+				Msg("failed to load store")
 		}
-		if err := utils.LoadJSONIfExist(filepath.Join(storesPath, string(ns)+".json"), &obj); err != nil {
-			errs.Add(err)
-		} else {
-			logging.Info().Str("name", string(ns)).Msg("store loaded")
+	} else {
+		defer file.Close()
+		if err := json.NewDecoder(file).Decode(&store); err != nil {
+			logging.Err(err).
+				Str("path", path).
+				Msg("failed to load store")
 		}
-		stores.m[ns] = obj
 	}
-	return errs.Error()
+	stores[ns] = store
+	logging.Debug().
+		Str("namespace", string(ns)).
+		Str("path", path).
+		Msg("loaded store")
+	return store
 }
 
 func save() error {
-	stores.Lock()
-	defer stores.Unlock()
 	errs := gperr.NewBuilder("failed to save data stores")
-	for ns, store := range stores.m {
+	for ns, store := range stores {
 		if err := utils.SaveJSON(filepath.Join(storesPath, string(ns)+".json"), &store, 0o644); err != nil {
 			errs.Add(err)
 		}
@@ -87,34 +85,25 @@ func save() error {
 }
 
 func Store[VT any](namespace namespace) MapStore[VT] {
-	stores.Lock()
-	defer stores.Unlock()
-	if s, ok := stores.m[namespace]; ok {
-		v, ok := s.(*MapStore[VT])
-		if !ok {
-			panic(fmt.Errorf("type mismatch: %T != %T", s, v))
-		}
-		return *v
+	if _, ok := stores[namespace]; ok {
+		logging.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}
-	m := &MapStore[VT]{MapOf: xsync.NewMapOf[string, VT]()}
-	stores.m[namespace] = m
-	return *m
+	store := loadNS[*MapStore[VT]](namespace)
+	stores[namespace] = store
+	return *store
 }
 
 func Object[Ptr Initializer](namespace namespace) Ptr {
-	stores.Lock()
-	defer stores.Unlock()
-	if s, ok := stores.m[namespace]; ok {
-		v, ok := s.(*ObjectStore[Ptr])
-		if !ok {
-			panic(fmt.Errorf("type mismatch: %T != %T", s, v))
-		}
-		return v.ptr
+	if _, ok := stores[namespace]; ok {
+		logging.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}
-	obj := &ObjectStore[Ptr]{}
-	obj.init()
-	stores.m[namespace] = obj
+	obj := loadNS[*ObjectStore[Ptr]](namespace)
+	stores[namespace] = obj
 	return obj.ptr
+}
+
+func (s *MapStore[VT]) Initialize() {
+	s.MapOf = xsync.NewMapOf[string, VT]()
 }
 
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
@@ -133,7 +122,7 @@ func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (obj *ObjectStore[Ptr]) init() {
+func (obj *ObjectStore[Ptr]) Initialize() {
 	obj.ptr = reflect.New(reflect.TypeFor[Ptr]().Elem()).Interface().(Ptr)
 	obj.ptr.Initialize()
 }
@@ -143,6 +132,6 @@ func (obj ObjectStore[Ptr]) MarshalJSON() ([]byte, error) {
 }
 
 func (obj *ObjectStore[Ptr]) UnmarshalJSON(data []byte) error {
-	obj.init()
+	obj.Initialize()
 	return json.Unmarshal(data, obj.ptr)
 }

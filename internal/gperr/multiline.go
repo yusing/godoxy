@@ -27,7 +27,7 @@ func (m *MultilineError) Adds(s string) *MultilineError {
 	return m
 }
 
-func (m *MultilineError) AddLines(lines any) *MultilineError {
+func (m *MultilineError) AddLines(lines ...any) *MultilineError {
 	v := reflect.ValueOf(lines)
 	if v.Kind() == reflect.Slice {
 		for i := range v.Len() {
