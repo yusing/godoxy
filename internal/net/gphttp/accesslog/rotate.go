@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/utils/synk"
 )
@@ -63,13 +64,13 @@ func rotateLogFile(file supportRotate, config *Retention) (result *RotateResult,
 	}
 
 	var shouldStop func() bool
-	t := TimeNow()
+	t := utils.TimeNow()
 
 	if config.Last > 0 {
 		shouldStop = func() bool { return result.NumLinesKeep-result.NumLinesInvalid == int(config.Last) }
 		// not needed to parse time for last N lines
 	} else if config.Days > 0 {
-		cutoff := TimeNow().AddDate(0, 0, -int(config.Days)+1)
+		cutoff := utils.TimeNow().AddDate(0, 0, -int(config.Days)+1)
 		shouldStop = func() bool { return t.Before(cutoff) }
 	} else {
 		return nil, nil // should not happen

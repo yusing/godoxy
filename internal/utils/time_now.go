@@ -1,4 +1,4 @@
-package accesslog
+package utils
 
 import (
 	"time"

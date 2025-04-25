@@ -10,6 +10,7 @@ import (
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -56,7 +57,7 @@ func fmtLog(cfg *Config) (ts string, line string) {
 
 	t := time.Now()
 	logger := NewMockAccessLogger(testTask, cfg)
-	MockTimeNow(t)
+	utils.MockTimeNow(t)
 	buf = logger.AppendLog(buf, req, resp)
 	return t.Format(LogTimeFormat), string(buf)
 }

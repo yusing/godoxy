@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type (
@@ -64,7 +65,7 @@ func (f *CommonFormatter) AppendLog(line []byte, req *http.Request, res *http.Re
 	line = append(line, clientIP(req)...)
 	line = append(line, " - - ["...)
 
-	line = TimeNow().AppendFormat(line, LogTimeFormat)
+	line = utils.TimeNow().AppendFormat(line, LogTimeFormat)
 	line = append(line, `] "`...)
 
 	line = append(line, req.Method...)
@@ -126,7 +127,7 @@ func (f *JSONFormatter) AppendLog(line []byte, req *http.Request, res *http.Resp
 	writer := bytes.NewBuffer(line)
 	logger := zerolog.New(writer).With().Logger()
 	event := logger.Info().
-		Str("time", TimeNow().Format(LogTimeFormat)).
+		Str("time", utils.TimeNow().Format(LogTimeFormat)).
 		Str("ip", clientIP(req)).
 		Str("method", req.Method).
 		Str("scheme", scheme(req)).

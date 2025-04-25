@@ -8,6 +8,7 @@ import (
 
 	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
@@ -55,7 +56,7 @@ func TestRotateKeepLast(t *testing.T) {
 	for _, format := range AvailableFormats {
 		t.Run(string(format)+" keep last", func(t *testing.T) {
 			file := NewMockFile()
-			MockTimeNow(testTime)
+			utils.MockTimeNow(testTime)
 			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
 				Format: format,
 			})
@@ -90,7 +91,7 @@ func TestRotateKeepLast(t *testing.T) {
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
-				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				utils.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
 				logger.Log(req, resp)
 			}
 			logger.Flush()
@@ -102,7 +103,7 @@ func TestRotateKeepLast(t *testing.T) {
 			expect.Equal(t, retention.KeepSize, 0)
 			logger.Config().Retention = retention
 
-			MockTimeNow(testTime)
+			utils.MockTimeNow(testTime)
 			result, err := logger.Rotate()
 			expect.NoError(t, err)
 			expect.Equal(t, file.NumLines(), int(retention.Days))
@@ -135,7 +136,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
-				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				utils.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
 				logger.Log(req, resp)
 			}
 			logger.Flush()
@@ -147,7 +148,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 			expect.Equal(t, retention.Last, 0)
 			logger.Config().Retention = retention
 
-			MockTimeNow(testTime)
+			utils.MockTimeNow(testTime)
 			result, err := logger.Rotate()
 			expect.NoError(t, err)
 
@@ -165,7 +166,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 		expect.Nil(t, logger.Config().Retention)
 		nLines := 100
 		for i := range nLines {
-			MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+			utils.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
 			logger.Log(req, resp)
 		}
 		logger.Flush()
@@ -177,7 +178,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 		expect.Equal(t, retention.Last, 0)
 		logger.Config().Retention = retention
 
-		MockTimeNow(testTime)
+		utils.MockTimeNow(testTime)
 		result, err := logger.Rotate()
 		expect.NoError(t, err)
 		expect.Equal(t, result.NumBytesKeep, int64(retention.KeepSize))
@@ -197,7 +198,7 @@ func TestRotateSkipInvalidTime(t *testing.T) {
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
-				MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
+				utils.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
 				logger.Log(req, resp)
 				logger.Flush()
 
@@ -236,7 +237,7 @@ func BenchmarkRotate(b *testing.B) {
 				Retention: retention,
 			})
 			for i := range 100 {
-				MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
+				utils.MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
 				logger.Log(req, resp)
 			}
 			logger.Flush()
@@ -267,7 +268,7 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 				Retention: retention,
 			})
 			for i := range 10000 {
-				MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))
+				utils.MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))
 				logger.Log(req, resp)
 				if i%10 == 0 {
 					_, _ = file.Write([]byte("invalid time\n"))
