@@ -9,6 +9,33 @@ check_pkg() {
 	fi
 }
 
+start-service() {
+	systemctl daemon-reload
+	# if command is empty
+	if [ -z "$1" ]; then
+		echo "Enabling and starting the agent service"
+	else
+		echo "Reloading the agent service"
+	fi
+	if ! systemctl enable --now $name; then
+		echo "Failed to enable and start the service. Check with: systemctl status $name"
+		exit 1
+	fi
+	echo "Checking if the agent service is started successfully"
+	if [ "$(systemctl is-active $name)" != "active" ]; then
+		echo "Agent service failed to start, details below:"
+		systemctl status $name
+		more $log_path
+		exit 1
+	fi
+	# if command is empty
+	if [ -z "$1" ]; then
+		echo "Agent installed successfully"
+	else
+		echo "Agent updated successfully"
+	fi
+}
+
 # check if curl and jq are installed
 check_pkg curl
 check_pkg jq
@@ -27,22 +54,24 @@ else
 	exit 1
 fi
 
-# check variables
-if [ -z "$AGENT_NAME" ]; then
-	echo "AGENT_NAME is not set"
-	exit 1
-fi
-if [ -z "$AGENT_PORT" ]; then
-	echo "AGENT_PORT is not set"
-	exit 1
-fi
-if [ -z "$AGENT_CA_CERT" ]; then
-	echo "AGENT_CA_CERT is not set"
-	exit 1
-fi
-if [ -z "$AGENT_SSL_CERT" ]; then
-	echo "AGENT_SSL_CERT is not set"
-	exit 1
+# check variables if command is empty
+if [ -z "$1" ]; then
+	if [ -z "$AGENT_NAME" ]; then
+		echo "AGENT_NAME is not set"
+		exit 1
+	fi
+	if [ -z "$AGENT_PORT" ]; then
+		echo "AGENT_PORT is not set"
+		exit 1
+	fi
+	if [ -z "$AGENT_CA_CERT" ]; then
+		echo "AGENT_CA_CERT is not set"
+		exit 1
+	fi
+	if [ -z "$AGENT_SSL_CERT" ]; then
+		echo "AGENT_SSL_CERT is not set"
+		exit 1
+	fi
 fi
 
 # init variables
@@ -104,7 +133,24 @@ if [ -z "$api_response" ]; then
 	exit 1
 fi
 
-bin_url=$(echo "$api_response" | jq -r '.assets[] | select(.name | contains("'$filename'")) | .browser_download_url')
+asset=$(echo "$api_response" | jq -r '.assets[] | select(.name | contains("'$filename'"))')
+bin_last_updated=$(date -d "$(echo "$asset" | jq -r '.updated_at')" +%s)
+# check if last_updated == mod time of bin_path
+if [ -f "$bin_path" ]; then
+	bin_mod_time=$(stat -c %Y "$bin_path")
+	if [ "$bin_last_updated" -eq "$bin_mod_time" ]; then
+		echo "Binary is up to date"
+		exit 0
+	fi
+fi
+
+# check if command is update
+if [ "$1" = "update" ]; then
+	echo "Stopping the agent"
+	systemctl stop $name || true
+fi
+
+bin_url=$(echo "$asset" | jq -r '.browser_download_url')
 if [ -z "$bin_url" ] || [ "$bin_url" = "null" ]; then
 	echo "Failed to find binary for architecture: $arch"
 	exit 1
@@ -116,8 +162,18 @@ if ! curl -L -f "$bin_url" -o $bin_path; then
 	exit 1
 fi
 
+echo "Setting binary modification time"
+touch -d "@${bin_last_updated}" "$bin_path"
+
 echo "Making the agent binary executable"
 chmod +x $bin_path
+
+# check if command is update
+if [ "$1" = "update" ]; then
+	echo "Starting the agent"
+	start-service
+	exit 0
+fi
 
 echo "Creating the environment file"
 cat <<EOF >$env_file
@@ -169,18 +225,4 @@ WantedBy=multi-user.target
 EOF
 chmod 644 $service_file
 
-systemctl daemon-reload
-echo "Enabling and starting the agent service"
-if ! systemctl enable --now $name; then
-	echo "Failed to enable and start the service. Check with: systemctl status $name"
-	exit 1
-fi
-echo "Checking if the agent service is started successfully"
-if [ "$(systemctl is-active $name)" != "active" ]; then
-	echo "Agent service failed to start, details below:"
-	systemctl status $name
-	more $log_path
-	exit 1
-fi
-
-echo "Agent installed successfully"
+start-service
