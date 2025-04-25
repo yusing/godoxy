@@ -6,14 +6,6 @@ HEALTHCHECK NONE
 # trunk-ignore(hadolint/DL3018)
 RUN apk add --no-cache tzdata make libcap-setcap
 
-WORKDIR /src
-
-# Only copy go.mod and go.sum initially for better caching
-COPY go.mod go.sum /src/
-
-ENV GOPATH=/root/go
-RUN go mod download -x
-
 # Stage 2: builder
 FROM deps AS builder
 
@@ -24,6 +16,12 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
+
+# Only copy go.mod and go.sum initially for better caching
+COPY go.mod go.sum /src/
+
+ENV GOPATH=/root/go
+RUN go mod download -x
 
 ARG VERSION
 ENV VERSION=${VERSION}
