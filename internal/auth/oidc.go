@@ -37,7 +37,6 @@ type (
 
 const (
 	CookieOauthState        = "godoxy_oidc_state"
-	CookieOauthSessionID    = "godoxy_session_id"
 	CookieOauthToken        = "godoxy_oauth_token"
 	CookieOauthSessionToken = "godoxy_session_token"
 )
@@ -61,7 +60,7 @@ func generateState() string {
 
 func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
 	if len(allowedUsers)+len(allowedGroups) == 0 {
-		return nil, errors.New("OIDC users, groups, or both must not be empty")
+		return nil, errors.New("oidc.allowed_users or oidc.allowed_groups are both empty")
 	}
 	provider, err := oidc.NewProvider(context.Background(), issuerURL)
 	if err != nil {
