@@ -10,6 +10,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
+	"github.com/yusing/go-proxy/internal/net/types"
 )
 
 func SystemInfo(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,7 @@ func SystemInfo(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Reques
 		}
 		gphttp.WriteBody(w, respData)
 	} else {
-		rp := reverseproxy.NewReverseProxy("agent", agentPkg.AgentURL, agent.Transport())
+		rp := reverseproxy.NewReverseProxy("agent", types.NewURL(agentPkg.AgentURL), agent.Transport())
 		header := r.Header.Clone()
 		r, err := http.NewRequestWithContext(r.Context(), r.Method, agentPkg.EndpointSystemInfo+"?"+query.Encode(), nil)
 		if err != nil {

@@ -29,8 +29,6 @@ const (
 	DataDir = "data"
 
 	ErrorPagesBasePath = "error_pages"
-
-	AgentCertsBasePath = "certs"
 )
 
 var RequiredDirectories = []string{

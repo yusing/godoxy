@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
+	"github.com/yusing/go-proxy/internal/dnsproviders"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
@@ -38,6 +39,7 @@ func parallel(fns ...func()) {
 
 func main() {
 	initProfiling()
+	dnsproviders.InitProviders()
 	args := pkg.GetArgs(common.MainServerCommandValidator{})
 
 	switch args.Command {

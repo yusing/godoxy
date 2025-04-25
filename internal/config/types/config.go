@@ -17,13 +17,13 @@ import (
 
 type (
 	Config struct {
-		ACL             *acl.Config              `json:"acl"`
-		AutoCert        *autocert.AutocertConfig `json:"autocert"`
-		Entrypoint      Entrypoint               `json:"entrypoint"`
-		Providers       Providers                `json:"providers"`
-		MatchDomains    []string                 `json:"match_domains" validate:"domain_name"`
-		Homepage        HomepageConfig           `json:"homepage"`
-		TimeoutShutdown int                      `json:"timeout_shutdown" validate:"gte=0"`
+		ACL             *acl.Config      `json:"acl"`
+		AutoCert        *autocert.Config `json:"autocert"`
+		Entrypoint      Entrypoint       `json:"entrypoint"`
+		Providers       Providers        `json:"providers"`
+		MatchDomains    []string         `json:"match_domains" validate:"domain_name"`
+		Homepage        HomepageConfig   `json:"homepage"`
+		TimeoutShutdown int              `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Providers struct {
 		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`

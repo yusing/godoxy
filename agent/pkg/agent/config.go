@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
 )
@@ -49,9 +49,17 @@ const (
 	FakeDockerHostPrefixLen = len(FakeDockerHostPrefix)
 )
 
+func mustParseURL(urlStr string) *url.URL {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
+
 var (
-	AgentURL              = types.MustParseURL(APIBaseURL)
-	HTTPProxyURL          = types.MustParseURL(APIBaseURL + EndpointProxyHTTP)
+	AgentURL              = mustParseURL(APIBaseURL)
+	HTTPProxyURL          = mustParseURL(APIBaseURL + EndpointProxyHTTP)
 	HTTPProxyURLPrefixLen = len(APIEndpointBase + EndpointProxyHTTP)
 )
 

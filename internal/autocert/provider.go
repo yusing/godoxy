@@ -13,19 +13,17 @@ import (
 	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
-	U "github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type (
 	Provider struct {
-		cfg     *AutocertConfig
+		cfg     *Config
 		user    *User
 		legoCfg *lego.Config
 		client  *lego.Client
@@ -36,12 +34,19 @@ type (
 
 		obtainMu sync.Mutex
 	}
-	ProviderGenerator func(ProviderOpt) (challenge.Provider, gperr.Error)
 
 	CertExpiries map[string]time.Time
 )
 
 var ErrGetCertFailure = errors.New("get certificate failed")
+
+func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) *Provider {
+	return &Provider{
+		cfg:     cfg,
+		user:    user,
+		legoCfg: legoCfg,
+	}
+}
 
 func (p *Provider) GetCert(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if p.tlsCert == nil {
@@ -71,7 +76,7 @@ func (p *Provider) ObtainCert() error {
 		return nil
 	}
 
-	if p.cfg.Provider == ProviderPseudo {
+	if p.cfg.Provider == ProviderLocal {
 		t := time.NewTicker(1000 * time.Millisecond)
 		defer t.Stop()
 		logging.Info().Msg("init client for pseudo provider")
@@ -205,7 +210,7 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
-	generator := providers[p.cfg.Provider]
+	generator := Providers[p.cfg.Provider]
 	legoProvider, pErr := generator(p.cfg.Options)
 	if pErr != nil {
 		return pErr
@@ -321,19 +326,4 @@ func getCertExpiries(cert *tls.Certificate) (CertExpiries, error) {
 		}
 	}
 	return r, nil
-}
-
-func providerGenerator[CT any, PT challenge.Provider](
-	defaultCfg func() *CT,
-	newProvider func(*CT) (PT, error),
-) ProviderGenerator {
-	return func(opt ProviderOpt) (challenge.Provider, gperr.Error) {
-		cfg := defaultCfg()
-		err := U.Deserialize(opt, &cfg)
-		if err != nil {
-			return nil, err
-		}
-		p, pErr := newProvider(cfg)
-		return p, gperr.Wrap(pErr)
-	}
 }

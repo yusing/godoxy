@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/api"
-	"github.com/yusing/go-proxy/internal/autocert"
+	autocert "github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/entrypoint"
@@ -260,13 +260,18 @@ func (cfg *Config) initNotification(notifCfg []notif.NotificationConfig) {
 	}
 }
 
-func (cfg *Config) initAutoCert(autocertCfg *autocert.AutocertConfig) (err gperr.Error) {
+func (cfg *Config) initAutoCert(autocertCfg *autocert.Config) gperr.Error {
 	if cfg.autocertProvider != nil {
-		return
+		return nil
 	}
 
-	cfg.autocertProvider, err = autocertCfg.GetProvider()
-	return
+	user, legoCfg, err := autocertCfg.GetLegoConfig()
+	if err != nil {
+		return err
+	}
+
+	cfg.autocertProvider = autocert.NewProvider(autocertCfg, user, legoCfg)
+	return nil
 }
 
 func (cfg *Config) errIfExists(p *proxy.Provider) gperr.Error {

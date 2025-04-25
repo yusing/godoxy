@@ -7,10 +7,10 @@ import (
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/env"
-	v1 "github.com/yusing/go-proxy/internal/api/v1"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/go-proxy/pkg"
 )
 
 type ServeMux struct{ *http.ServeMux }
@@ -37,7 +37,9 @@ func NewAgentHandler() http.Handler {
 	mux := ServeMux{http.NewServeMux()}
 
 	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
-	mux.HandleMethods("GET", agent.EndpointVersion, v1.GetVersion)
+	mux.HandleMethods("GET", agent.EndpointVersion, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(pkg.GetVersion()))
+	})
 	mux.HandleMethods("GET", agent.EndpointName, func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, env.AgentName)
 	})

@@ -7,10 +7,12 @@ LDFLAGS = -X github.com/yusing/go-proxy/pkg.version=${VERSION}
 
 ifeq ($(agent), 1)
 	NAME = godoxy-agent
-	CMD_PATH = ./agent/cmd
+	CMD_PATH = ./cmd
+	PWD = ${shell pwd}/agent
 else
 	NAME = godoxy
 	CMD_PATH = ./cmd
+	PWD = ${shell pwd}
 endif
 
 ifeq ($(trace), 1)
@@ -40,6 +42,7 @@ else
 endif
 
 BUILD_FLAGS += -ldflags='$(LDFLAGS)'
+BIN_PATH := $(shell pwd)/bin/${NAME}
 
 export NAME
 export CMD_PATH
@@ -62,14 +65,14 @@ test:
 	GODOXY_TEST=1 go test ./internal/...
 
 get:
-	go get -u ./cmd && go mod tidy
+	for dir in ${PWD} ${PWD}/agent; do cd $$dir && go get -u ./... && go mod tidy; done
 
 build:
 	mkdir -p bin
-	go build ${BUILD_FLAGS} -o bin/${NAME} ${CMD_PATH}
+	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ${CMD_PATH}
 
 	# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
-	$(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep bin/${NAME}
+	$(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH}
 
 run:
 	[ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${CMD_PATH}

@@ -9,7 +9,7 @@ import (
 type User struct {
 	Email        string
 	Registration *registration.Resource
-	key          crypto.PrivateKey
+	Key          crypto.PrivateKey
 }
 
 func (u *User) GetEmail() string {
@@ -21,5 +21,5 @@ func (u *User) GetRegistration() *registration.Resource {
 }
 
 func (u *User) GetPrivateKey() crypto.PrivateKey {
-	return u.key
+	return u.Key
 }

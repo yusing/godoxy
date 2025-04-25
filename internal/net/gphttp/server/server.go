@@ -10,15 +10,18 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/acl"
-	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
+type CertProvider interface {
+	GetCert(*tls.ClientHelloInfo) (*tls.Certificate, error)
+}
+
 type Server struct {
 	Name         string
-	CertProvider *autocert.Provider
+	CertProvider CertProvider
 	http         *http.Server
 	https        *http.Server
 	startTime    time.Time
@@ -31,7 +34,7 @@ type Options struct {
 	Name         string
 	HTTPAddr     string
 	HTTPSAddr    string
-	CertProvider *autocert.Provider
+	CertProvider CertProvider
 	Handler      http.Handler
 	ACL          *acl.Config
 }

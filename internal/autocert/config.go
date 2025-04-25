@@ -16,18 +16,15 @@ import (
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
-type (
-	AutocertConfig struct {
-		Email       string      `json:"email,omitempty"`
-		Domains     []string    `json:"domains,omitempty"`
-		CertPath    string      `json:"cert_path,omitempty"`
-		KeyPath     string      `json:"key_path,omitempty"`
-		ACMEKeyPath string      `json:"acme_key_path,omitempty"`
-		Provider    string      `json:"provider,omitempty"`
-		Options     ProviderOpt `json:"options,omitempty"`
-	}
-	ProviderOpt map[string]any
-)
+type Config struct {
+	Email       string         `json:"email,omitempty"`
+	Domains     []string       `json:"domains,omitempty"`
+	CertPath    string         `json:"cert_path,omitempty"`
+	KeyPath     string         `json:"key_path,omitempty"`
+	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
+	Provider    string         `json:"provider,omitempty"`
+	Options     map[string]any `json:"options,omitempty"`
+}
 
 var (
 	ErrMissingDomain   = gperr.New("missing field 'domains'")
@@ -37,10 +34,15 @@ var (
 	ErrUnknownProvider = gperr.New("unknown provider")
 )
 
+const (
+	ProviderLocal  = "local"
+	ProviderPseudo = "pseudo"
+)
+
 var domainOrWildcardRE = regexp.MustCompile(`^\*?([^.]+\.)+[^.]+$`)
 
 // Validate implements the utils.CustomValidator interface.
-func (cfg *AutocertConfig) Validate() gperr.Error {
+func (cfg *Config) Validate() gperr.Error {
 	if cfg == nil {
 		return nil
 	}
@@ -64,11 +66,11 @@ func (cfg *AutocertConfig) Validate() gperr.Error {
 			}
 		}
 		// check if provider is implemented
-		providerConstructor, ok := providers[cfg.Provider]
+		providerConstructor, ok := Providers[cfg.Provider]
 		if !ok {
 			b.Add(ErrUnknownProvider.
 				Subject(cfg.Provider).
-				Withf(strutils.DoYouMean(utils.NearestField(cfg.Provider, providers))))
+				Withf(strutils.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
 		} else {
 			_, err := providerConstructor(cfg.Options)
 			if err != nil {
@@ -79,13 +81,13 @@ func (cfg *AutocertConfig) Validate() gperr.Error {
 	return b.Error()
 }
 
-func (cfg *AutocertConfig) GetProvider() (*Provider, gperr.Error) {
+func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 	if cfg == nil {
-		cfg = new(AutocertConfig)
+		cfg = new(Config)
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if cfg.CertPath == "" {
@@ -102,35 +104,31 @@ func (cfg *AutocertConfig) GetProvider() (*Provider, gperr.Error) {
 	var err error
 
 	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
-		if privKey, err = cfg.loadACMEKey(); err != nil {
+		if privKey, err = cfg.LoadACMEKey(); err != nil {
 			logging.Info().Err(err).Msg("load ACME private key failed")
 			logging.Info().Msg("generate new ACME private key")
 			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
-				return nil, gperr.New("generate ACME private key").With(err)
+				return nil, nil, gperr.New("generate ACME private key").With(err)
 			}
-			if err = cfg.saveACMEKey(privKey); err != nil {
-				return nil, gperr.New("save ACME private key").With(err)
+			if err = cfg.SaveACMEKey(privKey); err != nil {
+				return nil, nil, gperr.New("save ACME private key").With(err)
 			}
 		}
 	}
 
 	user := &User{
 		Email: cfg.Email,
-		key:   privKey,
+		Key:   privKey,
 	}
 
 	legoCfg := lego.NewConfig(user)
 	legoCfg.Certificate.KeyType = certcrypto.RSA2048
 
-	return &Provider{
-		cfg:     cfg,
-		user:    user,
-		legoCfg: legoCfg,
-	}, nil
+	return user, legoCfg, nil
 }
 
-func (cfg *AutocertConfig) loadACMEKey() (*ecdsa.PrivateKey, error) {
+func (cfg *Config) LoadACMEKey() (*ecdsa.PrivateKey, error) {
 	data, err := os.ReadFile(cfg.ACMEKeyPath)
 	if err != nil {
 		return nil, err
@@ -138,7 +136,7 @@ func (cfg *AutocertConfig) loadACMEKey() (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(data)
 }
 
-func (cfg *AutocertConfig) saveACMEKey(key *ecdsa.PrivateKey) error {
+func (cfg *Config) SaveACMEKey(key *ecdsa.PrivateKey) error {
 	data, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
 		return err

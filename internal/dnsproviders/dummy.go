@@ -1,4 +1,4 @@
-package autocert
+package dnsproviders
 
 type DummyConfig struct{}
 type DummyProvider struct{}

@@ -1,4 +1,4 @@
-package systeminfo
+package systeminfo // import github.com/yusing/go-proxy/internal/metrics/systeminfo
 
 import (
 	"bytes"

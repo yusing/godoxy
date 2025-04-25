@@ -10,15 +10,17 @@ url = "https://api.github.com/repos/go-acme/lego/contents/providers/dns"
 response = requests.get(url)
 data: list[Entry] = [Entry(**i) for i in response.json()]
 
-header = "//go:generate /usr/bin/python3 gen.py\n\npackage autocert\n\n"
+header = "//go:generate /usr/bin/python3 gen.py\n\npackage dnsproviders\n\n"
 names: list[str] = [
-  "ProviderLocal = \"local\"",
-  "ProviderPseudo = \"pseudo\"",
+  "Local = \"local\"",
+  "Pseudo = \"pseudo\"",
 ]
-imports: list[str] = []
+imports: list[str] = [
+  "\"github.com/yusing/go-proxy/internal/autocert\""
+]
 genMap: list[str] = [
-  "ProviderLocal: providerGenerator(NewDummyDefaultConfig, NewDummyDNSProviderConfig),",
-  "ProviderPseudo: providerGenerator(NewDummyDefaultConfig, NewDummyDNSProviderConfig),",
+  "autocert.Providers[Local] = autocert.DNSProvider(NewDummyDefaultConfig, NewDummyDNSProviderConfig)",
+  "autocert.Providers[Pseudo] = autocert.DNSProvider(NewDummyDefaultConfig, NewDummyDNSProviderConfig)",
 ]
 
 blacklists = [
@@ -35,18 +37,18 @@ blacklists = [
 for item in data:
     if item.type != "dir" or item.name in blacklists:
       continue
-    imports.append(f"import \"github.com/go-acme/lego/v4/providers/dns/{item.name}\"")
-    names.append(f"Provider{item.name} = \"{item.name}\"")
-    genMap.append(f"Provider{item.name}: providerGenerator({item.name}.NewDefaultConfig, {item.name}.NewDNSProviderConfig),")
+    imports.append(f"\"github.com/go-acme/lego/v4/providers/dns/{item.name}\"")
+    genMap.append(f"autocert.Providers[\"{item.name}\"] = autocert.DNSProvider({item.name}.NewDefaultConfig, {item.name}.NewDNSProviderConfig)")
     
 with open("providers.go", "w") as f:
   f.write(header)
+  f.write("import (\n")
   f.write("\n".join(imports))
-  f.write("\n\n")
+  f.write("\n)\n\n")
   f.write("const (\n")
   f.write("\n".join(names))
   f.write("\n)\n\n")
-  f.write("var providers = map[string]ProviderGenerator{\n")
+  f.write("func InitProviders() {\n")
   f.write("\n".join(genMap))
   f.write("\n}\n\n")
   

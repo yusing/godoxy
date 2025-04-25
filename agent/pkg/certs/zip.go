@@ -6,9 +6,10 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
+
+const AgentCertsBasePath = "certs"
 
 func writeFile(zipWriter *zip.Writer, name string, data []byte) error {
 	w, err := zipWriter.CreateHeader(&zip.FileHeader{
@@ -59,7 +60,7 @@ func AgentCertsFilepath(host string) (filepathOut string, ok bool) {
 	if !isValidAgentHost(host) {
 		return "", false
 	}
-	return filepath.Join(common.AgentCertsBasePath, host+".zip"), true
+	return filepath.Join(AgentCertsBasePath, host+".zip"), true
 }
 
 func ExtractCert(data []byte) (ca, crt, key []byte, err error) {
