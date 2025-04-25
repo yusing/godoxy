@@ -1,4 +1,4 @@
-package types
+package config
 
 import (
 	"context"
@@ -7,15 +7,17 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/internal/acl"
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type (
 	Config struct {
+		ACL             *acl.Config              `json:"acl"`
 		AutoCert        *autocert.AutocertConfig `json:"autocert"`
 		Entrypoint      Entrypoint               `json:"entrypoint"`
 		Providers       Providers                `json:"providers"`
@@ -30,8 +32,11 @@ type (
 		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
 	}
 	Entrypoint struct {
-		Middlewares []map[string]any  `json:"middlewares"`
-		AccessLog   *accesslog.Config `json:"access_log" validate:"omitempty"`
+		Middlewares []map[string]any               `json:"middlewares"`
+		AccessLog   *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
+	}
+	HomepageConfig struct {
+		UseDefaultCategories bool `json:"use_default_categories"`
 	}
 
 	ConfigInstance interface {

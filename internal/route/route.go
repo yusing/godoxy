@@ -42,13 +42,13 @@ type (
 		Root   string       `json:"root,omitempty"`
 
 		route.HTTPConfig
-		PathPatterns []string                   `json:"path_patterns,omitempty"`
-		Rules        rules.Rules                `json:"rules,omitempty" validate:"omitempty,unique=Name"`
-		HealthCheck  *health.HealthCheckConfig  `json:"healthcheck,omitempty"`
-		LoadBalance  *loadbalance.Config        `json:"load_balance,omitempty"`
-		Middlewares  map[string]docker.LabelMap `json:"middlewares,omitempty"`
-		Homepage     *homepage.ItemConfig       `json:"homepage,omitempty"`
-		AccessLog    *accesslog.Config          `json:"access_log,omitempty"`
+		PathPatterns []string                       `json:"path_patterns,omitempty"`
+		Rules        rules.Rules                    `json:"rules,omitempty" validate:"omitempty,unique=Name"`
+		HealthCheck  *health.HealthCheckConfig      `json:"healthcheck,omitempty"`
+		LoadBalance  *loadbalance.Config            `json:"load_balance,omitempty"`
+		Middlewares  map[string]docker.LabelMap     `json:"middlewares,omitempty"`
+		Homepage     *homepage.ItemConfig           `json:"homepage,omitempty"`
+		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty"`
 
 		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
 

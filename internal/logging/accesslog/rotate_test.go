@@ -53,11 +53,11 @@ func TestParseLogTime(t *testing.T) {
 }
 
 func TestRotateKeepLast(t *testing.T) {
-	for _, format := range AvailableFormats {
+	for _, format := range ReqLoggerFormats {
 		t.Run(string(format)+" keep last", func(t *testing.T) {
 			file := NewMockFile()
 			utils.MockTimeNow(testTime)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
@@ -65,7 +65,7 @@ func TestRotateKeepLast(t *testing.T) {
 			for range 10 {
 				logger.Log(req, resp)
 			}
-			expect.NoError(t, logger.Flush())
+			logger.Flush()
 
 			expect.Greater(t, file.Len(), int64(0))
 			expect.Equal(t, file.NumLines(), 10)
@@ -85,7 +85,7 @@ func TestRotateKeepLast(t *testing.T) {
 
 		t.Run(string(format)+" keep days", func(t *testing.T) {
 			file := NewMockFile()
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
@@ -127,10 +127,10 @@ func TestRotateKeepLast(t *testing.T) {
 }
 
 func TestRotateKeepFileSize(t *testing.T) {
-	for _, format := range AvailableFormats {
+	for _, format := range ReqLoggerFormats {
 		t.Run(string(format)+" keep size no rotation", func(t *testing.T) {
 			file := NewMockFile()
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
@@ -160,7 +160,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 
 	t.Run("keep size with rotation", func(t *testing.T) {
 		file := NewMockFile()
-		logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+		logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 			Format: FormatJSON,
 		})
 		expect.Nil(t, logger.Config().Retention)
@@ -189,10 +189,10 @@ func TestRotateKeepFileSize(t *testing.T) {
 
 // skipping invalid lines is not supported for keep file_size
 func TestRotateSkipInvalidTime(t *testing.T) {
-	for _, format := range AvailableFormats {
+	for _, format := range ReqLoggerFormats {
 		t.Run(string(format), func(t *testing.T) {
 			file := NewMockFile()
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
@@ -232,9 +232,11 @@ func BenchmarkRotate(b *testing.B) {
 	for _, retention := range tests {
 		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
 			file := NewMockFile()
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
-				Format:    FormatJSON,
-				Retention: retention,
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+				ConfigBase: ConfigBase{
+					Retention: retention,
+				},
+				Format: FormatJSON,
 			})
 			for i := range 100 {
 				utils.MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
@@ -263,9 +265,11 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 	for _, retention := range tests {
 		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
 			file := NewMockFile()
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &Config{
-				Format:    FormatJSON,
-				Retention: retention,
+			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+				ConfigBase: ConfigBase{
+					Retention: retention,
+				},
+				Format: FormatJSON,
 			})
 			for i := range 10000 {
 				utils.MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))

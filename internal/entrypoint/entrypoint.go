@@ -54,7 +54,7 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	return nil
 }
 
-func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Config) (err error) {
+func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.RequestLoggerConfig) (err error) {
 	if cfg == nil {
 		ep.accessLogger = nil
 		return

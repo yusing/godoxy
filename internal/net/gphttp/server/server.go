@@ -9,6 +9,7 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
+	"github.com/yusing/go-proxy/internal/acl"
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -21,6 +22,7 @@ type Server struct {
 	http         *http.Server
 	https        *http.Server
 	startTime    time.Time
+	acl          *acl.Config
 
 	l zerolog.Logger
 }
@@ -31,6 +33,7 @@ type Options struct {
 	HTTPSAddr    string
 	CertProvider *autocert.Provider
 	Handler      http.Handler
+	ACL          *acl.Config
 }
 
 type httpServer interface {
@@ -76,6 +79,7 @@ func NewServer(opt Options) (s *Server) {
 		http:         httpSer,
 		https:        httpsSer,
 		l:            logger,
+		acl:          opt.ACL,
 	}
 }
 
@@ -95,16 +99,16 @@ func (s *Server) Start(parent task.Parent) {
 			Handler:   s.https.Handler,
 			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
 		}
-		Start(subtask, h3, &s.l)
+		Start(subtask, h3, s.acl, &s.l)
 		s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
 		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 	}
 
-	Start(subtask, s.http, &s.l)
-	Start(subtask, s.https, &s.l)
+	Start(subtask, s.http, s.acl, &s.l)
+	Start(subtask, s.https, s.acl, &s.l)
 }
 
-func Start[Server httpServer](parent task.Parent, srv Server, logger *zerolog.Logger) {
+func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, logger *zerolog.Logger) {
 	if srv == nil {
 		return
 	}
@@ -130,12 +134,18 @@ func Start[Server httpServer](parent task.Parent, srv Server, logger *zerolog.Lo
 		if srv.TLSConfig != nil {
 			l = tls.NewListener(l, srv.TLSConfig)
 		}
+		if acl != nil {
+			l = acl.WrapTCP(l)
+		}
 		serveFunc = getServeFunc(l, srv.Serve)
 	case *http3.Server:
 		l, err := lc.ListenPacket(task.Context(), "udp", srv.Addr)
 		if err != nil {
 			HandleError(logger, err, "failed to listen on port")
 			return
+		}
+		if acl != nil {
+			l = acl.WrapUDP(l)
 		}
 		serveFunc = getServeFunc(l, srv.Serve)
 	}

@@ -197,6 +197,7 @@ func (cfg *Config) StartServers(opts ...*StartServersOptions) {
 			HTTPAddr:     common.ProxyHTTPAddr,
 			HTTPSAddr:    common.ProxyHTTPSAddr,
 			Handler:      cfg.entrypoint,
+			ACL:          cfg.value.ACL,
 		})
 	}
 	if opt.API {
@@ -237,6 +238,14 @@ func (cfg *Config) load() gperr.Error {
 		}
 	}
 	cfg.entrypoint.SetFindRouteDomains(model.MatchDomains)
+	if model.ACL.Valid() {
+		err := model.ACL.Start(cfg.task)
+		if err != nil {
+			errs.Add(err)
+		} else {
+			logging.Info().Msg("ACL started")
+		}
+	}
 
 	return errs.Error()
 }

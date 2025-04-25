@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog"
+	acl "github.com/yusing/go-proxy/internal/acl/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -17,6 +18,7 @@ type (
 	}
 	CombinedFormatter struct{ CommonFormatter }
 	JSONFormatter     struct{ CommonFormatter }
+	ACLLogFormatter   struct{}
 )
 
 const LogTimeFormat = "02/Jan/2006:15:04:05 -0700"
@@ -56,7 +58,7 @@ func clientIP(req *http.Request) string {
 	return req.RemoteAddr
 }
 
-func (f *CommonFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
+func (f *CommonFormatter) AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte {
 	query := f.cfg.Query.IterQuery(req.URL.Query())
 
 	line = append(line, req.Host...)
@@ -82,8 +84,8 @@ func (f *CommonFormatter) AppendLog(line []byte, req *http.Request, res *http.Re
 	return line
 }
 
-func (f *CombinedFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
-	line = f.CommonFormatter.AppendLog(line, req, res)
+func (f *CombinedFormatter) AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte {
+	line = f.CommonFormatter.AppendRequestLog(line, req, res)
 	line = append(line, " \""...)
 	line = append(line, req.Referer()...)
 	line = append(line, "\" \""...)
@@ -118,14 +120,14 @@ func (z *zeroLogStringStringSliceMapMarshaler) MarshalZerologObject(e *zerolog.E
 	}
 }
 
-func (f *JSONFormatter) AppendLog(line []byte, req *http.Request, res *http.Response) []byte {
+func (f *JSONFormatter) AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte {
 	query := f.cfg.Query.ZerologQuery(req.URL.Query())
 	headers := f.cfg.Headers.ZerologHeaders(req.Header)
 	cookies := f.cfg.Cookies.ZerologCookies(req.Cookies())
 	contentType := res.Header.Get("Content-Type")
 
 	writer := bytes.NewBuffer(line)
-	logger := zerolog.New(writer).With().Logger()
+	logger := zerolog.New(writer)
 	event := logger.Info().
 		Str("time", utils.TimeNow().Format(LogTimeFormat)).
 		Str("ip", clientIP(req)).
@@ -151,6 +153,26 @@ func (f *JSONFormatter) AppendLog(line []byte, req *http.Request, res *http.Resp
 		}
 	}
 
+	// NOTE: zerolog will append a newline to the buffer
+	event.Send()
+	return writer.Bytes()
+}
+
+func (f ACLLogFormatter) AppendACLLog(line []byte, info *acl.IPInfo, blocked bool) []byte {
+	writer := bytes.NewBuffer(line)
+	logger := zerolog.New(writer)
+	event := logger.Info().
+		Str("time", utils.TimeNow().Format(LogTimeFormat)).
+		Str("ip", info.Str)
+	if blocked {
+		event.Str("action", "block")
+	} else {
+		event.Str("action", "allow")
+	}
+	if info.City != nil {
+		event.Str("iso_code", info.City.Country.IsoCode)
+		event.Str("time_zone", info.City.Location.TimeZone)
+	}
 	// NOTE: zerolog will append a newline to the buffer
 	event.Send()
 	return writer.Bytes()

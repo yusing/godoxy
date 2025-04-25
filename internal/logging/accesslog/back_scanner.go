@@ -6,9 +6,14 @@ import (
 	"io"
 )
 
+type ReaderAtSeeker interface {
+	io.ReaderAt
+	io.Seeker
+}
+
 // BackScanner provides an interface to read a file backward line by line.
 type BackScanner struct {
-	file      supportRotate
+	file      ReaderAtSeeker
 	size      int64
 	chunkSize int
 	chunkBuf  []byte
@@ -21,7 +26,7 @@ type BackScanner struct {
 
 // NewBackScanner creates a new Scanner to read the file backward.
 // chunkSize determines the size of each read chunk from the end of the file.
-func NewBackScanner(file supportRotate, chunkSize int) *BackScanner {
+func NewBackScanner(file ReaderAtSeeker, chunkSize int) *BackScanner {
 	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
 		return &BackScanner{err: err}
@@ -29,7 +34,7 @@ func NewBackScanner(file supportRotate, chunkSize int) *BackScanner {
 	return newBackScanner(file, size, make([]byte, chunkSize))
 }
 
-func newBackScanner(file supportRotate, fileSize int64, buf []byte) *BackScanner {
+func newBackScanner(file ReaderAtSeeker, fileSize int64, buf []byte) *BackScanner {
 	return &BackScanner{
 		file:      file,
 		size:      fileSize,

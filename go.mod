@@ -22,7 +22,7 @@ require (
 	golang.org/x/oauth2 v0.29.0 // oauth2 authentication
 	golang.org/x/text v0.24.0 // string utilities
 	golang.org/x/time v0.11.0 // time utilities
-	gopkg.in/yaml.v3 v3.0.1 // yaml parsing for different config files
+	gopkg.in/yaml.v3 v3.0.1 // indirect; yaml parsing for different config files
 )
 
 replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.2
@@ -30,8 +30,10 @@ replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.2
 require (
 	github.com/bytedance/sonic v1.13.2
 	github.com/docker/cli v28.1.1+incompatible
+	github.com/goccy/go-yaml v1.17.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/luthermonson/go-proxmox v0.2.2
+	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/quic-go/quic-go v0.51.0
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0

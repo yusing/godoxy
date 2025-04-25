@@ -12,7 +12,6 @@ import (
 
 type File struct {
 	*os.File
-	sync.Mutex
 
 	// os.File.Name() may not equal to key of `openedFiles`.
 	// Store it for later delete from `openedFiles`.
@@ -26,18 +25,18 @@ var (
 	openedFilesMu sync.Mutex
 )
 
-func newFileIO(path string) (AccessLogIO, error) {
+func newFileIO(path string) (WriterWithName, error) {
 	openedFilesMu.Lock()
+	defer openedFilesMu.Unlock()
 
 	var file *File
 	path = pathPkg.Clean(path)
 	if opened, ok := openedFiles[path]; ok {
 		opened.refCount.Add()
-		file = opened
+		return opened, nil
 	} else {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
 		if err != nil {
-			openedFilesMu.Unlock()
 			return nil, fmt.Errorf("access log open error: %w", err)
 		}
 		file = &File{File: f, path: path, refCount: utils.NewRefCounter()}
@@ -45,7 +44,6 @@ func newFileIO(path string) (AccessLogIO, error) {
 		go file.closeOnZero()
 	}
 
-	openedFilesMu.Unlock()
 	return file, nil
 }
 

@@ -11,8 +11,6 @@ type StdoutLogger struct {
 
 var stdoutIO = &StdoutLogger{os.Stdout}
 
-func (l *StdoutLogger) Lock()   {}
-func (l *StdoutLogger) Unlock() {}
 func (l *StdoutLogger) Name() string {
 	return "stdout"
 }

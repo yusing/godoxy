@@ -14,11 +14,11 @@ import (
 func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 	var wg sync.WaitGroup
 
-	cfg := DefaultConfig()
+	cfg := DefaultRequestLoggerConfig()
 	cfg.Path = "test.log"
 
 	loggerCount := 10
-	accessLogIOs := make([]AccessLogIO, loggerCount)
+	accessLogIOs := make([]WriterWithName, loggerCount)
 
 	// make test log file
 	file, err := os.Create(cfg.Path)
@@ -49,7 +49,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	file := NewMockFile()
 
-	cfg := DefaultConfig()
+	cfg := DefaultRequestLoggerConfig()
 	cfg.BufferSize = 1024
 	parent := task.RootTask("test", false)
 

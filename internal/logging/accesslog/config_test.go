@@ -29,7 +29,7 @@ func TestNewConfig(t *testing.T) {
 	parsed, err := docker.ParseLabels(labels)
 	expect.NoError(t, err)
 
-	var config Config
+	var config RequestLoggerConfig
 	err = utils.Deserialize(parsed, &config)
 	expect.NoError(t, err)
 

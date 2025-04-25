@@ -135,7 +135,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 }
 
 func logEntry() []byte {
-	accesslog := NewMockAccessLogger(task.RootTask("test", false), &Config{
+	accesslog := NewMockAccessLogger(task.RootTask("test", false), &RequestLoggerConfig{
 		Format: FormatJSON,
 	})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +148,7 @@ func logEntry() []byte {
 	res := httptest.NewRecorder()
 	// server the request
 	srv.Config.Handler.ServeHTTP(res, req)
-	b := accesslog.AppendLog(nil, req, res.Result())
+	b := accesslog.AppendRequestLog(nil, req, res.Result())
 	if b[len(b)-1] != '\n' {
 		b = append(b, '\n')
 	}

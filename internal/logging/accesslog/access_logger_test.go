@@ -52,18 +52,18 @@ var (
 	}
 )
 
-func fmtLog(cfg *Config) (ts string, line string) {
+func fmtLog(cfg *RequestLoggerConfig) (ts string, line string) {
 	buf := make([]byte, 0, 1024)
 
 	t := time.Now()
 	logger := NewMockAccessLogger(testTask, cfg)
 	utils.MockTimeNow(t)
-	buf = logger.AppendLog(buf, req, resp)
+	buf = logger.AppendRequestLog(buf, req, resp)
 	return t.Format(LogTimeFormat), string(buf)
 }
 
 func TestAccessLoggerCommon(t *testing.T) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCommon
 	ts, log := fmtLog(config)
 	expect.Equal(t, log,
@@ -74,7 +74,7 @@ func TestAccessLoggerCommon(t *testing.T) {
 }
 
 func TestAccessLoggerCombined(t *testing.T) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCombined
 	ts, log := fmtLog(config)
 	expect.Equal(t, log,
@@ -85,7 +85,7 @@ func TestAccessLoggerCombined(t *testing.T) {
 }
 
 func TestAccessLoggerRedactQuery(t *testing.T) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCommon
 	config.Fields.Query.Default = FieldModeRedact
 	ts, log := fmtLog(config)
@@ -115,7 +115,7 @@ type JSONLogEntry struct {
 	Cookies     map[string]string   `json:"cookies,omitempty"`
 }
 
-func getJSONEntry(t *testing.T, config *Config) JSONLogEntry {
+func getJSONEntry(t *testing.T, config *RequestLoggerConfig) JSONLogEntry {
 	t.Helper()
 	config.Format = FormatJSON
 	var entry JSONLogEntry
@@ -126,7 +126,7 @@ func getJSONEntry(t *testing.T, config *Config) JSONLogEntry {
 }
 
 func TestAccessLoggerJSON(t *testing.T) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	entry := getJSONEntry(t, config)
 	expect.Equal(t, entry.IP, remote)
 	expect.Equal(t, entry.Method, method)
@@ -147,7 +147,7 @@ func TestAccessLoggerJSON(t *testing.T) {
 }
 
 func BenchmarkAccessLoggerJSON(b *testing.B) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	config.Format = FormatJSON
 	logger := NewMockAccessLogger(testTask, config)
 	b.ResetTimer()
@@ -157,7 +157,7 @@ func BenchmarkAccessLoggerJSON(b *testing.B) {
 }
 
 func BenchmarkAccessLoggerCombined(b *testing.B) {
-	config := DefaultConfig()
+	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCombined
 	logger := NewMockAccessLogger(testTask, config)
 	b.ResetTimer()

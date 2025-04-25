@@ -1,12 +1,19 @@
 package accesslog
 
-import "strings"
+import (
+	"io"
+	"strings"
+)
 
 type MultiWriter struct {
-	writers []AccessLogIO
+	writers []WriterWithName
 }
 
-func NewMultiWriter(writers ...AccessLogIO) AccessLogIO {
+type MultiWriterInterface interface {
+	Unwrap() []io.Writer
+}
+
+func NewMultiWriter(writers ...WriterWithName) WriterWithName {
 	if len(writers) == 0 {
 		return nil
 	}
@@ -18,23 +25,19 @@ func NewMultiWriter(writers ...AccessLogIO) AccessLogIO {
 	}
 }
 
+func (w *MultiWriter) Unwrap() []io.Writer {
+	writers := make([]io.Writer, len(w.writers))
+	for i, writer := range w.writers {
+		writers[i] = writer
+	}
+	return writers
+}
+
 func (w *MultiWriter) Write(p []byte) (n int, err error) {
 	for _, writer := range w.writers {
 		writer.Write(p)
 	}
 	return len(p), nil
-}
-
-func (w *MultiWriter) Lock() {
-	for _, writer := range w.writers {
-		writer.Lock()
-	}
-}
-
-func (w *MultiWriter) Unlock() {
-	for _, writer := range w.writers {
-		writer.Unlock()
-	}
 }
 
 func (w *MultiWriter) Name() string {

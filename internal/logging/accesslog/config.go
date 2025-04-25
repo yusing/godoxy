@@ -6,6 +6,32 @@ import (
 )
 
 type (
+	ConfigBase struct {
+		BufferSize int        `json:"buffer_size"`
+		Path       string     `json:"path"`
+		Stdout     bool       `json:"stdout"`
+		Retention  *Retention `json:"retention" aliases:"keep"`
+	}
+	ACLLoggerConfig struct {
+		ConfigBase
+		LogAllowed bool `json:"log_allowed"`
+	}
+	RequestLoggerConfig struct {
+		ConfigBase
+		Format  Format  `json:"format" validate:"oneof=common combined json"`
+		Filters Filters `json:"filters"`
+		Fields  Fields  `json:"fields"`
+	}
+	Config struct {
+		*ConfigBase
+		acl *ACLLoggerConfig
+		req *RequestLoggerConfig
+	}
+	AnyConfig interface {
+		ToConfig() *Config
+		IO() (WriterWithName, error)
+	}
+
 	Format  string
 	Filters struct {
 		StatusCodes LogFilter[*StatusCodeRange] `json:"status_codes"`
@@ -19,15 +45,6 @@ type (
 		Query   FieldConfig `json:"query"`
 		Cookies FieldConfig `json:"cookies"`
 	}
-	Config struct {
-		BufferSize int        `json:"buffer_size"`
-		Format     Format     `json:"format" validate:"oneof=common combined json"`
-		Path       string     `json:"path"`
-		Stdout     bool       `json:"stdout"`
-		Filters    Filters    `json:"filters"`
-		Fields     Fields     `json:"fields"`
-		Retention  *Retention `json:"retention"`
-	}
 )
 
 var (
@@ -35,23 +52,57 @@ var (
 	FormatCombined Format = "combined"
 	FormatJSON     Format = "json"
 
-	AvailableFormats = []Format{FormatCommon, FormatCombined, FormatJSON}
+	ReqLoggerFormats = []Format{FormatCommon, FormatCombined, FormatJSON}
 )
 
 const DefaultBufferSize = 64 * kilobyte // 64KB
 
-func (cfg *Config) Validate() gperr.Error {
+func (cfg *ConfigBase) Validate() gperr.Error {
 	if cfg.Path == "" && !cfg.Stdout {
 		return gperr.New("path or stdout is required")
 	}
 	return nil
 }
 
-func DefaultConfig() *Config {
+func (cfg *ConfigBase) IO() (WriterWithName, error) {
+	ios := make([]WriterWithName, 0, 2)
+	if cfg.Stdout {
+		ios = append(ios, stdoutIO)
+	}
+	if cfg.Path != "" {
+		io, err := newFileIO(cfg.Path)
+		if err != nil {
+			return nil, err
+		}
+		ios = append(ios, io)
+	}
+	if len(ios) == 0 {
+		return nil, nil
+	}
+	return NewMultiWriter(ios...), nil
+}
+
+func (cfg *ACLLoggerConfig) ToConfig() *Config {
 	return &Config{
-		BufferSize: DefaultBufferSize,
-		Format:     FormatCombined,
-		Retention:  &Retention{Days: 30},
+		ConfigBase: &cfg.ConfigBase,
+		acl:        cfg,
+	}
+}
+
+func (cfg *RequestLoggerConfig) ToConfig() *Config {
+	return &Config{
+		ConfigBase: &cfg.ConfigBase,
+		req:        cfg,
+	}
+}
+
+func DefaultRequestLoggerConfig() *RequestLoggerConfig {
+	return &RequestLoggerConfig{
+		ConfigBase: ConfigBase{
+			BufferSize: DefaultBufferSize,
+			Retention:  &Retention{Days: 30},
+		},
+		Format: FormatCombined,
 		Fields: Fields{
 			Headers: FieldConfig{
 				Default: FieldModeDrop,
@@ -66,6 +117,16 @@ func DefaultConfig() *Config {
 	}
 }
 
+func DefaultACLLoggerConfig() *ACLLoggerConfig {
+	return &ACLLoggerConfig{
+		ConfigBase: ConfigBase{
+			BufferSize: DefaultBufferSize,
+			Retention:  &Retention{Days: 30},
+		},
+	}
+}
+
 func init() {
-	utils.RegisterDefaultValueFactory(DefaultConfig)
+	utils.RegisterDefaultValueFactory(DefaultRequestLoggerConfig)
+	utils.RegisterDefaultValueFactory(DefaultACLLoggerConfig)
 }

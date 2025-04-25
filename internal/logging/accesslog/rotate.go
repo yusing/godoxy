@@ -12,9 +12,7 @@ import (
 )
 
 type supportRotate interface {
-	io.Reader
-	io.Writer
-	io.Seeker
+	io.ReadSeeker
 	io.ReaderAt
 	io.WriterAt
 	Truncate(size int64) error
@@ -39,6 +37,14 @@ func (r *RotateResult) Print(logger *zerolog.Logger) {
 		Int("lines_keep", r.NumLinesKeep).
 		Int("lines_invalid", r.NumLinesInvalid).
 		Msg("log rotate result")
+}
+
+func (r *RotateResult) Add(other *RotateResult) {
+	r.NumBytesRead += other.NumBytesRead
+	r.NumBytesKeep += other.NumBytesKeep
+	r.NumLinesRead += other.NumLinesRead
+	r.NumLinesKeep += other.NumLinesKeep
+	r.NumLinesInvalid += other.NumLinesInvalid
 }
 
 type lineInfo struct {
