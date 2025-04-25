@@ -1,9 +1,8 @@
 package trie
 
 import (
+	"encoding/json"
 	"testing"
-
-	"github.com/bytedance/sonic"
 )
 
 func TestMarshalUnmarshalJSON(t *testing.T) {
@@ -18,14 +17,14 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	}
 
 	// MarshalJSON
-	bytesFromTrie, err := sonic.Marshal(trie)
+	bytesFromTrie, err := json.Marshal(trie)
 	if err != nil {
-		t.Fatalf("sonic.Marshal error: %v", err)
+		t.Fatalf("json.Marshal error: %v", err)
 	}
 
 	// UnmarshalJSON
 	newTrie := NewTrie()
-	if err := sonic.Unmarshal(bytesFromTrie, newTrie); err != nil {
+	if err := json.Unmarshal(bytesFromTrie, newTrie); err != nil {
 		t.Fatalf("UnmarshalJSON error: %v", err)
 	}
 	for k, v := range data {
