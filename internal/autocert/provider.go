@@ -205,7 +205,7 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
-	generator := providersGenMap[p.cfg.Provider]
+	generator := providers[p.cfg.Provider]
 	legoProvider, pErr := generator(p.cfg.Options)
 	if pErr != nil {
 		return pErr

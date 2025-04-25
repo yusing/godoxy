@@ -64,11 +64,11 @@ func (cfg *AutocertConfig) Validate() gperr.Error {
 			}
 		}
 		// check if provider is implemented
-		providerConstructor, ok := providersGenMap[cfg.Provider]
+		providerConstructor, ok := providers[cfg.Provider]
 		if !ok {
 			b.Add(ErrUnknownProvider.
 				Subject(cfg.Provider).
-				Withf(strutils.DoYouMean(utils.NearestField(cfg.Provider, providersGenMap))))
+				Withf(strutils.DoYouMean(utils.NearestField(cfg.Provider, providers))))
 		} else {
 			_, err := providerConstructor(cfg.Options)
 			if err != nil {
