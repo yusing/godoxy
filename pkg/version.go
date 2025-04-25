@@ -60,7 +60,7 @@ func Ver(major, minor, patch int) Version {
 }
 
 func (v Version) String() string {
-	return fmt.Sprintf("%d.%d.%d", v.Generation, v.Major, v.Minor)
+	return fmt.Sprintf("v%d.%d.%d", v.Generation, v.Major, v.Minor)
 }
 
 func (v Version) MarshalText() ([]byte, error) {
@@ -101,17 +101,17 @@ func ParseVersion(v string) (ver Version) {
 	if len(parts) != 3 {
 		return
 	}
-	major, err := strconv.Atoi(parts[0])
+	gen, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return
 	}
-	minor, err := strconv.Atoi(parts[1])
+	major, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return
 	}
-	patch, err := strconv.Atoi(parts[2])
+	minor, err := strconv.Atoi(parts[2])
 	if err != nil {
 		return
 	}
-	return Ver(major, minor, patch)
+	return Ver(gen, major, minor)
 }
