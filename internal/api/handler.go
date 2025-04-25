@@ -96,8 +96,8 @@ func NewHandler(cfg config.ConfigInstance) http.Handler {
 	}
 
 	mux.HandleFunc("GET", "/v1/auth/check", auth.AuthCheckHandler)
-	mux.HandleFunc("GET", "/v1/auth/redirect", defaultAuth.LoginHandler)
-	mux.HandleFunc("GET", "/v1/auth/callback", defaultAuth.PostAuthCallbackHandler)
+	mux.HandleFunc("GET,POST", "/v1/auth/redirect", defaultAuth.LoginHandler)
+	mux.HandleFunc("GET,POST", "/v1/auth/callback", defaultAuth.PostAuthCallbackHandler)
 	mux.HandleFunc("GET,POST", "/v1/auth/logout", defaultAuth.LogoutHandler)
 	return mux
 }
