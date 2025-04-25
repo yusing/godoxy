@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/go-proxy/internal/route/routes"

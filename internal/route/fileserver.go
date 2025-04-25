@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"

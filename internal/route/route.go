@@ -23,7 +23,7 @@ import (
 
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/rules"

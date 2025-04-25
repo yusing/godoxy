@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	. "github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"

@@ -26,7 +26,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/gphttp/accesslog"
+	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
