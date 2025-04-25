@@ -5,7 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
-![Demo](https://img.shields.io/website?url=https%3A%2F%2Fgodoxy.demo.6uo.me&label=Demo&link=https%3A%2F%2Fgodoxy.demo.6uo.me)
+![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 輕量、易用、 [高效能](https://github.com/yusing/godoxy/wiki/Benchmarks)，且帶有主頁和配置面板的反向代理
@@ -37,7 +37,7 @@
 
 ## 運行示例
 
-<https://godoxy.demo.6uo.me>
+<https://demo.godoxy.dev>
 
 [![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
 
@@ -52,13 +52,13 @@
 - 容器狀態/配置文件變更時自動熱重載
 - **閒置休眠**：在閒置時停止容器，有流量時喚醒（_可選，參見[截圖](#閒置休眠)_）
 - OpenID Connect：輕鬆實現單點登入
-- HTTP(s) 反向代理和TCP 和 UDP 埠轉發
+- HTTP(s) 反向代理和 TCP 和 UDP 埠轉發
 - [HTTP 中介軟體](https://github.com/yusing/godoxy/wiki/Middlewares) 和 [自定義錯誤頁面](https://github.com/yusing/godoxy/wiki/Middlewares#custom-error-pages)
 - **網頁介面，具有應用儀表板和配置編輯器**
 - 支援 linux/amd64、linux/arm64
 - 使用 **[Go](https://go.dev)** 編寫
 
-[🔼回到頂部](#目錄)
+[🔼 回到頂部](#目錄)
 
 ## 前置需求
 
@@ -78,13 +78,13 @@
 
 2. 在目錄內運行安裝腳本，或[手動安裝](#手動安裝)
 
-    ```shell
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
-    ```
+   ```shell
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
+   ```
 
 3. 現在可以在 WebUI `https://godoxy.yourdomain.com` 進行額外配置
 
-[🔼回到頂部](#目錄)
+[🔼 回到頂部](#目錄)
 
 ### 手動安裝
 
@@ -127,7 +127,7 @@
 
 ![閒置休眠](screenshots/idlesleeper.webp)
 
-[🔼回到頂部](#目錄)
+[🔼 回到頂部](#目錄)
 
 ### 監控
 
@@ -166,4 +166,4 @@
 
 5. 使用 `make build` 編譯二進制檔案
 
-[🔼回到頂部](#目錄)
+[🔼 回到頂部](#目錄)

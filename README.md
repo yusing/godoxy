@@ -5,7 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
-![Demo](https://img.shields.io/website?url=https%3A%2F%2Fgodoxy.demo.6uo.me&label=Demo&link=https%3A%2F%2Fgodoxy.demo.6uo.me)
+![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
 A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Benchmarks) reverse proxy with WebUI.
@@ -38,7 +38,7 @@ For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki
 
 ## Running demo
 
-<https://godoxy.demo.6uo.me>
+<https://demo.godoxy.dev>
 
 [![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
 
