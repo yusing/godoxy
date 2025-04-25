@@ -1,7 +1,7 @@
 ---
 services:
   frontend:
-    image: ghcr.io/yusing/godoxy-frontend:latest
+    image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
     container_name: godoxy-frontend
     restart: unless-stopped
     network_mode: host # do not change this
@@ -13,7 +13,7 @@ services:
 
     # modify below to fit your needs
     labels:
-      proxy.aliases: godoxy
+      proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
       proxy.godoxy.port: ${GODOXY_FRONTEND_PORT:-3000}
       # proxy.godoxy.middlewares.cidr_whitelist: |
       #   status: 403
@@ -24,13 +24,13 @@ services:
       #     - 192.168.0.0/16
       #     - 172.16.0.0/12
   app:
-    image: ghcr.io/yusing/godoxy:latest
+    image: ghcr.io/yusing/godoxy:${TAG:-latest}
     container_name: godoxy
     restart: always
     network_mode: host # do not change this
     env_file: .env
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
       - ./config:/app/config
       - ./logs:/app/logs
       - ./error_pages:/app/error_pages
