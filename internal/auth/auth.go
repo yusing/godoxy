@@ -53,7 +53,7 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if err := defaultAuth.CheckToken(r); err != nil {
-		http.Redirect(w, r, "/v1/auth/login", http.StatusFound)
+		defaultAuth.LoginHandler(w, r)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
