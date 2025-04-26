@@ -3,11 +3,9 @@ package acl
 import (
 	"github.com/puzpuzpuz/xsync/v3"
 	acl "github.com/yusing/go-proxy/internal/acl/types"
-	"go.uber.org/atomic"
 )
 
 var cityCache = xsync.NewMapOf[string, *acl.City]()
-var numCachedLookup atomic.Uint64
 
 func (cfg *MaxMindConfig) lookupCity(ip *acl.IPInfo) (*acl.City, bool) {
 	if ip.City != nil {
@@ -20,7 +18,7 @@ func (cfg *MaxMindConfig) lookupCity(ip *acl.IPInfo) (*acl.City, bool) {
 
 	city, ok := cityCache.Load(ip.Str)
 	if ok {
-		numCachedLookup.Inc()
+		ip.City = city
 		return city, true
 	}
 

@@ -63,7 +63,7 @@ type checkCache struct {
 const cacheTTL = 1 * time.Minute
 
 func (c *checkCache) Expired() bool {
-	return c.created.Add(cacheTTL).After(utils.TimeNow())
+	return c.created.Add(cacheTTL).Before(utils.TimeNow())
 }
 
 //TODO: add stats
