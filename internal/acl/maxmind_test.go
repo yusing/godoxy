@@ -1,6 +1,8 @@
 package acl
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -144,9 +146,17 @@ func Test_MaxMindConfig_download(t *testing.T) {
 		logger:     zerolog.Nop(),
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.Copy(w, strings.NewReader("FAKEMMDB"))
+		gz := gzip.NewWriter(w)
+		t := tar.NewWriter(gz)
+		t.WriteHeader(&tar.Header{
+			Name: dbFilename(MaxMindGeoLite),
+		})
+		t.Write([]byte("1234"))
+		t.Close()
+		gz.Close()
 	}))
 	defer server.Close()
+
 	oldURL := dbURL
 	dbURL = func(MaxMindDatabaseType) string { return server.URL }
 	defer func() { dbURL = oldURL }()
@@ -163,25 +173,25 @@ func Test_MaxMindConfig_download(t *testing.T) {
 	}
 	defer func() { maxmindDBOpen = origOpen }()
 
-	rw := &fakeReadCloser{}
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("newReq() error = %v", err)
+	}
+
+	rw := httptest.NewRecorder()
 	oldNewReq := newReq
 	newReq = func(cfg *MaxMindConfig, method string) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       rw,
-		}, nil
+		server.Config.Handler.ServeHTTP(rw, req)
+		return rw.Result(), nil
 	}
 	defer func() { newReq = oldNewReq }()
 
-	db, err := cfg.download()
+	err = cfg.download()
 	if err != nil {
 		t.Fatalf("download() error = %v", err)
 	}
-	if db == nil {
+	if cfg.db.Reader == nil {
 		t.Error("expected db instance")
-	}
-	if !rw.closed {
-		t.Error("expected rw to be closed")
 	}
 }
 

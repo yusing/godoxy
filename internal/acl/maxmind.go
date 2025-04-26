@@ -54,7 +54,7 @@ func (cfg *MaxMindConfig) LoadMaxMindDB(parent task.Parent) gperr.Error {
 
 	path := dbPath(cfg.Database)
 	reader, err := maxmindDBOpen(path)
-	exists := true
+	valid := true
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrNotExist):
@@ -65,20 +65,19 @@ func (cfg *MaxMindConfig) LoadMaxMindDB(parent task.Parent) gperr.Error {
 				return gperr.Wrap(err)
 			}
 		}
-		exists = false
+		valid = false
 	}
 
-	if !exists {
+	if !valid {
 		cfg.logger.Info().Msg("MaxMind DB not found/invalid, downloading...")
-		reader, err = cfg.download()
-		if err != nil {
+		if err = cfg.download(); err != nil {
 			return ErrDownloadFailure.With(err)
 		}
+	} else {
+		cfg.logger.Info().Msg("MaxMind DB loaded")
+		cfg.db.Reader = reader
+		go cfg.scheduleUpdate(parent)
 	}
-	cfg.logger.Info().Msg("MaxMind DB loaded")
-
-	cfg.db.Reader = reader
-	go cfg.scheduleUpdate(parent)
 	return nil
 }
 
@@ -137,17 +136,10 @@ func (cfg *MaxMindConfig) update() {
 		Time("latest", remoteLastModified.Local()).
 		Time("current", cfg.lastUpdate).
 		Msg("MaxMind DB update available")
-	reader, err := cfg.download()
-	if err != nil {
+	if err = cfg.download(); err != nil {
 		cfg.logger.Err(err).Msg("failed to update MaxMind DB")
 		return
 	}
-	cfg.db.Lock()
-	cfg.db.Close()
-	cfg.db.Reader = reader
-	cfg.setLastUpdate(*remoteLastModified)
-	cfg.db.Unlock()
-
 	cfg.logger.Info().Msg("MaxMind DB updated")
 }
 
@@ -190,57 +182,87 @@ func (cfg *MaxMindConfig) checkLastest() (lastModifiedT *time.Time, err error) {
 	return &lastModifiedTime, nil
 }
 
-func (cfg *MaxMindConfig) download() (*maxminddb.Reader, error) {
+func (cfg *MaxMindConfig) download() error {
 	resp, err := newReq(cfg, http.MethodGet)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %d", ErrResponseNotOK, resp.StatusCode)
+		return fmt.Errorf("%w: %d", ErrResponseNotOK, resp.StatusCode)
 	}
 
-	path := dbPath(cfg.Database)
-	tmpPath := path + "-tmp.tar.gz"
-	file, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return nil, err
-	}
+	dbFile := dbPath(cfg.Database)
+	tmpGZPath := dbFile + "-tmp.tar.gz"
+	tmpDBPath := dbFile + "-tmp"
 
-	cfg.logger.Info().Msg("MaxMind DB downloading...")
-
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
-		file.Close()
-		return nil, err
-	}
-
-	file.Close()
-
-	// extract .tar.gz and move only the dbFilename to path
-	err = extractFileFromTarGz(tmpPath, dbFilename(cfg.Database), path)
-	if err != nil {
-		return nil, gperr.New("failed to extract database from archive").With(err)
-	}
-	// cleanup the tar.gz file
-	_ = os.Remove(tmpPath)
-
-	db, err := maxmindDBOpen(path)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-func extractFileFromTarGz(tarGzPath, targetFilename, destPath string) error {
-	f, err := os.Open(tarGzPath)
+	tmpGZFile, err := os.OpenFile(tmpGZPath, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	gzr, err := gzip.NewReader(f)
+	// cleanup the tar.gz file
+	defer func() {
+		_ = tmpGZFile.Close()
+		_ = os.Remove(tmpGZPath)
+	}()
+
+	cfg.logger.Info().Msg("MaxMind DB downloading...")
+
+	_, err = io.Copy(tmpGZFile, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if _, err := tmpGZFile.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	// extract .tar.gz and to database
+	err = extractFileFromTarGz(tmpGZFile, dbFilename(cfg.Database), tmpDBPath)
+
+	if err != nil {
+		return gperr.New("failed to extract database from archive").With(err)
+	}
+
+	// test if the downloaded database is valid
+	db, err := maxmindDBOpen(tmpDBPath)
+	if err != nil {
+		_ = os.Remove(tmpDBPath)
+		return err
+	}
+
+	db.Close()
+	err = os.Rename(tmpDBPath, dbFile)
+	if err != nil {
+		return err
+	}
+
+	cfg.db.Lock()
+	defer cfg.db.Unlock()
+	if cfg.db.Reader != nil {
+		cfg.db.Reader.Close()
+	}
+	cfg.db.Reader, err = maxmindDBOpen(dbFile)
+	if err != nil {
+		return err
+	}
+
+	lastModifiedStr := resp.Header.Get("Last-Modified")
+	lastModifiedTime, err := time.Parse(http.TimeFormat, lastModifiedStr)
+	if err == nil {
+		cfg.setLastUpdate(lastModifiedTime)
+	}
+
+	cfg.logger.Info().Msg("MaxMind DB downloaded")
+	return nil
+}
+
+func extractFileFromTarGz(tarGzFile *os.File, targetFilename, destPath string) error {
+	defer tarGzFile.Close()
+
+	gzr, err := gzip.NewReader(tarGzFile)
 	if err != nil {
 		return err
 	}
