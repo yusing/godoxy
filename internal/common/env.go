@@ -58,6 +58,8 @@ var (
 	MetricsDisableDisk    = GetEnvBool("METRICS_DISABLE_DISK", false)
 	MetricsDisableNetwork = GetEnvBool("METRICS_DISABLE_NETWORK", false)
 	MetricsDisableSensors = GetEnvBool("METRICS_DISABLE_SENSORS", false)
+
+	ForceResolveCountry = GetEnvBool("FORCE_RESOLVE_COUNTRY", false)
 )
 
 func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T {

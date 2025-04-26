@@ -9,6 +9,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/rs/zerolog"
 	acl "github.com/yusing/go-proxy/internal/acl/types"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
@@ -153,7 +154,10 @@ func (c *Config) Start(parent *task.Task) gperr.Error {
 	return nil
 }
 
-func (c *config) cacheRecord(info *acl.IPInfo, allow bool) {
+func (c *Config) cacheRecord(info *acl.IPInfo, allow bool) {
+	if common.ForceResolveCountry && info.City == nil {
+		c.MaxMind.lookupCity(info)
+	}
 	c.ipCache.Store(info.Str, &checkCache{
 		IPInfo:  info,
 		allow:   allow,
@@ -175,7 +179,7 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 		return false
 	}
 
-	// always allow private and loopback
+	// always allow loopback
 	// loopback is not logged
 	if ip.IsLoopback() {
 		return true
