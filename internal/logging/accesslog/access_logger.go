@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -53,6 +54,7 @@ type (
 )
 
 const (
+	StdoutbufSize = 64
 	MinBufferSize = 4 * kilobyte
 	MaxBufferSize = 1 * megabyte
 )
@@ -79,6 +81,22 @@ func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) *AccessLo
 	return NewAccessLoggerWithIO(parent, NewMockFile(), cfg)
 }
 
+func unwrap[Writer any](w io.Writer) []Writer {
+	var result []Writer
+	if unwrapped, ok := w.(MultiWriterInterface); ok {
+		for _, w := range unwrapped.Unwrap() {
+			if unwrapped, ok := w.(Writer); ok {
+				result = append(result, unwrapped)
+			}
+		}
+		return result
+	}
+	if unwrapped, ok := w.(Writer); ok {
+		return []Writer{unwrapped}
+	}
+	return nil
+}
+
 func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg AnyConfig) *AccessLogger {
 	cfg := anyCfg.ToConfig()
 	if cfg.BufferSize == 0 {
@@ -90,6 +108,10 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 	if cfg.BufferSize > MaxBufferSize {
 		cfg.BufferSize = MaxBufferSize
 	}
+	if _, ok := writer.(*os.File); ok {
+		cfg.BufferSize = StdoutbufSize
+	}
+
 	l := &AccessLogger{
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
@@ -99,23 +121,8 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		logger:         logging.With().Str("file", writer.Name()).Logger(),
 	}
 
-	if unwrapped, ok := writer.(MultiWriterInterface); ok {
-		for _, w := range unwrapped.Unwrap() {
-			if sr, ok := w.(supportRotate); ok {
-				l.supportRotate = append(l.supportRotate, sr)
-			}
-			if closer, ok := w.(io.Closer); ok {
-				l.closer = append(l.closer, closer)
-			}
-		}
-	} else {
-		if sr, ok := writer.(supportRotate); ok {
-			l.supportRotate = append(l.supportRotate, sr)
-		}
-		if closer, ok := writer.(io.Closer); ok {
-			l.closer = append(l.closer, closer)
-		}
-	}
+	l.supportRotate = unwrap[supportRotate](writer)
+	l.closer = unwrap[io.Closer](writer)
 
 	if cfg.req != nil {
 		fmt := CommonFormatter{cfg: &cfg.req.Fields}
