@@ -64,6 +64,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - all
+    cap_add:
+      - NET_BIND_SERVICE
     environment:
       - DOCKER_HOST=tcp://${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1}:2375
     volumes:
