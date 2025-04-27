@@ -1,17 +1,46 @@
 ---
 services:
+  socket-proxy:
+    container_name: socket-proxy
+    image: lscr.io/linuxserver/socket-proxy:latest
+    environment:
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+      - ALLOW_RESTARTS=1
+      - CONTAINERS=1
+      - EVENTS=1
+      - PING=1
+      - POST=1
+      - VERSION=1
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    restart: unless-stopped
+    tmpfs:
+      - /run
+    ports:
+      - 127.0.0.1:2375:2375
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2375"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
   frontend:
     image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
     container_name: godoxy-frontend
     restart: unless-stopped
     network_mode: host # do not change this
     env_file: .env
+    user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - all
     depends_on:
       - app
     environment:
+      HOSTNAME: 127.0.0.1
       PORT: ${GODOXY_FRONTEND_PORT:-3000}
-
-    # modify below to fit your needs
     labels:
       proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
       proxy.godoxy.port: ${GODOXY_FRONTEND_PORT:-3000}
@@ -29,11 +58,19 @@ services:
     restart: always
     network_mode: host # do not change this
     env_file: .env
+    user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - all
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      - DOCKER_HOST=127.0.0.1:2375
     volumes:
-      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
       - ./config:/app/config
       - ./logs:/app/logs
-      - ./error_pages:/app/error_pages
+      - ./error_pages:/app/error_pages:ro
       - ./data:/app/data
 
       # To use autocert, certs will be stored in "./certs".

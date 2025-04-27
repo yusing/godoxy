@@ -36,6 +36,7 @@ COMPOSE_FILE_NAME="compose.yml"
 COMPOSE_EXAMPLE_FILE_NAME="compose.example.yml"
 CONFIG_FILE_NAME="config.yml"
 CONFIG_EXAMPLE_FILE_NAME="config.example.yml"
+REQUIRED_DIRECTORIES=("config" "logs" "error_pages" "data" "certs")
 
 echo "Setting up GoDoxy"
 echo "Branch: ${BRANCH}"
@@ -149,12 +150,20 @@ get_timezone() {
 	fi
 }
 
+# check if running user is root
+if [ "$EUID" -ne 0 ]; then
+	echo "Error: Please run this script as root"
+	exit 1
+fi
+
 check_pkg "openssl" "openssl"
 check_pkg "docker" "docker-ce"
 
 # Setup required configurations
-# 1. Config base directory
-mkdir_if_not_exists "$CONFIG_BASE_PATH"
+# 1. Setup required directories
+for dir in "${REQUIRED_DIRECTORIES[@]}"; do
+	mkdir_if_not_exists "$dir"
+done
 
 # 2. .env file
 fetch_file "$DOT_ENV_EXAMPLE_PATH" "$DOT_ENV_PATH"
@@ -221,5 +230,11 @@ EOF
 		echo "Please refer to ${WIKI_URL}/Supported-DNS-01-Providers for more information"
 	fi
 fi
+
+# 7. setup permission
+
+echo "Setting up permissions"
+chown -R 1000:1000 .
+chmod -R 644 .
 
 echo "Setup finished"
