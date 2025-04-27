@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/notif"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	proxy "github.com/yusing/go-proxy/internal/route/provider"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -229,6 +230,7 @@ func (cfg *Config) load() gperr.Error {
 	errs.Add(cfg.entrypoint.SetAccessLogger(cfg.task, model.Entrypoint.AccessLog))
 	cfg.initNotification(model.Providers.Notification)
 	errs.Add(cfg.initAutoCert(model.AutoCert))
+	errs.Add(cfg.initProxmox(model.Providers.Proxmox))
 	errs.Add(cfg.loadRouteProviders(&model.Providers))
 
 	cfg.value = model
@@ -276,6 +278,17 @@ func (cfg *Config) initAutoCert(autocertCfg *autocert.Config) gperr.Error {
 
 	cfg.autocertProvider = autocert.NewProvider(autocertCfg, user, legoCfg)
 	return nil
+}
+
+func (cfg *Config) initProxmox(proxmoxCfg []proxmox.Config) gperr.Error {
+	proxmox.Clients.Clear()
+	var errs = gperr.NewBuilder()
+	for _, cfg := range proxmoxCfg {
+		if err := cfg.Init(); err != nil {
+			errs.Add(err.Subject(cfg.URL))
+		}
+	}
+	return errs.Error()
 }
 
 func (cfg *Config) errIfExists(p *proxy.Provider) gperr.Error {
