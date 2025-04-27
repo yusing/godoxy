@@ -53,10 +53,14 @@ export GODEBUG
 export GORACE
 export BUILD_FLAGS
 
-ifeq ($(shell id -u), 0)
-	SETCAP_CMD = setcap
+ifeq (${docker}, 0)
+	ifeq ($(shell id -u), 0)
+		SETCAP_CMD = setcap
+	else
+		SETCAP_CMD = sudo setcap
+	endif
 else
-	SETCAP_CMD = sudo setcap
+	SETCAP_CMD = echo
 endif
 
 .PHONY: debug

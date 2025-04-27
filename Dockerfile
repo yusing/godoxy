@@ -4,21 +4,19 @@ HEALTHCHECK NONE
 
 # package version does not matter
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make libcap-setcap
+RUN apk add --no-cache tzdata make
 
 # Stage 2: builder
 FROM deps AS builder
 
 WORKDIR /src
 
+COPY go.mod go.sum ./
 COPY Makefile ./
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
-
-# Only copy go.mod and go.sum initially for better caching
-COPY go.mod go.sum /src/
 
 ENV GOPATH=/root/go
 RUN go mod download -x
@@ -31,9 +29,8 @@ ENV MAKE_ARGS=${MAKE_ARGS}
 
 ENV GOCACHE=/root/.cache/go-build
 ENV GOPATH=/root/go
-RUN make ${MAKE_ARGS} build link-binary && \
-    mv bin /app/ && \
-    mkdir -p /app/error_pages /app/certs
+RUN make ${MAKE_ARGS} docker=1 build link-binary && \
+    mv bin /app/
 
 # Stage 3: Final image
 FROM scratch
@@ -45,10 +42,7 @@ LABEL proxy.exclude=1
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # copy binary
-COPY --from=builder /app /app
-
-# copy example config
-COPY config.example.yml /app/config/config.yml
+COPY --from=builder /app/bin /app/bin
 
 # copy certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
