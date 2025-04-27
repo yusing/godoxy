@@ -35,8 +35,8 @@ var allMiddlewares = map[string]*Middleware{
 }
 
 var (
-	ErrUnknownMiddleware    = gperr.New("unknown middleware")
-	ErrDuplicatedMiddleware = gperr.New("duplicated middleware")
+	ErrUnknownMiddleware       = gperr.New("unknown middleware")
+	ErrMiddlewareAlreadyExists = gperr.New("middleware with the same name already exists")
 )
 
 func Get(name string) (*Middleware, Error) {
@@ -69,7 +69,7 @@ func LoadComposeFiles() {
 		for name, m := range mws {
 			name = strutils.ToLowerNoSnake(name)
 			if _, ok := allMiddlewares[name]; ok {
-				errs.Add(ErrDuplicatedMiddleware.Subject(name))
+				errs.Add(ErrMiddlewareAlreadyExists.Subject(name))
 				continue
 			}
 			allMiddlewares[name] = m

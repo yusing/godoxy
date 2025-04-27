@@ -17,8 +17,7 @@ import (
 )
 
 type cloudflareRealIP struct {
-	realIP    realIP
-	Recursive bool
+	realIP realIP
 }
 
 const (
@@ -47,7 +46,7 @@ var CloudflareRealIP = NewMiddleware[cloudflareRealIP]()
 func (cri *cloudflareRealIP) setup() {
 	cri.realIP.RealIPOpts = RealIPOpts{
 		Header:    "CF-Connecting-IP",
-		Recursive: cri.Recursive,
+		Recursive: true,
 	}
 }
 
