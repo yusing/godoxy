@@ -18,7 +18,7 @@ services:
     tmpfs:
       - /run
     ports:
-      - 127.0.0.1:2375:2375
+      - ${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}:2375
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:2375"]
       interval: 1m30s
@@ -32,6 +32,7 @@ services:
     network_mode: host # do not change this
     env_file: .env
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -63,10 +64,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - all
-    cap_add:
-      - NET_BIND_SERVICE
     environment:
-      - DOCKER_HOST=127.0.0.1:2375
+      - DOCKER_HOST=tcp://${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1}:2375
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs

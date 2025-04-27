@@ -4,7 +4,7 @@ HEALTHCHECK NONE
 
 # package version does not matter
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make
+RUN apk add --no-cache tzdata make libcap-setcap
 
 ENV GOPATH=/root/go
 

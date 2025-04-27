@@ -60,11 +60,11 @@ else
 	SETCAP_CMD = sudo setcap
 endif
 
+
+# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
+POST_BUILD = $(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH};
 ifeq ($(docker), 1)
-	POST_BUILD = mkdir -p /app && mv ${BIN_PATH} /app/run
-else
-	# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
-	POST_BUILD = $(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH}
+	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
 
 .PHONY: debug
