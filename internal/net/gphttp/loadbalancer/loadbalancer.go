@@ -133,11 +133,6 @@ func (lb *LoadBalancer) AddServer(srv Server) {
 
 	lb.rebalance()
 	lb.impl.OnAddServer(srv)
-
-	lb.l.Debug().
-		Str("action", "add").
-		Str("server", srv.Name()).
-		Msgf("%d servers available", lb.pool.Size())
 }
 
 func (lb *LoadBalancer) RemoveServer(srv Server) {
