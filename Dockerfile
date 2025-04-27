@@ -6,20 +6,26 @@ HEALTHCHECK NONE
 # trunk-ignore(hadolint/DL3018)
 RUN apk add --no-cache tzdata make
 
+ENV GOPATH=/root/go
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+COPY agent ./agent
+COPY internal/dnsproviders ./internal/dnsproviders
+
+RUN go mod download -x
+
 # Stage 2: builder
 FROM deps AS builder
 
 WORKDIR /src
 
-COPY go.mod go.sum ./
 COPY Makefile ./
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
-
-ENV GOPATH=/root/go
-RUN go mod download -x
 
 ARG VERSION
 ENV VERSION=${VERSION}
@@ -29,8 +35,8 @@ ENV MAKE_ARGS=${MAKE_ARGS}
 
 ENV GOCACHE=/root/.cache/go-build
 ENV GOPATH=/root/go
-RUN make ${MAKE_ARGS} docker=1 build link-binary && \
-    mv bin /app/
+
+RUN make ${MAKE_ARGS} docker=1 build
 
 # Stage 3: Final image
 FROM scratch
@@ -42,7 +48,7 @@ LABEL proxy.exclude=1
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # copy binary
-COPY --from=builder /app/bin /app/bin
+COPY --from=builder /app/run /app/run
 
 # copy certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs

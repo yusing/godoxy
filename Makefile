@@ -1,3 +1,4 @@
+shell := /bin/sh
 export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
@@ -53,14 +54,17 @@ export GODEBUG
 export GORACE
 export BUILD_FLAGS
 
-ifeq (${docker}, 0)
-	ifeq ($(shell id -u), 0)
-		SETCAP_CMD = setcap
-	else
-		SETCAP_CMD = sudo setcap
-	endif
+ifeq ($(shell id -u), 0)
+	SETCAP_CMD = setcap
 else
-	SETCAP_CMD = echo
+	SETCAP_CMD = sudo setcap
+endif
+
+ifeq ($(docker), 1)
+	POST_BUILD = mkdir -p /app && mv ${BIN_PATH} /app/run
+else
+	# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
+	POST_BUILD = $(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH}
 endif
 
 .PHONY: debug
@@ -68,15 +72,17 @@ endif
 test:
 	GODOXY_TEST=1 go test ./internal/...
 
+docker-build-test:
+	docker build -t godoxy .
+	docker build --build-arg=MAKE_ARGS=agent=1 -t godoxy-agent .
+
 get:
 	for dir in ${PWD} ${PWD}/agent; do cd $$dir && go get -u ./... && go mod tidy; done
 
 build:
-	mkdir -p bin
+	mkdir -p $(shell dirname ${BIN_PATH})
 	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ${CMD_PATH}
-
-	# CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
-	$(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH}
+	${POST_BUILD}
 
 run:
 	[ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${CMD_PATH}
@@ -86,7 +92,7 @@ debug:
 	sh -c 'HTTP_ADDR=:81 HTTPS_ADDR=:8443 API_ADDR=:8899 DEBUG=1 bin/godoxy-test'
 
 mtrace:
-	bin/godoxy debug-ls-mtrace > mtrace.json
+	 ${BIN_PATH} debug-ls-mtrace > mtrace.json
 
 rapid-crash:
 	docker run --restart=always --name test_crash -p 80 debian:bookworm-slim /bin/cat &&\
@@ -102,9 +108,6 @@ ci-test:
 
 cloc:
 	cloc --not-match-f '_test.go$$' cmd internal pkg
-
-link-binary:
-	ln -s /app/${NAME} bin/run
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)
