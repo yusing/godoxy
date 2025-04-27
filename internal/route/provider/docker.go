@@ -80,8 +80,11 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 			errs.Add(err.Subject(container.ContainerName))
 		}
 		for k, v := range newEntries {
-			if routes.Contains(k) {
-				errs.Addf("duplicated alias %s", k)
+			if conflict, ok := routes[k]; ok {
+				errs.Add(gperr.Multiline().
+					Addf("route with alias %s already exists", k).
+					Addf("container %s", container.ContainerName).
+					Addf("conflicting container %s", conflict.Container.ContainerName))
 			} else {
 				routes[k] = v
 			}
