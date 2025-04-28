@@ -178,7 +178,7 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 				ContainerName: c.ContainerName,
 			},
 		}
-		err := utils.Deserialize(cfg, idwCfg)
+		err := utils.MapUnmarshalValidate(cfg, idwCfg)
 		if err != nil {
 			gperr.LogWarn("invalid idlewatcher config", gperr.PrependSubject(c.ContainerName, err))
 		} else {
