@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/notif"
+	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -30,6 +31,7 @@ type (
 		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
 		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty"`
 		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
+		Proxmox      []proxmox.Config           `json:"proxmox" yaml:"proxmox,omitempty"`
 	}
 	Entrypoint struct {
 		Middlewares []map[string]any               `json:"middlewares"`

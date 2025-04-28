@@ -131,7 +131,7 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	case routes.StreamRoute:
 		w.stream = r
 	default:
-		return nil, gperr.New("unexpected route type")
+		return nil, gperr.Errorf("unexpected route type: %T", r)
 	}
 
 	ctx, cancel := context.WithTimeout(parent.Context(), reqTimeout)

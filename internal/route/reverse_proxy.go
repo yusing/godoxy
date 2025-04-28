@@ -22,19 +22,19 @@ import (
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
-type (
-	ReveseProxyRoute struct {
-		*Route
+type ReveseProxyRoute struct {
+	*Route
 
-		HealthMon health.HealthMonitor `json:"health,omitempty"`
+	HealthMon health.HealthMonitor `json:"health,omitempty"`
 
-		loadBalancer *loadbalancer.LoadBalancer
-		handler      http.Handler
-		rp           *reverseproxy.ReverseProxy
+	loadBalancer *loadbalancer.LoadBalancer
+	handler      http.Handler
+	rp           *reverseproxy.ReverseProxy
 
-		task *task.Task
-	}
-)
+	task *task.Task
+}
+
+var _ routes.ReverseProxyRoute = (*ReveseProxyRoute)(nil)
 
 // var globalMux    = http.NewServeMux() // TODO: support regex subdomain matching.
 
@@ -86,6 +86,11 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		rp:    rp,
 	}
 	return r, nil
+}
+
+// ReverseProxy implements routes.ReverseProxyRoute.
+func (r *ReveseProxyRoute) ReverseProxy() *reverseproxy.ReverseProxy {
+	return r.rp
 }
 
 // Start implements task.TaskStarter.

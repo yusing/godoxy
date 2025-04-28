@@ -15,7 +15,7 @@ require (
 	github.com/go-acme/lego/v4 v4.23.1 // acme client
 	github.com/go-playground/validator/v10 v10.26.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
-	github.com/gotify/server/v2 v2.6.1 // reference the Message struct for json response
+	github.com/gotify/server/v2 v2.6.3 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
@@ -41,13 +41,13 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-00010101000000-000000000000
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-00010101000000-000000000000
+	github.com/yusing/go-proxy/agent v0.0.0-20250428032249-8da63daf0202
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250428032249-8da63daf0202
 	go.uber.org/atomic v1.11.0
 )
 
 require (
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 )
@@ -131,7 +131,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
-	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.146 // indirect
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.147 // indirect
 	github.com/iij/doapi v0.0.0-20190504054126-0bbf12d6d7df // indirect
 	github.com/infobloxopen/infoblox-go-client/v2 v2.10.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -191,7 +191,7 @@ require (
 	github.com/sacloud/iaas-api-go v1.14.0 // indirect
 	github.com/sacloud/packages-go v0.0.11 // indirect
 	github.com/sagikazarmark/locafero v0.9.0 // indirect
-	github.com/samber/lo v1.49.1 // indirect
+	github.com/samber/lo v1.50.0 // indirect
 	github.com/samber/slog-common v0.18.1 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.33 // indirect
 	github.com/selectel/domains-go v1.1.0 // indirect
@@ -207,7 +207,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1151 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1154 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1136 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect

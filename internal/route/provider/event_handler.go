@@ -12,19 +12,13 @@ import (
 type EventHandler struct {
 	provider *Provider
 
-	errs    *gperr.Builder
-	added   *gperr.Builder
-	removed *gperr.Builder
-	updated *gperr.Builder
+	errs *gperr.Builder
 }
 
 func (p *Provider) newEventHandler() *EventHandler {
 	return &EventHandler{
 		provider: p,
 		errs:     gperr.NewBuilder("event errors"),
-		added:    gperr.NewBuilder("added"),
-		removed:  gperr.NewBuilder("removed"),
-		updated:  gperr.NewBuilder("updated"),
 	}
 }
 
@@ -88,15 +82,12 @@ func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 	err := handler.provider.startRoute(parent, route)
 	if err != nil {
 		handler.errs.Add(err.Subject("add"))
-	} else {
-		handler.added.Adds(route.Alias)
 	}
 }
 
 func (handler *EventHandler) Remove(route *route.Route) {
 	route.Finish("route removed")
 	delete(handler.provider.routes, route.Alias)
-	handler.removed.Adds(route.Alias)
 }
 
 func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, newRoute *route.Route) {
@@ -104,18 +95,11 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 	err := handler.provider.startRoute(parent, newRoute)
 	if err != nil {
 		handler.errs.Add(err.Subject("update"))
-	} else {
-		handler.updated.Adds(newRoute.Alias)
 	}
 }
 
 func (handler *EventHandler) Log() {
-	results := gperr.NewBuilder("event occurred")
-	results.AddFrom(handler.added, false)
-	results.AddFrom(handler.removed, false)
-	results.AddFrom(handler.updated, false)
-	results.AddFrom(handler.errs, false)
-	if result := results.String(); result != "" {
-		handler.provider.Logger().Info().Msg(result)
+	if err := handler.errs.Error(); err != nil {
+		handler.provider.Logger().Info().Msg(err.Error())
 	}
 }

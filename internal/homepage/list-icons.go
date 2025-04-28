@@ -10,6 +10,7 @@ import (
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -68,6 +69,10 @@ func InitIconListCache() {
 			Int("display_names", len(iconsCache.DisplayNames)).
 			Msg("icon list cache loaded")
 	}
+
+	task.OnProgramExit("save_icon_list_cache", func() {
+		utils.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
+	})
 }
 
 func ListAvailableIcons() (*Cache, error) {
