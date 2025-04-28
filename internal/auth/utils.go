@@ -10,22 +10,21 @@ import (
 )
 
 var (
-	ErrMissingOAuthToken   = gperr.New("missing oauth token")
 	ErrMissingSessionToken = gperr.New("missing session token")
-	ErrInvalidOAuthToken   = gperr.New("invalid oauth token")
 	ErrInvalidSessionToken = gperr.New("invalid session token")
 	ErrUserNotAllowed      = gperr.New("user not allowed")
 )
 
+func IsFrontend(r *http.Request) bool {
+	return r.Host == common.APIHTTPAddr
+}
+
 func requestHost(r *http.Request) string {
 	// check if it's from backend
-	switch r.Host {
-	case common.APIHTTPAddr:
-		// use XFH
+	if IsFrontend(r) {
 		return r.Header.Get("X-Forwarded-Host")
-	default:
-		return r.Host
 	}
+	return r.Host
 }
 
 // cookieDomain returns the fully qualified domain name of the request host

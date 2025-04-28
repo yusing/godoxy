@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -19,12 +21,22 @@ type oauthRefreshToken struct {
 	Username     string    `json:"username"`
 	RefreshToken string    `json:"refresh_token"`
 	Expiry       time.Time `json:"expiry"`
+
+	result *refreshResult
+	err    error
+	mu     sync.Mutex
 }
 
 type Session struct {
 	SessionID sessionID `json:"session_id"`
 	Username  string    `json:"username"`
 	Groups    []string  `json:"groups"`
+}
+
+type refreshResult struct {
+	newSession Session
+	jwt        string
+	jwtExpiry  time.Time
 }
 
 type sessionClaims struct {
@@ -34,11 +46,12 @@ type sessionClaims struct {
 
 type sessionID string
 
-var oauthRefreshTokens jsonstore.MapStore[oauthRefreshToken]
+var oauthRefreshTokens jsonstore.MapStore[*oauthRefreshToken]
 
 var (
 	defaultRefreshTokenExpiry = 30 * 24 * time.Hour // 1 month
 	refreshBefore             = 30 * time.Second
+	sessionInvalidateDelay    = 3 * time.Second
 )
 
 var (
@@ -50,7 +63,7 @@ const sessionTokenIssuer = "GoDoxy"
 
 func init() {
 	if IsOIDCEnabled() {
-		oauthRefreshTokens = jsonstore.Store[oauthRefreshToken]("oauth_refresh_tokens")
+		oauthRefreshTokens = jsonstore.Store[*oauthRefreshToken]("oauth_refresh_tokens")
 	}
 }
 
@@ -61,7 +74,7 @@ func (token *oauthRefreshToken) expired() bool {
 func newSessionID() sessionID {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
-	return sessionID(base64.StdEncoding.EncodeToString(b))
+	return sessionID(hex.EncodeToString(b))
 }
 
 func newSession(username string, groups []string) Session {
@@ -72,26 +85,28 @@ func newSession(username string, groups []string) Session {
 	}
 }
 
-// getOnceOAuthRefreshToken returns the refresh token for the given session.
+// getOAuthRefreshToken returns the refresh token for the given session.
 //
 // The token is removed from the store after retrieval.
-func getOnceOAuthRefreshToken(claims *Session) (*oauthRefreshToken, bool) {
+func getOAuthRefreshToken(claims *Session) (*oauthRefreshToken, bool) {
 	token, ok := oauthRefreshTokens.Load(string(claims.SessionID))
 	if !ok {
 		return nil, false
 	}
-	invalidateOAuthRefreshToken(claims.SessionID)
+
 	if token.expired() {
+		invalidateOAuthRefreshToken(claims.SessionID)
 		return nil, false
 	}
+
 	if claims.Username != token.Username {
 		return nil, false
 	}
-	return &token, true
+	return token, true
 }
 
 func storeOAuthRefreshToken(sessionID sessionID, username, token string) {
-	oauthRefreshTokens.Store(string(sessionID), oauthRefreshToken{
+	oauthRefreshTokens.Store(string(sessionID), &oauthRefreshToken{
 		Username:     username,
 		RefreshToken: token,
 		Expiry:       time.Now().Add(defaultRefreshTokenExpiry),
@@ -135,51 +150,75 @@ func (auth *OIDCProvider) parseSessionJWT(sessionJWT string) (claims *sessionCla
 	return claims, sessionToken.Valid && claims.Issuer == sessionTokenIssuer, nil
 }
 
-func (auth *OIDCProvider) TryRefreshToken(w http.ResponseWriter, r *http.Request, sessionJWT string) error {
+func (auth *OIDCProvider) TryRefreshToken(ctx context.Context, sessionJWT string) (*refreshResult, error) {
 	// verify the session cookie
 	claims, valid, err := auth.parseSessionJWT(sessionJWT)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidSessionToken, err)
+		return nil, fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrInvalidSessionToken, err)
 	}
 	if !valid {
-		return ErrInvalidSessionToken
+		return nil, ErrInvalidSessionToken
 	}
 
 	// check if refresh is possible
-	refreshToken, ok := getOnceOAuthRefreshToken(&claims.Session)
+	refreshToken, ok := getOAuthRefreshToken(&claims.Session)
 	if !ok {
-		return errNoRefreshToken
+		return nil, errNoRefreshToken
 	}
 
 	if !auth.checkAllowed(claims.Username, claims.Groups) {
-		return ErrUserNotAllowed
+		return nil, ErrUserNotAllowed
+	}
+
+	return auth.doRefreshToken(ctx, refreshToken, &claims.Session)
+}
+
+func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oauthRefreshToken, claims *Session) (*refreshResult, error) {
+	refreshToken.mu.Lock()
+	defer refreshToken.mu.Unlock()
+
+	// already refreshed
+	// this must be called after refresh but before invalidate
+	if refreshToken.result != nil || refreshToken.err != nil {
+		return refreshToken.result, refreshToken.err
 	}
 
 	// this step refreshes the token
 	// see https://cs.opensource.google/go/x/oauth2/+/refs/tags/v0.29.0:oauth2.go;l=313
-	newToken, err := auth.oauthConfig.TokenSource(r.Context(), &oauth2.Token{
+	newToken, err := auth.oauthConfig.TokenSource(ctx, &oauth2.Token{
 		RefreshToken: refreshToken.RefreshToken,
 	}).Token()
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrRefreshTokenFailure, err)
+		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
+		return nil, refreshToken.err
 	}
 
-	idTokenJWT, idToken, err := auth.getIdToken(r.Context(), newToken)
+	idTokenJWT, idToken, err := auth.getIdToken(ctx, newToken)
 	if err != nil {
-		return err
+		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
+		return nil, refreshToken.err
 	}
+
+	// in case there're multiple requests for the same session to refresh
+	// invalidate the token after a short delay
+	go func() {
+		<-time.After(sessionInvalidateDelay)
+		invalidateOAuthRefreshToken(claims.SessionID)
+	}()
 
 	sessionID := newSessionID()
 
 	logging.Debug().Str("username", claims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
 	storeOAuthRefreshToken(sessionID, claims.Username, newToken.RefreshToken)
 
-	// set new idToken and new sessionToken
-	auth.setIDTokenCookie(w, r, idTokenJWT, time.Until(idToken.Expiry))
-	auth.setSessionTokenCookie(w, r, Session{
-		SessionID: sessionID,
-		Username:  claims.Username,
-		Groups:    claims.Groups,
-	})
-	return nil
+	refreshToken.result = &refreshResult{
+		newSession: Session{
+			SessionID: sessionID,
+			Username:  claims.Username,
+			Groups:    claims.Groups,
+		},
+		jwt:       idTokenJWT,
+		jwtExpiry: idToken.Expiry,
+	}
+	return refreshToken.result, nil
 }

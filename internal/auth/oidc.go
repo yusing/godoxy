@@ -13,6 +13,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -47,7 +48,12 @@ const (
 	OIDCLogoutPath   = "/auth/logout"
 )
 
-var errMissingIDToken = errors.New("missing id_token field from oauth token")
+var (
+	errMissingIDToken = errors.New("missing id_token field from oauth token")
+
+	ErrMissingOAuthToken = gperr.New("missing oauth token")
+	ErrInvalidOAuthToken = gperr.New("invalid oauth token")
+)
 
 // generateState generates a random string for OIDC state.
 const oidcStateLength = 32
@@ -148,12 +154,19 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// check for session token
 	sessionToken, err := r.Cookie(CookieOauthSessionToken)
-	if err == nil {
-		err = auth.TryRefreshToken(w, r, sessionToken.Value)
-		if err != nil {
-			logging.Debug().Err(err).Msg("failed to refresh token")
-			auth.clearCookie(w, r)
+	if err == nil { // session token exists
+		result, err := auth.TryRefreshToken(r.Context(), sessionToken.Value)
+		// redirect back to where they requested
+		// when token refresh is ok
+		if err == nil {
+			auth.setIDTokenCookie(w, r, result.jwt, time.Until(result.jwtExpiry))
+			auth.setSessionTokenCookie(w, r, result.newSession)
+			ProceedNext(w, r)
+			return
 		}
+		// clear cookies then redirect to home
+		logging.Err(err).Msg("failed to refresh token")
+		auth.clearCookie(w, r)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
