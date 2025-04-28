@@ -151,6 +151,10 @@ func (r *Route) Validate() gperr.Error {
 		}
 	}
 
+	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
+		r.Idlewatcher = r.Container.IdlewatcherConfig
+	}
+
 	// return error if route is localhost:<godoxy_port>
 	switch r.Host {
 	case "localhost", "127.0.0.1":
