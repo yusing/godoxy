@@ -12,7 +12,7 @@ import (
 )
 
 type supportRotate interface {
-	io.ReadSeeker
+	io.Seeker
 	io.ReaderAt
 	io.WriterAt
 	Truncate(size int64) error
@@ -66,9 +66,23 @@ var rotateBytePool = synk.NewBytesPool(0, 16*1024*1024)
 // If the file does not need to be rotated, it returns nil, nil.
 func rotateLogFile(file supportRotate, config *Retention) (result *RotateResult, err error) {
 	if config.KeepSize > 0 {
-		return rotateLogFileBySize(file, config)
+		result, err = rotateLogFileBySize(file, config)
+	} else {
+		result, err = rotateLogFileByPolicy(file, config)
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := file.Seek(0, io.SeekEnd); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *RotateResult, err error) {
 	var shouldStop func() bool
 	t := utils.TimeNow()
 
@@ -234,7 +248,6 @@ var timeJSON = []byte(`"time":"`)
 //
 // The returned time is not validated.
 func ExtractTime(line []byte) []byte {
-	//TODO: optimize this
 	switch line[0] {
 	case '{': // JSON format
 		if i := bytes.Index(line, timeJSON); i != -1 {
