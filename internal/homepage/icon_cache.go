@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/go-proxy/internal/jsonstore"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -15,34 +16,24 @@ import (
 
 type cacheEntry struct {
 	Icon        []byte                  `json:"icon"`
-	ContentType string                  `json:"content_type"`
+	ContentType string                  `json:"content_type,omitempty"`
 	LastAccess  atomic.Value[time.Time] `json:"last_access"`
 }
 
 // cache key can be absolute url or route name.
 var (
-	iconCache   = make(map[string]*cacheEntry)
-	iconCacheMu sync.RWMutex
+	iconCache = jsonstore.Store[*cacheEntry](common.NamespaceIconCache)
+	iconMu    sync.RWMutex
 )
 
 const (
 	iconCacheTTL    = 3 * 24 * time.Hour
 	cleanUpInterval = time.Minute
-	maxCacheSize    = 1024 * 1024 // 1MB
+	maxIconSize     = 1024 * 1024 // 1MB
 	maxCacheEntries = 100
 )
 
-func InitIconCache() {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-
-	err := utils.LoadJSONIfExist(common.IconCachePath, &iconCache)
-	if err != nil {
-		logging.Error().Err(err).Msg("failed to load icon cache")
-	} else if len(iconCache) > 0 {
-		logging.Info().Int("count", len(iconCache)).Msg("icon cache loaded")
-	}
-
+func init() {
 	go func() {
 		cleanupTicker := time.NewTicker(cleanUpInterval)
 		defer cleanupTicker.Stop()
@@ -55,36 +46,21 @@ func InitIconCache() {
 			}
 		}
 	}()
-
-	task.OnProgramExit("save_favicon_cache", func() {
-		iconCacheMu.Lock()
-		defer iconCacheMu.Unlock()
-
-		if len(iconCache) == 0 {
-			return
-		}
-
-		if err := utils.SaveJSON(common.IconCachePath, &iconCache, 0o644); err != nil {
-			logging.Error().Err(err).Msg("failed to save icon cache")
-		}
-	})
 }
 
 func pruneExpiredIconCache() {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-
 	nPruned := 0
-	for key, icon := range iconCache {
+	for key, icon := range iconCache.Range {
 		if icon.IsExpired() {
-			delete(iconCache, key)
+			iconCache.Delete(key)
 			nPruned++
 		}
 	}
-	if len(iconCache) > maxCacheEntries {
+	if iconCache.Size() > maxCacheEntries {
+		iconCache.Clear()
 		newIconCache := make(map[string]*cacheEntry, maxCacheEntries)
 		i := 0
-		for key, icon := range iconCache {
+		for key, icon := range iconCache.Range {
 			if i == maxCacheEntries {
 				break
 			}
@@ -93,7 +69,9 @@ func pruneExpiredIconCache() {
 				i++
 			}
 		}
-		iconCache = newIconCache
+		for key, icon := range newIconCache {
+			iconCache.Store(key, icon)
+		}
 	}
 	if nPruned > 0 {
 		logging.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
@@ -101,21 +79,18 @@ func pruneExpiredIconCache() {
 }
 
 func PruneRouteIconCache(route route) {
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
-	delete(iconCache, route.Key())
+	iconCache.Delete(route.Key())
 }
 
 func loadIconCache(key string) *FetchResult {
-	iconCacheMu.RLock()
-	defer iconCacheMu.RUnlock()
-
-	icon, ok := iconCache[key]
+	iconMu.RLock()
+	defer iconMu.RUnlock()
+	icon, ok := iconCache.Load(key)
 	if ok && len(icon.Icon) > 0 {
 		logging.Debug().
 			Str("key", key).
 			Msg("icon found in cache")
-		icon.LastAccess.Store(time.Now())
+		icon.LastAccess.Store(utils.TimeNow())
 		return &FetchResult{Icon: icon.Icon, contentType: icon.ContentType}
 	}
 	return nil
@@ -123,15 +98,17 @@ func loadIconCache(key string) *FetchResult {
 
 func storeIconCache(key string, result *FetchResult) {
 	icon := result.Icon
-	if len(icon) > maxCacheSize {
+	if len(icon) > maxIconSize {
 		logging.Debug().Int("size", len(icon)).Msg("icon cache size exceeds max cache size")
 		return
 	}
-	iconCacheMu.Lock()
-	defer iconCacheMu.Unlock()
+
+	iconMu.Lock()
+	defer iconMu.Unlock()
+
 	entry := &cacheEntry{Icon: icon, ContentType: result.contentType}
 	entry.LastAccess.Store(time.Now())
-	iconCache[key] = entry
+	iconCache.Store(key, entry)
 	logging.Debug().Str("key", key).Int("size", len(icon)).Msg("stored icon cache")
 }
 
@@ -140,12 +117,20 @@ func (e *cacheEntry) IsExpired() bool {
 }
 
 func (e *cacheEntry) UnmarshalJSON(data []byte) error {
+	var tmp struct {
+		Icon        []byte    `json:"icon"`
+		ContentType string    `json:"content_type,omitempty"`
+		LastAccess  time.Time `json:"last_access"`
+	}
 	// check if data is json
 	if json.Valid(data) {
-		err := json.Unmarshal(data, &e)
+		err := json.Unmarshal(data, &tmp)
 		// return only if unmarshal is successful
 		// otherwise fallback to base64
 		if err == nil {
+			e.Icon = tmp.Icon
+			e.ContentType = tmp.ContentType
+			e.LastAccess.Store(tmp.LastAccess)
 			return nil
 		}
 	}

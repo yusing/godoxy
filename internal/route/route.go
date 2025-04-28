@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
@@ -484,7 +483,7 @@ func (r *Route) FinalizeHomepageConfig() {
 		} else {
 			key = r.Alias
 		}
-		displayName, ok := internal.GetDisplayName(key)
+		displayName, ok := homepage.GetDisplayName(key)
 		if ok {
 			hp.Name = displayName
 		} else {

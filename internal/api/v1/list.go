@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
+	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/route/routes"
@@ -67,7 +67,7 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			limit = 0
 		}
-		icons, err := internal.SearchIcons(r.FormValue("keyword"), limit)
+		icons, err := homepage.SearchIcons(r.FormValue("keyword"), limit)
 		if err != nil {
 			gphttp.ClientError(w, err)
 			return
