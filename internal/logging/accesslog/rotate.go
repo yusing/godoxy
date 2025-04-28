@@ -16,6 +16,7 @@ type supportRotate interface {
 	io.ReaderAt
 	io.WriterAt
 	Truncate(size int64) error
+	Size() (int64, error)
 }
 
 type RotateResult struct {
@@ -96,9 +97,14 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 		return nil, nil // should not happen
 	}
 
-	s := NewBackScanner(file, defaultChunkSize)
+	fileSize, err := file.Size()
+	if err != nil {
+		return nil, err
+	}
+
+	s := NewBackScanner(file, fileSize, defaultChunkSize)
 	result = &RotateResult{
-		OriginalSize: s.FileSize(),
+		OriginalSize: fileSize,
 	}
 
 	// nothing to rotate, return the nothing
@@ -201,7 +207,7 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 //
 // Invalid lines will not be detected and included in the result.
 func rotateLogFileBySize(file supportRotate, config *Retention) (result *RotateResult, err error) {
-	filesize, err := file.Seek(0, io.SeekEnd)
+	filesize, err := file.Size()
 	if err != nil {
 		return nil, err
 	}

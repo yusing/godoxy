@@ -72,6 +72,14 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
 	return f.f.Seek(offset, whence)
 }
 
+func (f *File) Size() (int64, error) {
+	stat, err := f.f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return stat.Size(), nil
+}
+
 func (f *File) Truncate(size int64) error {
 	return f.f.Truncate(size)
 }
