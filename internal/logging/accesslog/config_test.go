@@ -30,7 +30,7 @@ func TestNewConfig(t *testing.T) {
 	expect.NoError(t, err)
 
 	var config RequestLoggerConfig
-	err = utils.Deserialize(parsed, &config)
+	err = utils.MapUnmarshalValidate(parsed, &config)
 	expect.NoError(t, err)
 
 	expect.Equal(t, config.BufferSize, 10)

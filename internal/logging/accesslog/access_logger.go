@@ -43,6 +43,12 @@ type (
 		Name() string // file name or path
 	}
 
+	SupportRotate interface {
+		io.Writer
+		supportRotate
+		Name() string
+	}
+
 	RequestFormatter interface {
 		// AppendRequestLog appends a log line to line with or without a trailing newline
 		AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte

@@ -170,8 +170,8 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 	}
 }
 
-// Deserialize takes a SerializedObject and a target value, and assigns the values in the SerializedObject to the target value.
-// Deserialize ignores case differences between the field names in the SerializedObject and the target.
+// MapUnmarshalValidate takes a SerializedObject and a target value, and assigns the values in the SerializedObject to the target value.
+// MapUnmarshalValidate ignores case differences between the field names in the SerializedObject and the target.
 //
 // The target value must be a struct or a map[string]any.
 // If the target value is a struct , and implements the MapUnmarshaller interface,
@@ -183,11 +183,11 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 // If the target value is a map[string]any the SerializedObject will be deserialized into the map.
 //
 // The function returns an error if the target value is not a struct or a map[string]any, or if there is an error during deserialization.
-func Deserialize(src SerializedObject, dst any) (err gperr.Error) {
-	return deserialize(src, dst, true)
+func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
+	return mapUnmarshalValidate(src, dst, true)
 }
 
-func deserialize(src SerializedObject, dst any, checkValidateTag bool) (err gperr.Error) {
+func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) (err gperr.Error) {
 	dstV := reflect.ValueOf(dst)
 	dstT := dstV.Type()
 
@@ -378,7 +378,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if !ok {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		return deserialize(obj, dst.Addr().Interface(), checkValidateTag)
+		return mapUnmarshalValidate(obj, dst.Addr().Interface(), checkValidateTag)
 	case srcKind == reflect.Slice:
 		if src.Len() == 0 {
 			return nil
@@ -500,21 +500,21 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	return true, Convert(reflect.ValueOf(tmp), dst, true)
 }
 
-func DeserializeYAML[T any](data []byte, target *T) gperr.Error {
+func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 	m := make(map[string]any)
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return gperr.Wrap(err)
 	}
-	return Deserialize(m, target)
+	return MapUnmarshalValidate(m, target)
 }
 
-func DeserializeYAMLMap[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
+func UnmarshalValidateYAMLXSync[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
 	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
 		return
 	}
 	m2 := make(map[string]V, len(m))
-	if err = Deserialize(m, m2); err != nil {
+	if err = MapUnmarshalValidate(m, m2); err != nil {
 		return
 	}
 	return functional.NewMapFrom(m2), nil

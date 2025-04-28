@@ -45,6 +45,6 @@ oauth2_config:
 	testYaml = testYaml[1:] // remove first \n
 	opt := make(map[string]any)
 	require.NoError(t, yaml.Unmarshal([]byte(testYaml), &opt))
-	require.NoError(t, utils.Deserialize(opt, cfg))
+	require.NoError(t, utils.MapUnmarshalValidate(opt, cfg))
 	require.Equal(t, cfg, cfgExpected)
 }

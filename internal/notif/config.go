@@ -47,7 +47,7 @@ func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) 
 	}
 
 	// unmarshal provider config
-	if err := utils.Deserialize(m, cfg.Provider); err != nil {
+	if err := utils.MapUnmarshalValidate(m, cfg.Provider); err != nil {
 		return err
 	}
 

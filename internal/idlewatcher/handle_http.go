@@ -38,6 +38,10 @@ func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		f := &ForceCacheControl{expires: w.expires().Format(http.TimeFormat), ResponseWriter: rw}
+		w, ok := watcherMap[w.Key()] // could've been reloaded
+		if !ok {
+			return
+		}
 		w.rp.ServeHTTP(f, r)
 	}
 }

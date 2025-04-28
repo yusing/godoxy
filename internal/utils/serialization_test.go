@@ -40,7 +40,7 @@ func TestDeserialize(t *testing.T) {
 
 	t.Run("deserialize", func(t *testing.T) {
 		var s2 S
-		err := Deserialize(testStructSerialized, &s2)
+		err := MapUnmarshalValidate(testStructSerialized, &s2)
 		ExpectNoError(t, err)
 		ExpectEqual(t, s2, testStruct)
 	})
@@ -60,13 +60,13 @@ func TestDeserializeAnonymousField(t *testing.T) {
 	}
 	// all, anon := extractFields(reflect.TypeOf(s2))
 	// t.Fatalf("anon %v, all %v", anon, all)
-	err := Deserialize(map[string]any{"a": 1, "b": 2, "c": 3}, &s)
+	err := MapUnmarshalValidate(map[string]any{"a": 1, "b": 2, "c": 3}, &s)
 	ExpectNoError(t, err)
 	ExpectEqual(t, s.A, 1)
 	ExpectEqual(t, s.B, 2)
 	ExpectEqual(t, s.C, 3)
 
-	err = Deserialize(map[string]any{"a": 1, "b": 2, "c": 3}, &s2)
+	err = MapUnmarshalValidate(map[string]any{"a": 1, "b": 2, "c": 3}, &s2)
 	ExpectNoError(t, err)
 	ExpectEqual(t, s2.A, 1)
 	ExpectEqual(t, s2.B, 2)
@@ -148,7 +148,7 @@ func (c *testType) Parse(v string) (err error) {
 func TestConvertor(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		m := new(testModel)
-		ExpectNoError(t, Deserialize(map[string]any{"Test": "123"}, m))
+		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
 
 		ExpectEqual(t, m.Test.foo, 123)
 		ExpectEqual(t, m.Test.bar, "123")
@@ -156,18 +156,18 @@ func TestConvertor(t *testing.T) {
 
 	t.Run("int_to_string", func(t *testing.T) {
 		m := new(testModel)
-		ExpectNoError(t, Deserialize(map[string]any{"Test": "123"}, m))
+		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Test": "123"}, m))
 
 		ExpectEqual(t, m.Test.foo, 123)
 		ExpectEqual(t, m.Test.bar, "123")
 
-		ExpectNoError(t, Deserialize(map[string]any{"Baz": 123}, m))
+		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Baz": 123}, m))
 		ExpectEqual(t, m.Baz, "123")
 	})
 
 	t.Run("invalid", func(t *testing.T) {
 		m := new(testModel)
-		ExpectError(t, ErrUnsupportedConversion, Deserialize(map[string]any{"Test": struct{}{}}, m))
+		ExpectError(t, ErrUnsupportedConversion, MapUnmarshalValidate(map[string]any{"Test": struct{}{}}, m))
 	})
 }
 

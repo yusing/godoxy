@@ -3,14 +3,9 @@ package pkg
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 )
 
 func GetVersion() Version {
@@ -31,26 +26,26 @@ func init() {
 	currentVersion = ParseVersion(version)
 
 	// ignore errors
-	versionFile := filepath.Join(common.DataDir, "version")
-	var lastVersionStr string
-	f, err := os.OpenFile(versionFile, os.O_RDWR|os.O_CREATE, 0o644)
-	if err == nil {
-		_, err = fmt.Fscanf(f, "%s", &lastVersionStr)
-		lastVersion = ParseVersion(lastVersionStr)
-	}
-	if err != nil && !os.IsNotExist(err) {
-		logging.Warn().Err(err).Msg("failed to read version file")
-		return
-	}
-	if err := f.Truncate(0); err != nil {
-		logging.Warn().Err(err).Msg("failed to truncate version file")
-		return
-	}
-	_, err = f.WriteString(version)
-	if err != nil {
-		logging.Warn().Err(err).Msg("failed to save version file")
-		return
-	}
+	// versionFile := filepath.Join(common.DataDir, "version")
+	// var lastVersionStr string
+	// f, err := os.OpenFile(versionFile, os.O_RDWR|os.O_CREATE, 0o644)
+	// if err == nil {
+	// 	_, err = fmt.Fscanf(f, "%s", &lastVersionStr)
+	// 	lastVersion = ParseVersion(lastVersionStr)
+	// }
+	// if err != nil && !os.IsNotExist(err) {
+	// 	logging.Warn().Err(err).Msg("failed to read version file")
+	// 	return
+	// }
+	// if err := f.Truncate(0); err != nil {
+	// 	logging.Warn().Err(err).Msg("failed to truncate version file")
+	// 	return
+	// }
+	// _, err = f.WriteString(version)
+	// if err != nil {
+	// 	logging.Warn().Err(err).Msg("failed to save version file")
+	// 	return
+	// }
 }
 
 type Version struct{ Generation, Major, Minor int }

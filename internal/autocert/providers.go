@@ -16,7 +16,7 @@ func DNSProvider[CT any, PT challenge.Provider](
 ) Generator {
 	return func(opt map[string]any) (challenge.Provider, gperr.Error) {
 		cfg := defaultCfg()
-		err := utils.Deserialize(opt, &cfg)
+		err := utils.MapUnmarshalValidate(opt, &cfg)
 		if err != nil {
 			return nil, err
 		}

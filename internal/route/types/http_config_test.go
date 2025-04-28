@@ -40,7 +40,7 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Route{}
 			tt.input["host"] = "internal"
-			err := utils.Deserialize(tt.input, &cfg)
+			err := utils.MapUnmarshalValidate(tt.input, &cfg)
 			if err != nil {
 				expect.NoError(t, err)
 			}
