@@ -93,6 +93,8 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 	res.setPrivateHostname(helper)
 	res.setPublicHostname()
 	res.loadDeleteIdlewatcherLabels(helper)
+
+	logging.Debug().Bool("is_local", res.isLocal()).Msgf("container %q", res.ContainerName)
 	return
 }
 
@@ -126,11 +128,27 @@ func (c *Container) isDatabase() bool {
 	return false
 }
 
+func (c *Container) isLocal() bool {
+	if strings.HasPrefix(c.DockerHost, "unix://") {
+		return true
+	}
+	url, err := url.Parse(c.DockerHost)
+	if err != nil {
+		return false
+	}
+	switch url.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Container) setPublicHostname() {
 	if !c.Running {
 		return
 	}
-	if strings.HasPrefix(c.DockerHost, "unix://") {
+	if c.isLocal() {
 		c.PublicHostname = "127.0.0.1"
 		return
 	}
@@ -144,18 +162,17 @@ func (c *Container) setPublicHostname() {
 }
 
 func (c *Container) setPrivateHostname(helper containerHelper) {
-	if !strings.HasPrefix(c.DockerHost, "unix://") && c.Agent == nil {
+	if !c.isLocal() && c.Agent == nil {
 		return
 	}
 	if helper.NetworkSettings == nil {
 		return
 	}
 	for _, v := range helper.NetworkSettings.Networks {
-		if v.IPAddress == "" {
-			continue
+		if v.IPAddress != "" {
+			c.PrivateHostname = v.IPAddress
+			return
 		}
-		c.PrivateHostname = v.IPAddress
-		return
 	}
 }
 
