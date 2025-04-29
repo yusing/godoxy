@@ -67,7 +67,7 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     environment:
-      - DOCKER_HOST=tcp://${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1}:2375
+      - DOCKER_HOST=tcp://${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs
