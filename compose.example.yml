@@ -9,6 +9,7 @@ services:
       - ALLOW_RESTARTS=1
       - CONTAINERS=1
       - EVENTS=1
+      - INFO=1
       - PING=1
       - POST=1
       - VERSION=1
@@ -19,12 +20,6 @@ services:
       - /run
     ports:
       - ${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}:2375
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2375"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
   frontend:
     image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
     container_name: godoxy-frontend
@@ -60,6 +55,9 @@ services:
     network_mode: host # do not change this
     env_file: .env
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
+    depends_on:
+      socket-proxy:
+        condition: service_started
     security_opt:
       - no-new-privileges:true
     cap_drop:
