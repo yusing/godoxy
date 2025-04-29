@@ -93,8 +93,6 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 	res.setPrivateHostname(helper)
 	res.setPublicHostname()
 	res.loadDeleteIdlewatcherLabels(helper)
-
-	logging.Debug().Bool("is_local", res.isLocal()).Msgf("container %q", res.ContainerName)
 	return
 }
 
