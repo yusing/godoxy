@@ -20,6 +20,8 @@ services:
       - /run
     ports:
       - ${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}:2375
+    labels:
+      proxy.exclude: true
   frontend:
     image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
     container_name: godoxy-frontend
