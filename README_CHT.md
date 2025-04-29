@@ -10,9 +10,11 @@
 
 輕量、易用、 [高效能](https://github.com/yusing/godoxy/wiki/Benchmarks)，且帶有主頁和配置面板的反向代理
 
-完整文檔請查閱 **[Wiki](https://github.com/yusing/godoxy/wiki)**（暫未有中文翻譯）
+<h5>
+<a href="https://docs.godoxy.dev">網站</a> | <a href="https://docs.godoxy.dev/Home.html">文檔</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
+</h5>
 
-<a href="README.md">EN</a> | **中文**
+<h5><a href="README.md">EN</a> | 中文</h5>
 
 <img src="https://github.com/user-attachments/assets/4bb371f4-6e4c-425c-89b2-b9e962bdd46f" style="max-width: 650">
 

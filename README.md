@@ -10,9 +10,11 @@
 
 A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Benchmarks) reverse proxy with WebUI.
 
-For full documentation, check out **[Wiki](https://github.com/yusing/godoxy/wiki)**
+<h5>
+<a href="https://docs.godoxy.dev">Website</a> | <a href="https://docs.godoxy.dev/Home.html">Wiki</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
+</h5>
 
-**EN** | <a href="README_CHT.md">中文</a>
+<h5>EN | <a href="README_CHT.md">中文</a></h5>
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
