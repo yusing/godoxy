@@ -125,7 +125,7 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
 		writer:         bufio.NewWriterSize(writer, cfg.BufferSize),
-		lineBufPool:    synk.NewBytesPool(512, 8192),
+		lineBufPool:    synk.NewBytesPool(256, 768), // for common/combined usually < 256B; for json < 512B
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         logging.With().Str("file", writer.Name()).Logger(),
 	}
