@@ -30,17 +30,29 @@ type RotateResult struct {
 }
 
 func (r *RotateResult) Print(logger *zerolog.Logger) {
-	logger.Info().
-		Str("original_size", strutils.FormatByteSize(r.OriginalSize)).
-		Str("bytes_read", strutils.FormatByteSize(r.NumBytesRead)).
-		Str("bytes_keep", strutils.FormatByteSize(r.NumBytesKeep)).
-		Int("lines_read", r.NumLinesRead).
-		Int("lines_keep", r.NumLinesKeep).
-		Int("lines_invalid", r.NumLinesInvalid).
+	event := logger.Info().
+		Str("original_size", strutils.FormatByteSize(r.OriginalSize))
+	if r.NumBytesRead > 0 {
+		event.Str("bytes_read", strutils.FormatByteSize(r.NumBytesRead))
+	}
+	if r.NumBytesKeep > 0 {
+		event.Str("bytes_keep", strutils.FormatByteSize(r.NumBytesKeep))
+	}
+	if r.NumLinesRead > 0 {
+		event.Int("lines_read", r.NumLinesRead)
+	}
+	if r.NumLinesKeep > 0 {
+		event.Int("lines_keep", r.NumLinesKeep)
+	}
+	if r.NumLinesInvalid > 0 {
+		event.Int("lines_invalid", r.NumLinesInvalid)
+	}
+	event.Str("saved", strutils.FormatByteSize(r.OriginalSize-r.NumBytesKeep)).
 		Msg("log rotate result")
 }
 
 func (r *RotateResult) Add(other *RotateResult) {
+	r.OriginalSize += other.OriginalSize
 	r.NumBytesRead += other.NumBytesRead
 	r.NumBytesKeep += other.NumBytesKeep
 	r.NumLinesRead += other.NumLinesRead
@@ -102,14 +114,14 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 		return nil, err
 	}
 
+	// nothing to rotate, return the nothing
+	if fileSize == 0 {
+		return nil, nil
+	}
+
 	s := NewBackScanner(file, fileSize, defaultChunkSize)
 	result = &RotateResult{
 		OriginalSize: fileSize,
-	}
-
-	// nothing to rotate, return the nothing
-	if result.OriginalSize == 0 {
-		return nil, nil
 	}
 
 	// Store the line positions and sizes we want to keep
