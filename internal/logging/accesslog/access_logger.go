@@ -66,8 +66,8 @@ const (
 )
 
 const (
-	flushInterval  = 30 * time.Second
-	rotateInterval = time.Hour
+	flushInterval         = 30 * time.Second
+	defaultRotateInterval = time.Hour
 )
 
 const (
@@ -116,6 +116,9 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 	}
 	if _, ok := writer.(*os.File); ok {
 		cfg.BufferSize = StdoutbufSize
+	}
+	if cfg.RotateInterval == 0 {
+		cfg.RotateInterval = defaultRotateInterval
 	}
 
 	l := &AccessLogger{
@@ -238,7 +241,7 @@ func (l *AccessLogger) start() {
 	flushTicker := time.NewTicker(30 * time.Second)
 	defer flushTicker.Stop()
 
-	rotateTicker := time.NewTicker(rotateInterval)
+	rotateTicker := time.NewTicker(l.cfg.RotateInterval)
 	defer rotateTicker.Stop()
 
 	for {

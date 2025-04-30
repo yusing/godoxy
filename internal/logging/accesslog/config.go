@@ -1,16 +1,19 @@
 package accesslog
 
 import (
+	"time"
+
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type (
 	ConfigBase struct {
-		BufferSize int        `json:"buffer_size"`
-		Path       string     `json:"path"`
-		Stdout     bool       `json:"stdout"`
-		Retention  *Retention `json:"retention" aliases:"keep"`
+		BufferSize     int           `json:"buffer_size"`
+		Path           string        `json:"path"`
+		Stdout         bool          `json:"stdout"`
+		Retention      *Retention    `json:"retention" aliases:"keep"`
+		RotateInterval time.Duration `json:"rotate_interval,omitempty"`
 	}
 	ACLLoggerConfig struct {
 		ConfigBase
