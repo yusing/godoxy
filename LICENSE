@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2024 [fullname]
+Copyright (c) 2024 - present Yusing
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+internal/net/gphttp/reverseproxy/reverse_proxy_mod.go is copied from et/http/httputil/reverseproxy.go with modifications to adapt to this project.
+
+Copyright 2011 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+
+---
+
+internal/utils/io.go has a modified version of io.Copy with context and HTTP flusher handling.
+
+Copyright 2009 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+
+---
+
+internal/utils/strutils/split_join.go is copied from strings.Split and strings.Join with modifications to adapt to this project.
+
+Copyright 2009 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
