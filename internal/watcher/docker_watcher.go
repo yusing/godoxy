@@ -136,12 +136,19 @@ func (w *DockerWatcher) EventsWithOptions(ctx context.Context, options DockerLis
 				err = nil
 				// trigger reload (clear routes)
 				eventCh <- reloadTrigger
-				for !w.checkConnection(ctx) {
+
+				retry := time.NewTicker(dockerWatcherRetryInterval)
+				defer retry.Stop()
+				ok := false
+				for !ok {
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(dockerWatcherRetryInterval):
-						continue
+					case <-retry.C:
+						if w.checkConnection(ctx) {
+							ok = true
+							break
+						}
 					}
 				}
 				// connection successful, trigger reload (reload routes)
