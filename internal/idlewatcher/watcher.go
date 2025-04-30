@@ -262,7 +262,7 @@ func (w *Watcher) watchUntilDestroy() (returnCause gperr.Error) {
 		case <-w.task.Context().Done():
 			return gperr.Wrap(w.task.FinishCause())
 		case err := <-errCh:
-			return err
+			gperr.LogError("watcher error", err, &w.l)
 		case e := <-eventCh:
 			w.l.Debug().Stringer("action", e.Action).Msg("state changed")
 			if e.Action == events.ActionContainerDestroy {
