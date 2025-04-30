@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/utils/synk"
@@ -201,6 +202,8 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 		// Write it to the new position
 		if _, err := file.WriteAt(buf, writePos); err != nil {
 			return nil, err
+		} else if n < line.Size {
+			return nil, gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, line.Size, n)
 		}
 		writePos += n
 	}

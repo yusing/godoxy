@@ -9,7 +9,7 @@ import (
 
 type (
 	ConfigBase struct {
-		BufferSize     int           `json:"buffer_size"`
+		B              int           `json:"buffer_size"` // Deprecated: buffer size is adjusted dynamically
 		Path           string        `json:"path"`
 		Stdout         bool          `json:"stdout"`
 		Retention      *Retention    `json:"retention" aliases:"keep"`
@@ -58,8 +58,6 @@ var (
 	ReqLoggerFormats = []Format{FormatCommon, FormatCombined, FormatJSON}
 )
 
-const DefaultBufferSize = 64 * kilobyte // 64KB
-
 func (cfg *ConfigBase) Validate() gperr.Error {
 	if cfg.Path == "" && !cfg.Stdout {
 		return gperr.New("path or stdout is required")
@@ -102,8 +100,7 @@ func (cfg *RequestLoggerConfig) ToConfig() *Config {
 func DefaultRequestLoggerConfig() *RequestLoggerConfig {
 	return &RequestLoggerConfig{
 		ConfigBase: ConfigBase{
-			BufferSize: DefaultBufferSize,
-			Retention:  &Retention{Days: 30},
+			Retention: &Retention{Days: 30},
 		},
 		Format: FormatCombined,
 		Fields: Fields{
@@ -123,8 +120,7 @@ func DefaultRequestLoggerConfig() *RequestLoggerConfig {
 func DefaultACLLoggerConfig() *ACLLoggerConfig {
 	return &ACLLoggerConfig{
 		ConfigBase: ConfigBase{
-			BufferSize: DefaultBufferSize,
-			Retention:  &Retention{Days: 30},
+			Retention: &Retention{Days: 30},
 		},
 	}
 }

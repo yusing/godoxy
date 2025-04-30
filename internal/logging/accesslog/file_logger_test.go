@@ -50,7 +50,6 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	file := NewMockFile()
 
 	cfg := DefaultRequestLoggerConfig()
-	cfg.BufferSize = 1024
 	parent := task.RootTask("test", false)
 
 	loggerCount := 5

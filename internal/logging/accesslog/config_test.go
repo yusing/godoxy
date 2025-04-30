@@ -11,7 +11,6 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	labels := map[string]string{
-		"proxy.buffer_size":                 "10",
 		"proxy.format":                      "combined",
 		"proxy.path":                        "/tmp/access.log",
 		"proxy.filters.status_codes.values": "200-299",
@@ -33,7 +32,6 @@ func TestNewConfig(t *testing.T) {
 	err = utils.MapUnmarshalValidate(parsed, &config)
 	expect.NoError(t, err)
 
-	expect.Equal(t, config.BufferSize, 10)
 	expect.Equal(t, config.Format, FormatCombined)
 	expect.Equal(t, config.Path, "/tmp/access.log")
 	expect.Equal(t, config.Filters.StatusCodes.Values, []*StatusCodeRange{{Start: 200, End: 299}})
