@@ -13,15 +13,16 @@ func TestNewJSON(t *testing.T) {
 }
 
 func TestSaveLoadStore(t *testing.T) {
+	defer clear(stores)
+
 	storesPath = t.TempDir()
 	store := Store[string]("test")
 	store.Store("a", "1")
 	if err := save(); err != nil {
 		t.Fatal(err)
 	}
-	if err := load(); err != nil {
-		t.Fatal(err)
-	}
+	// reload
+	clear(stores)
 	loaded := Store[string]("test")
 	v, ok := loaded.Load("a")
 	if !ok {
@@ -43,6 +44,8 @@ type testObject struct {
 func (*testObject) Initialize() {}
 
 func TestSaveLoadObject(t *testing.T) {
+	defer clear(stores)
+
 	storesPath = t.TempDir()
 	obj := Object[*testObject]("test")
 	obj.I = 1
@@ -50,9 +53,8 @@ func TestSaveLoadObject(t *testing.T) {
 	if err := save(); err != nil {
 		t.Fatal(err)
 	}
-	if err := load(); err != nil {
-		t.Fatal(err)
-	}
+	// reload
+	clear(stores)
 	loaded := Object[*testObject]("test")
 	if loaded.I != 1 || loaded.S != "1" {
 		t.Fatalf("expected 1, got %d, %s", loaded.I, loaded.S)

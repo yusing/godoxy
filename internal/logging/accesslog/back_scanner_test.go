@@ -67,7 +67,7 @@ func TestBackScanner(t *testing.T) {
 			}
 
 			// Create scanner with small chunk size to test chunking
-			scanner := NewBackScanner(mockFile, 10)
+			scanner := NewBackScanner(mockFile, mockFile.MustSize(), 10)
 
 			// Collect all lines
 			var lines [][]byte
@@ -108,7 +108,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 				t.Fatalf("failed to write to mock file: %v", err)
 			}
 
-			scanner := NewBackScanner(mockFile, chunkSize)
+			scanner := NewBackScanner(mockFile, mockFile.MustSize(), chunkSize)
 
 			var lines [][]byte
 			for scanner.Scan() {
@@ -170,7 +170,8 @@ func TestReset(t *testing.T) {
 		}
 	}
 	linesRead := 0
-	s := NewBackScanner(file, defaultChunkSize)
+	stat, _ := file.Stat()
+	s := NewBackScanner(file, stat.Size(), defaultChunkSize)
 	for s.Scan() {
 		linesRead++
 	}
@@ -199,7 +200,7 @@ func BenchmarkBackScanner(b *testing.B) {
 	}
 	for i := range 14 {
 		chunkSize := (2 << i) * kilobyte
-		scanner := NewBackScanner(mockFile, chunkSize)
+		scanner := NewBackScanner(mockFile, mockFile.MustSize(), chunkSize)
 		name := strutils.FormatByteSize(chunkSize)
 		b.ResetTimer()
 		b.Run(name, func(b *testing.B) {
@@ -226,7 +227,8 @@ func BenchmarkBackScannerRealFile(b *testing.B) {
 		}
 	}
 
-	scanner := NewBackScanner(file, 256*kilobyte)
+	stat, _ := file.Stat()
+	scanner := NewBackScanner(file, stat.Size(), 256*kilobyte)
 	b.ResetTimer()
 	for scanner.Scan() {
 	}

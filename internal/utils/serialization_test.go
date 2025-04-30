@@ -167,7 +167,17 @@ func TestConvertor(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		m := new(testModel)
-		ExpectError(t, ErrUnsupportedConversion, MapUnmarshalValidate(map[string]any{"Test": struct{}{}}, m))
+		err := MapUnmarshalValidate(map[string]any{"Test": struct{ a int }{1}}, m)
+		ExpectError(t, ErrUnsupportedConversion, err)
+	})
+
+	t.Run("set_empty", func(t *testing.T) {
+		m := testModel{
+			Test: testType{1, "2"},
+			Baz:  "3",
+		}
+		ExpectNoError(t, MapUnmarshalValidate(map[string]any{"Test": nil, "Baz": nil}, &m))
+		ExpectEqual(t, m, testModel{})
 	})
 }
 
