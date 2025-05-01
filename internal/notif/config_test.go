@@ -25,8 +25,9 @@ func TestNotificationConfig(t *testing.T) {
 			},
 			expected: &Webhook{
 				ProviderBase: ProviderBase{
-					Name: "test",
-					URL:  "https://example.com",
+					Name:   "test",
+					URL:    "https://example.com",
+					Format: LogFormatMarkdown,
 				},
 				Template:  "discord",
 				Method:    http.MethodPost,
@@ -43,12 +44,32 @@ func TestNotificationConfig(t *testing.T) {
 				"provider": "gotify",
 				"url":      "https://example.com",
 				"token":    "token",
+				"format":   "plain",
 			},
 			expected: &GotifyClient{
 				ProviderBase: ProviderBase{
-					Name:  "test",
-					URL:   "https://example.com",
-					Token: "token",
+					Name:   "test",
+					URL:    "https://example.com",
+					Token:  "token",
+					Format: LogFormatPlain,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "default_format",
+			cfg: map[string]any{
+				"name":     "test",
+				"provider": "gotify",
+				"token":    "token",
+				"url":      "https://example.com",
+			},
+			expected: &GotifyClient{
+				ProviderBase: ProviderBase{
+					Name:   "test",
+					URL:    "https://example.com",
+					Token:  "token",
+					Format: LogFormatMarkdown,
 				},
 			},
 			wantErr: false,
@@ -59,6 +80,16 @@ func TestNotificationConfig(t *testing.T) {
 				"name":     "test",
 				"provider": "invalid",
 				"url":      "https://example.com",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid_format",
+			cfg: map[string]any{
+				"name":     "test",
+				"provider": "webhook",
+				"url":      "https://example.com",
+				"format":   "invalid",
 			},
 			wantErr: true,
 		},

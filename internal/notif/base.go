@@ -10,9 +10,10 @@ import (
 )
 
 type ProviderBase struct {
-	Name  string `json:"name" validate:"required"`
-	URL   string `json:"url" validate:"url"`
-	Token string `json:"token"`
+	Name   string     `json:"name" validate:"required"`
+	URL    string     `json:"url" validate:"url"`
+	Token  string     `json:"token"`
+	Format *LogFormat `json:"format"`
 }
 
 var (
@@ -22,8 +23,8 @@ var (
 
 // Validate implements the utils.CustomValidator interface.
 func (base *ProviderBase) Validate() gperr.Error {
-	if base.Token == "" {
-		return ErrMissingToken
+	if base.Format == nil {
+		base.Format = LogFormatMarkdown
 	}
 	if !strings.HasPrefix(base.URL, "http://") && !strings.HasPrefix(base.URL, "https://") {
 		return ErrURLMissingScheme

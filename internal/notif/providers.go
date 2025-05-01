@@ -1,8 +1,8 @@
 package notif
 
 import (
+	"bytes"
 	"context"
-	"io"
 	"net/http"
 	"time"
 
@@ -21,7 +21,7 @@ type (
 		GetMethod() string
 		GetMIMEType() string
 
-		MakeBody(logMsg *LogMessage) (io.Reader, error)
+		MarshalMessage(logMsg *LogMessage) ([]byte, error)
 		SetHeaders(logMsg *LogMessage, headers http.Header)
 
 		makeRespError(resp *http.Response) error
@@ -37,7 +37,7 @@ const (
 )
 
 func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) error {
-	body, err := provider.MakeBody(msg)
+	body, err := provider.MarshalMessage(msg)
 	if err != nil {
 		return gperr.PrependSubject(provider.GetName(), err)
 	}
@@ -49,7 +49,7 @@ func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) err
 		ctx,
 		http.MethodPost,
 		provider.GetURL(),
-		body,
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return gperr.PrependSubject(provider.GetName(), err)

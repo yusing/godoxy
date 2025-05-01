@@ -100,12 +100,12 @@ func (webhook *Webhook) makeRespError(resp *http.Response) error {
 	return fmt.Errorf("%s status %d", webhook.Name, resp.StatusCode)
 }
 
-func (webhook *Webhook) MakeBody(logMsg *LogMessage) (io.Reader, error) {
+func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	title, err := json.Marshal(logMsg.Title)
 	if err != nil {
 		return nil, err
 	}
-	fields, err := formatDiscord(logMsg.Extras)
+	fields, err := logMsg.Body.Format(LogFormatRawJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -115,14 +115,14 @@ func (webhook *Webhook) MakeBody(logMsg *LogMessage) (io.Reader, error) {
 	} else {
 		color = logMsg.Color.DecString()
 	}
-	message, err := json.Marshal(formatMarkdown(logMsg.Extras))
+	message, err := logMsg.Body.Format(LogFormatMarkdown)
 	if err != nil {
 		return nil, err
 	}
 	plTempl := strings.NewReplacer(
 		"$title", string(title),
 		"$message", string(message),
-		"$fields", fields,
+		"$fields", string(fields),
 		"$color", color,
 	)
 	var pl string
@@ -132,5 +132,5 @@ func (webhook *Webhook) MakeBody(logMsg *LogMessage) (io.Reader, error) {
 		pl = webhook.Payload
 	}
 	pl = plTempl.Replace(pl)
-	return strings.NewReader(pl), nil
+	return []byte(pl), nil
 }

@@ -46,11 +46,5 @@ func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) 
 			Withf("expect %s or %s", ProviderWebhook, ProviderGotify)
 	}
 
-	// unmarshal provider config
-	if err := utils.MapUnmarshalValidate(m, cfg.Provider); err != nil {
-		return err
-	}
-
-	// validate provider
-	return cfg.Provider.Validate()
+	return utils.MapUnmarshalValidate(m, cfg.Provider)
 }

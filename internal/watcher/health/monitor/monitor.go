@@ -222,7 +222,7 @@ func (mon *monitor) checkUpdateHealth() error {
 		status = health.StatusUnhealthy
 	}
 	if result.Healthy != (mon.status.Swap(status) == health.StatusHealthy) {
-		extras := notif.LogFields{
+		extras := notif.FieldsBody{
 			{Name: "Service Name", Value: mon.service},
 			{Name: "Time", Value: strutils.FormatTime(time.Now())},
 		}
@@ -239,16 +239,16 @@ func (mon *monitor) checkUpdateHealth() error {
 			logger.Info().Msg("service is up")
 			extras.Add("Ping", fmt.Sprintf("%d ms", result.Latency.Milliseconds()))
 			notif.Notify(&notif.LogMessage{
-				Title:  "✅ Service is up ✅",
-				Extras: extras,
-				Color:  notif.ColorSuccess,
+				Title: "✅ Service is up ✅",
+				Body:  extras,
+				Color: notif.ColorSuccess,
 			})
 		} else {
 			logger.Warn().Msg("service went down")
 			notif.Notify(&notif.LogMessage{
-				Title:  "❌ Service went down ❌",
-				Extras: extras,
-				Color:  notif.ColorError,
+				Title: "❌ Service went down ❌",
+				Body:  extras,
+				Color: notif.ColorError,
 			})
 		}
 	}

@@ -1,10 +1,8 @@
 package notif
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/gotify/server/v2/model"
@@ -24,8 +22,8 @@ func (client *GotifyClient) GetURL() string {
 	return client.URL + gotifyMsgEndpoint
 }
 
-// MakeBody implements Provider.
-func (client *GotifyClient) MakeBody(logMsg *LogMessage) (io.Reader, error) {
+// MarshalMessage implements Provider.
+func (client *GotifyClient) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	var priority int
 
 	switch logMsg.Level {
@@ -37,15 +35,23 @@ func (client *GotifyClient) MakeBody(logMsg *LogMessage) (io.Reader, error) {
 		priority = 8
 	}
 
+	body, err := logMsg.Body.Format(client.Format)
+	if err != nil {
+		return nil, err
+	}
+
 	msg := &GotifyMessage{
 		Title:    logMsg.Title,
-		Message:  formatMarkdown(logMsg.Extras),
+		Message:  string(body),
 		Priority: &priority,
-		Extras: map[string]interface{}{
+	}
+
+	if client.Format == LogFormatMarkdown {
+		msg.Extras = map[string]interface{}{
 			"client::display": map[string]string{
 				"contentType": "text/markdown",
 			},
-		},
+		}
 	}
 
 	data, err := json.Marshal(msg)
@@ -53,7 +59,7 @@ func (client *GotifyClient) MakeBody(logMsg *LogMessage) (io.Reader, error) {
 		return nil, err
 	}
 
-	return bytes.NewReader(data), nil
+	return data, nil
 }
 
 // makeRespError implements Provider.
