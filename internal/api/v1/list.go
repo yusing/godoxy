@@ -72,9 +72,6 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 			gphttp.ClientError(w, err)
 			return
 		}
-		if icons == nil {
-			icons = []string{}
-		}
 		gphttp.RespondJSON(w, r, icons)
 	case ListTasks:
 		gphttp.RespondJSON(w, r, task.DebugTaskList())

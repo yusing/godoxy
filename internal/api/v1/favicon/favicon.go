@@ -57,7 +57,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result = homepage.FindIcon(req.Context(), r, hp.Icon.Value)
+			result = homepage.FindIcon(req.Context(), r, *hp.Icon.FullURL)
 		} else {
 			result = homepage.FetchFavIconFromURL(req.Context(), hp.Icon)
 		}

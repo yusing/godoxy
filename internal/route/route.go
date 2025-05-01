@@ -479,35 +479,29 @@ func (r *Route) FinalizeHomepageConfig() {
 	r.Homepage = r.Homepage.GetOverride(r.Alias)
 
 	hp := r.Homepage
+	ref := r.Reference()
+	meta, ok := homepage.GetHomepageMeta(ref)
+	if ok {
+		if hp.Name == "" {
+			hp.Name = meta.DisplayName
+		}
+		if hp.Category == "" {
+			hp.Category = meta.Tag
+		}
+	}
 
-	var key string
 	if hp.Name == "" {
-		if r.Container != nil {
-			key = r.Container.Image.Name
-		} else {
-			key = r.Alias
-		}
-		displayName, ok := homepage.GetDisplayName(key)
-		if ok {
-			hp.Name = displayName
-		} else {
-			hp.Name = strutils.Title(
-				strings.ReplaceAll(
-					strings.ReplaceAll(key, "-", " "),
-					"_", " ",
-				),
-			)
-		}
+		hp.Name = strutils.Title(
+			strings.ReplaceAll(
+				strings.ReplaceAll(ref, "-", " "),
+				"_", " ",
+			),
+		)
 	}
 
 	if hp.Category == "" {
 		if config.GetInstance().Value().Homepage.UseDefaultCategories {
-			if isDocker {
-				key = r.Container.Image.Name
-			} else {
-				key = strings.ToLower(r.Alias)
-			}
-			if category, ok := homepage.PredefinedCategories[key]; ok {
+			if category, ok := homepage.PredefinedCategories[ref]; ok {
 				hp.Category = category
 			}
 		}

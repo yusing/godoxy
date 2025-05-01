@@ -15,7 +15,8 @@ const (
 	ConfigExampleFileName = "config.example.yml"
 	ConfigPath            = ConfigBasePath + "/" + ConfigFileName
 
-	IconListCachePath = ConfigBasePath + "/.icon_list_cache.json"
+	DataDir           = "data"
+	IconListCachePath = DataDir + "/.icon_list_cache.json"
 
 	NamespaceHomepageOverrides = ".homepage"
 	NamespaceIconCache         = ".icon_cache"
@@ -24,14 +25,12 @@ const (
 
 	ComposeFileName        = "compose.yml"
 	ComposeExampleFileName = "compose.example.yml"
-
-	DataDir = "data"
-
-	ErrorPagesBasePath = "error_pages"
+	ErrorPagesBasePath     = "error_pages"
 )
 
 var RequiredDirectories = []string{
 	ConfigBasePath,
+	DataDir,
 	ErrorPagesBasePath,
 	MiddlewareComposeBasePath,
 }

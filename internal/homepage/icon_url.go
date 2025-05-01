@@ -9,64 +9,70 @@ import (
 
 type (
 	IconURL struct {
-		Value      string `json:"value"`
-		FullValue  string `json:"full_value"`
+		FullURL    *string    `json:"value,omitempty"` // only for absolute/relative icons
+		Extra      *IconExtra `json:"extra,omitempty"` // only for walkxcode/selfhst icons
 		IconSource `json:"source"`
-		Extra      *IconExtra `json:"extra"`
 	}
 
 	IconExtra struct {
-		FileType string `json:"file_type"`
-		Name     string `json:"name"`
+		Key      IconKey `json:"key"`
+		Ref      string  `json:"ref"`
+		FileType string  `json:"file_type"`
+		IsLight  bool    `json:"is_light"`
+		IsDark   bool    `json:"is_dark"`
 	}
 
-	IconSource int
+	IconSource string
 )
 
 const (
-	IconSourceAbsolute IconSource = iota
-	IconSourceRelative
-	IconSourceWalkXCode
-	IconSourceSelfhSt
+	IconSourceAbsolute  IconSource = "https://"
+	IconSourceRelative  IconSource = "@target"
+	IconSourceWalkXCode IconSource = "@walkxcode"
+	IconSourceSelfhSt   IconSource = "@selfhst"
 )
 
 var ErrInvalidIconURL = gperr.New("invalid icon url")
 
-func NewSelfhStIconURL(reference, format string) *IconURL {
+func NewIconURL(source IconSource, refOrName, format string) *IconURL {
+	switch source {
+	case IconSourceWalkXCode, IconSourceSelfhSt:
+	default:
+		panic("invalid icon source")
+	}
+	isLight, isDark := false, false
+	if strings.HasSuffix(refOrName, "-light") {
+		isLight = true
+		refOrName = strings.TrimSuffix(refOrName, "-light")
+	} else if strings.HasSuffix(refOrName, "-dark") {
+		isDark = true
+		refOrName = strings.TrimSuffix(refOrName, "-dark")
+	}
 	return &IconURL{
-		Value:      reference + "." + format,
-		FullValue:  fmt.Sprintf("@selfhst/%s.%s", reference, format),
-		IconSource: IconSourceSelfhSt,
+		IconSource: source,
 		Extra: &IconExtra{
+			Key:      NewIconKey(source, refOrName),
 			FileType: format,
-			Name:     reference,
+			Ref:      refOrName,
+			IsLight:  isLight,
+			IsDark:   isDark,
 		},
 	}
 }
 
+func NewSelfhStIconURL(refOrName, format string) *IconURL {
+	return NewIconURL(IconSourceSelfhSt, refOrName, format)
+}
+
 func NewWalkXCodeIconURL(name, format string) *IconURL {
-	return &IconURL{
-		Value:      name + "." + format,
-		FullValue:  fmt.Sprintf("@walkxcode/%s.%s", name, format),
-		IconSource: IconSourceWalkXCode,
-		Extra: &IconExtra{
-			FileType: format,
-			Name:     name,
-		},
-	}
+	return NewIconURL(IconSourceWalkXCode, name, format)
 }
 
 // HasIcon checks if the icon referenced by the IconURL exists in the cache based on its source.
 // Returns false if the icon does not exist for IconSourceSelfhSt or IconSourceWalkXCode,
 // otherwise returns true.
 func (u *IconURL) HasIcon() bool {
-	if u.IconSource == IconSourceSelfhSt {
-		return HasSelfhstIcon(u.Extra.Name, u.Extra.FileType)
-	}
-	if u.IconSource == IconSourceWalkXCode {
-		return HasWalkxCodeIcon(u.Extra.Name, u.Extra.FileType)
-	}
-	return true
+	return HasIcon(u)
 }
 
 // Parse implements strutils.Parser.
@@ -78,33 +84,25 @@ func (u *IconURL) Parse(v string) error {
 	if slashIndex == -1 {
 		return ErrInvalidIconURL
 	}
-	u.FullValue = v
 	beforeSlash := v[:slashIndex]
 	switch beforeSlash {
 	case "http:", "https:":
-		u.Value = v
+		u.FullURL = &v
 		u.IconSource = IconSourceAbsolute
 	case "@target", "": // @target/favicon.ico, /favicon.ico
-		u.Value = v[slashIndex:]
-		u.IconSource = IconSourceRelative
-		if u.Value == "/" {
+		url := v[slashIndex:]
+		if url == "/" {
 			return ErrInvalidIconURL.Withf("%s", "empty path")
 		}
-	case "png", "svg", "webp": // walkxcode Icons
-		u.Value = v
-		u.IconSource = IconSourceWalkXCode
-		u.Extra = &IconExtra{
-			FileType: beforeSlash,
-			Name:     strings.TrimSuffix(v[slashIndex+1:], "."+beforeSlash),
-		}
+		u.FullURL = &url
+		u.IconSource = IconSourceRelative
 	case "@selfhst", "@walkxcode": // selfh.st / walkxcode Icons, @selfhst/<reference>.<format>
-		u.Value = v[slashIndex+1:]
 		if beforeSlash == "@selfhst" {
 			u.IconSource = IconSourceSelfhSt
 		} else {
 			u.IconSource = IconSourceWalkXCode
 		}
-		parts := strings.Split(u.Value, ".")
+		parts := strings.Split(v[slashIndex+1:], ".")
 		if len(parts) != 2 {
 			return ErrInvalidIconURL.Withf("expect @%s/<reference>.<format>, e.g. @%s/adguard-home.webp", beforeSlash, beforeSlash)
 		}
@@ -117,40 +115,67 @@ func (u *IconURL) Parse(v string) error {
 		default:
 			return ErrInvalidIconURL.Withf("%s", "invalid image format, expect svg/png/webp")
 		}
+		isLight, isDark := false, false
+		if strings.HasSuffix(reference, "-light") {
+			isLight = true
+			reference = strings.TrimSuffix(reference, "-light")
+		} else if strings.HasSuffix(reference, "-dark") {
+			isDark = true
+			reference = strings.TrimSuffix(reference, "-dark")
+		}
 		u.Extra = &IconExtra{
+			Key:      NewIconKey(u.IconSource, reference),
 			FileType: format,
-			Name:     reference,
+			Ref:      reference,
+			IsLight:  isLight,
+			IsDark:   isDark,
+		}
+		if !u.HasIcon() {
+			return ErrInvalidIconURL.Withf("no such icon %s from %s", reference, u.IconSource)
 		}
 	default:
 		return ErrInvalidIconURL.Withf("%s", v)
 	}
 
-	if u.Value == "" {
-		return ErrInvalidIconURL.Withf("%s", "empty")
-	}
-
-	if !u.HasIcon() {
-		return ErrInvalidIconURL.Withf("no such icon %s from %s", u.Value, beforeSlash)
-	}
 	return nil
 }
 
 func (u *IconURL) URL() string {
+	if u.FullURL != nil {
+		return *u.FullURL
+	}
+	if u.Extra == nil {
+		return ""
+	}
+	filename := u.Extra.Ref
+	if u.Extra.IsLight {
+		filename += "-light"
+	} else if u.Extra.IsDark {
+		filename += "-dark"
+	}
 	switch u.IconSource {
-	case IconSourceAbsolute:
-		return u.Value
-	case IconSourceRelative:
-		return "/" + u.Value
 	case IconSourceWalkXCode:
-		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/%s/%s.%s", u.Extra.FileType, u.Extra.Name, u.Extra.FileType)
+		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/%s/%s.%s", u.Extra.FileType, filename, u.Extra.FileType)
 	case IconSourceSelfhSt:
-		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/selfhst/icons/%s/%s.%s", u.Extra.FileType, u.Extra.Name, u.Extra.FileType)
+		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/selfhst/icons/%s/%s.%s", u.Extra.FileType, filename, u.Extra.FileType)
 	}
 	return ""
 }
 
 func (u *IconURL) String() string {
-	return u.FullValue
+	if u.FullURL != nil {
+		return *u.FullURL
+	}
+	if u.Extra == nil {
+		return ""
+	}
+	var suffix string
+	if u.Extra.IsLight {
+		suffix = "-light"
+	} else if u.Extra.IsDark {
+		suffix = "-dark"
+	}
+	return fmt.Sprintf("%s/%s%s.%s", u.IconSource, u.Extra.Ref, suffix, u.Extra.FileType)
 }
 
 func (u *IconURL) MarshalText() ([]byte, error) {

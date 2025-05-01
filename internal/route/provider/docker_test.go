@@ -81,7 +81,7 @@ func TestApplyLabel(t *testing.T) {
 			"proxy.a.middlewares.request.set_headers.X-Header":  "value1",
 			"proxy.a.middlewares.request.add_headers.X-Header2": "value2",
 			"proxy.a.homepage.show":                             "true",
-			"proxy.a.homepage.icon":                             "png/adguard-home.png",
+			"proxy.a.homepage.icon":                             "@selfhst/adguard-home.png",
 			"proxy.a.healthcheck.path":                          "/ping",
 			"proxy.a.healthcheck.interval":                      "10s",
 		},
@@ -127,9 +127,8 @@ func TestApplyLabel(t *testing.T) {
 	expect.Equal(t, b.Container.IdlewatcherConfig.StopSignal, "SIGTERM")
 
 	expect.Equal(t, a.Homepage.Show, true)
-	expect.Equal(t, a.Homepage.Icon.Value, "png/adguard-home.png")
 	expect.Equal(t, a.Homepage.Icon.Extra.FileType, "png")
-	expect.Equal(t, a.Homepage.Icon.Extra.Name, "adguard-home")
+	expect.Equal(t, a.Homepage.Icon.Extra.Ref, "adguard-home")
 
 	expect.Equal(t, a.HealthCheck.Path, "/ping")
 	expect.Equal(t, a.HealthCheck.Interval, 10*time.Second)

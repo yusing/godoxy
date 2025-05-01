@@ -1,8 +1,9 @@
-package homepage
+package homepage_test
 
 import (
 	"testing"
 
+	. "github.com/yusing/go-proxy/internal/homepage"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -13,7 +14,7 @@ func TestOverrideItem(t *testing.T) {
 			Show: false,
 			Name: "Foo",
 			Icon: &IconURL{
-				Value:      "/favicon.ico",
+				FullURL:    strPtr("/favicon.ico"),
 				IconSource: IconSourceRelative,
 			},
 			Category: "App",
@@ -24,7 +25,7 @@ func TestOverrideItem(t *testing.T) {
 		Name:     "Bar",
 		Category: "Test",
 		Icon: &IconURL{
-			Value:      "@walkxcode/example.png",
+			FullURL:    strPtr("@walkxcode/example.png"),
 			IconSource: IconSourceWalkXCode,
 		},
 	}
