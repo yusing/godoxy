@@ -334,7 +334,7 @@ func (l *AccessLogger) adjustBuffer() {
 		return
 	}
 
-	l.logger.Info().
+	l.logger.Debug().
 		Str("wps", strutils.FormatByteSize(wps)).
 		Str("old", strutils.FormatByteSize(origBufSize)).
 		Str("new", strutils.FormatByteSize(newBufSize)).
