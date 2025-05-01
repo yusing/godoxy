@@ -15,8 +15,10 @@ import (
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
+	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -193,8 +195,18 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 				if err := p.renewIfNeeded(); err != nil {
 					gperr.LogWarn("cert renew failed", err)
 					lastErrOn = time.Now()
+					notif.Notify(&notif.LogMessage{
+						Level: zerolog.ErrorLevel,
+						Title: "SSL certificate renewal failed",
+						Body:  notif.MessageBody(err.Error()),
+					})
 					continue
 				}
+				notif.Notify(&notif.LogMessage{
+					Level: zerolog.InfoLevel,
+					Title: "SSL certificate renewed",
+					Body:  notif.ListBody(p.cfg.Domains),
+				})
 				// Reset on success
 				lastErrOn = time.Time{}
 				renewalTime = p.ShouldRenewOn()
