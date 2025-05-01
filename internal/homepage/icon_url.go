@@ -77,6 +77,10 @@ func (u *IconURL) HasIcon() bool {
 
 // Parse implements strutils.Parser.
 func (u *IconURL) Parse(v string) error {
+	return u.parse(v, true)
+}
+
+func (u *IconURL) parse(v string, checkExists bool) error {
 	if v == "" {
 		return ErrInvalidIconURL
 	}
@@ -130,11 +134,11 @@ func (u *IconURL) Parse(v string) error {
 			IsLight:  isLight,
 			IsDark:   isDark,
 		}
-		if !u.HasIcon() {
-			return ErrInvalidIconURL.Withf("no such icon %s from %s", reference, u.IconSource)
+		if checkExists && !u.HasIcon() {
+			return ErrInvalidIconURL.Withf("no such icon %s.%s from %s", reference, format, u.IconSource)
 		}
 	default:
-		return ErrInvalidIconURL.Withf("%s", v)
+		return ErrInvalidIconURL.Subject(v)
 	}
 
 	return nil
@@ -184,5 +188,5 @@ func (u *IconURL) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (u *IconURL) UnmarshalText(data []byte) error {
-	return u.Parse(string(data))
+	return u.parse(string(data), false)
 }
