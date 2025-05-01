@@ -265,8 +265,11 @@ func (w *Watcher) watchUntilDestroy() (returnCause gperr.Error) {
 			gperr.LogError("watcher error", err, &w.l)
 		case e := <-eventCh:
 			w.l.Debug().Stringer("action", e.Action).Msg("state changed")
-			if e.Action == events.ActionContainerDestroy {
+			switch e.Action {
+			case events.ActionContainerDestroy:
 				return causeContainerDestroy
+			case events.ActionForceReload:
+				continue
 			}
 			w.resetIdleTimer()
 			switch {
