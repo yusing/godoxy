@@ -19,7 +19,7 @@ require (
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
-	github.com/shirou/gopsutil/v4 v4.25.3 // system info metrics
+	github.com/shirou/gopsutil/v4 v4.25.4 // system info metrics
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.37.0 // encrypting password with bcrypt
 	golang.org/x/net v0.39.0 // HTTP header utilities
@@ -41,8 +41,8 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-20250428032249-8da63daf0202
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250428032249-8da63daf0202
+	github.com/yusing/go-proxy/agent v0.0.0-20250501215534-7fa7b55b1889
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250501215534-7fa7b55b1889
 	go.uber.org/atomic v1.11.0
 )
 
@@ -53,6 +53,8 @@ require (
 )
 
 replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
+
+replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
 
 require (
 	cloud.google.com/go/auth v0.16.1 // indirect
@@ -86,12 +88,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19 // indirect
 	github.com/aws/smithy-go v1.22.3 // indirect
-	github.com/baidubce/bce-sdk-go v0.9.224 // indirect
+	github.com/baidubce/bce-sdk-go v0.9.225 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/boombuler/barcode v1.0.2 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/civo/civogo v0.3.99 // indirect
+	github.com/civo/civogo v0.4.1 // indirect
 	github.com/cloudflare/cloudflare-go v0.115.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/diskfs/go-diskfs v1.6.0 // indirect
@@ -101,7 +103,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
-	github.com/exoscale/egoscale/v3 v3.1.15 // indirect
+	github.com/exoscale/egoscale/v3 v3.1.16 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
@@ -120,7 +122,7 @@ require (
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/pprof v0.0.0-20250423184734-337e5dd93bb4 // indirect
+	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
@@ -173,7 +175,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
-	github.com/oracle/oci-go-sdk/v65 v65.89.2 // indirect
+	github.com/oracle/oci-go-sdk/v65 v65.89.3 // indirect
 	github.com/ovh/go-ovh v1.7.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -207,7 +209,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1154 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1158 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1136 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
@@ -227,16 +229,16 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
-	go.uber.org/mock v0.5.1 // indirect
+	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/tools v0.32.0 // indirect
-	google.golang.org/api v0.230.0 // indirect
+	google.golang.org/api v0.231.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250422160041-2d3770c4ea7f // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250425173222-7b384671a197 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
 	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

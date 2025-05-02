@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
@@ -15,13 +18,13 @@ var cpuAvg = 45.67
 var testInfo = &SystemInfo{
 	Timestamp:  123456,
 	CPUAverage: &cpuAvg,
-	Memory: &MemoryUsage{
+	Memory: &mem.VirtualMemoryStat{
 		Total:       16000000000,
 		Available:   8000000000,
 		Used:        8000000000,
 		UsedPercent: 50.0,
 	},
-	Disks: map[string]*Disk{
+	Disks: map[string]*disk.UsageStat{
 		"sda": {
 			Path:        "/",
 			Fstype:      "ext4",
@@ -39,8 +42,9 @@ var testInfo = &SystemInfo{
 			UsedPercent: 50.0,
 		},
 	},
-	DisksIO: map[string]*DiskIO{
+	DisksIO: map[string]*disk.IOCountersStat{
 		"media": {
+			Name:       "media",
 			ReadBytes:  1000000,
 			WriteBytes: 2000000,
 			ReadSpeed:  100.5,
@@ -48,6 +52,7 @@ var testInfo = &SystemInfo{
 			Iops:       1000,
 		},
 		"nvme0n1": {
+			Name:       "nvme0n1",
 			ReadBytes:  1000000,
 			WriteBytes: 2000000,
 			ReadSpeed:  100.5,
@@ -55,7 +60,7 @@ var testInfo = &SystemInfo{
 			Iops:       1000,
 		},
 	},
-	Network: &Network{
+	Network: &net.IOCountersStat{
 		BytesSent:     5000000,
 		BytesRecv:     10000000,
 		UploadSpeed:   1024.5,
@@ -142,7 +147,7 @@ func TestSerialize(t *testing.T) {
 
 func BenchmarkSerialize(b *testing.B) {
 	entries := make([]*SystemInfo, b.N)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		entries[i] = testInfo
 	}
 	queries := map[string]Aggregated{}
@@ -152,15 +157,25 @@ func BenchmarkSerialize(b *testing.B) {
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
+	b.Run("optimized-non-query", func(b *testing.B) {
+		for b.Loop() {
+			_, _ = testInfo.MarshalJSON()
+		}
+	})
+	b.Run("json-non-query", func(b *testing.B) {
+		for b.Loop() {
+			_, _ = json.Marshal(testInfo)
+		}
+	})
 	b.Run("optimized", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			for _, query := range allQueries {
 				_, _ = queries[query].MarshalJSON()
 			}
 		}
 	})
 	b.Run("json", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			for _, query := range allQueries {
 				_, _ = json.Marshal([]map[string]any(queries[query]))
 			}
