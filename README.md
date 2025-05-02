@@ -101,7 +101,13 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
    ```
 
-3. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
+3. Start the docker compose service from generated `compose.yml`:
+
+    ```shell
+    docker compose up -d
+    ```
+
+4. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
 
 ## How does GoDoxy work
 
