@@ -86,8 +86,6 @@ func newSession(username string, groups []string) Session {
 }
 
 // getOAuthRefreshToken returns the refresh token for the given session.
-//
-// The token is removed from the store after retrieval.
 func getOAuthRefreshToken(claims *Session) (*oauthRefreshToken, bool) {
 	token, ok := oauthRefreshTokens.Load(string(claims.SessionID))
 	if !ok {
