@@ -41,8 +41,8 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-20250501215534-7fa7b55b1889
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250501215534-7fa7b55b1889
+	github.com/yusing/go-proxy/agent v0.0.0-20250503173201-5f780f490224
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250503173201-5f780f490224
 	go.uber.org/atomic v1.11.0
 )
 
@@ -205,7 +205,7 @@ require (
 	github.com/softlayer/xmlrpc v0.0.0-20200409220501-5f089df7cb7e // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
-	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/cast v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
@@ -243,12 +243,12 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/ns1/ns1-go.v2 v2.14.2 // indirect
+	gopkg.in/ns1/ns1-go.v2 v2.14.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/api v0.33.0 // indirect
 	k8s.io/apimachinery v0.33.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
+	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect

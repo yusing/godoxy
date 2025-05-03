@@ -9,7 +9,7 @@ require (
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy v0.11.9
+	github.com/yusing/go-proxy v0.12.0
 )
 
 replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
