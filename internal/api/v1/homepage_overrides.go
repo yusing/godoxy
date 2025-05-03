@@ -43,7 +43,7 @@ func SetHomePageOverrides(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		gphttp.ClientError(w, err, http.StatusBadRequest)
+		gphttp.ClientError(w, r, err, http.StatusBadRequest)
 		return
 	}
 	r.Body.Close()
@@ -53,21 +53,21 @@ func SetHomePageOverrides(w http.ResponseWriter, r *http.Request) {
 	case HomepageOverrideItem:
 		var params HomepageOverrideItemParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			gphttp.ClientError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, r, err, http.StatusBadRequest)
 			return
 		}
 		overrides.OverrideItem(params.Which, &params.Value)
 	case HomepageOverrideItemsBatch:
 		var params HomepageOverrideItemsBatchParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			gphttp.ClientError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, r, err, http.StatusBadRequest)
 			return
 		}
 		overrides.OverrideItems(params.Value)
 	case HomepageOverrideItemVisible: // POST /v1/item_visible [a,b,c], false => hide a, b, c
 		var params HomepageOverrideItemVisibleParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			gphttp.ClientError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, r, err, http.StatusBadRequest)
 			return
 		}
 		if params.Value {
@@ -78,7 +78,7 @@ func SetHomePageOverrides(w http.ResponseWriter, r *http.Request) {
 	case HomepageOverrideCategoryOrder:
 		var params HomepageOverrideCategoryOrderParams
 		if err := json.Unmarshal(data, &params); err != nil {
-			gphttp.ClientError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, r, err, http.StatusBadRequest)
 			return
 		}
 		overrides.SetCategoryOrder(params.Which, params.Value)
