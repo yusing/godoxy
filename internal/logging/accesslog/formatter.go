@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog"
-	acl "github.com/yusing/go-proxy/internal/acl/types"
+	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -158,7 +158,7 @@ func (f *JSONFormatter) AppendRequestLog(line []byte, req *http.Request, res *ht
 	return writer.Bytes()
 }
 
-func (f ACLLogFormatter) AppendACLLog(line []byte, info *acl.IPInfo, blocked bool) []byte {
+func (f ACLLogFormatter) AppendACLLog(line []byte, info *maxmind.IPInfo, blocked bool) []byte {
 	writer := bytes.NewBuffer(line)
 	logger := zerolog.New(writer)
 	event := logger.Info().

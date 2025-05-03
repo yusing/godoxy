@@ -17,6 +17,7 @@ import (
 	"github.com/yusing/go-proxy/internal/entrypoint"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/maxmind"
 	"github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/proxmox"
@@ -230,6 +231,7 @@ func (cfg *Config) load() gperr.Error {
 	errs := gperr.NewBuilder(errMsg)
 	errs.Add(cfg.entrypoint.SetMiddlewares(model.Entrypoint.Middlewares))
 	errs.Add(cfg.entrypoint.SetAccessLogger(cfg.task, model.Entrypoint.AccessLog))
+	errs.Add(cfg.initMaxMind(model.Providers.MaxMind))
 	cfg.initNotification(model.Providers.Notification)
 	errs.Add(cfg.initAutoCert(model.AutoCert))
 	errs.Add(cfg.initProxmox(model.Providers.Proxmox))
@@ -258,6 +260,13 @@ func (cfg *Config) load() gperr.Error {
 			Body:  notif.ErrorBody{Error: errs.Error()},
 		})
 		return errs.Error()
+	}
+	return nil
+}
+
+func (cfg *Config) initMaxMind(maxmindCfg *maxmind.Config) gperr.Error {
+	if maxmindCfg != nil {
+		return maxmind.SetInstance(cfg.task, maxmindCfg)
 	}
 	return nil
 }

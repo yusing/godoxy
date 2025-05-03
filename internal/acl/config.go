@@ -2,17 +2,13 @@ package acl
 
 import (
 	"net"
-	"sync"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang"
 	"github.com/puzpuzpuz/xsync/v3"
-	"github.com/rs/zerolog"
-	acl "github.com/yusing/go-proxy/internal/acl/types"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
+	"github.com/yusing/go-proxy/internal/maxmind"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 )
@@ -20,43 +16,23 @@ import (
 type Config struct {
 	Default    string                     `json:"default" validate:"omitempty,oneof=allow deny"` // default: allow
 	AllowLocal *bool                      `json:"allow_local"`                                   // default: true
-	Allow      []string                   `json:"allow"`
-	Deny       []string                   `json:"deny"`
+	Allow      Matchers                   `json:"allow"`
+	Deny       Matchers                   `json:"deny"`
 	Log        *accesslog.ACLLoggerConfig `json:"log"`
-
-	MaxMind *MaxMindConfig `json:"maxmind" validate:"omitempty"`
 
 	config
 }
 
-type (
-	MaxMindDatabaseType string
-	MaxMindConfig       struct {
-		AccountID  string              `json:"account_id" validate:"required"`
-		LicenseKey string              `json:"license_key" validate:"required"`
-		Database   MaxMindDatabaseType `json:"database" validate:"required,oneof=geolite geoip2"`
-
-		logger     zerolog.Logger
-		lastUpdate time.Time
-		db         struct {
-			*maxminddb.Reader
-			sync.RWMutex
-		}
-	}
-)
-
 type config struct {
 	defaultAllow bool
 	allowLocal   bool
-	allow        []matcher
-	deny         []matcher
 	ipCache      *xsync.MapOf[string, *checkCache]
 	logAllowed   bool
 	logger       *accesslog.AccessLogger
 }
 
 type checkCache struct {
-	*acl.IPInfo
+	*maxmind.IPInfo
 	allow   bool
 	created time.Time
 }
@@ -72,11 +48,6 @@ func (c *checkCache) Expired() bool {
 const (
 	ACLAllow = "allow"
 	ACLDeny  = "deny"
-)
-
-const (
-	MaxMindGeoLite MaxMindDatabaseType = "geolite"
-	MaxMindGeoIP2  MaxMindDatabaseType = "geoip2"
 )
 
 func (c *Config) Validate() gperr.Error {
@@ -95,39 +66,8 @@ func (c *Config) Validate() gperr.Error {
 		c.allowLocal = true
 	}
 
-	if c.MaxMind != nil {
-		c.MaxMind.logger = logging.With().Str("type", string(c.MaxMind.Database)).Logger()
-	}
-
 	if c.Log != nil {
 		c.logAllowed = c.Log.LogAllowed
-	}
-
-	errs := gperr.NewBuilder("syntax error")
-	c.allow = make([]matcher, 0, len(c.Allow))
-	c.deny = make([]matcher, 0, len(c.Deny))
-
-	for _, s := range c.Allow {
-		m, err := c.parseMatcher(s)
-		if err != nil {
-			errs.Add(err.Subject(s))
-			continue
-		}
-		c.allow = append(c.allow, m)
-	}
-	for _, s := range c.Deny {
-		m, err := c.parseMatcher(s)
-		if err != nil {
-			errs.Add(err.Subject(s))
-			continue
-		}
-		c.deny = append(c.deny, m)
-	}
-
-	if errs.HasError() {
-		c.allow = nil
-		c.deny = nil
-		return errMatcherFormat.With(errs.Error())
 	}
 
 	c.ipCache = xsync.NewMapOf[string, *checkCache]()
@@ -135,15 +75,10 @@ func (c *Config) Validate() gperr.Error {
 }
 
 func (c *Config) Valid() bool {
-	return c != nil && (len(c.allow) > 0 || len(c.deny) > 0 || c.allowLocal)
+	return c != nil && (len(c.Allow) > 0 || len(c.Deny) > 0 || c.allowLocal)
 }
 
 func (c *Config) Start(parent *task.Task) gperr.Error {
-	if c.MaxMind != nil {
-		if err := c.MaxMind.LoadMaxMindDB(parent); err != nil {
-			return err
-		}
-	}
 	if c.Log != nil {
 		logger, err := accesslog.NewAccessLogger(parent, c.Log)
 		if err != nil {
@@ -154,9 +89,9 @@ func (c *Config) Start(parent *task.Task) gperr.Error {
 	return nil
 }
 
-func (c *Config) cacheRecord(info *acl.IPInfo, allow bool) {
+func (c *Config) cacheRecord(info *maxmind.IPInfo, allow bool) {
 	if common.ForceResolveCountry && info.City == nil {
-		c.MaxMind.lookupCity(info)
+		maxmind.LookupCity(info)
 	}
 	c.ipCache.Store(info.Str, &checkCache{
 		IPInfo:  info,
@@ -165,7 +100,7 @@ func (c *Config) cacheRecord(info *acl.IPInfo, allow bool) {
 	})
 }
 
-func (c *config) log(info *acl.IPInfo, allowed bool) {
+func (c *config) log(info *maxmind.IPInfo, allowed bool) {
 	if c.logger == nil {
 		return
 	}
@@ -186,7 +121,7 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	if c.allowLocal && ip.IsPrivate() {
-		c.log(&acl.IPInfo{IP: ip, Str: ip.String()}, true)
+		c.log(&maxmind.IPInfo{IP: ip, Str: ip.String()}, true)
 		return true
 	}
 
@@ -197,15 +132,15 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 		return record.allow
 	}
 
-	ipAndStr := &acl.IPInfo{IP: ip, Str: ipStr}
-	for _, m := range c.allow {
+	ipAndStr := &maxmind.IPInfo{IP: ip, Str: ipStr}
+	for _, m := range c.Allow {
 		if m(ipAndStr) {
 			c.log(ipAndStr, true)
 			c.cacheRecord(ipAndStr, true)
 			return true
 		}
 	}
-	for _, m := range c.deny {
+	for _, m := range c.Deny {
 		if m(ipAndStr) {
 			c.log(ipAndStr, false)
 			c.cacheRecord(ipAndStr, false)

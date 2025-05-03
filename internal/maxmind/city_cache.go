@@ -1,13 +1,12 @@
-package acl
+package maxmind
 
 import (
 	"github.com/puzpuzpuz/xsync/v3"
-	acl "github.com/yusing/go-proxy/internal/acl/types"
 )
 
-var cityCache = xsync.NewMapOf[string, *acl.City]()
+var cityCache = xsync.NewMapOf[string, *City]()
 
-func (cfg *MaxMindConfig) lookupCity(ip *acl.IPInfo) (*acl.City, bool) {
+func (cfg *MaxMind) lookupCity(ip *IPInfo) (*City, bool) {
 	if ip.City != nil {
 		return ip.City, true
 	}
@@ -25,7 +24,7 @@ func (cfg *MaxMindConfig) lookupCity(ip *acl.IPInfo) (*acl.City, bool) {
 	cfg.db.RLock()
 	defer cfg.db.RUnlock()
 
-	city = new(acl.City)
+	city = new(City)
 	err := cfg.db.Lookup(ip.IP, city)
 	if err != nil {
 		return nil, false

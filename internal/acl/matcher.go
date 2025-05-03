@@ -4,11 +4,12 @@ import (
 	"net"
 	"strings"
 
-	acl "github.com/yusing/go-proxy/internal/acl/types"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/maxmind"
 )
 
-type matcher func(*acl.IPInfo) bool
+type Matcher func(*maxmind.IPInfo) bool
+type Matchers []Matcher
 
 const (
 	MatcherTypeIP       = "ip"
@@ -32,7 +33,7 @@ var (
 	errMaxMindNotConfigured = gperr.New("MaxMind not configured")
 )
 
-func (cfg *Config) parseMatcher(s string) (matcher, gperr.Error) {
+func ParseMatcher(s string) (Matcher, gperr.Error) {
 	parts := strings.Split(s, ":")
 	if len(parts) != 2 {
 		return nil, errSyntax
@@ -52,35 +53,44 @@ func (cfg *Config) parseMatcher(s string) (matcher, gperr.Error) {
 		}
 		return matchCIDR(net), nil
 	case MatcherTypeTimeZone:
-		if cfg.MaxMind == nil {
+		if !maxmind.HasInstance() {
 			return nil, errMaxMindNotConfigured
 		}
-		return cfg.MaxMind.matchTimeZone(parts[1]), nil
+		return matchTimeZone(parts[1]), nil
 	case MatcherTypeCountry:
-		if cfg.MaxMind == nil {
+		if !maxmind.HasInstance() {
 			return nil, errMaxMindNotConfigured
 		}
-		return cfg.MaxMind.matchISOCode(parts[1]), nil
+		return matchISOCode(parts[1]), nil
 	default:
 		return nil, errSyntax
 	}
 }
 
-func matchIP(ip net.IP) matcher {
-	return func(ip2 *acl.IPInfo) bool {
+func (matchers Matchers) Match(ip *maxmind.IPInfo) bool {
+	for _, m := range matchers {
+		if m(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchIP(ip net.IP) Matcher {
+	return func(ip2 *maxmind.IPInfo) bool {
 		return ip.Equal(ip2.IP)
 	}
 }
 
-func matchCIDR(n *net.IPNet) matcher {
-	return func(ip *acl.IPInfo) bool {
+func matchCIDR(n *net.IPNet) Matcher {
+	return func(ip *maxmind.IPInfo) bool {
 		return n.Contains(ip.IP)
 	}
 }
 
-func (cfg *MaxMindConfig) matchTimeZone(tz string) matcher {
-	return func(ip *acl.IPInfo) bool {
-		city, ok := cfg.lookupCity(ip)
+func matchTimeZone(tz string) Matcher {
+	return func(ip *maxmind.IPInfo) bool {
+		city, ok := maxmind.LookupCity(ip)
 		if !ok {
 			return false
 		}
@@ -88,9 +98,9 @@ func (cfg *MaxMindConfig) matchTimeZone(tz string) matcher {
 	}
 }
 
-func (cfg *MaxMindConfig) matchISOCode(iso string) matcher {
-	return func(ip *acl.IPInfo) bool {
-		city, ok := cfg.lookupCity(ip)
+func matchISOCode(iso string) Matcher {
+	return func(ip *maxmind.IPInfo) bool {
+		city, ok := maxmind.LookupCity(ip)
 		if !ok {
 			return false
 		}

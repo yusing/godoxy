@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
+	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -32,6 +33,7 @@ type (
 		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty"`
 		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
 		Proxmox      []proxmox.Config           `json:"proxmox" yaml:"proxmox,omitempty"`
+		MaxMind      *maxmind.Config            `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
 	Entrypoint struct {
 		Middlewares []map[string]any               `json:"middlewares"`

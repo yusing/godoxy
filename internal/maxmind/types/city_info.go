@@ -1,4 +1,4 @@
-package acl
+package maxmind
 
 type City struct {
 	Location struct {

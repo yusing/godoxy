@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	acl "github.com/yusing/go-proxy/internal/acl/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
+	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/utils/synk"
@@ -61,7 +61,7 @@ type (
 	}
 	ACLFormatter interface {
 		// AppendACLLog appends a log line to line with or without a trailing newline
-		AppendACLLog(line []byte, info *acl.IPInfo, blocked bool) []byte
+		AppendACLLog(line []byte, info *maxmind.IPInfo, blocked bool) []byte
 	}
 )
 
@@ -179,7 +179,7 @@ func (l *AccessLogger) LogError(req *http.Request, err error) {
 	l.Log(req, &http.Response{StatusCode: http.StatusInternalServerError, Status: err.Error()})
 }
 
-func (l *AccessLogger) LogACL(info *acl.IPInfo, blocked bool) {
+func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
 	line := l.lineBufPool.Get()
 	defer l.lineBufPool.Put(line)
 	line = l.ACLFormatter.AppendACLLog(line, info, blocked)
