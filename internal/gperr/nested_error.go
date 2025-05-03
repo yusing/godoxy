@@ -73,7 +73,7 @@ var spaces = []byte("                ")
 type appendLineFunc func(buf []byte, err error, level int) []byte
 
 func (err *nestedError) Error() string {
-	if err == nil {
+	if err.Err == nil {
 		return nilError.Error()
 	}
 	buf := appendLineNormal(nil, err.Err, 0)
@@ -85,7 +85,7 @@ func (err *nestedError) Error() string {
 }
 
 func (err *nestedError) Plain() []byte {
-	if err == nil {
+	if err.Err == nil {
 		return appendLinePlain(nil, nilError, 0)
 	}
 	buf := appendLinePlain(nil, err.Err, 0)
@@ -97,7 +97,7 @@ func (err *nestedError) Plain() []byte {
 }
 
 func (err *nestedError) Markdown() []byte {
-	if err == nil {
+	if err.Err == nil {
 		return appendLineMd(nil, nilError, 0)
 	}
 
