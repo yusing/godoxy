@@ -3,6 +3,7 @@ package route
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
@@ -135,4 +136,15 @@ func TestRouteValidate(t *testing.T) {
 		expect.NotNil(t, r.ProxyURL)
 		expect.NotNil(t, r.HealthCheck)
 	})
+}
+
+func TestPreferredPort(t *testing.T) {
+	ports := map[int]container.Port{
+		22:   {PrivatePort: 22},
+		1000: {PrivatePort: 1000},
+		3000: {PrivatePort: 80},
+	}
+
+	port := preferredPort(ports)
+	expect.Equal(t, port, 3000)
 }

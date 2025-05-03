@@ -406,10 +406,7 @@ func (r *Route) Finalize() {
 	if pp == 0 {
 		switch {
 		case isDocker:
-			pp = lowestPort(cont.PrivatePortMapping)
-			if pp == 0 {
-				pp = lowestPort(cont.PublicPortMapping)
-			}
+			pp = preferredPort(cont.PrivatePortMapping)
 		case r.Scheme == "https":
 			pp = 443
 		default:
@@ -519,9 +516,24 @@ func (r *Route) FinalizeHomepageConfig() {
 	}
 }
 
-func lowestPort(ports map[int]container.Port) (res int) {
+var preferredPortOrder = []int{
+	80,
+	8080,
+	3000,
+	8000,
+	443,
+	8443,
+}
+
+func preferredPort(portMapping map[int]container.Port) (res int) {
+	for _, port := range preferredPortOrder {
+		if _, ok := portMapping[port]; ok {
+			return port
+		}
+	}
+	// fallback to lowest port
 	cmp := (uint16)(65535)
-	for port, v := range ports {
+	for port, v := range portMapping {
 		if v.PrivatePort < cmp {
 			cmp = v.PrivatePort
 			res = port
