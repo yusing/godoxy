@@ -44,9 +44,9 @@ type (
 		CIDR        LogFilter[*CIDR]            `json:"cidr"`
 	}
 	Fields struct {
-		Headers FieldConfig `json:"headers"`
-		Query   FieldConfig `json:"query"`
-		Cookies FieldConfig `json:"cookies"`
+		Headers FieldConfig `json:"headers" aliases:"header"`
+		Query   FieldConfig `json:"query" aliases:"queries"`
+		Cookies FieldConfig `json:"cookies" aliases:"cookie"`
 	}
 )
 
