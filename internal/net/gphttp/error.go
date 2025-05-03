@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"syscall"
 
@@ -40,15 +41,22 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error, code ...int)
 //
 // For JSON marshallable errors (e.g. gperr.Error), it returns the error details as JSON.
 // Otherwise, it returns the error details as plain text.
-func ClientError(w http.ResponseWriter, err error, code ...int) {
+func ClientError(w http.ResponseWriter, r *http.Request, err error, code ...int) {
 	if len(code) == 0 {
 		code = []int{http.StatusBadRequest}
 	}
-	if gperr.IsJSONMarshallable(err) {
+	w.WriteHeader(code[0])
+	accept := GetAccept(r.Header)
+	switch {
+	case accept.AcceptJSON():
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(err)
-	} else {
-		http.Error(w, err.Error(), code[0])
+	case accept.AcceptMarkdown():
+		w.Header().Set("Content-Type", "text/markdown")
+		w.Write(gperr.Markdown(err))
+	default:
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write(gperr.Plain(err))
 	}
 }
 
@@ -83,18 +91,18 @@ func NotFound(w http.ResponseWriter, err string) {
 	BadRequest(w, err, http.StatusNotFound)
 }
 
-func ErrMissingKey(k string) error {
-	return gperr.New(k + " is required")
+func MissingKey(w http.ResponseWriter, k string) {
+	BadRequest(w, k+" is required", http.StatusBadRequest)
 }
 
-func ErrInvalidKey(k string) error {
-	return gperr.New(k + " is invalid")
+func InvalidKey(w http.ResponseWriter, k string) {
+	BadRequest(w, k+" is invalid", http.StatusBadRequest)
 }
 
-func ErrAlreadyExists(k, v string) error {
-	return gperr.Errorf("%s %q already exists", k, v)
+func KeyAlreadyExists(w http.ResponseWriter, k, v string) {
+	BadRequest(w, fmt.Sprintf("%s %q already exists", k, v), http.StatusBadRequest)
 }
 
-func ErrNotFound(k, v string) error {
-	return gperr.Errorf("%s %q not found", k, v)
+func ValueNotFound(w http.ResponseWriter, k, v string) {
+	BadRequest(w, fmt.Sprintf("%s %q not found", k, v), http.StatusNotFound)
 }

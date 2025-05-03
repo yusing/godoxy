@@ -1,8 +1,6 @@
 package gperr
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -29,16 +27,17 @@ func Wrap(err error, message ...string) Error {
 	if len(message) == 0 || message[0] == "" {
 		return wrap(err)
 	}
+	wrapped := &wrappedError{err, message[0]}
 	//nolint:errorlint
 	switch err := err.(type) {
 	case *baseError:
-		err.Err = fmt.Errorf("%s: %w", message[0], err.Err)
+		err.Err = wrapped
 		return err
 	case *nestedError:
-		err.Err = fmt.Errorf("%s: %w", message[0], err.Err)
+		err.Err = wrapped
 		return err
 	}
-	return &baseError{fmt.Errorf("%s: %w", message[0], err)}
+	return &baseError{wrapped}
 }
 
 func Unwrap(err error) Error {
@@ -63,18 +62,6 @@ func wrap(err error) Error {
 		return err
 	}
 	return &baseError{err}
-}
-
-func IsJSONMarshallable(err error) bool {
-	switch err := err.(type) {
-	case *nestedError, *withSubject:
-		return true
-	case *baseError:
-		return IsJSONMarshallable(err.Err)
-	default:
-		var v json.Marshaler
-		return errors.As(err, &v)
-	}
 }
 
 func Join(errors ...error) Error {
@@ -102,4 +89,28 @@ func Collect[T any, Err error, Arg any, Func func(Arg) (T, Err)](eb *Builder, fn
 	result, err := fn(arg)
 	eb.Add(err)
 	return result
+}
+
+func Plain(err error) []byte {
+	if err == nil {
+		return nil
+	}
+	if p, ok := err.(PlainError); ok {
+		return p.Plain()
+	}
+	return []byte(err.Error())
+}
+
+func Markdown(err error) []byte {
+	if err == nil {
+		return nil
+	}
+	switch err := err.(type) {
+	case MarkdownError:
+		return err.Markdown()
+	case interface{ Unwrap() []error }:
+		return appendLines(nil, err.Unwrap(), 0, appendLineMd)
+	default:
+		return []byte(err.Error())
+	}
 }

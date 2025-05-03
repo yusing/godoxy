@@ -1,10 +1,8 @@
 package favicon
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/route/routes"
@@ -21,11 +19,11 @@ import (
 func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	url, alias := req.FormValue("url"), req.FormValue("alias")
 	if url == "" && alias == "" {
-		gphttp.ClientError(w, gphttp.ErrMissingKey("url or alias"), http.StatusBadRequest)
+		gphttp.MissingKey(w, "url or alias")
 		return
 	}
 	if url != "" && alias != "" {
-		gphttp.ClientError(w, gperr.New("url and alias are mutually exclusive"), http.StatusBadRequest)
+		gphttp.BadRequest(w, "url and alias are mutually exclusive")
 		return
 	}
 
@@ -33,7 +31,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	if url != "" {
 		var iconURL homepage.IconURL
 		if err := iconURL.Parse(url); err != nil {
-			gphttp.ClientError(w, err, http.StatusBadRequest)
+			gphttp.ClientError(w, req, err, http.StatusBadRequest)
 			return
 		}
 		fetchResult := homepage.FetchFavIconFromURL(req.Context(), &iconURL)
@@ -49,7 +47,7 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)
 	if !ok {
-		gphttp.ClientError(w, errors.New("no such route"), http.StatusNotFound)
+		gphttp.ValueNotFound(w, "route", alias)
 		return
 	}
 

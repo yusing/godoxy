@@ -5,8 +5,6 @@ import (
 	"math"
 	"strconv"
 	"time"
-
-	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
 
 // AppendDuration appends a duration to a buffer with the following format:
@@ -213,13 +211,6 @@ func AppendByteSize[T ~int | ~uint | ~int64 | ~uint64 | ~float64](size T, buf []
 		buf = append(buf, []byte(" PiB")...)
 	}
 	return buf
-}
-
-func DoYouMean(s string) string {
-	if s == "" {
-		return ""
-	}
-	return "Did you mean " + ansi.Info(s) + "?"
 }
 
 func Pluralize(n int64) string {

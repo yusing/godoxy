@@ -50,6 +50,7 @@ func TestBuilderNested(t *testing.T) {
     • Inner: 1
     • Inner: 2
   • Action 2
-    • Inner: 3`
+    • Inner: 3
+`
 	ExpectEqual(t, got, expected)
 }

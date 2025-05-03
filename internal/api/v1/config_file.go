@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -51,12 +52,12 @@ func (t FileType) GetPath(filename string) string {
 func getArgs(r *http.Request) (fileType FileType, filename string, err error) {
 	fileType = FileType(r.PathValue("type"))
 	if !fileType.IsValid() {
-		err = gphttp.ErrInvalidKey("type")
+		err = fmt.Errorf("invalid file type: %s", fileType)
 		return
 	}
 	filename = r.PathValue("filename")
 	if filename == "" {
-		err = gphttp.ErrMissingKey("filename")
+		err = fmt.Errorf("missing filename")
 	}
 	return
 }

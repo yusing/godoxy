@@ -37,11 +37,11 @@ func (err *baseError) Subjectf(format string, args ...any) Error {
 }
 
 func (err baseError) With(extra error) Error {
-	return &nestedError{&err, []error{extra}}
+	return &nestedError{err.Err, []error{extra}}
 }
 
 func (err baseError) Withf(format string, args ...any) Error {
-	return &nestedError{&err, []error{fmt.Errorf(format, args...)}}
+	return &nestedError{err.Err, []error{fmt.Errorf(format, args...)}}
 }
 
 func (err *baseError) Error() string {
@@ -61,4 +61,12 @@ func (err *baseError) MarshalJSON() ([]byte, error) {
 	default:
 		return json.Marshal(err.Error())
 	}
+}
+
+func (err *baseError) Plain() []byte {
+	return Plain(err.Err)
+}
+
+func (err *baseError) Markdown() []byte {
+	return Markdown(err.Err)
 }

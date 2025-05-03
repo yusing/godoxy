@@ -20,27 +20,27 @@ func NewAgent(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	name := q.Get("name")
 	if name == "" {
-		gphttp.ClientError(w, gphttp.ErrMissingKey("name"))
+		gphttp.MissingKey(w, "name")
 		return
 	}
 	host := q.Get("host")
 	if host == "" {
-		gphttp.ClientError(w, gphttp.ErrMissingKey("host"))
+		gphttp.MissingKey(w, "host")
 		return
 	}
 	portStr := q.Get("port")
 	if portStr == "" {
-		gphttp.ClientError(w, gphttp.ErrMissingKey("port"))
+		gphttp.MissingKey(w, "port")
 		return
 	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 1 || port > 65535 {
-		gphttp.ClientError(w, gphttp.ErrInvalidKey("port"))
+		gphttp.InvalidKey(w, "port")
 		return
 	}
 	hostport := fmt.Sprintf("%s:%d", host, port)
 	if _, ok := config.GetInstance().GetAgent(hostport); ok {
-		gphttp.ClientError(w, gphttp.ErrAlreadyExists("agent", hostport), http.StatusConflict)
+		gphttp.KeyAlreadyExists(w, "agent", hostport)
 		return
 	}
 	t := q.Get("type")
@@ -48,10 +48,10 @@ func NewAgent(w http.ResponseWriter, r *http.Request) {
 	case "docker", "system":
 		break
 	case "":
-		gphttp.ClientError(w, gphttp.ErrMissingKey("type"))
+		gphttp.MissingKey(w, "type")
 		return
 	default:
-		gphttp.ClientError(w, gphttp.ErrInvalidKey("type"))
+		gphttp.InvalidKey(w, "type")
 		return
 	}
 
@@ -109,13 +109,13 @@ func VerifyNewAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.Unmarshal(clientPEMData, &data); err != nil {
-		gphttp.ClientError(w, err, http.StatusBadRequest)
+		gphttp.ClientError(w, r, err)
 		return
 	}
 
 	nRoutesAdded, err := config.GetInstance().VerifyNewAgent(data.Host, data.CA, data.Client)
 	if err != nil {
-		gphttp.ClientError(w, err)
+		gphttp.ClientError(w, r, err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func VerifyNewAgent(w http.ResponseWriter, r *http.Request) {
 
 	filename, ok := certs.AgentCertsFilepath(data.Host)
 	if !ok {
-		gphttp.ClientError(w, gphttp.ErrInvalidKey("host"))
+		gphttp.InvalidKey(w, "host")
 		return
 	}
 

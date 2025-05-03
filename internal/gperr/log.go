@@ -15,7 +15,7 @@ func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) 
 	} else {
 		l = logging.GetLogger()
 	}
-	l.WithLevel(level).Msg(New(highlight(msg)).With(err).Error())
+	l.WithLevel(level).Msg(New(highlightANSI(msg)).With(err).Error())
 	switch level {
 	case zerolog.FatalLevel:
 		os.Exit(1)

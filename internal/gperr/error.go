@@ -20,6 +20,16 @@ type Error interface {
 	Subject(subject string) Error
 	// Subjectf is a wrapper for Subject(fmt.Sprintf(format, args...)).
 	Subjectf(format string, args ...any) Error
+	PlainError
+	MarkdownError
+}
+
+type PlainError interface {
+	Plain() []byte
+}
+
+type MarkdownError interface {
+	Markdown() []byte
 }
 
 // this makes JSON marshaling work,

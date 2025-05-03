@@ -3,8 +3,6 @@ package gperr
 import (
 	"errors"
 	"fmt"
-
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 //nolint:recvcheck
@@ -67,48 +65,98 @@ func (err *nestedError) Is(other error) bool {
 	return false
 }
 
+var nilError = newError("<nil>")
+var bulletPrefix = []byte("• ")
+var markdownBulletPrefix = []byte("- ")
+var spaces = []byte("                ")
+
+type appendLineFunc func(buf []byte, err error, level int) []byte
+
 func (err *nestedError) Error() string {
 	if err == nil {
-		return makeLine("<nil>", 0)
+		return nilError.Error()
 	}
-
-	if err.Err != nil {
-		lines := make([]string, 0, 1+len(err.Extras))
-		lines = append(lines, makeLine(err.Err.Error(), 0))
-		lines = append(lines, makeLines(err.Extras, 1)...)
-		return strutils.JoinLines(lines)
+	buf := appendLineNormal(nil, err.Err, 0)
+	if len(err.Extras) > 0 {
+		buf = append(buf, '\n')
+		buf = appendLines(buf, err.Extras, 1, appendLineNormal)
 	}
-	return strutils.JoinLines(makeLines(err.Extras, 0))
+	return string(buf)
 }
 
-//go:inline
-func makeLine(err string, level int) string {
-	const bulletPrefix = "• "
-	const spaces = "                "
+func (err *nestedError) Plain() []byte {
+	if err == nil {
+		return appendLinePlain(nil, nilError, 0)
+	}
+	buf := appendLinePlain(nil, err.Err, 0)
+	if len(err.Extras) > 0 {
+		buf = append(buf, '\n')
+		buf = appendLines(buf, err.Extras, 1, appendLinePlain)
+	}
+	return buf
+}
 
+func (err *nestedError) Markdown() []byte {
+	if err == nil {
+		return appendLineMd(nil, nilError, 0)
+	}
+
+	buf := appendLineMd(nil, err.Err, 0)
+	if len(err.Extras) > 0 {
+		buf = append(buf, '\n')
+		buf = appendLines(buf, err.Extras, 1, appendLineMd)
+	}
+	return buf
+}
+
+func appendLineNormal(buf []byte, err error, level int) []byte {
 	if level == 0 {
-		return err
+		return append(buf, err.Error()...)
 	}
-	return spaces[:2*level] + bulletPrefix + err
+	buf = append(buf, spaces[:2*level]...)
+	buf = append(buf, bulletPrefix...)
+	buf = append(buf, err.Error()...)
+	return buf
 }
 
-func makeLines(errs []error, level int) []string {
-	if len(errs) == 0 {
-		return nil
+func appendLinePlain(buf []byte, err error, level int) []byte {
+	if level == 0 {
+		return append(buf, Plain(err)...)
 	}
-	lines := make([]string, 0, len(errs))
+	buf = append(buf, spaces[:2*level]...)
+	buf = append(buf, bulletPrefix...)
+	buf = append(buf, Plain(err)...)
+	return buf
+}
+
+func appendLineMd(buf []byte, err error, level int) []byte {
+	if level == 0 {
+		return append(buf, Markdown(err)...)
+	}
+	buf = append(buf, spaces[:2*level]...)
+	buf = append(buf, markdownBulletPrefix...)
+	buf = append(buf, Markdown(err)...)
+	return buf
+}
+
+func appendLines(buf []byte, errs []error, level int, appendLine appendLineFunc) []byte {
+	if len(errs) == 0 {
+		return buf
+	}
 	for _, err := range errs {
 		switch err := wrap(err).(type) {
 		case *nestedError:
 			if err.Err != nil {
-				lines = append(lines, makeLine(err.Err.Error(), level))
-				lines = append(lines, makeLines(err.Extras, level+1)...)
+				buf = appendLine(buf, err.Err, level)
+				buf = append(buf, '\n')
+				buf = appendLines(buf, err.Extras, level+1, appendLine)
 			} else {
-				lines = append(lines, makeLines(err.Extras, level)...)
+				buf = appendLines(buf, err.Extras, level, appendLine)
 			}
 		default:
-			lines = append(lines, makeLine(err.Error(), level))
+			buf = appendLine(buf, err, level)
+			buf = append(buf, '\n')
 		}
 	}
-	return lines
+	return buf
 }

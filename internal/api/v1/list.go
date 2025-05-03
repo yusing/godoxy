@@ -69,7 +69,7 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 		}
 		icons, err := homepage.SearchIcons(r.FormValue("keyword"), limit)
 		if err != nil {
-			gphttp.ClientError(w, err)
+			gphttp.ClientError(w, r, err)
 			return
 		}
 		gphttp.RespondJSON(w, r, icons)

@@ -259,7 +259,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 					errs.Add(err)
 				}
 			} else {
-				errs.Add(ErrUnknownField.Subject(k).Withf(strutils.DoYouMean(NearestField(k, mapping))))
+				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(NearestField(k, mapping))))
 			}
 		}
 		if hasValidateTag && checkValidateTag {

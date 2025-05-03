@@ -1,10 +1,10 @@
 package gperr
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"slices"
-	"strings"
 
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 )
@@ -19,8 +19,21 @@ type withSubject struct {
 
 const subjectSep = " > "
 
-func highlight(subject string) string {
+type highlightFunc func(subject string) string
+
+var _ PlainError = (*withSubject)(nil)
+var _ MarkdownError = (*withSubject)(nil)
+
+func highlightANSI(subject string) string {
 	return ansi.HighlightRed + subject + ansi.Reset
+}
+
+func highlightMarkdown(subject string) string {
+	return "**" + subject + "**"
+}
+
+func noHighlight(subject string) string {
+	return subject
 }
 
 func PrependSubject(subject string, err error) error {
@@ -69,24 +82,38 @@ func (err *withSubject) Unwrap() error {
 }
 
 func (err *withSubject) Error() string {
+	return string(err.fmtError(highlightANSI))
+}
+
+func (err *withSubject) Plain() []byte {
+	return err.fmtError(noHighlight)
+}
+
+func (err *withSubject) Markdown() []byte {
+	return err.fmtError(highlightMarkdown)
+}
+
+func (err *withSubject) fmtError(highlight highlightFunc) []byte {
 	// subject is in reversed order
 	n := len(err.Subjects)
 	size := 0
 	errStr := err.Err.Error()
-	var sb strings.Builder
+	var buf bytes.Buffer
 	for _, s := range err.Subjects {
 		size += len(s)
 	}
-	sb.Grow(size + 2 + n*len(subjectSep) + len(errStr) + len(highlight("")))
+	buf.Grow(size + 2 + n*len(subjectSep) + len(errStr) + len(highlight("")))
 
 	for i := n - 1; i > 0; i-- {
-		sb.WriteString(err.Subjects[i])
-		sb.WriteString(subjectSep)
+		buf.WriteString(err.Subjects[i])
+		buf.WriteString(subjectSep)
 	}
-	sb.WriteString(highlight(err.Subjects[0]))
-	sb.WriteString(": ")
-	sb.WriteString(errStr)
-	return sb.String()
+	buf.WriteString(highlight(err.Subjects[0]))
+	if errStr != "" {
+		buf.WriteString(": ")
+		buf.WriteString(errStr)
+	}
+	return buf.Bytes()
 }
 
 // MarshalJSON implements the json.Marshaler interface.

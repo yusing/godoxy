@@ -13,7 +13,6 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type Config struct {
@@ -70,7 +69,7 @@ func (cfg *Config) Validate() gperr.Error {
 		if !ok {
 			b.Add(ErrUnknownProvider.
 				Subject(cfg.Provider).
-				Withf(strutils.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
+				With(gperr.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
 		} else {
 			_, err := providerConstructor(cfg.Options)
 			if err != nil {

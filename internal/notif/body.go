@@ -26,6 +26,9 @@ type (
 	FieldsBody  []LogField
 	ListBody    []string
 	MessageBody string
+	ErrorBody   struct {
+		Error error
+	}
 )
 
 var (
@@ -110,6 +113,18 @@ func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
 		return []byte(m), nil
 	case LogFormatRawJSON:
 		return json.Marshal(m)
+	}
+	return nil, fmt.Errorf("unknown format: %v", format)
+}
+
+func (e ErrorBody) Format(format *LogFormat) ([]byte, error) {
+	switch format {
+	case LogFormatRawJSON:
+		return json.Marshal(e)
+	case LogFormatPlain:
+		return gperr.Plain(e.Error), nil
+	case LogFormatMarkdown:
+		return gperr.Markdown(e.Error), nil
 	}
 	return nil, fmt.Errorf("unknown format: %v", format)
 }

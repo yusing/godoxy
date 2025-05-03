@@ -44,7 +44,7 @@ func Get(name string) (*Middleware, Error) {
 	if !ok {
 		return nil, ErrUnknownMiddleware.
 			Subject(name).
-			Withf(strutils.DoYouMean(utils.NearestField(name, allMiddlewares)))
+			With(gperr.DoYouMean(utils.NearestField(name, allMiddlewares)))
 	}
 	return middleware, nil
 }

@@ -1,63 +1,55 @@
 package gperr
 
 import (
-	"errors"
 	"testing"
 )
 
 type testErr struct{}
 
-func (e *testErr) Error() string {
+func (e testErr) Error() string {
 	return "test error"
 }
 
-func (e *testErr) MarshalJSON() ([]byte, error) {
-	return nil, nil
+func (e testErr) Plain() []byte {
+	return []byte("test error")
 }
 
-func TestIsJSONMarshallable(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{
-			name: "testErr",
-			err:  &testErr{},
-			want: true,
-		},
-		{
-			name: "baseError",
-			err:  &baseError{},
-			want: false,
-		},
-		{
-			name: "baseError with json marshallable error",
-			err:  &baseError{&testErr{}},
-			want: true,
-		},
-		{
-			name: "nestedError",
-			err:  &nestedError{},
-			want: true,
-		},
-		{
-			name: "withSubject",
-			err:  &withSubject{},
-			want: true,
-		},
-		{
-			name: "standard error",
-			err:  errors.New("test error"),
-			want: false,
-		},
-	}
+func (e testErr) Markdown() []byte {
+	return []byte("**test error**")
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := IsJSONMarshallable(test.err); got != test.want {
-				t.Errorf("IsJSONMarshallable(%v) = %v, want %v", test.err, got, test.want)
-			}
-		})
+type testMultiErr struct {
+	errors []error
+}
+
+func (e testMultiErr) Error() string {
+	return Join(e.errors...).Error()
+}
+
+func (e testMultiErr) Unwrap() []error {
+	return e.errors
+}
+
+func TestFormatting(t *testing.T) {
+	err := testErr{}
+	plain := Plain(err)
+	if string(plain) != "test error" {
+		t.Errorf("expected test error, got %s", string(plain))
+	}
+	md := Markdown(err)
+	if string(md) != "**test error**" {
+		t.Errorf("expected test error, got %s", string(md))
+	}
+}
+
+func TestMultiError(t *testing.T) {
+	err := testMultiErr{[]error{testErr{}, testErr{}}}
+	plain := Plain(err)
+	if string(plain) != "test error\ntest error" {
+		t.Errorf("expected test error, got %s", string(plain))
+	}
+	md := Markdown(err)
+	if string(md) != "**test error**\n**test error**" {
+		t.Errorf("expected test error, got %s", string(md))
 	}
 }

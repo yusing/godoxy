@@ -153,6 +153,7 @@ func TestErrorStringNested(t *testing.T) {
       • 2
       • action 3 > inner3: generic failure
         • 3
-        • 3`
+        • 3
+`
 	expect.Equal(t, ansi.StripANSI(ne.Error()), want)
 }

@@ -53,7 +53,7 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 				r = r.WithContext(context.WithValue(r.Context(), nextHandlerContextKey, next))
 				defaultAuth.LoginHandler(w, r)
 			} else {
-				gphttp.ClientError(w, err, http.StatusUnauthorized)
+				gphttp.Unauthorized(w, err.Error())
 			}
 			return
 		}
