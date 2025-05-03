@@ -20,6 +20,26 @@ const (
 	HighlightWhite  = BrightWhite + Bold
 )
 
+func Error(s string) string {
+	return WithANSI(s, HighlightRed)
+}
+
+func Success(s string) string {
+	return WithANSI(s, HighlightGreen)
+}
+
+func Warning(s string) string {
+	return WithANSI(s, HighlightYellow)
+}
+
+func Info(s string) string {
+	return WithANSI(s, HighlightCyan)
+}
+
+func WithANSI(s string, ansi string) string {
+	return ansi + s + Reset
+}
+
 func StripANSI(s string) string {
 	return ansiRegexp.ReplaceAllString(s, "")
 }

@@ -56,9 +56,11 @@ func (e *EventQueue) Start(eventCh <-chan Event, errCh <-chan gperr.Error) {
 	e.onFlush = func(events []Event) {
 		defer func() {
 			if err := recover(); err != nil {
-				e.onError(gperr.New("recovered panic in onFlush").
-					Withf("%v", err).
-					Subject(e.task.Name()))
+				if err, ok := err.(error); ok {
+					e.onError(gperr.Wrap(err).Subject(e.task.Name()))
+				} else {
+					e.onError(gperr.New("recovered panic in onFlush").Withf("%v", err).Subject(e.task.Name()))
+				}
 				if common.IsDebug {
 					panic(string(debug.Stack()))
 				}

@@ -3,11 +3,13 @@ package notif
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -24,7 +26,7 @@ type (
 		MarshalMessage(logMsg *LogMessage) ([]byte, error)
 		SetHeaders(logMsg *LogMessage, headers http.Header)
 
-		makeRespError(resp *http.Response) error
+		fmtError(respBody io.Reader) error
 	}
 	ProviderCreateFunc func(map[string]any) (Provider, gperr.Error)
 	ProviderConfig     map[string]any
@@ -36,10 +38,10 @@ const (
 	ProviderWebhook = "webhook"
 )
 
-func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) error {
+func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 	body, err := provider.MarshalMessage(msg)
 	if err != nil {
-		return gperr.PrependSubject(provider.GetName(), err)
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -52,7 +54,7 @@ func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) err
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return gperr.PrependSubject(provider.GetName(), err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", provider.GetMIMEType())
@@ -63,13 +65,22 @@ func notifyProvider(ctx context.Context, provider Provider, msg *LogMessage) err
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return gperr.PrependSubject(provider.GetName(), err)
+		return err
 	}
 
 	defer resp.Body.Close()
 
-	if !gphttp.IsSuccess(resp.StatusCode) {
-		return provider.makeRespError(resp)
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
+		body, _ := io.ReadAll(resp.Body)
+		logging.Debug().
+			Str("provider", provider.GetName()).
+			Str("url", provider.GetURL()).
+			Str("status", resp.Status).
+			RawJSON("resp_body", body).
+			Msg("notification sent")
+		return nil
+	default:
+		return fmt.Errorf("http status %d: %w", resp.StatusCode, provider.fmtError(resp.Body))
 	}
-	return nil
 }

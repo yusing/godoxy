@@ -16,9 +16,16 @@ type ProviderBase struct {
 	Format *LogFormat `json:"format"`
 }
 
+type rawError []byte
+
+func (e rawError) Error() string {
+	return string(e)
+}
+
 var (
 	ErrMissingToken     = gperr.New("token is required")
 	ErrURLMissingScheme = gperr.New("url missing scheme, expect 'http://' or 'https://'")
+	ErrUnknownError     = gperr.New("unknown error")
 )
 
 // Validate implements the utils.CustomValidator interface.
@@ -61,10 +68,10 @@ func (base *ProviderBase) SetHeaders(logMsg *LogMessage, headers http.Header) {
 	// no-op by default
 }
 
-func (base *ProviderBase) makeRespError(resp *http.Response) error {
-	body, err := io.ReadAll(resp.Body)
-	if err == nil {
-		return gperr.Errorf("%s status %d: %s", base.Name, resp.StatusCode, body)
+func (base *ProviderBase) fmtError(respBody io.Reader) error {
+	body, err := io.ReadAll(respBody)
+	if err == nil && len(body) > 0 {
+		return rawError(body)
 	}
-	return gperr.Errorf("%s status %d", base.Name, resp.StatusCode)
+	return ErrUnknownError
 }

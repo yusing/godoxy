@@ -55,6 +55,10 @@ func (f *LogFormat) Parse(format string) error {
 	return nil
 }
 
+func (f *FieldsBody) Add(name, value string) {
+	*f = append(*f, LogField{Name: name, Value: value})
+}
+
 func (f FieldsBody) Format(format *LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatMarkdown:

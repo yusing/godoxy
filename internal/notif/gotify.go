@@ -3,7 +3,7 @@ package notif
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
 
 	"github.com/gotify/server/v2/model"
 	"github.com/rs/zerolog"
@@ -62,12 +62,12 @@ func (client *GotifyClient) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	return data, nil
 }
 
-// makeRespError implements Provider.
-func (client *GotifyClient) makeRespError(resp *http.Response) error {
+// fmtError implements Provider.
+func (client *GotifyClient) fmtError(respBody io.Reader) error {
 	var errm model.Error
-	err := json.NewDecoder(resp.Body).Decode(&errm)
+	err := json.NewDecoder(respBody).Decode(&errm)
 	if err != nil {
-		return fmt.Errorf("%s status %d, but failed to decode err response: %w", client.Name, resp.StatusCode, err)
+		return fmt.Errorf("failed to decode err response: %w", err)
 	}
-	return fmt.Errorf("%s status %d %s: %s", client.Name, resp.StatusCode, errm.Error, errm.ErrorDescription)
+	return fmt.Errorf("%s: %s", errm.Error, errm.ErrorDescription)
 }

@@ -219,7 +219,7 @@ func DoYouMean(s string) string {
 	if s == "" {
 		return ""
 	}
-	return "Did you mean " + ansi.HighlightGreen + s + ansi.Reset + "?"
+	return "Did you mean " + ansi.Info(s) + "?"
 }
 
 func Pluralize(n int64) string {

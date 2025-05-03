@@ -3,7 +3,6 @@ package notif
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -88,16 +87,13 @@ func (webhook *Webhook) GetMIMEType() string {
 	return webhook.MIMEType
 }
 
-// makeRespError implements Provider.
-func (webhook *Webhook) makeRespError(resp *http.Response) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("%s status %d, failed to read body: %w", webhook.Name, resp.StatusCode, err)
+// fmtError implements Provider.
+func (webhook *Webhook) fmtError(respBody io.Reader) error {
+	body, err := io.ReadAll(respBody)
+	if err != nil || len(body) == 0 {
+		return ErrUnknownError
 	}
-	if len(body) > 0 {
-		return fmt.Errorf("%s status %d: %s", webhook.Name, resp.StatusCode, body)
-	}
-	return fmt.Errorf("%s status %d", webhook.Name, resp.StatusCode)
+	return rawError(body)
 }
 
 func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
