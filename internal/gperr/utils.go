@@ -91,6 +91,13 @@ func Collect[T any, Err error, Arg any, Func func(Arg) (T, Err)](eb *Builder, fn
 	return result
 }
 
+func Normal(err error) []byte {
+	if err == nil {
+		return nil
+	}
+	return []byte(err.Error())
+}
+
 func Plain(err error) []byte {
 	if err == nil {
 		return nil

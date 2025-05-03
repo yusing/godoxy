@@ -68,75 +68,58 @@ func (err *nestedError) Is(other error) bool {
 var nilError = newError("<nil>")
 var bulletPrefix = []byte("• ")
 var markdownBulletPrefix = []byte("- ")
-var spaces = []byte("                ")
+var spaces = []byte("                            ")
 
 type appendLineFunc func(buf []byte, err error, level int) []byte
 
-func (err *nestedError) Error() string {
-	if err.Err == nil {
-		return nilError.Error()
+func (err *nestedError) fmtError(appendLine appendLineFunc) []byte {
+	if err == nil {
+		return appendLine(nil, nilError, 0)
 	}
-	buf := appendLineNormal(nil, err.Err, 0)
-	if len(err.Extras) > 0 {
+	if err.Err != nil {
+		buf := appendLine(nil, err.Err, 0)
 		buf = append(buf, '\n')
-		buf = appendLines(buf, err.Extras, 1, appendLineNormal)
+		buf = appendLines(buf, err.Extras, 1, appendLine)
+		return buf
 	}
-	return string(buf)
+	return appendLines(nil, err.Extras, 0, appendLine)
+}
+
+func (err *nestedError) Error() string {
+	return string(err.fmtError(appendLineNormal))
 }
 
 func (err *nestedError) Plain() []byte {
-	if err.Err == nil {
-		return appendLinePlain(nil, nilError, 0)
-	}
-	buf := appendLinePlain(nil, err.Err, 0)
-	if len(err.Extras) > 0 {
-		buf = append(buf, '\n')
-		buf = appendLines(buf, err.Extras, 1, appendLinePlain)
-	}
-	return buf
+	return err.fmtError(appendLinePlain)
 }
 
 func (err *nestedError) Markdown() []byte {
-	if err.Err == nil {
-		return appendLineMd(nil, nilError, 0)
-	}
+	return err.fmtError(appendLineMd)
+}
 
-	buf := appendLineMd(nil, err.Err, 0)
-	if len(err.Extras) > 0 {
-		buf = append(buf, '\n')
-		buf = appendLines(buf, err.Extras, 1, appendLineMd)
+func appendLine(buf []byte, err error, level int, prefix []byte, format func(err error) []byte) []byte {
+	if err == nil {
+		return appendLine(buf, nilError, level, prefix, format)
 	}
+	if level == 0 {
+		return append(buf, format(err)...)
+	}
+	buf = append(buf, spaces[:2*level]...)
+	buf = append(buf, prefix...)
+	buf = append(buf, format(err)...)
 	return buf
 }
 
 func appendLineNormal(buf []byte, err error, level int) []byte {
-	if level == 0 {
-		return append(buf, err.Error()...)
-	}
-	buf = append(buf, spaces[:2*level]...)
-	buf = append(buf, bulletPrefix...)
-	buf = append(buf, err.Error()...)
-	return buf
+	return appendLine(buf, err, level, bulletPrefix, Normal)
 }
 
 func appendLinePlain(buf []byte, err error, level int) []byte {
-	if level == 0 {
-		return append(buf, Plain(err)...)
-	}
-	buf = append(buf, spaces[:2*level]...)
-	buf = append(buf, bulletPrefix...)
-	buf = append(buf, Plain(err)...)
-	return buf
+	return appendLine(buf, err, level, bulletPrefix, Plain)
 }
 
 func appendLineMd(buf []byte, err error, level int) []byte {
-	if level == 0 {
-		return append(buf, Markdown(err)...)
-	}
-	buf = append(buf, spaces[:2*level]...)
-	buf = append(buf, markdownBulletPrefix...)
-	buf = append(buf, Markdown(err)...)
-	return buf
+	return appendLine(buf, err, level, markdownBulletPrefix, Markdown)
 }
 
 func appendLines(buf []byte, errs []error, level int, appendLine appendLineFunc) []byte {
@@ -154,6 +137,9 @@ func appendLines(buf []byte, errs []error, level int, appendLine appendLineFunc)
 				buf = appendLines(buf, err.Extras, level, appendLine)
 			}
 		default:
+			if err == nil {
+				continue
+			}
 			buf = appendLine(buf, err, level)
 			buf = append(buf, '\n')
 		}

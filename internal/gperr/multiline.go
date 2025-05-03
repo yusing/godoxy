@@ -14,6 +14,9 @@ func Multiline() *MultilineError {
 }
 
 func (m *MultilineError) add(err error) {
+	if err == nil {
+		return
+	}
 	m.Extras = append(m.Extras, err)
 }
 
