@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/api"
 	autocert "github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
@@ -23,6 +24,7 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
+	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 	"github.com/yusing/go-proxy/internal/watcher"
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
@@ -115,7 +117,7 @@ func Reload() gperr.Error {
 	err := newCfg.load()
 	if err != nil {
 		newCfg.task.Finish(err)
-		return gperr.New("using last config").With(err)
+		return gperr.New(ansi.Warning("using last config")).With(err)
 	}
 
 	// cancel all current subtasks -> wait
@@ -249,7 +251,15 @@ func (cfg *Config) load() gperr.Error {
 		}
 	}
 
-	return errs.Error()
+	if errs.HasError() {
+		notif.Notify(&notif.LogMessage{
+			Level: zerolog.ErrorLevel,
+			Title: "Config Reload Error",
+			Body:  notif.ErrorBody{Error: errs.Error()},
+		})
+		return errs.Error()
+	}
+	return nil
 }
 
 func (cfg *Config) initNotification(notifCfg []notif.NotificationConfig) {
