@@ -27,7 +27,7 @@ func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 		comp.setParent(m)
 	}
 
-	if common.IsDebug {
+	if common.IsTrace {
 		for _, child := range chain {
 			child.enableTrace()
 		}
