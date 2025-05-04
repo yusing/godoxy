@@ -22,7 +22,6 @@ import (
 type MaxMind struct {
 	*Config
 	lastUpdate time.Time
-	task       *task.Task
 	db         struct {
 		*maxminddb.Reader
 		sync.RWMutex
@@ -70,7 +69,9 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
 		return nil
 	}
 
-	cfg.task = parent.Subtask("maxmind_db", true)
+	init := parent.Subtask("maxmind_db", true)
+	defer init.Finish(nil)
+
 	path := dbPath(cfg)
 	reader, err := maxmindDBOpen(path)
 	valid := true
@@ -95,7 +96,7 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
 	} else {
 		cfg.Logger().Info().Msg("MaxMind DB loaded")
 		cfg.db.Reader = reader
-		go cfg.scheduleUpdate(cfg.task)
+		go cfg.scheduleUpdate(parent)
 	}
 	return nil
 }
@@ -114,7 +115,7 @@ func (cfg *MaxMind) setLastUpdate(t time.Time) {
 }
 
 func (cfg *MaxMind) scheduleUpdate(parent task.Parent) {
-	task := parent.Subtask("schedule_update", true)
+	task := parent.Subtask("maxmind_schedule_update", true)
 	ticker := time.NewTicker(updateInterval)
 
 	cfg.loadLastUpdate()

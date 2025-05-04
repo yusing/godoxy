@@ -12,9 +12,6 @@ func SetInstance(parent task.Parent, cfg *Config) gperr.Error {
 	if err := newInstance.LoadMaxMindDB(parent); err != nil {
 		return err
 	}
-	if instance != nil {
-		instance.task.Finish("updated")
-	}
 	instance = newInstance
 	return nil
 }
