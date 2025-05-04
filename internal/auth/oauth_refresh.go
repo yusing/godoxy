@@ -131,7 +131,7 @@ func (auth *OIDCProvider) setSessionTokenCookie(w http.ResponseWriter, r *http.R
 		logging.Err(err).Msg("failed to sign session token")
 		return
 	}
-	setTokenCookie(w, r, CookieOauthSessionToken, signed, common.APIJWTTokenTTL)
+	SetTokenCookie(w, r, CookieOauthSessionToken, signed, common.APIJWTTokenTTL)
 }
 
 func (auth *OIDCProvider) parseSessionJWT(sessionJWT string) (claims *sessionClaims, valid bool, err error) {

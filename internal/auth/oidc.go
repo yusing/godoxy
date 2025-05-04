@@ -176,7 +176,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state := generateState()
-	setTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
+	SetTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
 	// redirect user to Idp
 	http.Redirect(w, r, auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r)), http.StatusFound)
 }
@@ -301,12 +301,12 @@ func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (auth *OIDCProvider) setIDTokenCookie(w http.ResponseWriter, r *http.Request, jwt string, ttl time.Duration) {
-	setTokenCookie(w, r, CookieOauthToken, jwt, ttl)
+	SetTokenCookie(w, r, CookieOauthToken, jwt, ttl)
 }
 
 func (auth *OIDCProvider) clearCookie(w http.ResponseWriter, r *http.Request) {
-	clearTokenCookie(w, r, CookieOauthToken)
-	clearTokenCookie(w, r, CookieOauthSessionToken)
+	ClearTokenCookie(w, r, CookieOauthToken)
+	ClearTokenCookie(w, r, CookieOauthSessionToken)
 }
 
 // handleTestCallback handles OIDC callback in test environment.
@@ -323,7 +323,7 @@ func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create test JWT token
-	setTokenCookie(w, r, CookieOauthToken, "test", time.Hour)
+	SetTokenCookie(w, r, CookieOauthToken, "test", time.Hour)
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }

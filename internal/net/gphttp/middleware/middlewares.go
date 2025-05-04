@@ -32,6 +32,8 @@ var allMiddlewares = map[string]*Middleware{
 
 	"cidrwhitelist": CIDRWhiteList,
 	"ratelimit":     RateLimiter,
+
+	"hcaptcha": HCaptcha,
 }
 
 var (

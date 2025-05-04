@@ -119,7 +119,7 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		gphttp.ServerError(w, r, err)
 		return
 	}
-	setTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)
+	SetTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -128,7 +128,7 @@ func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	clearTokenCookie(w, r, auth.TokenCookieName())
+	ClearTokenCookie(w, r, auth.TokenCookieName())
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 

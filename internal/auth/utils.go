@@ -44,7 +44,7 @@ func cookieDomain(r *http.Request) string {
 	return strutils.JoinRune(parts, '.')
 }
 
-func setTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, ttl time.Duration) {
+func SetTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, ttl time.Duration) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -57,7 +57,7 @@ func setTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, 
 	})
 }
 
-func clearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
+func ClearTokenCookie(w http.ResponseWriter, r *http.Request, name string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    "",

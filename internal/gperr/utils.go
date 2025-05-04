@@ -85,6 +85,14 @@ func Join(errors ...error) Error {
 	return &nestedError{Extras: errs}
 }
 
+func JoinLines(main error, errors ...string) Error {
+	errs := make([]error, len(errors))
+	for i, err := range errors {
+		errs[i] = newError(err)
+	}
+	return &nestedError{Err: main, Extras: errs}
+}
+
 func Collect[T any, Err error, Arg any, Func func(Arg) (T, Err)](eb *Builder, fn Func, arg Arg) T {
 	result, err := fn(arg)
 	eb.Add(err)
