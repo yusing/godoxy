@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -71,6 +72,10 @@ func _() { // check if this behavior is not changed
 	var _ sensors.Warnings = disk.Warnings{}
 }
 
+func isNoDataAvailable(err error) bool {
+	return errors.Is(err, syscall.ENODATA)
+}
+
 func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, error) {
 	errs := gperr.NewBuilder("failed to get system info")
 	var s SystemInfo
@@ -99,6 +104,9 @@ func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, er
 			warnings := new(warning.Warning)
 			if errors.As(err, &warnings) {
 				for _, warning := range warnings.List {
+					if isNoDataAvailable(warning) {
+						continue
+					}
 					allWarnings.Add(warning)
 				}
 			} else {
