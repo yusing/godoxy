@@ -71,7 +71,7 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
+	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent:
 		body, _ := io.ReadAll(resp.Body)
 		logging.Debug().
 			Str("provider", provider.GetName()).
