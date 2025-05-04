@@ -25,7 +25,7 @@ type (
 		ProviderName() string
 		TargetURL() *net.URL
 		HealthMonitor() health.HealthMonitor
-		Reference() string
+		References() []string
 
 		Started() bool
 

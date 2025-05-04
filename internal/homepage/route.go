@@ -10,7 +10,7 @@ import (
 type route interface {
 	pool.Object
 	ProviderName() string
-	Reference() string
+	References() []string
 	TargetURL() *gpnet.URL
 }
 

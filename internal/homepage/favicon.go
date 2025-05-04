@@ -114,12 +114,18 @@ func fetchKnownIcon(ctx context.Context, url *IconURL) *FetchResult {
 	return fetchIconAbsolute(ctx, url.URL())
 }
 
-func fetchIcon(ctx context.Context, filetype, filename string) *FetchResult {
-	result := fetchKnownIcon(ctx, NewSelfhStIconURL(filename, filetype))
-	if result.OK() {
-		return result
+func fetchIcon(ctx context.Context, filename string) *FetchResult {
+	for _, fileType := range []string{"svg", "webp", "png"} {
+		result := fetchKnownIcon(ctx, NewSelfhStIconURL(filename, fileType))
+		if result.OK() {
+			return result
+		}
+		result = fetchKnownIcon(ctx, NewWalkXCodeIconURL(filename, fileType))
+		if result.OK() {
+			return result
+		}
 	}
-	return fetchKnownIcon(ctx, NewWalkXCodeIconURL(filename, filetype))
+	return &FetchResult{StatusCode: http.StatusNotFound, ErrMsg: "no icon found"}
 }
 
 func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
@@ -127,17 +133,18 @@ func FindIcon(ctx context.Context, r route, uri string) *FetchResult {
 		return result
 	}
 
-	result := fetchIcon(ctx, "png", sanitizeName(r.Reference()))
-	if !result.OK() {
-		if r, ok := r.(httpRoute); ok {
-			// fallback to parse html
-			result = findIconSlow(ctx, r, uri, nil)
+	for _, ref := range r.References() {
+		result := fetchIcon(ctx, sanitizeName(ref))
+		if result.OK() {
+			storeIconCache(r.Key(), result)
+			return result
 		}
 	}
-	if result.OK() {
-		storeIconCache(r.Key(), result)
+	if r, ok := r.(httpRoute); ok {
+		// fallback to parse html
+		return findIconSlow(ctx, r, uri, nil)
 	}
-	return result
+	return &FetchResult{StatusCode: http.StatusNotFound, ErrMsg: "no icon found"}
 }
 
 func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) *FetchResult {

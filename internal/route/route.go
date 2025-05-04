@@ -243,11 +243,14 @@ func (r *Route) TargetURL() *net.URL {
 	return r.ProxyURL
 }
 
-func (r *Route) Reference() string {
+func (r *Route) References() []string {
 	if r.Container != nil {
-		return r.Container.Image.Name
+		if r.Container.ContainerName != r.Alias {
+			return []string{r.Container.Image.Name, r.Container.ContainerName, r.Alias, r.Container.Image.Author}
+		}
+		return []string{r.Container.Image.Name, r.Alias, r.Container.Image.Author}
 	}
-	return r.Alias
+	return []string{r.Alias}
 }
 
 // Name implements pool.Object.
@@ -476,21 +479,24 @@ func (r *Route) FinalizeHomepageConfig() {
 	r.Homepage = r.Homepage.GetOverride(r.Alias)
 
 	hp := r.Homepage
-	ref := r.Reference()
-	meta, ok := homepage.GetHomepageMeta(ref)
-	if ok {
-		if hp.Name == "" {
-			hp.Name = meta.DisplayName
-		}
-		if hp.Category == "" {
-			hp.Category = meta.Tag
+	refs := r.References()
+	for _, ref := range refs {
+		meta, ok := homepage.GetHomepageMeta(ref)
+		if ok {
+			if hp.Name == "" {
+				hp.Name = meta.DisplayName
+			}
+			if hp.Category == "" {
+				hp.Category = meta.Tag
+			}
+			break
 		}
 	}
 
 	if hp.Name == "" {
 		hp.Name = strutils.Title(
 			strings.ReplaceAll(
-				strings.ReplaceAll(ref, "-", " "),
+				strings.ReplaceAll(refs[0], "-", " "),
 				"_", " ",
 			),
 		)
@@ -498,8 +504,11 @@ func (r *Route) FinalizeHomepageConfig() {
 
 	if hp.Category == "" {
 		if config.GetInstance().Value().Homepage.UseDefaultCategories {
-			if category, ok := homepage.PredefinedCategories[ref]; ok {
-				hp.Category = category
+			for _, ref := range refs {
+				if category, ok := homepage.PredefinedCategories[ref]; ok {
+					hp.Category = category
+					break
+				}
 			}
 		}
 
