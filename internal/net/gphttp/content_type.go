@@ -3,6 +3,7 @@ package gphttp
 import (
 	"mime"
 	"net/http"
+	"strings"
 )
 
 type (
@@ -33,12 +34,19 @@ func GetContentType(h http.Header) ContentType {
 
 func GetAccept(h http.Header) AcceptContentType {
 	var accepts []ContentType
-	for _, v := range h["Accept"] {
+	acceptHeader := h["Accept"]
+	if len(acceptHeader) == 1 {
+		acceptHeader = strings.Split(acceptHeader[0], ",")
+	}
+	for _, v := range acceptHeader {
 		ct, _, err := mime.ParseMediaType(v)
 		if err != nil {
 			continue
 		}
 		accepts = append(accepts, ContentType(ct))
+	}
+	if len(accepts) == 0 {
+		return []ContentType{"*/*"}
 	}
 	return accepts
 }
