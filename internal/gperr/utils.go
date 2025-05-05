@@ -27,17 +27,16 @@ func Wrap(err error, message ...string) Error {
 	if len(message) == 0 || message[0] == "" {
 		return wrap(err)
 	}
-	wrapped := &wrappedError{err, message[0]}
 	//nolint:errorlint
 	switch err := err.(type) {
 	case *baseError:
-		err.Err = wrapped
+		err.Err = &wrappedError{err.Err, message[0]}
 		return err
 	case *nestedError:
-		err.Err = wrapped
+		err.Err = &wrappedError{err.Err, message[0]}
 		return err
 	}
-	return &baseError{wrapped}
+	return &baseError{&wrappedError{err, message[0]}}
 }
 
 func Unwrap(err error) Error {
