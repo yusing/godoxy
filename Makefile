@@ -77,7 +77,7 @@ docker-build-test:
 	docker build --build-arg=MAKE_ARGS=agent=1 -t godoxy-agent .
 
 get:
-	for dir in ${PWD} ${PWD}/agent; do cd $$dir && go get -u ./... && go mod tidy; done
+	for dir in ${PWD} ${PWD}/agent ${PWD}/internal/dnsproviders; do cd $$dir && go get -u ./... && go mod tidy; done
 
 build:
 	mkdir -p $(shell dirname ${BIN_PATH})
