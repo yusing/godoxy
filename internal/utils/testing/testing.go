@@ -37,7 +37,7 @@ func ExpectErrorT[T error](t *testing.T, err error) {
 
 func ExpectEqual[T any](t *testing.T, got T, want T) {
 	t.Helper()
-	require.EqualValues(t, got, want)
+	require.EqualValues(t, want, got)
 }
 
 func ExpectContains[T any](t *testing.T, got T, wants []T) {
