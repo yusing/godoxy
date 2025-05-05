@@ -266,6 +266,12 @@ func (lb *LoadBalancer) Status() health.Status {
 	return status
 }
 
+// Detail implements health.HealthMonitor.
+func (lb *LoadBalancer) Detail() string {
+	_, numHealthy := lb.status()
+	return fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size())
+}
+
 func (lb *LoadBalancer) status() (status health.Status, numHealthy int) {
 	if lb.pool.Size() == 0 {
 		return health.StatusUnknown, 0

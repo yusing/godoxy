@@ -168,6 +168,15 @@ func (mon *monitor) Latency() time.Duration {
 	return res.Latency
 }
 
+// Detail implements HealthMonitor.
+func (mon *monitor) Detail() string {
+	res := mon.lastResult.Load()
+	if res == nil {
+		return ""
+	}
+	return res.Detail
+}
+
 // Name implements HealthMonitor.
 func (mon *monitor) Name() string {
 	parts := strutils.SplitRune(mon.service, '/')
