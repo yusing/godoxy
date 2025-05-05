@@ -3,6 +3,8 @@ package rules
 import (
 	"net/http"
 
+	"slices"
+
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -47,12 +49,7 @@ var checkers = map[string]struct {
 				}
 			}
 			return func(cached Cache, r *http.Request) bool {
-				for _, vv := range r.Header[k] {
-					if v == vv {
-						return true
-					}
-				}
-				return false
+				return slices.Contains(r.Header[k], v)
 			}
 		},
 	},
@@ -74,12 +71,7 @@ var checkers = map[string]struct {
 			}
 			return func(cached Cache, r *http.Request) bool {
 				queries := cached.GetQueries(r)[k]
-				for _, query := range queries {
-					if query == v {
-						return true
-					}
-				}
-				return false
+				return slices.Contains(queries, v)
 			}
 		},
 	},
