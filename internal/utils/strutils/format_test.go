@@ -213,3 +213,84 @@ func TestFormatLastSeen(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatByteSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		size     int64
+		expected string
+	}{
+		{
+			name:     "zero size",
+			size:     0,
+			expected: "0 B",
+		},
+		{
+			name:     "one byte",
+			size:     1,
+			expected: "1 B",
+		},
+		{
+			name:     "bytes (less than 1 KiB)",
+			size:     1023,
+			expected: "1023 B",
+		},
+		{
+			name:     "1 KiB",
+			size:     1024,
+			expected: "1 KiB",
+		},
+		{
+			name:     "KiB (less than 1 MiB)",
+			size:     1024 * 1023,
+			expected: "1023 KiB",
+		},
+		{
+			name:     "1 MiB",
+			size:     1024 * 1024,
+			expected: "1 MiB",
+		},
+		{
+			name:     "MiB (less than 1 GiB)",
+			size:     1024 * 1024 * 1023,
+			expected: "1023 MiB",
+		},
+		{
+			name:     "1 GiB",
+			size:     1024 * 1024 * 1024,
+			expected: "1 GiB",
+		},
+		{
+			name:     "GiB (less than 1 TiB)",
+			size:     1024 * 1024 * 1024 * 1023,
+			expected: "1023 GiB",
+		},
+		{
+			name:     "1 TiB",
+			size:     1024 * 1024 * 1024 * 1024,
+			expected: "1 TiB",
+		},
+		{
+			name:     "TiB (less than 1 PiB)",
+			size:     1024 * 1024 * 1024 * 1024 * 1023,
+			expected: "1023 TiB",
+		},
+		{
+			name:     "1 PiB",
+			size:     1024 * 1024 * 1024 * 1024 * 1024,
+			expected: "1 PiB",
+		},
+		{
+			name:     "PiB (large number)",
+			size:     1024 * 1024 * 1024 * 1024 * 1024 * 1023,
+			expected: "1023 PiB",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatByteSize(tt.size)
+			expect.Equal(t, result, tt.expected)
+		})
+	}
+}
