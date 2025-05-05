@@ -12,6 +12,61 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func TestSplitAnd(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  []string{},
+		},
+		{
+			name:  "single",
+			input: "rule",
+			want:  []string{"rule"},
+		},
+		{
+			name:  "multiple",
+			input: "rule1 & rule2",
+			want:  []string{"rule1", "rule2"},
+		},
+		{
+			name:  "multiple_newline",
+			input: "rule1\n\nrule2",
+			want:  []string{"rule1", "rule2"},
+		},
+		{
+			name:  "multiple_newline_and",
+			input: "rule1\nrule2 & rule3",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "empty segment",
+			input: "rule1\n& &rule2& rule3",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "double_and",
+			input: "rule1\nrule2 && rule3",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "spaces_around",
+			input: " rule1\nrule2 & rule3 ",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitAnd(tt.input)
+			ExpectEqual(t, got, tt.want)
+		})
+	}
+}
+
 func TestParseOn(t *testing.T) {
 	tests := []struct {
 		name    string

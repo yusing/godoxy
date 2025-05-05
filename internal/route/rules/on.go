@@ -2,6 +2,7 @@ package rules
 
 import (
 	"net/http"
+	"strings"
 
 	"slices"
 
@@ -230,19 +231,80 @@ var checkers = map[string]struct {
 	},
 }
 
+var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+var andSeps = [256]uint8{'&': 1, '\n': 1}
+
+func indexAnd(s string) int {
+	for i, c := range s {
+		if andSeps[c] != 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+func countAnd(s string) int {
+	n := 0
+	for _, c := range s {
+		if andSeps[c] != 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// splitAnd splits a string by "&" and "\n" with all spaces removed.
+// empty strings are not included in the result.
+func splitAnd(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	n := countAnd(s)
+	a := make([]string, n+1)
+	i := 0
+	for i < n {
+		end := indexAnd(s)
+		if end == -1 {
+			break
+		}
+		beg := 0
+		// trim leading spaces
+		for beg < end && asciiSpace[s[beg]] != 0 {
+			beg++
+		}
+		// trim trailing spaces
+		next := end + 1
+		for end-1 > beg && asciiSpace[s[end-1]] != 0 {
+			end--
+		}
+		// skip empty segments
+		if end > beg {
+			a[i] = s[beg:end]
+			i++
+		}
+		s = s[next:]
+	}
+	s = strings.TrimSpace(s)
+	if s != "" {
+		a[i] = s
+		i++
+	}
+	return a[:i]
+}
+
 // Parse implements strutils.Parser.
 func (on *RuleOn) Parse(v string) error {
 	on.raw = v
 
-	lines := strutils.SplitLine(v)
-	checkAnd := make(CheckMatchAll, 0, len(lines))
+	rules := splitAnd(v)
+	checkAnd := make(CheckMatchAll, 0, len(rules))
 
 	errs := gperr.NewBuilder("rule.on syntax errors")
-	for i, line := range lines {
-		if line == "" {
+	for i, rule := range rules {
+		if rule == "" {
 			continue
 		}
-		parsed, err := parseOn(line)
+		parsed, err := parseOn(rule)
 		if err != nil {
 			errs.Add(err.Subjectf("line %d", i+1))
 			continue
