@@ -27,7 +27,7 @@ proxy.app: |
     hideXForwarded:
   homepage:
     name: Example App
-    icon: png/adguard-home.png
+    icon: "@selfhst/adguard-home.png"
     description: An example app
     category: example
   access_log:
@@ -89,7 +89,7 @@ proxy.app1.middlewares.cidr_whitelist: |
   message: IP not allowed
 proxy.app1.middlewares.hideXForwarded:
 proxy.app1.homepage.name: Example App
-proxy.app1.homepage.icon: png/adguard-home.png
+proxy.app1.homepage.icon: "@selfhst/adguard-home.png"
 proxy.app1.homepage.description: An example app
 proxy.app1.homepage.category: example
 proxy.app1.access_log.buffer_size: 100

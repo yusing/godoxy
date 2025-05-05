@@ -37,11 +37,11 @@ func (err *baseError) Subjectf(format string, args ...any) Error {
 }
 
 func (err baseError) With(extra error) Error {
-	return &nestedError{err.Err, []error{extra}}
+	return &nestedError{&err, []error{extra}}
 }
 
 func (err baseError) Withf(format string, args ...any) Error {
-	return &nestedError{err.Err, []error{fmt.Errorf(format, args...)}}
+	return &nestedError{&err, []error{fmt.Errorf(format, args...)}}
 }
 
 func (err *baseError) Error() string {

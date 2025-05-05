@@ -45,11 +45,11 @@ func TestFormatting(t *testing.T) {
 func TestMultiError(t *testing.T) {
 	err := testMultiErr{[]error{testErr{}, testErr{}}}
 	plain := Plain(err)
-	if string(plain) != "test error\ntest error" {
+	if string(plain) != "test error\ntest error\n" {
 		t.Errorf("expected test error, got %s", string(plain))
 	}
 	md := Markdown(err)
-	if string(md) != "**test error**\n**test error**" {
+	if string(md) != "**test error**\n**test error**\n" {
 		t.Errorf("expected test error, got %s", string(md))
 	}
 }

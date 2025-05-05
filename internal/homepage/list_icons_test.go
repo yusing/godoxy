@@ -102,21 +102,19 @@ func TestListWalkxCodeIcons(t *testing.T) {
 	}
 	test := []testCases{
 		{
-			Key: NewIconKey(IconSourceWalkXCode, "2fauth"),
+			Key: NewIconKey(IconSourceWalkXCode, "app1"),
 			IconMeta: IconMeta{
-				SVG:         true,
-				PNG:         true,
-				WebP:        true,
-				Light:       true,
-				DisplayName: "2FAuth",
+				SVG:   true,
+				PNG:   true,
+				WebP:  true,
+				Light: true,
 			},
 		},
 		{
-			Key: NewIconKey(IconSourceWalkXCode, "dittofeed"),
+			Key: NewIconKey(IconSourceWalkXCode, "app2"),
 			IconMeta: IconMeta{
-				PNG:         true,
-				WebP:        true,
-				DisplayName: "Dittofeed",
+				PNG:  true,
+				WebP: true,
 			},
 		},
 	}

@@ -26,7 +26,7 @@ example: # matching `example.y.z`
     hideXForwarded:
   homepage:
     name: Example App
-    icon: png/adguard-home.png
+    icon: "@selfhst/adguard-home.png"
     description: An example app
     category: example
   access_log:
