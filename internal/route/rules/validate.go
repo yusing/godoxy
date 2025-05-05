@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
@@ -111,6 +113,20 @@ func validateURLPath(args []string) (any, gperr.Error) {
 	return p, nil
 }
 
+// validateURLPathGlob returns []string with each element validated.
+func validateURLPathGlob(args []string) (any, gperr.Error) {
+	p, err := validateURLPath(args)
+	if err != nil {
+		return nil, err
+	}
+
+	g, gErr := glob.Compile(p.(string))
+	if gErr != nil {
+		return nil, ErrInvalidArguments.With(gErr)
+	}
+	return g, nil
+}
+
 // validateURLPaths returns []string with each element validated.
 func validateURLPaths(paths []string) (any, gperr.Error) {
 	errs := gperr.NewBuilder("invalid url paths")
@@ -133,7 +149,7 @@ func validateFSPath(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	p := path.Clean(args[0])
+	p := filepath.Clean(args[0])
 	if _, err := os.Stat(p); err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

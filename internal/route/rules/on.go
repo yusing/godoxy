@@ -5,6 +5,7 @@ import (
 
 	"slices"
 
+	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -176,15 +177,15 @@ var checkers = map[string]struct {
 				"path": "the request path",
 			},
 		},
-		validate: validateURLPath,
+		validate: validateURLPathGlob,
 		builder: func(args any) CheckFunc {
-			pat := args.(string)
+			pat := args.(glob.Glob)
 			return func(cached Cache, r *http.Request) bool {
 				reqPath := r.URL.Path
 				if len(reqPath) > 0 && reqPath[0] != '/' {
 					reqPath = "/" + reqPath
 				}
-				return strutils.GlobMatch(pat, reqPath)
+				return pat.Match(reqPath)
 			}
 		},
 	},
