@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"reflect"
 	"sort"
@@ -23,16 +24,22 @@ type (
 	ImplNewFunc = func() any
 	OptionsRaw  = map[string]any
 
-	Middleware struct {
-		name      string
-		construct ImplNewFunc
-		impl      any
+	commonOptions = struct {
 		// priority is only applied for ReverseProxy.
 		//
 		// Middleware compose follows the order of the slice
 		//
 		// Default is 10, 0 is the highest
-		priority int
+		Priority int    `json:"priority"`
+		Bypass   Bypass `json:"bypass"`
+	}
+
+	Middleware struct {
+		name      string
+		construct ImplNewFunc
+		impl      any
+
+		commonOptions
 	}
 	ByPriority []*Middleware
 
@@ -55,7 +62,7 @@ const DefaultPriority = 10
 
 func (m ByPriority) Len() int           { return len(m) }
 func (m ByPriority) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-func (m ByPriority) Less(i, j int) bool { return m[i].priority < m[j].priority }
+func (m ByPriority) Less(i, j int) bool { return m[i].Priority < m[j].Priority }
 
 func NewMiddleware[ImplType any]() *Middleware {
 	// type check
@@ -107,21 +114,22 @@ func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
 	if len(optsRaw) == 0 {
 		return nil
 	}
-	priority, ok := optsRaw["priority"].(int)
-	if ok {
-		m.priority = priority
-		// remove priority for deserialization, restore later
-		delete(optsRaw, "priority")
-		defer func() {
-			optsRaw["priority"] = priority
-		}()
-	} else {
-		m.priority = DefaultPriority
+	commonOpts := map[string]any{
+		"priority": optsRaw["priority"],
+		"bypass":   optsRaw["bypass"],
+	}
+	if err := utils.MapUnmarshalValidate(commonOpts, &m.commonOptions); err != nil {
+		return err
+	}
+	optsRaw = maps.Clone(optsRaw)
+	for k := range commonOpts {
+		delete(optsRaw, k)
 	}
 	return utils.MapUnmarshalValidate(optsRaw, m.impl)
 }
 
 func (m *Middleware) finalize() error {
+	m.impl = m.withCheckBypass()
 	if finalizer, ok := m.impl.(MiddlewareFinalizer); ok {
 		finalizer.finalize()
 		return nil
@@ -159,10 +167,16 @@ func (m *Middleware) String() string {
 }
 
 func (m *Middleware) MarshalJSON() ([]byte, error) {
+	type allOptions struct {
+		commonOptions
+		any
+	}
 	return json.MarshalIndent(map[string]any{
-		"name":     m.name,
-		"options":  m.impl,
-		"priority": m.priority,
+		"name": m.name,
+		"options": allOptions{
+			commonOptions: m.commonOptions,
+			any:           m.impl,
+		},
 	}, "", "  ")
 }
 
