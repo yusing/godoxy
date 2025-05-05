@@ -30,9 +30,8 @@ type (
 		writeLock     sync.Mutex
 		closed        bool
 
-		wps        int64
+		writeCount int64
 		bufSize    int
-		lastAdjust time.Time
 
 		lineBufPool *synk.BytesPool // buffer pool for formatting a single log line
 
@@ -69,7 +68,7 @@ const (
 	MinBufferSize = 4 * kilobyte
 	MaxBufferSize = 8 * megabyte
 
-	bufferAdjustInterval = time.Second // How often we check & adjust
+	bufferAdjustInterval = 5 * time.Second // How often we check & adjust
 )
 
 const defaultRotateInterval = time.Hour
@@ -297,11 +296,11 @@ func (l *AccessLogger) write(data []byte) {
 	} else if n < len(data) {
 		l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
 	}
-	atomic.AddInt64(&l.wps, int64(n))
+	atomic.AddInt64(&l.writeCount, int64(n))
 }
 
 func (l *AccessLogger) adjustBuffer() {
-	wps := int(atomic.SwapInt64(&l.wps, 0))
+	wps := int(atomic.SwapInt64(&l.writeCount, 0)) / int(bufferAdjustInterval.Seconds())
 	origBufSize := l.bufSize
 	newBufSize := origBufSize
 
