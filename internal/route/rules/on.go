@@ -16,6 +16,10 @@ type RuleOn struct {
 	checker Checker
 }
 
+func (on *RuleOn) Check(cached Cache, r *http.Request) bool {
+	return on.checker.Check(cached, r)
+}
+
 const (
 	OnHeader    = "header"
 	OnQuery     = "query"
