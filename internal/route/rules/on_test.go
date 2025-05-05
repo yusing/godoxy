@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -168,6 +169,22 @@ func TestParseOn(t *testing.T) {
 			input:   "unknown",
 			wantErr: ErrInvalidOnTarget,
 		},
+		// route
+		{
+			name:    "route_valid",
+			input:   "route example",
+			wantErr: nil,
+		},
+		{
+			name:    "route_missing_arg",
+			input:   "route",
+			wantErr: ErrExpectOneArg,
+		},
+		{
+			name:    "route_extra_arg",
+			input:   "route example1 example2",
+			wantErr: ErrExpectOneArg,
+		},
 	}
 
 	for _, tt := range tests {
@@ -282,6 +299,24 @@ func TestOnCorrectness(t *testing.T) {
 				Header: http.Header{
 					"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte("user:incorrect"))}, // "user:wrong"
 				},
+			},
+			want: false,
+		},
+		{
+			name:    "route_match",
+			checker: "route example",
+			input: &http.Request{
+				Header: http.Header{
+					httpheaders.HeaderUpstreamName: {"example"},
+				},
+			},
+			want: true,
+		},
+		{
+			name:    "route_no_match",
+			checker: "route example",
+			input: &http.Request{
+				Header: http.Header{},
 			},
 			want: false,
 		},

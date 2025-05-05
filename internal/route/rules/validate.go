@@ -30,6 +30,13 @@ func (t *Tuple[T1, T2]) String() string {
 	return fmt.Sprintf("%v:%v", t.First, t.Second)
 }
 
+func validateSingleArg(args []string) (any, gperr.Error) {
+	if len(args) != 1 {
+		return nil, ErrExpectOneArg
+	}
+	return args[0], nil
+}
+
 // toStrTuple returns *StrTuple.
 func toStrTuple(args []string) (any, gperr.Error) {
 	if len(args) != 2 {

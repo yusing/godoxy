@@ -8,6 +8,7 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -31,6 +32,7 @@ const (
 	OnPath      = "path"
 	OnRemote    = "remote"
 	OnBasicAuth = "basic_auth"
+	OnRoute     = "route"
 )
 
 var checkers = map[string]struct {
@@ -226,6 +228,21 @@ var checkers = map[string]struct {
 			cred := args.(*HashedCrendentials)
 			return func(cached Cache, r *http.Request) bool {
 				return cred.Match(cached.GetBasicAuth(r))
+			}
+		},
+	},
+	OnRoute: {
+		help: Help{
+			command: OnRoute,
+			args: map[string]string{
+				"route": "the route name",
+			},
+		},
+		validate: validateSingleArg,
+		builder: func(args any) CheckFunc {
+			route := args.(string)
+			return func(_ Cache, r *http.Request) bool {
+				return r.Header.Get(httpheaders.HeaderUpstreamName) == route
 			}
 		},
 	},
