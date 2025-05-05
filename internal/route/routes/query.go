@@ -16,12 +16,14 @@ func getHealthInfo(r Route) map[string]string {
 			"status":  "unknown",
 			"uptime":  "n/a",
 			"latency": "n/a",
+			"detail":  "n/a",
 		}
 	}
 	return map[string]string{
 		"status":  mon.Status().String(),
 		"uptime":  mon.Uptime().Round(time.Second).String(),
 		"latency": mon.Latency().Round(time.Microsecond).String(),
+		"detail":  mon.Detail(),
 	}
 }
 

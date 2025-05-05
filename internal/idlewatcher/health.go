@@ -65,6 +65,21 @@ func (w *Watcher) Status() health.Status {
 	return health.StatusNapping
 }
 
+// Detail implements health.HealthMonitor.
+func (w *Watcher) Detail() string {
+	state := w.state.Load()
+	if state.err != nil {
+		return state.err.Error()
+	}
+	if !state.ready {
+		return "not ready"
+	}
+	if state.status == idlewatcher.ContainerStatusRunning {
+		return "starting"
+	}
+	return "napping"
+}
+
 func checkUpdateState(key string) (w *Watcher, ready bool, err error) {
 	watcherMapMu.RLock()
 	w, ok := watcherMap[key]

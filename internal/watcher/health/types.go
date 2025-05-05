@@ -19,6 +19,7 @@ type (
 		Status() Status
 		Uptime() time.Duration
 		Latency() time.Duration
+		Detail() string
 	}
 	HealthMonitor interface {
 		task.TaskStarter
