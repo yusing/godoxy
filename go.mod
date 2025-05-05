@@ -41,8 +41,8 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-20250503173201-5f780f490224
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250503173201-5f780f490224
+	github.com/yusing/go-proxy/agent v0.0.0-20250504164529-2cec88d3ce0d
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250504164529-2cec88d3ce0d
 	go.uber.org/atomic v1.11.0
 )
 
