@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"net/url"
 	"strconv"
 	"strings"
@@ -37,10 +38,11 @@ type (
 		PublicHostname     string      `json:"public_hostname"`
 		PrivateHostname    string      `json:"private_hostname"`
 
-		Aliases    []string `json:"aliases"`
-		IsExcluded bool     `json:"is_excluded"`
-		IsExplicit bool     `json:"is_explicit"`
-		Running    bool     `json:"running"`
+		Aliases           []string `json:"aliases"`
+		IsExcluded        bool     `json:"is_excluded"`
+		IsExplicit        bool     `json:"is_explicit"`
+		IsHostNetworkMode bool     `json:"is_host_network_mode"`
+		Running           bool     `json:"running"`
 	}
 	ContainerImage struct {
 		Author string `json:"author,omitempty"`
@@ -76,10 +78,11 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 		PublicPortMapping:  helper.getPublicPortMapping(),
 		PrivatePortMapping: helper.getPrivatePortMapping(),
 
-		Aliases:    helper.getAliases(),
-		IsExcluded: isExcluded,
-		IsExplicit: isExplicit,
-		Running:    c.Status == "running" || c.State == "running",
+		Aliases:           helper.getAliases(),
+		IsExcluded:        isExcluded,
+		IsExplicit:        isExplicit,
+		IsHostNetworkMode: c.HostConfig.NetworkMode == "host",
+		Running:           c.Status == "running" || c.State == "running",
 	}
 
 	if agent.IsDockerHostAgent(dockerHost) {
@@ -200,4 +203,29 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 			c.IdlewatcherConfig = idwCfg
 		}
 	}
+}
+
+func (c *Container) UpdatePorts() error {
+	client, err := NewClient(c.DockerHost)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	inspect, err := client.ContainerInspect(context.Background(), c.ContainerID)
+	if err != nil {
+		return err
+	}
+
+	for port := range inspect.Config.ExposedPorts {
+		if port.Int() == 0 {
+			continue
+		}
+		c.PublicPortMapping[port.Int()] = container.Port{
+			PublicPort:  uint16(port.Int()),
+			PrivatePort: uint16(port.Int()),
+			Type:        port.Proto(),
+		}
+	}
+	return nil
 }
