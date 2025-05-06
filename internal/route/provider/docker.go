@@ -75,6 +75,14 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 			continue
 		}
 
+		if container.IsHostNetworkMode {
+			err := container.UpdatePorts()
+			if err != nil {
+				errs.Add(gperr.PrependSubject(container.ContainerName, err))
+				continue
+			}
+		}
+
 		newEntries, err := p.routesFromContainerLabels(container)
 		if err != nil {
 			errs.Add(err.Subject(container.ContainerName))
