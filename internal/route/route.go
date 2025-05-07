@@ -409,7 +409,11 @@ func (r *Route) Finalize() {
 	if pp == 0 {
 		switch {
 		case isDocker:
-			pp = preferredPort(cont.PrivatePortMapping)
+			if cont.IsHostNetworkMode {
+				pp = preferredPort(cont.PublicPortMapping)
+			} else {
+				pp = preferredPort(cont.PrivatePortMapping)
+			}
 		case r.Scheme == "https":
 			pp = 443
 		default:

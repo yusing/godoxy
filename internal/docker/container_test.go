@@ -41,3 +41,38 @@ func TestContainerExplicit(t *testing.T) {
 		})
 	}
 }
+
+func TestContainerHostNetworkMode(t *testing.T) {
+	tests := []struct {
+		name              string
+		container         *container.SummaryTrimmed
+		isHostNetworkMode bool
+	}{
+		{
+			name: "host network mode",
+			container: &container.SummaryTrimmed{
+				Names: []string{"test"},
+				State: "test",
+				HostConfig: struct {
+					NetworkMode string "json:\",omitempty\""
+				}{
+					NetworkMode: "host",
+				},
+			},
+			isHostNetworkMode: true,
+		},
+		{
+			name: "not host network mode",
+			container: &container.SummaryTrimmed{
+				Names: []string{"test"},
+				State: "test",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := FromDocker(tt.container, "")
+			ExpectEqual(t, c.IsHostNetworkMode, tt.isHostNetworkMode)
+		})
+	}
+}

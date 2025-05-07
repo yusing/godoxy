@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -218,13 +219,15 @@ func (c *Container) UpdatePorts() error {
 	}
 
 	for port := range inspect.Config.ExposedPorts {
-		if port.Int() == 0 {
+		proto, portStr := nat.SplitProtoPort(string(port))
+		portInt, _ := nat.ParsePort(portStr)
+		if portInt == 0 {
 			continue
 		}
-		c.PublicPortMapping[port.Int()] = container.Port{
-			PublicPort:  uint16(port.Int()),
-			PrivatePort: uint16(port.Int()),
-			Type:        port.Proto(),
+		c.PublicPortMapping[portInt] = container.Port{
+			PublicPort:  uint16(portInt),
+			PrivatePort: uint16(portInt),
+			Type:        proto,
 		}
 	}
 	return nil
