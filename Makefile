@@ -79,6 +79,22 @@ docker-build-test:
 get:
 	for dir in ${PWD} ${PWD}/agent ${PWD}/internal/dnsproviders; do cd $$dir && go get -u ./... && go mod tidy; done
 
+
+go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
+files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
+gomod_paths := $(shell find . -name go.mod -type f | xargs dirname)
+
+update-go:
+	for file in ${files}; do \
+		echo "updating $$file"; \
+		sed -i 's|go \([0-9]\+\.[0-9]\+\.[0-9]\+\)|go ${go_ver}|g' $$file; \
+		sed -i 's|FROM golang:.*-alpine|FROM golang:${go_ver}-alpine|g' $$file; \
+	done
+	for path in ${gomod_paths}; do \
+		echo "go mod tidy $$path"; \
+		cd ${PWD}/$$path && go mod tidy; \
+	done
+
 build:
 	mkdir -p $(shell dirname ${BIN_PATH})
 	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ${CMD_PATH}
