@@ -76,10 +76,6 @@ docker-build-test:
 	docker build -t godoxy .
 	docker build --build-arg=MAKE_ARGS=agent=1 -t godoxy-agent .
 
-get:
-	for dir in ${PWD} ${PWD}/agent ${PWD}/internal/dnsproviders; do cd $$dir && go get -u ./... && go mod tidy; done
-
-
 go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
 gomod_paths := $(shell find . -name go.mod -type f | xargs dirname)
@@ -93,6 +89,12 @@ update-go:
 	for path in ${gomod_paths}; do \
 		echo "go mod tidy $$path"; \
 		cd ${PWD}/$$path && go mod tidy; \
+	done
+
+update-deps:
+	for path in ${gomod_paths}; do \
+		echo "go get -u $$path"; \
+		cd ${PWD}/$$path && go get -u ./... && go mod tidy; \
 	done
 
 build:
