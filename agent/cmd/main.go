@@ -5,11 +5,13 @@ import (
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/env"
+	"github.com/yusing/go-proxy/agent/pkg/handler"
 	"github.com/yusing/go-proxy/agent/pkg/server"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
+	httpServer "github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
 )
@@ -55,6 +57,17 @@ Tips:
 	}
 
 	server.StartAgentServer(t, opts)
+
+	if env.DockerSocketAddr != "" {
+		logging.Info().Msgf("Docker socket listening on: %s", env.DockerSocketAddr)
+		opts := httpServer.Options{
+			Name:     "docker",
+			HTTPAddr: env.DockerSocketAddr,
+			Handler:  handler.NewDockerHandler(),
+		}
+		httpServer.StartServer(t, opts)
+	}
+
 	systeminfo.Poller.Start()
 
 	task.WaitExit(3)

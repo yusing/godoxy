@@ -9,6 +9,36 @@ services:
       AGENT_PORT: "{{.Port}}"
       AGENT_CA_CERT: "{{.CACert}}"
       AGENT_SSL_CERT: "{{.SSLCert}}"
+      # docker socket proxy
+      # unset DOCKER_SOCKET_ADDR to disable
+      DOCKER_SOCKET_ADDR: 127.0.0.1:2375
+      POST: false
+      ALLOW_RESTARTS: false
+      ALLOW_START: false
+      ALLOW_STOP: false
+      AUTH: false
+      BUILD: false
+      COMMIT: false
+      CONFIGS: false
+      CONTAINERS: false
+      DISTRIBUTIONS: false
+      EVENTS: true
+      EXEC: false
+      GRPC: false
+      IMAGES: false
+      INFO: false
+      NETWORKS: false
+      NODES: false
+      PING: true
+      PLUGINS: false
+      SECRETS: false
+      SERVICES: false
+      SESSION: false
+      SWARM: false
+      SYSTEM: false
+      TASKS: false
+      VERSION: true
+      VOLUMES: false
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/app/data

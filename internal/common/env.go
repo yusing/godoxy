@@ -82,10 +82,12 @@ func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T
 	return defaultValue
 }
 
+func stringstring(s string) (string, error) {
+	return s, nil
+}
+
 func GetEnvString(key string, defaultValue string) string {
-	return GetEnv(key, defaultValue, func(s string) (string, error) {
-		return s, nil
-	})
+	return GetEnv(key, defaultValue, stringstring)
 }
 
 func GetEnvBool(key string, defaultValue bool) bool {

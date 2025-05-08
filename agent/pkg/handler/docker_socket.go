@@ -16,6 +16,13 @@ func serviceUnavailable(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "docker socket is not available", http.StatusServiceUnavailable)
 }
 
+func mockDockerSocketHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock docker response"))
+	})
+}
+
 func DockerSocketHandler() http.HandlerFunc {
 	dockerClient, err := docker.NewClient(common.DockerHostFromEnv)
 	if err != nil {

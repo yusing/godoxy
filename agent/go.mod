@@ -7,6 +7,7 @@ replace github.com/yusing/go-proxy => ..
 require (
 	github.com/coder/websocket v1.8.13
 	github.com/docker/docker v28.1.1+incompatible
+	github.com/gorilla/mux v1.8.1
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/yusing/go-proxy v0.12.3
