@@ -20,11 +20,6 @@ const (
 	HeaderContentType   = "Content-Type"
 	HeaderContentLength = "Content-Length"
 
-	HeaderUpstreamName   = "X-Godoxy-Upstream-Name"
-	HeaderUpstreamScheme = "X-Godoxy-Upstream-Scheme"
-	HeaderUpstreamHost   = "X-Godoxy-Upstream-Host"
-	HeaderUpstreamPort   = "X-Godoxy-Upstream-Port"
-
 	HeaderGoDoxyCheckRedirect = "X-Godoxy-Check-Redirect"
 )
 

@@ -222,7 +222,6 @@ func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (
 
 func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) {
 	sort.Sort(ByPriority(middlewares))
-	middlewares = append([]*Middleware{newSetUpstreamHeaders(rp)}, middlewares...)
 
 	mid := NewMiddlewareChain(rp.TargetName, middlewares)
 

@@ -7,9 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yusing/go-proxy/internal/entrypoint"
 	. "github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/net/types"
+	"github.com/yusing/go-proxy/internal/route"
+	routeTypes "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/task"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -128,4 +132,41 @@ func TestReverseProxyBypass(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEntrypointBypassRoute(t *testing.T) {
+	go http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("test"))
+	}))
+	entry := entrypoint.NewEntrypoint()
+	r := &route.Route{
+		Alias: "test-route",
+		Port: routeTypes.Port{
+			Proxy: 8080,
+		},
+	}
+	err := entry.SetMiddlewares([]map[string]any{
+		{
+			"use": "redirectHTTP",
+			"bypass": []string{"route test-route"},
+		},
+		{
+			"use": "response",
+			"set_headers": map[string]string{
+				"Test-Header": "test-value",
+			},
+		},
+	})
+	expect.NoError(t, err)
+
+	err = r.Validate()
+	expect.NoError(t, err)
+	r.Start(task.RootTask("test", false))
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "http://test-route.example.com", nil)
+	entry.ServeHTTP(recorder, req)
+	expect.Equal(t, recorder.Code, http.StatusOK, "should bypass http redirect")
+	expect.Equal(t, recorder.Body.String(), "test")
+	expect.Equal(t, recorder.Header().Get("Test-Header"), "test-value")
 }

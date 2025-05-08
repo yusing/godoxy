@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 )
 
 type (
@@ -91,31 +91,12 @@ var staticReqVarSubsMap = map[string]reqVarGetter{
 		return ""
 	},
 	VarRemoteAddr:     func(req *http.Request) string { return req.RemoteAddr },
-	VarUpstreamName:   func(req *http.Request) string { return req.Header.Get(httpheaders.HeaderUpstreamName) },
-	VarUpstreamScheme: func(req *http.Request) string { return req.Header.Get(httpheaders.HeaderUpstreamScheme) },
-	VarUpstreamHost:   func(req *http.Request) string { return req.Header.Get(httpheaders.HeaderUpstreamHost) },
-	VarUpstreamPort:   func(req *http.Request) string { return req.Header.Get(httpheaders.HeaderUpstreamPort) },
-	VarUpstreamAddr: func(req *http.Request) string {
-		upHost := req.Header.Get(httpheaders.HeaderUpstreamHost)
-		upPort := req.Header.Get(httpheaders.HeaderUpstreamPort)
-		if upPort != "" {
-			return upHost + ":" + upPort
-		}
-		return upHost
-	},
-	VarUpstreamURL: func(req *http.Request) string {
-		upScheme := req.Header.Get(httpheaders.HeaderUpstreamScheme)
-		if upScheme == "" {
-			return ""
-		}
-		upHost := req.Header.Get(httpheaders.HeaderUpstreamHost)
-		upPort := req.Header.Get(httpheaders.HeaderUpstreamPort)
-		upAddr := upHost
-		if upPort != "" {
-			upAddr += ":" + upPort
-		}
-		return upScheme + "://" + upAddr
-	},
+	VarUpstreamName:   func(req *http.Request) string { return reverseproxy.TryGetUpstreamName(req) },
+	VarUpstreamScheme: func(req *http.Request) string { return reverseproxy.TryGetUpstreamScheme(req) },
+	VarUpstreamHost:   func(req *http.Request) string { return reverseproxy.TryGetUpstreamHost(req) },
+	VarUpstreamPort:   func(req *http.Request) string { return reverseproxy.TryGetUpstreamPort(req) },
+	VarUpstreamAddr:   func(req *http.Request) string { return reverseproxy.TryGetUpstreamAddr(req) },
+	VarUpstreamURL:    func(req *http.Request) string { return reverseproxy.TryGetUpstreamURL(req) },
 }
 
 var staticRespVarSubsMap = map[string]respVarGetter{

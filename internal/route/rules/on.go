@@ -8,7 +8,7 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -242,7 +242,7 @@ var checkers = map[string]struct {
 		builder: func(args any) CheckFunc {
 			route := args.(string)
 			return func(_ Cache, r *http.Request) bool {
-				return r.Header.Get(httpheaders.HeaderUpstreamName) == route
+				return reverseproxy.TryGetUpstreamName(r) == route
 			}
 		},
 	},

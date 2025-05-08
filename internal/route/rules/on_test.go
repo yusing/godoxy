@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -305,11 +305,7 @@ func TestOnCorrectness(t *testing.T) {
 		{
 			name:    "route_match",
 			checker: "route example",
-			input: &http.Request{
-				Header: http.Header{
-					httpheaders.HeaderUpstreamName: {"example"},
-				},
-			},
+			input: reverseproxy.NewReverseProxy("example", nil, http.DefaultTransport).WithContextValue(&http.Request{}),
 			want: true,
 		},
 		{

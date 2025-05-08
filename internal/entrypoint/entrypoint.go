@@ -77,6 +77,9 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return nil
 			})
 		}
+		if rp, ok := mux.(routes.ReverseProxyRoute); ok {
+			r = rp.ReverseProxy().WithContextValue(r)
+		}
 		if ep.middleware != nil {
 			ep.middleware.ServeHTTP(mux.ServeHTTP, w, r)
 			return
