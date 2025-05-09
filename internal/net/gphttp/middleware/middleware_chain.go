@@ -14,7 +14,7 @@ type middlewareChain struct {
 
 // TODO: check conflict or duplicates.
 func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
-	chainMid := &middlewareChain{befores: []RequestModifier{}, modResps: []ResponseModifier{}}
+	chainMid := &middlewareChain{}
 	m := &Middleware{name: name, impl: chainMid}
 
 	for _, comp := range chain {
@@ -38,6 +38,9 @@ func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 
 // before implements RequestModifier.
 func (m *middlewareChain) before(w http.ResponseWriter, r *http.Request) (proceedNext bool) {
+	if len(m.befores) == 0 {
+		return true
+	}
 	for _, b := range m.befores {
 		if proceedNext = b.before(w, r); !proceedNext {
 			return false
@@ -51,11 +54,10 @@ func (m *middlewareChain) modifyResponse(resp *http.Response) error {
 	if len(m.modResps) == 0 {
 		return nil
 	}
-	errs := gperr.NewBuilder("modify response errors")
 	for i, mr := range m.modResps {
 		if err := mr.modifyResponse(resp); err != nil {
-			errs.Add(gperr.Wrap(err).Subjectf("%d", i))
+			return gperr.Wrap(err).Subjectf("%d", i)
 		}
 	}
-	return errs.Error()
+	return nil
 }
