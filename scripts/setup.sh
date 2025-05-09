@@ -24,7 +24,7 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # check if user has docker permission
-if ! docker ps > /dev/null 2>&1; then
+if ! docker ps >/dev/null 2>&1; then
 	echo "Error: User $USER does not have permission to run docker, please add it to docker group"
 	exit 1
 fi
@@ -210,6 +210,7 @@ setenv "GODOXY_API_USER" "$LOGIN_USERNAME"
 setenv "GODOXY_API_PASSWORD" "$LOGIN_PASSWORD"
 
 # 6. setup autocert
+ask_while_empty "Configure autocert? (y/n): " ENABLE_AUTOCERT
 
 # quit if not using autocert
 if [ "$ENABLE_AUTOCERT" == "y" ]; then
