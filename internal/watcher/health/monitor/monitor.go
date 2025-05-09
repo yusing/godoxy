@@ -188,15 +188,13 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
-var resHealthy = &health.HealthCheckResult{
-	Healthy: true,
-}
+var resHealthy = health.HealthCheckResult{Healthy: true}
 
 // MarshalJSON implements health.HealthMonitor.
 func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
 	if res == nil {
-		res = resHealthy
+		res = &resHealthy
 	}
 
 	return (&health.JSONRepresentation{
@@ -215,24 +213,22 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 func (mon *monitor) checkUpdateHealth() error {
 	logger := logging.With().Str("name", mon.Name()).Logger()
 	result, err := mon.checkHealth()
-	if err != nil {
-		defer mon.task.Finish(err)
-		mon.status.Store(health.StatusError)
-		if !errors.Is(err, context.Canceled) {
-			return fmt.Errorf("check health: %w", err)
-		}
-		return nil
-	}
 
-	mon.lastResult.Store(result)
-	var status health.Status
-	if result.Healthy {
-		status = health.StatusHealthy
+	var lastStatus health.Status
+	if err != nil {
+		if result == nil {
+			result = &health.HealthCheckResult{Healthy: false, Detail: err.Error()}
+		}
+		lastStatus = mon.status.Swap(health.StatusError)
+	} else if result.Healthy {
+		lastStatus = mon.status.Swap(health.StatusHealthy)
 		UpdateLastSeen(mon.service)
 	} else {
-		status = health.StatusUnhealthy
+		lastStatus = mon.status.Swap(health.StatusUnhealthy)
 	}
-	if result.Healthy != (mon.status.Swap(status) == health.StatusHealthy) {
+	mon.lastResult.Store(result)
+
+	if result.Healthy != (lastStatus == health.StatusHealthy) {
 		extras := notif.FieldsBody{
 			{Name: "Service Name", Value: mon.service},
 			{Name: "Time", Value: strutils.FormatTime(time.Now())},
@@ -264,5 +260,5 @@ func (mon *monitor) checkUpdateHealth() error {
 		}
 	}
 
-	return nil
+	return err
 }
