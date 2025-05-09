@@ -188,13 +188,15 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
+var resHealthy = &health.HealthCheckResult{
+	Healthy: true,
+}
+
 // MarshalJSON implements health.HealthMonitor.
 func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
 	if res == nil {
-		res = &health.HealthCheckResult{
-			Healthy: true,
-		}
+		res = resHealthy
 	}
 
 	return (&health.JSONRepresentation{
