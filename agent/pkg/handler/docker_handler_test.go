@@ -236,8 +236,8 @@ func TestNewDockerHandler_PathHandling(t *testing.T) {
 		{"Configs path", "/configs", "DockerConfigs", true, http.MethodGet, true},
 		{"Configs path disabled", "/configs", "DockerConfigs", false, http.MethodGet, false},
 
-		{"Distributions path", "/distributions", "DockerDistributions", true, http.MethodGet, true},
-		{"Distributions path disabled", "/distributions", "DockerDistributions", false, http.MethodGet, false},
+		{"Distribution path", "/distribution", "DockerDistribution", true, http.MethodGet, true},
+		{"Distribution path disabled", "/distribution", "DockerDistribution", false, http.MethodGet, false},
 
 		{"Events path", "/events", "DockerEvents", true, http.MethodGet, true},
 		{"Events path disabled", "/events", "DockerEvents", false, http.MethodGet, false},
@@ -320,8 +320,8 @@ func TestNewDockerHandler_PathHandling(t *testing.T) {
 				env.DockerCommit = tt.envVarValue
 			case "DockerConfigs":
 				env.DockerConfigs = tt.envVarValue
-			case "DockerDistributions":
-				env.DockerDistributions = tt.envVarValue
+			case "DockerDistribution":
+				env.DockerDistribution = tt.envVarValue
 			case "DockerEvents":
 				env.DockerEvents = tt.envVarValue
 			case "DockerExec":

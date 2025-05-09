@@ -97,8 +97,8 @@ func NewDockerHandler() http.Handler {
 	if env.DockerConfigs {
 		allowedPaths = append(allowedPaths, "/configs")
 	}
-	if env.DockerDistributions {
-		allowedPaths = append(allowedPaths, "/distributions")
+	if env.DockerDistribution {
+		allowedPaths = append(allowedPaths, "/distribution")
 	}
 	if env.DockerEvents {
 		allowedPaths = append(allowedPaths, "/events")

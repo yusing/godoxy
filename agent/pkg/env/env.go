@@ -21,34 +21,34 @@ var (
 	AgentCACert              string
 	AgentSSLCert             string
 
-	DockerSocketAddr    string
-	DockerPost          bool
-	DockerRestarts      bool
-	DockerStart         bool
-	DockerStop          bool
-	DockerAuth          bool
-	DockerBuild         bool
-	DockerCommit        bool
-	DockerConfigs       bool
-	DockerContainers    bool
-	DockerDistributions bool
-	DockerEvents        bool
-	DockerExec          bool
-	DockerGrpc          bool
-	DockerImages        bool
-	DockerInfo          bool
-	DockerNetworks      bool
-	DockerNodes         bool
-	DockerPing          bool
-	DockerPlugins       bool
-	DockerSecrets       bool
-	DockerServices      bool
-	DockerSession       bool
-	DockerSwarm         bool
-	DockerSystem        bool
-	DockerTasks         bool
-	DockerVersion       bool
-	DockerVolumes       bool
+	DockerSocketAddr   string
+	DockerPost         bool
+	DockerRestarts     bool
+	DockerStart        bool
+	DockerStop         bool
+	DockerAuth         bool
+	DockerBuild        bool
+	DockerCommit       bool
+	DockerConfigs      bool
+	DockerContainers   bool
+	DockerDistribution bool
+	DockerEvents       bool
+	DockerExec         bool
+	DockerGrpc         bool
+	DockerImages       bool
+	DockerInfo         bool
+	DockerNetworks     bool
+	DockerNodes        bool
+	DockerPing         bool
+	DockerPlugins      bool
+	DockerSecrets      bool
+	DockerServices     bool
+	DockerSession      bool
+	DockerSwarm        bool
+	DockerSystem       bool
+	DockerTasks        bool
+	DockerVersion      bool
+	DockerVolumes      bool
 )
 
 func init() {
@@ -75,7 +75,7 @@ func Load() {
 	DockerCommit = common.GetEnvBool("COMMIT", false)
 	DockerConfigs = common.GetEnvBool("CONFIGS", false)
 	DockerContainers = common.GetEnvBool("CONTAINERS", false)
-	DockerDistributions = common.GetEnvBool("DISTRIBUTIONS", false)
+	DockerDistribution = common.GetEnvBool("DISTRIBUTION", false)
 	DockerEvents = common.GetEnvBool("EVENTS", true)
 	DockerExec = common.GetEnvBool("EXEC", false)
 	DockerGrpc = common.GetEnvBool("GRPC", false)

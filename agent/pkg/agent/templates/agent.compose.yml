@@ -9,7 +9,7 @@ services:
       AGENT_PORT: "{{.Port}}"
       AGENT_CA_CERT: "{{.CACert}}"
       AGENT_SSL_CERT: "{{.SSLCert}}"
-      # docker socket proxy
+      # docker socket proxy: [host]:port
       # unset DOCKER_SOCKET_ADDR to disable
       DOCKER_SOCKET_ADDR: 127.0.0.1:2375
       POST: false
@@ -21,7 +21,7 @@ services:
       COMMIT: false
       CONFIGS: false
       CONTAINERS: false
-      DISTRIBUTIONS: false
+      DISTRIBUTION: false
       EVENTS: true
       EXEC: false
       GRPC: false
