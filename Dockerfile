@@ -38,7 +38,9 @@ ENV MAKE_ARGS=${MAKE_ARGS}
 ENV GOCACHE=/root/.cache/go-build
 ENV GOPATH=/root/go
 
-RUN make ${MAKE_ARGS} docker=1 build
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  make ${MAKE_ARGS} docker=1 build
 
 # Stage 3: Final image
 FROM scratch
