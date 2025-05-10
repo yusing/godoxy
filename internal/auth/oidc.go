@@ -68,7 +68,10 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 	if len(allowedUsers)+len(allowedGroups) == 0 {
 		return nil, errors.New("oidc.allowed_users or oidc.allowed_groups are both empty")
 	}
-	provider, err := oidc.NewProvider(context.Background(), issuerURL)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize OIDC provider: %w", err)
 	}
