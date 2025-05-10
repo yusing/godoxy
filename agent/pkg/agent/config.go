@@ -26,6 +26,7 @@ type AgentConfig struct {
 	httpClient *http.Client
 	tlsConfig  *tls.Config
 	name       string
+	version    string
 	l          zerolog.Logger
 }
 
@@ -79,6 +80,8 @@ func (cfg *AgentConfig) Parse(addr string) error {
 	return nil
 }
 
+var serverVersion = pkg.GetVersion()
+
 func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
@@ -120,10 +123,11 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		return err
 	}
 
-	agentVersion := string(agentVersionBytes)
+	cfg.version = string(agentVersionBytes)
+	agentVersion := pkg.ParseVersion(cfg.version)
 
-	if pkg.GetVersion().IsNewerMajorThan(pkg.ParseVersion(agentVersion)) {
-		logging.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, pkg.GetVersion(), agentVersion)
+	if serverVersion.IsNewerMajorThan(agentVersion) {
+		logging.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, serverVersion, agentVersion)
 	}
 
 	logging.Info().Msgf("agent %q initialized", cfg.name)
@@ -186,7 +190,8 @@ func (cfg *AgentConfig) String() string {
 
 func (cfg *AgentConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
-		"name": cfg.Name(),
-		"addr": cfg.Addr,
+		"name":    cfg.Name(),
+		"addr":    cfg.Addr,
+		"version": cfg.version,
 	})
 }
