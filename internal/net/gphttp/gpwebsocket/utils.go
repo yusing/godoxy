@@ -16,7 +16,7 @@ func warnNoMatchDomains() {
 var warnNoMatchDomainOnce sync.Once
 
 const (
-	HeaderXGoDoxyWebsocketAllowedDomains = "X-GoDoxy-Websocket-Allowed-Domains"
+	HeaderXGoDoxyWebsocketAllowedDomains = "X-Godoxy-Websocket-Allowed-Domains"
 )
 
 func WebsocketAllowedDomains(h http.Header) []string {
@@ -62,7 +62,6 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 	defer conn.CloseNow()
 
 	if err := do(conn); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -75,7 +74,6 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 			return
 		case <-ticker.C:
 			if err := do(conn); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}

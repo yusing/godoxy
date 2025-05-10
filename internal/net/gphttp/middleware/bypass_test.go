@@ -147,7 +147,7 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	}
 	err := entry.SetMiddlewares([]map[string]any{
 		{
-			"use": "redirectHTTP",
+			"use":    "redirectHTTP",
 			"bypass": []string{"route test-route"},
 		},
 		{

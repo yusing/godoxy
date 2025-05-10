@@ -194,7 +194,7 @@ func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
 		return nil, fmt.Errorf("failed to parse claims: %w", err)
 	}
 	if claim.Username == "" {
-		return nil, fmt.Errorf("missing username in ID token")
+		return nil, errors.New("missing username in ID token")
 	}
 	return &claim, nil
 }
