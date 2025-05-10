@@ -26,6 +26,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
+COPY socket-proxy ./socket-proxy
 
 ARG VERSION
 ENV VERSION=${VERSION}
