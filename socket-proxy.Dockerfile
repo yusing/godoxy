@@ -47,4 +47,5 @@ COPY --from=builder /app/run /app/run
 
 WORKDIR /app
 
+ENV LISTEN_ADDR=0.0.0.0:2375
 CMD ["/app/run"]

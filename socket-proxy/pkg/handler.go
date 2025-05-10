@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"net/url"
 )
 
 var dialer = &net.Dialer{KeepAlive: 1 * time.Second}
@@ -22,12 +20,15 @@ func dialDockerSocket(ctx context.Context, _, _ string) (net.Conn, error) {
 var DockerSocketHandler = dockerSocketHandler
 
 func dockerSocketHandler() http.HandlerFunc {
-	rp := httputil.NewSingleHostReverseProxy(&url.URL{
-		Scheme: "http",
-		Host:   "api.moby.localhost",
-	})
-	rp.Transport = &http.Transport{
-		DialContext: dialDockerSocket,
+	rp := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = "http"
+			req.URL.Host = "api.moby.localhost"
+			req.RequestURI = req.URL.String()
+		},
+		Transport: &http.Transport{
+			DialContext: dialDockerSocket,
+		},
 	}
 
 	return rp.ServeHTTP
