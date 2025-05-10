@@ -68,7 +68,7 @@ func stringstring(s string) (string, error) {
 }
 
 func Load() {
-	DockerSocket = GetEnvString("DOCKER_SOCKET", GetEnvString("DOCKER_HOST", "/var/run/docker.sock"))
+	DockerSocket = GetEnvString("DOCKER_SOCKET", "/var/run/docker.sock")
 	ListenAddr = GetEnvString("LISTEN_ADDR", GetEnvString("DOCKER_SOCKET_ADDR", "")) // default to disabled
 
 	DockerPost = GetEnvBool("POST", false)

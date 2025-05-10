@@ -9,9 +9,9 @@ services:
       AGENT_PORT: "{{.Port}}"
       AGENT_CA_CERT: "{{.CACert}}"
       AGENT_SSL_CERT: "{{.SSLCert}}"
-      # docker socket proxy: [host]:port
-      # unset DOCKER_SOCKET_ADDR to disable
-      DOCKER_SOCKET_ADDR: 127.0.0.1:2375
+      # use agent as a docker socket proxy: [host]:port
+      # set LISTEN_ADDR to enable (e.g. 127.0.0.1:2375)
+      LISTEN_ADDR:
       POST: false
       ALLOW_RESTARTS: false
       ALLOW_START: false
