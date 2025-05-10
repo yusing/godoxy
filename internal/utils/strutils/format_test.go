@@ -4,12 +4,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	. "github.com/yusing/go-proxy/internal/utils/strutils"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
+func mustParseTime(t *testing.T, layout, value string) time.Time {
+	t.Helper()
+	time, err := time.Parse(layout, value)
+	if err != nil {
+		t.Fatalf("failed to parse time: %s", err)
+	}
+	return time
+}
+
 func TestFormatTime(t *testing.T) {
-	now := expect.Must(time.Parse(time.RFC3339, "2021-06-15T12:30:30Z"))
+	now := mustParseTime(t, time.RFC3339, "2021-06-15T12:30:30Z")
 
 	tests := []struct {
 		name           string
@@ -84,9 +93,9 @@ func TestFormatTime(t *testing.T) {
 			result := FormatTimeWithReference(tt.time, now)
 
 			if tt.expectedLength > 0 {
-				expect.Equal(t, len(result), tt.expectedLength, result)
+				require.Equal(t, tt.expectedLength, len(result), result)
 			} else {
-				expect.Equal(t, result, tt.expected)
+				require.Equal(t, tt.expected, result)
 			}
 		})
 	}
@@ -173,7 +182,7 @@ func TestFormatDuration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatDuration(tt.duration)
-			expect.Equal(t, result, tt.expected)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -203,7 +212,7 @@ func TestFormatLastSeen(t *testing.T) {
 			result := FormatLastSeen(tt.time)
 
 			if tt.name == "zero time" {
-				expect.Equal(t, result, tt.expected)
+				require.Equal(t, tt.expected, result)
 			} else {
 				// Just make sure it's not "never", the actual formatting is tested in TestFormatTime
 				if result == "never" {
@@ -290,7 +299,7 @@ func TestFormatByteSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatByteSize(tt.size)
-			expect.Equal(t, result, tt.expected)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }

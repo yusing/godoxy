@@ -2,7 +2,7 @@
 services:
   socket-proxy:
     container_name: socket-proxy
-    image: lscr.io/linuxserver/socket-proxy:latest
+    image: ghcr.io/yusing/socket-proxy:latest
     environment:
       - ALLOW_START=1
       - ALLOW_STOP=1

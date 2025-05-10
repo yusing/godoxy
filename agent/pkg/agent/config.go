@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,10 +16,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/agent/pkg/certs"
-	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -80,7 +79,7 @@ func (cfg *AgentConfig) Parse(addr string) error {
 	return nil
 }
 
-func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) error {
+func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
 		return err
@@ -90,7 +89,7 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(ca)
 	if !ok {
-		return gperr.New("invalid ca certificate")
+		return errors.New("invalid ca certificate")
 	}
 
 	cfg.tlsConfig = &tls.Config{
@@ -102,7 +101,7 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	// create transport and http client
 	cfg.httpClient = cfg.NewHTTPClient()
 
-	ctx, cancel := context.WithTimeout(parent.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// get agent name
@@ -131,23 +130,23 @@ func (cfg *AgentConfig) StartWithCerts(parent task.Parent, ca, crt, key []byte) 
 	return nil
 }
 
-func (cfg *AgentConfig) Start(parent task.Parent) gperr.Error {
+func (cfg *AgentConfig) Start(ctx context.Context) error {
 	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
 	if !ok {
-		return gperr.New("invalid agent host").Subject(cfg.Addr)
+		return fmt.Errorf("invalid agent host: %s", cfg.Addr)
 	}
 
 	certData, err := os.ReadFile(filepath)
 	if err != nil {
-		return gperr.Wrap(err, "failed to read agent certs")
+		return fmt.Errorf("failed to read agent certs: %w", err)
 	}
 
 	ca, crt, key, err := certs.ExtractCert(certData)
 	if err != nil {
-		return gperr.Wrap(err, "failed to extract agent certs")
+		return fmt.Errorf("failed to extract agent certs: %w", err)
 	}
 
-	return gperr.Wrap(cfg.StartWithCerts(parent, ca, crt, key))
+	return cfg.StartWithCerts(ctx, ca, crt, key)
 }
 
 func (cfg *AgentConfig) NewHTTPClient() *http.Client {
@@ -171,8 +170,10 @@ func (cfg *AgentConfig) Transport() *http.Transport {
 	}
 }
 
+var dialer = &net.Dialer{Timeout: 5 * time.Second}
+
 func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
-	return gphttp.DefaultDialer.DialContext(ctx, "tcp", cfg.Addr)
+	return dialer.DialContext(ctx, "tcp", cfg.Addr)
 }
 
 func (cfg *AgentConfig) Name() string {

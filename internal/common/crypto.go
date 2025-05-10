@@ -3,8 +3,7 @@ package common
 import (
 	"crypto/rand"
 	"encoding/base64"
-
-	"github.com/rs/zerolog/log"
+	"log"
 )
 
 func decodeJWTKey(key string) []byte {
@@ -13,7 +12,7 @@ func decodeJWTKey(key string) []byte {
 	}
 	bytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
-		log.Fatal().Str("key", key).Err(err).Msg("failed to decode secret")
+		log.Fatalf("failed to decode secret: %s", err)
 	}
 	return bytes
 }
@@ -22,7 +21,7 @@ func RandomJWTKey() []byte {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to generate random jwt key")
+		log.Fatalf("failed to generate random jwt key: %s", err)
 	}
 	return key
 }

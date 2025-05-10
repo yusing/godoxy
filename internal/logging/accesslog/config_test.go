@@ -3,8 +3,8 @@ package accesslog_test
 import (
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/docker"
 	. "github.com/yusing/go-proxy/internal/logging/accesslog"
+	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/utils"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )

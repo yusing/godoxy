@@ -3,17 +3,25 @@ package handler
 import (
 	"crypto/tls"
 	"net/http"
-	"net/url"
+	"net/http/httputil"
 	"strconv"
 	"time"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
-	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
 )
+
+func NewTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+		WriteBufferSize:       16 * 1024, // 16KB
+		ReadBufferSize:        16 * 1024, // 16KB
+	}
+}
 
 func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	host := r.Header.Get(agentproxy.HeaderXProxyHost)
@@ -34,11 +42,9 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 		scheme = "https"
 	}
 
-	var transport *http.Transport
+	transport := NewTransport()
 	if skipTLSVerify {
-		transport = gphttp.NewTransportWithTLSConfig(&tls.Config{InsecureSkipVerify: true})
-	} else {
-		transport = gphttp.NewTransport()
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
 	if responseHeaderTimeout > 0 {
@@ -49,14 +55,13 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	r.URL.Host = ""
 	r.URL.Path = r.URL.Path[agent.HTTPProxyURLPrefixLen:] // strip the {API_BASE}/proxy/http prefix
 	r.RequestURI = r.URL.String()
-	r.URL.Host = host
-	r.URL.Scheme = scheme
 
-	logging.Debug().Msgf("proxy http request: %s %s", r.Method, r.URL.String())
-
-	rp := reverseproxy.NewReverseProxy("agent", types.NewURL(&url.URL{
-		Scheme: scheme,
-		Host:   host,
-	}), transport)
+	rp := &httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			r.URL.Scheme = scheme
+			r.URL.Host = host
+		},
+		Transport: transport,
+	}
 	rp.ServeHTTP(w, r)
 }

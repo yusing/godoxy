@@ -1,24 +1,19 @@
 package main
 
 import (
-	"os"
-
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/env"
-	"github.com/yusing/go-proxy/agent/pkg/handler"
 	"github.com/yusing/go-proxy/agent/pkg/server"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	httpServer "github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/pkg"
+	socketproxy "github.com/yusing/go-proxy/socketproxy/pkg"
 )
 
 func main() {
-	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
-
 	ca := &agent.PEMPair{}
 	err := ca.Load(env.AgentCACert)
 	if err != nil {
@@ -58,12 +53,12 @@ Tips:
 
 	server.StartAgentServer(t, opts)
 
-	if env.DockerSocketAddr != "" {
-		logging.Info().Msgf("Docker socket listening on: %s", env.DockerSocketAddr)
+	if socketproxy.ListenAddr != "" {
+		logging.Info().Msgf("Docker socket listening on: %s", socketproxy.ListenAddr)
 		opts := httpServer.Options{
 			Name:     "docker",
-			HTTPAddr: env.DockerSocketAddr,
-			Handler:  handler.NewDockerHandler(),
+			HTTPAddr: socketproxy.ListenAddr,
+			Handler:  socketproxy.NewHandler(),
 		}
 		httpServer.StartServer(t, opts)
 	}

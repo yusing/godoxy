@@ -8,11 +8,12 @@ LDFLAGS = -X github.com/yusing/go-proxy/pkg.version=${VERSION}
 
 ifeq ($(agent), 1)
 	NAME = godoxy-agent
-	CMD_PATH = ./cmd
 	PWD = ${shell pwd}/agent
+else ifeq ($(socket-proxy), 1)
+	NAME = godoxy-socket-proxy
+	PWD = ${shell pwd}/socket-proxy
 else
 	NAME = godoxy
-	CMD_PATH = ./cmd
 	PWD = ${shell pwd}
 endif
 
@@ -46,7 +47,6 @@ BUILD_FLAGS += -ldflags='$(LDFLAGS)'
 BIN_PATH := $(shell pwd)/bin/${NAME}
 
 export NAME
-export CMD_PATH
 export CGO_ENABLED
 export GODOXY_DEBUG
 export GODOXY_TRACE
@@ -97,13 +97,19 @@ update-deps:
 		cd ${PWD}/$$path && go get -u ./... && go mod tidy; \
 	done
 
+mod-tidy:
+	for path in ${gomod_paths}; do \
+		echo "go mod tidy $$path"; \
+		cd ${PWD}/$$path && go mod tidy; \
+	done
+
 build:
 	mkdir -p $(shell dirname ${BIN_PATH})
-	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ${CMD_PATH}
+	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ./cmd
 	${POST_BUILD}
 
 run:
-	[ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${CMD_PATH}
+	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ./cmd
 
 debug:
 	make NAME="godoxy-test" debug=1 build
@@ -125,7 +131,7 @@ ci-test:
 	act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$$(gh auth token)"
 
 cloc:
-	cloc --not-match-f '_test.go$$' cmd internal pkg
+	cloc --include-lang=Go --not-match-f '_test.go$$' .
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)

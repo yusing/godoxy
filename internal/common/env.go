@@ -2,13 +2,13 @@ package common
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -78,7 +78,7 @@ func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T
 	if err == nil {
 		return parsed
 	}
-	log.Fatal().Err(err).Msgf("env %s: invalid %T value: %s", key, parsed, value)
+	log.Fatalf("env %s: invalid %T value: %s", key, parsed, value)
 	return defaultValue
 }
 
@@ -105,7 +105,7 @@ func GetAddrEnv(key, defaultValue, scheme string) (addr, host string, portInt in
 	}
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		log.Fatal().Msgf("env %s: invalid address: %s", key, addr)
+		log.Fatalf("env %s: invalid address: %s", key, addr)
 	}
 	if host == "" {
 		host = "localhost"
@@ -113,7 +113,7 @@ func GetAddrEnv(key, defaultValue, scheme string) (addr, host string, portInt in
 	fullURL = fmt.Sprintf("%s://%s:%s", scheme, host, port)
 	portInt, err = strconv.Atoi(port)
 	if err != nil {
-		log.Fatal().Msgf("env %s: invalid port: %s", key, port)
+		log.Fatalf("env %s: invalid port: %s", key, port)
 	}
 	return
 }

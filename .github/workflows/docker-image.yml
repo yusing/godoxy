@@ -12,16 +12,20 @@ on:
       old_image_name:
         required: false
         type: string
-      agent:
+      target:
+        required: true
+        type: string
+      dockerfile:
         required: false
-        default: false
-        type: boolean
+        type: string
+        default: Dockerfile
 
 env:
   REGISTRY: ghcr.io
-  MAKE_ARGS: agent=${{ inputs.agent && '1' || '0' }}
-  DIGEST_PATH: /tmp/digests/${{ inputs.agent && 'agent' || 'main' }}
-  DIGEST_NAME_SUFFIX: ${{ inputs.agent && 'agent' || 'main' }}
+  MAKE_ARGS: ${{ inputs.target }}=1
+  DIGEST_PATH: /tmp/digests/${{ inputs.target }}
+  DIGEST_NAME_SUFFIX: ${{ inputs.target }}
+  DOCKERFILE: ${{ inputs.dockerfile }}
 
 jobs:
   build:
@@ -76,6 +80,7 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          file: ${{ env.DOCKERFILE }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ inputs.image_name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.PLATFORM_PAIR }}-${{ inputs.tag }}

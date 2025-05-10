@@ -1,0 +1,15 @@
+name: Docker Image CI (socket-proxy)
+
+on:
+  push:
+    paths:
+      - "socket-proxy/**"
+
+jobs:
+  build:
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      image_name: ${{ github.repository_owner }}/socket-proxy
+      tag: latest
+      target: socket-proxy
+      dockerfile: socket-proxy.Dockerfile

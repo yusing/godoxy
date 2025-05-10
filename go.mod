@@ -6,6 +6,12 @@ replace github.com/yusing/go-proxy/agent => ./agent
 
 replace github.com/yusing/go-proxy/internal/dnsproviders => ./internal/dnsproviders
 
+replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.2
+
+replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
+
+replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
+
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
 	github.com/coder/websocket v1.8.13 // websocket for API and agent
@@ -24,16 +30,12 @@ require (
 	golang.org/x/crypto v0.38.0 // encrypting password with bcrypt
 	golang.org/x/net v0.40.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.30.0 // oauth2 authentication
-	golang.org/x/text v0.25.0 // string utilities
 	golang.org/x/time v0.11.0 // time utilities
-	gopkg.in/yaml.v3 v3.0.1 // indirect; yaml parsing for different config files
 )
-
-replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.14.2
 
 require (
 	github.com/docker/cli v28.1.1+incompatible
-	github.com/goccy/go-yaml v1.17.1
+	github.com/goccy/go-yaml v1.17.1 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/luthermonson/go-proxmox v0.2.2
 	github.com/oschwald/maxminddb-golang v1.13.1
@@ -41,20 +43,10 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-20250508094936-75ee0e63bd7d
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250508094936-75ee0e63bd7d
+	github.com/yusing/go-proxy/agent v0.0.0-20250509063132-4ddfb48b9d0b
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250509063132-4ddfb48b9d0b
 	go.uber.org/atomic v1.11.0
 )
-
-require (
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
-)
-
-replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
-
-replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
 
 require (
 	cloud.google.com/go/auth v0.16.1 // indirect
@@ -130,6 +122,7 @@ require (
 	github.com/gophercloud/gophercloud v1.14.1 // indirect
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
@@ -209,7 +202,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1160 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1161 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1136 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
@@ -217,7 +210,7 @@ require (
 	github.com/transip/gotransip/v6 v6.26.0 // indirect
 	github.com/ultradns/ultradns-go-sdk v1.8.0-20241010134910-243eeec // indirect
 	github.com/vinyldns/go-vinyldns v0.9.16 // indirect
-	github.com/volcengine/volc-sdk-golang v1.0.206 // indirect
+	github.com/volcengine/volc-sdk-golang v1.0.207 // indirect
 	github.com/vultr/govultr/v3 v3.20.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
@@ -226,8 +219,10 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -235,6 +230,7 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0
 	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/api v0.232.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250422160041-2d3770c4ea7f // indirect
@@ -245,6 +241,7 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/ns1/ns1-go.v2 v2.14.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.33.0 // indirect
 	k8s.io/apimachinery v0.33.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect

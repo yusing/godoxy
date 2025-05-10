@@ -12,6 +12,7 @@ import (
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/metrics/uptime"
+	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/pkg"
@@ -45,7 +46,7 @@ func (mux ServeMux) HandleFunc(methods, endpoint string, h any, requireAuth ...b
 		origHandler := handler
 		handler = func(w http.ResponseWriter, r *http.Request) {
 			if httpheaders.IsWebsocket(r.Header) {
-				httpheaders.SetWebsocketAllowedDomains(r.Header, matchDomains)
+				gpwebsocket.SetWebsocketAllowedDomains(r.Header, matchDomains)
 			}
 			origHandler(w, r)
 		}

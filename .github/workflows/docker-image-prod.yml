@@ -12,9 +12,10 @@ jobs:
       image_name: ${{ github.repository_owner }}/godoxy
       old_image_name: ${{ github.repository_owner }}/go-proxy
       tag: latest
+      target: main
   build-prod-agent:
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy-agent
       tag: latest
-      agent: true
+      target: agent

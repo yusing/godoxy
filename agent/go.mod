@@ -4,18 +4,19 @@ go 1.24.3
 
 replace github.com/yusing/go-proxy => ..
 
-require (
-	github.com/coder/websocket v1.8.13
-	github.com/docker/docker v28.1.1+incompatible
-	github.com/gorilla/mux v1.8.1
-	github.com/rs/zerolog v1.34.0
-	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy v0.12.3
-)
+replace github.com/yusing/go-proxy/socketproxy => ../socket-proxy
 
 replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
 
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
+
+require (
+	github.com/coder/websocket v1.8.13
+	github.com/rs/zerolog v1.34.0
+	github.com/stretchr/testify v1.10.0
+	github.com/yusing/go-proxy v0.0.0-00010101000000-000000000000
+	github.com/yusing/go-proxy/socketproxy v0.0.0-00010101000000-000000000000
+)
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -28,6 +29,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/docker/cli v28.1.1+incompatible // indirect
+	github.com/docker/docker v28.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
@@ -42,6 +44,7 @@ require (
 	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gotify/server/v2 v2.6.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -74,8 +77,6 @@ require (
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.5.2 // indirect

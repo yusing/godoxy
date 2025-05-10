@@ -15,9 +15,10 @@ jobs:
     with:
       image_name: ${{ github.repository_owner }}/godoxy
       tag: nightly
+      target: main
   build-nightly-agent:
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy-agent
       tag: nightly
-      agent: true
+      target: agent

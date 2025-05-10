@@ -1,12 +1,25 @@
-package handler
+package socketproxy_test
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
-	"github.com/yusing/go-proxy/agent/pkg/env"
+	. "github.com/yusing/go-proxy/socketproxy/pkg"
 )
+
+func mockDockerSocketHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock docker response"))
+	})
+}
+
+func TestMain(m *testing.M) {
+	DockerSocketHandler = mockDockerSocketHandler
+	os.Exit(m.Run())
+}
 
 func TestNewDockerHandler(t *testing.T) {
 	tests := []struct {
@@ -35,7 +48,7 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/containers",
 			envSetup: func() {
-				env.DockerContainers = true
+				DockerContainers = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -44,7 +57,7 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/containers",
 			envSetup: func() {
-				env.DockerContainers = false
+				DockerContainers = false
 			},
 			wantStatusCode: http.StatusForbidden,
 		},
@@ -53,7 +66,7 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/_ping",
 			envSetup: func() {
-				env.DockerPost = false
+				DockerPost = false
 			},
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
@@ -62,8 +75,8 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/_ping",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerPing = true
+				DockerPost = true
+				DockerPing = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -72,9 +85,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/restart",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerRestarts = false
+				DockerPost = true
+				DockerContainers = true
+				DockerRestarts = false
 			},
 			wantStatusCode: http.StatusForbidden,
 		},
@@ -83,9 +96,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/restart",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerRestarts = true
+				DockerPost = true
+				DockerContainers = true
+				DockerRestarts = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -94,9 +107,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/start",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerStart = false
+				DockerPost = true
+				DockerContainers = true
+				DockerStart = false
 			},
 			wantStatusCode: http.StatusForbidden,
 		},
@@ -105,9 +118,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/start",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerStart = true
+				DockerPost = true
+				DockerContainers = true
+				DockerStart = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -116,9 +129,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/stop",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerStop = false
+				DockerPost = true
+				DockerContainers = true
+				DockerStop = false
 			},
 			wantStatusCode: http.StatusForbidden,
 		},
@@ -127,9 +140,9 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/containers/test-container/stop",
 			envSetup: func() {
-				env.DockerPost = true
-				env.DockerContainers = true
-				env.DockerStop = true
+				DockerPost = true
+				DockerContainers = true
+				DockerStop = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -138,7 +151,7 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/v1.41/version",
 			envSetup: func() {
-				env.DockerVersion = true
+				DockerVersion = true
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -147,7 +160,7 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodPut,
 			path:   "/version",
 			envSetup: func() {
-				env.DockerVersion = true
+				DockerVersion = true
 			},
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
@@ -156,30 +169,30 @@ func TestNewDockerHandler(t *testing.T) {
 			method: http.MethodDelete,
 			path:   "/version",
 			envSetup: func() {
-				env.DockerVersion = true
+				DockerVersion = true
 			},
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 	}
 
 	// Save original env values to restore after tests
-	originalContainers := env.DockerContainers
-	originalRestarts := env.DockerRestarts
-	originalStart := env.DockerStart
-	originalStop := env.DockerStop
-	originalPost := env.DockerPost
-	originalPing := env.DockerPing
-	originalVersion := env.DockerVersion
+	originalContainers := DockerContainers
+	originalRestarts := DockerRestarts
+	originalStart := DockerStart
+	originalStop := DockerStop
+	originalPost := DockerPost
+	originalPing := DockerPing
+	originalVersion := DockerVersion
 
 	defer func() {
 		// Restore original values
-		env.DockerContainers = originalContainers
-		env.DockerRestarts = originalRestarts
-		env.DockerStart = originalStart
-		env.DockerStop = originalStop
-		env.DockerPost = originalPost
-		env.DockerPing = originalPing
-		env.DockerVersion = originalVersion
+		DockerContainers = originalContainers
+		DockerRestarts = originalRestarts
+		DockerStart = originalStart
+		DockerStop = originalStop
+		DockerPost = originalPost
+		DockerPing = originalPing
+		DockerVersion = originalVersion
 	}()
 
 	for _, tt := range tests {
@@ -188,7 +201,7 @@ func TestNewDockerHandler(t *testing.T) {
 			tt.envSetup()
 
 			// Create test handler that will record the response for verification
-			dockerHandler := NewDockerHandler()
+			dockerHandler := NewHandler()
 
 			// Test server to capture the response
 			recorder := httptest.NewRecorder()
@@ -291,73 +304,73 @@ func TestNewDockerHandler_PathHandling(t *testing.T) {
 
 	defer func() {
 		// Restore original env values
-		env.Load()
+		Load()
 	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset all Docker* env vars to false for this test
-			env.Load()
+			Load()
 
 			// Enable POST for all these tests
-			env.DockerPost = true
+			DockerPost = true
 
 			// Set the specific env var for this test
 			switch tt.envVarName {
 			case "DockerContainers":
-				env.DockerContainers = tt.envVarValue
+				DockerContainers = tt.envVarValue
 			case "DockerRestarts":
-				env.DockerRestarts = tt.envVarValue
+				DockerRestarts = tt.envVarValue
 			case "DockerStart":
-				env.DockerStart = tt.envVarValue
+				DockerStart = tt.envVarValue
 			case "DockerStop":
-				env.DockerStop = tt.envVarValue
+				DockerStop = tt.envVarValue
 			case "DockerAuth":
-				env.DockerAuth = tt.envVarValue
+				DockerAuth = tt.envVarValue
 			case "DockerBuild":
-				env.DockerBuild = tt.envVarValue
+				DockerBuild = tt.envVarValue
 			case "DockerCommit":
-				env.DockerCommit = tt.envVarValue
+				DockerCommit = tt.envVarValue
 			case "DockerConfigs":
-				env.DockerConfigs = tt.envVarValue
+				DockerConfigs = tt.envVarValue
 			case "DockerDistribution":
-				env.DockerDistribution = tt.envVarValue
+				DockerDistribution = tt.envVarValue
 			case "DockerEvents":
-				env.DockerEvents = tt.envVarValue
+				DockerEvents = tt.envVarValue
 			case "DockerExec":
-				env.DockerExec = tt.envVarValue
+				DockerExec = tt.envVarValue
 			case "DockerGrpc":
-				env.DockerGrpc = tt.envVarValue
+				DockerGrpc = tt.envVarValue
 			case "DockerImages":
-				env.DockerImages = tt.envVarValue
+				DockerImages = tt.envVarValue
 			case "DockerInfo":
-				env.DockerInfo = tt.envVarValue
+				DockerInfo = tt.envVarValue
 			case "DockerNetworks":
-				env.DockerNetworks = tt.envVarValue
+				DockerNetworks = tt.envVarValue
 			case "DockerNodes":
-				env.DockerNodes = tt.envVarValue
+				DockerNodes = tt.envVarValue
 			case "DockerPlugins":
-				env.DockerPlugins = tt.envVarValue
+				DockerPlugins = tt.envVarValue
 			case "DockerSecrets":
-				env.DockerSecrets = tt.envVarValue
+				DockerSecrets = tt.envVarValue
 			case "DockerServices":
-				env.DockerServices = tt.envVarValue
+				DockerServices = tt.envVarValue
 			case "DockerSession":
-				env.DockerSession = tt.envVarValue
+				DockerSession = tt.envVarValue
 			case "DockerSwarm":
-				env.DockerSwarm = tt.envVarValue
+				DockerSwarm = tt.envVarValue
 			case "DockerSystem":
-				env.DockerSystem = tt.envVarValue
+				DockerSystem = tt.envVarValue
 			case "DockerTasks":
-				env.DockerTasks = tt.envVarValue
+				DockerTasks = tt.envVarValue
 			case "DockerVolumes":
-				env.DockerVolumes = tt.envVarValue
+				DockerVolumes = tt.envVarValue
 			default:
 				t.Fatalf("Unknown env var: %s", tt.envVarName)
 			}
 
 			// Create test handler
-			dockerHandler := NewDockerHandler()
+			dockerHandler := NewHandler()
 
 			// Test server to capture the response
 			recorder := httptest.NewRecorder()
@@ -385,11 +398,11 @@ func TestNewDockerHandler_PathHandling(t *testing.T) {
 // This is a more comprehensive test that verifies the full request/response chain
 func TestNewDockerHandlerWithMockDocker(t *testing.T) {
 	// Set up environment
-	env.DockerContainers = true
-	env.DockerPost = true
+	DockerContainers = true
+	DockerPost = true
 
 	// Create the handler
-	handler := NewDockerHandler()
+	handler := NewHandler()
 
 	// Test a valid request
 	req, _ := http.NewRequest(http.MethodGet, "/containers", nil)
@@ -401,8 +414,8 @@ func TestNewDockerHandlerWithMockDocker(t *testing.T) {
 	}
 
 	// Test a disallowed path
-	env.DockerContainers = false
-	handler = NewDockerHandler() // recreate with new env
+	DockerContainers = false
+	handler = NewHandler() // recreate with new env
 
 	req, _ = http.NewRequest(http.MethodGet, "/containers", nil)
 	recorder = httptest.NewRecorder()

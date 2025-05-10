@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
-	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
 type logEntryRange struct {
@@ -22,8 +21,8 @@ type memLogger struct {
 	*bytes.Buffer
 	sync.RWMutex
 	notifyLock sync.RWMutex
-	connChans  F.Map[chan *logEntryRange, struct{}]
-	listeners  F.Map[chan []byte, struct{}]
+	connChans  *xsync.MapOf[chan *logEntryRange, struct{}]
+	listeners  *xsync.MapOf[chan []byte, struct{}]
 }
 
 type MemLogger io.Writer
@@ -40,8 +39,8 @@ const (
 
 var memLoggerInstance = &memLogger{
 	Buffer:    bytes.NewBuffer(make([]byte, maxMemLogSize)),
-	connChans: F.NewMapOf[chan *logEntryRange, struct{}](),
-	listeners: F.NewMapOf[chan []byte, struct{}](),
+	connChans: xsync.NewMapOf[chan *logEntryRange, struct{}](),
+	listeners: xsync.NewMapOf[chan []byte, struct{}](),
 }
 
 func GetMemLogger() MemLogger {
@@ -136,7 +135,7 @@ func (m *memLogger) Write(p []byte) (n int, err error) {
 func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := gpwebsocket.Initiate(w, r)
 	if err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -153,7 +152,7 @@ func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err := m.wsInitial(r.Context(), conn); err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

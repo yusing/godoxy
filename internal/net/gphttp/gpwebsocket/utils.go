@@ -6,11 +6,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 )
 
 func warnNoMatchDomains() {
@@ -19,13 +15,25 @@ func warnNoMatchDomains() {
 
 var warnNoMatchDomainOnce sync.Once
 
+const (
+	HeaderXGoDoxyWebsocketAllowedDomains = "X-GoDoxy-Websocket-Allowed-Domains"
+)
+
+func WebsocketAllowedDomains(h http.Header) []string {
+	return h[HeaderXGoDoxyWebsocketAllowedDomains]
+}
+
+func SetWebsocketAllowedDomains(h http.Header, domains []string) {
+	h[HeaderXGoDoxyWebsocketAllowedDomains] = domains
+}
+
 func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 	var originPats []string
 
 	localAddresses := []string{"127.0.0.1", "10.0.*.*", "172.16.*.*", "192.168.*.*"}
 
-	allowedDomains := httpheaders.WebsocketAllowedDomains(r.Header)
-	if len(allowedDomains) == 0 || common.IsDebug {
+	allowedDomains := WebsocketAllowedDomains(r.Header)
+	if len(allowedDomains) == 0 {
 		warnNoMatchDomainOnce.Do(warnNoMatchDomains)
 		originPats = []string{"*"}
 	} else {
@@ -47,14 +55,14 @@ func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do func(conn *websocket.Conn) error) {
 	conn, err := Initiate(w, r)
 	if err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	//nolint:errcheck
 	defer conn.CloseNow()
 
 	if err := do(conn); err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -67,7 +75,7 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 			return
 		case <-ticker.C:
 			if err := do(conn); err != nil {
-				gphttp.ServerError(w, r, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
@@ -79,7 +87,7 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 // It logs an error if the message is not written successfully.
 func WriteText(r *http.Request, conn *websocket.Conn, msg string) bool {
 	if err := conn.Write(r.Context(), websocket.MessageText, []byte(msg)); err != nil {
-		gperr.LogError("failed to write text message", err)
+		logging.Err(err).Msg("failed to write text message")
 		return false
 	}
 	return true

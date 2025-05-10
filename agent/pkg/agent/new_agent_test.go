@@ -8,59 +8,59 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAgent(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
-	ExpectTrue(t, ca != nil)
-	ExpectTrue(t, srv != nil)
-	ExpectTrue(t, client != nil)
+	require.NoError(t, err)
+	require.NotNil(t, ca)
+	require.NotNil(t, srv)
+	require.NotNil(t, client)
 }
 
 func TestPEMPair(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	require.NoError(t, err)
 
 	for i, p := range []*PEMPair{ca, srv, client} {
 		t.Run(fmt.Sprintf("load-%d", i), func(t *testing.T) {
 			var pp PEMPair
 			err := pp.Load(p.String())
-			ExpectNoError(t, err)
-			ExpectEqual(t, p.Cert, pp.Cert)
-			ExpectEqual(t, p.Key, pp.Key)
+			require.NoError(t, err)
+			require.Equal(t, p.Cert, pp.Cert)
+			require.Equal(t, p.Key, pp.Key)
 		})
 	}
 }
 
 func TestPEMPairToTLSCert(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	require.NoError(t, err)
 
 	for i, p := range []*PEMPair{ca, srv, client} {
 		t.Run(fmt.Sprintf("toTLSCert-%d", i), func(t *testing.T) {
 			cert, err := p.ToTLSCert()
-			ExpectNoError(t, err)
-			ExpectTrue(t, cert != nil)
+			require.NoError(t, err)
+			require.NotNil(t, cert)
 		})
 	}
 }
 
 func TestServerClient(t *testing.T) {
 	ca, srv, client, err := NewAgent()
-	ExpectNoError(t, err)
+	require.NoError(t, err)
 
 	srvTLS, err := srv.ToTLSCert()
-	ExpectNoError(t, err)
-	ExpectTrue(t, srvTLS != nil)
+	require.NoError(t, err)
+	require.NotNil(t, srvTLS)
 
 	clientTLS, err := client.ToTLSCert()
-	ExpectNoError(t, err)
-	ExpectTrue(t, clientTLS != nil)
+	require.NoError(t, err)
+	require.NotNil(t, clientTLS)
 
 	caPool := x509.NewCertPool()
-	ExpectTrue(t, caPool.AppendCertsFromPEM(ca.Cert))
+	require.True(t, caPool.AppendCertsFromPEM(ca.Cert))
 
 	srvTLSConfig := &tls.Config{
 		Certificates: []tls.Certificate{*srvTLS},
@@ -86,6 +86,6 @@ func TestServerClient(t *testing.T) {
 	}
 
 	resp, err := httpClient.Get(server.URL)
-	ExpectNoError(t, err)
-	ExpectEqual(t, resp.StatusCode, http.StatusOK)
+	require.NoError(t, err)
+	require.Equal(t, resp.StatusCode, http.StatusOK)
 }
