@@ -1,135 +1,150 @@
-run:
-  timeout: 10m
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - shadow
-      - fieldalignment
-  gocyclo:
-    min-complexity: 14
-  misspell:
-    locale: US
-  funlen:
-    lines: -1
-    statements: 120
-  forbidigo:
-    forbid:
-      - ^print(ln)?$
-  godox:
-    keywords:
-      - FIXME
-  tagalign:
-    align: false
-    sort: true
-    order:
-      - description
-      - json
-      - toml
-      - yaml
-      - yml
-      - label
-      - label-slice-as-struct
-      - file
-      - kv
-      - export
-  stylecheck:
-    dot-import-whitelist:
-      - github.com/yusing/go-proxy/internal/utils/testing # go tests only
-      - github.com/yusing/go-proxy/internal/api/v1/utils # api only
-  revive:
-    rules:
-      - name: struct-tag
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-        disabled: true
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: var-declaration
-      - name: package-comments
-        disabled: true
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-        disabled: true
-      - name: unreachable-code
-      - name: redefines-builtin-id
-  gomoddirectives:
-    replace-allow-list:
-      - github.com/abbot/go-http-auth
-      - github.com/gorilla/mux
-      - github.com/mailgun/minheap
-      - github.com/mailgun/multibuf
-      - github.com/jaguilar/vt100
-      - github.com/cucumber/godog
-      - github.com/http-wasm/http-wasm-host-go
-  testifylint:
-    disable:
-      - suite-dont-use-pkg
-      - require-error
-      - go-require
-  staticcheck:
-    checks:
-      - all
-      - -SA1019
-  errcheck:
-    exclude-functions:
-      - fmt.Fprintln
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - execinquery # deprecated
-    - gomnd # deprecated
-    - sqlclosecheck # not relevant (SQL)
-    - rowserrcheck # not relevant (SQL)
-    - cyclop # duplicate of gocyclo
-    - depguard # Not relevant
-    - nakedret # Too strict
-    - lll # Not relevant
-    - gocyclo # must be fixed
-    - gocognit # Too strict
-    - nestif # Too many false-positive.
-    - prealloc # Too many false-positive.
-    - makezero # Not relevant
-    - dupl # Too strict
-    - gci # I don't care
-    - goconst # Too annoying
-    - gosec # Too strict
-    - gochecknoinits
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - cyclop
+    - depguard
+    - dupl
+    - err113
+    - exhaustive
+    - exhaustruct
+    - forcetypeassert
     - gochecknoglobals
-    - wsl # Too strict
-    - nlreturn # Not relevant
-    - mnd # Too strict
-    - testpackage # Too strict
-    - tparallel # Not relevant
-    - paralleltest # Not relevant
-    - exhaustive # Not relevant
-    - exhaustruct # Not relevant
-    - err113 # Too strict
-    - wrapcheck # Too strict
-    - noctx # Too strict
-    - bodyclose # too many false-positive
-    - forcetypeassert # Too strict
-    - tagliatelle # Too strict
-    - varnamelen # Not relevant
-    - nilnil # Not relevant
-    - ireturn # Not relevant
-    - contextcheck # too many false-positive
-    - containedctx # too many false-positive
-    - maintidx # kind of duplicate of gocyclo
-    - nonamedreturns # Too strict
-    - gosmopolitan # not relevant
-    - exportloopref # Not relevant since go1.22
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocyclo
+    - gosec
+    - gosmopolitan
+    - ireturn
+    - lll
+    - maintidx
+    - makezero
+    - mnd
+    - nakedret
+    - nestif
+    - nilnil
+    - nlreturn
+    - noctx
+    - nonamedreturns
+    - paralleltest
+    - prealloc
+    - rowserrcheck
+    - sqlclosecheck
+    - tagliatelle
+    - testpackage
+    - tparallel
+    - varnamelen
+    - wrapcheck
+    - wsl
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintln
+    forbidigo:
+      forbid:
+        - pattern: ^print(ln)?$
+    funlen:
+      lines: -1
+      statements: 120
+    gocyclo:
+      min-complexity: 14
+    godox:
+      keywords:
+        - FIXME
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/abbot/go-http-auth
+        - github.com/gorilla/mux
+        - github.com/mailgun/minheap
+        - github.com/mailgun/multibuf
+        - github.com/jaguilar/vt100
+        - github.com/cucumber/godog
+        - github.com/http-wasm/http-wasm-host-go
+    govet:
+      disable:
+        - shadow
+        - fieldalignment
+      enable-all: true
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: struct-tag
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+          disabled: true
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+          disabled: true
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    staticcheck:
+      checks:
+        - all
+        - -SA1019
+      dot-import-whitelist:
+        - github.com/yusing/go-proxy/internal/utils/testing
+        - github.com/yusing/go-proxy/internal/api/v1/utils
+    tagalign:
+      align: false
+      sort: true
+      order:
+        - description
+        - json
+        - toml
+        - yaml
+        - yml
+        - label
+        - label-slice-as-struct
+        - file
+        - kv
+        - export
+    testifylint:
+      disable:
+        - suite-dont-use-pkg
+        - require-error
+        - go-require
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
