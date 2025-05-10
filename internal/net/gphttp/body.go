@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/logging"
@@ -23,6 +22,11 @@ func WriteBody(w http.ResponseWriter, body []byte) {
 }
 
 func RespondJSON(w http.ResponseWriter, r *http.Request, data any, code ...int) (canProceed bool) {
+	if data == nil {
+		http.NotFound(w, r)
+		return false
+	}
+
 	if len(code) > 0 {
 		w.WriteHeader(code[0])
 	}
@@ -30,8 +34,6 @@ func RespondJSON(w http.ResponseWriter, r *http.Request, data any, code ...int) 
 	var err error
 
 	switch data := data.(type) {
-	case string:
-		_, err = w.Write([]byte(fmt.Sprintf("%q", data)))
 	case []byte:
 		panic("use WriteBody instead")
 	default:
