@@ -139,8 +139,12 @@ func (auth *OIDCProvider) getIdToken(ctx context.Context, oauthToken *oauth2.Tok
 }
 
 func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "" {
+		r.URL.Path = OIDCAuthInitPath
+	}
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
-		http.Redirect(w, r, "https://"+requestHost(r)+OIDCAuthInitPath, http.StatusFound)
+		r.URL.Scheme = "https"
+		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return
 	}
 	switch r.URL.Path {
