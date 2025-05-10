@@ -1,6 +1,7 @@
 package config
 
 import (
+	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/provider"
 )
@@ -23,10 +24,13 @@ func (cfg *Config) DumpRouteProviders() map[string]*provider.Provider {
 	return entries
 }
 
-func (cfg *Config) RouteProviderList() []string {
-	var list []string
+func (cfg *Config) RouteProviderList() []config.RouteProviderListResponse {
+	var list []config.RouteProviderListResponse
 	cfg.providers.RangeAll(func(_ string, p *provider.Provider) {
-		list = append(list, p.ShortName())
+		list = append(list, config.RouteProviderListResponse{
+			ShortName: p.ShortName(),
+			FullName:  p.String(),
+		})
 	})
 	return list
 }

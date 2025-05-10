@@ -9,13 +9,16 @@ var (
 	Stream = pool.New[StreamRoute]("stream_routes")
 )
 
-func Iter(yield func(alias string, r Route) bool) {
-	for k, r := range HTTP.Iter {
-		if !yield(k, r) {
+func Iter(yield func(r Route) bool) {
+	for _, r := range HTTP.Iter {
+		if !yield(r) {
 			break
 		}
 	}
-	for k, r := range Stream.Iter {
+}
+
+func IterKV(yield func(alias string, r Route) bool) {
+	for k, r := range HTTP.Iter {
 		if !yield(k, r) {
 			break
 		}

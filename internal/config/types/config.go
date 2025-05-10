@@ -42,12 +42,15 @@ type (
 	HomepageConfig struct {
 		UseDefaultCategories bool `json:"use_default_categories"`
 	}
-
+	RouteProviderListResponse struct {
+		ShortName string `json:"short_name"`
+		FullName  string `json:"full_name"`
+	}
 	ConfigInstance interface {
 		Value() *Config
 		Reload() gperr.Error
 		Statistics() map[string]any
-		RouteProviderList() []string
+		RouteProviderList() []RouteProviderListResponse
 		Context() context.Context
 		GetAgent(agentAddrOrDockerHost string) (*agent.AgentConfig, bool)
 		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error)

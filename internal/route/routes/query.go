@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/homepage"
-	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
@@ -69,16 +68,16 @@ func getHealthInfoRaw(r Route) *HealthInfoRaw {
 
 func HealthMap() map[string]map[string]string {
 	healthMap := make(map[string]map[string]string, NumRoutes())
-	for alias, r := range Iter {
-		healthMap[alias] = getHealthInfo(r)
+	for r := range Iter {
+		healthMap[r.Name()] = getHealthInfo(r)
 	}
 	return healthMap
 }
 
 func HealthInfo() map[string]*HealthInfoRaw {
 	healthMap := make(map[string]*HealthInfoRaw, NumRoutes())
-	for alias, r := range Iter {
-		healthMap[alias] = getHealthInfoRaw(r)
+	for r := range Iter {
+		healthMap[r.Name()] = getHealthInfoRaw(r)
 	}
 	return healthMap
 }
@@ -116,29 +115,9 @@ func HomepageConfig(categoryFilter, providerFilter string) homepage.Homepage {
 	return hp
 }
 
-func ByAlias(typeFilter ...route.RouteType) map[string]Route {
-	rts := make(map[string]Route)
-	if len(typeFilter) == 0 || typeFilter[0] == "" {
-		typeFilter = []route.RouteType{route.RouteTypeHTTP, route.RouteTypeStream}
-	}
-	for _, t := range typeFilter {
-		switch t {
-		case route.RouteTypeHTTP:
-			for alias, r := range HTTP.Iter {
-				rts[alias] = r
-			}
-		case route.RouteTypeStream:
-			for alias, r := range Stream.Iter {
-				rts[alias] = r
-			}
-		}
-	}
-	return rts
-}
-
 func ByProvider() map[string][]Route {
 	rts := make(map[string][]Route)
-	for _, r := range HTTP.Iter {
+	for r := range Iter {
 		rts[r.ProviderName()] = append(rts[r.ProviderName()], r)
 	}
 	return rts

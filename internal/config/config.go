@@ -301,7 +301,7 @@ func (cfg *Config) initAutoCert(autocertCfg *autocert.Config) gperr.Error {
 
 func (cfg *Config) initProxmox(proxmoxCfg []proxmox.Config) gperr.Error {
 	proxmox.Clients.Clear()
-	var errs = gperr.NewBuilder()
+	errs := gperr.NewBuilder()
 	for _, cfg := range proxmoxCfg {
 		if err := cfg.Init(); err != nil {
 			errs.Add(err.Subject(cfg.URL))
