@@ -6,7 +6,7 @@ replace github.com/yusing/go-proxy => ../..
 
 require (
 	github.com/go-acme/lego/v4 v4.23.1
-	github.com/yusing/go-proxy v0.0.0-00010101000000-000000000000
+	github.com/yusing/go-proxy v0.12.3
 )
 
 require (
