@@ -26,11 +26,11 @@ func AppendDuration(d time.Duration, buf []byte) []byte {
 
 	switch {
 	case d < time.Millisecond:
-		buf = strconv.AppendInt(buf, int64(d.Nanoseconds()), 10)
+		buf = strconv.AppendInt(buf, d.Nanoseconds(), 10)
 		buf = append(buf, []byte(" ns")...)
 		return buf
 	case d < time.Second:
-		buf = strconv.AppendInt(buf, int64(d.Milliseconds()), 10)
+		buf = strconv.AppendInt(buf, d.Milliseconds(), 10)
 		buf = append(buf, []byte(" ms")...)
 		return buf
 	}

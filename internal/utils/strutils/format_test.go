@@ -93,7 +93,7 @@ func TestFormatTime(t *testing.T) {
 			result := FormatTimeWithReference(tt.time, now)
 
 			if tt.expectedLength > 0 {
-				require.Equal(t, tt.expectedLength, len(result), result)
+				require.Len(t, result, tt.expectedLength)
 			} else {
 				require.Equal(t, tt.expected, result)
 			}
@@ -213,11 +213,8 @@ func TestFormatLastSeen(t *testing.T) {
 
 			if tt.name == "zero time" {
 				require.Equal(t, tt.expected, result)
-			} else {
-				// Just make sure it's not "never", the actual formatting is tested in TestFormatTime
-				if result == "never" {
-					t.Errorf("Expected non-zero time to not return 'never', got %s", result)
-				}
+			} else if result == "never" { // Just make sure it's not "never", the actual formatting is tested in TestFormatTime
+				t.Errorf("Expected non-zero time to not return 'never', got %s", result)
 			}
 		})
 	}

@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -24,7 +23,7 @@ import (
 func setupMockOIDC(t *testing.T) {
 	t.Helper()
 
-	provider := (&oidc.ProviderConfig{}).NewProvider(context.TODO())
+	provider := (&oidc.ProviderConfig{}).NewProvider(t.Context())
 	defaultAuth = &OIDCProvider{
 		oauthConfig: &oauth2.Config{
 			ClientID:     "test-client",
@@ -104,7 +103,7 @@ func setupProvider(t *testing.T) *provider {
 	t.Cleanup(ts.Close)
 
 	// Create a test OIDCProvider.
-	providerCtx := oidc.ClientContext(context.Background(), ts.Client())
+	providerCtx := oidc.ClientContext(t.Context(), ts.Client())
 	keySet := oidc.NewRemoteKeySet(providerCtx, ts.URL+"/.well-known/jwks.json")
 
 	return &provider{

@@ -80,7 +80,7 @@ func (c *Config) validateProvider() error {
 	return nil
 }
 
-func (c *Config) validateTimeouts() error {
+func (c *Config) validateTimeouts() error { //nolint:unparam
 	if c.WakeTimeout == 0 {
 		c.WakeTimeout = WakeTimeoutDefault
 	}

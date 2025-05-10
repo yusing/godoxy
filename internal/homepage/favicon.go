@@ -60,7 +60,7 @@ func fetchIconAbsolute(ctx context.Context, url string) *FetchResult {
 		return result
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			return &FetchResult{StatusCode: http.StatusBadGateway, ErrMsg: "request timeout"}
@@ -161,7 +161,7 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) 
 	ctx, cancel := context.WithTimeoutCause(ctx, faviconFetchTimeout, errors.New("favicon request timeout"))
 	defer cancel()
 
-	newReq, err := http.NewRequestWithContext(ctx, "GET", r.TargetURL().String(), nil)
+	newReq, err := http.NewRequestWithContext(ctx, http.MethodGet, r.TargetURL().String(), nil)
 	if err != nil {
 		return &FetchResult{StatusCode: http.StatusInternalServerError, ErrMsg: "cannot create request"}
 	}

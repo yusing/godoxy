@@ -22,7 +22,7 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 	until := query.Get("to")
 	levels := query.Get("levels") // TODO: implement levels
 
-	dockerClient, found, err := getDockerClient(w, server)
+	dockerClient, found, err := getDockerClient(server)
 	if err != nil {
 		gphttp.BadRequest(w, err.Error())
 		return

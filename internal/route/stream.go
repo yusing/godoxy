@@ -60,7 +60,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.HealthMon = monitor.NewMonitor(r)
 	}
 
-	if err := r.Stream.Setup(); err != nil {
+	if err := r.Setup(); err != nil {
 		r.task.Finish(err)
 		return gperr.Wrap(err)
 	}
@@ -104,7 +104,7 @@ func (r *StreamRoute) acceptConnections() {
 		case <-r.task.Context().Done():
 			return
 		default:
-			conn, err := r.Stream.Accept()
+			conn, err := r.Accept()
 			if err != nil {
 				select {
 				case <-r.task.Context().Done():
@@ -118,7 +118,7 @@ func (r *StreamRoute) acceptConnections() {
 				panic("connection is nil")
 			}
 			go func() {
-				err := r.Stream.Handle(conn)
+				err := r.Handle(conn)
 				if err != nil && !errors.Is(err, context.Canceled) {
 					gperr.LogError("handle connection error", err, &r.l)
 				}

@@ -9,7 +9,6 @@ import (
 	"path"
 	"reflect"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
@@ -33,8 +32,6 @@ type (
 		legoCert     *certificate.Resource
 		tlsCert      *tls.Certificate
 		certExpiries CertExpiries
-
-		obtainMu sync.Mutex
 	}
 
 	CertExpiries map[string]time.Time

@@ -37,6 +37,6 @@ func (p *Pool[T]) Get() []T {
 
 func (p *Pool[T]) Put(b []T) {
 	if cap(b) <= p.maxSize {
-		p.pool.Put(b[:0])
+		p.pool.Put(b[:0]) //nolint:staticcheck
 	}
 }

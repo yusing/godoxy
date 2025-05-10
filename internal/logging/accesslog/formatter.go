@@ -94,32 +94,6 @@ func (f *CombinedFormatter) AppendRequestLog(line []byte, req *http.Request, res
 	return line
 }
 
-type zeroLogStringStringMapMarshaler struct {
-	values map[string]string
-}
-
-func (z *zeroLogStringStringMapMarshaler) MarshalZerologObject(e *zerolog.Event) {
-	if len(z.values) == 0 {
-		return
-	}
-	for k, v := range z.values {
-		e.Str(k, v)
-	}
-}
-
-type zeroLogStringStringSliceMapMarshaler struct {
-	values map[string][]string
-}
-
-func (z *zeroLogStringStringSliceMapMarshaler) MarshalZerologObject(e *zerolog.Event) {
-	if len(z.values) == 0 {
-		return
-	}
-	for k, v := range z.values {
-		e.Strs(k, v)
-	}
-}
-
 func (f *JSONFormatter) AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte {
 	query := f.cfg.Query.ZerologQuery(req.URL.Query())
 	headers := f.cfg.Headers.ZerologHeaders(req.Header)

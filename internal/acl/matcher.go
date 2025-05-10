@@ -9,6 +9,7 @@ import (
 )
 
 type Matcher func(*maxmind.IPInfo) bool
+
 type Matchers []Matcher
 
 const (
@@ -26,6 +27,7 @@ var errMatcherFormat = gperr.Multiline().AddLines(
 	"tz:Asia/Shanghai",
 	"country:GB",
 )
+
 var (
 	errSyntax               = gperr.New("syntax error")
 	errInvalidIP            = gperr.New("invalid IP")

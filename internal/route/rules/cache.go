@@ -21,13 +21,6 @@ const (
 	CacheKeyBasicAuth = "basic_auth"
 )
 
-var cacheKeys = []string{
-	CacheKeyQueries,
-	CacheKeyCookies,
-	CacheKeyRemoteIP,
-	CacheKeyBasicAuth,
-}
-
 var cachePool = &sync.Pool{
 	New: func() any {
 		return make(Cache)

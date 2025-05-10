@@ -139,12 +139,12 @@ func logEntry() []byte {
 		Format: FormatJSON,
 	})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello"))
+		_, _ = w.Write([]byte("hello"))
 	}))
 	srv.URL = "http://localhost:8080"
 	defer srv.Close()
 	// make a request to the server
-	req, _ := http.NewRequest("GET", srv.URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
 	res := httptest.NewRecorder()
 	// server the request
 	srv.Config.Handler.ServeHTTP(res, req)
@@ -179,7 +179,10 @@ func TestReset(t *testing.T) {
 		t.Errorf("scanner error: %v", err)
 	}
 	expect.Equal(t, linesRead, nLines)
-	s.Reset()
+	err = s.Reset()
+	if err != nil {
+		t.Errorf("failed to reset scanner: %v", err)
+	}
 
 	linesRead = 0
 	for s.Scan() {
@@ -191,7 +194,7 @@ func TestReset(t *testing.T) {
 	expect.Equal(t, linesRead, nLines)
 }
 
-// 100000 log entries
+// 100000 log entries.
 func BenchmarkBackScanner(b *testing.B) {
 	mockFile := NewMockFile()
 	line := logEntry()

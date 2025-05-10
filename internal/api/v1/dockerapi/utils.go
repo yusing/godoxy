@@ -56,7 +56,7 @@ func getDockerClients() (DockerClients, gperr.Error) {
 	return dockerClients, connErrs.Error()
 }
 
-func getDockerClient(w http.ResponseWriter, server string) (*docker.SharedClient, bool, error) {
+func getDockerClient(server string) (*docker.SharedClient, bool, error) {
 	cfg := config.GetInstance()
 	var host string
 	for name, h := range cfg.Value().Providers.Docker {
@@ -98,7 +98,7 @@ func handleResult[V any, T ResultType[V]](w http.ResponseWriter, errs error, res
 			return
 		}
 	}
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(result) //nolint
 }
 
 func serveHTTP[V any, T ResultType[V]](w http.ResponseWriter, r *http.Request, getResult func(ctx context.Context, dockerClients DockerClients) (T, gperr.Error)) {
@@ -119,6 +119,6 @@ func serveHTTP[V any, T ResultType[V]](w http.ResponseWriter, r *http.Request, g
 		})
 	} else {
 		result, err := getResult(r.Context(), dockerClients)
-		handleResult[V, T](w, err, result)
+		handleResult[V](w, err, result)
 	}
 }

@@ -9,17 +9,9 @@ import (
 	"time"
 
 	"github.com/oschwald/maxminddb-golang"
-	"github.com/rs/zerolog"
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/task"
 )
-
-// --- Helper for MaxMindConfig ---
-type testLogger struct{ zerolog.Logger }
-
-func (testLogger) Info() *zerolog.Event       { return &zerolog.Event{} }
-func (testLogger) Warn() *zerolog.Event       { return &zerolog.Event{} }
-func (testLogger) Err(_ error) *zerolog.Event { return &zerolog.Event{} }
 
 func testCfg() *MaxMind {
 	return &MaxMind{
@@ -41,16 +33,17 @@ func testDoReq(cfg *MaxMind, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Last-Modified", testLastMod.Format(http.TimeFormat))
 	gz := gzip.NewWriter(w)
 	t := tar.NewWriter(gz)
-	t.WriteHeader(&tar.Header{
+	_ = t.WriteHeader(&tar.Header{
 		Name: cfg.dbFilename(),
 	})
-	t.Write([]byte("1234"))
-	t.Close()
-	gz.Close()
+	_, _ = t.Write([]byte("1234"))
+	_ = t.Close()
+	_ = gz.Close()
 	w.WriteHeader(http.StatusOK)
 }
 
-func mockDoReq(cfg *MaxMind, t *testing.T) {
+func mockDoReq(t *testing.T, cfg *MaxMind) {
+	t.Helper()
 	rw := httptest.NewRecorder()
 	oldDoReq := doReq
 	doReq = func(req *http.Request) (*http.Response, error) {
@@ -61,12 +54,14 @@ func mockDoReq(cfg *MaxMind, t *testing.T) {
 }
 
 func mockDataDir(t *testing.T) {
+	t.Helper()
 	oldDataDir := dataDir
 	dataDir = t.TempDir()
 	t.Cleanup(func() { dataDir = oldDataDir })
 }
 
 func mockMaxMindDBOpen(t *testing.T) {
+	t.Helper()
 	oldMaxMindDBOpen := maxmindDBOpen
 	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
 		return &maxminddb.Reader{}, nil
@@ -76,7 +71,7 @@ func mockMaxMindDBOpen(t *testing.T) {
 
 func Test_MaxMindConfig_doReq(t *testing.T) {
 	cfg := testCfg()
-	mockDoReq(cfg, t)
+	mockDoReq(t, cfg)
 	resp, err := cfg.doReq(http.MethodGet)
 	if err != nil {
 		t.Fatalf("newReq() error = %v", err)
@@ -88,7 +83,7 @@ func Test_MaxMindConfig_doReq(t *testing.T) {
 
 func Test_MaxMindConfig_checkLatest(t *testing.T) {
 	cfg := testCfg()
-	mockDoReq(cfg, t)
+	mockDoReq(t, cfg)
 
 	latest, err := cfg.checkLastest()
 	if err != nil {
@@ -103,7 +98,7 @@ func Test_MaxMindConfig_download(t *testing.T) {
 	cfg := testCfg()
 	mockDataDir(t)
 	mockMaxMindDBOpen(t)
-	mockDoReq(cfg, t)
+	mockDoReq(t, cfg)
 
 	err := cfg.download()
 	if err != nil {

@@ -5,10 +5,12 @@ import (
 	"slices"
 )
 
-type YieldFunc = func(part string, value any) bool
-type YieldKeyFunc = func(key string) bool
-type Iterator = func(YieldFunc)
-type KeyIterator = func(YieldKeyFunc)
+type (
+	YieldFunc    = func(part string, value any) bool
+	YieldKeyFunc = func(key string) bool
+	Iterator     = func(YieldFunc)
+	KeyIterator  = func(YieldKeyFunc)
+)
 
 // WalkAll walks all nodes in the trie, yields full key and series
 func (node *Node) Walk(yield YieldFunc) {
@@ -17,10 +19,7 @@ func (node *Node) Walk(yield YieldFunc) {
 
 func (node *Node) walkAll(yield YieldFunc) bool {
 	if !node.value.IsNil() {
-		if !yield(node.key, node.value.Load()) {
-			return false
-		}
-		return true
+		return yield(node.key, node.value.Load())
 	}
 	for _, v := range node.children.Range {
 		if !v.walkAll(yield) {
@@ -57,10 +56,9 @@ func (node *Node) Map() map[string]any {
 func (tree Root) Query(key *Key) Iterator {
 	if !key.hasWildcard {
 		return func(yield YieldFunc) {
-			if v, ok := tree.Node.Get(key); ok {
+			if v, ok := tree.Get(key); ok {
 				yield(key.full, v)
 			}
-			return
 		}
 	}
 	return func(yield YieldFunc) {

@@ -14,13 +14,12 @@ import (
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
-	U "github.com/yusing/go-proxy/internal/utils"
 )
 
 type (
 	PortMapping = map[int]container.Port
 	Container   struct {
-		_ U.NoCopy
+		_ utils.NoCopy
 
 		DockerHost    string          `json:"docker_host"`
 		Image         *ContainerImage `json:"image"`
@@ -102,6 +101,33 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 
 func (c *Container) IsBlacklisted() bool {
 	return c.Image.IsBlacklisted() || c.isDatabase()
+}
+
+func (c *Container) UpdatePorts() error {
+	client, err := NewClient(c.DockerHost)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	inspect, err := client.ContainerInspect(context.Background(), c.ContainerID)
+	if err != nil {
+		return err
+	}
+
+	for port := range inspect.Config.ExposedPorts {
+		proto, portStr := nat.SplitProtoPort(string(port))
+		portInt, _ := nat.ParsePort(portStr)
+		if portInt == 0 {
+			continue
+		}
+		c.PublicPortMapping[portInt] = container.Port{
+			PublicPort:  uint16(portInt),
+			PrivatePort: uint16(portInt),
+			Type:        proto,
+		}
+	}
+	return nil
 }
 
 var databaseMPs = map[string]struct{}{
@@ -204,31 +230,4 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 			c.IdlewatcherConfig = idwCfg
 		}
 	}
-}
-
-func (c *Container) UpdatePorts() error {
-	client, err := NewClient(c.DockerHost)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	inspect, err := client.ContainerInspect(context.Background(), c.ContainerID)
-	if err != nil {
-		return err
-	}
-
-	for port := range inspect.Config.ExposedPorts {
-		proto, portStr := nat.SplitProtoPort(string(port))
-		portInt, _ := nat.ParsePort(portStr)
-		if portInt == 0 {
-			continue
-		}
-		c.PublicPortMapping[portInt] = container.Port{
-			PublicPort:  uint16(portInt),
-			PrivatePort: uint16(portInt),
-			Type:        proto,
-		}
-	}
-	return nil
 }

@@ -22,7 +22,7 @@ type oauthRefreshToken struct {
 	RefreshToken string    `json:"refresh_token"`
 	Expiry       time.Time `json:"expiry"`
 
-	result *refreshResult
+	result *RefreshResult
 	err    error
 	mu     sync.Mutex
 }
@@ -33,7 +33,7 @@ type Session struct {
 	Groups    []string  `json:"groups"`
 }
 
-type refreshResult struct {
+type RefreshResult struct {
 	newSession Session
 	jwt        string
 	jwtExpiry  time.Time
@@ -50,7 +50,6 @@ var oauthRefreshTokens jsonstore.MapStore[*oauthRefreshToken]
 
 var (
 	defaultRefreshTokenExpiry = 30 * 24 * time.Hour // 1 month
-	refreshBefore             = 30 * time.Second
 	sessionInvalidateDelay    = 3 * time.Second
 )
 
@@ -148,7 +147,7 @@ func (auth *OIDCProvider) parseSessionJWT(sessionJWT string) (claims *sessionCla
 	return claims, sessionToken.Valid && claims.Issuer == sessionTokenIssuer, nil
 }
 
-func (auth *OIDCProvider) TryRefreshToken(ctx context.Context, sessionJWT string) (*refreshResult, error) {
+func (auth *OIDCProvider) TryRefreshToken(ctx context.Context, sessionJWT string) (*RefreshResult, error) {
 	// verify the session cookie
 	claims, valid, err := auth.parseSessionJWT(sessionJWT)
 	if err != nil {
@@ -171,7 +170,7 @@ func (auth *OIDCProvider) TryRefreshToken(ctx context.Context, sessionJWT string
 	return auth.doRefreshToken(ctx, refreshToken, &claims.Session)
 }
 
-func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oauthRefreshToken, claims *Session) (*refreshResult, error) {
+func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oauthRefreshToken, claims *Session) (*RefreshResult, error) {
 	refreshToken.mu.Lock()
 	defer refreshToken.mu.Unlock()
 
@@ -209,7 +208,7 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 	logging.Debug().Str("username", claims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
 	storeOAuthRefreshToken(sessionID, claims.Username, newToken.RefreshToken)
 
-	refreshToken.result = &refreshResult{
+	refreshToken.result = &RefreshResult{
 		newSession: Session{
 			SessionID: sessionID,
 			Username:  claims.Username,
