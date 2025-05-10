@@ -129,10 +129,8 @@ func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
 }
 
 func (m *Middleware) finalize() error {
-	m.impl = m.withCheckBypass()
 	if finalizer, ok := m.impl.(MiddlewareFinalizer); ok {
 		finalizer.finalize()
-		return nil
 	}
 	if finalizer, ok := m.impl.(MiddlewareFinalizerWithError); ok {
 		return finalizer.finalize()
@@ -155,6 +153,7 @@ func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, gperr.Error) {
 	if err := mid.finalize(); err != nil {
 		return nil, gperr.Wrap(err)
 	}
+	mid.impl = mid.withCheckBypass()
 	return mid, nil
 }
 
