@@ -11,16 +11,17 @@ ENV GOPATH=/root/go
 WORKDIR /src
 
 COPY go.mod go.sum ./
-COPY agent ./agent
-COPY internal/dnsproviders ./internal/dnsproviders
 
-RUN go mod download -x
+# remove godoxy stuff from go.mod first
+RUN sed -i '/^module github\.com\/yusing\/go-proxy/!{/github\.com\/yusing\/go-proxy/d}' go.mod && \
+  go mod download -x
 
 # Stage 2: builder
 FROM deps AS builder
 
 WORKDIR /src
 
+COPY go.mod go.sum ./
 COPY Makefile ./
 COPY cmd ./cmd
 COPY internal ./internal
