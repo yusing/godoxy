@@ -15,10 +15,20 @@ func Iter(yield func(r Route) bool) {
 			break
 		}
 	}
+	for _, r := range Stream.Iter {
+		if !yield(r) {
+			break
+		}
+	}
 }
 
 func IterKV(yield func(alias string, r Route) bool) {
 	for k, r := range HTTP.Iter {
+		if !yield(k, r) {
+			break
+		}
+	}
+	for k, r := range Stream.Iter {
 		if !yield(k, r) {
 			break
 		}
