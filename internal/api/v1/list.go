@@ -20,6 +20,7 @@ import (
 const (
 	ListRoute              = "route"
 	ListRoutes             = "routes"
+	ListRoutesByProvider   = "routes_by_provider"
 	ListFiles              = "files"
 	ListMiddlewares        = "middlewares"
 	ListMiddlewareTraces   = "middleware_trace"
@@ -48,6 +49,8 @@ func List(cfg config.ConfigInstance, w http.ResponseWriter, r *http.Request) {
 		}
 	case ListRoutes:
 		gphttp.RespondJSON(w, r, routes.ByAlias(route.RouteType(r.FormValue("type"))))
+	case ListRoutesByProvider:
+		gphttp.RespondJSON(w, r, routes.ByProvider())
 	case ListFiles:
 		listFiles(w, r)
 	case ListMiddlewares:

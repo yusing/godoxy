@@ -135,3 +135,11 @@ func ByAlias(typeFilter ...route.RouteType) map[string]Route {
 	}
 	return rts
 }
+
+func ByProvider() map[string][]Route {
+	rts := make(map[string][]Route)
+	for _, r := range HTTP.Iter {
+		rts[r.ProviderName()] = append(rts[r.ProviderName()], r)
+	}
+	return rts
+}
