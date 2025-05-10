@@ -18,7 +18,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	scheme := query.Get("scheme")
 	if scheme == "" {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(w, "missing scheme", http.StatusBadRequest)
 		return
 	}
 
@@ -28,7 +28,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	case "fileserver":
 		path := query.Get("path")
 		if path == "" {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			http.Error(w, "missing path", http.StatusBadRequest)
 			return
 		}
 		_, err := os.Stat(path)
@@ -40,7 +40,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 		host := query.Get("host")
 		path := query.Get("path")
 		if host == "" {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			http.Error(w, "missing host", http.StatusBadRequest)
 			return
 		}
 		result, err = monitor.NewHTTPHealthMonitor(&url.URL{
@@ -51,16 +51,17 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	case "tcp", "udp":
 		host := query.Get("host")
 		if host == "" {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			http.Error(w, "missing host", http.StatusBadRequest)
 			return
 		}
 		hasPort := strings.Contains(host, ":")
 		port := query.Get("port")
-		if port != "" && !hasPort {
-			host = fmt.Sprintf("%s:%s", host, port)
-		} else {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		if port != "" && hasPort {
+			http.Error(w, "port and host with port cannot both be provided", http.StatusBadRequest)
 			return
+		}
+		if port != "" {
+			host = fmt.Sprintf("%s:%s", host, port)
 		}
 		result, err = monitor.NewRawHealthMonitor(&url.URL{
 			Scheme: scheme,
