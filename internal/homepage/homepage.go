@@ -2,6 +2,7 @@ package homepage
 
 import (
 	"encoding/json"
+	"slices"
 
 	"github.com/yusing/go-proxy/internal/homepage/widgets"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -61,4 +62,13 @@ func (c Homepage) Add(item *Item) {
 		c[item.Category] = make(Category, 0)
 	}
 	c[item.Category] = append(c[item.Category], item)
+	slices.SortStableFunc(c[item.Category], func(a, b *Item) int {
+		if a.SortOrder < b.SortOrder {
+			return -1
+		}
+		if a.SortOrder > b.SortOrder {
+			return 1
+		}
+		return 0
+	})
 }
