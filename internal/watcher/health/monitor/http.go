@@ -37,19 +37,18 @@ func NewHTTPHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *HTTPH
 	return mon
 }
 
-func (mon *HTTPHealthMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
+func (mon *HTTPHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
 
-	req, reqErr := http.NewRequestWithContext(
+	req, err := http.NewRequestWithContext(
 		ctx,
 		mon.method,
 		mon.url.Load().JoinPath(mon.config.Path).String(),
 		nil,
 	)
-	if reqErr != nil {
-		err = reqErr
-		return
+	if err != nil {
+		return nil, err
 	}
 	req.Close = true
 	req.Header.Set("Connection", "close")
@@ -62,22 +61,26 @@ func (mon *HTTPHealthMonitor) CheckHealth() (result *health.HealthCheckResult, e
 	}
 
 	lat := time.Since(start)
-	result = &health.HealthCheckResult{}
 
 	switch {
 	case respErr != nil:
 		// treat tls error as healthy
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(respErr, &tlsErr); !ok {
-			result.Detail = respErr.Error()
-			return
+			return &health.HealthCheckResult{
+				Latency: lat,
+				Detail:  respErr.Error(),
+			}, nil
 		}
 	case resp.StatusCode == http.StatusServiceUnavailable:
-		result.Detail = resp.Status
-		return
+		return &health.HealthCheckResult{
+			Latency: lat,
+			Detail:  resp.Status,
+		}, nil
 	}
 
-	result.Latency = lat
-	result.Healthy = true
-	return
+	return &health.HealthCheckResult{
+		Latency: lat,
+		Healthy: true,
+	}, nil
 }

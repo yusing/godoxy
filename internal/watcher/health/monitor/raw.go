@@ -25,20 +25,19 @@ func NewRawHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *RawHea
 	return mon
 }
 
-func (mon *RawHealthMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
+func (mon *RawHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
 
 	url := mon.url.Load()
 	start := time.Now()
-	conn, dialErr := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
-	result = new(health.HealthCheckResult)
-	if dialErr != nil {
-		result.Detail = dialErr.Error()
-		return
+	conn, err := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
+	if err != nil {
+		return nil, err
 	}
 	defer conn.Close()
-	result.Latency = time.Since(start)
-	result.Healthy = true
-	return
+	return &health.HealthCheckResult{
+		Latency: time.Since(start),
+		Healthy: true,
+	}, nil
 }

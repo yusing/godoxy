@@ -215,15 +215,14 @@ func (mon *monitor) checkUpdateHealth() error {
 	result, err := mon.checkHealth()
 
 	var lastStatus health.Status
-	if err != nil {
-		if result == nil {
-			result = &health.HealthCheckResult{Healthy: false, Detail: err.Error()}
-		}
+	switch {
+	case err != nil:
+		result = &health.HealthCheckResult{Healthy: false, Detail: err.Error()}
 		lastStatus = mon.status.Swap(health.StatusError)
-	} else if result.Healthy {
+	case result.Healthy:
 		lastStatus = mon.status.Swap(health.StatusHealthy)
 		UpdateLastSeen(mon.service)
-	} else {
+	default:
 		lastStatus = mon.status.Swap(health.StatusUnhealthy)
 	}
 	mon.lastResult.Store(result)

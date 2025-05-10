@@ -21,15 +21,16 @@ func NewFileServerHealthMonitor(config *health.HealthCheckConfig, path string) *
 func (s *FileServerHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
 	start := time.Now()
 	_, err := os.Stat(s.path)
-
-	detail := ""
 	if err != nil {
-		detail = err.Error()
+		if os.IsNotExist(err) {
+			return &health.HealthCheckResult{
+				Detail: err.Error(),
+			}, nil
+		}
+		return nil, err
 	}
-
 	return &health.HealthCheckResult{
-		Healthy: err == nil,
+		Healthy: true,
 		Latency: time.Since(start),
-		Detail:  detail,
 	}, nil
 }
