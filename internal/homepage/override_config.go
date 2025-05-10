@@ -44,9 +44,8 @@ func (c *OverrideConfig) OverrideItems(items map[string]*ItemConfig) {
 func (c *OverrideConfig) GetOverride(alias string, item *ItemConfig) *ItemConfig {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	itemOverride, hasOverride := c.ItemOverrides[alias]
-	if hasOverride {
-		return itemOverride
+	if itemOverride, hasOverride := c.ItemOverrides[alias]; hasOverride {
+		item = itemOverride
 	}
 	if show, ok := c.ItemVisibility[alias]; ok {
 		clone := *item
