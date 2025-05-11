@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -164,12 +165,12 @@ func (c *Container) isLocal() bool {
 	if err != nil {
 		return false
 	}
-	switch url.Hostname() {
-	case "localhost", "127.0.0.1", "::1":
-		return true
-	default:
-		return false
+	hostname := url.Hostname()
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		return ip.IsLoopback() || ip.IsUnspecified()
 	}
+	return hostname == "localhost"
 }
 
 func (c *Container) setPublicHostname() {
