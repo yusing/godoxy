@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/common"
@@ -49,12 +48,7 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := defaultAuth.CheckToken(r); err != nil {
-			if IsFrontend(r) {
-				r = r.WithContext(context.WithValue(r.Context(), nextHandlerContextKey, next))
-				defaultAuth.LoginHandler(w, r)
-			} else {
-				gphttp.Unauthorized(w, err.Error())
-			}
+			gphttp.Unauthorized(w, err.Error())
 			return
 		}
 		next(w, r)
