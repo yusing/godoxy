@@ -73,6 +73,7 @@ func NewServer(opt Options) (s *Server) {
 			Handler: opt.Handler,
 			TLSConfig: &tls.Config{
 				GetCertificate: opt.CertProvider.GetCert,
+				MinVersion:     tls.VersionTLS12,
 			},
 		}
 	}
@@ -169,7 +170,7 @@ func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
 
 	proto := proto(srv)
 
-	ctx, cancel := context.WithTimeout(task.RootContext(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(task.RootContext(), 1*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
