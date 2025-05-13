@@ -45,6 +45,11 @@ func PrependSubject(subject string, err error) error {
 	switch err := err.(type) {
 	case *withSubject:
 		return err.Prepend(subject)
+	case *wrappedError:
+		return &wrappedError{
+			Err:     PrependSubject(subject, err.Err),
+			Message: err.Message,
+		}
 	case Error:
 		return err.Subject(subject)
 	}
@@ -95,20 +100,24 @@ func (err *withSubject) Markdown() []byte {
 
 func (err *withSubject) fmtError(highlight highlightFunc) []byte {
 	// subject is in reversed order
-	n := len(err.Subjects)
 	size := 0
 	errStr := err.Err.Error()
+	subjects := err.Subjects
+	if err.pendingSubject != "" {
+		subjects = append(subjects, err.pendingSubject)
+	}
 	var buf bytes.Buffer
-	for _, s := range err.Subjects {
+	for _, s := range subjects {
 		size += len(s)
 	}
+	n := len(subjects)
 	buf.Grow(size + 2 + n*len(subjectSep) + len(errStr) + len(highlight("")))
 
 	for i := n - 1; i > 0; i-- {
-		buf.WriteString(err.Subjects[i])
+		buf.WriteString(subjects[i])
 		buf.WriteString(subjectSep)
 	}
-	buf.WriteString(highlight(err.Subjects[0]))
+	buf.WriteString(highlight(subjects[0]))
 	if errStr != "" {
 		buf.WriteString(": ")
 		buf.WriteString(errStr)

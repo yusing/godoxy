@@ -59,6 +59,9 @@ func (b *Builder) Error() Error {
 	if len(b.errs) == 0 {
 		return nil
 	}
+	if len(b.errs) == 1 && b.about == "" {
+		return wrap(b.errs[0])
+	}
 	return &nestedError{Err: New(b.about), Extras: b.errs}
 }
 

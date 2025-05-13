@@ -256,7 +256,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 			if field, ok := mapping[strutils.ToLowerNoSnake(k)]; ok {
 				err := Convert(reflect.ValueOf(v), field, !hasValidateTag)
 				if err != nil {
-					errs.Add(err)
+					errs.Add(err.Subject(k))
 				}
 			} else {
 				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(NearestField(k, mapping))))
@@ -330,10 +330,6 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		srcT = src.Type()
 	}
 
-	if !dst.CanSet() {
-		return ErrUnsettable.Subject(dstT.String())
-	}
-
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			dst.Set(New(dstT.Elem()))
@@ -346,16 +342,25 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 
 	switch {
 	case srcT.AssignableTo(dstT):
+		if !dst.CanSet() {
+			return ErrUnsettable.Subject(dstT.String())
+		}
 		dst.Set(src)
 		return nil
 	// case srcT.ConvertibleTo(dstT):
 	// 	dst.Set(src.Convert(dstT))
 	// 	return nil
 	case srcKind == reflect.String:
+		if !dst.CanSet() {
+			return ErrUnsettable.Subject(dstT.String())
+		}
 		if convertible, err := ConvertString(src.String(), dst); convertible {
 			return err
 		}
 	case isIntFloat(srcKind):
+		if !dst.CanSet() {
+			return ErrUnsettable.Subject(dstT.String())
+		}
 		var strV string
 		switch {
 		case src.CanInt():
@@ -386,7 +391,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if dstT.Kind() != reflect.Slice {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		sliceErrs := gperr.NewBuilder("slice conversion errors")
+		sliceErrs := gperr.NewBuilder()
 		newSlice := reflect.MakeSlice(dstT, src.Len(), src.Len())
 		i := 0
 		for j, v := range src.Seq2() {
@@ -469,7 +474,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
 			dst.Set(reflect.MakeSlice(dst.Type(), len(values), len(values)))
-			errs := gperr.NewBuilder("invalid slice values")
+			errs := gperr.NewBuilder()
 			for i, v := range values {
 				err := Convert(reflect.ValueOf(v), dst.Index(i), true)
 				if err != nil {

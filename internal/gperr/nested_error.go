@@ -11,9 +11,11 @@ type nestedError struct {
 	Extras []error `json:"extras"`
 }
 
+var emptyError = errStr("")
+
 func (err nestedError) Subject(subject string) Error {
 	if err.Err == nil {
-		err.Err = PrependSubject(subject, errStr(""))
+		err.Err = PrependSubject(subject, emptyError)
 	} else {
 		err.Err = PrependSubject(subject, err.Err)
 	}
