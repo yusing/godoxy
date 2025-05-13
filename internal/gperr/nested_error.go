@@ -78,8 +78,10 @@ func (err *nestedError) fmtError(appendLine appendLineFunc) []byte {
 	}
 	if err.Err != nil {
 		buf := appendLine(nil, err.Err, 0)
-		buf = append(buf, '\n')
-		buf = appendLines(buf, err.Extras, 1, appendLine)
+		if len(err.Extras) > 0 {
+			buf = append(buf, '\n')
+			buf = appendLines(buf, err.Extras, 1, appendLine)
+		}
 		return buf
 	}
 	return appendLines(nil, err.Extras, 0, appendLine)

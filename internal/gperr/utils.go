@@ -87,6 +87,9 @@ func Join(errors ...error) Error {
 func JoinLines(main error, errors ...string) Error {
 	errs := make([]error, len(errors))
 	for i, err := range errors {
+		if err == "" {
+			continue
+		}
 		errs[i] = newError(err)
 	}
 	return &nestedError{Err: main, Extras: errs}

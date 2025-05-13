@@ -36,8 +36,11 @@ func (err *baseError) Subjectf(format string, args ...any) Error {
 	return err.Subject(format)
 }
 
-func (err baseError) With(extra error) Error {
-	return &nestedError{&err, []error{extra}}
+func (err *baseError) With(extra error) Error {
+	if extra == nil {
+		return err
+	}
+	return &nestedError{&baseError{err.Err}, []error{extra}}
 }
 
 func (err baseError) Withf(format string, args ...any) Error {

@@ -31,7 +31,7 @@ func (h *Hint) String() string {
 	return h.Error()
 }
 
-func DoYouMean(s string) *Hint {
+func DoYouMean(s string) error {
 	if s == "" {
 		return nil
 	}
