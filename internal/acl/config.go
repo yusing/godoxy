@@ -133,19 +133,15 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipAndStr := &maxmind.IPInfo{IP: ip, Str: ipStr}
-	for _, m := range c.Allow {
-		if m(ipAndStr) {
-			c.log(ipAndStr, true)
-			c.cacheRecord(ipAndStr, true)
-			return true
-		}
+	if c.Allow.Match(ipAndStr) {
+		c.log(ipAndStr, true)
+		c.cacheRecord(ipAndStr, true)
+		return true
 	}
-	for _, m := range c.Deny {
-		if m(ipAndStr) {
-			c.log(ipAndStr, false)
-			c.cacheRecord(ipAndStr, false)
-			return false
-		}
+	if c.Deny.Match(ipAndStr) {
+		c.log(ipAndStr, false)
+		c.cacheRecord(ipAndStr, false)
+		return false
 	}
 
 	c.log(ipAndStr, c.defaultAllow)
