@@ -73,6 +73,61 @@ func TestDeserializeAnonymousField(t *testing.T) {
 	ExpectEqual(t, s2.C, 3)
 }
 
+func TestPointerPrimitives(t *testing.T) {
+	type testType struct {
+		B   *bool   `json:"b"`
+		I8  *int8   `json:"i8"`
+		I16 *int16  `json:"i16"`
+		I32 *int32  `json:"i32"`
+		I64 *int64  `json:"i64"`
+		U8  *uint8  `json:"u8"`
+		U16 *uint16 `json:"u16"`
+		U32 *uint32 `json:"u32"`
+		U64 *uint64 `json:"u64"`
+	}
+	var test testType
+
+	err := MapUnmarshalValidate(map[string]any{"b": true, "i8": int8(127), "i16": int16(127), "i32": int32(127), "i64": int64(127), "u8": uint8(127), "u16": uint16(127), "u32": uint32(127), "u64": uint64(127)}, &test)
+	ExpectNoError(t, err)
+	ExpectEqual(t, *test.B, true)
+	ExpectEqual(t, *test.I8, int8(127))
+	ExpectEqual(t, *test.I16, int16(127))
+	ExpectEqual(t, *test.I32, int32(127))
+	ExpectEqual(t, *test.I64, int64(127))
+	ExpectEqual(t, *test.U8, uint8(127))
+	ExpectEqual(t, *test.U16, uint16(127))
+	ExpectEqual(t, *test.U32, uint32(127))
+	ExpectEqual(t, *test.U64, uint64(127))
+
+	// zero values
+	err = MapUnmarshalValidate(map[string]any{"b": false, "i8": int8(0), "i16": int16(0), "i32": int32(0), "i64": int64(0), "u8": uint8(0), "u16": uint16(0), "u32": uint32(0), "u64": uint64(0)}, &test)
+	ExpectNoError(t, err)
+	ExpectEqual(t, *test.B, false)
+	ExpectEqual(t, *test.I8, int8(0))
+	ExpectEqual(t, *test.I16, int16(0))
+	ExpectEqual(t, *test.I32, int32(0))
+	ExpectEqual(t, *test.I64, int64(0))
+	ExpectEqual(t, *test.U8, uint8(0))
+	ExpectEqual(t, *test.U16, uint16(0))
+	ExpectEqual(t, *test.U32, uint32(0))
+	ExpectEqual(t, *test.U64, uint64(0))
+
+	// nil values
+	err = MapUnmarshalValidate(map[string]any{"b": true, "i8": int8(127), "i16": int16(127), "i32": int32(127), "i64": int64(127), "u8": uint8(127), "u16": uint16(127), "u32": uint32(127), "u64": uint64(127)}, &test)
+	ExpectNoError(t, err)
+	err = MapUnmarshalValidate(map[string]any{"b": nil, "i8": nil, "i16": nil, "i32": nil, "i64": nil, "u8": nil, "u16": nil, "u32": nil, "u64": nil}, &test)
+	ExpectNoError(t, err)
+	ExpectEqual(t, test.B, nil)
+	ExpectEqual(t, test.I8, nil)
+	ExpectEqual(t, test.I16, nil)
+	ExpectEqual(t, test.I32, nil)
+	ExpectEqual(t, test.I64, nil)
+	ExpectEqual(t, test.U8, nil)
+	ExpectEqual(t, test.U16, nil)
+	ExpectEqual(t, test.U32, nil)
+	ExpectEqual(t, test.U64, nil)
+}
+
 func TestStringIntConvert(t *testing.T) {
 	s := "127"
 

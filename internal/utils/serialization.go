@@ -314,12 +314,26 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		return gperr.Errorf("convert: dst is %w", ErrNilValue)
 	}
 
-	if !src.IsValid() || src.IsZero() {
-		if dst.CanSet() {
-			dst.Set(reflect.Zero(dst.Type()))
-			return nil
+	if (src.Kind() == reflect.Pointer && src.IsNil()) || !src.IsValid() {
+		if !dst.CanSet() {
+			return gperr.Errorf("convert: src is %w", ErrNilValue)
 		}
-		return gperr.Errorf("convert: src is %w", ErrNilValue)
+		// manually set nil
+		dst.Set(reflect.Zero(dst.Type()))
+		return nil
+	}
+
+	if src.IsZero() {
+		if !dst.CanSet() {
+			return gperr.Errorf("convert: src is %w", ErrNilValue)
+		}
+		switch dst.Kind() {
+		case reflect.Pointer, reflect.Interface:
+			dst.Set(reflect.New(dst.Type().Elem()))
+		default:
+			dst.Set(reflect.Zero(dst.Type()))
+		}
+		return nil
 	}
 
 	srcT := src.Type()
