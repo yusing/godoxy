@@ -7,6 +7,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/maxmind"
 	"github.com/yusing/go-proxy/internal/task"
@@ -21,6 +22,7 @@ type Config struct {
 	Log        *accesslog.ACLLoggerConfig `json:"log"`
 
 	config
+	valErr gperr.Error
 }
 
 type config struct {
@@ -57,7 +59,8 @@ func (c *Config) Validate() gperr.Error {
 	case ACLDeny:
 		c.defaultAllow = false
 	default:
-		return gperr.New("invalid default value").Subject(c.Default)
+		c.valErr = gperr.New("invalid default value").Subject(c.Default)
+		return c.valErr
 	}
 
 	if c.AllowLocal != nil {
@@ -70,12 +73,17 @@ func (c *Config) Validate() gperr.Error {
 		c.logAllowed = c.Log.LogAllowed
 	}
 
+	if !c.allowLocal && !c.defaultAllow && len(c.Allow) == 0 {
+		c.valErr = gperr.New("allow_local is false and default is deny, but no allow rules are configured")
+		return c.valErr
+	}
+
 	c.ipCache = xsync.NewMapOf[string, *checkCache]()
 	return nil
 }
 
 func (c *Config) Valid() bool {
-	return c != nil && (len(c.Allow) > 0 || len(c.Deny) > 0 || c.allowLocal)
+	return c != nil && c.valErr == nil
 }
 
 func (c *Config) Start(parent *task.Task) gperr.Error {
@@ -86,6 +94,15 @@ func (c *Config) Start(parent *task.Task) gperr.Error {
 		}
 		c.logger = logger
 	}
+	if c.valErr != nil {
+		return c.valErr
+	}
+	logging.Info().
+		Str("default", c.Default).
+		Bool("allow_local", c.allowLocal).
+		Int("allow_rules", len(c.Allow)).
+		Int("deny_rules", len(c.Deny)).
+		Msg("ACL started")
 	return nil
 }
 
@@ -114,8 +131,7 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 		return false
 	}
 
-	// always allow loopback
-	// loopback is not logged
+	// always allow loopback, not logged
 	if ip.IsLoopback() {
 		return true
 	}

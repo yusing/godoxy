@@ -10,12 +10,12 @@ type UDPListener struct {
 	lis net.PacketConn
 }
 
-func (cfg *Config) WrapUDP(lis net.PacketConn) net.PacketConn {
-	if cfg == nil {
+func (c *Config) WrapUDP(lis net.PacketConn) net.PacketConn {
+	if c == nil {
 		return lis
 	}
 	return &UDPListener{
-		acl: cfg,
+		acl: c,
 		lis: lis,
 	}
 }

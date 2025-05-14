@@ -24,6 +24,9 @@ const (
 	MatcherTypeCountry  = "country"
 )
 
+// TODO: use this error in the future
+//
+//nolint:unused
 var errMatcherFormat = gperr.Multiline().AddLines(
 	"invalid matcher format, expect {type}:{value}",
 	"Available types: ip|cidr|tz|country",
@@ -34,10 +37,9 @@ var errMatcherFormat = gperr.Multiline().AddLines(
 )
 
 var (
-	errSyntax               = errors.New("syntax error")
-	errInvalidIP            = errors.New("invalid IP")
-	errInvalidCIDR          = errors.New("invalid CIDR")
-	errMaxMindNotConfigured = errors.New("MaxMind not configured")
+	errSyntax      = errors.New("syntax error")
+	errInvalidIP   = errors.New("invalid IP")
+	errInvalidCIDR = errors.New("invalid CIDR")
 )
 
 func (matcher *Matcher) Parse(s string) error {
@@ -60,14 +62,8 @@ func (matcher *Matcher) Parse(s string) error {
 		}
 		matcher.match = matchCIDR(net)
 	case MatcherTypeTimeZone:
-		if !maxmind.HasInstance() {
-			return errMaxMindNotConfigured
-		}
 		matcher.match = matchTimeZone(parts[1])
 	case MatcherTypeCountry:
-		if !maxmind.HasInstance() {
-			return errMaxMindNotConfigured
-		}
 		matcher.match = matchISOCode(parts[1])
 	default:
 		return errSyntax

@@ -248,8 +248,6 @@ func (cfg *Config) load() gperr.Error {
 		err := model.ACL.Start(cfg.task)
 		if err != nil {
 			errs.Add(err)
-		} else {
-			logging.Info().Msg("ACL started")
 		}
 	}
 
