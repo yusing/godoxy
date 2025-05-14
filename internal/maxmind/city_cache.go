@@ -1,10 +1,10 @@
 package maxmind
 
 import (
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
-var cityCache = xsync.NewMapOf[string, *City]()
+var cityCache = xsync.NewMap[string, *City]()
 
 func (cfg *MaxMind) lookupCity(ip *IPInfo) (*City, bool) {
 	if ip.City != nil {

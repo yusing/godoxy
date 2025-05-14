@@ -4,17 +4,17 @@ import (
 	"sync"
 
 	"github.com/goccy/go-yaml"
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
 type Map[KT comparable, VT any] struct {
-	*xsync.MapOf[KT, VT]
+	*xsync.Map[KT, VT]
 }
 
 const minParallelSize = 4
 
 func NewMapOf[KT comparable, VT any](options ...func(*xsync.MapConfig)) Map[KT, VT] {
-	return Map[KT, VT]{xsync.NewMapOf[KT, VT](options...)}
+	return Map[KT, VT]{xsync.NewMap[KT, VT](options...)}
 }
 
 func NewMapFrom[KT comparable, VT any](m map[KT]VT) (res Map[KT, VT]) {

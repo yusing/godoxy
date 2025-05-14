@@ -3,15 +3,15 @@ package functional
 import (
 	"sync"
 
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
 type Set[T comparable] struct {
-	m *xsync.MapOf[T, struct{}]
+	m *xsync.Map[T, struct{}]
 }
 
 func NewSet[T comparable]() Set[T] {
-	return Set[T]{m: xsync.NewMapOf[T, struct{}]()}
+	return Set[T]{m: xsync.NewMap[T, struct{}]()}
 }
 
 func (set Set[T]) Add(v T) {

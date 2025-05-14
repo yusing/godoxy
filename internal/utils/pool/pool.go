@@ -3,13 +3,13 @@ package pool
 import (
 	"sort"
 
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/logging"
 )
 
 type (
 	Pool[T Object] struct {
-		m    *xsync.MapOf[string, T]
+		m    *xsync.Map[string, T]
 		name string
 	}
 	Object interface {
@@ -19,7 +19,7 @@ type (
 )
 
 func New[T Object](name string) Pool[T] {
-	return Pool[T]{xsync.NewMapOf[string, T](), name}
+	return Pool[T]{xsync.NewMap[string, T](), name}
 }
 
 func (p Pool[T]) Name() string {

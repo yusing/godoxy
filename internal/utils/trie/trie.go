@@ -1,18 +1,18 @@
 package trie
 
-import "github.com/puzpuzpuz/xsync/v3"
+import "github.com/puzpuzpuz/xsync/v4"
 
 type Root struct {
 	*Node
-	cached *xsync.MapOf[string, *Node]
+	cached *xsync.Map[string, *Node]
 }
 
 func NewTrie() *Root {
 	return &Root{
 		Node: &Node{
-			children: xsync.NewMapOf[string, *Node](),
+			children: xsync.NewMap[string, *Node](),
 		},
-		cached: xsync.NewMapOf[string, *Node](),
+		cached: xsync.NewMap[string, *Node](),
 	}
 }
 
@@ -20,7 +20,7 @@ func (r *Root) getNode(key *Key, newFunc func() any) *Node {
 	if key.hasWildcard {
 		panic("should not call Load or Store on a key with any wildcard: " + key.full)
 	}
-	node, _ := r.cached.LoadOrCompute(key.full, func() *Node {
+	node, _ := r.cached.LoadOrCompute(key.full, func() (*Node, bool) {
 		return r.Node.loadOrStore(key, newFunc)
 	})
 	return node

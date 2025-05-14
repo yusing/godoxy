@@ -31,7 +31,7 @@ func TestSaveLoadStore(t *testing.T) {
 	if v != "1" {
 		t.Fatalf("expected 1, got %q", v)
 	}
-	if loaded.MapOf == store.MapOf {
+	if loaded.Map == store.Map {
 		t.Fatal("expected different objects")
 	}
 }

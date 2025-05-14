@@ -8,7 +8,7 @@ import (
 
 	"maps"
 
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -19,7 +19,7 @@ import (
 type namespace string
 
 type MapStore[VT any] struct {
-	*xsync.MapOf[string, VT]
+	*xsync.Map[string, VT]
 }
 
 type ObjectStore[Pointer Initializer] struct {
@@ -103,7 +103,7 @@ func Object[Ptr Initializer](namespace namespace) Ptr {
 }
 
 func (s *MapStore[VT]) Initialize() {
-	s.MapOf = xsync.NewMapOf[string, VT]()
+	s.Map = xsync.NewMap[string, VT]()
 }
 
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
@@ -115,9 +115,9 @@ func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
-	s.MapOf = xsync.NewMapOf[string, VT](xsync.WithPresize(len(tmp)))
+	s.Map = xsync.NewMap[string, VT](xsync.WithPresize(len(tmp)))
 	for k, v := range tmp {
-		s.MapOf.Store(k, v)
+		s.Map.Store(k, v)
 	}
 	return nil
 }

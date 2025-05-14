@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
@@ -28,7 +28,7 @@ type Config struct {
 type config struct {
 	defaultAllow bool
 	allowLocal   bool
-	ipCache      *xsync.MapOf[string, *checkCache]
+	ipCache      *xsync.Map[string, *checkCache]
 	logAllowed   bool
 	logger       *accesslog.AccessLogger
 }
@@ -78,7 +78,7 @@ func (c *Config) Validate() gperr.Error {
 		return c.valErr
 	}
 
-	c.ipCache = xsync.NewMapOf[string, *checkCache]()
+	c.ipCache = xsync.NewMap[string, *checkCache]()
 	return nil
 }
 

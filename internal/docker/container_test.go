@@ -54,7 +54,7 @@ func TestContainerHostNetworkMode(t *testing.T) {
 				Names: []string{"test"},
 				State: "test",
 				HostConfig: struct {
-					NetworkMode string "json:\",omitempty\""
+					NetworkMode string `json:",omitempty"`
 				}{
 					NetworkMode: "host",
 				},

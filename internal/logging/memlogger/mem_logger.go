@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 )
 
@@ -21,8 +21,8 @@ type memLogger struct {
 	*bytes.Buffer
 	sync.RWMutex
 	notifyLock sync.RWMutex
-	connChans  *xsync.MapOf[chan *logEntryRange, struct{}]
-	listeners  *xsync.MapOf[chan []byte, struct{}]
+	connChans  *xsync.Map[chan *logEntryRange, struct{}]
+	listeners  *xsync.Map[chan []byte, struct{}]
 }
 
 type MemLogger io.Writer
@@ -35,8 +35,8 @@ const (
 
 var memLoggerInstance = &memLogger{
 	Buffer:    bytes.NewBuffer(make([]byte, maxMemLogSize)),
-	connChans: xsync.NewMapOf[chan *logEntryRange, struct{}](),
-	listeners: xsync.NewMapOf[chan []byte, struct{}](),
+	connChans: xsync.NewMap[chan *logEntryRange, struct{}](),
+	listeners: xsync.NewMap[chan []byte, struct{}](),
 }
 
 func GetMemLogger() MemLogger {

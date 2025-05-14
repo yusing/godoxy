@@ -1,13 +1,13 @@
 package trie
 
 import (
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
 type Node struct {
 	key      string
-	children *xsync.MapOf[string, *Node] // lock-free map which allows concurrent access
-	value    AnyValue                    // only end nodes have values
+	children *xsync.Map[string, *Node] // lock-free map which allows concurrent access
+	value    AnyValue                  // only end nodes have values
 }
 
 func mayPrefix(key, part string) string {
@@ -20,7 +20,7 @@ func mayPrefix(key, part string) string {
 func (node *Node) newChild(part string) *Node {
 	return &Node{
 		key:      mayPrefix(node.key, part),
-		children: xsync.NewMapOf[string, *Node](),
+		children: xsync.NewMap[string, *Node](),
 	}
 }
 
@@ -39,16 +39,16 @@ func (node *Node) Get(key *Key) (any, bool) {
 	return v, true
 }
 
-func (node *Node) loadOrStore(key *Key, newFunc func() any) *Node {
+func (node *Node) loadOrStore(key *Key, newFunc func() any) (*Node, bool) {
 	for i, seg := range key.segments {
-		child, _ := node.children.LoadOrCompute(seg, func() *Node {
+		child, _ := node.children.LoadOrCompute(seg, func() (*Node, bool) {
 			newNode := node.newChild(seg)
 			if i == len(key.segments)-1 {
 				newNode.value.Store(newFunc())
 			}
-			return newNode
+			return newNode, false
 		})
 		node = child
 	}
-	return node
+	return node, false
 }
