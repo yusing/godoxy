@@ -2,8 +2,16 @@ name: Docker Image CI (socket-proxy)
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "socket-proxy/**"
+    tags-ignore:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:

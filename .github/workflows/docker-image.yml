@@ -84,10 +84,10 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ inputs.image_name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.PLATFORM_PAIR }}
-            type=gha,scope=${{ github.workflow }}
+            type=gha,scope=${{ github.workflow }}-${{ env.PLATFORM_PAIR }}
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
-            type=gha,scope=${{ github.workflow }},mode=max
+            type=gha,scope=${{ github.workflow }}-${{ env.PLATFORM_PAIR }},mode=max
           build-args: |
             VERSION=${{ github.ref_name }}
             MAKE_ARGS=${{ env.MAKE_ARGS }}
