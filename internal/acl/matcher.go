@@ -1,7 +1,6 @@
 package acl
 
 import (
-	"errors"
 	"net"
 	"strings"
 
@@ -37,9 +36,9 @@ var errMatcherFormat = gperr.Multiline().AddLines(
 )
 
 var (
-	errSyntax      = errors.New("syntax error")
-	errInvalidIP   = errors.New("invalid IP")
-	errInvalidCIDR = errors.New("invalid CIDR")
+	errSyntax      = gperr.New("syntax error")
+	errInvalidIP   = gperr.New("invalid IP")
+	errInvalidCIDR = gperr.New("invalid CIDR")
 )
 
 func (matcher *Matcher) Parse(s string) error {

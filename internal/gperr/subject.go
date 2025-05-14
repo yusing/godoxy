@@ -136,6 +136,9 @@ func (err *withSubject) MarshalJSON() ([]byte, error) {
 		Subjects: subjects,
 		Err:      err.Err,
 	}
+	if err.pendingSubject != "" {
+		reversed.Subjects = append(reversed.Subjects, err.pendingSubject)
+	}
 
 	return json.Marshal(reversed)
 }

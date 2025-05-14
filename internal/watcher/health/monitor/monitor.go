@@ -35,7 +35,7 @@ type (
 	}
 )
 
-var ErrNegativeInterval = errors.New("negative interval")
+var ErrNegativeInterval = gperr.New("negative interval")
 
 func NewMonitor(r routes.Route) health.HealthMonCheck {
 	var mon health.HealthMonCheck
