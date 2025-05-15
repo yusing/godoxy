@@ -17,6 +17,7 @@ linters:
     - gocognit
     - goconst
     - gocyclo
+    - gomoddirectives
     - gosec
     - gosmopolitan
     - ireturn
