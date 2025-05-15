@@ -66,8 +66,7 @@ type lineInfo struct {
 	Size int64 // Size of this line
 }
 
-// do not allocate initial size
-var rotateBytePool = synk.NewBytesPool(0, 16*1024*1024)
+var rotateBytePool = synk.NewBytesPool()
 
 // rotateLogFile rotates the log file based on the retention policy.
 // It returns the result of the rotation and an error if any.

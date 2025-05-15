@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/utils/synk"
 )
 
 // TODO: move to "utils/io".
@@ -110,31 +111,24 @@ type httpFlusher interface {
 	Flush() error
 }
 
-func getHttpFlusher(dst io.Writer) httpFlusher {
+func getHTTPFlusher(dst io.Writer) httpFlusher {
 	if rw, ok := dst.(http.ResponseWriter); ok {
 		return http.NewResponseController(rw)
 	}
 	return nil
 }
 
-const (
-	copyBufSize = 32 * 1024
-)
+const copyBufSize = 32 * 1024
 
-var copyBufPool = sync.Pool{
-	New: func() any {
-		return make([]byte, copyBufSize)
-	},
-}
+var bytesPool = synk.NewBytesPool()
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // This is a copy of io.Copy with context and HTTP flusher handling
 // Author: yusing <yusing@6uo.me>.
 func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
-	var buf []byte
+	size := copyBufSize
 	if l, ok := src.Reader.(*io.LimitedReader); ok {
-		size := copyBufSize
 		if int64(size) > l.N {
 			if l.N < 1 {
 				size = 1
@@ -142,11 +136,9 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 				size = int(l.N)
 			}
 		}
-		buf = make([]byte, 0, size)
-	} else {
-		buf = copyBufPool.Get().([]byte)
-		defer copyBufPool.Put(buf)
 	}
+	buf := bytesPool.GetSized(size)
+	defer bytesPool.Put(buf)
 	// close both as soon as one of them is done
 	wCloser, wCanClose := dst.Writer.(io.Closer)
 	rCloser, rCanClose := src.Reader.(io.Closer)
@@ -176,10 +168,10 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 			}
 		}
 	}
-	flusher := getHttpFlusher(dst.Writer)
+	flusher := getHTTPFlusher(dst.Writer)
 	canFlush := flusher != nil
 	for {
-		nr, er := src.Reader.Read(buf[:copyBufSize])
+		nr, er := src.Reader.Read(buf)
 		if nr > 0 {
 			nw, ew := dst.Writer.Write(buf[0:nr])
 			if nw < 0 || nr < nw {

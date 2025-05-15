@@ -1,7 +1,6 @@
 package accesslog
 
 import (
-	"bufio"
 	"io"
 	"net/http"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/logging"
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/utils/synk"
 	"golang.org/x/time/rate"
@@ -26,7 +26,7 @@ type (
 		rawWriter     io.Writer
 		closer        []io.Closer
 		supportRotate []supportRotate
-		writer        *bufio.Writer
+		writer        *utils.BufferedWriter
 		writeLock     sync.Mutex
 		closed        bool
 
@@ -116,9 +116,9 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
 		rawWriter:      writer,
-		writer:         bufio.NewWriterSize(writer, MinBufferSize),
+		writer:         utils.NewBufferedWriter(writer, MinBufferSize),
 		bufSize:        MinBufferSize,
-		lineBufPool:    synk.NewBytesPool(256, 768), // for common/combined usually < 256B; for json < 512B
+		lineBufPool:    synk.NewBytesPool(),
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         logging.With().Str("file", writer.Name()).Logger(),
 	}
@@ -269,6 +269,7 @@ func (l *AccessLogger) Close() error {
 			c.Close()
 		}
 	}
+	l.writer.Release()
 	l.closed = true
 	return nil
 }
@@ -339,6 +340,10 @@ func (l *AccessLogger) adjustBuffer() {
 		Str("new", strutils.FormatByteSize(newBufSize)).
 		Msg("adjusted buffer size")
 
-	l.writer = bufio.NewWriterSize(l.rawWriter, newBufSize)
+	err := l.writer.Resize(newBufSize)
+	if err != nil {
+		l.handleErr(err)
+		return
+	}
 	l.bufSize = newBufSize
 }
