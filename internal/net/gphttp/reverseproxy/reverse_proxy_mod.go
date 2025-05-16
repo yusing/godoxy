@@ -301,14 +301,14 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 	prior, ok := outreq.Header[httpheaders.HeaderXForwardedFor]
 	omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
 
-	xff, _, err := net.SplitHostPort(req.RemoteAddr)
-	if err != nil {
-		xff = req.RemoteAddr
-	}
-	if len(prior) > 0 {
-		xff = strings.Join(prior, ", ") + ", " + xff
-	}
 	if !omit {
+		xff, _, err := net.SplitHostPort(req.RemoteAddr)
+		if err != nil {
+			xff = req.RemoteAddr
+		}
+		if len(prior) > 0 {
+			xff = strings.Join(prior, ", ") + ", " + xff
+		}
 		outreq.Header.Set(httpheaders.HeaderXForwardedFor, xff)
 	}
 
