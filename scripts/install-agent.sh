@@ -2,6 +2,8 @@
 
 set -e
 
+COMMAND="$1"
+
 check_pkg() {
 	if ! command -v "$1" &>/dev/null; then
 		echo "$1 could not be found, please install it first"
@@ -12,7 +14,7 @@ check_pkg() {
 start-service() {
 	systemctl daemon-reload
 	# if command is empty
-	if [ -z "$1" ]; then
+	if [ -z "$COMMAND" ]; then
 		echo "Enabling and starting the agent service"
 	else
 		echo "Reloading the agent service"
@@ -29,7 +31,7 @@ start-service() {
 		exit 1
 	fi
 	# if command is empty
-	if [ -z "$1" ]; then
+	if [ -z "$COMMAND" ]; then
 		echo "Agent installed successfully"
 	else
 		echo "Agent updated successfully"
@@ -55,7 +57,7 @@ else
 fi
 
 # check variables if command is empty
-if [ -z "$1" ]; then
+if [ -z "$COMMAND" ]; then
 	if [ -z "$AGENT_NAME" ]; then
 		echo "AGENT_NAME is not set"
 		exit 1
@@ -113,7 +115,7 @@ if [ ! -w "$(dirname "$env_file")" ]; then
 fi
 
 # check if command is uninstall
-if [ "$1" = "uninstall" ]; then
+if [ "$COMMAND" = "uninstall" ]; then
 	echo "Uninstalling the agent"
 	systemctl disable --now $name || true
 	rm -f $bin_path
@@ -139,13 +141,17 @@ bin_last_updated=$(date -d "$(echo "$asset" | jq -r '.updated_at')" +%s)
 if [ -f "$bin_path" ]; then
 	bin_mod_time=$(stat -c %Y "$bin_path")
 	if [ "$bin_last_updated" -eq "$bin_mod_time" ]; then
-		echo "Binary is up to date"
-		exit 0
+		echo "Binary is already up to date, continue? (y/n)"
+		read -n 1 -r
+		if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
+			echo "Aborting"
+			exit 0
+		fi
 	fi
 fi
 
 # check if command is update
-if [ "$1" = "update" ]; then
+if [ "$COMMAND" = "update" ]; then
 	echo "Stopping the agent"
 	systemctl stop $name || true
 fi
@@ -154,6 +160,19 @@ bin_url=$(echo "$asset" | jq -r '.browser_download_url')
 if [ -z "$bin_url" ] || [ "$bin_url" = "null" ]; then
 	echo "Failed to find binary for architecture: $arch"
 	exit 1
+fi
+
+# check if agent is already running
+if systemctl is-active $name &>/dev/null; then
+	echo "Agent is already running, stopping it"
+	systemctl stop $name || true
+	sleep 1
+	if systemctl is-active $name &>/dev/null; then
+		echo "Agent is still running, please stop it manually"
+		exit 1
+	else
+		echo "Agent stopped successfully"
+	fi
 fi
 
 echo "Downloading the agent binary from $bin_url"
@@ -169,7 +188,7 @@ echo "Making the agent binary executable"
 chmod +x $bin_path
 
 # check if command is update
-if [ "$1" = "update" ]; then
+if [ "$COMMAND" = "update" ]; then
 	echo "Starting the agent"
 	start-service
 	exit 0
