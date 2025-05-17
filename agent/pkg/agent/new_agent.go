@@ -2,7 +2,6 @@ package agent
 
 import (
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -12,18 +11,35 @@ import (
 	"math/big"
 	"strings"
 	"time"
+
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"fmt"
 )
 
 const (
 	CertsDNSName = "godoxy.agent"
-	KeySize      = 2048
 )
 
-func toPEMPair(certDER []byte, key *rsa.PrivateKey) *PEMPair {
+func toPEMPair(certDER []byte, key *ecdsa.PrivateKey) *PEMPair {
+	marshaledKey, err := marshalECPrivateKey(key)
+	if err != nil {
+		// This is a critical internal error during PEM encoding of a newly generated key.
+		// Panicking is acceptable here as it indicates a fundamental issue.
+		panic(fmt.Sprintf("failed to marshal EC private key for PEM encoding: %v", err))
+	}
 	return &PEMPair{
 		Cert: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}),
-		Key:  pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}),
+		Key:  pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: marshaledKey}),
 	}
+}
+
+func marshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+	derBytes, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal EC private key: %w", err)
+	}
+	return derBytes, nil
 }
 
 func b64Encode(data []byte) string {
@@ -63,10 +79,23 @@ func (p *PEMPair) ToTLSCert() (*tls.Certificate, error) {
 	return &cert, err
 }
 
+func newSerialNumber() (*big.Int, error) {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128) // 128-bit random number
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+	return serialNumber, nil
+}
+
 func NewAgent() (ca, srv, client *PEMPair, err error) {
+	caSerialNumber, err := newSerialNumber()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	// Create the CA's certificate
 	caTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: caSerialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"GoDoxy"},
 			CommonName:   CertsDNSName,
@@ -76,9 +105,12 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
 	}
 
-	caKey, err := rsa.GenerateKey(rand.Reader, KeySize)
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -91,20 +123,29 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 	ca = toPEMPair(caDER, caKey)
 
 	// Generate a new private key for the server certificate
-	serverKey, err := rsa.GenerateKey(rand.Reader, KeySize)
+	serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
+	serverSerialNumber, err := newSerialNumber()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	srvTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(2),
+		SerialNumber: serverSerialNumber,
 		Issuer:       caTemplate.Subject,
-		Subject:      caTemplate.Subject,
-		DNSNames:     []string{CertsDNSName},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1000, 0, 0), // Add validity period
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		Subject: pkix.Name{
+			Organization:       caTemplate.Subject.Organization,
+			OrganizationalUnit: []string{"Server"},
+			CommonName:         CertsDNSName,
+		},
+		DNSNames:           []string{CertsDNSName},
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(1000, 0, 0), // Add validity period
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
 	}
 
 	srvCertDER, err := x509.CreateCertificate(rand.Reader, srvTemplate, caTemplate, &serverKey.PublicKey, caKey)
@@ -114,20 +155,29 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 
 	srv = toPEMPair(srvCertDER, serverKey)
 
-	clientKey, err := rsa.GenerateKey(rand.Reader, KeySize)
+	clientKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
+	clientSerialNumber, err := newSerialNumber()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	clientTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(3),
+		SerialNumber: clientSerialNumber,
 		Issuer:       caTemplate.Subject,
-		Subject:      caTemplate.Subject,
-		DNSNames:     []string{CertsDNSName},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1000, 0, 0),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		Subject: pkix.Name{
+			Organization:       caTemplate.Subject.Organization,
+			OrganizationalUnit: []string{"Client"},
+			CommonName:         CertsDNSName,
+		},
+		DNSNames:           []string{CertsDNSName},
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(1000, 0, 0),
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
 	}
 	clientCertDER, err := x509.CreateCertificate(rand.Reader, clientTemplate, caTemplate, &clientKey.PublicKey, caKey)
 	if err != nil {
