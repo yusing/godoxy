@@ -10,7 +10,7 @@ var (
 	AGENT_PORT="{{.Port}}" \
 	AGENT_CA_CERT="{{.CACert}}" \
 	AGENT_SSL_CERT="{{.SSLCert}}" \
-	bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/go-proxy/main/scripts/install-agent.sh)"`
+	bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/install-agent.sh)"`
 	installScriptTemplate = template.Must(template.New("install.sh").Parse(installScript))
 )
 
