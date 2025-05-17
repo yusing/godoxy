@@ -2,13 +2,13 @@
 
 # GoDoxy
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_godoxy)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=go-proxy)
 ![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
-A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Benchmarks) reverse proxy with WebUI.
+A lightweight, simple, and performant reverse proxy with WebUI.
 
 <h5>
 <a href="https://docs.godoxy.dev">Website</a> | <a href="https://docs.godoxy.dev/Home.html">Wiki</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
@@ -47,8 +47,8 @@ A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Be
 ## Key Features
 
 - **Simple**
-  - Effortless configuration with [simple labels](https://github.com/yusing/godoxy/wiki/Docker-labels-and-Route-Files) or WebUI
-  - [Simple multi-node setup](https://github.com/yusing/godoxy/wiki/Configurations#multi-docker-nodes-setup)
+  - Effortless configuration with [simple labels](https://docs.godoxy.dev/Docker-labels-and-Route-Files) or WebUI
+  - [Simple multi-node setup](https://docs.godoxy.dev/Configurations#multi-docker-nodes-setup)
   - Detailed error messages for easy troubleshooting.
 - **ACL**: connection / request level access control
   - IP/CIDR
@@ -56,7 +56,7 @@ A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Be
   - Timezone **(Maxmind account required)**
   - **Access logging**
 - **Advanced Automation**
-  - Automatic SSL certificate management with Let's Encrypt ([using DNS-01 Challenge](https://github.com/yusing/go-proxy/wiki/Supported-DNS%E2%80%9001-Providers))
+  - Automatic SSL certificate management with Let's Encrypt ([using DNS-01 Challenge](https://docs.godoxy.dev/DNS-01-Providers))
   - Auto-configuration for Docker containers
   - Hot-reloading of configurations and container state changes
 - **Idle-sleep**: stop and wake containers based on traffic _(see [screenshots](#idlesleeper))_
@@ -67,8 +67,8 @@ A lightweight, simple, and [performant](https://github.com/yusing/godoxy/wiki/Be
   - TCP/UDP port forwarding
   - **OpenID Connect support**: SSO and secure your apps easily
 - **Customization**
-  - [HTTP middlewares](https://github.com/yusing/go-proxy/wiki/Middlewares)
-  - [Custom error pages support](https://github.com/yusing/go-proxy/wiki/Middlewares#custom-error-pages)
+  - [HTTP middlewares](https://docs.godoxy.dev/Middlewares)
+  - [Custom error pages support](https://docs.godoxy.dev/Custom-Error-Pages)
 - **Web UI**
   - App Dashboard
   - Config Editor
@@ -103,9 +103,9 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 
 3. Start the docker compose service from generated `compose.yml`:
 
-    ```shell
-    docker compose up -d
-    ```
+   ```shell
+   docker compose up -d
+   ```
 
 4. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
 

@@ -8,7 +8,7 @@
 ![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
-輕量、易用、 [高效能](https://github.com/yusing/godoxy/wiki/Benchmarks)，且帶有主頁和配置面板的反向代理
+輕量、易用、 高效能，且帶有主頁和配置面板的反向代理
 
 <h5>
 <a href="https://docs.godoxy.dev">網站</a> | <a href="https://docs.godoxy.dev/Home.html">文檔</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
@@ -45,20 +45,38 @@
 
 ## 主要特點
 
-- 容易使用
-  - 輕鬆配置
-  - 簡單的多節點設置
-  - 錯誤訊息清晰詳細，易於排除故障
-- 自動 SSL 憑證管理（參見 [支援的 DNS-01 驗證提供商](https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers)）
-- 自動配置 Docker 容器
-- 容器狀態/配置文件變更時自動熱重載
-- **閒置休眠**：在閒置時停止容器，有流量時喚醒（_可選，參見[截圖](#閒置休眠)_）
-- OpenID Connect：輕鬆實現單點登入
-- HTTP(s) 反向代理和 TCP 和 UDP 埠轉發
-- [HTTP 中介軟體](https://github.com/yusing/godoxy/wiki/Middlewares) 和 [自定義錯誤頁面](https://github.com/yusing/godoxy/wiki/Middlewares#custom-error-pages)
-- **網頁介面，具有應用儀表板和配置編輯器**
-- 支援 linux/amd64、linux/arm64
-- 使用 **[Go](https://go.dev)** 編寫
+- **簡單易用**
+  - 透過 Docker[標籤](https://docs.godoxy.dev/Docker-labels-and-Route-Files)或 WebUI 輕鬆設定
+  - [簡單的多節點設置](https://docs.godoxy.dev/Configurations#multi-docker-nodes-setup)
+  - 詳細的錯誤訊息，便於故障排除
+- **存取控制 (ACL)**：連線/請求層級存取控制
+  - IP/CIDR
+  - 國家 **(需要 Maxmind 帳戶)**
+  - 時區 **(需要 Maxmind 帳戶)**
+  - **存取日誌記錄**
+- **自動化**
+  - 使用 Let's Encrypt 自動管理 SSL 憑證 ([使用 DNS-01 驗證](https://docs.godoxy.dev/DNS-01-Providers))
+  - Docker 容器自動配置
+  - 設定檔與容器狀態變更時自動熱重載
+- **閒置休眠**：根據流量停止和喚醒容器 _(參見[截圖](#閒置休眠))_
+  - Docker 容器
+  - Proxmox LXC 容器
+- **流量管理**
+  - HTTP 反向代理
+  - TCP/UDP 連接埠轉送
+  - **OpenID Connect 支援**：輕鬆實現單點登入 (SSO) 並保護您的應用程式
+- **客製化**
+  - [HTTP 中介軟體](https://docs.godoxy.dev/Middlewares)
+  - [支援自訂錯誤頁面](https://docs.godoxy.dev/Custom-Error-Pages)
+- **網頁使用者介面 (Web UI)**
+  - 應用程式一覽
+  - 設定編輯器
+  - 執行時間與系統指標
+  - Docker 日誌檢視器
+- **跨平台支援**
+  - 支援 **linux/amd64** 與 **linux/arm64**
+- **高效能**
+  - 以 **[Go](https://go.dev)** 語言編寫
 
 [🔼 回到頂部](#目錄)
 
