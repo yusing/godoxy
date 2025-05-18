@@ -84,7 +84,7 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 // Start implements task.TaskStarter.
 func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	if mon.config.Interval <= 0 {
-		return gperr.Wrap(ErrNegativeInterval)
+		return ErrNegativeInterval
 	}
 
 	mon.service = parent.Name()
@@ -100,9 +100,11 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 			mon.task.Finish(nil)
 		}()
 
+		failures := 0
+
 		if err := mon.checkUpdateHealth(); err != nil {
-			logger.Err(err).Msg("healthchecker failure")
-			return
+			logger.Err(err).Msg("healthchecker error")
+			failures++
 		}
 
 		ticker := time.NewTicker(mon.config.Interval)
@@ -115,7 +117,15 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 			case <-ticker.C:
 				err := mon.checkUpdateHealth()
 				if err != nil {
-					logger.Err(err).Msg("healthchecker failure")
+					logger.Err(err).Msg("healthchecker error")
+					failures++
+				} else {
+					failures = 0
+				}
+				if failures >= 5 {
+					mon.status.Store(health.StatusError)
+					mon.task.Finish(err)
+					logger.Error().Msg("healthchecker stopped after 5 trials")
 					return
 				}
 			}
