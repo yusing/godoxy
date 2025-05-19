@@ -12,7 +12,7 @@ import (
 
 type DockerProvider struct {
 	client      *docker.SharedClient
-	watcher     *watcher.DockerWatcher
+	watcher     watcher.DockerWatcher
 	containerID string
 }
 
