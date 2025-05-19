@@ -11,7 +11,7 @@ replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
 
 require (
-	github.com/coder/websocket v1.8.13
+	github.com/gorilla/websocket v1.5.3
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/yusing/go-proxy v0.0.0-00010101000000-000000000000
@@ -45,7 +45,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gotify/server/v2 v2.6.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

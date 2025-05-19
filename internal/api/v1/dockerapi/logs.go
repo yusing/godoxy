@@ -1,15 +1,18 @@
 package dockerapi
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
-	"github.com/coder/websocket"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/gorilla/websocket"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
+	"github.com/yusing/go-proxy/internal/task"
 )
 
 func Logs(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +34,7 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 		gphttp.NotFound(w, "server not found")
 		return
 	}
+	defer dockerClient.Close()
 
 	opts := container.LogsOptions{
 		ShowStdout: stdout,
@@ -56,11 +60,14 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.CloseNow()
+	defer conn.Close()
 
-	writer := gpwebsocket.NewWriter(r.Context(), conn, websocket.MessageText)
+	writer := gpwebsocket.NewWriter(r.Context(), conn, websocket.TextMessage)
 	_, err = stdcopy.StdCopy(writer, writer, logs) // de-multiplex logs
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, task.ErrProgramExiting) {
+			return
+		}
 		logging.Err(err).
 			Str("server", server).
 			Str("container", containerID).

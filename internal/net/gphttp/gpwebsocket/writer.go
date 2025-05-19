@@ -3,16 +3,16 @@ package gpwebsocket
 import (
 	"context"
 
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 )
 
 type Writer struct {
 	conn    *websocket.Conn
-	msgType websocket.MessageType
+	msgType int
 	ctx     context.Context
 }
 
-func NewWriter(ctx context.Context, conn *websocket.Conn, msgType websocket.MessageType) *Writer {
+func NewWriter(ctx context.Context, conn *websocket.Conn, msgType int) *Writer {
 	return &Writer{
 		ctx:     ctx,
 		conn:    conn,
@@ -21,9 +21,10 @@ func NewWriter(ctx context.Context, conn *websocket.Conn, msgType websocket.Mess
 }
 
 func (w *Writer) Write(p []byte) (int, error) {
-	return len(p), w.conn.Write(w.ctx, w.msgType, p)
-}
-
-func (w *Writer) Close() error {
-	return w.conn.CloseNow()
+	select {
+	case <-w.ctx.Done():
+		return 0, w.ctx.Err()
+	default:
+		return len(p), w.conn.WriteMessage(w.msgType, p)
+	}
 }

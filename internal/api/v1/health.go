@@ -4,8 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
+	"github.com/gorilla/websocket"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
@@ -15,7 +14,7 @@ import (
 func Health(w http.ResponseWriter, r *http.Request) {
 	if httpheaders.IsWebsocket(r.Header) {
 		gpwebsocket.Periodic(w, r, 1*time.Second, func(conn *websocket.Conn) error {
-			return wsjson.Write(r.Context(), conn, routes.HealthMap())
+			return conn.WriteJSON(routes.HealthMap())
 		})
 	} else {
 		gphttp.RespondJSON(w, r, routes.HealthMap())

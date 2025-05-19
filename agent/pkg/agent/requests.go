@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 )
 
 func (cfg *AgentConfig) Do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
@@ -42,8 +42,12 @@ func (cfg *AgentConfig) Fetch(ctx context.Context, endpoint string) ([]byte, int
 }
 
 func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websocket.Conn, *http.Response, error) {
-	return websocket.Dial(ctx, APIBaseURL+endpoint, &websocket.DialOptions{
-		HTTPClient: cfg.NewHTTPClient(),
-		Host:       AgentHost,
+	transport := cfg.Transport()
+	dialer := websocket.Dialer{
+		NetDialContext:    transport.DialContext,
+		NetDialTLSContext: transport.DialTLSContext,
+	}
+	return dialer.DialContext(ctx, APIBaseURL+endpoint, http.Header{
+		"Host": {AgentHost},
 	})
 }

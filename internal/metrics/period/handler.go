@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
+	"github.com/gorilla/websocket"
 	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
@@ -45,7 +44,7 @@ func (p *Poller[T, AggregateT]) ServeHTTP(w http.ResponseWriter, r *http.Request
 			if data == nil {
 				return nil
 			}
-			return wsjson.Write(r.Context(), conn, data)
+			return conn.WriteJSON(data)
 		})
 	} else {
 		data, err := p.getRespData(r)

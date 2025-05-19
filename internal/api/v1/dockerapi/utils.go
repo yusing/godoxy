@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
+	"github.com/gorilla/websocket"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -65,10 +64,12 @@ func getDockerClient(server string) (*docker.SharedClient, bool, error) {
 			break
 		}
 	}
-	for _, agent := range cfg.ListAgents() {
-		if agent.Name() == server {
-			host = agent.FakeDockerHost()
-			break
+	if host == "" {
+		for _, agent := range cfg.ListAgents() {
+			if agent.Name() == server {
+				host = agent.FakeDockerHost()
+				break
+			}
 		}
 	}
 	if host == "" {
@@ -115,7 +116,7 @@ func serveHTTP[V any, T ResultType[V]](w http.ResponseWriter, r *http.Request, g
 			if err != nil {
 				return err
 			}
-			return wsjson.Write(r.Context(), conn, result)
+			return conn.WriteJSON(result)
 		})
 	} else {
 		result, err := getResult(r.Context(), dockerClients)

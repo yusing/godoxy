@@ -22,8 +22,7 @@ func RenewCert(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	//nolint:errcheck
-	defer conn.CloseNow()
+	defer conn.Close()
 
 	logs, cancel := memlogger.Events()
 	defer cancel()
@@ -35,7 +34,7 @@ func RenewCert(w http.ResponseWriter, r *http.Request) {
 		err = autocert.ObtainCert()
 		if err != nil {
 			gperr.LogError("failed to obtain cert", err)
-			gpwebsocket.WriteText(r, conn, err.Error())
+			_ = gpwebsocket.WriteText(conn, err.Error())
 		} else {
 			logging.Info().Msg("cert obtained successfully")
 		}
@@ -46,7 +45,7 @@ func RenewCert(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			if !gpwebsocket.WriteText(r, conn, string(l)) {
+			if err := gpwebsocket.WriteText(conn, string(l)); err != nil {
 				return
 			}
 		case <-done:

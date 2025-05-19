@@ -1,11 +1,14 @@
 package gpwebsocket
 
 import (
+	"net"
 	"net/http"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 	"github.com/yusing/go-proxy/internal/logging"
 )
 
@@ -27,29 +30,41 @@ func SetWebsocketAllowedDomains(h http.Header, domains []string) {
 	h[HeaderXGoDoxyWebsocketAllowedDomains] = domains
 }
 
-func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
-	var originPats []string
+var localAddresses = []string{"127.0.0.1", "10.0.*.*", "172.16.*.*", "192.168.*.*"}
 
-	localAddresses := []string{"127.0.0.1", "10.0.*.*", "172.16.*.*", "192.168.*.*"}
+const writeTimeout = time.Second * 10
+
+func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
+	upgrader := websocket.Upgrader{}
 
 	allowedDomains := WebsocketAllowedDomains(r.Header)
 	if len(allowedDomains) == 0 {
 		warnNoMatchDomainOnce.Do(warnNoMatchDomains)
-		originPats = []string{"*"}
-	} else {
-		originPats = make([]string, len(allowedDomains))
-		for i, domain := range allowedDomains {
-			if domain[0] != '.' {
-				originPats[i] = "*." + domain
-			} else {
-				originPats[i] = "*" + domain
-			}
+		upgrader.CheckOrigin = func(r *http.Request) bool {
+			return true
 		}
-		originPats = append(originPats, localAddresses...)
+	} else {
+		upgrader.CheckOrigin = func(r *http.Request) bool {
+			host, _, err := net.SplitHostPort(r.Host)
+			if err != nil {
+				host = r.Host
+			}
+			if slices.Contains(localAddresses, host) {
+				return true
+			}
+			for _, domain := range allowedDomains {
+				if domain[0] == '.' {
+					if host == domain[1:] || strings.HasSuffix(host, domain) {
+						return true
+					}
+				} else if host == domain || strings.HasSuffix(host, "."+domain) {
+					return true
+				}
+			}
+			return false
+		}
 	}
-	return websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: originPats,
-	})
+	return upgrader.Upgrade(w, r, nil)
 }
 
 func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do func(conn *websocket.Conn) error) {
@@ -58,8 +73,7 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	//nolint:errcheck
-	defer conn.CloseNow()
+	defer conn.Close()
 
 	if err := do(conn); err != nil {
 		return
@@ -73,6 +87,7 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
+			_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 			if err := do(conn); err != nil {
 				return
 			}
@@ -83,10 +98,7 @@ func Periodic(w http.ResponseWriter, r *http.Request, interval time.Duration, do
 // WriteText writes a text message to the websocket connection.
 // It returns true if the message was written successfully, false otherwise.
 // It logs an error if the message is not written successfully.
-func WriteText(r *http.Request, conn *websocket.Conn, msg string) bool {
-	if err := conn.Write(r.Context(), websocket.MessageText, []byte(msg)); err != nil {
-		logging.Err(err).Msg("failed to write text message")
-		return false
-	}
-	return true
+func WriteText(conn *websocket.Conn, msg string) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	return conn.WriteMessage(websocket.TextMessage, []byte(msg))
 }

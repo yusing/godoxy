@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 )
@@ -81,7 +81,7 @@ func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.connChans.Store(logCh, struct{}{})
 
 	defer func() {
-		_ = conn.CloseNow()
+		_ = conn.Close()
 
 		m.notifyLock.Lock()
 		m.connChans.Delete(logCh)
@@ -89,7 +89,7 @@ func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.notifyLock.Unlock()
 	}()
 
-	if err := m.wsInitial(r.Context(), conn); err != nil {
+	if err := m.wsInitial(conn); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -169,15 +169,16 @@ func (m *memLogger) events() (logs <-chan []byte, cancel func()) {
 	}
 }
 
-func (m *memLogger) writeBytes(ctx context.Context, conn *websocket.Conn, b []byte) error {
-	return conn.Write(ctx, websocket.MessageText, b)
+func (m *memLogger) writeBytes(conn *websocket.Conn, b []byte) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	return conn.WriteMessage(websocket.TextMessage, b)
 }
 
-func (m *memLogger) wsInitial(ctx context.Context, conn *websocket.Conn) error {
+func (m *memLogger) wsInitial(conn *websocket.Conn) error {
 	m.Lock()
 	defer m.Unlock()
 
-	return m.writeBytes(ctx, conn, m.Bytes())
+	return m.writeBytes(conn, m.Bytes())
 }
 
 func (m *memLogger) wsStreamLog(ctx context.Context, conn *websocket.Conn, ch <-chan *logEntryRange) {
@@ -188,7 +189,7 @@ func (m *memLogger) wsStreamLog(ctx context.Context, conn *websocket.Conn, ch <-
 		case logRange := <-ch:
 			m.RLock()
 			msg := m.Bytes()[logRange.Start:logRange.End]
-			err := m.writeBytes(ctx, conn, msg)
+			err := m.writeBytes(conn, msg)
 			m.RUnlock()
 			if err != nil {
 				return

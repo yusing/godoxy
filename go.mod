@@ -13,8 +13,8 @@ replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
 
 require (
+	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
-	github.com/coder/websocket v1.8.13 // websocket for API and agent
 	github.com/coreos/go-oidc/v3 v3.14.1 // oidc authentication
 	github.com/docker/docker v28.1.1+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
@@ -121,7 +121,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/gophercloud/gophercloud v1.14.1 // indirect
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
