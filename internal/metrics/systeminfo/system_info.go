@@ -166,11 +166,11 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 	}
 	s.DisksIO = ioCounters
 	if lastResult != nil {
-		interval := float64(time.Now().Unix() - lastResult.Timestamp)
+		interval := time.Now().Unix() - lastResult.Timestamp
 		for name, disk := range s.DisksIO {
 			if lastUsage, ok := lastResult.DisksIO[name]; ok {
-				disk.ReadSpeed = float64(disk.ReadBytes-lastUsage.ReadBytes) / interval
-				disk.WriteSpeed = float64(disk.WriteBytes-lastUsage.WriteBytes) / interval
+				disk.ReadSpeed = float64(disk.ReadBytes-lastUsage.ReadBytes) / float64(interval)
+				disk.WriteSpeed = float64(disk.WriteBytes-lastUsage.WriteBytes) / float64(interval)
 				disk.Iops = (disk.ReadCount + disk.WriteCount - lastUsage.ReadCount - lastUsage.WriteCount) / uint64(interval)
 			}
 		}
