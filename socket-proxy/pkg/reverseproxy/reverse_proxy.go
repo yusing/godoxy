@@ -13,86 +13,15 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/textproto"
-	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/net/http/httpguts"
 )
-
-// A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
-type ProxyRequest struct {
-	// In is the request received by the proxy.
-	// The Rewrite function must not modify In.
-	In *http.Request
-
-	// Out is the request which will be sent by the proxy.
-	// The Rewrite function may modify or replace this request.
-	// Hop-by-hop headers are removed from this request
-	// before Rewrite is called.
-	Out *http.Request
-}
-
-// SetURL routes the outbound request to the scheme, host, and base path
-// provided in target. If the target's path is "/base" and the incoming
-// request was for "/dir", the target request will be for "/base/dir".
-//
-// SetURL rewrites the outbound Host header to match the target's host.
-// To preserve the inbound request's Host header (the default behavior
-// of [NewSingleHostReverseProxy]):
-//
-//	rewriteFunc := func(r *httputil.ProxyRequest) {
-//		r.SetURL(url)
-//		r.Out.Host = r.In.Host
-//	}
-func (r *ProxyRequest) SetURL(target *url.URL) {
-	rewriteRequestURL(r.Out, target)
-	r.Out.Host = ""
-}
-
-// SetXForwarded sets the X-Forwarded-For, X-Forwarded-Host, and
-// X-Forwarded-Proto headers of the outbound request.
-//
-//   - The X-Forwarded-For header is set to the client IP address.
-//   - The X-Forwarded-Host header is set to the host name requested
-//     by the client.
-//   - The X-Forwarded-Proto header is set to "http" or "https", depending
-//     on whether the inbound request was made on a TLS-enabled connection.
-//
-// If the outbound request contains an existing X-Forwarded-For header,
-// SetXForwarded appends the client IP address to it. To append to the
-// inbound request's X-Forwarded-For header (the default behavior of
-// [ReverseProxy] when using a Director function), copy the header
-// from the inbound request before calling SetXForwarded:
-//
-//	rewriteFunc := func(r *httputil.ProxyRequest) {
-//		r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
-//		r.SetXForwarded()
-//	}
-func (r *ProxyRequest) SetXForwarded() {
-	clientIP, _, err := net.SplitHostPort(r.In.RemoteAddr)
-	if err == nil {
-		prior := r.Out.Header["X-Forwarded-For"]
-		if len(prior) > 0 {
-			clientIP = strings.Join(prior, ", ") + ", " + clientIP
-		}
-		r.Out.Header.Set("X-Forwarded-For", clientIP)
-	} else {
-		r.Out.Header.Del("X-Forwarded-For")
-	}
-	r.Out.Header.Set("X-Forwarded-Host", r.In.Host)
-	if r.In.TLS == nil {
-		r.Out.Header.Set("X-Forwarded-Proto", "http")
-	} else {
-		r.Out.Header.Set("X-Forwarded-Proto", "https")
-	}
-}
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
@@ -135,38 +64,10 @@ type ReverseProxy struct {
 	// If nil, http.DefaultTransport is used.
 	Transport http.RoundTripper
 
-	// FlushInterval specifies the flush interval
-	// to flush to the client while copying the
-	// response body.
-	// If zero, no periodic flushing is done.
-	// A negative value means to flush immediately
-	// after each write to the client.
-	// The FlushInterval is ignored when ReverseProxy
-	// recognizes a response as a streaming response, or
-	// if its ContentLength is -1; for such responses, writes
-	// are flushed to the client immediately.
-	FlushInterval time.Duration
-
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
 	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
-
-	// BufferPool optionally specifies a buffer pool to
-	// get byte slices for use by io.CopyBuffer when
-	// copying HTTP response bodies.
-	BufferPool BufferPool
-
-	// ModifyResponse is an optional function that modifies the
-	// Response from the backend. It is called if the backend
-	// returns a response at all, with any HTTP status code.
-	// If the backend is unreachable, the optional ErrorHandler is
-	// called without any call to ModifyResponse.
-	//
-	// If ModifyResponse returns an error, ErrorHandler is called
-	// with its error value. If ErrorHandler is nil, its default
-	// implementation is used.
-	ModifyResponse func(*http.Response) error
 
 	// ErrorHandler is an optional function that handles errors
 	// reaching the backend or errors from ModifyResponse.
@@ -174,85 +75,6 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
-}
-
-// A BufferPool is an interface for getting and returning temporary
-// byte slices for use by [io.CopyBuffer].
-type BufferPool interface {
-	Get() []byte
-	Put([]byte)
-}
-
-func singleJoiningSlash(a, b string) string {
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
-}
-
-func joinURLPath(a, b *url.URL) (path, rawpath string) {
-	if a.RawPath == "" && b.RawPath == "" {
-		return singleJoiningSlash(a.Path, b.Path), ""
-	}
-	// Same as singleJoiningSlash, but uses EscapedPath to determine
-	// whether a slash should be added
-	apath := a.EscapedPath()
-	bpath := b.EscapedPath()
-
-	aslash := strings.HasSuffix(apath, "/")
-	bslash := strings.HasPrefix(bpath, "/")
-
-	switch {
-	case aslash && bslash:
-		return a.Path + b.Path[1:], apath + bpath[1:]
-	case !aslash && !bslash:
-		return a.Path + "/" + b.Path, apath + "/" + bpath
-	}
-	return a.Path + b.Path, apath + bpath
-}
-
-// NewSingleHostReverseProxy returns a new [ReverseProxy] that routes
-// URLs to the scheme, host, and base path provided in target. If the
-// target's path is "/base" and the incoming request was for "/dir",
-// the target request will be for /base/dir.
-//
-// NewSingleHostReverseProxy does not rewrite the Host header.
-//
-// To customize the ReverseProxy behavior beyond what
-// NewSingleHostReverseProxy provides, use ReverseProxy directly
-// with a Rewrite function. The ProxyRequest SetURL method
-// may be used to route the outbound request. (Note that SetURL,
-// unlike NewSingleHostReverseProxy, rewrites the Host header
-// of the outbound request by default.)
-//
-//	proxy := &ReverseProxy{
-//		Rewrite: func(r *ProxyRequest) {
-//			r.SetURL(target)
-//			r.Out.Host = r.In.Host // if desired
-//		},
-//	}
-func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
-	director := func(req *http.Request) {
-		rewriteRequestURL(req, target)
-	}
-	return &ReverseProxy{Director: director}
-}
-
-func rewriteRequestURL(req *http.Request, target *url.URL) {
-	targetQuery := target.RawQuery
-	req.URL.Scheme = target.Scheme
-	req.URL.Host = target.Host
-	req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
-	if targetQuery == "" || req.URL.RawQuery == "" {
-		req.URL.RawQuery = targetQuery + req.URL.RawQuery
-	} else {
-		req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
-	}
 }
 
 func copyHeader(dst, src http.Header) {
@@ -292,20 +114,6 @@ func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request
 	return p.defaultErrorHandler
 }
 
-// modifyResponse conditionally runs the optional ModifyResponse hook
-// and reports whether the request should proceed.
-func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
-	if p.ModifyResponse == nil {
-		return true
-	}
-	if err := p.ModifyResponse(res); err != nil {
-		res.Body.Close()
-		p.getErrorHandler()(rw, req, err)
-		return false
-	}
-	return true
-}
-
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	ctx := req.Context()
@@ -328,9 +136,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	p.Director(outreq)
-	if outreq.Form != nil {
-		outreq.URL.RawQuery = cleanQueryParams(outreq.URL.RawQuery)
-	}
 	outreq.Close = false
 
 	reqUpType := upgradeType(outreq.Header)
@@ -338,6 +143,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
 		return
 	}
+
+	req.Header.Del("Forwarded")
 	removeHopByHopHeaders(outreq.Header)
 
 	// Issue 21096: tell backend applications that care about trailer support
@@ -390,18 +197,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
 	if res.StatusCode == http.StatusSwitchingProtocols {
-		if !p.modifyResponse(rw, res, outreq) {
-			return
-		}
 		p.handleUpgradeResponse(rw, outreq, res)
 		return
 	}
 
 	removeHopByHopHeaders(res.Header)
-
-	if !p.modifyResponse(rw, res, outreq) {
-		return
-	}
 
 	copyHeader(rw.Header(), res.Header)
 
@@ -555,39 +355,6 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 	_, err := io.Copy(c.backend, c.user)
 	errc <- err
-}
-
-func cleanQueryParams(s string) string {
-	reencode := func(s string) string {
-		v, _ := url.ParseQuery(s)
-		return v.Encode()
-	}
-	for i := 0; i < len(s); {
-		switch s[i] {
-		case ';':
-			return reencode(s)
-		case '%':
-			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
-				return reencode(s)
-			}
-			i += 3
-		default:
-			i++
-		}
-	}
-	return s
-}
-
-func ishex(c byte) bool {
-	switch {
-	case '0' <= c && c <= '9':
-		return true
-	case 'a' <= c && c <= 'f':
-		return true
-	case 'A' <= c && c <= 'F':
-		return true
-	}
-	return false
 }
 
 func IsPrint(s string) bool {
