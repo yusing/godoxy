@@ -100,8 +100,7 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 
 	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
 		if privKey, err = cfg.LoadACMEKey(); err != nil {
-			log.Info().Err(err).Msg("load ACME private key failed")
-			log.Info().Msg("generate new ACME private key")
+			log.Info().Err(err).Msg("failed to load ACME private key, generating a now one")
 			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
 				return nil, nil, gperr.New("generate ACME private key").With(err)
@@ -118,7 +117,7 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 	}
 
 	legoCfg := lego.NewConfig(user)
-	legoCfg.Certificate.KeyType = certcrypto.RSA2048
+	legoCfg.Certificate.KeyType = certcrypto.EC256
 
 	return user, legoCfg, nil
 }
