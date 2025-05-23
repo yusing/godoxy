@@ -3,7 +3,6 @@ package utils
 import (
 	"time"
 
-	"github.com/yusing/go-proxy/internal/task"
 	"go.uber.org/atomic"
 )
 
@@ -38,8 +37,6 @@ func init() {
 	go func() {
 		for {
 			select {
-			case <-task.RootContext().Done():
-				return
 			case <-timeNowTicker.C:
 				shouldCallTimeNow.Store(true)
 			}

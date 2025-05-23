@@ -10,12 +10,12 @@ import (
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
 	Provider interface {
-		utils.CustomValidator
+		serialization.CustomValidator
 
 		GetName() string
 		GetURL() string

@@ -6,6 +6,8 @@ replace github.com/yusing/go-proxy/agent => ./agent
 
 replace github.com/yusing/go-proxy/internal/dnsproviders => ./internal/dnsproviders
 
+replace github.com/yusing/go-proxy/internal/utils => ./internal/utils
+
 replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.0.0-20250523122447-f078841dec22
 
 replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250523125835-a2474a6ebe30
@@ -45,7 +47,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/yusing/go-proxy/agent v0.0.0-00010101000000-000000000000
 	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-00010101000000-000000000000
-	go.uber.org/atomic v1.11.0
+	github.com/yusing/go-proxy/internal/utils v0.0.0
 )
 
 require (
@@ -219,6 +221,7 @@ require (
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -226,7 +229,7 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/api v0.234.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237 // indirect

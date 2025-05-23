@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 type BytesPool struct {
@@ -140,6 +140,6 @@ func dropBuffers() {
 		checks++
 	}
 	if count > 0 {
-		logging.Debug().Int("dropped", count).Int("size", droppedSize).Msg("dropped buffers from pool")
+		log.Debug().Int("dropped", count).Int("size", droppedSize).Msg("dropped buffers from pool")
 	}
 }

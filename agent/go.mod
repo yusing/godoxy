@@ -6,6 +6,8 @@ replace github.com/yusing/go-proxy => ..
 
 replace github.com/yusing/go-proxy/socketproxy => ../socket-proxy
 
+replace github.com/yusing/go-proxy/internal/utils => ../internal/utils
+
 replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250523125835-a2474a6ebe30
 
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250523121925-f87c3159e327
@@ -15,6 +17,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/yusing/go-proxy v0.0.0-00010101000000-000000000000
+	github.com/yusing/go-proxy/internal/utils v0.0.0
 	github.com/yusing/go-proxy/socketproxy v0.0.0-00010101000000-000000000000
 )
 

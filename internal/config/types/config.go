@@ -14,7 +14,7 @@ import (
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/proxmox"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
@@ -93,14 +93,14 @@ func HasInstance() bool {
 
 func Validate(data []byte) gperr.Error {
 	var model Config
-	return utils.UnmarshalValidateYAML(data, &model)
+	return serialization.UnmarshalValidateYAML(data, &model)
 }
 
 var matchDomainsRegex = regexp.MustCompile(`^[^\.]?([\w\d\-_]\.?)+[^\.]?$`)
 
 func init() {
-	utils.RegisterDefaultValueFactory(DefaultConfig)
-	utils.MustRegisterValidation("domain_name", func(fl validator.FieldLevel) bool {
+	serialization.RegisterDefaultValueFactory(DefaultConfig)
+	serialization.MustRegisterValidation("domain_name", func(fl validator.FieldLevel) bool {
 		domains := fl.Field().Interface().([]string)
 		for _, domain := range domains {
 			if !matchDomainsRegex.MatchString(domain) {
@@ -109,7 +109,7 @@ func init() {
 		}
 		return true
 	})
-	utils.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
+	serialization.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
 		m := fl.Field().Interface().(map[string]string)
 		for k := range m {
 			if k == "" {

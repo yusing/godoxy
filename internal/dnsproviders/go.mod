@@ -4,6 +4,8 @@ go 1.24.3
 
 replace github.com/yusing/go-proxy => ../..
 
+replace github.com/yusing/go-proxy/internal/utils => ../utils
+
 require (
 	github.com/go-acme/lego/v4 v4.23.1
 	github.com/yusing/go-proxy v0.0.0-00010101000000-000000000000
@@ -156,6 +158,7 @@ require (
 	github.com/vultr/govultr/v3 v3.20.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	github.com/yusing/go-proxy/internal/utils v0.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect

@@ -10,6 +10,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
+
+	zerologlog "github.com/rs/zerolog/log"
 )
 
 var (
@@ -61,6 +63,8 @@ func InitLogger(out ...io.Writer) {
 	log.SetOutput(writer)
 	log.SetPrefix("")
 	log.SetFlags(0)
+	zerolog.TimeFieldFormat = timeFmt
+	zerologlog.Logger = logger
 }
 
 func DiscardLogger() { zerolog.SetGlobalLevel(zerolog.Disabled) }

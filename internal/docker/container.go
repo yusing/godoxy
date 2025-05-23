@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -224,7 +225,7 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 				ContainerName: c.ContainerName,
 			},
 		}
-		err := utils.MapUnmarshalValidate(cfg, idwCfg)
+		err := serialization.MapUnmarshalValidate(cfg, idwCfg)
 		if err != nil {
 			gperr.LogWarn("invalid idlewatcher config", gperr.PrependSubject(c.ContainerName, err))
 		} else {

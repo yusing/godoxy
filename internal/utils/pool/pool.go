@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -29,12 +29,12 @@ func (p Pool[T]) Name() string {
 func (p Pool[T]) Add(obj T) {
 	p.checkExists(obj.Key())
 	p.m.Store(obj.Key(), obj)
-	logging.Info().Msgf("%s: added %s", p.name, obj.Name())
+	log.Info().Msgf("%s: added %s", p.name, obj.Name())
 }
 
 func (p Pool[T]) Del(obj T) {
 	p.m.Delete(obj.Key())
-	logging.Info().Msgf("%s: removed %s", p.name, obj.Name())
+	log.Info().Msgf("%s: removed %s", p.name, obj.Name())
 }
 
 func (p Pool[T]) Get(key string) (T, bool) {

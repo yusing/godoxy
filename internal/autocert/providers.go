@@ -3,7 +3,7 @@ package autocert
 import (
 	"github.com/go-acme/lego/v4/challenge"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type Generator func(map[string]any) (challenge.Provider, gperr.Error)
@@ -16,7 +16,7 @@ func DNSProvider[CT any, PT challenge.Provider](
 ) Generator {
 	return func(opt map[string]any) (challenge.Provider, gperr.Error) {
 		cfg := defaultCfg()
-		err := utils.MapUnmarshalValidate(opt, &cfg)
+		err := serialization.MapUnmarshalValidate(opt, &cfg)
 		if err != nil {
 			return nil, err
 		}
