@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"time"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
@@ -32,12 +31,15 @@ func dialDockerSocket(ctx context.Context, _, _ string) (net.Conn, error) {
 }
 
 func dockerSocketHandler() http.HandlerFunc {
-	rp := httputil.NewSingleHostReverseProxy(&url.URL{
-		Scheme: "http",
-		Host:   "api.moby.localhost",
-	})
-	rp.Transport = &http.Transport{
-		DialContext: dialDockerSocket,
+	rp := httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			r.URL.Scheme = "http"
+			r.URL.Host = "api.moby.localhost"
+			r.RequestURI = r.URL.String()
+		},
+		Transport: &http.Transport{
+			DialContext: dialDockerSocket,
+		},
 	}
 	return rp.ServeHTTP
 }
