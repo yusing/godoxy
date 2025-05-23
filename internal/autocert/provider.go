@@ -5,10 +5,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
-	"reflect"
-	"sort"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
@@ -283,20 +284,17 @@ func (p *Provider) certState() CertState {
 		return CertStateExpired
 	}
 
-	certDomains := make([]string, len(p.certExpiries))
-	wantedDomains := make([]string, len(p.cfg.Domains))
-	i := 0
-	for domain := range p.certExpiries {
-		certDomains[i] = domain
-		i++
-	}
-	copy(wantedDomains, p.cfg.Domains)
-	sort.Strings(wantedDomains)
-	sort.Strings(certDomains)
-
-	if !reflect.DeepEqual(certDomains, wantedDomains) {
-		log.Info().Msgf("cert domains mismatch: %v != %v", certDomains, p.cfg.Domains)
+	if len(p.certExpiries) != len(p.cfg.Domains) {
 		return CertStateMismatch
+	}
+
+	for i := range len(p.cfg.Domains) {
+		if _, ok := p.certExpiries[p.cfg.Domains[i]]; !ok {
+			log.Info().Msgf("autocert domains mismatch: cert: %s, wanted: %s",
+				strings.Join(slices.Collect(maps.Keys(p.certExpiries)), ", "),
+				strings.Join(p.cfg.Domains, ", "))
+			return CertStateMismatch
+		}
 	}
 
 	return CertStateValid
