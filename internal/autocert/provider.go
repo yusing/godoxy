@@ -15,8 +15,8 @@ import (
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -78,11 +78,11 @@ func (p *Provider) ObtainCert() error {
 	if p.cfg.Provider == ProviderPseudo {
 		t := time.NewTicker(1000 * time.Millisecond)
 		defer t.Stop()
-		logging.Info().Msg("init client for pseudo provider")
+		log.Info().Msg("init client for pseudo provider")
 		<-t.C
-		logging.Info().Msg("registering acme for pseudo provider")
+		log.Info().Msg("registering acme for pseudo provider")
 		<-t.C
-		logging.Info().Msg("obtained cert for pseudo provider")
+		log.Info().Msg("obtained cert for pseudo provider")
 		return nil
 	}
 
@@ -107,7 +107,7 @@ func (p *Provider) ObtainCert() error {
 		})
 		if err != nil {
 			p.legoCert = nil
-			logging.Err(err).Msg("cert renew failed, fallback to obtain")
+			log.Err(err).Msg("cert renew failed, fallback to obtain")
 		} else {
 			p.legoCert = cert
 		}
@@ -154,7 +154,7 @@ func (p *Provider) LoadCert() error {
 	p.tlsCert = &cert
 	p.certExpiries = expiries
 
-	logging.Info().Msgf("next renewal in %v", strutils.FormatDuration(time.Until(p.ShouldRenewOn())))
+	log.Info().Msgf("next renewal in %v", strutils.FormatDuration(time.Until(p.ShouldRenewOn())))
 	return p.renewIfNeeded()
 }
 
@@ -240,7 +240,7 @@ func (p *Provider) registerACME() error {
 	}
 	if reg, err := p.client.Registration.ResolveAccountByKey(); err == nil {
 		p.user.Registration = reg
-		logging.Info().Msg("reused acme registration from private key")
+		log.Info().Msg("reused acme registration from private key")
 		return nil
 	}
 
@@ -249,7 +249,7 @@ func (p *Provider) registerACME() error {
 		return err
 	}
 	p.user.Registration = reg
-	logging.Info().Interface("reg", reg).Msg("acme registered")
+	log.Info().Interface("reg", reg).Msg("acme registered")
 	return nil
 }
 
@@ -295,7 +295,7 @@ func (p *Provider) certState() CertState {
 	sort.Strings(certDomains)
 
 	if !reflect.DeepEqual(certDomains, wantedDomains) {
-		logging.Info().Msgf("cert domains mismatch: %v != %v", certDomains, p.cfg.Domains)
+		log.Info().Msgf("cert domains mismatch: %v != %v", certDomains, p.cfg.Domains)
 		return CertStateMismatch
 	}
 
@@ -309,9 +309,9 @@ func (p *Provider) renewIfNeeded() error {
 
 	switch p.certState() {
 	case CertStateExpired:
-		logging.Info().Msg("certs expired, renewing")
+		log.Info().Msg("certs expired, renewing")
 	case CertStateMismatch:
-		logging.Info().Msg("cert domains mismatch with config, renewing")
+		log.Info().Msg("cert domains mismatch with config, renewing")
 	default:
 		return nil
 	}

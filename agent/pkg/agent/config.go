@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/certs"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -115,7 +115,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 
 	cfg.name = string(name)
 
-	cfg.l = logging.With().Str("agent", cfg.name).Logger()
+	cfg.l = log.With().Str("agent", cfg.name).Logger()
 
 	// check agent version
 	agentVersionBytes, _, err := cfg.Fetch(ctx, EndpointVersion)
@@ -127,10 +127,10 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	agentVersion := pkg.ParseVersion(cfg.version)
 
 	if serverVersion.IsNewerMajorThan(agentVersion) {
-		logging.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, serverVersion, agentVersion)
+		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, serverVersion, agentVersion)
 	}
 
-	logging.Info().Msgf("agent %q initialized", cfg.name)
+	log.Info().Msgf("agent %q initialized", cfg.name)
 	return nil
 }
 

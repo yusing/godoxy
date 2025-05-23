@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
@@ -16,7 +17,6 @@ import (
 	"github.com/shirou/gopsutil/v4/warning"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/metrics/period"
 )
 
@@ -130,7 +130,7 @@ func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, er
 			}
 		})
 		if allWarnings.HasError() {
-			logging.Warn().Msg(allWarnings.String())
+			log.Warn().Msg(allWarnings.String())
 		}
 		if allErrors.HasError() {
 			return nil, allErrors.Error()
@@ -195,7 +195,7 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 		if len(s.Disks) == 0 {
 			return errs.Error()
 		}
-		logging.Warn().Msg(errs.String())
+		log.Warn().Msg(errs.String())
 	}
 	return nil
 }

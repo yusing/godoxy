@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/oauth2"
@@ -79,7 +79,7 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 	endSessionURL, err := url.Parse(provider.EndSessionEndpoint())
 	if err != nil && provider.EndSessionEndpoint() != "" {
 		// non critical, just warn
-		logging.Warn().
+		log.Warn().
 			Str("issuer", issuerURL).
 			Err(err).
 			Msg("failed to parse end session URL")
@@ -176,7 +176,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// clear cookies then redirect to home
-		logging.Err(err).Msg("failed to refresh token")
+		log.Err(err).Msg("failed to refresh token")
 		auth.clearCookie(w, r)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return

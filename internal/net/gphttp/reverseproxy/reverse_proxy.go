@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/types"
@@ -138,7 +138,7 @@ func NewReverseProxy(name string, target *types.URL, transport http.RoundTripper
 		panic("nil transport")
 	}
 	rp := &ReverseProxy{
-		Logger:     logging.With().Str("name", name).Logger(),
+		Logger:     log.With().Str("name", name).Logger(),
 		Transport:  transport,
 		TargetName: name,
 		TargetURL:  target,
@@ -173,17 +173,17 @@ func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err
 	case errors.Is(err, context.Canceled),
 		errors.Is(err, io.EOF),
 		errors.Is(err, context.DeadlineExceeded):
-		logging.Debug().Err(err).Str("url", reqURL).Msg("http proxy error")
+		log.Debug().Err(err).Str("url", reqURL).Msg("http proxy error")
 	default:
 		var recordErr tls.RecordHeaderError
 		if errors.As(err, &recordErr) {
-			logging.Error().
+			log.Error().
 				Str("url", reqURL).
 				Msgf(`scheme was likely misconfigured as https,
 						try setting "proxy.%s.scheme" back to "http"`, p.TargetName)
-			logging.Err(err).Msg("underlying error")
+			log.Err(err).Msg("underlying error")
 		} else {
-			logging.Err(err).Str("url", reqURL).Msg("http proxy error")
+			log.Err(err).Str("url", reqURL).Msg("http proxy error")
 		}
 	}
 

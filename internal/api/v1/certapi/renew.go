@@ -3,9 +3,9 @@ package certapi
 import (
 	"net/http"
 
+	"github.com/rs/zerolog/log"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/memlogger"
 	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 )
@@ -36,7 +36,7 @@ func RenewCert(w http.ResponseWriter, r *http.Request) {
 			gperr.LogError("failed to obtain cert", err)
 			_ = gpwebsocket.WriteText(conn, err.Error())
 		} else {
-			logging.Info().Msg("cert obtained successfully")
+			log.Info().Msg("cert obtained successfully")
 		}
 	}()
 	for {

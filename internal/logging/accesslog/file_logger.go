@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -90,7 +90,7 @@ func (f *File) Close() error {
 }
 
 func (f *File) closeOnZero() {
-	defer logging.Debug().
+	defer log.Debug().
 		Str("path", f.path).
 		Msg("access log closed")
 

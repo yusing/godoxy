@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	"github.com/yusing/go-proxy/internal/serialization"
@@ -87,7 +87,7 @@ func NewMiddleware[ImplType any]() *Middleware {
 func (m *Middleware) enableTrace() {
 	if tracer, ok := m.impl.(MiddlewareWithTracer); ok {
 		tracer.enableTrace()
-		logging.Trace().Msgf("middleware %s enabled trace", m.name)
+		log.Trace().Msgf("middleware %s enabled trace", m.name)
 	}
 }
 

@@ -9,9 +9,9 @@ import (
 	"maps"
 
 	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/task"
 )
@@ -42,7 +42,7 @@ var storesPath = common.DataDir
 func init() {
 	task.OnProgramExit("save_stores", func() {
 		if err := save(); err != nil {
-			logging.Error().Err(err).Msg("failed to save stores")
+			log.Error().Err(err).Msg("failed to save stores")
 		}
 	})
 }
@@ -54,20 +54,20 @@ func loadNS[T store](ns namespace) T {
 	file, err := os.Open(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			logging.Err(err).
+			log.Err(err).
 				Str("path", path).
 				Msg("failed to load store")
 		}
 	} else {
 		defer file.Close()
 		if err := json.NewDecoder(file).Decode(&store); err != nil {
-			logging.Err(err).
+			log.Err(err).
 				Str("path", path).
 				Msg("failed to load store")
 		}
 	}
 	stores[ns] = store
-	logging.Debug().
+	log.Debug().
 		Str("namespace", string(ns)).
 		Str("path", path).
 		Msg("loaded store")
@@ -86,7 +86,7 @@ func save() error {
 
 func Store[VT any](namespace namespace) MapStore[VT] {
 	if _, ok := stores[namespace]; ok {
-		logging.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
+		log.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}
 	store := loadNS[*MapStore[VT]](namespace)
 	stores[namespace] = store
@@ -95,7 +95,7 @@ func Store[VT any](namespace namespace) MapStore[VT] {
 
 func Object[Ptr Initializer](namespace namespace) Ptr {
 	if _, ok := stores[namespace]; ok {
-		logging.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
+		log.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}
 	obj := loadNS[*ObjectStore[Ptr]](namespace)
 	stores[namespace] = obj

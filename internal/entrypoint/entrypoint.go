@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
@@ -50,7 +50,7 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	}
 	ep.middleware = mid
 
-	logging.Debug().Msg("entrypoint middleware loaded")
+	log.Debug().Msg("entrypoint middleware loaded")
 	return nil
 }
 
@@ -64,7 +64,7 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 	if err != nil {
 		return
 	}
-	logging.Debug().Msg("entrypoint access logger created")
+	log.Debug().Msg("entrypoint access logger created")
 	return
 }
 
@@ -89,7 +89,7 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Then scraper / scanners will know the subdomain is invalid.
 	// With StatusNotFound, they won't know whether it's the path, or the subdomain that is invalid.
 	if served := middleware.ServeStaticErrorPageFile(w, r); !served {
-		logging.Err(err).
+		log.Err(err).
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
 			Str("remote", r.RemoteAddr).
@@ -99,7 +99,7 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if _, err := w.Write(errorPage); err != nil {
-				logging.Err(err).Msg("failed to write error page")
+				log.Err(err).Msg("failed to write error page")
 			}
 		} else {
 			http.Error(w, err.Error(), http.StatusNotFound)

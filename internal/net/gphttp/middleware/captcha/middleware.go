@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"text/template"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/auth"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 
 	_ "embed"
@@ -55,7 +55,7 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 		"FormHTML":   p.FormHTML(),
 	})
 	if err != nil {
-		logging.Error().Err(err).Msg("failed to execute captcha page")
+		log.Error().Err(err).Msg("failed to execute captcha page")
 	}
 	return false
 }

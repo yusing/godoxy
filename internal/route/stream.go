@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
-	"github.com/yusing/go-proxy/internal/logging"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
@@ -32,7 +32,7 @@ func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
 	return &StreamRoute{
 		Route: base,
-		l: logging.With().
+		l: log.With().
 			Str("type", string(base.Scheme)).
 			Str("name", base.Name()).
 			Logger(),

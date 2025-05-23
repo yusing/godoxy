@@ -9,11 +9,11 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils"
 )
@@ -91,7 +91,7 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 		var ok bool
 		res.Agent, ok = config.GetInstance().GetAgent(dockerHost)
 		if !ok {
-			logging.Error().Msgf("agent %q not found", dockerHost)
+			log.Error().Msgf("agent %q not found", dockerHost)
 		}
 	}
 
@@ -184,7 +184,7 @@ func (c *Container) setPublicHostname() {
 	}
 	url, err := url.Parse(c.DockerHost)
 	if err != nil {
-		logging.Err(err).Msgf("invalid docker host %q, falling back to 127.0.0.1", c.DockerHost)
+		log.Err(err).Msgf("invalid docker host %q, falling back to 127.0.0.1", c.DockerHost)
 		c.PublicHostname = "127.0.0.1"
 		return
 	}

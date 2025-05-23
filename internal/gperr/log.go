@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/rs/zerolog"
+	zerologlog "github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 )
 
 func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) {
@@ -13,7 +13,7 @@ func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) 
 	if len(logger) > 0 {
 		l = logger[0]
 	} else {
-		l = logging.GetLogger()
+		l = &zerologlog.Logger
 	}
 	l.WithLevel(level).Msg(New(highlightANSI(msg)).With(err).Error())
 	switch level {

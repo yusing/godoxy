@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -120,7 +120,7 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		bufSize:        MinBufferSize,
 		lineBufPool:    synk.NewBytesPool(),
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
-		logger:         logging.With().Str("file", writer.Name()).Logger(),
+		logger:         log.With().Str("file", writer.Name()).Logger(),
 	}
 
 	l.supportRotate = unwrap[supportRotate](writer)

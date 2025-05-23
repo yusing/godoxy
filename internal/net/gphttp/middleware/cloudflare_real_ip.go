@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -89,16 +89,16 @@ func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
 		)
 		if err != nil {
 			cfCIDRsLastUpdate.Store(time.Now().Add(-cfCIDRsUpdateRetryInterval - cfCIDRsUpdateInterval))
-			logging.Err(err).Msg("failed to update cloudflare range, retry in " + strutils.FormatDuration(cfCIDRsUpdateRetryInterval))
+			log.Err(err).Msg("failed to update cloudflare range, retry in " + strutils.FormatDuration(cfCIDRsUpdateRetryInterval))
 			return nil
 		}
 		if len(cfCIDRs) == 0 {
-			logging.Warn().Msg("cloudflare CIDR range is empty")
+			log.Warn().Msg("cloudflare CIDR range is empty")
 		}
 	}
 
 	cfCIDRsLastUpdate.Store(time.Now())
-	logging.Info().Msg("cloudflare CIDR range updated")
+	log.Info().Msg("cloudflare CIDR range updated")
 	return
 }
 

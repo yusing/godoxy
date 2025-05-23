@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 func reqLogger(r *http.Request, level zerolog.Level) *zerolog.Event {
-	return logging.WithLevel(level).
+	return log.WithLevel(level).
 		Str("remote", r.RemoteAddr).
 		Str("host", r.Host).
 		Str("uri", r.Method+" "+r.RequestURI)

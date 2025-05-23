@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/env"
 	"github.com/yusing/go-proxy/agent/pkg/handler"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/task"
 )
@@ -33,12 +33,11 @@ func StartAgentServer(parent task.Parent, opt Options) {
 		tlsConfig.ClientAuth = tls.NoClientCert
 	}
 
-	logger := logging.GetLogger()
 	agentServer := &http.Server{
 		Addr:      fmt.Sprintf(":%d", opt.Port),
 		Handler:   handler.NewAgentHandler(),
 		TLSConfig: tlsConfig,
 	}
 
-	server.Start(parent, agentServer, nil, logger)
+	server.Start(parent, agentServer, nil, &log.Logger)
 }

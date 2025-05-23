@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -101,15 +101,15 @@ func InitIconListCache() {
 
 	err := serialization.LoadJSONIfExist(common.IconListCachePath, iconsCache)
 	if err != nil {
-		logging.Error().Err(err).Msg("failed to load icons")
+		log.Error().Err(err).Msg("failed to load icons")
 	} else if len(iconsCache.Icons) > 0 {
-		logging.Info().
+		log.Info().
 			Int("icons", len(iconsCache.Icons)).
 			Msg("icons loaded")
 	}
 
 	if err = updateIcons(); err != nil {
-		logging.Error().Err(err).Msg("failed to update icons")
+		log.Error().Err(err).Msg("failed to update icons")
 	}
 
 	task.OnProgramExit("save_icons_cache", func() {
@@ -134,17 +134,17 @@ func ListAvailableIcons() (*Cache, error) {
 	iconsCache.Lock()
 	defer iconsCache.Unlock()
 
-	logging.Info().Msg("updating icon data")
+	log.Info().Msg("updating icon data")
 	if err := updateIcons(); err != nil {
 		return nil, err
 	}
-	logging.Info().Int("icons", len(iconsCache.Icons)).Msg("icons list updated")
+	log.Info().Int("icons", len(iconsCache.Icons)).Msg("icons list updated")
 
 	iconsCache.LastUpdate = time.Now()
 
 	err := serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
 	if err != nil {
-		logging.Warn().Err(err).Msg("failed to save icons")
+		log.Warn().Err(err).Msg("failed to save icons")
 	}
 	return iconsCache, nil
 }

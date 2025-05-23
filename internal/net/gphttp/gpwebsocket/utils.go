@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 func warnNoMatchDomains() {
-	logging.Warn().Msg("no match domains configured, accepting websocket API request from all origins")
+	log.Warn().Msg("no match domains configured, accepting websocket API request from all origins")
 }
 
 var warnNoMatchDomainOnce sync.Once

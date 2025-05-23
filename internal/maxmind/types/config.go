@@ -2,8 +2,8 @@ package maxmind
 
 import (
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 )
 
 type (
@@ -28,6 +28,6 @@ func (cfg *Config) Validate() gperr.Error {
 }
 
 func (cfg *Config) Logger() *zerolog.Logger {
-	l := logging.With().Str("database", string(cfg.Database)).Logger()
+	l := log.With().Str("database", string(cfg.Database)).Logger()
 	return &l
 }

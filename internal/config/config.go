@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/api"
 	autocert "github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/entrypoint"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/maxmind"
 	"github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/notif"
@@ -96,10 +96,10 @@ func OnConfigChange(ev []events.Event) {
 	// just reload once and check the last event
 	switch ev[len(ev)-1].Action {
 	case events.ActionFileRenamed:
-		logging.Warn().Msg(cfgRenameWarn)
+		log.Warn().Msg(cfgRenameWarn)
 		return
 	case events.ActionFileDeleted:
-		logging.Warn().Msg(cfgDeleteWarn)
+		log.Warn().Msg(cfgDeleteWarn)
 		return
 	}
 
@@ -161,7 +161,7 @@ func (cfg *Config) Start(opts ...*StartServersOptions) {
 func (cfg *Config) StartAutoCert() {
 	autocert := cfg.autocertProvider
 	if autocert == nil {
-		logging.Info().Msg("autocert not configured")
+		log.Info().Msg("autocert not configured")
 		return
 	}
 
@@ -374,6 +374,6 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 		}
 		results.Addf("%-"+strconv.Itoa(lenLongestName)+"s %d routes", p.String(), p.NumRoutes())
 	})
-	logging.Info().Msg(results.String())
+	log.Info().Msg(results.String())
 	return errs.Error()
 }

@@ -34,16 +34,16 @@ func init() {
 	// 	lastVersion = ParseVersion(lastVersionStr)
 	// }
 	// if err != nil && !os.IsNotExist(err) {
-	// 	logging.Warn().Err(err).Msg("failed to read version file")
+	// 	log.Warn().Err(err).Msg("failed to read version file")
 	// 	return
 	// }
 	// if err := f.Truncate(0); err != nil {
-	// 	logging.Warn().Err(err).Msg("failed to truncate version file")
+	// 	log.Warn().Err(err).Msg("failed to truncate version file")
 	// 	return
 	// }
 	// _, err = f.WriteString(version)
 	// if err != nil {
-	// 	logging.Warn().Err(err).Msg("failed to save version file")
+	// 	log.Warn().Err(err).Msg("failed to save version file")
 	// 	return
 	// }
 }

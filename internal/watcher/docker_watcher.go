@@ -8,9 +8,9 @@ import (
 	docker_events "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
 
@@ -81,7 +81,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 		}()
 
 		cEventCh, cErrCh := client.Events(ctx, options)
-		defer logging.Debug().Str("host", client.Address()).Msg("docker watcher closed")
+		defer log.Debug().Str("host", client.Address()).Msg("docker watcher closed")
 		for {
 			select {
 			case <-ctx.Done():
@@ -153,7 +153,7 @@ func checkConnection(ctx context.Context, client *docker.SharedClient) bool {
 	defer cancel()
 	err := client.CheckConnection(ctx)
 	if err != nil {
-		logging.Debug().Err(err).Msg("docker watcher: connection failed")
+		log.Debug().Err(err).Msg("docker watcher: connection failed")
 		return false
 	}
 	return true

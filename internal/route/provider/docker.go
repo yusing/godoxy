@@ -7,10 +7,10 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -36,7 +36,7 @@ func DockerProviderImpl(name, dockerHost string) ProviderImpl {
 	return &DockerProvider{
 		name,
 		dockerHost,
-		logging.With().Str("type", "docker").Str("name", name).Logger(),
+		log.With().Str("type", "docker").Str("name", name).Logger(),
 	}
 }
 

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	"github.com/yusing/go-proxy/internal/logging"
 	netutils "github.com/yusing/go-proxy/internal/net"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/proxmox"
@@ -116,7 +116,7 @@ func (r *Route) Validate() gperr.Error {
 					Subject(containerName)
 			}
 
-			l := logging.With().Str("container", containerName).Logger()
+			l := log.With().Str("container", containerName).Logger()
 
 			l.Info().Msg("checking if container is running")
 			running, err := node.LXCIsRunning(ctx, vmid)

@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/lego"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -100,8 +100,8 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 
 	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
 		if privKey, err = cfg.LoadACMEKey(); err != nil {
-			logging.Info().Err(err).Msg("load ACME private key failed")
-			logging.Info().Msg("generate new ACME private key")
+			log.Info().Err(err).Msg("load ACME private key failed")
+			log.Info().Msg("generate new ACME private key")
 			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
 				return nil, nil, gperr.New("generate ACME private key").With(err)
