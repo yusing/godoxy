@@ -15,6 +15,7 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 )
 
+// FIXME: agent logs not updating.
 func Logs(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	server := r.PathValue("server")

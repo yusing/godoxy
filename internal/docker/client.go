@@ -20,6 +20,7 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 )
 
+// TODO: implement reconnect here.
 type (
 	SharedClient struct {
 		*client.Client

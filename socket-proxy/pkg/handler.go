@@ -4,30 +4,33 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/yusing/go-proxy/socketproxy/pkg/reverseproxy"
 )
 
 var dialer = &net.Dialer{KeepAlive: 1 * time.Second}
 
-func dialDockerSocket(ctx context.Context, _, _ string) (net.Conn, error) {
-	return dialer.DialContext(ctx, "unix", DockerSocket)
+func dialDockerSocket(socket string) func(ctx context.Context, _, _ string) (net.Conn, error) {
+	return func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, "unix", socket)
+	}
 }
 
 var DockerSocketHandler = dockerSocketHandler
 
-func dockerSocketHandler() http.HandlerFunc {
-	rp := &httputil.ReverseProxy{
+func dockerSocketHandler(socket string) http.HandlerFunc {
+	rp := &reverseproxy.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
 			req.URL.Host = "api.moby.localhost"
 			req.RequestURI = req.URL.String()
 		},
 		Transport: &http.Transport{
-			DialContext: dialDockerSocket,
+			DialContext:        dialDockerSocket(socket),
+			DisableCompression: true,
 		},
 	}
 
@@ -41,7 +44,7 @@ func endpointNotAllowed(w http.ResponseWriter, _ *http.Request) {
 // ref: https://github.com/Tecnativa/docker-socket-proxy/blob/master/haproxy.cfg
 func NewHandler() http.Handler {
 	r := mux.NewRouter()
-	socketHandler := DockerSocketHandler()
+	socketHandler := DockerSocketHandler(DockerSocket)
 
 	const apiVersionPrefix = `/{version:(?:v[\d\.]+)?}`
 	const containerPath = "/containers/{id:[a-zA-Z0-9_.-]+}"

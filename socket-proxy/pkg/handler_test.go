@@ -9,7 +9,7 @@ import (
 	. "github.com/yusing/go-proxy/socketproxy/pkg"
 )
 
-func mockDockerSocketHandler() http.HandlerFunc {
+func mockDockerSocketHandler(_ string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("mock docker response"))
