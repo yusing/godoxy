@@ -19,6 +19,8 @@ const (
 	mb = 1024 * kb
 )
 
+var BytesPoolEnabled = true
+
 const (
 	InPoolLimit = 32 * mb
 
@@ -43,6 +45,9 @@ func NewBytesPool() *BytesPool {
 }
 
 func (p *BytesPool) Get() []byte {
+	if !BytesPoolEnabled {
+		return make([]byte, 0, p.initSize)
+	}
 	select {
 	case b := <-p.pool:
 		subInPoolSize(int64(cap(b)))
@@ -53,7 +58,7 @@ func (p *BytesPool) Get() []byte {
 }
 
 func (p *BytesPool) GetSized(size int) []byte {
-	if size <= PoolThreshold {
+	if !BytesPoolEnabled || size <= PoolThreshold {
 		return make([]byte, size)
 	}
 	select {
@@ -107,6 +112,10 @@ func init() {
 		defer cleanupTicker.Stop()
 
 		for {
+			if !BytesPoolEnabled {
+				signal.Stop(sigCh)
+				return
+			}
 			select {
 			case <-cleanupTicker.C:
 				dropBuffers()
