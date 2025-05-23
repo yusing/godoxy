@@ -6,9 +6,9 @@ replace github.com/yusing/go-proxy => ..
 
 replace github.com/yusing/go-proxy/socketproxy => ../socket-proxy
 
-replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250425105916-b2ad800de7a1
+replace github.com/docker/docker => github.com/godoxy-app/docker v0.0.0-20250523125835-a2474a6ebe30
 
-replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250502022742-408a348f1b97
+replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250523121925-f87c3159e327
 
 require (
 	github.com/gorilla/websocket v1.5.3
@@ -24,6 +24,8 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/diskfs/go-diskfs v1.6.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
@@ -32,7 +34,7 @@ require (
 	github.com/docker/docker v28.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/ebitengine/purego v0.8.3 // indirect
+	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/go-acme/lego/v4 v4.23.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
@@ -65,7 +67,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.1.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/quic-go/quic-go v0.51.0 // indirect
+	github.com/quic-go/quic-go v0.52.0 // indirect
 	github.com/samber/lo v1.50.0 // indirect
 	github.com/samber/slog-common v0.18.1 // indirect
 	github.com/samber/slog-zerolog/v2 v2.7.3 // indirect
