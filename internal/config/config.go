@@ -22,8 +22,8 @@ import (
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/proxmox"
 	proxy "github.com/yusing/go-proxy/internal/route/provider"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
 	"github.com/yusing/go-proxy/internal/watcher"
@@ -223,7 +223,7 @@ func (cfg *Config) load() gperr.Error {
 	}
 
 	model := config.DefaultConfig()
-	if err := utils.UnmarshalValidateYAML(data, model); err != nil {
+	if err := serialization.UnmarshalValidateYAML(data, model); err != nil {
 		gperr.LogFatal(errMsg, err)
 	}
 

@@ -12,8 +12,8 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
 )
 
 type namespace string
@@ -77,7 +77,7 @@ func loadNS[T store](ns namespace) T {
 func save() error {
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores {
-		if err := utils.SaveJSON(filepath.Join(storesPath, string(ns)+".json"), &store, 0o644); err != nil {
+		if err := serialization.SaveJSON(filepath.Join(storesPath, string(ns)+".json"), &store, 0o644); err != nil {
 			errs.Add(err)
 		}
 	}

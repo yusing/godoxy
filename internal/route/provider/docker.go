@@ -12,7 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
-	U "github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher"
 )
@@ -180,7 +180,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 		}
 
 		// deserialize map into entry object
-		err := U.MapUnmarshalValidate(entryMap, r)
+		err := serialization.MapUnmarshalValidate(entryMap, r)
 		if err != nil {
 			errs.Add(err.Subject(alias))
 		} else {
@@ -189,7 +189,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 	}
 	if wildcardProps != nil {
 		for _, re := range routes {
-			if err := U.MapUnmarshalValidate(wildcardProps, re); err != nil {
+			if err := serialization.MapUnmarshalValidate(wildcardProps, re); err != nil {
 				errs.Add(err.Subject(docker.WildcardAlias))
 				break
 			}

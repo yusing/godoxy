@@ -7,7 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	utils.MustRegisterValidation("status_code", func(fl validator.FieldLevel) bool {
+	serialization.MustRegisterValidation("status_code", func(fl validator.FieldLevel) bool {
 		statusCode := fl.Field().Int()
 		return gphttp.IsStatusCodeValid(int(statusCode))
 	})

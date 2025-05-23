@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	W "github.com/yusing/go-proxy/internal/watcher"
 )
 
@@ -34,7 +34,7 @@ func FileProviderImpl(filename string) (ProviderImpl, error) {
 }
 
 func validate(data []byte) (routes route.Routes, err gperr.Error) {
-	err = utils.UnmarshalValidateYAML(data, &routes)
+	err = serialization.UnmarshalValidateYAML(data, &routes)
 	return
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
@@ -42,7 +42,7 @@ func (cfg *Config) UnmarshalMap(m map[string]any) error {
 	if !ok {
 		return gperr.New("invalid config")
 	}
-	if err := utils.MapUnmarshalValidate(m, &cfg.Config); err != nil {
+	if err := serialization.MapUnmarshalValidate(m, &cfg.Config); err != nil {
 		return err
 	}
 	return nil
