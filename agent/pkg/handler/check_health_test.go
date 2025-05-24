@@ -172,9 +172,9 @@ func TestCheckHealthTCPUDP(t *testing.T) {
 		{
 			name:            "InvalidHost",
 			scheme:          "tcp",
-			host:            "invalid",
+			host:            "",
 			port:            8080,
-			expectedStatus:  http.StatusOK,
+			expectedStatus:  http.StatusBadRequest,
 			expectedHealthy: false,
 		},
 		{
@@ -188,9 +188,17 @@ func TestCheckHealthTCPUDP(t *testing.T) {
 		{
 			name:            "InvalidHost",
 			scheme:          "udp",
-			host:            "invalid",
+			host:            "",
 			port:            8080,
-			expectedStatus:  http.StatusOK,
+			expectedStatus:  http.StatusBadRequest,
+			expectedHealthy: false,
+		},
+		{
+			name:            "Port in both host and port",
+			scheme:          "tcp",
+			host:            "localhost:1234",
+			port:            1234,
+			expectedStatus:  http.StatusBadRequest,
 			expectedHealthy: false,
 		},
 	}
@@ -208,9 +216,11 @@ func TestCheckHealthTCPUDP(t *testing.T) {
 
 			require.Equal(t, recorder.Code, tt.expectedStatus)
 
-			var result health.HealthCheckResult
-			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
-			require.Equal(t, result.Healthy, tt.expectedHealthy)
+			if tt.expectedStatus == http.StatusOK {
+				var result health.HealthCheckResult
+				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
+				require.Equal(t, result.Healthy, tt.expectedHealthy)
+			}
 		})
 	}
 }
