@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -41,7 +41,7 @@ func TestCIDRWhitelistValidation(t *testing.T) {
 		_, err := CIDRWhiteList.New(OptionsRaw{
 			"message": testMessage,
 		})
-		ExpectError(t, utils.ErrValidationError, err)
+		ExpectError(t, serialization.ErrValidationError, err)
 	})
 	t.Run("invalid cidr", func(t *testing.T) {
 		_, err := CIDRWhiteList.New(OptionsRaw{
@@ -56,7 +56,7 @@ func TestCIDRWhitelistValidation(t *testing.T) {
 			"status_code": 600,
 			"message":     testMessage,
 		})
-		ExpectError(t, utils.ErrValidationError, err)
+		ExpectError(t, serialization.ErrValidationError, err)
 	})
 }
 

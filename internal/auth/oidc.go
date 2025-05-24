@@ -38,8 +38,8 @@ type (
 
 const (
 	CookieOauthState        = "godoxy_oidc_state"
-	CookieOauthToken        = "godoxy_oauth_token"
-	CookieOauthSessionToken = "godoxy_session_token"
+	CookieOauthToken        = "godoxy_oauth_token"   //nolint:gosec
+	CookieOauthSessionToken = "godoxy_session_token" //nolint:gosec
 )
 
 const (
@@ -129,7 +129,7 @@ func optRedirectPostAuth(r *http.Request) oauth2.AuthCodeOption {
 	return oauth2.SetAuthURLParam("redirect_uri", "https://"+requestHost(r)+OIDCPostAuthPath)
 }
 
-func (auth *OIDCProvider) getIdToken(ctx context.Context, oauthToken *oauth2.Token) (string, *oidc.IDToken, error) {
+func (auth *OIDCProvider) getIDToken(ctx context.Context, oauthToken *oauth2.Token) (string, *oidc.IDToken, error) {
 	idTokenJWT, ok := oauthToken.Extra("id_token").(string)
 	if !ok {
 		return "", nil, errMissingIDToken
@@ -257,7 +257,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	idTokenJWT, idToken, err := auth.getIdToken(r.Context(), oauth2Token)
+	idTokenJWT, idToken, err := auth.getIDToken(r.Context(), oauth2Token)
 	if err != nil {
 		gphttp.ServerError(w, r, err)
 		return

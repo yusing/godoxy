@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -103,7 +104,15 @@ func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
 }
 
 func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*types.CIDR) error {
-	resp, err := http.Get(endpoint)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec
 	if err != nil {
 		return err
 	}

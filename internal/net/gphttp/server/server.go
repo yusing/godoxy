@@ -16,7 +16,7 @@ import (
 )
 
 type CertProvider interface {
-	GetCert(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	GetCert(_ *tls.ClientHelloInfo) (*tls.Certificate, error)
 }
 
 type Server struct {

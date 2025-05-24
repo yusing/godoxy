@@ -6,7 +6,7 @@ import (
 
 	. "github.com/yusing/go-proxy/internal/route"
 	route "github.com/yusing/go-proxy/internal/route/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -40,7 +40,7 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Route{}
 			tt.input["host"] = "internal"
-			err := utils.MapUnmarshalValidate(tt.input, &cfg)
+			err := serialization.MapUnmarshalValidate(tt.input, &cfg)
 			if err != nil {
 				expect.NoError(t, err)
 			}

@@ -22,12 +22,12 @@ func (noConn) SetDeadline(t time.Time) error      { return nil }
 func (noConn) SetReadDeadline(t time.Time) error  { return nil }
 func (noConn) SetWriteDeadline(t time.Time) error { return nil }
 
-func (cfg *Config) WrapTCP(lis net.Listener) net.Listener {
-	if cfg == nil {
+func (c *Config) WrapTCP(lis net.Listener) net.Listener {
+	if c == nil {
 		return lis
 	}
 	return &TCPListener{
-		acl: cfg,
+		acl: c,
 		lis: lis,
 	}
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/yusing/go-proxy/internal/docker"
 	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -29,7 +29,7 @@ func TestNewConfig(t *testing.T) {
 	expect.NoError(t, err)
 
 	var config RequestLoggerConfig
-	err = utils.MapUnmarshalValidate(parsed, &config)
+	err = serialization.MapUnmarshalValidate(parsed, &config)
 	expect.NoError(t, err)
 
 	expect.Equal(t, config.Format, FormatCombined)

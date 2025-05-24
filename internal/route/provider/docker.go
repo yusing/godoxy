@@ -106,7 +106,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 // Always non-nil.
 func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, gperr.Error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
-		return nil, nil
+		return make(route.Routes, 0), nil
 	}
 
 	routes := make(route.Routes, len(container.Aliases))

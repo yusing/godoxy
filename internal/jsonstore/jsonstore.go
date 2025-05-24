@@ -2,11 +2,10 @@ package jsonstore
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
-
-	"maps"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
@@ -36,8 +35,10 @@ type store interface {
 	json.Unmarshaler
 }
 
-var stores = make(map[namespace]store)
-var storesPath = common.DataDir
+var (
+	stores     = make(map[namespace]store)
+	storesPath = common.DataDir
+)
 
 func init() {
 	task.OnProgramExit("save_stores", func() {
@@ -117,7 +118,7 @@ func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 	}
 	s.Map = xsync.NewMap[string, VT](xsync.WithPresize(len(tmp)))
 	for k, v := range tmp {
-		s.Map.Store(k, v)
+		s.Store(k, v)
 	}
 	return nil
 }

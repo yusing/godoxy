@@ -3,7 +3,7 @@ package rules
 import (
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -28,7 +28,7 @@ func TestParseRule(t *testing.T) {
 	var rules struct {
 		Rules Rules
 	}
-	err := utils.MapUnmarshalValidate(utils.SerializedObject{"rules": test}, &rules)
+	err := serialization.MapUnmarshalValidate(serialization.SerializedObject{"rules": test}, &rules)
 	ExpectNoError(t, err)
 	ExpectEqual(t, len(rules.Rules), len(test))
 	ExpectEqual(t, rules.Rules[0].Name, "test")

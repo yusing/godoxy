@@ -190,7 +190,7 @@ func NewClient(host string) (*SharedClient, error) {
 		c.dial = client.Dialer()
 	}
 	if c.addr == "" {
-		c.addr = c.Client.DaemonHost()
+		c.addr = c.DaemonHost()
 	}
 
 	defer log.Debug().Str("host", host).Msg("docker client initialized")

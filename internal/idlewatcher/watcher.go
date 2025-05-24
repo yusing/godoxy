@@ -73,13 +73,13 @@ var dummyHealthCheckConfig = &health.HealthCheckConfig{
 }
 
 var (
-	causeReload           = gperr.New("reloaded")
-	causeContainerDestroy = gperr.New("container destroyed")
+	causeReload           = gperr.New("reloaded")            //nolint:errname
+	causeContainerDestroy = gperr.New("container destroyed") //nolint:errname
 )
 
 const reqTimeout = 3 * time.Second
 
-// TODO: fix stream type
+// TODO: fix stream type.
 func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	cfg := r.IdlewatcherConfig()
 	key := cfg.Key()

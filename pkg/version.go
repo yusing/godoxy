@@ -18,7 +18,7 @@ func GetLastVersion() Version {
 
 func GetVersionHTTPHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(GetVersion().String()))
+		fmt.Fprint(w, GetVersion().String())
 	}
 }
 

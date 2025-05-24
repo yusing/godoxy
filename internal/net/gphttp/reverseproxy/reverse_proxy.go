@@ -220,7 +220,6 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 
 	ctx := req.Context()
-	/* trunk-ignore(golangci-lint/revive) */
 	if ctx.Done() != nil {
 		// CloseNotifier predates context.Context, and has been
 		// entirely superseded by it. If the request contains
@@ -352,7 +351,7 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 			return nil
 		},
 	}
-	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
+	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace)) //nolint:contextcheck
 
 	res, err := transport.RoundTrip(outreq)
 
@@ -507,18 +506,18 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	res.Header = rw.Header()
 	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
 	if err := res.Write(brw); err != nil {
-		/* trunk-ignore(golangci-lint/errorlint) */
+		//nolint:errorlint
 		p.errorHandler(rw, req, fmt.Errorf("response write: %s", err), true)
 		return
 	}
 	if err := brw.Flush(); err != nil {
-		/* trunk-ignore(golangci-lint/errorlint) */
+		//nolint:errorlint
 		p.errorHandler(rw, req, fmt.Errorf("response flush: %s", err), true)
 		return
 	}
 
 	bdp := U.NewBidirectionalPipe(req.Context(), conn, backConn)
-	/* trunk-ignore(golangci-lint/errcheck) */
+	//nolint:errcheck
 	bdp.Start()
 }
 

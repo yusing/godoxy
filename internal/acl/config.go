@@ -45,7 +45,7 @@ func (c *checkCache) Expired() bool {
 	return c.created.Add(cacheTTL).Before(utils.TimeNow())
 }
 
-//TODO: add stats
+// TODO: add stats
 
 const (
 	ACLAllow = "allow"

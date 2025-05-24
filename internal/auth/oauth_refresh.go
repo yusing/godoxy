@@ -190,7 +190,7 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 		return nil, refreshToken.err
 	}
 
-	idTokenJWT, idToken, err := auth.getIdToken(ctx, newToken)
+	idTokenJWT, idToken, err := auth.getIDToken(ctx, newToken)
 	if err != nil {
 		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
 		return nil, refreshToken.err
