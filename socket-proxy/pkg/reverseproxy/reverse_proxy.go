@@ -20,13 +20,8 @@ import (
 	"sync"
 
 	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/synk"
 	"golang.org/x/net/http/httpguts"
 )
-
-func init() {
-	synk.BytesPoolEnabled = false
-}
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
