@@ -16,9 +16,11 @@ func DNSProvider[CT any, PT challenge.Provider](
 ) Generator {
 	return func(opt map[string]any) (challenge.Provider, gperr.Error) {
 		cfg := defaultCfg()
-		err := serialization.MapUnmarshalValidate(opt, &cfg)
-		if err != nil {
-			return nil, err
+		if len(opt) > 0 {
+			err := serialization.MapUnmarshalValidate(opt, &cfg)
+			if err != nil {
+				return nil, err
+			}
 		}
 		p, pErr := newProvider(cfg)
 		return p, gperr.Wrap(pErr)

@@ -17,6 +17,7 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/task"
@@ -77,12 +78,10 @@ func (p *Provider) ObtainCert() error {
 	}
 
 	if p.cfg.Provider == ProviderPseudo {
-		t := time.NewTicker(1000 * time.Millisecond)
-		defer t.Stop()
 		log.Info().Msg("init client for pseudo provider")
-		<-t.C
+		<-time.After(time.Second)
 		log.Info().Msg("registering acme for pseudo provider")
-		<-t.C
+		<-time.After(time.Second)
 		log.Info().Msg("obtained cert for pseudo provider")
 		return nil
 	}
@@ -220,13 +219,7 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
-	generator := Providers[p.cfg.Provider]
-	legoProvider, pErr := generator(p.cfg.Options)
-	if pErr != nil {
-		return pErr
-	}
-
-	err = legoClient.Challenge.SetDNS01Provider(legoProvider)
+	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider)
 	if err != nil {
 		return err
 	}
@@ -255,6 +248,9 @@ func (p *Provider) registerACME() error {
 }
 
 func (p *Provider) saveCert(cert *certificate.Resource) error {
+	if common.IsTest {
+		return nil
+	}
 	/* This should have been done in setup
 	but double check is always a good choice.*/
 	_, err := os.Stat(path.Dir(p.cfg.CertPath))

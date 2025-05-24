@@ -5,12 +5,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"net/http"
 	"os"
 	"regexp"
 
 	"github.com/go-acme/lego/v4/certcrypto"
+	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
 )
@@ -22,13 +25,19 @@ type Config struct {
 	KeyPath     string         `json:"key_path,omitempty"`
 	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
+	CADirURL    string         `json:"ca_dir_url,omitempty"`
 	Options     map[string]any `json:"options,omitempty"`
+
+	HTTPClient *http.Client `json:"-"` // for tests only
+
+	challengeProvider challenge.Provider
 }
 
 var (
 	ErrMissingDomain   = gperr.New("missing field 'domains'")
 	ErrMissingEmail    = gperr.New("missing field 'email'")
 	ErrMissingProvider = gperr.New("missing field 'provider'")
+	ErrMissingCADirURL = gperr.New("missing field 'ca_dir_url'")
 	ErrInvalidDomain   = gperr.New("invalid domain")
 	ErrUnknownProvider = gperr.New("unknown provider")
 )
@@ -36,6 +45,7 @@ var (
 const (
 	ProviderLocal  = "local"
 	ProviderPseudo = "pseudo"
+	ProviderCustom = "custom"
 )
 
 var domainOrWildcardRE = regexp.MustCompile(`^\*?([^.]+\.)+[^.]+$`)
@@ -52,6 +62,10 @@ func (cfg *Config) Validate() gperr.Error {
 	}
 
 	b := gperr.NewBuilder("autocert errors")
+	if cfg.Provider == ProviderCustom && cfg.CADirURL == "" {
+		b.Add(ErrMissingCADirURL)
+	}
+
 	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
 		if len(cfg.Domains) == 0 {
 			b.Add(ErrMissingDomain)
@@ -59,23 +73,33 @@ func (cfg *Config) Validate() gperr.Error {
 		if cfg.Email == "" {
 			b.Add(ErrMissingEmail)
 		}
-		for i, d := range cfg.Domains {
-			if !domainOrWildcardRE.MatchString(d) {
-				b.Add(ErrInvalidDomain.Subjectf("domains[%d]", i))
+		if cfg.Provider != ProviderCustom {
+			for i, d := range cfg.Domains {
+				if !domainOrWildcardRE.MatchString(d) {
+					b.Add(ErrInvalidDomain.Subjectf("domains[%d]", i))
+				}
 			}
 		}
 		// check if provider is implemented
 		providerConstructor, ok := Providers[cfg.Provider]
 		if !ok {
-			b.Add(ErrUnknownProvider.
-				Subject(cfg.Provider).
-				With(gperr.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
+			if cfg.Provider != ProviderCustom {
+				b.Add(ErrUnknownProvider.
+					Subject(cfg.Provider).
+					With(gperr.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
+			}
 		} else {
-			_, err := providerConstructor(cfg.Options)
+			provider, err := providerConstructor(cfg.Options)
 			if err != nil {
 				b.Add(err)
+			} else {
+				cfg.challengeProvider = provider
 			}
 		}
+	}
+
+	if cfg.challengeProvider == nil {
+		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
 	}
 	return b.Error()
 }
@@ -119,10 +143,21 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 	legoCfg := lego.NewConfig(user)
 	legoCfg.Certificate.KeyType = certcrypto.EC256
 
+	if cfg.HTTPClient != nil {
+		legoCfg.HTTPClient = cfg.HTTPClient
+	}
+
+	if cfg.CADirURL != "" {
+		legoCfg.CADirURL = cfg.CADirURL
+	}
+
 	return user, legoCfg, nil
 }
 
 func (cfg *Config) LoadACMEKey() (*ecdsa.PrivateKey, error) {
+	if common.IsTest {
+		return nil, os.ErrNotExist
+	}
 	data, err := os.ReadFile(cfg.ACMEKeyPath)
 	if err != nil {
 		return nil, err
@@ -131,6 +166,9 @@ func (cfg *Config) LoadACMEKey() (*ecdsa.PrivateKey, error) {
 }
 
 func (cfg *Config) SaveACMEKey(key *ecdsa.PrivateKey) error {
+	if common.IsTest {
+		return nil
+	}
 	data, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
 		return err
