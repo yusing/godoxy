@@ -46,3 +46,10 @@ func (m *MultilineError) AddLines(lines ...any) *MultilineError {
 	}
 	return m
 }
+
+func (m *MultilineError) AddLinesString(lines ...string) *MultilineError {
+	for _, line := range lines {
+		m.add(newError(line))
+	}
+	return m
+}

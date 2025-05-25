@@ -56,7 +56,7 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 		fwMap:   make(map[string]*fileWatcher),
 		eventCh: make(chan Event),
 		errCh:   make(chan gperr.Error),
-		task:    parent.Subtask("dir_watcher(" + dirPath + ")"),
+		task:    parent.Subtask("dir_watcher("+dirPath+")", true),
 	}
 	go helper.start()
 	return helper

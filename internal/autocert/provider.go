@@ -177,7 +177,7 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 		timer := time.NewTimer(time.Until(renewalTime))
 		defer timer.Stop()
 
-		task := parent.Subtask("cert-renew-scheduler")
+		task := parent.Subtask("cert-renew-scheduler", true)
 		defer task.Finish(nil)
 
 		for {

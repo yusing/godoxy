@@ -45,7 +45,7 @@ var maxRetries = map[zerolog.Level]int{
 
 func StartNotifDispatcher(parent task.Parent) *Dispatcher {
 	dispatcher = &Dispatcher{
-		task:        parent.Subtask("notification"),
+		task:        parent.Subtask("notification", true),
 		providers:   F.NewSet[Provider](),
 		logCh:       make(chan *LogMessage),
 		retryCh:     make(chan *RetryMessage, 100),
@@ -111,7 +111,7 @@ func (disp *Dispatcher) start() {
 }
 
 func (disp *Dispatcher) dispatch(msg *LogMessage) {
-	task := disp.task.Subtask("dispatcher")
+	task := disp.task.Subtask("dispatcher", true)
 	defer task.Finish("notif dispatched")
 
 	disp.providers.RangeAllParallel(func(p Provider) {
@@ -126,7 +126,7 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 }
 
 func (disp *Dispatcher) retry(messages []*RetryMessage) error {
-	task := disp.task.Subtask("retry")
+	task := disp.task.Subtask("retry", true)
 	defer task.Finish("notif retried")
 
 	errs := gperr.NewBuilder("notification failure")

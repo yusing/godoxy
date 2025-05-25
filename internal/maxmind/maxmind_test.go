@@ -114,7 +114,7 @@ func Test_MaxMindConfig_loadMaxMindDB(t *testing.T) {
 	mockDataDir(t)
 	mockMaxMindDBOpen(t)
 
-	task := task.RootTask("test")
+	task := task.RootTask("test", true)
 	defer task.Finish(nil)
 	err := cfg.LoadMaxMindDB(task)
 	if err != nil {

@@ -160,12 +160,12 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	watcherMap[key] = w
 	go func() {
 		cause := w.watchUntilDestroy()
-		if cause.Is(causeContainerDestroy) || cause.Is(task.ErrProgramExiting) {
+		if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) {
 			watcherMapMu.Lock()
 			defer watcherMapMu.Unlock()
 			delete(watcherMap, key)
 			w.l.Info().Msg("idlewatcher stopped")
-		} else if !cause.Is(causeReload) {
+		} else if !errors.Is(cause, causeReload) {
 			gperr.LogError("idlewatcher stopped unexpectedly", cause, &w.l)
 		}
 
@@ -254,7 +254,7 @@ func (w *Watcher) expires() time.Time {
 //
 // it exits only if the context is canceled, the container is destroyed,
 // errors occurred on docker client, or route provider died (mainly caused by config reload).
-func (w *Watcher) watchUntilDestroy() (returnCause gperr.Error) {
+func (w *Watcher) watchUntilDestroy() (returnCause error) {
 	eventCh, errCh := w.provider.Watch(w.Task().Context())
 
 	for {
