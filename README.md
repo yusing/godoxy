@@ -16,6 +16,8 @@ A lightweight, simple, and performant reverse proxy with WebUI.
 
 <h5>EN | <a href="README_CHT.md">中文</a></h5>
 
+Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)! (Thanks to [@ismesid](https://github.com/arevindh))
+
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
 </div>
