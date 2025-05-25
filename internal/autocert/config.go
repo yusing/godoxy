@@ -26,6 +26,7 @@ type Config struct {
 	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
 	CADirURL    string         `json:"ca_dir_url,omitempty"`
+	CACerts     []string       `json:"ca_certs,omitempty"`
 	Options     map[string]any `json:"options,omitempty"`
 
 	HTTPClient *http.Client `json:"-"` // for tests only
@@ -149,6 +150,14 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 
 	if cfg.CADirURL != "" {
 		legoCfg.CADirURL = cfg.CADirURL
+	}
+
+	if len(cfg.CACerts) > 0 {
+		certPool, err := lego.CreateCertPool(cfg.CACerts, true)
+		if err != nil {
+			return nil, nil, gperr.New("failed to create cert pool").With(err)
+		}
+		legoCfg.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = certPool
 	}
 
 	return user, legoCfg, nil
