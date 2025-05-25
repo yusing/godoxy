@@ -14,9 +14,15 @@ import (
 )
 
 var (
-	numReused, sizeReused uint64
-	numGCed, sizeGCed     uint64
+	numNonPooled, sizeNonPooled uint64
+	numReused, sizeReused       uint64
+	numGCed, sizeGCed           uint64
 )
+
+func addNonPooled(size int) {
+	atomic.AddUint64(&numNonPooled, 1)
+	atomic.AddUint64(&sizeNonPooled, uint64(size))
+}
 
 func addReused(size int) {
 	atomic.AddUint64(&numReused, 1)
@@ -48,6 +54,8 @@ func initPoolStats() {
 					Str("sizeReused", strutils.FormatByteSize(atomic.LoadUint64(&sizeReused))).
 					Uint64("numGCed", atomic.LoadUint64(&numGCed)).
 					Str("sizeGCed", strutils.FormatByteSize(atomic.LoadUint64(&sizeGCed))).
+					Uint64("numNonPooled", atomic.LoadUint64(&numNonPooled)).
+					Str("sizeNonPooled", strutils.FormatByteSize(atomic.LoadUint64(&sizeNonPooled))).
 					Msg("bytes pool stats")
 			}
 		}

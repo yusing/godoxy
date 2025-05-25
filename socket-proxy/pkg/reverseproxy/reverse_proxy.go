@@ -218,7 +218,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(res.StatusCode)
 
-	err = utils.CopyCloseWithContext(ctx, rw, res.Body)
+	err = utils.CopyCloseWithContext(ctx, rw, res.Body, int(res.ContentLength))
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			p.getErrorHandler()(rw, req, err)

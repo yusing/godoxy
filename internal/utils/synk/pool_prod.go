@@ -2,6 +2,7 @@
 
 package synk
 
+func addNonPooled(size int)                              {}
 func addReused(size int)                                 {}
 func addGCed(size int)                                   {}
 func initPoolStats()                                     {}

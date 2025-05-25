@@ -33,8 +33,6 @@ type (
 		writeCount int64
 		bufSize    int
 
-		lineBufPool *synk.BytesPool // buffer pool for formatting a single log line
-
 		errRateLimiter *rate.Limiter
 
 		logger zerolog.Logger
@@ -77,6 +75,8 @@ const (
 	errRateLimit = 200 * time.Millisecond
 	errBurst     = 5
 )
+
+var lineBufPool = synk.NewBytesPool()
 
 func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
 	io, err := cfg.IO()
@@ -121,7 +121,6 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		rawWriter:      writer,
 		writer:         utils.NewBufferedWriter(writer, MinBufferSize),
 		bufSize:        MinBufferSize,
-		lineBufPool:    synk.NewBytesPool(),
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         log.With().Str("file", writer.Name()).Logger(),
 	}
@@ -168,8 +167,8 @@ func (l *AccessLogger) Log(req *http.Request, res *http.Response) {
 		return
 	}
 
-	line := l.lineBufPool.Get()
-	defer l.lineBufPool.Put(line)
+	line := lineBufPool.Get()
+	defer lineBufPool.Put(line)
 	line = l.AppendRequestLog(line, req, res)
 	if line[len(line)-1] != '\n' {
 		line = append(line, '\n')
@@ -182,8 +181,8 @@ func (l *AccessLogger) LogError(req *http.Request, err error) {
 }
 
 func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
-	line := l.lineBufPool.Get()
-	defer l.lineBufPool.Put(line)
+	line := lineBufPool.Get()
+	defer lineBufPool.Put(line)
 	line = l.AppendACLLog(line, info, blocked)
 	if line[len(line)-1] != '\n' {
 		line = append(line, '\n')

@@ -72,7 +72,7 @@ func NewPipe(ctx context.Context, r io.ReadCloser, w io.WriteCloser) *Pipe {
 }
 
 func (p *Pipe) Start() (err error) {
-	err = CopyClose(&p.w, &p.r)
+	err = CopyClose(&p.w, &p.r, 0)
 	switch {
 	case
 		// NOTE: ignoring broken pipe and connection reset by peer
@@ -117,7 +117,7 @@ func getHTTPFlusher(dst io.Writer) httpFlusher {
 	return nil
 }
 
-const copyBufSize = 32 * 1024
+const copyBufSize = synk.SizedPoolThreshold
 
 var bytesPool = synk.NewBytesPool()
 
@@ -125,7 +125,7 @@ var bytesPool = synk.NewBytesPool()
 // Use of this source code is governed by a BSD-style
 // This is a copy of io.Copy with context and HTTP flusher handling
 // Author: yusing <yusing@6uo.me>.
-func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
+func CopyClose(dst *ContextWriter, src *ContextReader, sizeHint int) (err error) {
 	size := copyBufSize
 	if l, ok := src.Reader.(*io.LimitedReader); ok {
 		if int64(size) > l.N {
@@ -135,6 +135,8 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 				size = int(l.N)
 			}
 		}
+	} else if sizeHint > 0 {
+		size = min(size, sizeHint)
 	}
 	buf := bytesPool.GetSized(size)
 	defer bytesPool.Put(buf)
@@ -196,6 +198,6 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 	}
 }
 
-func CopyCloseWithContext(ctx context.Context, dst io.Writer, src io.Reader) (err error) {
-	return CopyClose(NewContextWriter(ctx, dst), NewContextReader(ctx, src))
+func CopyCloseWithContext(ctx context.Context, dst io.Writer, src io.Reader, sizeHint int) (err error) {
+	return CopyClose(NewContextWriter(ctx, dst), NewContextReader(ctx, src), sizeHint)
 }

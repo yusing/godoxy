@@ -9,8 +9,8 @@ type weakBuf = unsafe.Pointer
 
 func makeWeak(b *[]byte) weakBuf {
 	ptr := runtime_registerWeakPointer(unsafe.Pointer(b))
-	runtime.KeepAlive(ptr)
 	addCleanup(b, addGCed, cap(*b))
+	runtime.KeepAlive(ptr)
 	return weakBuf(ptr)
 }
 
@@ -29,8 +29,9 @@ func runtime_registerWeakPointer(unsafe.Pointer) unsafe.Pointer
 func runtime_makeStrongFromWeak(unsafe.Pointer) unsafe.Pointer
 
 type BytesPool struct {
-	pool     chan weakBuf
-	initSize int
+	sizedPool   chan weakBuf
+	unsizedPool chan weakBuf
+	initSize    int
 }
 
 const (
@@ -41,16 +42,18 @@ const (
 const (
 	InPoolLimit = 32 * mb
 
-	DefaultInitBytes  = 4 * kb
-	PoolThreshold     = 256 * kb
-	DropThresholdHigh = 4 * mb
+	UnsizedAvg         = 4 * kb
+	SizedPoolThreshold = 256 * kb
+	DropThreshold      = 4 * mb
 
-	PoolSize = InPoolLimit / PoolThreshold
+	SizedPoolSize   = InPoolLimit * 8 / 10 / SizedPoolThreshold
+	UnsizedPoolSize = InPoolLimit * 2 / 10 / UnsizedAvg
 )
 
 var bytesPool = &BytesPool{
-	pool:     make(chan weakBuf, PoolSize),
-	initSize: DefaultInitBytes,
+	sizedPool:   make(chan weakBuf, SizedPoolSize),
+	unsizedPool: make(chan weakBuf, UnsizedPoolSize),
+	initSize:    UnsizedAvg,
 }
 
 func NewBytesPool() *BytesPool {
@@ -60,7 +63,7 @@ func NewBytesPool() *BytesPool {
 func (p *BytesPool) Get() []byte {
 	for {
 		select {
-		case bWeak := <-p.pool:
+		case bWeak := <-p.unsizedPool:
 			bPtr := getBufFromWeak(bWeak)
 			if bPtr == nil {
 				continue
@@ -68,18 +71,19 @@ func (p *BytesPool) Get() []byte {
 			addReused(cap(bPtr))
 			return bPtr
 		default:
-			return make([]byte, 0, p.initSize)
+			return make([]byte, 0)
 		}
 	}
 }
 
 func (p *BytesPool) GetSized(size int) []byte {
-	if size <= PoolThreshold {
+	if size <= SizedPoolThreshold {
+		addNonPooled(size)
 		return make([]byte, size)
 	}
 	for {
 		select {
-		case bWeak := <-p.pool:
+		case bWeak := <-p.sizedPool:
 			bPtr := getBufFromWeak(bWeak)
 			if bPtr == nil {
 				continue
@@ -90,25 +94,35 @@ func (p *BytesPool) GetSized(size int) []byte {
 				return (bPtr)[:size]
 			}
 			select {
-			case p.pool <- bWeak:
+			case p.sizedPool <- bWeak:
 			default:
 				// just drop it
 			}
 		default:
 		}
+		addNonPooled(size)
 		return make([]byte, size)
 	}
 }
 
 func (p *BytesPool) Put(b []byte) {
 	size := cap(b)
-	if size <= PoolThreshold || size > DropThresholdHigh {
+	if size > DropThreshold {
 		return
 	}
 	b = b[:0]
 	w := makeWeak(&b)
+	if size <= SizedPoolThreshold {
+		p.put(w, p.unsizedPool)
+	} else {
+		p.put(w, p.sizedPool)
+	}
+}
+
+//go:inline
+func (p *BytesPool) put(w weakBuf, pool chan weakBuf) {
 	select {
-	case p.pool <- w:
+	case pool <- w:
 	default:
 		// just drop it
 	}
