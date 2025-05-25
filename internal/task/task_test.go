@@ -17,7 +17,7 @@ func TestChildTaskCancellation(t *testing.T) {
 	t.Cleanup(testCleanup)
 
 	parent := testTask()
-	child := parent.Subtask("")
+	child := parent.Subtask("", true)
 
 	go func() {
 		defer child.Finish(nil)
@@ -31,13 +31,38 @@ func TestChildTaskCancellation(t *testing.T) {
 		}
 	}()
 
-	parent.cancel(nil) // should also cancel child
+	parent.Finish(nil) // should also cancel child
 
 	select {
 	case <-child.Context().Done():
 		ExpectError(t, context.Canceled, child.Context().Err())
 	default:
 		t.Fatal("subTask context was not canceled as expected")
+	}
+}
+
+func TestTaskStuck(t *testing.T) {
+	t.Cleanup(testCleanup)
+	task := testTask()
+	task.OnCancel("second", func() {
+		time.Sleep(time.Second)
+	})
+	done := make(chan struct{})
+	go func() {
+		task.Finish(nil)
+		close(done)
+	}()
+	time.Sleep(time.Millisecond * 100)
+	select {
+	case <-done:
+		t.Fatal("task finished unexpectedly")
+	default:
+	}
+	time.Sleep(time.Second)
+	select {
+	case <-done:
+	default:
+		t.Fatal("task did not finish")
 	}
 }
 
@@ -83,11 +108,13 @@ func TestCommonFlowWithGracefulShutdown(t *testing.T) {
 		}
 	}()
 
-	ExpectNoError(t, GracefulShutdown(1*time.Second))
+	ExpectNoError(t, gracefulShutdown(1*time.Second))
+	time.Sleep(100 * time.Millisecond)
 	ExpectTrue(t, finished)
 
-	<-root.finished
-	ExpectError(t, context.Canceled, task.Context().Err())
+	ExpectTrue(t, root.waitFinish(1*time.Second))
+	ExpectError(t, ErrProgramExiting, context.Cause(task.Context()))
+	ExpectError(t, ErrProgramExiting, task.Context().Err())
 	ExpectError(t, ErrProgramExiting, task.FinishCause())
 }
 
@@ -95,7 +122,7 @@ func TestTimeoutOnGracefulShutdown(t *testing.T) {
 	t.Cleanup(testCleanup)
 	_ = testTask()
 
-	ExpectError(t, context.DeadlineExceeded, GracefulShutdown(time.Millisecond))
+	ExpectError(t, context.DeadlineExceeded, gracefulShutdown(time.Millisecond))
 }
 
 func TestFinishMultipleCalls(t *testing.T) {
@@ -112,10 +139,26 @@ func TestFinishMultipleCalls(t *testing.T) {
 	wg.Wait()
 }
 
-func BenchmarkTasks(b *testing.B) {
-	for range b.N {
+func BenchmarkTasksNoFinish(b *testing.B) {
+	for b.Loop() {
+		task := RootTask("", false)
+		task.Subtask("", false).Finish(nil)
+		task.Finish(nil)
+	}
+}
+
+func BenchmarkTasksNeedFinish(b *testing.B) {
+	for b.Loop() {
 		task := testTask()
 		task.Subtask("", true).Finish(nil)
 		task.Finish(nil)
+	}
+}
+
+func BenchmarkContextWithCancel(b *testing.B) {
+	for b.Loop() {
+		task, taskCancel := context.WithCancel(b.Context())
+		taskCancel()
+		<-task.Done()
 	}
 }

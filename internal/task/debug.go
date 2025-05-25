@@ -1,43 +1,46 @@
 package task
 
 import (
-	"slices"
-	"strings"
+	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 // debug only.
-func (t *Task) listChildren() []string {
-	var children []string
-	allTasks.Range(func(child *Task) bool {
-		if child.parent == t {
-			children = append(children, strings.TrimPrefix(child.name, t.name+"."))
-		}
-		return true
-	})
-	return children
-}
-
-// debug only.
-func (t *Task) listCallbacks() []string {
-	var callbacks []string
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *Task) listStuckedCallbacks() []string {
+	callbacks := make([]string, 0, len(t.callbacks))
 	for c := range t.callbacks {
-		callbacks = append(callbacks, c.about)
+		if !c.done.Load() {
+			callbacks = append(callbacks, c.about)
+		}
 	}
 	return callbacks
 }
 
-// DebugTaskList returns list of all tasks.
-//
-// The returned string is suitable for printing to the console.
-func DebugTaskList() []string {
-	l := make([]string, 0, allTasks.Size())
+// debug only.
+func (t *Task) listStuckedChildren() []string {
+	children := make([]string, 0, len(t.children))
+	for c := range t.children {
+		if c.isFinished() {
+			continue
+		}
+		children = append(children, c.String())
+		if len(c.children) > 0 {
+			children = append(children, c.listStuckedChildren()...)
+		}
+	}
+	return children
+}
 
-	allTasks.RangeAll(func(t *Task) {
-		l = append(l, t.name)
-	})
-
-	slices.Sort(l)
-	return l
+func (t *Task) reportStucked() {
+	callbacks := t.listStuckedCallbacks()
+	children := t.listStuckedChildren()
+	fmtOutput := gperr.Multiline().
+		Addf("stucked callbacks: %d, stucked children: %d",
+			len(callbacks), len(children),
+		).
+		Addf("callbacks").
+		AddLinesString(callbacks...).
+		Addf("children").
+		AddLinesString(children...)
+	log.Warn().Msg(fmtOutput.Error())
 }

@@ -44,7 +44,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	if existing, ok := routes.Stream.Get(r.Key()); ok {
 		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
 	}
-	r.task = parent.Subtask("stream." + r.Name())
+	r.task = parent.Subtask("stream."+r.Name(), true)
 	r.Stream = NewStream(r)
 
 	switch {

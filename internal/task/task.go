@@ -1,16 +1,17 @@
+// This file has the abstract logic of the task system.
+//
+// The implementation of the task system is in the impl.go file.
 package task
 
 import (
 	"context"
-	"runtime/debug"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type (
@@ -29,6 +30,7 @@ type (
 		fn           func()
 		about        string
 		waitChildren bool
+		done         atomic.Bool
 	}
 	// Task controls objects' lifetime.
 	//
@@ -38,46 +40,64 @@ type (
 	Task struct {
 		name string
 
-		parent       *Task
-		children     uint32
-		childrenDone chan struct{}
+		parent    *Task
+		children  childrenSet
+		callbacks callbacksSet
 
-		callbacks     map[*Callback]struct{}
-		callbacksDone chan struct{}
+		cause error
 
-		finished chan struct{}
-		// finishedCalled == 1 Finish has been called
-		// but does not mean that the task is finished yet
-		// this is used to avoid calling Finish twice
-		finishedCalled uint32
+		canceled chan struct{}
 
-		mu sync.Mutex
-
-		ctx    context.Context
-		cancel context.CancelCauseFunc
+		finished atomic.Bool
+		mu       sync.Mutex
 	}
 	Parent interface {
 		Context() context.Context
-		Subtask(name string, needFinish ...bool) *Task
+		Subtask(name string, needFinish bool) *Task
 		Name() string
 		Finish(reason any)
 		OnCancel(name string, f func())
 	}
 )
 
+type (
+	childrenSet  = map[*Task]struct{}
+	callbacksSet = map[*Callback]struct{}
+)
+
 const taskTimeout = 3 * time.Second
 
 func (t *Task) Context() context.Context {
-	return t.ctx
+	return t
 }
 
-func (t *Task) Finished() <-chan struct{} {
-	return t.finished
+func (t *Task) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+func (t *Task) Done() <-chan struct{} {
+	return t.canceled
+}
+
+func (t *Task) Err() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.cause == nil {
+		return context.Canceled
+	}
+	return t.cause
+}
+
+func (t *Task) Value(_ any) any {
+	return nil
 }
 
 // FinishCause returns the reason / error that caused the task to be finished.
 func (t *Task) FinishCause() error {
-	return context.Cause(t.ctx)
+	if t.cause == nil || errors.Is(t.cause, context.Canceled) {
+		return nil
+	}
+	return t.cause
 }
 
 // OnFinished calls fn when the task is canceled and all subtasks are finished.
@@ -97,105 +117,86 @@ func (t *Task) OnCancel(about string, fn func()) {
 // Finish cancel all subtasks and wait for them to finish,
 // then marks the task as finished, with the given reason (if any).
 func (t *Task) Finish(reason any) {
-	if atomic.LoadUint32(&t.finishedCalled) == 1 {
-		return
-	}
-
 	t.mu.Lock()
-	if t.finishedCalled == 1 {
+	if t.cause != nil {
 		t.mu.Unlock()
 		return
 	}
-
-	t.finishedCalled = 1
+	cause := fmtCause(reason)
+	t.setCause(cause)
+	// t does not need finish, it shares the canceled channel with its parent
+	if t == root || t.canceled != t.parent.canceled {
+		close(t.canceled)
+	}
 	t.mu.Unlock()
 
-	t.finish(reason)
+	t.finishAndWait()
 }
 
-func (t *Task) finish(reason any) {
-	t.cancel(fmtCause(reason))
-	if !waitWithTimeout(t.childrenDone) {
-		log.Debug().
-			Str("task", t.name).
-			Strs("subtasks", t.listChildren()).
-			Msg("Timeout waiting for subtasks to finish")
+func (t *Task) finishAndWait() {
+	defer putTask(t)
+
+	t.finishChildren()
+	t.runCallbacks()
+
+	if !t.waitFinish(taskTimeout) {
+		t.reportStucked()
 	}
-	go t.runCallbacks()
-	if !waitWithTimeout(t.callbacksDone) {
-		log.Debug().
-			Str("task", t.name).
-			Strs("callbacks", t.listCallbacks()).
-			Msg("Timeout waiting for callbacks to finish")
+	// clear anyway
+	clear(t.children)
+	clear(t.callbacks)
+
+	if t != root {
+		t.parent.removeChild(t)
 	}
-	close(t.finished)
-	if t == root {
-		return
-	}
-	t.parent.subChildCount()
-	allTasks.Remove(t)
-	log.Trace().Msg("task " + t.name + " finished")
+	logFinished(t)
+}
+
+func (t *Task) isFinished() bool {
+	return t.finished.Load()
 }
 
 // Subtask returns a new subtask with the given name, derived from the parent's context.
 //
-// This should not be called after Finish is called.
-func (t *Task) Subtask(name string, needFinish ...bool) *Task {
-	nf := len(needFinish) == 0 || needFinish[0]
+// This should not be called after Finish is called on the task or its parent task.
+func (t *Task) Subtask(name string, needFinish bool) *Task {
+	panicIfFinished(t, "Subtask is called")
 
-	ctx, cancel := context.WithCancelCause(t.ctx)
-	child := &Task{
-		parent:   t,
-		finished: make(chan struct{}),
-		ctx:      ctx,
-		cancel:   cancel,
-	}
-	if t != root {
-		child.name = t.name + "." + name
-	} else {
-		child.name = name
+	child := newTask(name, t, needFinish)
+
+	if needFinish {
+		t.addChild(child)
 	}
 
-	allTasks.Add(child)
-	t.addChildCount()
-
-	if !nf {
-		go func() {
-			<-child.ctx.Done()
-			child.Finish(nil)
-		}()
-	}
-
-	log.Trace().Msg("task " + child.name + " started")
+	logStarted(child)
 	return child
 }
 
 // Name returns the name of the task without parent names.
 func (t *Task) Name() string {
-	parts := strutils.SplitRune(t.name, '.')
-	return parts[len(parts)-1]
+	return t.name
 }
 
 // String returns the full name of the task.
 func (t *Task) String() string {
+	if t.parent != nil {
+		return t.parent.String() + "." + t.name
+	}
 	return t.name
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (t *Task) MarshalText() ([]byte, error) {
-	return []byte(t.name), nil
+	return []byte(t.String()), nil
 }
 
-func (t *Task) invokeWithRecover(fn func(), caller string) {
+func invokeWithRecover(cb *Callback) {
 	defer func() {
+		cb.done.Store(true)
 		if err := recover(); err != nil {
-			log.Error().
-				Interface("err", err).
-				Msg("panic in task " + t.name + "." + caller)
-			if common.IsDebug {
-				panic(string(debug.Stack()))
-			}
+			log.Err(fmtCause(err)).Str("callback", cb.about).Msg("panic")
+			panicWithDebugStack()
 		}
 	}()
-	fn()
+	cb.fn()
 }
