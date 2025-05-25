@@ -201,11 +201,12 @@ func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
 
 func (auth *OIDCProvider) checkAllowed(user string, groups []string) bool {
 	userAllowed := slices.Contains(auth.allowedUsers, user)
-	if !userAllowed {
-		return false
+	if userAllowed {
+		return true
 	}
 	if len(auth.allowedGroups) == 0 {
-		return true
+		// user is not allowed, but no groups are allowed
+		return false
 	}
 	return len(utils.Intersect(groups, auth.allowedGroups)) > 0
 }
