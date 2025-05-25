@@ -5,7 +5,6 @@ package task
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,10 +26,8 @@ type (
 		Finish(reason any)
 	}
 	Callback struct {
-		fn           func()
-		about        string
-		waitChildren bool
-		done         atomic.Bool
+		fn    func()
+		about string
 	}
 	// Task controls objects' lifetime.
 	//
@@ -40,13 +37,13 @@ type (
 	Task struct {
 		name string
 
-		parent    *Task
-		children  childrenSet
-		callbacks callbacksSet
+		parent            *Task
+		children          childrenSet
+		callbacksOnFinish callbacksSet
+		callbacksOnCancel callbacksSet
 
-		cause error
-
-		canceled chan struct{}
+		ctx    context.Context
+		cancel context.CancelCauseFunc
 
 		finished atomic.Bool
 		mu       sync.Mutex
@@ -68,36 +65,12 @@ type (
 const taskTimeout = 3 * time.Second
 
 func (t *Task) Context() context.Context {
-	return t
-}
-
-func (t *Task) Deadline() (time.Time, bool) {
-	return time.Time{}, false
-}
-
-func (t *Task) Done() <-chan struct{} {
-	return t.canceled
-}
-
-func (t *Task) Err() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.cause == nil {
-		return context.Canceled
-	}
-	return t.cause
-}
-
-func (t *Task) Value(_ any) any {
-	return nil
+	return t.ctx
 }
 
 // FinishCause returns the reason / error that caused the task to be finished.
 func (t *Task) FinishCause() error {
-	if t.cause == nil || errors.Is(t.cause, context.Canceled) {
-		return nil
-	}
-	return t.cause
+	return context.Cause(t.ctx)
 }
 
 // OnFinished calls fn when the task is canceled and all subtasks are finished.
@@ -118,38 +91,44 @@ func (t *Task) OnCancel(about string, fn func()) {
 // then marks the task as finished, with the given reason (if any).
 func (t *Task) Finish(reason any) {
 	t.mu.Lock()
-	if t.cause != nil {
+	if t.isCanceled() {
 		t.mu.Unlock()
 		return
 	}
-	cause := fmtCause(reason)
-	t.setCause(cause)
-	// t does not need finish, it shares the canceled channel with its parent
-	if t == root || t.canceled != t.parent.canceled {
-		close(t.canceled)
-	}
+	t.cancel(fmtCause(reason))
+	t.ctx, t.cancel = cancelCtx, nil
+
 	t.mu.Unlock()
 
 	t.finishAndWait()
+	t.finished.Store(true)
 }
 
 func (t *Task) finishAndWait() {
-	defer putTask(t)
+	ok := true
 
-	t.finishChildren()
-	t.runCallbacks()
+	if !waitEmpty(t.children, taskTimeout) {
+		t.reportStucked()
+		ok = false
+	}
+	t.runOnFinishCallbacks()
 
 	if !t.waitFinish(taskTimeout) {
 		t.reportStucked()
+		ok = false
 	}
 	// clear anyway
 	clear(t.children)
-	clear(t.callbacks)
+	clear(t.callbacksOnFinish)
 
-	if t != root {
+	if t != root && t.needFinish() {
 		t.parent.removeChild(t)
 	}
 	logFinished(t)
+
+	if ok {
+		putTask(t)
+	}
 }
 
 func (t *Task) isFinished() bool {
@@ -179,7 +158,7 @@ func (t *Task) Name() string {
 
 // String returns the full name of the task.
 func (t *Task) String() string {
-	if t.parent != nil {
+	if t.parent != root {
 		return t.parent.String() + "." + t.name
 	}
 	return t.name
@@ -192,7 +171,6 @@ func (t *Task) MarshalText() ([]byte, error) {
 
 func invokeWithRecover(cb *Callback) {
 	defer func() {
-		cb.done.Store(true)
 		if err := recover(); err != nil {
 			log.Err(fmtCause(err)).Str("callback", cb.about).Msg("panic")
 			panicWithDebugStack()

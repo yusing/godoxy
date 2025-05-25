@@ -104,7 +104,10 @@ func (s *Server) Start(parent task.Parent) {
 			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
 		}
 		Start(subtask, h3, s.acl, &s.l)
+		if s.http != nil {
 		s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+		}
+		// s.https is not nil (checked above)
 		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 	}
 
@@ -120,7 +123,7 @@ func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, l
 	setDebugLogger(srv, logger)
 
 	proto := proto(srv)
-	task := parent.Subtask(proto, false)
+	task := parent.Subtask(proto, true)
 
 	var lc net.ListenConfig
 	var serveFunc func() error
@@ -158,9 +161,13 @@ func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, l
 	})
 	logStarted(srv, logger)
 	go func() {
-		err := serveFunc()
+		err := convertError(serveFunc())
+		if err != nil {
 		HandleError(logger, err, "failed to serve "+proto+" server")
+		}
+		task.Finish(err)
 	}()
+	return port
 }
 
 func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
@@ -173,7 +180,7 @@ func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
 	ctx, cancel := context.WithTimeout(task.RootContext(), 1*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := convertError(srv.Shutdown(ctx)); err != nil {
 		HandleError(logger, err, "failed to shutdown "+proto+" server")
 	} else {
 		logger.Info().Str("proto", proto).Str("addr", addr(srv)).Msg("server stopped")

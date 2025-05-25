@@ -47,7 +47,7 @@ const (
 )
 
 func initClientCleaner() {
-	cleaner := task.RootTask("docker_clients_cleaner", false)
+	cleaner := task.RootTask("docker_clients_cleaner", true)
 	go func() {
 		ticker := time.NewTicker(cleanInterval)
 		defer ticker.Stop()

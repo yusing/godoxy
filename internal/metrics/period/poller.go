@@ -155,10 +155,11 @@ func (p *Poller[T, AggregateT]) Start() {
 			gatherErrsTicker.Stop()
 			saveTicker.Stop()
 
-			if err := p.save(); err != nil {
+			err := p.save()
+			if err != nil {
 				l.Err(err).Msg("failed to save metrics data")
 			}
-			t.Finish(nil)
+			t.Finish(err)
 		}()
 
 		l.Debug().Dur("interval", pollInterval).Msg("Starting poller")

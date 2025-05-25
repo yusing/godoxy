@@ -95,7 +95,7 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 
 		defer func() {
 			if mon.status.Load() != health.StatusError {
-				mon.status.Store(health.StatusUnknown)
+				mon.status.Store(health.StatusUnhealthy)
 			}
 			mon.task.Finish(nil)
 		}()

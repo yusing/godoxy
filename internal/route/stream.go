@@ -99,6 +99,11 @@ func (r *StreamRoute) HealthMonitor() health.HealthMonitor {
 func (r *StreamRoute) acceptConnections() {
 	defer r.task.Finish("listener closed")
 
+	go func() {
+		<-r.task.Context().Done()
+		r.Close()
+	}()
+
 	for {
 		select {
 		case <-r.task.Context().Done():

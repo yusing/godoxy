@@ -21,11 +21,11 @@ func RootTask(name string, needFinish bool) *Task {
 }
 
 func RootContext() context.Context {
-	return root
+	return root.Context()
 }
 
 func RootContextCanceled() <-chan struct{} {
-	return root.Done()
+	return root.Context().Done()
 }
 
 func OnProgramExit(about string, fn func()) {
@@ -59,10 +59,18 @@ func WaitExit(shutdownTimeout int) {
 // still running when the timeout was reached, and their current tree
 // of subtasks.
 func gracefulShutdown(timeout time.Duration) error {
-	root.Finish(ErrProgramExiting)
-	root.finishChildren()
-	root.runCallbacks()
-	if !root.waitFinish(timeout) {
+	root.mu.Lock()
+	if root.isCanceled() {
+		cause := context.Cause(root.ctx)
+		root.mu.Unlock()
+		return cause
+	}
+	root.mu.Unlock()
+
+	root.cancel(ErrProgramExiting)
+	ok := waitEmpty(root.children, timeout)
+	root.runOnFinishCallbacks()
+	if !ok || !root.waitFinish(timeout) {
 		return context.DeadlineExceeded
 	}
 	return nil

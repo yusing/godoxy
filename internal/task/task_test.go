@@ -113,7 +113,7 @@ func TestCommonFlowWithGracefulShutdown(t *testing.T) {
 	ExpectTrue(t, finished)
 
 	ExpectTrue(t, root.waitFinish(1*time.Second))
-	ExpectError(t, ErrProgramExiting, context.Cause(task.Context()))
+	ExpectError(t, context.Canceled, context.Cause(task.Context()))
 	ExpectError(t, ErrProgramExiting, task.Context().Err())
 	ExpectError(t, ErrProgramExiting, task.FinishCause())
 }

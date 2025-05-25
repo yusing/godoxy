@@ -8,11 +8,15 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func HandleError(logger *zerolog.Logger, err error, msg string) {
+func convertError(err error) error {
 	switch {
 	case err == nil, errors.Is(err, http.ErrServerClosed), errors.Is(err, context.Canceled):
-		return
+		return nil
 	default:
-		logger.Fatal().Err(err).Msg(msg)
+		return err
 	}
+}
+
+func HandleError(logger *zerolog.Logger, err error, msg string) {
+	logger.Fatal().Err(err).Msg(msg)
 }
