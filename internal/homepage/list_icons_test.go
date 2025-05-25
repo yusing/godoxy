@@ -68,6 +68,8 @@ type testCases struct {
 }
 
 func runTests(t *testing.T, iconsCache *Cache, test []testCases) {
+	t.Helper()
+
 	for _, item := range test {
 		icon, ok := iconsCache.Icons[item.Key]
 		if !ok {
@@ -89,7 +91,7 @@ func runTests(t *testing.T, iconsCache *Cache, test []testCases) {
 }
 
 func TestListWalkxCodeIcons(t *testing.T) {
-	MockHttpGet([]byte(walkxcodeIcons))
+	MockHTTPGet([]byte(walkxcodeIcons))
 	if err := UpdateWalkxCodeIcons(); err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +124,7 @@ func TestListWalkxCodeIcons(t *testing.T) {
 }
 
 func TestListSelfhstIcons(t *testing.T) {
-	MockHttpGet([]byte(selfhstIcons))
+	MockHTTPGet([]byte(selfhstIcons))
 	if err := UpdateSelfhstIcons(); err != nil {
 		t.Fatal(err)
 	}

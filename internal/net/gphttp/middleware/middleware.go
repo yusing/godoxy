@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
@@ -87,7 +87,7 @@ func NewMiddleware[ImplType any]() *Middleware {
 func (m *Middleware) enableTrace() {
 	if tracer, ok := m.impl.(MiddlewareWithTracer); ok {
 		tracer.enableTrace()
-		logging.Trace().Msgf("middleware %s enabled trace", m.name)
+		log.Trace().Msgf("middleware %s enabled trace", m.name)
 	}
 }
 
@@ -118,14 +118,14 @@ func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
 		"priority": optsRaw["priority"],
 		"bypass":   optsRaw["bypass"],
 	}
-	if err := utils.MapUnmarshalValidate(commonOpts, &m.commonOptions); err != nil {
+	if err := serialization.MapUnmarshalValidate(commonOpts, &m.commonOptions); err != nil {
 		return err
 	}
 	optsRaw = maps.Clone(optsRaw)
 	for k := range commonOpts {
 		delete(optsRaw, k)
 	}
-	return utils.MapUnmarshalValidate(optsRaw, m.impl)
+	return serialization.MapUnmarshalValidate(optsRaw, m.impl)
 }
 
 func (m *Middleware) finalize() error {

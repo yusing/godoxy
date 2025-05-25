@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
@@ -35,20 +35,19 @@ func newFileIO(path string) (SupportRotate, error) {
 	if opened, ok := openedFiles[path]; ok {
 		opened.refCount.Add()
 		return opened, nil
-	} else {
-		// cannot open as O_APPEND as we need Seek and WriteAt
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
-		if err != nil {
-			return nil, fmt.Errorf("access log open error: %w", err)
-		}
-		if _, err := f.Seek(0, io.SeekEnd); err != nil {
-			return nil, fmt.Errorf("access log seek error: %w", err)
-		}
-		file = &File{f: f, path: path, refCount: utils.NewRefCounter()}
-		openedFiles[path] = file
-		go file.closeOnZero()
 	}
 
+	// cannot open as O_APPEND as we need Seek and WriteAt
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("access log open error: %w", err)
+	}
+	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return nil, fmt.Errorf("access log seek error: %w", err)
+	}
+	file = &File{f: f, path: path, refCount: utils.NewRefCounter()}
+	openedFiles[path] = file
+	go file.closeOnZero()
 	return file, nil
 }
 
@@ -90,7 +89,7 @@ func (f *File) Close() error {
 }
 
 func (f *File) closeOnZero() {
-	defer logging.Debug().
+	defer log.Debug().
 		Str("path", f.path).
 		Msg("access log closed")
 

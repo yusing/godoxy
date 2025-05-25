@@ -9,14 +9,14 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/acl"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
 type CertProvider interface {
-	GetCert(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	GetCert(_ *tls.ClientHelloInfo) (*tls.Certificate, error)
 }
 
 type Server struct {
@@ -53,7 +53,7 @@ func StartServer(parent task.Parent, opt Options) (s *Server) {
 func NewServer(opt Options) (s *Server) {
 	var httpSer, httpsSer *http.Server
 
-	logger := logging.With().Str("server", opt.Name).Logger()
+	logger := log.With().Str("server", opt.Name).Logger()
 
 	certAvailable := false
 	if opt.CertProvider != nil {

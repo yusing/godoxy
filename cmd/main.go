@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/config"
@@ -35,8 +36,8 @@ func main() {
 	initProfiling()
 
 	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
-	logging.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
-	logging.Trace().Msg("trace enabled")
+	log.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
+	log.Trace().Msg("trace enabled")
 	parallel(
 		dnsproviders.InitProviders,
 		homepage.InitIconListCache,
@@ -45,7 +46,7 @@ func main() {
 	)
 
 	if common.APIJWTSecret == nil {
-		logging.Warn().Msg("API_JWT_SECRET is not set, using random key")
+		log.Warn().Msg("API_JWT_SECRET is not set, using random key")
 		common.APIJWTSecret = common.RandomJWTKey()
 	}
 
@@ -62,7 +63,7 @@ func main() {
 		Proxy: true,
 	})
 	if err := auth.Initialize(); err != nil {
-		logging.Fatal().Err(err).Msg("failed to initialize authentication")
+		log.Fatal().Err(err).Msg("failed to initialize authentication")
 	}
 	// API Handler needs to start after auth is initialized.
 	cfg.StartServers(&config.StartServersOptions{
@@ -78,7 +79,7 @@ func main() {
 func prepareDirectory(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err = os.MkdirAll(dir, 0o755); err != nil {
-			logging.Fatal().Msgf("failed to create directory %s: %v", dir, err)
+			log.Fatal().Msgf("failed to create directory %s: %v", dir, err)
 		}
 	}
 }

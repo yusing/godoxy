@@ -7,12 +7,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/route"
-	U "github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher"
 )
@@ -36,7 +36,7 @@ func DockerProviderImpl(name, dockerHost string) ProviderImpl {
 	return &DockerProvider{
 		name,
 		dockerHost,
-		logging.With().Str("type", "docker").Str("name", name).Logger(),
+		log.With().Str("type", "docker").Str("name", name).Logger(),
 	}
 }
 
@@ -106,7 +106,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 // Always non-nil.
 func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, gperr.Error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
-		return nil, nil
+		return make(route.Routes, 0), nil
 	}
 
 	routes := make(route.Routes, len(container.Aliases))
@@ -180,7 +180,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 		}
 
 		// deserialize map into entry object
-		err := U.MapUnmarshalValidate(entryMap, r)
+		err := serialization.MapUnmarshalValidate(entryMap, r)
 		if err != nil {
 			errs.Add(err.Subject(alias))
 		} else {
@@ -189,7 +189,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 	}
 	if wildcardProps != nil {
 		for _, re := range routes {
-			if err := U.MapUnmarshalValidate(wildcardProps, re); err != nil {
+			if err := serialization.MapUnmarshalValidate(wildcardProps, re); err != nil {
 				errs.Add(err.Subject(docker.WildcardAlias))
 				break
 			}

@@ -6,9 +6,9 @@ import (
 	"path"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	U "github.com/yusing/go-proxy/internal/utils"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
@@ -48,7 +48,7 @@ func GetErrorPageByStatus(statusCode int) (content []byte, ok bool) {
 func loadContent() {
 	files, err := U.ListFiles(errPagesBasePath, 0)
 	if err != nil {
-		logging.Err(err).Msg("failed to list error page resources")
+		log.Err(err).Msg("failed to list error page resources")
 		return
 	}
 	for _, file := range files {
@@ -57,11 +57,11 @@ func loadContent() {
 		}
 		content, err := os.ReadFile(file)
 		if err != nil {
-			logging.Warn().Err(err).Msgf("failed to read error page resource %s", file)
+			log.Warn().Err(err).Msgf("failed to read error page resource %s", file)
 			continue
 		}
 		file = path.Base(file)
-		logging.Info().Msgf("error page resource %s loaded", file)
+		log.Info().Msgf("error page resource %s loaded", file)
 		fileContentMap.Store(file, content)
 	}
 }
@@ -83,9 +83,9 @@ func watchDir() {
 				loadContent()
 			case events.ActionFileDeleted:
 				fileContentMap.Delete(filename)
-				logging.Warn().Msgf("error page resource %s deleted", filename)
+				log.Warn().Msgf("error page resource %s deleted", filename)
 			case events.ActionFileRenamed:
-				logging.Warn().Msgf("error page resource %s deleted", filename)
+				log.Warn().Msgf("error page resource %s deleted", filename)
 				fileContentMap.Delete(filename)
 				loadContent()
 			}

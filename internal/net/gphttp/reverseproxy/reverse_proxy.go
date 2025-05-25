@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/types"
@@ -138,7 +138,7 @@ func NewReverseProxy(name string, target *types.URL, transport http.RoundTripper
 		panic("nil transport")
 	}
 	rp := &ReverseProxy{
-		Logger:     logging.With().Str("name", name).Logger(),
+		Logger:     log.With().Str("name", name).Logger(),
 		Transport:  transport,
 		TargetName: name,
 		TargetURL:  target,
@@ -173,17 +173,17 @@ func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err
 	case errors.Is(err, context.Canceled),
 		errors.Is(err, io.EOF),
 		errors.Is(err, context.DeadlineExceeded):
-		logging.Debug().Err(err).Str("url", reqURL).Msg("http proxy error")
+		log.Debug().Err(err).Str("url", reqURL).Msg("http proxy error")
 	default:
 		var recordErr tls.RecordHeaderError
 		if errors.As(err, &recordErr) {
-			logging.Error().
+			log.Error().
 				Str("url", reqURL).
 				Msgf(`scheme was likely misconfigured as https,
 						try setting "proxy.%s.scheme" back to "http"`, p.TargetName)
-			logging.Err(err).Msg("underlying error")
+			log.Err(err).Msg("underlying error")
 		} else {
-			logging.Err(err).Str("url", reqURL).Msg("http proxy error")
+			log.Err(err).Str("url", reqURL).Msg("http proxy error")
 		}
 	}
 
@@ -220,7 +220,6 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 
 	ctx := req.Context()
-	/* trunk-ignore(golangci-lint/revive) */
 	if ctx.Done() != nil {
 		// CloseNotifier predates context.Context, and has been
 		// entirely superseded by it. If the request contains
@@ -352,7 +351,7 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 			return nil
 		},
 	}
-	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
+	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace)) //nolint:contextcheck
 
 	res, err := transport.RoundTrip(outreq)
 
@@ -507,18 +506,18 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	res.Header = rw.Header()
 	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
 	if err := res.Write(brw); err != nil {
-		/* trunk-ignore(golangci-lint/errorlint) */
+		//nolint:errorlint
 		p.errorHandler(rw, req, fmt.Errorf("response write: %s", err), true)
 		return
 	}
 	if err := brw.Flush(); err != nil {
-		/* trunk-ignore(golangci-lint/errorlint) */
+		//nolint:errorlint
 		p.errorHandler(rw, req, fmt.Errorf("response flush: %s", err), true)
 		return
 	}
 
 	bdp := U.NewBidirectionalPipe(req.Context(), conn, backConn)
-	/* trunk-ignore(golangci-lint/errcheck) */
+	//nolint:errcheck
 	bdp.Start()
 }
 

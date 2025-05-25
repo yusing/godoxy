@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-var sizes = []int{1024, 4096, 16384, 65536, 32 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024}
+var sizes = []int{1024, 4096, 16384, 65536, 32 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 2 * 1024 * 1024}
 
 func BenchmarkBytesPool_GetSmall(b *testing.B) {
 	for b.Loop() {

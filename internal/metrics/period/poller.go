@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 )
@@ -47,7 +47,7 @@ var initDataDirOnce sync.Once
 
 func initDataDir() {
 	if err := os.MkdirAll(saveBaseDir, 0o755); err != nil {
-		logging.Error().Err(err).Msg("failed to create metrics data directory")
+		log.Error().Err(err).Msg("failed to create metrics data directory")
 	}
 }
 
@@ -65,7 +65,7 @@ func NewPoller[T any, AggregateT json.Marshaler](
 }
 
 func (p *Poller[T, AggregateT]) savePath() string {
-	return filepath.Join(saveBaseDir, fmt.Sprintf("%s.json", p.name))
+	return filepath.Join(saveBaseDir, p.name+".json")
 }
 
 func (p *Poller[T, AggregateT]) load() error {
@@ -135,13 +135,14 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 
 func (p *Poller[T, AggregateT]) Start() {
 	t := task.RootTask("poller." + p.name)
+	l := log.With().Str("name", p.name).Logger()
 	err := p.load()
 	if err != nil {
 		if !os.IsNotExist(err) {
-			logging.Error().Err(err).Msgf("failed to load last metrics data for %s", p.name)
+			l.Err(err).Msg("failed to load last metrics data")
 		}
 	} else {
-		logging.Debug().Msgf("Loaded last metrics data for %s, %d entries", p.name, p.period.Total())
+		l.Debug().Int("entries", p.period.Total()).Msgf("Loaded last metrics data")
 	}
 
 	go func() {
@@ -154,11 +155,13 @@ func (p *Poller[T, AggregateT]) Start() {
 			gatherErrsTicker.Stop()
 			saveTicker.Stop()
 
-			p.save()
+			if err := p.save(); err != nil {
+				l.Err(err).Msg("failed to save metrics data")
+			}
 			t.Finish(nil)
 		}()
 
-		logging.Debug().Msgf("Starting poller %s with interval %s", p.name, pollInterval)
+		l.Debug().Dur("interval", pollInterval).Msg("Starting poller")
 
 		p.pollWithTimeout(t.Context())
 
@@ -176,7 +179,7 @@ func (p *Poller[T, AggregateT]) Start() {
 			case <-gatherErrsTicker.C:
 				errs, ok := p.gatherErrs()
 				if ok {
-					logging.Error().Msg(errs)
+					log.Error().Msg(errs)
 				}
 				p.clearErrs()
 			}

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 func TestMatchers(t *testing.T) {
@@ -16,7 +16,7 @@ func TestMatchers(t *testing.T) {
 	}
 
 	var mathers Matchers
-	err := utils.Convert(reflect.ValueOf(strMatchers), reflect.ValueOf(&mathers), false)
+	err := serialization.Convert(reflect.ValueOf(strMatchers), reflect.ValueOf(&mathers), false)
 	if err != nil {
 		t.Fatal(err)
 	}

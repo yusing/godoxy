@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware/errorpage"
@@ -32,7 +32,7 @@ func (customErrorPage) modifyResponse(resp *http.Response) error {
 	if !gphttp.IsSuccess(resp.StatusCode) && (contentType.IsHTML() || contentType.IsPlainText()) {
 		errorPage, ok := errorpage.GetErrorPageByStatus(resp.StatusCode)
 		if ok {
-			logging.Debug().Msgf("error page for status %d loaded", resp.StatusCode)
+			log.Debug().Msgf("error page for status %d loaded", resp.StatusCode)
 			_, _ = io.Copy(io.Discard, resp.Body) // drain the original body
 			resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(errorPage))
@@ -40,7 +40,7 @@ func (customErrorPage) modifyResponse(resp *http.Response) error {
 			resp.Header.Set(httpheaders.HeaderContentLength, strconv.Itoa(len(errorPage)))
 			resp.Header.Set(httpheaders.HeaderContentType, "text/html; charset=utf-8")
 		} else {
-			logging.Error().Msgf("unable to load error page for status %d", resp.StatusCode)
+			log.Error().Msgf("unable to load error page for status %d", resp.StatusCode)
 		}
 		return nil
 	}
@@ -56,7 +56,7 @@ func ServeStaticErrorPageFile(w http.ResponseWriter, r *http.Request) (served bo
 		filename := path[len(StaticFilePathPrefix):]
 		file, ok := errorpage.GetStaticFile(filename)
 		if !ok {
-			logging.Error().Msg("unable to load resource " + filename)
+			log.Error().Msg("unable to load resource " + filename)
 			return false
 		}
 		ext := filepath.Ext(filename)
@@ -68,10 +68,10 @@ func ServeStaticErrorPageFile(w http.ResponseWriter, r *http.Request) (served bo
 		case ".css":
 			w.Header().Set(httpheaders.HeaderContentType, "text/css; charset=utf-8")
 		default:
-			logging.Error().Msgf("unexpected file type %q for %s", ext, filename)
+			log.Error().Msgf("unexpected file type %q for %s", ext, filename)
 		}
 		if _, err := w.Write(file); err != nil {
-			logging.Err(err).Msg("unable to write resource " + filename)
+			log.Err(err).Msg("unable to write resource " + filename)
 			http.Error(w, "Error page failure", http.StatusInternalServerError)
 		}
 		return true

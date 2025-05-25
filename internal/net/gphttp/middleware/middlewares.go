@@ -3,9 +3,9 @@ package middleware
 import (
 	"path"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -59,7 +59,7 @@ func LoadComposeFiles() {
 	errs := gperr.NewBuilder("middleware compile errors")
 	middlewareDefs, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0)
 	if err != nil {
-		logging.Err(err).Msg("failed to list middleware definitions")
+		log.Err(err).Msg("failed to list middleware definitions")
 		return
 	}
 	for _, defFile := range middlewareDefs {
@@ -75,7 +75,7 @@ func LoadComposeFiles() {
 				continue
 			}
 			allMiddlewares[name] = m
-			logging.Info().
+			log.Info().
 				Str("src", path.Base(defFile)).
 				Str("name", name).
 				Msg("middleware loaded")
@@ -94,7 +94,7 @@ func LoadComposeFiles() {
 				continue
 			}
 			allMiddlewares[name] = m
-			logging.Info().
+			log.Info().
 				Str("src", path.Base(defFile)).
 				Str("name", name).
 				Msg("middleware loaded")

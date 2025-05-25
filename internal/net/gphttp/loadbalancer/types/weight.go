@@ -1,3 +1,3 @@
 package types
 
-type Weight uint16
+type Weight int

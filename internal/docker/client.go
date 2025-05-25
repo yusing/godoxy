@@ -13,13 +13,14 @@ import (
 
 	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/client"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
+// TODO: implement reconnect here.
 type (
 	SharedClient struct {
 		*client.Client
@@ -83,7 +84,7 @@ func closeTimedOutClients() {
 		if atomic.LoadUint32(&c.refCount) == 0 && now-atomic.LoadInt64(&c.closedOn) > clientTTLSecs {
 			delete(clientMap, c.Key())
 			c.Client.Close()
-			logging.Debug().Str("host", c.DaemonHost()).Msg("docker client closed")
+			log.Debug().Str("host", c.DaemonHost()).Msg("docker client closed")
 		}
 	}
 }
@@ -148,7 +149,7 @@ func NewClient(host string) (*SharedClient, error) {
 		default:
 			helper, err := connhelper.GetConnectionHelper(host)
 			if err != nil {
-				logging.Panic().Err(err).Msg("failed to get connection helper")
+				log.Panic().Err(err).Msg("failed to get connection helper")
 			}
 			if helper != nil {
 				httpClient := &http.Client{
@@ -189,10 +190,10 @@ func NewClient(host string) (*SharedClient, error) {
 		c.dial = client.Dialer()
 	}
 	if c.addr == "" {
-		c.addr = c.Client.DaemonHost()
+		c.addr = c.DaemonHost()
 	}
 
-	defer logging.Debug().Str("host", host).Msg("docker client initialized")
+	defer log.Debug().Str("host", host).Msg("docker client initialized")
 
 	clientMap[c.Key()] = c
 	return c, nil

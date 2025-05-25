@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
@@ -68,10 +68,10 @@ func GracefulShutdown(timeout time.Duration) (err error) {
 		case <-after:
 			b, err := json.Marshal(DebugTaskList())
 			if err != nil {
-				logging.Warn().Err(err).Msg("failed to marshal tasks")
+				log.Warn().Err(err).Msg("failed to marshal tasks")
 				return context.DeadlineExceeded
 			}
-			logging.Warn().RawJSON("tasks", b).Msgf("Timeout waiting for these %d tasks to finish", allTasks.Size())
+			log.Warn().RawJSON("tasks", b).Msgf("Timeout waiting for these %d tasks to finish", allTasks.Size())
 			return context.DeadlineExceeded
 		}
 	}
@@ -87,6 +87,6 @@ func WaitExit(shutdownTimeout int) {
 	<-sig
 
 	// gracefully shutdown
-	logging.Info().Msg("shutting down")
+	log.Info().Msg("shutting down")
 	_ = GracefulShutdown(time.Second * time.Duration(shutdownTimeout))
 }

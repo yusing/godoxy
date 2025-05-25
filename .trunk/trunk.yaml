@@ -21,7 +21,7 @@ lint:
     - markdownlint
     - yamllint
   enabled:
-    - checkov@3.2.416
+    - checkov@3.2.432
     - golangci-lint2@2.1.6
     - hadolint@2.12.1-beta
     - actionlint@1.7.7
@@ -32,7 +32,7 @@ lint:
     - prettier@3.5.3
     - shellcheck@0.10.0
     - shfmt@3.6.0
-    - trufflehog@3.88.29
+    - trufflehog@3.88.33
 actions:
   disabled:
     - trunk-announce

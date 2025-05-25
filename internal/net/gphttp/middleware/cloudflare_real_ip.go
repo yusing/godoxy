@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -89,21 +90,29 @@ func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {
 		)
 		if err != nil {
 			cfCIDRsLastUpdate.Store(time.Now().Add(-cfCIDRsUpdateRetryInterval - cfCIDRsUpdateInterval))
-			logging.Err(err).Msg("failed to update cloudflare range, retry in " + strutils.FormatDuration(cfCIDRsUpdateRetryInterval))
+			log.Err(err).Msg("failed to update cloudflare range, retry in " + strutils.FormatDuration(cfCIDRsUpdateRetryInterval))
 			return nil
 		}
 		if len(cfCIDRs) == 0 {
-			logging.Warn().Msg("cloudflare CIDR range is empty")
+			log.Warn().Msg("cloudflare CIDR range is empty")
 		}
 	}
 
 	cfCIDRsLastUpdate.Store(time.Now())
-	logging.Info().Msg("cloudflare CIDR range updated")
+	log.Info().Msg("cloudflare CIDR range updated")
 	return
 }
 
 func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*types.CIDR) error {
-	resp, err := http.Get(endpoint)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 // type Config struct {
@@ -45,6 +45,6 @@ oauth2_config:
 	testYaml = testYaml[1:] // remove first \n
 	opt := make(map[string]any)
 	require.NoError(t, yaml.Unmarshal([]byte(testYaml), &opt))
-	require.NoError(t, utils.MapUnmarshalValidate(opt, cfg))
+	require.NoError(t, serialization.MapUnmarshalValidate(opt, cfg))
 	require.Equal(t, cfgExpected, cfg)
 }

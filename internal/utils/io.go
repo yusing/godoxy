@@ -8,7 +8,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/synk"
 )
 
@@ -91,20 +90,20 @@ func NewBidirectionalPipe(ctx context.Context, rw1 io.ReadWriteCloser, rw2 io.Re
 	}
 }
 
-func (p BidirectionalPipe) Start() gperr.Error {
+func (p BidirectionalPipe) Start() error {
 	var wg sync.WaitGroup
 	wg.Add(2)
-	b := gperr.NewBuilder("bidirectional pipe error")
+	var srcErr, dstErr error
 	go func() {
-		b.Add(p.pSrcDst.Start())
+		srcErr = p.pSrcDst.Start()
 		wg.Done()
 	}()
 	go func() {
-		b.Add(p.pDstSrc.Start())
+		dstErr = p.pDstSrc.Start()
 		wg.Done()
 	}()
 	wg.Wait()
-	return b.Error()
+	return errors.Join(srcErr, dstErr)
 }
 
 type httpFlusher interface {
@@ -143,30 +142,18 @@ func CopyClose(dst *ContextWriter, src *ContextReader) (err error) {
 	wCloser, wCanClose := dst.Writer.(io.Closer)
 	rCloser, rCanClose := src.Reader.(io.Closer)
 	if wCanClose || rCanClose {
-		if src.ctx == dst.ctx {
-			go func() {
-				<-src.ctx.Done()
-				if wCanClose {
-					wCloser.Close()
-				}
-				if rCanClose {
-					rCloser.Close()
-				}
-			}()
-		} else {
-			if wCloser != nil {
-				go func() {
-					<-src.ctx.Done()
-					wCloser.Close()
-				}()
+		go func() {
+			select {
+			case <-src.ctx.Done():
+			case <-dst.ctx.Done():
 			}
-			if rCloser != nil {
-				go func() {
-					<-dst.ctx.Done()
-					rCloser.Close()
-				}()
+			if rCanClose {
+				defer rCloser.Close()
 			}
-		}
+			if wCanClose {
+				defer wCloser.Close()
+			}
+		}()
 	}
 	flusher := getHTTPFlusher(dst.Writer)
 	canFlush := flusher != nil

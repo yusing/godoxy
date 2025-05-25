@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/maxmind"
 	"github.com/yusing/go-proxy/internal/task"
@@ -45,7 +45,7 @@ func (c *checkCache) Expired() bool {
 	return c.created.Add(cacheTTL).Before(utils.TimeNow())
 }
 
-//TODO: add stats
+// TODO: add stats
 
 const (
 	ACLAllow = "allow"
@@ -97,7 +97,7 @@ func (c *Config) Start(parent *task.Task) gperr.Error {
 	if c.valErr != nil {
 		return c.valErr
 	}
-	logging.Info().
+	log.Info().
 		Str("default", c.Default).
 		Bool("allow_local", c.allowLocal).
 		Int("allow_rules", len(c.Allow)).

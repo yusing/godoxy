@@ -1,4 +1,3 @@
-//nolint:zerologlint
 package logging
 
 import (
@@ -10,6 +9,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
+
+	zerologlog "github.com/rs/zerolog/log"
 )
 
 var (
@@ -61,22 +62,6 @@ func InitLogger(out ...io.Writer) {
 	log.SetOutput(writer)
 	log.SetPrefix("")
 	log.SetFlags(0)
+	zerolog.TimeFieldFormat = timeFmt
+	zerologlog.Logger = logger
 }
-
-func DiscardLogger() { zerolog.SetGlobalLevel(zerolog.Disabled) }
-
-func AddHook(h zerolog.Hook) { logger = logger.Hook(h) }
-
-func GetLogger() *zerolog.Logger { return &logger }
-func With() zerolog.Context      { return logger.With() }
-
-func WithLevel(level zerolog.Level) *zerolog.Event { return logger.WithLevel(level) }
-
-func Info() *zerolog.Event         { return logger.Info() }
-func Warn() *zerolog.Event         { return logger.Warn() }
-func Error() *zerolog.Event        { return logger.Error() }
-func Err(err error) *zerolog.Event { return logger.Err(err) }
-func Debug() *zerolog.Event        { return logger.Debug() }
-func Fatal() *zerolog.Event        { return logger.Fatal() }
-func Panic() *zerolog.Event        { return logger.Panic() }
-func Trace() *zerolog.Event        { return logger.Trace() }

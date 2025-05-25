@@ -1,18 +1,10 @@
 package expect
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/go-proxy/internal/common"
 )
-
-func init() {
-	if common.IsTest {
-		os.Args = append([]string{os.Args[0], "-test.v"}, os.Args[1:]...)
-	}
-}
 
 func ExpectNoError(t *testing.T, err error) {
 	t.Helper()

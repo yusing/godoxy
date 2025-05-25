@@ -2,15 +2,16 @@ version: "2"
 linters:
   default: all
   disable:
-    - bodyclose
+    # - bodyclose
     - containedctx
-    - contextcheck
+    # - contextcheck
     - cyclop
     - depguard
-    - dupl
+    # - dupl
     - err113
     - exhaustive
     - exhaustruct
+    - funcorder
     - forcetypeassert
     - gochecknoglobals
     - gochecknoinits
@@ -18,7 +19,6 @@ linters:
     - goconst
     - gocyclo
     - gomoddirectives
-    - gosec
     - gosmopolitan
     - ireturn
     - lll
@@ -27,12 +27,10 @@ linters:
     - mnd
     - nakedret
     - nestif
-    - nilnil
     - nlreturn
-    - noctx
     - nonamedreturns
     - paralleltest
-    - prealloc
+    - revive
     - rowserrcheck
     - sqlclosecheck
     - tagliatelle

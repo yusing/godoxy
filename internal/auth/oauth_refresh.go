@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/jsonstore"
-	"github.com/yusing/go-proxy/internal/logging"
 	"golang.org/x/oauth2"
 )
 
@@ -108,11 +108,11 @@ func storeOAuthRefreshToken(sessionID sessionID, username, token string) {
 		RefreshToken: token,
 		Expiry:       time.Now().Add(defaultRefreshTokenExpiry),
 	})
-	logging.Debug().Str("username", username).Msg("stored oauth refresh token")
+	log.Debug().Str("username", username).Msg("stored oauth refresh token")
 }
 
 func invalidateOAuthRefreshToken(sessionID sessionID) {
-	logging.Debug().Str("session_id", string(sessionID)).Msg("invalidating oauth refresh token")
+	log.Debug().Str("session_id", string(sessionID)).Msg("invalidating oauth refresh token")
 	oauthRefreshTokens.Delete(string(sessionID))
 }
 
@@ -127,7 +127,7 @@ func (auth *OIDCProvider) setSessionTokenCookie(w http.ResponseWriter, r *http.R
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	signed, err := jwtToken.SignedString(common.APIJWTSecret)
 	if err != nil {
-		logging.Err(err).Msg("failed to sign session token")
+		log.Err(err).Msg("failed to sign session token")
 		return
 	}
 	SetTokenCookie(w, r, CookieOauthSessionToken, signed, common.APIJWTTokenTTL)
@@ -190,7 +190,7 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 		return nil, refreshToken.err
 	}
 
-	idTokenJWT, idToken, err := auth.getIdToken(ctx, newToken)
+	idTokenJWT, idToken, err := auth.getIDToken(ctx, newToken)
 	if err != nil {
 		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
 		return nil, refreshToken.err
@@ -205,7 +205,7 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 
 	sessionID := newSessionID()
 
-	logging.Debug().Str("username", claims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
+	log.Debug().Str("username", claims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
 	storeOAuthRefreshToken(sessionID, claims.Username, newToken.RefreshToken)
 
 	refreshToken.result = &RefreshResult{

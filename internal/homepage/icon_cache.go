@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/jsonstore"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
@@ -74,7 +74,7 @@ func pruneExpiredIconCache() {
 		}
 	}
 	if nPruned > 0 {
-		logging.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
+		log.Info().Int("pruned", nPruned).Msg("pruned expired icon cache")
 	}
 }
 
@@ -87,7 +87,7 @@ func loadIconCache(key string) *FetchResult {
 	defer iconMu.RUnlock()
 	icon, ok := iconCache.Load(key)
 	if ok && len(icon.Icon) > 0 {
-		logging.Debug().
+		log.Debug().
 			Str("key", key).
 			Msg("icon found in cache")
 		icon.LastAccess.Store(utils.TimeNow())
@@ -99,7 +99,7 @@ func loadIconCache(key string) *FetchResult {
 func storeIconCache(key string, result *FetchResult) {
 	icon := result.Icon
 	if len(icon) > maxIconSize {
-		logging.Debug().Int("size", len(icon)).Msg("icon cache size exceeds max cache size")
+		log.Debug().Int("size", len(icon)).Msg("icon cache size exceeds max cache size")
 		return
 	}
 
@@ -109,7 +109,7 @@ func storeIconCache(key string, result *FetchResult) {
 	entry := &cacheEntry{Icon: icon, ContentType: result.contentType}
 	entry.LastAccess.Store(time.Now())
 	iconCache.Store(key, entry)
-	logging.Debug().Str("key", key).Int("size", len(icon)).Msg("stored icon cache")
+	log.Debug().Str("key", key).Int("size", len(icon)).Msg("stored icon cache")
 }
 
 func (e *cacheEntry) IsExpired() bool {

@@ -1,6 +1,7 @@
 package homepage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,10 +11,10 @@ import (
 	"time"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -46,30 +47,30 @@ type (
 func (icon *IconMeta) Filenames(ref string) []string {
 	filenames := make([]string, 0)
 	if icon.SVG {
-		filenames = append(filenames, fmt.Sprintf("%s.svg", ref))
+		filenames = append(filenames, ref+".svg")
 		if icon.Light {
-			filenames = append(filenames, fmt.Sprintf("%s-light.svg", ref))
+			filenames = append(filenames, ref+"-light.svg")
 		}
 		if icon.Dark {
-			filenames = append(filenames, fmt.Sprintf("%s-dark.svg", ref))
+			filenames = append(filenames, ref+"-dark.svg")
 		}
 	}
 	if icon.PNG {
-		filenames = append(filenames, fmt.Sprintf("%s.png", ref))
+		filenames = append(filenames, ref+".png")
 		if icon.Light {
-			filenames = append(filenames, fmt.Sprintf("%s-light.png", ref))
+			filenames = append(filenames, ref+"-light.png")
 		}
 		if icon.Dark {
-			filenames = append(filenames, fmt.Sprintf("%s-dark.png", ref))
+			filenames = append(filenames, ref+"-dark.png")
 		}
 	}
 	if icon.WebP {
-		filenames = append(filenames, fmt.Sprintf("%s.webp", ref))
+		filenames = append(filenames, ref+".webp")
 		if icon.Light {
-			filenames = append(filenames, fmt.Sprintf("%s-light.webp", ref))
+			filenames = append(filenames, ref+"-light.webp")
 		}
 		if icon.Dark {
-			filenames = append(filenames, fmt.Sprintf("%s-dark.webp", ref))
+			filenames = append(filenames, ref+"-dark.webp")
 		}
 	}
 	return filenames
@@ -99,21 +100,21 @@ func InitIconListCache() {
 	iconsCache.Lock()
 	defer iconsCache.Unlock()
 
-	err := utils.LoadJSONIfExist(common.IconListCachePath, iconsCache)
+	err := serialization.LoadJSONIfExist(common.IconListCachePath, iconsCache)
 	if err != nil {
-		logging.Error().Err(err).Msg("failed to load icons")
+		log.Error().Err(err).Msg("failed to load icons")
 	} else if len(iconsCache.Icons) > 0 {
-		logging.Info().
+		log.Info().
 			Int("icons", len(iconsCache.Icons)).
 			Msg("icons loaded")
 	}
 
 	if err = updateIcons(); err != nil {
-		logging.Error().Err(err).Msg("failed to update icons")
+		log.Error().Err(err).Msg("failed to update icons")
 	}
 
 	task.OnProgramExit("save_icons_cache", func() {
-		utils.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
+		_ = serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
 	})
 }
 
@@ -134,17 +135,17 @@ func ListAvailableIcons() (*Cache, error) {
 	iconsCache.Lock()
 	defer iconsCache.Unlock()
 
-	logging.Info().Msg("updating icon data")
+	log.Info().Msg("updating icon data")
 	if err := updateIcons(); err != nil {
 		return nil, err
 	}
-	logging.Info().Int("icons", len(iconsCache.Icons)).Msg("icons list updated")
+	log.Info().Int("icons", len(iconsCache.Icons)).Msg("icons list updated")
 
 	iconsCache.LastUpdate = time.Now()
 
-	err := utils.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
+	err := serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
 	if err != nil {
-		logging.Warn().Err(err).Msg("failed to save icons")
+		log.Warn().Err(err).Msg("failed to save icons")
 	}
 	return iconsCache, nil
 }
@@ -230,14 +231,17 @@ func updateIcons() error {
 
 var httpGet = httpGetImpl
 
-func MockHttpGet(body []byte) {
+func MockHTTPGet(body []byte) {
 	httpGet = func(_ string) ([]byte, error) {
 		return body, nil
 	}
 }
 
 func httpGetImpl(url string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +351,7 @@ func UpdateSelfhstIcons() error {
 	}
 
 	data := make([]SelfhStIcon, 0)
-	err = json.Unmarshal(body, &data)
+	err = json.Unmarshal(body, &data) //nolint:musttag
 	if err != nil {
 		return err
 	}

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/oauth2"
@@ -38,8 +38,8 @@ type (
 
 const (
 	CookieOauthState        = "godoxy_oidc_state"
-	CookieOauthToken        = "godoxy_oauth_token"
-	CookieOauthSessionToken = "godoxy_session_token"
+	CookieOauthToken        = "godoxy_oauth_token"   //nolint:gosec
+	CookieOauthSessionToken = "godoxy_session_token" //nolint:gosec
 )
 
 const (
@@ -79,7 +79,7 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 	endSessionURL, err := url.Parse(provider.EndSessionEndpoint())
 	if err != nil && provider.EndSessionEndpoint() != "" {
 		// non critical, just warn
-		logging.Warn().
+		log.Warn().
 			Str("issuer", issuerURL).
 			Err(err).
 			Msg("failed to parse end session URL")
@@ -129,7 +129,7 @@ func optRedirectPostAuth(r *http.Request) oauth2.AuthCodeOption {
 	return oauth2.SetAuthURLParam("redirect_uri", "https://"+requestHost(r)+OIDCPostAuthPath)
 }
 
-func (auth *OIDCProvider) getIdToken(ctx context.Context, oauthToken *oauth2.Token) (string, *oidc.IDToken, error) {
+func (auth *OIDCProvider) getIDToken(ctx context.Context, oauthToken *oauth2.Token) (string, *oidc.IDToken, error) {
 	idTokenJWT, ok := oauthToken.Extra("id_token").(string)
 	if !ok {
 		return "", nil, errMissingIDToken
@@ -176,7 +176,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// clear cookies then redirect to home
-		logging.Err(err).Msg("failed to refresh token")
+		log.Err(err).Msg("failed to refresh token")
 		auth.clearCookie(w, r)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -201,11 +201,12 @@ func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
 
 func (auth *OIDCProvider) checkAllowed(user string, groups []string) bool {
 	userAllowed := slices.Contains(auth.allowedUsers, user)
-	if !userAllowed {
-		return false
+	if userAllowed {
+		return true
 	}
 	if len(auth.allowedGroups) == 0 {
-		return true
+		// user is not allowed, but no groups are allowed
+		return false
 	}
 	return len(utils.Intersect(groups, auth.allowedGroups)) > 0
 }
@@ -257,7 +258,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	idTokenJWT, idToken, err := auth.getIdToken(r.Context(), oauth2Token)
+	idTokenJWT, idToken, err := auth.getIDToken(r.Context(), oauth2Token)
 	if err != nil {
 		gphttp.ServerError(w, r, err)
 		return

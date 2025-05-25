@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/task"
@@ -47,7 +47,7 @@ func New(cfg *Config) *LoadBalancer {
 	lb := &LoadBalancer{
 		Config: new(Config),
 		pool:   pool.New[Server]("loadbalancer." + cfg.Link),
-		l:      logging.With().Str("name", cfg.Link).Logger(),
+		l:      log.With().Str("name", cfg.Link).Logger(),
 	}
 	lb.UpdateConfigIfNeeded(cfg)
 	return lb

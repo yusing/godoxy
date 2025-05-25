@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -181,7 +181,7 @@ func TestNotificationConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var cfg NotificationConfig
 			provider := tt.cfg["provider"]
-			err := utils.MapUnmarshalValidate(tt.cfg, &cfg)
+			err := serialization.MapUnmarshalValidate(tt.cfg, &cfg)
 			if tt.wantErr {
 				ExpectHasError(t, err)
 			} else {

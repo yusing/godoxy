@@ -1,11 +1,14 @@
 package main
 
 import (
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/env"
 	"github.com/yusing/go-proxy/agent/pkg/server"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	httpServer "github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/task"
@@ -14,6 +17,12 @@ import (
 )
 
 func main() {
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: "01-02 15:04",
+	}
+	zerolog.TimeFieldFormat = writer.TimeFormat
+	log.Logger = zerolog.New(writer).Level(zerolog.InfoLevel).With().Timestamp().Logger()
 	ca := &agent.PEMPair{}
 	err := ca.Load(env.AgentCACert)
 	if err != nil {
@@ -34,11 +43,11 @@ func main() {
 		gperr.LogFatal("init SSL error", err)
 	}
 
-	logging.Info().Msgf("GoDoxy Agent version %s", pkg.GetVersion())
-	logging.Info().Msgf("Agent name: %s", env.AgentName)
-	logging.Info().Msgf("Agent port: %d", env.AgentPort)
+	log.Info().Msgf("GoDoxy Agent version %s", pkg.GetVersion())
+	log.Info().Msgf("Agent name: %s", env.AgentName)
+	log.Info().Msgf("Agent port: %d", env.AgentPort)
 
-	logging.Info().Msg(`
+	log.Info().Msg(`
 Tips:
 1. To change the agent name, you can set the AGENT_NAME environment variable.
 2. To change the agent port, you can set the AGENT_PORT environment variable.
@@ -54,7 +63,7 @@ Tips:
 	server.StartAgentServer(t, opts)
 
 	if socketproxy.ListenAddr != "" {
-		logging.Info().Msgf("Docker socket listening on: %s", socketproxy.ListenAddr)
+		log.Info().Msgf("Docker socket listening on: %s", socketproxy.ListenAddr)
 		opts := httpServer.Options{
 			Name:     "docker",
 			HTTPAddr: socketproxy.ListenAddr,

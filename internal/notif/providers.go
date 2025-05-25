@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
 	Provider interface {
-		utils.CustomValidator
+		serialization.CustomValidator
 
 		GetName() string
 		GetURL() string
@@ -73,7 +73,7 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent:
 		body, _ := io.ReadAll(resp.Body)
-		logging.Debug().
+		log.Debug().
 			Str("provider", provider.GetName()).
 			Str("url", provider.GetURL()).
 			Str("status", resp.Status).

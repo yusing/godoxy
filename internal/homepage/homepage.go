@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/yusing/go-proxy/internal/homepage/widgets"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
@@ -32,7 +32,7 @@ type (
 )
 
 func init() {
-	utils.RegisterDefaultValueFactory(func() *ItemConfig {
+	serialization.RegisterDefaultValueFactory(func() *ItemConfig {
 		return &ItemConfig{
 			Show: true,
 		}

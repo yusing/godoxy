@@ -1,4 +1,4 @@
-package utils
+package serialization
 
 import (
 	"encoding/json"
@@ -12,7 +12,9 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -40,14 +42,14 @@ var (
 
 var mapUnmarshalerType = reflect.TypeFor[MapUnmarshaller]()
 
-var defaultValues = functional.NewMapOf[reflect.Type, func() any]()
+var defaultValues = xsync.NewMapOf[reflect.Type, func() any]()
 
 func RegisterDefaultValueFactory[T any](factory func() *T) {
 	t := reflect.TypeFor[T]()
 	if t.Kind() == reflect.Ptr {
 		panic("pointer of pointer")
 	}
-	if defaultValues.Has(t) {
+	if _, ok := defaultValues.Load(t); ok {
 		panic("default value for " + t.String() + " already registered")
 	}
 	defaultValues.Store(t, func() any { return factory() })
@@ -259,7 +261,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 					errs.Add(err.Subject(k))
 				}
 			} else {
-				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(NearestField(k, mapping))))
+				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(utils.NearestField(k, mapping))))
 			}
 		}
 		if hasValidateTag && checkValidateTag {

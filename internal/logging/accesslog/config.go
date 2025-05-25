@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type (
@@ -126,6 +126,6 @@ func DefaultACLLoggerConfig() *ACLLoggerConfig {
 }
 
 func init() {
-	utils.RegisterDefaultValueFactory(DefaultRequestLoggerConfig)
-	utils.RegisterDefaultValueFactory(DefaultACLLoggerConfig)
+	serialization.RegisterDefaultValueFactory(DefaultRequestLoggerConfig)
+	serialization.RegisterDefaultValueFactory(DefaultACLLoggerConfig)
 }

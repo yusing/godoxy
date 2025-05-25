@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 func WriteBody(w http.ResponseWriter, body []byte) {
@@ -14,9 +14,9 @@ func WriteBody(w http.ResponseWriter, body []byte) {
 		switch {
 		case errors.Is(err, http.ErrHandlerTimeout),
 			errors.Is(err, context.DeadlineExceeded):
-			logging.Err(err).Msg("timeout writing body")
+			log.Err(err).Msg("timeout writing body")
 		default:
-			logging.Err(err).Msg("failed to write body")
+			log.Err(err).Msg("failed to write body")
 		}
 	}
 }

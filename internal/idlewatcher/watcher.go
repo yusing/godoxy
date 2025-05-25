@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
@@ -73,13 +73,13 @@ var dummyHealthCheckConfig = &health.HealthCheckConfig{
 }
 
 var (
-	causeReload           = gperr.New("reloaded")
-	causeContainerDestroy = gperr.New("container destroyed")
+	causeReload           = gperr.New("reloaded")            //nolint:errname
+	causeContainerDestroy = gperr.New("container destroyed") //nolint:errname
 )
 
 const reqTimeout = 3 * time.Second
 
-// TODO: fix stream type
+// TODO: fix stream type.
 func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	cfg := r.IdlewatcherConfig()
 	key := cfg.Key()
@@ -120,7 +120,7 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 		return nil, err
 	}
 	w.provider = p
-	w.l = logging.With().
+	w.l = log.With().
 		Str("provider", providerType).
 		Str("container", cfg.ContainerName()).
 		Logger()

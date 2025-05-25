@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
@@ -48,7 +48,7 @@ func NewMonitor(r routes.Route) health.HealthMonCheck {
 		case routes.StreamRoute:
 			mon = NewRawHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
 		default:
-			logging.Panic().Msgf("unexpected route type: %T", r)
+			log.Panic().Msgf("unexpected route type: %T", r)
 		}
 	}
 	if r.IsDocker() {
@@ -91,7 +91,7 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	mon.task = parent.Subtask("health_monitor", true)
 
 	go func() {
-		logger := logging.With().Str("name", mon.service).Logger()
+		logger := log.With().Str("name", mon.service).Logger()
 
 		defer func() {
 			if mon.status.Load() != health.StatusError {
@@ -221,7 +221,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 }
 
 func (mon *monitor) checkUpdateHealth() error {
-	logger := logging.With().Str("name", mon.Name()).Logger()
+	logger := log.With().Str("name", mon.Name()).Logger()
 	result, err := mon.checkHealth()
 
 	var lastStatus health.Status

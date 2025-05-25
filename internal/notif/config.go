@@ -2,7 +2,7 @@ package notif
 
 import (
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 )
 
 type NotificationConfig struct {
@@ -46,5 +46,5 @@ func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) 
 			Withf("expect %s or %s", ProviderWebhook, ProviderGotify)
 	}
 
-	return utils.MapUnmarshalValidate(m, cfg.Provider)
+	return serialization.MapUnmarshalValidate(m, cfg.Provider)
 }

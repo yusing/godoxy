@@ -2,14 +2,16 @@ package expect
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/go-proxy/internal/common"
 )
 
+var isTest = strings.HasSuffix(os.Args[0], ".test")
+
 func init() {
-	if common.IsTest {
+	if isTest {
 		// force verbose output
 		os.Args = append([]string{os.Args[0], "-test.v"}, os.Args[1:]...)
 	}

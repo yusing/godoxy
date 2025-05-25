@@ -7,7 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/go-proxy/internal/serialization"
 	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	utils.MustRegisterValidation("status_code", func(fl validator.FieldLevel) bool {
+	serialization.MustRegisterValidation("status_code", func(fl validator.FieldLevel) bool {
 		statusCode := fl.Field().Int()
 		return gphttp.IsStatusCodeValid(int(statusCode))
 	})
@@ -60,7 +60,7 @@ func (wl *cidrWhitelist) checkIP(w http.ResponseWriter, r *http.Request) bool {
 			ipStr = r.RemoteAddr
 		}
 		ip := net.ParseIP(ipStr)
-		for _, cidr := range wl.CIDRWhitelistOpts.Allow {
+		for _, cidr := range wl.Allow {
 			if cidr.Contains(ip) {
 				wl.cachedAddr.Store(r.RemoteAddr, true)
 				allow = true
@@ -70,7 +70,7 @@ func (wl *cidrWhitelist) checkIP(w http.ResponseWriter, r *http.Request) bool {
 		}
 		if !allow {
 			wl.cachedAddr.Store(r.RemoteAddr, false)
-			wl.AddTracef("client %s is forbidden", ipStr).With("allowed CIDRs", wl.CIDRWhitelistOpts.Allow)
+			wl.AddTracef("client %s is forbidden", ipStr).With("allowed CIDRs", wl.Allow)
 		}
 	}
 	if !allow {

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging"
 	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -83,6 +83,9 @@ func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
 	if err != nil {
 		return nil, err
 	}
+	if io == nil {
+		return nil, nil //nolint:nilnil
+	}
 	return NewAccessLoggerWithIO(parent, io, cfg), nil
 }
 
@@ -120,7 +123,7 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		bufSize:        MinBufferSize,
 		lineBufPool:    synk.NewBytesPool(),
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
-		logger:         logging.With().Str("file", writer.Name()).Logger(),
+		logger:         log.With().Str("file", writer.Name()).Logger(),
 	}
 
 	l.supportRotate = unwrap[supportRotate](writer)
@@ -181,7 +184,7 @@ func (l *AccessLogger) LogError(req *http.Request, err error) {
 func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
 	line := l.lineBufPool.Get()
 	defer l.lineBufPool.Put(line)
-	line = l.ACLFormatter.AppendACLLog(line, info, blocked)
+	line = l.AppendACLLog(line, info, blocked)
 	if line[len(line)-1] != '\n' {
 		line = append(line, '\n')
 	}
@@ -194,7 +197,7 @@ func (l *AccessLogger) ShouldRotate() bool {
 
 func (l *AccessLogger) Rotate() (result *RotateResult, err error) {
 	if !l.ShouldRotate() {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	l.writer.Flush()
