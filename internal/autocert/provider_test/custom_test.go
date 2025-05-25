@@ -166,6 +166,7 @@ func newTestACMEServer(t *testing.T) *testACMEServer {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
 		IsCA:                  true,
@@ -190,7 +191,17 @@ func newTestACMEServer(t *testing.T) *testACMEServer {
 	mux := http.NewServeMux()
 	acme.setupRoutes(mux)
 
-	acme.server = httptest.NewTLSServer(mux)
+	acme.server = httptest.NewUnstartedServer(mux)
+	acme.server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{
+			{
+				Certificate: [][]byte{caCert.Raw},
+				PrivateKey:  caKey,
+			},
+		},
+		MinVersion: tls.VersionTLS12,
+	}
+	acme.server.StartTLS()
 	return acme
 }
 
@@ -203,6 +214,9 @@ func (s *testACMEServer) URL() string {
 }
 
 func (s *testACMEServer) httpClient() *http.Client {
+	certPool := x509.NewCertPool()
+	certPool.AddCert(s.caCert)
+
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
@@ -212,7 +226,8 @@ func (s *testACMEServer) httpClient() *http.Client {
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint:gosec
+				RootCAs:    certPool,
+				MinVersion: tls.VersionTLS12,
 			},
 		},
 	}
