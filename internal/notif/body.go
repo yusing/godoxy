@@ -86,7 +86,7 @@ func (f FieldsBody) Format(format *LogFormat) ([]byte, error) {
 	case LogFormatRawJSON:
 		return json.Marshal(f)
 	}
-	return nil, fmt.Errorf("unknown format: %v", format)
+	return f.Format(LogFormatMarkdown)
 }
 
 func (l ListBody) Format(format *LogFormat) ([]byte, error) {
@@ -104,7 +104,7 @@ func (l ListBody) Format(format *LogFormat) ([]byte, error) {
 	case LogFormatRawJSON:
 		return json.Marshal(l)
 	}
-	return nil, fmt.Errorf("unknown format: %v", format)
+	return l.Format(LogFormatMarkdown)
 }
 
 func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
@@ -114,13 +114,13 @@ func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
 	case LogFormatRawJSON:
 		return json.Marshal(m)
 	}
-	return nil, fmt.Errorf("unknown format: %v", format)
+	return m.Format(LogFormatMarkdown)
 }
 
 func (e ErrorBody) Format(format *LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
-		return json.Marshal(e)
+		return json.Marshal(e.Error)
 	case LogFormatPlain:
 		return gperr.Plain(e.Error), nil
 	case LogFormatMarkdown:
