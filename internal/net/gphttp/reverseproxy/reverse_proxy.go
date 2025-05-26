@@ -271,7 +271,7 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	req.Header.Del("Forwarded")
+	outreq.Header.Del("Forwarded")
 	httpheaders.RemoveHopByHopHeaders(outreq.Header)
 
 	// Issue 21096: tell backend applications that care about trailer support
@@ -312,7 +312,7 @@ func (p *ReverseProxy) handler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	var reqScheme string
-	if req.TLS != nil {
+	if req.TLS != nil || req.Header.Get("X-Forwarded-Proto") == "https" {
 		reqScheme = "https"
 	} else {
 		reqScheme = "http"

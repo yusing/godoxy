@@ -33,8 +33,14 @@ func (mr *ModifyRequestOpts) finalize() {
 func (mr *modifyRequest) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	mr.AddTraceRequest("before modify request", r)
 
-	mr.addPrefix(r, nil, r.URL.Path)
-	mr.modifyHeaders(r, nil, r.Header)
+	if len(mr.AddPrefix) != 0 {
+		mr.addPrefix(r, r.URL.Path)
+	}
+	if !mr.needVarSubstitution {
+		mr.modifyHeaders(r, r.Header)
+	} else {
+		mr.modifyHeadersWithVarSubstitution(r, nil, r.Header)
+	}
 	mr.AddTraceRequest("after modify request", r)
 	return true
 }
@@ -50,42 +56,40 @@ func (mr *ModifyRequestOpts) checkVarSubstitution() {
 	}
 }
 
-func (mr *ModifyRequestOpts) modifyHeaders(req *http.Request, resp *http.Response, headers http.Header) {
-	if !mr.needVarSubstitution {
-		for k, v := range mr.SetHeaders {
-			if req != nil && strings.EqualFold(k, "host") {
-				defer func() {
-					req.Host = v
-				}()
-			}
-			headers[k] = []string{v}
+func (mr *ModifyRequestOpts) modifyHeaders(req *http.Request, headers http.Header) {
+	for k, v := range mr.SetHeaders {
+		if req != nil && strings.EqualFold(k, "host") {
+			defer func() {
+				req.Host = v
+			}()
 		}
-		for k, v := range mr.AddHeaders {
-			headers[k] = append(headers[k], v)
-		}
-	} else {
-		for k, v := range mr.SetHeaders {
-			if req != nil && strings.EqualFold(k, "host") {
-				defer func() {
-					req.Host = varReplace(req, resp, v)
-				}()
-			}
-			headers[k] = []string{varReplace(req, resp, v)}
-		}
-		for k, v := range mr.AddHeaders {
-			headers[k] = append(headers[k], varReplace(req, resp, v))
-		}
+		headers[k] = []string{v}
 	}
-
+	for k, v := range mr.AddHeaders {
+		headers[k] = append(headers[k], v)
+	}
 	for _, k := range mr.HideHeaders {
 		delete(headers, k)
 	}
 }
 
-func (mr *modifyRequest) addPrefix(r *http.Request, _ *http.Response, path string) {
-	if len(mr.AddPrefix) == 0 {
-		return
+func (mr *ModifyRequestOpts) modifyHeadersWithVarSubstitution(req *http.Request, resp *http.Response, headers http.Header) {
+	for k, v := range mr.SetHeaders {
+		if req != nil && strings.EqualFold(k, "host") {
+			defer func() {
+				req.Host = varReplace(req, resp, v)
+			}()
+		}
+		headers[k] = []string{varReplace(req, resp, v)}
 	}
+	for k, v := range mr.AddHeaders {
+		headers[k] = append(headers[k], varReplace(req, resp, v))
+	}
+	for _, k := range mr.HideHeaders {
+		delete(headers, k)
+	}
+}
 
+func (mr *modifyRequest) addPrefix(r *http.Request, path string) {
 	r.URL.Path = filepath.Join(mr.AddPrefix, path)
 }
