@@ -117,13 +117,13 @@ func Reload() gperr.Error {
 	newCfg := newConfig()
 	err := newCfg.load()
 	if err != nil {
-		newCfg.task.Finish(err)
+		newCfg.task.FinishAndWait(err)
 		return gperr.New(ansi.Warning("using last config")).With(err)
 	}
 
 	// cancel all current subtasks -> wait
 	// -> replace config -> start new subtasks
-	config.GetInstance().(*Config).Task().Finish("config changed")
+	config.GetInstance().(*Config).Task().FinishAndWait("config changed")
 	newCfg.Start(StartAllServers)
 	config.SetInstance(newCfg)
 	return nil

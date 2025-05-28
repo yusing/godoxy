@@ -100,18 +100,21 @@ func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
 func (p *Provider) Start(parent task.Parent) gperr.Error {
 	t := parent.Subtask("provider."+p.String(), false)
 
+	routesTask := t.Subtask("routes", false)
 	errs := gperr.NewBuilder("routes error")
 	for _, r := range p.routes {
-		errs.Add(p.startRoute(t, r))
+		errs.Add(p.startRoute(routesTask, r))
 	}
 
 	eventQueue := events.NewEventQueue(
 		t.Subtask("event_queue", false),
 		providerEventFlushInterval,
 		func(events []events.Event) {
+			routesTask.FinishAndWait("reload routes")
+			routesTask = t.Subtask("routes", false)
 			handler := p.newEventHandler()
 			// routes' lifetime should follow the provider's lifetime
-			handler.Handle(t, events)
+			handler.Handle(routesTask, events)
 			handler.Log()
 		},
 		func(err gperr.Error) {

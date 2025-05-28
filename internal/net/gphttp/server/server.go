@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -105,7 +107,7 @@ func (s *Server) Start(parent task.Parent) {
 		}
 		Start(subtask, h3, s.acl, &s.l)
 		if s.http != nil {
-		s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+			s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
 		}
 		// s.https is not nil (checked above)
 		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
@@ -115,7 +117,7 @@ func (s *Server) Start(parent task.Parent) {
 	Start(subtask, s.https, s.acl, &s.l)
 }
 
-func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, logger *zerolog.Logger) {
+func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, logger *zerolog.Logger) (port int) {
 	if srv == nil {
 		return
 	}
@@ -138,6 +140,7 @@ func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, l
 			HandleError(logger, err, "failed to listen on port")
 			return
 		}
+		port = l.Addr().(*net.TCPAddr).Port
 		if srv.TLSConfig != nil {
 			l = tls.NewListener(l, srv.TLSConfig)
 		}
@@ -145,32 +148,36 @@ func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, l
 			l = acl.WrapTCP(l)
 		}
 		serveFunc = getServeFunc(l, srv.Serve)
+		task.OnCancel("stop", func() {
+			stop(srv, l, logger)
+		})
 	case *http3.Server:
 		l, err := lc.ListenPacket(task.Context(), "udp", srv.Addr)
 		if err != nil {
 			HandleError(logger, err, "failed to listen on port")
 			return
 		}
+		port = l.LocalAddr().(*net.UDPAddr).Port
 		if acl != nil {
 			l = acl.WrapUDP(l)
 		}
 		serveFunc = getServeFunc(l, srv.Serve)
+		task.OnCancel("stop", func() {
+			stop(srv, l, logger)
+		})
 	}
-	task.OnCancel("stop", func() {
-		stop(srv, logger)
-	})
 	logStarted(srv, logger)
 	go func() {
 		err := convertError(serveFunc())
 		if err != nil {
-		HandleError(logger, err, "failed to serve "+proto+" server")
+			HandleError(logger, err, "failed to serve "+proto+" server")
 		}
 		task.Finish(err)
 	}()
 	return port
 }
 
-func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
+func stop[Server httpServer](srv Server, l io.Closer, logger *zerolog.Logger) {
 	if srv == nil {
 		return
 	}
@@ -180,7 +187,7 @@ func stop[Server httpServer](srv Server, logger *zerolog.Logger) {
 	ctx, cancel := context.WithTimeout(task.RootContext(), 1*time.Second)
 	defer cancel()
 
-	if err := convertError(srv.Shutdown(ctx)); err != nil {
+	if err := convertError(errors.Join(srv.Shutdown(ctx), l.Close())); err != nil {
 		HandleError(logger, err, "failed to shutdown "+proto+" server")
 	} else {
 		logger.Info().Str("proto", proto).Str("addr", addr(srv)).Msg("server stopped")

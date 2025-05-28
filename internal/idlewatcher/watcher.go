@@ -92,7 +92,7 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 			// same address, likely two routes from the same container
 			return w, nil
 		}
-		w.task.Finish(causeReload)
+		w.task.FinishAndWait(causeReload)
 	}
 	watcherMapMu.RUnlock()
 
@@ -156,14 +156,15 @@ func NewWatcher(parent task.Parent, r routes.Route) (*Watcher, error) {
 	w.task = parent.Subtask("idlewatcher."+r.Name(), true)
 
 	watcherMapMu.Lock()
-	defer watcherMapMu.Unlock()
 	watcherMap[key] = w
+	watcherMapMu.Unlock()
+
 	go func() {
 		cause := w.watchUntilDestroy()
 		if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) {
 			watcherMapMu.Lock()
-			defer watcherMapMu.Unlock()
 			delete(watcherMap, key)
+			watcherMapMu.Unlock()
 			w.l.Info().Msg("idlewatcher stopped")
 		} else if !errors.Is(cause, causeReload) {
 			gperr.LogError("idlewatcher stopped unexpectedly", cause, &w.l)

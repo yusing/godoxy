@@ -8,45 +8,59 @@ import (
 )
 
 // debug only.
-func (t *Task) listStuckedCallbacks() []string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	callbacks := make([]string, 0, len(t.callbacksOnFinish))
-	for c := range t.callbacksOnFinish {
-		callbacks = append(callbacks, c.about)
+func listStuckedCallbacks(t *Task) []string {
+	callbacks := make([]string, 0)
+	if t.onFinish != nil {
+		for c := range t.onFinish.Range {
+			callbacks = append(callbacks, c.about)
+		}
+	}
+	if t.onCancel != nil {
+		for c := range t.onCancel.Range {
+			callbacks = append(callbacks, c.about)
+		}
+	}
+	if t.children != nil {
+		for c := range t.children.Range {
+			callbacks = append(callbacks, listStuckedCallbacks(c)...)
+		}
 	}
 	return callbacks
 }
 
 // debug only.
-func (t *Task) listStuckedChildren() []string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	children := make([]string, 0, len(t.children))
-	for c := range t.children {
-		if c.isFinished() {
-			continue
+func listStuckedChildren(t *Task) []string {
+	if t.children != nil {
+		children := make([]string, 0)
+		for c := range t.children.Range {
+			children = append(children, c.String())
+			children = append(children, listStuckedCallbacks(c)...)
 		}
-		children = append(children, c.String())
-		if len(c.children) > 0 {
-			children = append(children, c.listStuckedChildren()...)
-		}
+		return children
 	}
-	return children
+	return nil
 }
 
 func (t *Task) reportStucked() {
-	callbacks := t.listStuckedCallbacks()
-	children := t.listStuckedChildren()
+	callbacks := listStuckedCallbacks(t)
+	children := listStuckedChildren(t)
 	if len(callbacks) == 0 && len(children) == 0 {
 		return
 	}
 	fmtOutput := gperr.NewBuilder(fmt.Sprintf("%s stucked callbacks: %d, stucked children: %d", t.String(), len(callbacks), len(children)))
 	if len(callbacks) > 0 {
-		fmtOutput.Add(gperr.New("callbacks").With(gperr.Multiline().AddLinesString(callbacks...)))
+		callbackBuilder := gperr.NewBuilder("callbacks")
+		for _, c := range callbacks {
+			callbackBuilder.Adds(c)
+		}
+		fmtOutput.Add(callbackBuilder.Error())
 	}
 	if len(children) > 0 {
-		fmtOutput.Add(gperr.New("children").With(gperr.Multiline().AddLinesString(children...)))
+		childrenBuilder := gperr.NewBuilder("children")
+		for _, c := range children {
+			childrenBuilder.Adds(c)
+		}
+		fmtOutput.Add(childrenBuilder.Error())
 	}
 	log.Warn().Msg(fmtOutput.String())
 }

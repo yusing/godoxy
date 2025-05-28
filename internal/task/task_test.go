@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func testTask() *Task {
@@ -35,7 +35,7 @@ func TestChildTaskCancellation(t *testing.T) {
 
 	select {
 	case <-child.Context().Done():
-		ExpectError(t, context.Canceled, child.Context().Err())
+		expect.ErrorIs(t, context.Canceled, child.Context().Err())
 	default:
 		t.Fatal("subTask context was not canceled as expected")
 	}
@@ -80,10 +80,10 @@ func TestTaskOnCancelOnFinished(t *testing.T) {
 		shouldTrueOnFinish = true
 	})
 
-	ExpectFalse(t, shouldTrueOnFinish)
+	expect.False(t, shouldTrueOnFinish)
 	task.Finish(nil)
-	ExpectTrue(t, shouldTrueOnCancel)
-	ExpectTrue(t, shouldTrueOnFinish)
+	expect.True(t, shouldTrueOnCancel)
+	expect.True(t, shouldTrueOnFinish)
 }
 
 func TestCommonFlowWithGracefulShutdown(t *testing.T) {
@@ -108,29 +108,28 @@ func TestCommonFlowWithGracefulShutdown(t *testing.T) {
 		}
 	}()
 
-	ExpectNoError(t, gracefulShutdown(1*time.Second))
-	time.Sleep(100 * time.Millisecond)
-	ExpectTrue(t, finished)
+	expect.NoError(t, gracefulShutdown(1*time.Second))
+	expect.True(t, finished)
 
-	ExpectTrue(t, root.waitFinish(1*time.Second))
-	ExpectError(t, context.Canceled, context.Cause(task.Context()))
-	ExpectError(t, ErrProgramExiting, task.Context().Err())
-	ExpectError(t, ErrProgramExiting, task.FinishCause())
+	expect.ErrorIs(t, ErrProgramExiting, context.Cause(task.Context()))
+	expect.ErrorIs(t, context.Canceled, task.Context().Err())
+	expect.ErrorIs(t, ErrProgramExiting, task.FinishCause())
 }
 
 func TestTimeoutOnGracefulShutdown(t *testing.T) {
 	t.Cleanup(testCleanup)
 	_ = testTask()
 
-	ExpectError(t, context.DeadlineExceeded, gracefulShutdown(time.Millisecond))
+	expect.ErrorIs(t, context.DeadlineExceeded, gracefulShutdown(time.Millisecond))
 }
 
 func TestFinishMultipleCalls(t *testing.T) {
 	t.Cleanup(testCleanup)
 	task := testTask()
 	var wg sync.WaitGroup
-	wg.Add(5)
-	for range 5 {
+	n := 20
+	wg.Add(n)
+	for range n {
 		go func() {
 			defer wg.Done()
 			task.Finish(nil)
@@ -157,8 +156,8 @@ func BenchmarkTasksNeedFinish(b *testing.B) {
 
 func BenchmarkContextWithCancel(b *testing.B) {
 	for b.Loop() {
-		task, taskCancel := context.WithCancel(b.Context())
-		taskCancel()
+		task, taskCancel := context.WithCancelCause(b.Context())
+		taskCancel(nil)
 		<-task.Done()
 	}
 }

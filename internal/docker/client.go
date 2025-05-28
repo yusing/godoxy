@@ -58,20 +58,16 @@ func initClientCleaner() {
 			case <-ticker.C:
 				closeTimedOutClients()
 			case <-cleaner.Context().Done():
+				clientMapMu.Lock()
+				for _, c := range clientMap {
+					delete(clientMap, c.Key())
+					c.Client.Close()
+				}
+				clientMapMu.Unlock()
 				return
 			}
 		}
 	}()
-
-	task.OnProgramExit("docker_clients_cleanup", func() {
-		clientMapMu.Lock()
-		defer clientMapMu.Unlock()
-
-		for _, c := range clientMap {
-			delete(clientMap, c.Key())
-			c.Client.Close()
-		}
-	})
 }
 
 func closeTimedOutClients() {

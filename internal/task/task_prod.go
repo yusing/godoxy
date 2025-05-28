@@ -6,10 +6,6 @@ func panicWithDebugStack() {
 	// do nothing
 }
 
-func panicIfFinished(t *Task, reason string) {
-	// do nothing
-}
-
 func logStarted(t *Task) {
 	// do nothing
 }
