@@ -34,11 +34,16 @@ type (
 	City   = maxmind.City
 )
 
-var (
+const (
 	updateInterval = 24 * time.Hour
-	httpClient     = &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	updateTimeout  = 10 * time.Second
+)
+
+var httpClient = &http.Client{
+	Timeout: updateTimeout,
+}
+
+var (
 	ErrResponseNotOK   = gperr.New("response not OK")
 	ErrDownloadFailure = gperr.New("download failure")
 )
