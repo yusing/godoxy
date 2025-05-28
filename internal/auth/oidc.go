@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
 )
 
 type (
@@ -162,6 +163,8 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+var rateLimit = rate.NewLimiter(rate.Every(time.Second), 1)
+
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// check for session token
 	sessionToken, err := r.Cookie(CookieOauthSessionToken)
@@ -179,6 +182,11 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Err(err).Msg("failed to refresh token")
 		auth.clearCookie(w, r)
 		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	if !rateLimit.Allow() {
+		http.Error(w, "auth rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 
