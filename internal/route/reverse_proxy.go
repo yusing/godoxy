@@ -55,6 +55,9 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		if httpConfig.ResponseHeaderTimeout > 0 {
 			trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
 		}
+		if httpConfig.DisableCompression {
+			trans.DisableCompression = true
+		}
 	}
 
 	service := base.Name()
