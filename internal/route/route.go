@@ -227,7 +227,7 @@ func (r *Route) Finish(reason any) {
 	if r.impl == nil {
 		return
 	}
-	r.impl.Finish(reason)
+	r.impl.Task().FinishAndWait(reason)
 	r.impl = nil
 }
 

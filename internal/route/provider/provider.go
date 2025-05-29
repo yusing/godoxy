@@ -110,8 +110,6 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 		t.Subtask("event_queue", false),
 		providerEventFlushInterval,
 		func(events []events.Event) {
-			routesTask.FinishAndWait("reload routes")
-			routesTask = t.Subtask("routes", false)
 			handler := p.newEventHandler()
 			// routes' lifetime should follow the provider's lifetime
 			handler.Handle(routesTask, events)
