@@ -49,7 +49,7 @@ func TestTaskStuck(t *testing.T) {
 	})
 	done := make(chan struct{})
 	go func() {
-		task.Finish(nil)
+		task.FinishAndWait(nil)
 		close(done)
 	}()
 	time.Sleep(time.Millisecond * 100)
@@ -81,7 +81,7 @@ func TestTaskOnCancelOnFinished(t *testing.T) {
 	})
 
 	expect.False(t, shouldTrueOnFinish)
-	task.Finish(nil)
+	task.FinishAndWait(nil)
 	expect.True(t, shouldTrueOnCancel)
 	expect.True(t, shouldTrueOnFinish)
 }
@@ -97,7 +97,7 @@ func TestCommonFlowWithGracefulShutdown(t *testing.T) {
 	})
 
 	go func() {
-		defer task.Finish(nil)
+		defer task.FinishAndWait(nil)
 		for {
 			select {
 			case <-task.Context().Done():
