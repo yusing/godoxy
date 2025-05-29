@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -16,7 +17,15 @@ var (
 )
 
 func IsFrontend(r *http.Request) bool {
-	return r.Host == common.APIHTTPAddr
+	return requestRemoteIP(r) == "127.0.0.1"
+}
+
+func requestRemoteIP(r *http.Request) string {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return ""
+	}
+	return ip
 }
 
 func requestHost(r *http.Request) string {

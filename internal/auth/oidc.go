@@ -193,7 +193,13 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	state := generateState()
 	SetTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
 	// redirect user to Idp
-	http.Redirect(w, r, auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r)), http.StatusFound)
+	url := auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r))
+	if IsFrontend(r) {
+		w.Header().Set("X-Redirect-To", url)
+		w.WriteHeader(http.StatusForbidden)
+	} else {
+		http.Redirect(w, r, url, http.StatusFound)
+	}
 }
 
 func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
