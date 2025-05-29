@@ -13,7 +13,6 @@ type (
 	requestMap  = map[string]*rate.Limiter
 	rateLimiter struct {
 		RateLimiterOpts
-		Tracer
 
 		requestMap requestMap
 		mu         sync.Mutex
@@ -51,7 +50,6 @@ func (rl *rateLimiter) newLimiter() *rate.Limiter {
 func (rl *rateLimiter) limit(w http.ResponseWriter, r *http.Request) bool {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		rl.AddTracef("unable to parse remote address %s", r.RemoteAddr)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return false
 	}

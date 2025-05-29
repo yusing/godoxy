@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
@@ -52,10 +51,6 @@ type (
 	MiddlewareFinalizerWithError interface {
 		finalize() error
 	}
-	MiddlewareWithTracer interface {
-		enableTrace()
-		getTracer() *Tracer
-	}
 )
 
 const DefaultPriority = 10
@@ -81,26 +76,6 @@ func NewMiddleware[ImplType any]() *Middleware {
 	return &Middleware{
 		name:      strings.ToLower(reflect.TypeFor[ImplType]().Name()),
 		construct: func() any { return new(ImplType) },
-	}
-}
-
-func (m *Middleware) enableTrace() {
-	if tracer, ok := m.impl.(MiddlewareWithTracer); ok {
-		tracer.enableTrace()
-		log.Trace().Msgf("middleware %s enabled trace", m.name)
-	}
-}
-
-func (m *Middleware) getTracer() *Tracer {
-	if tracer, ok := m.impl.(MiddlewareWithTracer); ok {
-		return tracer.getTracer()
-	}
-	return nil
-}
-
-func (m *Middleware) setParent(parent *Middleware) {
-	if tracer := m.getTracer(); tracer != nil {
-		tracer.SetParent(parent.getTracer())
 	}
 }
 

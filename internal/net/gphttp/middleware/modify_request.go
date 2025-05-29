@@ -9,7 +9,6 @@ import (
 type (
 	modifyRequest struct {
 		ModifyRequestOpts
-		Tracer
 	}
 	// order: add_prefix -> set_headers -> add_headers -> hide_headers
 	ModifyRequestOpts struct {
@@ -31,8 +30,6 @@ func (mr *ModifyRequestOpts) finalize() {
 
 // before implements RequestModifier.
 func (mr *modifyRequest) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	mr.AddTraceRequest("before modify request", r)
-
 	if len(mr.AddPrefix) != 0 {
 		mr.addPrefix(r, r.URL.Path)
 	}
@@ -41,7 +38,6 @@ func (mr *modifyRequest) before(w http.ResponseWriter, r *http.Request) (proceed
 	} else {
 		mr.modifyHeadersWithVarSubstitution(r, nil, r.Header)
 	}
-	mr.AddTraceRequest("after modify request", r)
 	return true
 }
 

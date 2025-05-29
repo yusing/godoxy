@@ -3,7 +3,6 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/gperr"
 )
 
@@ -24,14 +23,6 @@ func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 		if mr, ok := comp.impl.(ResponseModifier); ok {
 			chainMid.modResps = append(chainMid.modResps, mr)
 		}
-		comp.setParent(m)
-	}
-
-	if common.IsTrace {
-		for _, child := range chain {
-			child.enableTrace()
-		}
-		m.enableTrace()
 	}
 	return m
 }

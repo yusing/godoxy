@@ -14,7 +14,6 @@ import (
 type (
 	cidrWhitelist struct {
 		CIDRWhitelistOpts
-		Tracer
 		cachedAddr F.Map[string, bool] // cache for trusted IPs
 	}
 	CIDRWhitelistOpts struct {
@@ -64,13 +63,11 @@ func (wl *cidrWhitelist) checkIP(w http.ResponseWriter, r *http.Request) bool {
 			if cidr.Contains(ip) {
 				wl.cachedAddr.Store(r.RemoteAddr, true)
 				allow = true
-				wl.AddTracef("client %s is allowed", ipStr).With("allowed CIDR", cidr)
 				break
 			}
 		}
 		if !allow {
 			wl.cachedAddr.Store(r.RemoteAddr, false)
-			wl.AddTracef("client %s is forbidden", ipStr).With("allowed CIDRs", wl.Allow)
 		}
 	}
 	if !allow {

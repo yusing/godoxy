@@ -11,10 +11,7 @@ import (
 // https://nginx.org/en/docs/http/ngx_http_realip_module.html
 
 type (
-	realIP struct {
-		RealIPOpts
-		Tracer
-	}
+	realIP     RealIPOpts
 	RealIPOpts struct {
 		// Header is the name of the header to use for the real client IP
 		Header string `validate:"required"`
@@ -42,7 +39,7 @@ var (
 
 // setup implements MiddlewareWithSetup.
 func (ri *realIP) setup() {
-	ri.RealIPOpts = realIPOptsDefault
+	*ri = realIP(realIPOptsDefault)
 }
 
 // before implements RequestModifier.
@@ -77,7 +74,6 @@ func (ri *realIP) setRealIP(req *http.Request) {
 		}
 	}
 	if !isTrusted {
-		ri.AddTracef("client ip %s is not trusted", clientIP).With("allowed CIDRs", ri.From)
 		return
 	}
 
@@ -90,7 +86,6 @@ func (ri *realIP) setRealIP(req *http.Request) {
 	}
 
 	if len(realIPs) == 0 {
-		ri.AddTracef("no real ip found in header %s", ri.Header).WithRequest(req)
 		return
 	}
 
@@ -105,12 +100,10 @@ func (ri *realIP) setRealIP(req *http.Request) {
 	}
 
 	if lastNonTrustedIP == "" {
-		ri.AddTracef("no non-trusted ip found").With("allowed CIDRs", ri.From).With("ips", realIPs)
 		return
 	}
 
 	req.RemoteAddr = lastNonTrustedIP
 	req.Header.Set(ri.Header, lastNonTrustedIP)
 	req.Header.Set(httpheaders.HeaderXRealIP, lastNonTrustedIP)
-	ri.AddTracef("set real ip %s", lastNonTrustedIP)
 }

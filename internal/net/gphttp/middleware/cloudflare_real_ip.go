@@ -45,7 +45,7 @@ var CloudflareRealIP = NewMiddleware[cloudflareRealIP]()
 
 // setup implements MiddlewareWithSetup.
 func (cri *cloudflareRealIP) setup() {
-	cri.realIP.RealIPOpts = RealIPOpts{
+	cri.realIP = realIP{
 		Header:    "CF-Connecting-IP",
 		Recursive: true,
 	}
@@ -58,14 +58,6 @@ func (cri *cloudflareRealIP) before(w http.ResponseWriter, r *http.Request) bool
 		cri.realIP.From = cidrs
 	}
 	return cri.realIP.before(w, r)
-}
-
-func (cri *cloudflareRealIP) enableTrace() {
-	cri.realIP.enableTrace()
-}
-
-func (cri *cloudflareRealIP) getTracer() *Tracer {
-	return cri.realIP.getTracer()
 }
 
 func tryFetchCFCIDR() (cfCIDRs []*types.CIDR) {

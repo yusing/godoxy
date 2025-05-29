@@ -71,7 +71,6 @@ func TestSetRealIP(t *testing.T) {
 
 	result, err := newMiddlewareTest(mid, nil)
 	ExpectNoError(t, err)
-	t.Log(traces)
 	ExpectEqual(t, result.ResponseStatus, http.StatusOK)
 	ExpectEqual(t, strings.Split(result.RemoteAddr, ":")[0], testRealIP)
 }
