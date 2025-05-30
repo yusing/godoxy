@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/watcher/health"
@@ -57,6 +58,7 @@ func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *health.HealthCh
 }
 
 func (mon *AgentProxiedMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
+	startTime := time.Now()
 	result = new(health.HealthCheckResult)
 	ctx, cancel := mon.ContextWithTimeout("timeout querying agent")
 	defer cancel()
@@ -64,11 +66,16 @@ func (mon *AgentProxiedMonitor) CheckHealth() (result *health.HealthCheckResult,
 	if err != nil {
 		return result, err
 	}
+	endTime := time.Now()
 	switch status {
 	case http.StatusOK:
 		err = json.Unmarshal(data, result)
 	default:
 		err = errors.New(string(data))
+	}
+	if err == nil && result.Latency != 0 {
+		// use godoxy to agent latency
+		result.Latency = endTime.Sub(startTime)
 	}
 	return
 }
