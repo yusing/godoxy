@@ -17,7 +17,7 @@ replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
 	github.com/coreos/go-oidc/v3 v3.14.1 // oidc authentication
-	github.com/docker/docker v28.1.1+incompatible // docker daemon
+	github.com/docker/docker v28.2.1+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/go-acme/lego/v4 v4.23.1 // acme client
 	github.com/go-playground/validator/v10 v10.26.0 // validator
@@ -36,8 +36,8 @@ require (
 )
 
 require (
-	github.com/docker/cli v28.1.1+incompatible
-	github.com/goccy/go-yaml v1.17.1 // yaml parsing for different config files
+	github.com/docker/cli v28.2.1+incompatible
+	github.com/goccy/go-yaml v1.18.0 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/luthermonson/go-proxmox v0.2.2
 	github.com/oschwald/maxminddb-golang v1.13.1
@@ -45,8 +45,8 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.14.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy/agent v0.0.0-00010101000000-000000000000
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-00010101000000-000000000000
+	github.com/yusing/go-proxy/agent v0.0.0-20250529124236-93a81fd558e6
+	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250529124236-93a81fd558e6
 	github.com/yusing/go-proxy/internal/utils v0.0.0
 )
 
@@ -82,7 +82,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19 // indirect
 	github.com/aws/smithy-go v1.22.3 // indirect
-	github.com/baidubce/bce-sdk-go v0.9.228 // indirect
+	github.com/baidubce/bce-sdk-go v0.9.229 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/boombuler/barcode v1.0.2 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
@@ -97,14 +97,14 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
-	github.com/exoscale/egoscale/v3 v3.1.18 // indirect
+	github.com/exoscale/egoscale/v3 v3.1.20 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -126,7 +126,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
-	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.150 // indirect
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.152 // indirect
 	github.com/iij/doapi v0.0.0-20190504054126-0bbf12d6d7df // indirect
 	github.com/infobloxopen/infoblox-go-client/v2 v2.10.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -138,7 +138,7 @@ require (
 	github.com/labbsr0x/bindman-dns-webhook v1.0.2 // indirect
 	github.com/labbsr0x/goh v1.0.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/linode/linodego v1.51.0 // indirect
+	github.com/linode/linodego v1.52.0 // indirect
 	github.com/liquidweb/liquidweb-cli v0.7.0 // indirect
 	github.com/liquidweb/liquidweb-go v1.6.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20250317134145-8bc96cf8fc35 // indirect
@@ -168,7 +168,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
-	github.com/oracle/oci-go-sdk/v65 v65.91.1 // indirect
+	github.com/oracle/oci-go-sdk/v65 v65.92.0 // indirect
 	github.com/ovh/go-ovh v1.7.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -202,15 +202,15 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1172 // indirect
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1170 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1177 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1174 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/transip/gotransip/v6 v6.26.0 // indirect
 	github.com/ultradns/ultradns-go-sdk v1.8.0-20241010134910-243eeec // indirect
 	github.com/vinyldns/go-vinyldns v0.9.16 // indirect
-	github.com/volcengine/volc-sdk-golang v1.0.209 // indirect
+	github.com/volcengine/volc-sdk-golang v1.0.210 // indirect
 	github.com/vultr/govultr/v3 v3.20.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
@@ -231,9 +231,9 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
-	google.golang.org/api v0.234.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237 // indirect
-	google.golang.org/grpc v1.72.1 // indirect
+	google.golang.org/api v0.235.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
+	google.golang.org/grpc v1.72.2 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
