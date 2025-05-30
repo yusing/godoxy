@@ -124,7 +124,8 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 }
 
 func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/login", http.StatusFound) // redirects to WebUI login page
+	w.Header().Set("X-Redirect-To", "/login")
+	w.WriteHeader(http.StatusForbidden)
 }
 
 func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
