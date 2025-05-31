@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 )
 
 func warnNoMatchDomains() {
@@ -53,7 +54,7 @@ func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 			if err != nil {
 				host = r.Host
 			}
-			if host == "localhost" {
+			if host == "localhost" || host == agent.AgentHost {
 				return true
 			}
 			ip := net.ParseIP(host)
