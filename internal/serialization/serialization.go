@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"reflect"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -198,7 +197,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 			dstV.Set(reflect.Zero(dstT))
 			return nil
 		}
-		return gperr.Errorf("deserialize: src is %w and dst is not settable\n%s", ErrNilValue, debug.Stack())
+		return gperr.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
 	}
 
 	if dstT.Implements(mapUnmarshalerType) {
