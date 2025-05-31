@@ -3,7 +3,6 @@ package gpwebsocket
 import (
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,8 +29,6 @@ func SetWebsocketAllowedDomains(h http.Header, domains []string) {
 	h[HeaderXGoDoxyWebsocketAllowedDomains] = domains
 }
 
-var localAddresses = []string{"127.0.0.1", "10.0.*.*", "172.16.*.*", "192.168.*.*"}
-
 const writeTimeout = time.Second * 10
 
 func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
@@ -49,8 +46,12 @@ func Initiate(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 			if err != nil {
 				host = r.Host
 			}
-			if slices.Contains(localAddresses, host) {
+			if host == "localhost" {
 				return true
+			}
+			ip := net.ParseIP(host)
+			if ip != nil {
+				return ip.IsLoopback() || ip.IsPrivate()
 			}
 			for _, domain := range allowedDomains {
 				if domain[0] == '.' {
