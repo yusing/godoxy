@@ -19,7 +19,6 @@ func RenewCert(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := gpwebsocket.Initiate(w, r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()

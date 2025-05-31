@@ -73,7 +73,6 @@ func (m *memLogger) Write(p []byte) (n int, err error) {
 func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := gpwebsocket.Initiate(w, r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
