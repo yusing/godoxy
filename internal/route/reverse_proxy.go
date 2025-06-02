@@ -50,7 +50,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	} else {
 		trans = gphttp.NewTransport()
 		if httpConfig.NoTLSVerify {
-			trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 		}
 		if httpConfig.ResponseHeaderTimeout > 0 {
 			trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
@@ -98,9 +98,6 @@ func (r *ReveseProxyRoute) ReverseProxy() *reverseproxy.ReverseProxy {
 
 // Start implements task.TaskStarter.
 func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
-	if existing, ok := routes.HTTP.Get(r.Key()); ok && !r.UseLoadBalance() {
-		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
-	}
 	r.task = parent.Subtask("http."+r.Name(), false)
 
 	switch {
@@ -139,11 +136,19 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
+	if r.ShouldExclude() {
+		return nil
+	}
+
+	if err := checkExists(r); err != nil {
+		return err
+	}
+
 	if r.UseLoadBalance() {
 		r.addToLoadBalancer(parent)
 	} else {
 		routes.HTTP.Add(r)
-		r.task.OnFinished("entrypoint_remove_route", func() {
+		r.task.OnCancel("remove_route_from_http", func() {
 			routes.HTTP.Del(r)
 		})
 	}

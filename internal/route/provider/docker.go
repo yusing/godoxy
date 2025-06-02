@@ -71,9 +71,6 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 
 	for _, c := range containers {
 		container := docker.FromDocker(&c, p.dockerHost)
-		if container.IsExcluded {
-			continue
-		}
 
 		if container.IsHostNetworkMode {
 			err := container.UpdatePorts()
@@ -89,10 +86,15 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 		}
 		for k, v := range newEntries {
 			if conflict, ok := routes[k]; ok {
-				errs.Add(gperr.Multiline().
+				err := gperr.Multiline().
 					Addf("route with alias %s already exists", k).
 					Addf("container %s", container.ContainerName).
-					Addf("conflicting container %s", conflict.Container.ContainerName))
+					Addf("conflicting container %s", conflict.Container.ContainerName)
+				if conflict.ShouldExclude() || v.ShouldExclude() {
+					gperr.LogWarn("skipping conflicting route", err)
+				} else {
+					errs.Add(err)
+				}
 			} else {
 				routes[k] = v
 			}

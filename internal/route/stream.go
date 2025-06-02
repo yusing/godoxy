@@ -41,9 +41,6 @@ func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
 
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
-	if existing, ok := routes.Stream.Get(r.Key()); ok {
-		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
-	}
 	r.task = parent.Subtask("stream."+r.Name(), true)
 	r.Stream = NewStream(r)
 
@@ -60,12 +57,13 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.HealthMon = monitor.NewMonitor(r)
 	}
 
-	if err := r.Setup(); err != nil {
-		r.task.Finish(err)
-		return gperr.Wrap(err)
+	if !r.ShouldExclude() {
+		if err := r.Setup(); err != nil {
+			r.task.Finish(err)
+			return gperr.Wrap(err)
+		}
+		r.l.Info().Int("port", r.Port.Listening).Msg("listening")
 	}
-
-	r.l.Info().Int("port", r.Port.Listening).Msg("listening")
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
@@ -73,10 +71,18 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
+	if r.ShouldExclude() {
+		return nil
+	}
+
+	if err := checkExists(r); err != nil {
+		return err
+	}
+
 	go r.acceptConnections()
 
 	routes.Stream.Add(r)
-	r.task.OnFinished("entrypoint_remove_route", func() {
+	r.task.OnCancel("remove_route_from_stream", func() {
 		routes.Stream.Del(r)
 	})
 	return nil

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -11,6 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/route/provider/types"
+	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	W "github.com/yusing/go-proxy/internal/watcher"
 	"github.com/yusing/go-proxy/internal/watcher/events"
@@ -90,9 +92,17 @@ func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
 	err := r.Start(parent)
 	if err != nil {
 		delete(p.routes, r.Alias)
+		routes.All.Del(r)
 		return err.Subject(r.Alias)
 	}
-	p.routes[r.Alias] = r
+	if conflict, added := routes.All.AddIfNotExists(r); !added {
+		delete(p.routes, r.Alias)
+		return gperr.Errorf("route %s already exists: from %s and %s", r.Alias, r.ProviderName(), conflict.ProviderName())
+	} else {
+		r.Task().OnCancel("remove_routes_from_all", func() {
+			routes.All.Del(r)
+		})
+	}
 	return nil
 }
 
@@ -152,10 +162,6 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 		r.Provider = p.ShortName()
 		if err := r.Validate(); err != nil {
 			errs.Add(err.Subject(alias))
-			delete(routes, alias)
-			continue
-		}
-		if r.ShouldExclude() {
 			delete(routes, alias)
 			continue
 		}

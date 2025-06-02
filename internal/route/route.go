@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -215,6 +216,13 @@ func (r *Route) Validate() gperr.Error {
 	return nil
 }
 
+func (r *Route) Task() *task.Task {
+	if r.impl == nil { // should not happen
+		panic(errors.New("route not initialized"))
+	}
+	return r.impl.Task()
+}
+
 func (r *Route) Start(parent task.Parent) (err gperr.Error) {
 	if r.impl == nil { // should not happen
 		return gperr.New("route not initialized")
@@ -354,10 +362,20 @@ func (r *Route) UseLoadBalance() bool {
 }
 
 func (r *Route) UseIdleWatcher() bool {
-	return r.Idlewatcher != nil && r.Idlewatcher.IdleTimeout > 0
+	return r.Idlewatcher != nil && r.Idlewatcher.IdleTimeout != 0
 }
 
 func (r *Route) UseHealthCheck() bool {
+	if r.Container != nil {
+		switch {
+		case r.Container.Image.Name == "godoxy-agent":
+			return false
+		case !r.Container.Running && !r.UseIdleWatcher():
+			return false
+		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
+			return false
+		}
+	}
 	return !r.HealthCheck.Disable
 }
 
@@ -481,6 +499,12 @@ func (r *Route) FinalizeHomepageConfig() {
 		r.Homepage = &homepage.ItemConfig{Show: true}
 	}
 	r.Homepage = r.Homepage.GetOverride(r.Alias)
+
+	if r.ShouldExclude() && isDocker {
+		r.Homepage.Show = false
+		r.Homepage.Name = r.Container.ContainerName // still show container name in metrics page
+		return
+	}
 
 	hp := r.Homepage
 	refs := r.References()
