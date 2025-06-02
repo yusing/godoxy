@@ -186,18 +186,17 @@ func (w *Watcher) Key() string {
 	return w.cfg.Key()
 }
 
-func (w *Watcher) Wake() error {
-	return w.wakeIfStopped()
+func (w *Watcher) Wake(ctx context.Context) error {
 }
 
-func (w *Watcher) wakeIfStopped() error {
+func (w *Watcher) wakeIfStopped(ctx context.Context) error {
 	state := w.state.Load()
 	if state.status == idlewatcher.ContainerStatusRunning {
 		w.l.Debug().Msg("container is already running")
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(w.task.Context(), w.cfg.WakeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, w.cfg.WakeTimeout)
 	defer cancel()
 	switch state.status {
 	case idlewatcher.ContainerStatusStopped:

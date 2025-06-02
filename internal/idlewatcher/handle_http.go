@@ -90,16 +90,14 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	ctx, cancel := context.WithTimeoutCause(r.Context(), w.cfg.WakeTimeout, errors.New("wake timeout"))
-	defer cancel()
-
+	ctx := r.Context()
 	if w.cancelled(ctx) {
 		gphttp.ServerError(rw, r, context.Cause(ctx), http.StatusServiceUnavailable)
 		return false
 	}
 
 	w.l.Trace().Msg("signal received")
-	err := w.wakeIfStopped()
+	err := w.Wake(ctx)
 	if err != nil {
 		gphttp.ServerError(rw, r, err)
 		return false
