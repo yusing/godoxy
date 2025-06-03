@@ -64,6 +64,8 @@ type (
 		LisURL   *net.URL `json:"lurl,omitempty"`
 		ProxyURL *net.URL `json:"purl,omitempty"`
 
+		Excluded bool `json:"excluded"`
+
 		impl        routes.Route
 		isValidated bool
 		lastError   gperr.Error
@@ -183,7 +185,9 @@ func (r *Route) Validate() gperr.Error {
 		}
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
-		r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+		if !r.ShouldExclude() {
+			r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+		}
 		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
@@ -213,6 +217,7 @@ func (r *Route) Validate() gperr.Error {
 	}
 
 	r.impl = impl
+	r.Excluded = r.ShouldExclude()
 	return nil
 }
 
