@@ -6,6 +6,8 @@ var (
 		"mysql":            3306,
 		"mariadb":          3306,
 		"postgres":         5432,
+		"pgvecto-rs":       5432,
+		"pgvector":         5432,
 		"rabbitmq":         5672,
 		"redis":            6379,
 		"memcached":        11211,
