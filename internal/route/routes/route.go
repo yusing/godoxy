@@ -27,7 +27,7 @@ type (
 		HealthMonitor() health.HealthMonitor
 		References() []string
 
-		Started() bool
+		Started() <-chan struct{}
 
 		IdlewatcherConfig() *idlewatcher.Config
 		HealthCheckConfig() *health.HealthCheckConfig

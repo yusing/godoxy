@@ -69,6 +69,8 @@ type (
 		impl        routes.Route
 		isValidated bool
 		lastError   gperr.Error
+
+		started chan struct{}
 	}
 	Routes map[string]*Route
 )
@@ -218,6 +220,7 @@ func (r *Route) Validate() gperr.Error {
 
 	r.impl = impl
 	r.Excluded = r.ShouldExclude()
+	r.started = make(chan struct{})
 	return nil
 }
 
@@ -244,8 +247,10 @@ func (r *Route) Finish(reason any) {
 	r.impl = nil
 }
 
-func (r *Route) Started() bool {
-	return r.impl != nil
+func (r *Route) Started() <-chan struct{} {
+	return r.started
+}
+
 }
 
 func (r *Route) ProviderName() string {
