@@ -31,6 +31,8 @@ type (
 		checkHealth HealthCheckFunc
 		startTime   time.Time
 
+		isZeroPort bool
+
 		task *task.Task
 	}
 )
@@ -63,14 +65,24 @@ func NewMonitor(r routes.Route) health.HealthMonCheck {
 	return mon
 }
 
-func newMonitor(url *url.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+func newMonitor(u *url.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	mon := &monitor{
 		config:      config,
 		checkHealth: healthCheckFunc,
 		startTime:   time.Now(),
 	}
-	mon.url.Store(url)
+	if u == nil {
+		u = &url.URL{}
+	}
+	mon.url.Store(u)
 	mon.status.Store(health.StatusHealthy)
+
+	port := u.Port()
+	mon.isZeroPort = port == "" || port == "0"
+	if mon.isZeroPort {
+		mon.status.Store(health.StatusUnknown)
+		mon.lastResult.Store(&health.HealthCheckResult{Healthy: false, Detail: "no port detected"})
+	}
 	return mon
 }
 
@@ -85,6 +97,10 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	if mon.config.Interval <= 0 {
 		return ErrNegativeInterval
+	}
+
+	if mon.isZeroPort {
+		return nil
 	}
 
 	mon.service = parent.Name()
