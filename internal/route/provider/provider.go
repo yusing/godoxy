@@ -137,9 +137,11 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-func (p *Provider) RangeRoutes(do func(string, *route.Route)) {
+func (p *Provider) IterRoutes(yield func(string, *route.Route) bool) {
 	for alias, r := range p.routes {
-		do(alias, r)
+		if !yield(alias, r) {
+			break
+		}
 	}
 }
 
