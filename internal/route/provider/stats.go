@@ -2,7 +2,7 @@ package provider
 
 import (
 	R "github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/provider/types"
+	provider "github.com/yusing/go-proxy/internal/route/provider/types"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
@@ -17,10 +17,10 @@ type (
 		NumUnknown   uint16 `json:"unknown"`
 	}
 	ProviderStats struct {
-		Total   uint16             `json:"total"`
-		RPs     RouteStats         `json:"reverse_proxies"`
-		Streams RouteStats         `json:"streams"`
-		Type    types.ProviderType `json:"type"`
+		Total   uint16        `json:"total"`
+		RPs     RouteStats    `json:"reverse_proxies"`
+		Streams RouteStats    `json:"streams"`
+		Type    provider.Type `json:"type"`
 	}
 )
 

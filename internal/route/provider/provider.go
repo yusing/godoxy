@@ -11,7 +11,7 @@ import (
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/provider/types"
+	provider "github.com/yusing/go-proxy/internal/route/provider/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	W "github.com/yusing/go-proxy/internal/watcher"
@@ -22,8 +22,7 @@ type (
 	Provider struct {
 		ProviderImpl
 
-		t      types.ProviderType
-		routes route.Routes
+		t        provider.Type
 
 		watcher W.Watcher
 	}
@@ -43,7 +42,8 @@ const (
 
 var ErrEmptyProviderName = errors.New("empty provider name")
 
-func newProvider(t types.ProviderType) *Provider {
+
+func newProvider(t provider.Type) *Provider {
 	return &Provider{t: t}
 }
 
@@ -52,7 +52,7 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 	if name == "" {
 		return nil, ErrEmptyProviderName
 	}
-	p = newProvider(types.ProviderTypeFile)
+	p = newProvider(provider.ProviderTypeFile)
 	p.ProviderImpl, err = FileProviderImpl(filename)
 	if err != nil {
 		return nil, err
@@ -62,14 +62,14 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 }
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
-	p := newProvider(types.ProviderTypeDocker)
+	p := newProvider(provider.ProviderTypeDocker)
 	p.ProviderImpl = DockerProviderImpl(name, dockerHost)
 	p.watcher = p.NewWatcher()
 	return p
 }
 
 func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
-	p := newProvider(types.ProviderTypeAgent)
+	p := newProvider(provider.ProviderTypeAgent)
 	agent := &AgentProvider{
 		AgentConfig: cfg,
 		docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
@@ -79,7 +79,7 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	return p
 }
 
-func (p *Provider) GetType() types.ProviderType {
+func (p *Provider) GetType() provider.Type {
 	return p.t
 }
 
