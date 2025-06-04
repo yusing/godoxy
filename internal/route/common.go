@@ -6,6 +6,9 @@ import (
 )
 
 func checkExists(r routes.Route) gperr.Error {
+	if r.UseLoadBalance() { // skip checking for load balanced routes
+		return nil
+	}
 	var (
 		existing routes.Route
 		ok       bool

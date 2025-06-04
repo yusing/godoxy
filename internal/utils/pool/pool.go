@@ -39,6 +39,14 @@ func (p *Pool[T]) Add(obj T) {
 	}
 }
 
+func (p *Pool[T]) AddKey(key string, obj T) {
+	p.checkExists(key)
+	p.m.Store(key, obj)
+	if !p.disableLog {
+		log.Info().Msgf("%s: added %s", p.name, obj.Name())
+	}
+}
+
 func (p *Pool[T]) AddIfNotExists(obj T) (actual T, added bool) {
 	actual, loaded := p.m.LoadOrStore(obj.Key(), obj)
 	return actual, !loaded
@@ -48,6 +56,13 @@ func (p *Pool[T]) Del(obj T) {
 	p.m.Delete(obj.Key())
 	if !p.disableLog {
 		log.Info().Msgf("%s: removed %s", p.name, obj.Name())
+	}
+}
+
+func (p *Pool[T]) DelKey(key string) {
+	p.m.Delete(key)
+	if !p.disableLog {
+		log.Info().Msgf("%s: removed %s", p.name, key)
 	}
 }
 

@@ -66,7 +66,7 @@ type (
 		LisURL   *net.URL `json:"lurl,omitempty"`
 		ProxyURL *net.URL `json:"purl,omitempty"`
 
-		Excluded bool `json:"excluded"`
+		Excluded *bool `json:"excluded"`
 
 		impl        routes.Route
 		isValidated bool
@@ -233,7 +233,8 @@ func (r *Route) Validate() gperr.Error {
 	}
 
 	r.impl = impl
-	r.Excluded = r.ShouldExclude()
+	excluded := r.ShouldExclude()
+	r.Excluded = &excluded
 	return nil
 }
 
@@ -326,6 +327,14 @@ func (r *Route) Name() string {
 
 // Key implements pool.Object.
 func (r *Route) Key() string {
+	if r.UseLoadBalance() || r.ShouldExclude() {
+		// for excluded routes and load balanced routes, use provider:alias[-container_id[:8]] as key to make them unique.
+		if r.Container != nil {
+			return r.Provider + ":" + r.Alias + "-" + r.Container.ContainerID[:8]
+		}
+		return r.Provider + ":" + r.Alias
+	}
+	// we need to use alias as key for non-excluded routes because it's being used for subdomain / fqdn lookup for http routes.
 	return r.Alias
 }
 
@@ -394,6 +403,12 @@ func (r *Route) IsZeroPort() bool {
 }
 
 func (r *Route) ShouldExclude() bool {
+	if r.lastError != nil {
+		return true
+	}
+	if r.Excluded != nil {
+		return *r.Excluded
+	}
 	if r.Container != nil {
 		switch {
 		case r.Container.IsExcluded:
