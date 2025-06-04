@@ -3,8 +3,9 @@ package provider
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
-	"slices"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -23,6 +24,8 @@ type (
 		ProviderImpl
 
 		t        provider.Type
+		routes   route.Routes
+		routesMu sync.RWMutex
 
 		watcher W.Watcher
 	}
@@ -42,6 +45,7 @@ const (
 
 var ErrEmptyProviderName = errors.New("empty provider name")
 
+var _ routes.Provider = (*Provider)(nil)
 
 func newProvider(t provider.Type) *Provider {
 	return &Provider{t: t}
@@ -88,33 +92,28 @@ func (p *Provider) MarshalText() ([]byte, error) {
 	return []byte(p.String()), nil
 }
 
-func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
-	err := r.Start(parent)
-	if err != nil {
-		delete(p.routes, r.Alias)
-		routes.All.Del(r)
-		return err.Subject(r.Alias)
-	}
-	if conflict, added := routes.All.AddIfNotExists(r); !added {
-		delete(p.routes, r.Alias)
-		return gperr.Errorf("route %s already exists: from %s and %s", r.Alias, r.ProviderName(), conflict.ProviderName())
-	} else {
-		r.Task().OnCancel("remove_routes_from_all", func() {
-			routes.All.Del(r)
-		})
-	}
-	return nil
-}
-
 // Start implements task.TaskStarter.
 func (p *Provider) Start(parent task.Parent) gperr.Error {
+	errs := gperr.NewBuilder("routes error")
+	errs.EnableConcurrency()
+
 	t := parent.Subtask("provider."+p.String(), false)
 
-	routesTask := t.Subtask("routes", false)
-	errs := gperr.NewBuilder("routes error")
+	// no need to lock here because we are not modifying the routes map.
+	routeSlice := make([]*route.Route, 0, len(p.routes))
 	for _, r := range p.routes {
-		errs.Add(p.startRoute(routesTask, r))
+		routeSlice = append(routeSlice, r)
 	}
+
+	var wg sync.WaitGroup
+	for _, r := range routeSlice {
+		wg.Add(1)
+		go func(r *route.Route) {
+			defer wg.Done()
+			errs.Add(p.startRoute(t, r))
+		}(r)
+	}
+	wg.Wait()
 
 	eventQueue := events.NewEventQueue(
 		t.Subtask("event_queue", false),
@@ -122,7 +121,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 		func(events []events.Event) {
 			handler := p.newEventHandler()
 			// routes' lifetime should follow the provider's lifetime
-			handler.Handle(routesTask, events)
+			handler.Handle(t, events)
 			handler.Log()
 		},
 		func(err gperr.Error) {
@@ -137,17 +136,52 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-func (p *Provider) IterRoutes(yield func(string, *route.Route) bool) {
-	for alias, r := range p.routes {
-		if !yield(alias, r) {
+func (p *Provider) LoadRoutes() (err gperr.Error) {
+	p.routes, err = p.loadRoutes()
+	return
+}
+
+func (p *Provider) NumRoutes() int {
+	return len(p.routes)
+}
+
+func (p *Provider) IterRoutes(yield func(string, routes.Route) bool) {
+	routes := p.lockCloneRoutes()
+	for alias, r := range routes {
+		if !yield(alias, r.Impl()) {
 			break
 		}
 	}
 }
 
-func (p *Provider) GetRoute(alias string) (r *route.Route, ok bool) {
-	r, ok = p.routes[alias]
-	return
+func (p *Provider) FindService(project, service string) (routes.Route, bool) {
+	switch p.GetType() {
+	case provider.ProviderTypeDocker, provider.ProviderTypeAgent:
+	default:
+		return nil, false
+	}
+	if project == "" || service == "" {
+		return nil, false
+	}
+	routes := p.lockCloneRoutes()
+	for _, r := range routes {
+		cont := r.ContainerInfo()
+		if cont.DockerComposeProject() != project {
+			continue
+		}
+		if cont.DockerComposeService() == service {
+			return r.Impl(), true
+		}
+	}
+	return nil, false
+}
+
+func (p *Provider) GetRoute(alias string) (routes.Route, bool) {
+	r, ok := p.lockGetRoute(alias)
+	if !ok {
+		return nil, false
+	}
+	return r.Impl(), true
 }
 
 func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
@@ -161,7 +195,7 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 	// set alias and provider, then validate
 	for alias, r := range routes {
 		r.Alias = alias
-		r.Provider = p.ShortName()
+		r.SetProvider(p)
 		if err := r.Validate(); err != nil {
 			errs.Add(err.Subject(alias))
 			delete(routes, alias)
@@ -172,11 +206,40 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 	return routes, errs.Error()
 }
 
-func (p *Provider) LoadRoutes() (err gperr.Error) {
-	p.routes, err = p.loadRoutes()
-	return
+func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
+	err := r.Start(parent)
+	if err != nil {
+		p.lockDeleteRoute(r.Alias)
+		return err.Subject(r.Alias)
+	}
+	p.lockAddRoute(r)
+	r.Task().OnCancel("remove_route_from_provider", func() {
+		p.lockDeleteRoute(r.Alias)
+	})
+	return nil
 }
 
-func (p *Provider) NumRoutes() int {
-	return len(p.routes)
+func (p *Provider) lockAddRoute(r *route.Route) {
+	p.routesMu.Lock()
+	defer p.routesMu.Unlock()
+	p.routes[r.Alias] = r
+}
+
+func (p *Provider) lockDeleteRoute(alias string) {
+	p.routesMu.Lock()
+	defer p.routesMu.Unlock()
+	delete(p.routes, alias)
+}
+
+func (p *Provider) lockGetRoute(alias string) (*route.Route, bool) {
+	p.routesMu.RLock()
+	defer p.routesMu.RUnlock()
+	r, ok := p.routes[alias]
+	return r, ok
+}
+
+func (p *Provider) lockCloneRoutes() route.Routes {
+	p.routesMu.RLock()
+	defer p.routesMu.RUnlock()
+	return maps.Clone(p.routes)
 }

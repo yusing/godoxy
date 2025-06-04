@@ -3,7 +3,7 @@ package provider
 import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/provider/types"
+	provider "github.com/yusing/go-proxy/internal/route/provider/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher"
 	eventsPkg "github.com/yusing/go-proxy/internal/watcher/events"
@@ -23,7 +23,7 @@ func (p *Provider) newEventHandler() *EventHandler {
 }
 
 func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) {
-	oldRoutes := handler.provider.routes
+	oldRoutes := handler.provider.lockCloneRoutes()
 
 	isForceReload := false
 	for _, event := range events {
@@ -68,10 +68,10 @@ func (handler *EventHandler) matchAny(events []watcher.Event, route *route.Route
 
 func (handler *EventHandler) match(event watcher.Event, route *route.Route) bool {
 	switch handler.provider.GetType() {
-	case types.ProviderTypeDocker, types.ProviderTypeAgent:
+	case provider.ProviderTypeDocker, provider.ProviderTypeAgent:
 		return route.Container.ContainerID == event.ActorID ||
 			route.Container.ContainerName == event.ActorName
-	case types.ProviderTypeFile:
+	case provider.ProviderTypeFile:
 		return true
 	}
 	// should never happen
@@ -86,12 +86,11 @@ func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 }
 
 func (handler *EventHandler) Remove(route *route.Route) {
-	route.Finish("route removed")
-	delete(handler.provider.routes, route.Alias)
+	route.FinishAndWait("route removed")
 }
 
 func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, newRoute *route.Route) {
-	oldRoute.Finish("route update")
+	oldRoute.FinishAndWait("route update")
 	err := handler.provider.startRoute(parent, newRoute)
 	if err != nil {
 		handler.errs.Add(err.Subject("update"))

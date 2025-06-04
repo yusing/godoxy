@@ -57,4 +57,10 @@ type (
 		Route
 		net.Stream
 	}
+	Provider interface {
+		GetRoute(alias string) (r Route, ok bool)
+		IterRoutes(yield func(alias string, r Route) bool)
+		FindService(project, service string) (r Route, ok bool)
+		ShortName() string
+	}
 )
