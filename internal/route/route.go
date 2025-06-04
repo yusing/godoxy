@@ -302,7 +302,7 @@ func (r *Route) SetProvider(p routes.Provider) {
 }
 
 func (r *Route) ProviderName() string {
-	return r.provider.ShortName()
+	return r.Provider
 }
 
 func (r *Route) TargetURL() *net.URL {
