@@ -76,3 +76,40 @@ func TestContainerHostNetworkMode(t *testing.T) {
 		})
 	}
 }
+
+func TestImageNameParsing(t *testing.T) {
+	tests := []struct {
+		full   string
+		author string
+		image  string
+		tag    string
+	}{
+		{
+			full:   "ghcr.io/tensorchord/pgvecto-rs",
+			author: "ghcr.io/tensorchord",
+			image:  "pgvecto-rs",
+			tag:    "latest",
+		},
+		{
+			full:   "redis:latest",
+			author: "library",
+			image:  "redis",
+			tag:    "latest",
+		},
+		{
+			full:   "redis:7.4.0-alpine",
+			author: "library",
+			image:  "redis",
+			tag:    "7.4.0-alpine",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.full, func(t *testing.T) {
+			helper := containerHelper{&container.SummaryTrimmed{Image: tt.full}}
+			im := helper.parseImage()
+			ExpectEqual(t, im.Author, tt.author)
+			ExpectEqual(t, im.Name, tt.image)
+			ExpectEqual(t, im.Tag, tt.tag)
+		})
+	}
+}

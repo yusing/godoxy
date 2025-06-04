@@ -48,10 +48,13 @@ func (c containerHelper) parseImage() *ContainerImage {
 		im.Author = strings.Join(slashSep[:len(slashSep)-1], "/")
 		im.Name = slashSep[len(slashSep)-1]
 	} else {
+		im.Author = "library"
 		im.Name = slashSep[0]
 	}
 	if len(colonSep) > 1 {
 		im.Tag = colonSep[1]
+	} else {
+		im.Tag = "latest"
 	}
 	return im
 }
