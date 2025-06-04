@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
@@ -12,6 +13,8 @@ type HealthCheckConfig struct {
 	UseGet   bool          `json:"use_get,omitempty"`
 	Interval time.Duration `json:"interval" validate:"omitempty,min=1s"`
 	Timeout  time.Duration `json:"timeout" validate:"omitempty,min=1s"`
+
+	BaseContext func() context.Context `json:"-"`
 }
 
 func DefaultHealthConfig() *HealthCheckConfig {

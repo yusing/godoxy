@@ -87,10 +87,15 @@ func newMonitor(u *url.URL, config *health.HealthCheckConfig, healthCheckFunc He
 }
 
 func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cancel context.CancelFunc) {
-	if mon.task != nil {
-		return context.WithTimeoutCause(mon.task.Context(), mon.config.Timeout, errors.New(cause))
+	switch {
+	case mon.config.BaseContext != nil:
+		ctx = mon.config.BaseContext()
+	case mon.task != nil:
+		ctx = mon.task.Context()
+	default:
+		ctx = context.Background()
 	}
-	return context.WithTimeoutCause(context.Background(), mon.config.Timeout, errors.New(cause))
+	return context.WithTimeoutCause(ctx, mon.config.Timeout, errors.New(cause))
 }
 
 // Start implements task.TaskStarter.
