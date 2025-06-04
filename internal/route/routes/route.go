@@ -23,6 +23,7 @@ type (
 		task.TaskFinisher
 		pool.Object
 		ProviderName() string
+		GetProvider() Provider
 		TargetURL() *net.URL
 		HealthMonitor() health.HealthMonitor
 		References() []string

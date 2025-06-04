@@ -10,16 +10,26 @@ import (
 )
 
 type (
-	Config struct {
+	ProviderConfig struct {
 		Proxmox *ProxmoxConfig `json:"proxmox,omitempty"`
 		Docker  *DockerConfig  `json:"docker,omitempty"`
+	}
+	IdlewatcherConfig struct {
+		// 0: no idle watcher.
+		// Positive: idle watcher with idle timeout.
+		// Negative: idle watcher as a dependency.	IdleTimeout time.Duration `json:"idle_timeout" json_ext:"duration"`
+		IdleTimeout time.Duration `json:"idle_timeout"`
+		WakeTimeout time.Duration `json:"wake_timeout"`
+		StopTimeout time.Duration `json:"stop_timeout"`
+		StopMethod  StopMethod    `json:"stop_method"`
+		StopSignal  Signal        `json:"stop_signal,omitempty"`
+	}
+	Config struct {
+		ProviderConfig
+		IdlewatcherConfig
 
-		IdleTimeout   time.Duration `json:"idle_timeout" json_ext:"duration"`
-		WakeTimeout   time.Duration `json:"wake_timeout" json_ext:"duration"`
-		StopTimeout   time.Duration `json:"stop_timeout" json_ext:"duration"`
-		StopMethod    StopMethod    `json:"stop_method"`
-		StopSignal    Signal        `json:"stop_signal,omitempty"`
-		StartEndpoint string        `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
+		StartEndpoint string   `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
+		DependsOn     []string `json:"depends_on,omitempty"`
 	}
 	StopMethod string
 	Signal     string
@@ -55,11 +65,11 @@ func (c *Config) ContainerName() string {
 	if c.Docker != nil {
 		return c.Docker.ContainerName
 	}
-	return "lxc " + strconv.Itoa(c.Proxmox.VMID)
+	return "lxc-" + strconv.Itoa(c.Proxmox.VMID)
 }
 
 func (c *Config) Validate() gperr.Error {
-	if c.IdleTimeout == 0 { // no idle timeout means no idle watcher
+	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
 		return nil
 	}
 	errs := gperr.NewBuilder("idlewatcher config validation error")

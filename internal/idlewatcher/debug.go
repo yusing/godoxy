@@ -39,3 +39,10 @@ func Watchers() iter.Seq2[string, watcherDebug] {
 		}
 	}
 }
+
+func fmtErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}

@@ -1,7 +1,6 @@
 package idlewatcher
 
 import (
-	"errors"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -80,43 +79,6 @@ func (w *Watcher) Detail() string {
 	return "napping"
 }
 
-func checkUpdateState(key string) (w *Watcher, ready bool, err error) {
-	watcherMapMu.RLock()
-	w, ok := watcherMap[key]
-	if !ok {
-		watcherMapMu.RUnlock()
-		return nil, false, errors.New("watcher not found")
-	}
-	watcherMapMu.RUnlock()
-
-	// already ready
-	if w.ready() {
-		return w, true, nil
-	}
-
-	if !w.running() {
-		return w, false, nil
-	}
-
-	// the new container info not yet updated
-	if w.hc.URL().Host == "" {
-		return w, false, nil
-	}
-
-	res, err := w.hc.CheckHealth()
-	if err != nil {
-		w.setError(err)
-		return w, false, err
-	}
-
-	if res.Healthy {
-		w.setReady()
-		return w, true, nil
-	}
-	w.setStarting()
-	return w, false, nil
-}
-
 // MarshalJSON implements health.HealthMonitor.
 func (w *Watcher) MarshalJSON() ([]byte, error) {
 	url := w.hc.URL()
@@ -134,4 +96,33 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 		URL:    url,
 		Detail: detail,
 	}).MarshalJSON()
+}
+
+func (w *Watcher) checkUpdateState() (ready bool, err error) {
+	// already ready
+	if w.ready() {
+		return true, nil
+	}
+
+	if !w.running() {
+		return false, nil
+	}
+
+	// the new container info not yet updated
+	if w.hc.URL().Host == "" {
+		return false, nil
+	}
+
+	res, err := w.hc.CheckHealth()
+	if err != nil {
+		w.setError(err)
+		return false, err
+	}
+
+	if res.Healthy {
+		w.setReady()
+		return true, nil
+	}
+	w.setStarting()
+	return false, nil
 }

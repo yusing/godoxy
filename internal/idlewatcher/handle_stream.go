@@ -2,7 +2,6 @@ package idlewatcher
 
 import (
 	"context"
-	"errors"
 	"net"
 	"time"
 
@@ -53,22 +52,13 @@ func (w *Watcher) wakeFromStream() error {
 	}
 
 	w.l.Debug().Msg("wake signal received")
-	err := w.wakeIfStopped()
+	err := w.Wake(context.Background())
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeoutCause(w.task.Context(), w.cfg.WakeTimeout, errors.New("wake timeout"))
-	defer cancel()
-
-	var ready bool
-
 	for {
-		if w.cancelled(ctx) {
-			return context.Cause(ctx)
-		}
-
-		w, ready, err = checkUpdateState(w.Key())
+		ready, err := w.checkUpdateState()
 		if err != nil {
 			return err
 		}

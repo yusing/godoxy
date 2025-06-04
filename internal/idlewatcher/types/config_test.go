@@ -35,7 +35,8 @@ func TestValidateStartEndpoint(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := Config{StartEndpoint: tc.input}
+			cfg := new(Config)
+			cfg.StartEndpoint = tc.input
 			err := cfg.validateStartEndpoint()
 			if err == nil {
 				expect.Equal(t, cfg.StartEndpoint, tc.input)

@@ -102,7 +102,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	switch {
 	case r.UseIdleWatcher():
-		waker, err := idlewatcher.NewWatcher(parent, r)
+		waker, err := idlewatcher.NewWatcher(parent, r, r.IdlewatcherConfig())
 		if err != nil {
 			r.task.Finish(err)
 			return gperr.Wrap(err)

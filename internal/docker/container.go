@@ -56,13 +56,15 @@ type (
 var DummyContainer = new(Container)
 
 func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container) {
-	isExplicit := false
+	_, isExplicit := c.Labels[LabelAliases]
 	helper := containerHelper{c}
-	for lbl := range c.Labels {
-		if strings.HasPrefix(lbl, NSProxy+".") {
-			isExplicit = true
-		} else {
-			delete(c.Labels, lbl)
+	if !isExplicit {
+		// walk through all labels to check if any label starts with NSProxy.
+		for lbl := range c.Labels {
+			if strings.HasPrefix(lbl, NSProxy+".") {
+				isExplicit = true
+				break
+			}
 		}
 	}
 
@@ -124,12 +126,28 @@ func (c *Container) UpdatePorts() error {
 			continue
 		}
 		c.PublicPortMapping[portInt] = container.Port{
-			PublicPort:  uint16(portInt),
-			PrivatePort: uint16(portInt),
+			PublicPort:  uint16(portInt), //nolint:gosec
+			PrivatePort: uint16(portInt), //nolint:gosec
 			Type:        proto,
 		}
 	}
 	return nil
+}
+
+func (c *Container) DockerComposeProject() string {
+	return c.Labels["com.docker.compose.project"]
+}
+
+func (c *Container) DockerComposeService() string {
+	return c.Labels["com.docker.compose.service"]
+}
+
+func (c *Container) Dependencies() []string {
+	deps := c.Labels[LabelDependsOn]
+	if deps == "" {
+		deps = c.Labels["com.docker.compose.depends_on"]
+	}
+	return strings.Split(deps, ",")
 }
 
 var databaseMPs = map[string]struct{}{
@@ -214,17 +232,22 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 		"stop_timeout":   helper.getDeleteLabel(LabelStopTimeout),
 		"stop_signal":    helper.getDeleteLabel(LabelStopSignal),
 		"start_endpoint": helper.getDeleteLabel(LabelStartEndpoint),
+		"depends_on":     c.Dependencies(),
 	}
+
+	// ensure it's deleted from labels
+	helper.getDeleteLabel(LabelDependsOn)
+
 	// set only if idlewatcher is enabled
 	idleTimeout := cfg["idle_timeout"]
 	if idleTimeout != "" {
-		idwCfg := &idlewatcher.Config{
-			Docker: &idlewatcher.DockerConfig{
-				DockerHost:    c.DockerHost,
-				ContainerID:   c.ContainerID,
-				ContainerName: c.ContainerName,
-			},
+		idwCfg := new(idlewatcher.Config)
+		idwCfg.Docker = &idlewatcher.DockerConfig{
+			DockerHost:    c.DockerHost,
+			ContainerID:   c.ContainerID,
+			ContainerName: c.ContainerName,
 		}
+
 		err := serialization.MapUnmarshalValidate(cfg, idwCfg)
 		if err != nil {
 			gperr.LogWarn("invalid idlewatcher config", gperr.PrependSubject(c.ContainerName, err))

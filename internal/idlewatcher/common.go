@@ -11,3 +11,12 @@ func (w *Watcher) cancelled(reqCtx context.Context) bool {
 		return false
 	}
 }
+
+func (w *Watcher) waitStarted(reqCtx context.Context) bool {
+	select {
+	case <-reqCtx.Done():
+		return false
+	case <-w.route.Started():
+		return true
+	}
+}

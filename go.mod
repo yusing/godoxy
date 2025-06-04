@@ -32,6 +32,7 @@ require (
 	golang.org/x/crypto v0.38.0 // encrypting password with bcrypt
 	golang.org/x/net v0.40.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.30.0 // oauth2 authentication
+	golang.org/x/sync v0.14.0
 	golang.org/x/time v0.11.0 // time utilities
 )
 
@@ -227,7 +228,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
