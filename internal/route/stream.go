@@ -41,7 +41,7 @@ func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
 
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
-	r.task = parent.Subtask("stream."+r.Name(), true)
+	r.task = parent.Subtask("stream."+r.Name(), !r.ShouldExclude())
 	r.Stream = NewStream(r)
 
 	switch {
