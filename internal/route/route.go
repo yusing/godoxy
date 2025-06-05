@@ -366,6 +366,13 @@ func (r *Route) HealthMonitor() health.HealthMonitor {
 	return r.HealthMon
 }
 
+func (r *Route) SetHealthMonitor(m health.HealthMonitor) {
+	if r.HealthMon != nil && r.HealthMon != m {
+		r.HealthMon.Finish("health monitor replaced")
+	}
+	r.HealthMon = m
+}
+
 func (r *Route) IdlewatcherConfig() *idlewatcher.Config {
 	return r.Idlewatcher
 }

@@ -26,6 +26,7 @@ type (
 		GetProvider() Provider
 		TargetURL() *net.URL
 		HealthMonitor() health.HealthMonitor
+		SetHealthMonitor(m health.HealthMonitor)
 		References() []string
 
 		Started() <-chan struct{}

@@ -69,8 +69,6 @@ type (
 
 const ContextKey = "idlewatcher.watcher"
 
-// TODO: replace -1 with neverTick
-
 var (
 	watcherMap   = make(map[string]*Watcher)
 	watcherMapMu sync.RWMutex
@@ -314,6 +312,8 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 	hcCfg.Timeout = cfg.WakeTimeout
 
 	w.dedupDependencies()
+
+	r.SetHealthMonitor(w)
 
 	w.l = w.l.With().Strs("deps", cfg.DependsOn).Logger()
 	if exists {
