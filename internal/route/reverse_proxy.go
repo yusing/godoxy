@@ -3,6 +3,7 @@ package route
 import (
 	"crypto/tls"
 	"net/http"
+	"sync"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
@@ -156,12 +157,17 @@ func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.handler.ServeHTTP(w, req)
 }
 
+var lbLock sync.Mutex
+
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
+	lbLock.Lock()
+
 	l, ok := routes.HTTP.Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {
+		lbLock.Unlock()
 		linked = l.(*ReveseProxyRoute)
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
@@ -186,6 +192,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 			routes.HTTP.DelKey(cfg.Link)
 			routes.All.DelKey(cfg.Link)
 		})
+		lbLock.Unlock()
 	}
 	r.loadBalancer = lb
 
