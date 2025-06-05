@@ -244,10 +244,13 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 		kind = "proxmox"
 	}
 	w.l = log.With().
-		Stringer("idle_timeout", cfg.IdleTimeout).
 		Str("kind", kind).
 		Str("container", cfg.ContainerName()).
 		Logger()
+
+	if cfg.IdleTimeout != neverTick {
+		w.l = w.l.With().Stringer("idle_timeout", cfg.IdleTimeout).Logger()
+	}
 
 	if err != nil {
 		return nil, err
