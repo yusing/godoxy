@@ -11,19 +11,13 @@ import (
 	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
 // TODO: support stream load balance.
 type StreamRoute struct {
 	*Route
-
 	net.Stream `json:"-"`
-
-	HealthMon health.HealthMonitor `json:"health"`
-
-	task *task.Task
 
 	l zerolog.Logger
 }
@@ -86,20 +80,6 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		routes.Stream.Del(r)
 	})
 	return nil
-}
-
-// Task implements task.TaskStarter.
-func (r *StreamRoute) Task() *task.Task {
-	return r.task
-}
-
-// Finish implements task.TaskFinisher.
-func (r *StreamRoute) Finish(reason any) {
-	r.task.Finish(reason)
-}
-
-func (r *StreamRoute) HealthMonitor() health.HealthMonitor {
-	return r.HealthMon
 }
 
 func (r *StreamRoute) acceptConnections() {

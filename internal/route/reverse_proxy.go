@@ -18,20 +18,15 @@ import (
 	"github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
 type ReveseProxyRoute struct {
 	*Route
 
-	HealthMon health.HealthMonitor `json:"health,omitempty"`
-
 	loadBalancer *loadbalancer.LoadBalancer
 	handler      http.Handler
 	rp           *reverseproxy.ReverseProxy
-
-	task *task.Task
 }
 
 var _ routes.ReverseProxyRoute = (*ReveseProxyRoute)(nil)
@@ -157,22 +152,8 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-// Task implements task.TaskStarter.
-func (r *ReveseProxyRoute) Task() *task.Task {
-	return r.task
-}
-
-// Finish implements task.TaskFinisher.
-func (r *ReveseProxyRoute) Finish(reason any) {
-	r.task.Finish(reason)
-}
-
 func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.handler.ServeHTTP(w, req)
-}
-
-func (r *ReveseProxyRoute) HealthMonitor() health.HealthMonitor {
-	return r.HealthMon
 }
 
 func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
@@ -192,10 +173,10 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		_ = lb.Start(parent) // always return nil
 		linked = &ReveseProxyRoute{
 			Route: &Route{
-				Alias:    cfg.Link + "-loadbalancer",
-				Homepage: r.Homepage,
+				Alias:     cfg.Link + "-loadbalancer",
+				Homepage:  r.Homepage,
+				HealthMon: lb,
 			},
-			HealthMon:    lb,
 			loadBalancer: lb,
 			handler:      lb,
 		}

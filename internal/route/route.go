@@ -51,7 +51,8 @@ type (
 		Homepage     *homepage.ItemConfig           `json:"homepage,omitempty"`
 		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty"`
 
-		Idlewatcher *idlewatcher.Config `json:"idlewatcher,omitempty"`
+		Idlewatcher *idlewatcher.Config  `json:"idlewatcher,omitempty"`
+		HealthMon   health.HealthMonitor `json:"health,omitempty"`
 
 		Metadata `deserialize:"-"`
 	}
@@ -68,7 +69,9 @@ type (
 
 		Excluded *bool `json:"excluded"`
 
-		impl        routes.Route
+		impl routes.Route
+		task *task.Task
+
 		isValidated bool
 		lastError   gperr.Error
 		provider    routes.Provider
@@ -243,7 +246,7 @@ func (r *Route) Impl() routes.Route {
 }
 
 func (r *Route) Task() *task.Task {
-	return r.impl.Task()
+	return r.task
 }
 
 func (r *Route) Start(parent task.Parent) (err gperr.Error) {
@@ -265,12 +268,12 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 
 	if conflict, added := routes.All.AddIfNotExists(r.impl); !added {
 		err := gperr.Errorf("route %s already exists: from %s and %s", r.Alias, r.ProviderName(), conflict.ProviderName())
-		r.impl.Task().FinishAndWait(err)
+		r.task.FinishAndWait(err)
 		return err
 	} else {
 		// reference here because r.impl will be nil after Finish() is called.
 		impl := r.impl
-		impl.Task().OnCancel("remove_routes_from_all", func() {
+		r.task.OnCancel("remove_routes_from_all", func() {
 			routes.All.Del(impl)
 		})
 	}
@@ -285,7 +288,7 @@ func (r *Route) FinishAndWait(reason any) {
 	if r.impl == nil {
 		return
 	}
-	r.impl.Task().FinishAndWait(reason)
+	r.task.FinishAndWait(reason)
 	r.impl = nil
 }
 
@@ -360,7 +363,7 @@ func (r *Route) IsAgent() bool {
 }
 
 func (r *Route) HealthMonitor() health.HealthMonitor {
-	return r.impl.HealthMonitor()
+	return r.HealthMon
 }
 
 func (r *Route) IdlewatcherConfig() *idlewatcher.Config {
