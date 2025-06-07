@@ -166,12 +166,12 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 	}
 	s.DisksIO = ioCounters
 	if lastResult != nil {
-		interval := time.Now().Unix() - lastResult.Timestamp
+		interval := since(lastResult.Timestamp)
 		for name, disk := range s.DisksIO {
 			if lastUsage, ok := lastResult.DisksIO[name]; ok {
 				disk.ReadSpeed = float64(disk.ReadBytes-lastUsage.ReadBytes) / float64(interval)
 				disk.WriteSpeed = float64(disk.WriteBytes-lastUsage.WriteBytes) / float64(interval)
-				disk.Iops = (disk.ReadCount + disk.WriteCount - lastUsage.ReadCount - lastUsage.WriteCount) / uint64(interval)
+				disk.Iops = diff(disk.ReadCount+disk.WriteCount, lastUsage.ReadCount+lastUsage.WriteCount) / uint64(interval) //nolint:gosec
 			}
 		}
 	}
@@ -207,7 +207,7 @@ func (s *SystemInfo) collectNetworkInfo(ctx context.Context, lastResult *SystemI
 	}
 	s.Network = networkIO[0]
 	if lastResult != nil {
-		interval := float64(time.Now().Unix() - lastResult.Timestamp)
+		interval := float64(since(lastResult.Timestamp))
 		s.Network.UploadSpeed = float64(networkIO[0].BytesSent-lastResult.Network.BytesSent) / interval
 		s.Network.DownloadSpeed = float64(networkIO[0].BytesRecv-lastResult.Network.BytesRecv) / interval
 	}
@@ -341,4 +341,22 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		return -1, nil
 	}
 	return len(aggregated), aggregated
+}
+
+func diff(x, y uint64) uint64 {
+	if x > y {
+		return x - y
+	}
+	return y - x
+}
+
+func since(last int64) int64 {
+	now := time.Now().Unix()
+	if last > now { // should not happen but just in case
+		return 1
+	}
+	if last == now { // two consecutive polls occur within the same second
+		return 1
+	}
+	return now - last
 }
