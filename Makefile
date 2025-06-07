@@ -31,7 +31,7 @@ endif
 ifeq ($(debug), 1)
 	CGO_ENABLED = 0
 	GODOXY_DEBUG = 1
-	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug
+	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug -asan
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 1
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
