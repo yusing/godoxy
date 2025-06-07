@@ -179,7 +179,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		_ = lb.Start(parent) // always return nil
 		linked = &ReveseProxyRoute{
 			Route: &Route{
-				Alias:     cfg.Link + "-loadbalancer",
+				Alias:     cfg.Link,
 				Homepage:  r.Homepage,
 				HealthMon: lb,
 			},
