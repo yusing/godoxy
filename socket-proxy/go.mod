@@ -6,8 +6,8 @@ replace github.com/yusing/go-proxy/internal/utils => ../internal/utils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/go-proxy/internal/utils v0.0.0-20250529124236-93a81fd558e6
-	golang.org/x/net v0.40.0
+	github.com/yusing/go-proxy/internal/utils v0.0.0-20250605105311-09c244ef3cdb
+	golang.org/x/net v0.41.0
 )
 
 require (
@@ -16,5 +16,5 @@ require (
 	github.com/rs/zerolog v1.34.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 )
