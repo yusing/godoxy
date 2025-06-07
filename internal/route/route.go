@@ -433,8 +433,7 @@ func (r *Route) ShouldExclude() bool {
 	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
 		return true
 	}
-	if strings.HasPrefix(r.Alias, "x-") ||
-		strings.HasSuffix(r.Alias, "-old") {
+	if strings.HasSuffix(r.Alias, "-old") {
 		return true
 	}
 	return false

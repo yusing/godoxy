@@ -33,8 +33,17 @@ func FileProviderImpl(filename string) (ProviderImpl, error) {
 	return impl, nil
 }
 
+func removeXPrefix(m map[string]any) gperr.Error {
+	for alias := range m {
+		if strings.HasPrefix(alias, "x-") {
+			delete(m, alias)
+		}
+	}
+	return nil
+}
+
 func validate(data []byte) (routes route.Routes, err gperr.Error) {
-	err = serialization.UnmarshalValidateYAML(data, &routes)
+	err = serialization.UnmarshalValidateYAMLIntercept(data, &routes, removeXPrefix)
 	return
 }
 

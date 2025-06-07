@@ -528,6 +528,17 @@ func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 	return MapUnmarshalValidate(m, target)
 }
 
+func UnmarshalValidateYAMLIntercept[T any](data []byte, target *T, intercept func(m map[string]any) gperr.Error) gperr.Error {
+	m := make(map[string]any)
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return gperr.Wrap(err)
+	}
+	if err := intercept(m); err != nil {
+		return err
+	}
+	return MapUnmarshalValidate(m, target)
+}
+
 func UnmarshalValidateYAMLXSync[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
 	m := make(map[string]any)
 	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
