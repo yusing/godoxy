@@ -16,7 +16,7 @@ import (
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
@@ -42,7 +42,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	a := base.Agent()
 	if a != nil {
 		trans = a.Transport()
-		proxyURL = types.NewURL(agent.HTTPProxyURL)
+		proxyURL = nettypes.NewURL(agent.HTTPProxyURL)
 	} else {
 		trans = gphttp.NewTransport()
 		if httpConfig.NoTLSVerify {

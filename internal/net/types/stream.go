@@ -1,32 +1,14 @@
-package types
+package nettypes
 
 import (
-	"fmt"
+	"context"
 	"net"
 )
 
-type (
-	Stream interface {
-		fmt.Stringer
-		StreamListener
-		Setup() error
-		Handle(conn StreamConn) error
-	}
-	StreamListener interface {
-		Addr() net.Addr
-		Accept() (StreamConn, error)
-		Close() error
-	}
-	StreamConn         any
-	NetListenerWrapper struct {
-		net.Listener
-	}
-)
-
-func NetListener(l net.Listener) StreamListener {
-	return NetListenerWrapper{Listener: l}
+type Stream interface {
+	ListenAndServe(ctx context.Context, preDial PreDialFunc)
+	LocalAddr() net.Addr
+	Close() error
 }
 
-func (l NetListenerWrapper) Accept() (StreamConn, error) {
-	return l.Listener.Accept()
-}
+type PreDialFunc func(ctx context.Context) error

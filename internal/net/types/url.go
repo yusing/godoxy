@@ -1,4 +1,4 @@
-package types
+package nettypes
 
 import (
 	urlPkg "net/url"

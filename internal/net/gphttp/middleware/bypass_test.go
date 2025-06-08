@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/go-proxy/internal/entrypoint"
 	. "github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route"
 	routeTypes "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/task"
@@ -99,7 +99,7 @@ func (f fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestReverseProxyBypass(t *testing.T) {
-	rp := reverseproxy.NewReverseProxy("test", types.MustParseURL("http://example.com"), fakeRoundTripper{})
+	rp := reverseproxy.NewReverseProxy("test", nettypes.MustParseURL("http://example.com"), fakeRoundTripper{})
 	err := PatchReverseProxy(rp, map[string]OptionsRaw{
 		"response": {
 			"bypass": "path /test/* | path /api",

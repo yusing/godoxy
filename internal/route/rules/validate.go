@@ -10,7 +10,7 @@ import (
 	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
 type (
@@ -62,7 +62,7 @@ func validateURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	u, err := types.ParseURL(args[0])
+	u, err := nettypes.ParseURL(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
@@ -74,7 +74,7 @@ func validateAbsoluteURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	u, err := types.ParseURL(args[0])
+	u, err := nettypes.ParseURL(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
@@ -95,7 +95,7 @@ func validateCIDR(args []string) (any, gperr.Error) {
 	if !strings.Contains(args[0], "/") {
 		args[0] += "/32"
 	}
-	cidr, err := types.ParseCIDR(args[0])
+	cidr, err := nettypes.ParseCIDR(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

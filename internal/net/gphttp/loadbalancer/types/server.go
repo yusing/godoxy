@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	net "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 )
@@ -14,7 +14,7 @@ type (
 		_ U.NoCopy
 
 		name   string
-		url    *net.URL
+		url    *nettypes.URL
 		weight Weight
 
 		http.Handler `json:"-"`
@@ -26,14 +26,14 @@ type (
 		health.HealthMonitor
 		Name() string
 		Key() string
-		URL() *net.URL
+		URL() *nettypes.URL
 		Weight() Weight
 		SetWeight(weight Weight)
 		TryWake() error
 	}
 )
 
-func NewServer(name string, url *net.URL, weight Weight, handler http.Handler, healthMon health.HealthMonitor) Server {
+func NewServer(name string, url *nettypes.URL, weight Weight, handler http.Handler, healthMon health.HealthMonitor) Server {
 	srv := &server{
 		name:          name,
 		url:           url,
@@ -47,7 +47,7 @@ func NewServer(name string, url *net.URL, weight Weight, handler http.Handler, h
 func TestNewServer[T ~int | ~float32 | ~float64](weight T) Server {
 	srv := &server{
 		weight: Weight(weight),
-		url:    net.MustParseURL("http://localhost"),
+		url:    nettypes.MustParseURL("http://localhost"),
 	}
 	return srv
 }
@@ -56,7 +56,7 @@ func (srv *server) Name() string {
 	return srv.name
 }
 
-func (srv *server) URL() *net.URL {
+func (srv *server) URL() *nettypes.URL {
 	return srv.url
 }
 

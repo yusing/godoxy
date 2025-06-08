@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	gpnet "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
 )
@@ -157,7 +157,7 @@ func TestHeaderFilter(t *testing.T) {
 }
 
 func TestCIDRFilter(t *testing.T) {
-	cidr := []*CIDR{{gpnet.CIDR{
+	cidr := []*CIDR{{nettypes.CIDR{
 		IP:   net.ParseIP("192.168.10.0"),
 		Mask: net.CIDRMask(24, 32),
 	}}}

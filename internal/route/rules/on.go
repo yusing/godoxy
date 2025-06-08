@@ -8,7 +8,7 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -205,7 +205,7 @@ var checkers = map[string]struct {
 		},
 		validate: validateCIDR,
 		builder: func(args any) CheckFunc {
-			cidr := args.(types.CIDR)
+			cidr := args.(nettypes.CIDR)
 			return func(cached Cache, r *http.Request) bool {
 				ip := cached.GetRemoteIP(r)
 				if ip == nil {

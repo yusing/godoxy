@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -51,8 +51,8 @@ func TestModifyRequest(t *testing.T) {
 	})
 
 	t.Run("request_headers", func(t *testing.T) {
-		reqURL := types.MustParseURL("https://my.app/?arg_1=b")
-		upstreamURL := types.MustParseURL("http://test.example.com")
+		reqURL := nettypes.MustParseURL("https://my.app/?arg_1=b")
+		upstreamURL := nettypes.MustParseURL("http://test.example.com")
 		result, err := newMiddlewareTest(ModifyRequest, &testArgs{
 			middlewareOpt: opts,
 			reqURL:        reqURL,
@@ -128,8 +128,8 @@ func TestModifyRequest(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				reqURL := types.MustParseURL("https://my.app" + tt.path)
-				upstreamURL := types.MustParseURL(tt.upstreamURL)
+				reqURL := nettypes.MustParseURL("https://my.app" + tt.path)
+				upstreamURL := nettypes.MustParseURL(tt.upstreamURL)
 
 				opts["add_prefix"] = tt.addPrefix
 				result, err := newMiddlewareTest(ModifyRequest, &testArgs{

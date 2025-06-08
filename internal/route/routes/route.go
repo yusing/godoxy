@@ -7,13 +7,13 @@ import (
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/homepage"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	net "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/pool"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 
 	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
 type (
@@ -24,7 +24,7 @@ type (
 		pool.Object
 		ProviderName() string
 		GetProvider() Provider
-		TargetURL() *net.URL
+		TargetURL() *nettypes.URL
 		HealthMonitor() health.HealthMonitor
 		SetHealthMonitor(m health.HealthMonitor)
 		References() []string
@@ -57,7 +57,7 @@ type (
 	}
 	StreamRoute interface {
 		Route
-		net.Stream
+		nettypes.Stream
 	}
 	Provider interface {
 		GetRoute(alias string) (r Route, ok bool)

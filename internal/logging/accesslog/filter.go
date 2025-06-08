@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	gpnet "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -25,7 +25,7 @@ type (
 	}
 	Host string
 	CIDR struct {
-		gpnet.CIDR
+		nettypes.CIDR
 	}
 )
 

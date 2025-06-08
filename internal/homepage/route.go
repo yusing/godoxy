@@ -3,7 +3,7 @@ package homepage
 import (
 	"net/http"
 
-	gpnet "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils/pool"
 )
 
@@ -11,7 +11,7 @@ type route interface {
 	pool.Object
 	ProviderName() string
 	References() []string
-	TargetURL() *gpnet.URL
+	TargetURL() *nettypes.URL
 }
 
 type httpRoute interface {

@@ -14,7 +14,7 @@ import (
 	"github.com/yusing/go-proxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	net "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	U "github.com/yusing/go-proxy/internal/utils"
@@ -30,7 +30,7 @@ type (
 	routeHelper struct {
 		route  routes.Route
 		rp     *reverseproxy.ReverseProxy
-		stream net.Stream
+		stream nettypes.Stream
 		hc     health.HealthChecker
 	}
 

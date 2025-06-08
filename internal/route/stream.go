@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher"
-	net "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
@@ -17,7 +17,7 @@ import (
 // TODO: support stream load balance.
 type StreamRoute struct {
 	*Route
-	net.Stream `json:"-"`
+	nettypes.Stream `json:"-"`
 
 	l zerolog.Logger
 }

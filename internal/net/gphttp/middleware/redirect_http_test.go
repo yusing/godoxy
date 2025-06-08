@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
 func TestRedirectToHTTPs(t *testing.T) {
 	result, err := newMiddlewareTest(RedirectHTTP, &testArgs{
-		reqURL: types.MustParseURL("http://example.com"),
+		reqURL: nettypes.MustParseURL("http://example.com"),
 	})
 	ExpectNoError(t, err)
 	ExpectEqual(t, result.ResponseStatus, http.StatusPermanentRedirect)
@@ -19,7 +19,7 @@ func TestRedirectToHTTPs(t *testing.T) {
 
 func TestNoRedirect(t *testing.T) {
 	result, err := newMiddlewareTest(RedirectHTTP, &testArgs{
-		reqURL: types.MustParseURL("https://example.com"),
+		reqURL: nettypes.MustParseURL("https://example.com"),
 	})
 	ExpectNoError(t, err)
 	ExpectEqual(t, result.ResponseStatus, http.StatusOK)

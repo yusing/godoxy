@@ -28,7 +28,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/net/http/httpguts"
 )
@@ -93,7 +93,7 @@ type ReverseProxy struct {
 	HandlerFunc http.HandlerFunc
 
 	TargetName string
-	TargetURL  *types.URL
+	TargetURL  *nettypes.URL
 }
 
 func singleJoiningSlash(a, b string) string {
@@ -133,7 +133,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
-func NewReverseProxy(name string, target *types.URL, transport http.RoundTripper) *ReverseProxy {
+func NewReverseProxy(name string, target *nettypes.URL, transport http.RoundTripper) *ReverseProxy {
 	if transport == nil {
 		panic("nil transport")
 	}
