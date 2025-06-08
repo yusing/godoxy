@@ -50,7 +50,7 @@ services:
       #     - 172.16.0.0/12
   app:
     image: ghcr.io/yusing/godoxy:${TAG:-latest}
-    container_name: godoxy
+    container_name: godoxy-proxy
     restart: always
     network_mode: host # do not change this
     env_file: .env
