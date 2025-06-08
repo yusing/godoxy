@@ -44,6 +44,12 @@ func GetFavIcon(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// try with alias
+	GetFavIconFromAlias(w, req, alias)
+	return
+}
+
+func GetFavIconFromAlias(w http.ResponseWriter, req *http.Request, alias string) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)
 	if !ok {
