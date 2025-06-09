@@ -127,8 +127,6 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 	m, err := docker.ParseLabels(container.Labels)
 	errs.Add(err)
 
-	var wildcardProps docker.LabelMap
-
 	for alias, entryMapAny := range m {
 		if len(alias) == 0 {
 			errs.Add(gperr.New("empty alias"))
@@ -148,11 +146,6 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 				errs.Add(gperr.Wrap(err).Subject(alias))
 				continue
 			}
-		}
-
-		if alias == docker.WildcardAlias {
-			wildcardProps = entryMap
-			continue
 		}
 
 		// check if it is an alias reference
@@ -187,14 +180,6 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 			errs.Add(err.Subject(alias))
 		} else {
 			routes[alias] = r
-		}
-	}
-	if wildcardProps != nil {
-		for _, re := range routes {
-			if err := serialization.MapUnmarshalValidate(wildcardProps, re); err != nil {
-				errs.Add(err.Subject(docker.WildcardAlias))
-				break
-			}
 		}
 	}
 
