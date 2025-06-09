@@ -85,7 +85,7 @@ func WaitExit(shutdownTimeout int) {
 // still running when the timeout was reached, and their current tree
 // of subtasks.
 func gracefulShutdown(timeout time.Duration) error {
-	go root.Finish(ErrProgramExiting)
+	root.Finish(ErrProgramExiting)
 	if !root.waitFinish(timeout) {
 		return context.DeadlineExceeded
 	}
