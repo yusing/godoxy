@@ -1,8 +1,10 @@
 package idlewatcher
 
-import "context"
+import (
+	"context"
+)
 
-func (w *Watcher) cancelled(reqCtx context.Context) bool {
+func (w *Watcher) canceled(reqCtx context.Context) bool {
 	select {
 	case <-reqCtx.Done():
 		w.l.Debug().AnErr("cause", context.Cause(reqCtx)).Msg("wake canceled")

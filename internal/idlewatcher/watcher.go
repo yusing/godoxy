@@ -261,7 +261,7 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 	case routes.ReverseProxyRoute:
 		w.rp = r.ReverseProxy()
 	case routes.StreamRoute:
-		w.stream = r
+		w.stream = r.Stream()
 	default:
 		w.provider.Close()
 		return nil, w.newWatcherError(gperr.Errorf("unexpected route type: %T", r))

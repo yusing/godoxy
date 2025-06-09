@@ -5,45 +5,51 @@ import (
 	"net"
 	"time"
 
-	gpnet "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
-// Setup implements types.Stream.
-func (w *Watcher) Addr() net.Addr {
-	return w.stream.Addr()
+var _ nettypes.Stream = (*Watcher)(nil)
+
+// ListenAndServe implements nettypes.Stream.
+func (w *Watcher) ListenAndServe(ctx context.Context, predial, onRead nettypes.HookFunc) {
+	w.stream.ListenAndServe(ctx, func(ctx context.Context) error { //nolint:contextcheck
+		return w.preDial(ctx, predial)
+	}, func(ctx context.Context) error {
+		return w.onRead(ctx, onRead)
+	})
 }
 
-// Setup implements types.Stream.
-func (w *Watcher) Setup() error {
-	return w.stream.Setup()
-}
-
-// Accept implements types.Stream.
-func (w *Watcher) Accept() (conn gpnet.StreamConn, err error) {
-	conn, err = w.stream.Accept()
-	if err != nil {
-		return
-	}
-	if wakeErr := w.wakeFromStream(); wakeErr != nil {
-		w.l.Err(wakeErr).Msg("error waking container")
-	}
-	return
-}
-
-// Handle implements types.Stream.
-func (w *Watcher) Handle(conn gpnet.StreamConn) error {
-	if err := w.wakeFromStream(); err != nil {
-		return err
-	}
-	return w.stream.Handle(conn)
-}
-
-// Close implements types.Stream.
+// Close implements nettypes.Stream.
 func (w *Watcher) Close() error {
 	return w.stream.Close()
 }
 
-func (w *Watcher) wakeFromStream() error {
+// LocalAddr implements nettypes.Stream.
+func (w *Watcher) LocalAddr() net.Addr {
+	return w.stream.LocalAddr()
+}
+
+func (w *Watcher) preDial(ctx context.Context, predial nettypes.HookFunc) error {
+	if predial != nil {
+		if err := predial(ctx); err != nil {
+			return err
+		}
+	}
+
+	return w.wakeFromStream(ctx)
+}
+
+func (w *Watcher) onRead(ctx context.Context, onRead nettypes.HookFunc) error {
+	w.resetIdleTimer()
+	if onRead != nil {
+		if err := onRead(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *Watcher) wakeFromStream(ctx context.Context) error {
 	w.resetIdleTimer()
 
 	// pass through if container is already ready
@@ -52,18 +58,27 @@ func (w *Watcher) wakeFromStream() error {
 	}
 
 	w.l.Debug().Msg("wake signal received")
-	err := w.Wake(context.Background())
+	err := w.Wake(ctx)
 	if err != nil {
 		return err
 	}
 
 	for {
+		w.resetIdleTimer()
+
+		if w.canceled(ctx) {
+			return nil
+		}
+
+		if !w.waitStarted(ctx) {
+			return nil
+		}
+
 		ready, err := w.checkUpdateState()
 		if err != nil {
 			return err
 		}
 		if ready {
-			w.resetIdleTimer()
 			w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
 			return nil
 		}

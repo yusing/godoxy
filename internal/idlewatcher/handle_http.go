@@ -92,7 +92,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	}
 
 	ctx := r.Context()
-	if w.cancelled(ctx) {
+	if w.canceled(ctx) {
 		w.redirectToStartEndpoint(rw, r)
 		return false
 	}
@@ -107,7 +107,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	for {
 		w.resetIdleTimer()
 
-		if w.cancelled(ctx) {
+		if w.canceled(ctx) {
 			w.redirectToStartEndpoint(rw, r)
 			return false
 		}

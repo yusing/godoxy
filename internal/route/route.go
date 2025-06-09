@@ -16,7 +16,7 @@ import (
 	"github.com/yusing/go-proxy/internal/homepage"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	netutils "github.com/yusing/go-proxy/internal/net"
-	net "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
@@ -39,7 +39,7 @@ type (
 		Alias  string       `json:"alias"`
 		Scheme route.Scheme `json:"scheme,omitempty"`
 		Host   string       `json:"host,omitempty"`
-		Port   route.Port   `json:"port,omitempty"`
+		Port   route.Port   `json:"port"`
 		Root   string       `json:"root,omitempty"`
 
 		route.HTTPConfig
@@ -64,8 +64,8 @@ type (
 		Provider string `json:"provider,omitempty"` // for backward compatibility
 
 		// private fields
-		LisURL   *net.URL `json:"lurl,omitempty"`
-		ProxyURL *net.URL `json:"purl,omitempty"`
+		LisURL   *nettypes.URL `json:"lurl,omitempty"`
+		ProxyURL *nettypes.URL `json:"purl,omitempty"`
 
 		Excluded *bool `json:"excluded"`
 
@@ -195,19 +195,19 @@ func (r *Route) Validate() gperr.Error {
 
 	switch r.Scheme {
 	case route.SchemeFileServer:
-		r.ProxyURL = gperr.Collect(errs, net.ParseURL, "file://"+r.Root)
+		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
 	case route.SchemeHTTP, route.SchemeHTTPS:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
-		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
 		if !r.ShouldExclude() {
-			r.LisURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+			r.LisURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		}
-		r.ProxyURL = gperr.Collect(errs, net.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -309,7 +309,7 @@ func (r *Route) ProviderName() string {
 	return r.Provider
 }
 
-func (r *Route) TargetURL() *net.URL {
+func (r *Route) TargetURL() *nettypes.URL {
 	return r.ProxyURL
 }
 

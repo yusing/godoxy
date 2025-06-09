@@ -58,6 +58,7 @@ type (
 	StreamRoute interface {
 		Route
 		nettypes.Stream
+		Stream() nettypes.Stream
 	}
 	Provider interface {
 		GetRoute(alias string) (r Route, ok bool)

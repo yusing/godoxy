@@ -2,7 +2,8 @@ package route
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"net"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -10,6 +11,7 @@ import (
 	"github.com/yusing/go-proxy/internal/idlewatcher"
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
+	"github.com/yusing/go-proxy/internal/route/stream"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
@@ -17,7 +19,7 @@ import (
 // TODO: support stream load balance.
 type StreamRoute struct {
 	*Route
-	nettypes.Stream `json:"-"`
+	stream nettypes.Stream
 
 	l zerolog.Logger
 }
@@ -33,10 +35,19 @@ func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
 	}, nil
 }
 
+func (r *StreamRoute) Stream() nettypes.Stream {
+	return r.stream
+}
+
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
+	stream, err := r.initStream()
+	if err != nil {
+		return gperr.Wrap(err)
+	}
+	r.stream = stream
+
 	r.task = parent.Subtask("stream."+r.Name(), !r.ShouldExclude())
-	r.Stream = NewStream(r)
 
 	switch {
 	case r.UseIdleWatcher():
@@ -45,18 +56,10 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 			r.task.Finish(err)
 			return gperr.Wrap(err, "idlewatcher error")
 		}
-		r.Stream = waker
+		r.stream = waker
 		r.HealthMon = waker
 	case r.UseHealthCheck():
 		r.HealthMon = monitor.NewMonitor(r)
-	}
-
-	if !r.ShouldExclude() {
-		if err := r.Setup(); err != nil {
-			r.task.Finish(err)
-			return gperr.Wrap(err)
-		}
-		r.l.Info().Int("port", r.Port.Listening).Msg("listening")
 	}
 
 	if r.HealthMon != nil {
@@ -73,7 +76,14 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		return err
 	}
 
-	go r.acceptConnections()
+	r.ListenAndServe(r.task.Context(), nil, nil)
+	r.l = r.l.With().Stringer("rurl", r.ProxyURL).Stringer("laddr", r.LocalAddr()).Logger()
+	r.l.Info().Msg("stream started")
+
+	r.task.OnCancel("close_stream", func() {
+		r.stream.Close()
+		r.l.Info().Msg("stream closed")
+	})
 
 	routes.Stream.Add(r)
 	r.task.OnCancel("remove_route_from_stream", func() {
@@ -82,38 +92,34 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-func (r *StreamRoute) acceptConnections() {
-	defer r.task.Finish("listener closed")
+func (r *StreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
+	r.stream.ListenAndServe(ctx, preDial, onRead)
+}
 
-	go func() {
-		<-r.task.Context().Done()
-		r.Close()
-	}()
+func (r *StreamRoute) Close() error {
+	return r.stream.Close()
+}
 
-	for {
-		select {
-		case <-r.task.Context().Done():
-			return
-		default:
-			conn, err := r.Accept()
-			if err != nil {
-				select {
-				case <-r.task.Context().Done():
-				default:
-					gperr.LogError("accept connection error", err, &r.l)
-				}
-				r.task.Finish(err)
-				return
-			}
-			if conn == nil {
-				panic("connection is nil")
-			}
-			go func() {
-				err := r.Handle(conn)
-				if err != nil && !errors.Is(err, context.Canceled) {
-					gperr.LogError("handle connection error", err, &r.l)
-				}
-			}()
-		}
+func (r *StreamRoute) LocalAddr() net.Addr {
+	return r.stream.LocalAddr()
+}
+
+func (r *StreamRoute) initStream() (nettypes.Stream, error) {
+	lurl, rurl := r.LisURL, r.ProxyURL
+	if lurl != nil && lurl.Scheme != rurl.Scheme {
+		return nil, fmt.Errorf("incoherent scheme is not yet supported: %s != %s", lurl.Scheme, rurl.Scheme)
 	}
+
+	laddr := ":0"
+	if lurl != nil {
+		laddr = lurl.Host
+	}
+
+	switch rurl.Scheme {
+	case "tcp":
+		return stream.NewTCPTCPStream(laddr, rurl.Host)
+	case "udp":
+		return stream.NewUDPUDPStream(laddr, rurl.Host)
+	}
+	return nil, fmt.Errorf("unknown scheme: %s", rurl.Scheme)
 }
