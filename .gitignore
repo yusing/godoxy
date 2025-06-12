@@ -30,6 +30,7 @@ todo.md
 mtrace.json
 .env
 .cursorrules
+.cursor/
 .windsurfrules
 test.Dockerfile
 
