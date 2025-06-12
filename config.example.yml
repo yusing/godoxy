@@ -15,7 +15,7 @@
 #   options:
 #     auth_token: c1234565789-abcdefghijklmnopqrst # your zone API token
 
-# 3. other providers, see https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
+# 3. other providers, see https://docs.godoxy.dev/DNS-01-Providers
 
 # acl:
 #   default: allow # or deny (default: allow)
@@ -115,7 +115,7 @@ providers:
   #     secret: aaaa-bbbb-cccc-dddd
   #     no_tls_verify: true
 
-# Check https://github.com/yusing/godoxy/wiki/Certificates-and-domain-matching#domain-matching
+# Check https://docs.godoxy.dev/Certificates-and-domain-matching
 # for explaination of `match_domains`
 #
 # match_domains:
