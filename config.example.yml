@@ -15,7 +15,20 @@
 #   options:
 #     auth_token: c1234565789-abcdefghijklmnopqrst # your zone API token
 
-# 3. other providers, see https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
+# 3. AWS Route53
+# autocert:
+#   provider: route53
+#   email: abc@gmail.com # ACME Email
+#   domains: # a list of domains for cert registration
+#     - "*.domain.com"
+#     - "domain.com"
+#   options:
+#     accesskeyid: your_key_id # AWS User Access key id on a user with Route53 permissions
+#     secretaccesskey: your_secret_access_key # AWS User Access key secret on a user with Route53 permissions
+#     region: us-east-1 # us-east-1 for most of the world
+#     hostedzoneid: your_hosted_zone_id # The Hosted Zone ID of your domain in AWS Route53
+
+# 4. other providers, see https://github.com/yusing/godoxy/wiki/Supported-DNS%E2%80%9001-Providers#supported-dns-01-providers
 
 # acl:
 #   default: allow # or deny (default: allow)
