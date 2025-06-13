@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	D "github.com/yusing/go-proxy/internal/docker"
@@ -319,7 +318,7 @@ func TestStreamDefaultValues(t *testing.T) {
 				},
 			},
 		},
-		Ports: []types.Port{
+		Ports: []container.Port{
 			{Type: "udp", PrivatePort: privPort, PublicPort: pubPort},
 		},
 	}
@@ -372,7 +371,7 @@ func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("exposed port detection", func(t *testing.T) {
 		r, ok := makeRoutes(&container.SummaryTrimmed{
 			Names: dummyNames,
-			Ports: []types.Port{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 5432, PublicPort: 5432},
 			},
 		})["a"]

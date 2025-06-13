@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -12,11 +13,11 @@ type LabelMap = map[string]any
 
 var ErrInvalidLabel = gperr.New("invalid label")
 
-func ParseLabels(labels map[string]string) (LabelMap, gperr.Error) {
+func ParseLabels(labels map[string]string, aliases ...string) (LabelMap, gperr.Error) {
 	nestedMap := make(LabelMap)
 	errs := gperr.NewBuilder("labels error")
 
-	ExpandWildcard(labels)
+	ExpandWildcard(labels, aliases...)
 
 	for lbl, value := range labels {
 		parts := strutils.SplitRune(lbl, '.')
@@ -56,31 +57,92 @@ func ParseLabels(labels map[string]string) (LabelMap, gperr.Error) {
 	return nestedMap, errs.Error()
 }
 
-func ExpandWildcard(labels map[string]string) {
-	aliasLabels := make([]string, 0, len(labels))
+func ExpandWildcard(labels map[string]string, aliases ...string) {
+	// collect all explicit aliases first
+	aliasSet := make(map[string]struct{}, len(labels))
+	// wildcardLabels holds mapping suffix -> value derived from wildcard label definitions
 	wildcardLabels := make(map[string]string)
 
-	for lbl, value := range labels {
-		parts := strings.SplitN(lbl, ".", 3) // Split into proxy, alias, rest
-		if parts[0] != NSProxy || len(parts) < 2 {
-			continue
-		}
-		alias := parts[1] // alias or wildcard alias
-		if alias == WildcardAlias {
-			delete(labels, lbl)
-			if len(parts) < 3 { // invalid wildcard label (no suffix)
-				continue
-			}
-			wildcardLabels[parts[2]] = value
-		} else {
-			// Extract just the alias part (first segment after proxy)
-			aliasLabels = append(aliasLabels, alias)
-		}
+	for _, alias := range aliases {
+		aliasSet[alias] = struct{}{}
 	}
 
-	for lbl, v := range wildcardLabels {
-		for _, alias := range aliasLabels {
-			labels[fmt.Sprintf("%s.%s.%s", NSProxy, alias, lbl)] = v
+	// iterate over a copy of the keys to safely mutate the map while ranging
+	for lbl, value := range labels {
+		parts := strings.SplitN(lbl, ".", 3)
+		if len(parts) < 2 || parts[0] != NSProxy {
+			continue
+		}
+		alias := parts[1]
+		if alias == WildcardAlias { // "*"
+			// remove wildcard label from original map – it should not remain afterwards
+			delete(labels, lbl)
+
+			// value looks like YAML (multiline)
+			if strings.Count(value, "\n") > 1 {
+				expandYamlWildcard(value, wildcardLabels)
+				continue
+			}
+
+			// normal wildcard label with suffix – store directly
+			wildcardLabels[parts[2]] = value
+			continue
+		}
+		// explicit alias label – remember the alias
+		aliasSet[alias] = struct{}{}
+	}
+
+	if len(aliasSet) == 0 || len(wildcardLabels) == 0 {
+		return // nothing to expand
+	}
+
+	// expand collected wildcard labels for every alias
+	for suffix, v := range wildcardLabels {
+		for alias := range aliasSet {
+			key := fmt.Sprintf("%s.%s.%s", NSProxy, alias, suffix)
+			if suffix == "" { // this should not happen (root wildcard handled earlier) but keep safe
+				key = fmt.Sprintf("%s.%s", NSProxy, alias)
+			}
+			labels[key] = v
+		}
+	}
+}
+
+// expandYamlWildcard parses a YAML document in value, flattens it to dot-notated keys and adds the
+// results into dest map where each key is the flattened suffix and the value is the scalar string
+// representation. The provided YAML is expected to be a mapping.
+func expandYamlWildcard(value string, dest map[string]string) {
+	// replace tab indentation with spaces to make YAML parser happy
+	yamlStr := strings.ReplaceAll(value, "\t", "    ")
+
+	raw := make(map[string]any)
+	if err := yaml.Unmarshal([]byte(yamlStr), &raw); err != nil {
+		// on parse error, ignore – treat as no-op
+		return
+	}
+
+	flattenMap("", raw, dest)
+}
+
+// flattenMap converts nested maps into a flat map with dot-delimited keys.
+func flattenMap(prefix string, src map[string]any, dest map[string]string) {
+	for k, v := range src {
+		key := k
+		if prefix != "" {
+			key = prefix + "." + k
+		}
+		switch vv := v.(type) {
+		case map[string]any:
+			flattenMap(key, vv, dest)
+		case map[any]any:
+			// convert to map[string]any by stringifying keys
+			tmp := make(map[string]any, len(vv))
+			for kk, vvv := range vv {
+				tmp[fmt.Sprintf("%v", kk)] = vvv
+			}
+			flattenMap(key, tmp, dest)
+		default:
+			dest[key] = fmt.Sprint(v)
 		}
 	}
 }

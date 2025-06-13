@@ -28,6 +28,31 @@ func TestExpandWildcard(t *testing.T) {
 	}, labels)
 }
 
+func TestExpandWildcardYAML(t *testing.T) {
+	yaml := `
+host: localhost
+port: 5555
+healthcheck:
+	disable: true`
+	labels := map[string]string{
+		"proxy.*":                     yaml[1:],
+		"proxy.a.port":                "4444",
+		"proxy.a.healthcheck.disable": "false",
+		"proxy.a.healthcheck.path":    "/health",
+		"proxy.b.port":                "6666",
+	}
+	docker.ExpandWildcard(labels)
+	require.Equal(t, map[string]string{
+		"proxy.a.host":                "localhost", // set by wildcard
+		"proxy.a.port":                "5555",      // overridden by wildcard
+		"proxy.a.healthcheck.disable": "true",      // overridden by wildcard
+		"proxy.a.healthcheck.path":    "/health",   // own label
+		"proxy.b.host":                "localhost", // set by wildcard
+		"proxy.b.port":                "5555",      // overridden by wildcard
+		"proxy.b.healthcheck.disable": "true",      // overridden by wildcard
+	}, labels)
+}
+
 func BenchmarkParseLabels(b *testing.B) {
 	for b.Loop() {
 		_, _ = docker.ParseLabels(map[string]string{
