@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yusing/go-proxy v0.14.1
+	github.com/yusing/go-proxy v0.14.2
 	github.com/yusing/go-proxy/internal/utils v0.0.0
 	github.com/yusing/go-proxy/socketproxy v0.0.0-00010101000000-000000000000
 )
@@ -48,7 +48,7 @@ require (
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/google/pprof v0.0.0-20250602020802-c6617b811d0e // indirect
+	github.com/google/pprof v0.0.0-20250607225305-033d6d78b36a // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gotify/server/v2 v2.6.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -71,7 +71,7 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.1.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.52.0 // indirect
-	github.com/samber/lo v1.50.0 // indirect
+	github.com/samber/lo v1.51.0 // indirect
 	github.com/samber/slog-common v0.18.1 // indirect
 	github.com/samber/slog-zerolog/v2 v2.7.3 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.5 // indirect
