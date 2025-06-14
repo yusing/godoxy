@@ -50,6 +50,7 @@ type (
 		Middlewares  map[string]docker.LabelMap     `json:"middlewares,omitempty"`
 		Homepage     *homepage.ItemConfig           `json:"homepage,omitempty"`
 		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty"`
+		Agent        string                         `json:"agent,omitempty"`
 
 		Idlewatcher *idlewatcher.Config  `json:"idlewatcher,omitempty"`
 		HealthMon   health.HealthMonitor `json:"health,omitempty"`
@@ -76,6 +77,8 @@ type (
 		lastError   gperr.Error
 		provider    routes.Provider
 
+		agent *agent.AgentConfig
+
 		started chan struct{}
 		once    sync.Once
 	}
@@ -94,6 +97,23 @@ func (r *Route) Validate() gperr.Error {
 		return r.lastError
 	}
 	r.isValidated = true
+
+	if r.Agent != "" {
+		if r.Container != nil {
+			return gperr.Errorf("specifying agent is not allowed for docker container routes")
+		}
+		var ok bool
+		// by agent address
+		r.agent, ok = agent.GetAgent(r.Agent)
+		if !ok {
+			// fallback to get agent by name
+			r.agent, ok = agent.GetAgentByName(r.Agent)
+			if !ok {
+				return gperr.Errorf("agent %s not found", r.Agent)
+			}
+		}
+	}
+
 	r.Finalize()
 
 	r.started = make(chan struct{})
@@ -177,13 +197,15 @@ func (r *Route) Validate() gperr.Error {
 		r.Idlewatcher = r.Container.IdlewatcherConfig
 	}
 
-	// return error if route is localhost:<godoxy_port>
-	switch r.Host {
-	case "localhost", "127.0.0.1":
-		switch r.Port.Proxy {
-		case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
-			if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
-				return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
+	// return error if route is localhost:<godoxy_port> but route is not agent
+	if !r.IsAgent() {
+		switch r.Host {
+		case "localhost", "127.0.0.1":
+			switch r.Port.Proxy {
+			case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
+				if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
+					return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
+				}
 			}
 		}
 	}
@@ -352,10 +374,10 @@ func (r *Route) Type() route.RouteType {
 }
 
 func (r *Route) GetAgent() *agent.AgentConfig {
-	if r.Container == nil {
-		return nil
+	if r.Container != nil && r.Container.Agent != nil {
+		return r.Container.Agent
 	}
-	return r.Container.Agent
+	return r.agent
 }
 
 func (r *Route) IsAgent() bool {

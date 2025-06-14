@@ -148,3 +148,37 @@ func TestPreferredPort(t *testing.T) {
 	port := preferredPort(ports)
 	expect.Equal(t, port, 3000)
 }
+
+func TestDockerRouteDisallowAgent(t *testing.T) {
+	r := &Route{
+		Alias:  "test",
+		Scheme: route.SchemeHTTP,
+		Host:   "example.com",
+		Port:   route.Port{Proxy: 80},
+		Agent:  "test-agent",
+		Metadata: Metadata{
+			Container: &docker.Container{
+				ContainerID: "test-id",
+				Image: &docker.ContainerImage{
+					Name: "test-image",
+				},
+			},
+		},
+	}
+	err := r.Validate()
+	expect.HasError(t, err, "Validate should return error for docker route with agent")
+	expect.ErrorContains(t, err, "specifying agent is not allowed for docker container routes")
+}
+
+func TestRouteAgent(t *testing.T) {
+	r := &Route{
+		Alias:  "test",
+		Scheme: route.SchemeHTTP,
+		Host:   "example.com",
+		Port:   route.Port{Proxy: 80},
+		Agent:  "test-agent",
+	}
+	err := r.Validate()
+	expect.NoError(t, err, "Validate should not return error for valid route with agent")
+	expect.NotNil(t, r.GetAgent(), "GetAgent should return agent")
+}
