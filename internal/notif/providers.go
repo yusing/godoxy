@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/serialization"
 )
@@ -72,13 +71,6 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent:
-		body, _ := io.ReadAll(resp.Body)
-		log.Debug().
-			Str("provider", provider.GetName()).
-			Str("url", provider.GetURL()).
-			Str("status", resp.Status).
-			RawJSON("resp_body", body).
-			Msg("notification sent")
 		return nil
 	default:
 		return fmt.Errorf("http status %d: %w", resp.StatusCode, provider.fmtError(resp.Body))
