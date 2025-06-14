@@ -13,6 +13,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
+	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -247,7 +248,8 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 				}
 			}
 		}
-		c.addError(fmt.Errorf("%w: %s", ErrNetworkNotFound, c.Network))
+		nearest := gperr.DoYouMean(utils.NearestField(c.Network, helper.NetworkSettings.Networks))
+		c.addError(fmt.Errorf("network %q not found, %w", c.Network, nearest))
 		return
 	}
 	// fallback to first network if no network is specified
