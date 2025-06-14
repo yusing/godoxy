@@ -2,6 +2,8 @@ package docker
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strconv"
@@ -9,10 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/serialization"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -46,6 +46,8 @@ type (
 		IsExplicit        bool     `json:"is_explicit"`
 		IsHostNetworkMode bool     `json:"is_host_network_mode"`
 		Running           bool     `json:"running"`
+
+		Errors *containerError `json:"errors"`
 	}
 	ContainerImage struct {
 		Author string `json:"author,omitempty"`
@@ -55,6 +57,11 @@ type (
 )
 
 var DummyContainer = new(Container)
+
+var (
+	ErrNetworkNotFound = errors.New("network not found")
+	ErrNoNetwork       = errors.New("no network found")
+)
 
 func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container) {
 	_, isExplicit := c.Labels[LabelAliases]
@@ -68,6 +75,7 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 			}
 		}
 	}
+	network := helper.getDeleteLabel(LabelNetwork)
 
 	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
 	res = &Container{
@@ -80,6 +88,7 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 
 		Mounts: helper.getMounts(),
 
+		Network:            network,
 		PublicPortMapping:  helper.getPublicPortMapping(),
 		PrivatePortMapping: helper.getPrivatePortMapping(),
 
@@ -94,13 +103,17 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 		var ok bool
 		res.Agent, ok = config.GetInstance().GetAgent(dockerHost)
 		if !ok {
-			log.Error().Msgf("agent %q not found", dockerHost)
+			res.addError(fmt.Errorf("agent %q not found", dockerHost))
 		}
 	}
 
 	res.setPrivateHostname(helper)
 	res.setPublicHostname()
 	res.loadDeleteIdlewatcherLabels(helper)
+
+	if res.PrivateHostname == "" && res.PublicHostname == "" && res.Running {
+		res.addError(ErrNoNetwork)
+	}
 	return
 }
 
@@ -203,7 +216,6 @@ func (c *Container) setPublicHostname() {
 	}
 	url, err := url.Parse(c.DockerHost)
 	if err != nil {
-		log.Err(err).Msgf("invalid docker host %q, falling back to 127.0.0.1", c.DockerHost)
 		c.PublicHostname = "127.0.0.1"
 		return
 	}
@@ -217,6 +229,28 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 	if helper.NetworkSettings == nil {
 		return
 	}
+	if c.Network != "" {
+		v, ok := helper.NetworkSettings.Networks[c.Network]
+		if ok {
+			c.PrivateHostname = v.IPAddress
+			return
+		}
+		// try {project_name}_{network_name}
+		if proj := c.DockerComposeProject(); proj != "" {
+			oldNetwork, newNetwork := c.Network, fmt.Sprintf("%s_%s", proj, c.Network)
+			if newNetwork != oldNetwork {
+				v, ok = helper.NetworkSettings.Networks[newNetwork]
+				if ok {
+					c.Network = newNetwork // update network to the new one
+					c.PrivateHostname = v.IPAddress
+					return
+				}
+			}
+		}
+		c.addError(fmt.Errorf("%w: %s", ErrNetworkNotFound, c.Network))
+		return
+	}
+	// fallback to first network if no network is specified
 	for k, v := range helper.NetworkSettings.Networks {
 		if v.IPAddress != "" {
 			c.Network = k // update network to the first network
@@ -252,9 +286,16 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 
 		err := serialization.MapUnmarshalValidate(cfg, idwCfg)
 		if err != nil {
-			gperr.LogWarn("invalid idlewatcher config", gperr.PrependSubject(c.ContainerName, err))
+			c.addError(err)
 		} else {
 			c.IdlewatcherConfig = idwCfg
 		}
 	}
+}
+
+func (c *Container) addError(err error) {
+	if c.Errors == nil {
+		c.Errors = new(containerError)
+	}
+	c.Errors.Add(err)
 }

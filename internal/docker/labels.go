@@ -14,4 +14,5 @@ const (
 	LabelStopSignal    = NSProxy + ".stop_signal"
 	LabelStartEndpoint = NSProxy + ".start_endpoint"
 	LabelDependsOn     = NSProxy + ".depends_on"
+	LabelNetwork       = NSProxy + ".network"
 )
