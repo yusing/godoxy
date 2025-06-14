@@ -39,7 +39,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	proxyURL := base.ProxyURL
 
 	var trans *http.Transport
-	a := base.Agent()
+	a := base.GetAgent()
 	if a != nil {
 		trans = a.Transport()
 		proxyURL = nettypes.NewURL(agent.HTTPProxyURL)

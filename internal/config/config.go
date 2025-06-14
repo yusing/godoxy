@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/api"
 	autocert "github.com/yusing/go-proxy/internal/autocert"
 	"github.com/yusing/go-proxy/internal/common"
@@ -323,14 +324,14 @@ func (cfg *Config) loadRouteProviders(providers *config.Providers) gperr.Error {
 	errs := gperr.NewBuilder("route provider errors")
 	results := gperr.NewBuilder("loaded route providers")
 
-	removeAllAgents()
+	agentPkg.RemoveAllAgents()
 
 	for _, agent := range providers.Agents {
 		if err := agent.Start(cfg.task.Context()); err != nil {
 			errs.Add(gperr.PrependSubject(agent.String(), err))
 			continue
 		}
-		addAgent(agent)
+		agentPkg.AddAgent(agent)
 		p := proxy.NewAgentProvider(agent)
 		if err := cfg.errIfExists(p); err != nil {
 			errs.Add(err.Subject(p.String()))

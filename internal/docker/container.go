@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
-	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/serialization"
@@ -102,7 +101,7 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 
 	if agent.IsDockerHostAgent(dockerHost) {
 		var ok bool
-		res.Agent, ok = config.GetInstance().GetAgent(dockerHost)
+		res.Agent, ok = agent.GetAgent(dockerHost)
 		if !ok {
 			res.addError(fmt.Errorf("agent %q not found", dockerHost))
 		}

@@ -39,7 +39,7 @@ func NewAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hostport := fmt.Sprintf("%s:%d", host, port)
-	if _, ok := config.GetInstance().GetAgent(hostport); ok {
+	if _, ok := agent.GetAgent(hostport); ok {
 		gphttp.KeyAlreadyExists(w, "agent", hostport)
 		return
 	}

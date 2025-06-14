@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -43,7 +44,7 @@ func getDockerClients() (DockerClients, gperr.Error) {
 		dockerClients[name] = dockerClient
 	}
 
-	for _, agent := range cfg.ListAgents() {
+	for _, agent := range agent.ListAgents() {
 		dockerClient, err := docker.NewClient(agent.FakeDockerHost())
 		if err != nil {
 			connErrs.Add(err)
@@ -65,7 +66,7 @@ func getDockerClient(server string) (*docker.SharedClient, bool, error) {
 		}
 	}
 	if host == "" {
-		for _, agent := range cfg.ListAgents() {
+		for _, agent := range agent.ListAgents() {
 			if agent.Name() == server {
 				host = agent.FakeDockerHost()
 				break

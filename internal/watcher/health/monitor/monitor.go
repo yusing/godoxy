@@ -42,7 +42,7 @@ var ErrNegativeInterval = gperr.New("negative interval")
 func NewMonitor(r routes.Route) health.HealthMonCheck {
 	var mon health.HealthMonCheck
 	if r.IsAgent() {
-		mon = NewAgentProxiedMonitor(r.Agent(), r.HealthCheckConfig(), AgentTargetFromURL(&r.TargetURL().URL))
+		mon = NewAgentProxiedMonitor(r.GetAgent(), r.HealthCheckConfig(), AgentTargetFromURL(&r.TargetURL().URL))
 	} else {
 		switch r := r.(type) {
 		case routes.HTTPRoute:

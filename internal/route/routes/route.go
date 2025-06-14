@@ -38,7 +38,7 @@ type (
 		HomepageItem() *homepage.Item
 		ContainerInfo() *docker.Container
 
-		Agent() *agent.AgentConfig
+		GetAgent() *agent.AgentConfig
 
 		IsDocker() bool
 		IsAgent() bool

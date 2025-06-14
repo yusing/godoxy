@@ -16,7 +16,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
-	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/task"
 )
 
@@ -122,7 +121,7 @@ func NewClient(host string) (*SharedClient, error) {
 	var dial func(ctx context.Context) (net.Conn, error)
 
 	if agent.IsDockerHostAgent(host) {
-		cfg, ok := config.GetInstance().GetAgent(host)
+		cfg, ok := agent.GetAgent(host)
 		if !ok {
 			panic(fmt.Errorf("agent %q not found", host))
 		}

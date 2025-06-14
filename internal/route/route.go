@@ -351,7 +351,7 @@ func (r *Route) Type() route.RouteType {
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
 
-func (r *Route) Agent() *agent.AgentConfig {
+func (r *Route) GetAgent() *agent.AgentConfig {
 	if r.Container == nil {
 		return nil
 	}
@@ -359,7 +359,7 @@ func (r *Route) Agent() *agent.AgentConfig {
 }
 
 func (r *Route) IsAgent() bool {
-	return r.Container != nil && r.Container.Agent != nil
+	return r.GetAgent() != nil
 }
 
 func (r *Route) HealthMonitor() health.HealthMonitor {
