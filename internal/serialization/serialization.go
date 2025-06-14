@@ -152,20 +152,17 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 			}
 			dst = dst.Elem()
 			dstT = dst.Type()
-		case reflect.Struct:
+		case reflect.Map:
+			if dst.IsNil() {
+				dst.Set(reflect.MakeMap(dstT))
+			}
+			return dst, dstT, nil
+		case reflect.Slice:
+			if dst.IsNil() {
+				dst.Set(reflect.MakeSlice(dstT, 0, 0))
+			}
 			return dst, dstT, nil
 		default:
-			if dst.IsNil() {
-				switch dst.Kind() {
-				case reflect.Map:
-					dst.Set(reflect.MakeMap(dstT))
-				case reflect.Slice:
-					dst.Set(reflect.MakeSlice(dstT, 0, 0))
-				default:
-					err = gperr.Errorf("deserialize: %w for dst %s", ErrInvalidType, dstT.String())
-					return
-				}
-			}
 			return dst, dstT, nil
 		}
 	}
