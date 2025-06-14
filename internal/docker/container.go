@@ -35,6 +35,7 @@ type (
 
 		Mounts []string `json:"mounts"`
 
+		Network            string      `json:"network,omitempty"`
 		PublicPortMapping  PortMapping `json:"public_ports"`  // non-zero publicPort:types.Port
 		PrivatePortMapping PortMapping `json:"private_ports"` // privatePort:types.Port
 		PublicHostname     string      `json:"public_hostname"`
@@ -216,8 +217,9 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 	if helper.NetworkSettings == nil {
 		return
 	}
-	for _, v := range helper.NetworkSettings.Networks {
+	for k, v := range helper.NetworkSettings.Networks {
 		if v.IPAddress != "" {
+			c.Network = k // update network to the first network
 			c.PrivateHostname = v.IPAddress
 			return
 		}
