@@ -8,7 +8,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/go-proxy/internal/route/routes"
@@ -69,19 +68,17 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 }
 
 func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if ep.accessLogger != nil {
+		w = accesslog.NewResponseRecorder(w)
+		defer ep.accessLogger.Log(r, w.(*accesslog.ResponseRecorder).Response())
+	}
 	mux, err := ep.findRouteFunc(r.Host)
 	if err == nil {
-		if ep.accessLogger != nil {
-			w = gphttp.NewModifyResponseWriter(w, r, func(resp *http.Response) error {
-				ep.accessLogger.Log(r, resp)
-				return nil
-			})
-		}
 		if ep.middleware != nil {
 			ep.middleware.ServeHTTP(mux.ServeHTTP, w, routes.WithRouteContext(r, mux))
-			return
+		} else {
+			mux.ServeHTTP(w, r)
 		}
-		mux.ServeHTTP(w, r)
 		return
 	}
 	// Why use StatusNotFound instead of StatusBadRequest or StatusBadGateway?
