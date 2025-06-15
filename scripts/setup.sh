@@ -47,7 +47,6 @@ echo "Using ${DOWNLOAD_TOOL} for downloads"
 REPO="yusing/godoxy"
 BRANCH=${BRANCH:-"main"}
 REPO_URL="https://github.com/$REPO"
-WIKI_URL="${REPO_URL}/wiki"
 BASE_URL="${REPO_URL}/raw/${BRANCH}"
 
 # Config paths
@@ -248,7 +247,7 @@ if [ "$ENABLE_AUTOCERT" == "y" ]; then
 		read -p "Enter duckdns token: " token
 		options=("token: \"$token\"")
 	else
-		echo "Please check Wiki for other DNS providers: ${WIKI_URL}/Supported-DNS%E2%80%9001-Providers"
+		echo "Please check Wiki for other DNS providers: https://docs.godoxy.dev/DNS-01-Providers"
 		echo "Skipping autocert setup"
 		skip=true
 	fi
