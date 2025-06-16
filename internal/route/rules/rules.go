@@ -54,7 +54,13 @@ type (
 //	if no rule matches and default rule is not set,
 //	the request is passed to the upstream.
 func (rules Rules) BuildHandler(caller string, up http.Handler) http.HandlerFunc {
-	var defaultRule *Rule
+	defaultRule := &Rule{
+		Name: "default",
+		Do: Command{
+			raw:  "pass",
+			exec: BypassCommand{},
+		},
+	}
 
 	nonDefaultRules := make(Rules, 0, len(rules))
 	for i, rule := range rules {
@@ -77,6 +83,10 @@ func (rules Rules) BuildHandler(caller string, up http.Handler) http.HandlerFunc
 				up.ServeHTTP(w, r)
 			}
 		}
+	}
+
+	if len(nonDefaultRules) == 0 {
+		nonDefaultRules = rules
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
