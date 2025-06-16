@@ -59,12 +59,12 @@ func ParseLabels(labels map[string]string, aliases ...string) (LabelMap, gperr.E
 
 func ExpandWildcard(labels map[string]string, aliases ...string) {
 	// collect all explicit aliases first
-	aliasSet := make(map[string]struct{}, len(labels))
+	aliasSet := make(map[string]int, len(labels))
 	// wildcardLabels holds mapping suffix -> value derived from wildcard label definitions
 	wildcardLabels := make(map[string]string)
 
-	for _, alias := range aliases {
-		aliasSet[alias] = struct{}{}
+	for i, alias := range aliases {
+		aliasSet[alias] = i
 	}
 
 	// iterate over a copy of the keys to safely mutate the map while ranging
@@ -89,7 +89,9 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 			continue
 		}
 		// explicit alias label – remember the alias
-		aliasSet[alias] = struct{}{}
+		if _, ok := aliasSet[alias]; !ok {
+			aliasSet[alias] = len(aliasSet)
+		}
 	}
 
 	if len(aliasSet) == 0 || len(wildcardLabels) == 0 {
@@ -98,7 +100,11 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 
 	// expand collected wildcard labels for every alias
 	for suffix, v := range wildcardLabels {
-		for alias := range aliasSet {
+		for alias, i := range aliasSet {
+			// for FQDN aliases, use numeric index instead of the alias name
+			if strings.Contains(alias, ".") {
+				alias = fmt.Sprintf("#%d", i+1)
+			}
 			key := fmt.Sprintf("%s.%s.%s", NSProxy, alias, suffix)
 			if suffix == "" { // this should not happen (root wildcard handled earlier) but keep safe
 				key = fmt.Sprintf("%s.%s", NSProxy, alias)

@@ -28,6 +28,20 @@ func TestExpandWildcard(t *testing.T) {
 	}, labels)
 }
 
+func TestExpandWildcardWithFQDNAliases(t *testing.T) {
+	labels := map[string]string{
+		"proxy.c.host": "localhost",
+		"proxy.*.port": "5555",
+	}
+	docker.ExpandWildcard(labels, "a.example.com", "b.example.com")
+	require.Equal(t, map[string]string{
+		"proxy.#1.port": "5555",
+		"proxy.#2.port": "5555",
+		"proxy.c.host":  "localhost",
+		"proxy.c.port":  "5555",
+	}, labels)
+}
+
 func TestExpandWildcardYAML(t *testing.T) {
 	yaml := `
 host: localhost
