@@ -11,7 +11,7 @@ const (
 )
 
 func (c Color) HexString() string {
-	return fmt.Sprintf("#%x", c)
+	return fmt.Sprintf("#%x", uint(c))
 }
 
 func (c Color) DecString() string {
