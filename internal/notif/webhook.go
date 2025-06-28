@@ -33,16 +33,18 @@ func (webhook *Webhook) Validate() gperr.Error {
 
 	switch webhook.MIMEType {
 	case "":
-		webhook.MIMEType = "application/json"
-	case "application/json", "application/x-www-form-urlencoded", "text/plain":
+		webhook.MIMEType = MimeTypeJSON
+	case MimeTypeJSON, MimeTypeForm, MimeTypeText:
 	default:
-		return gperr.New("invalid mime_type, expect empty, 'application/json', 'application/x-www-form-urlencoded' or 'text/plain'")
+		return gperr.Errorf("invalid mime_type, expect %s", strings.Join([]string{"empty", MimeTypeJSON, MimeTypeForm, MimeTypeText}, ", "))
 	}
 
 	switch webhook.Template {
 	case "":
-		if webhook.MIMEType == "application/json" && !json.Valid([]byte(webhook.Payload)) {
-			return gperr.New("invalid payload, expect valid JSON")
+		if webhook.MIMEType == MimeTypeJSON {
+			if !validateJSONPayload(webhook.Payload) {
+				return gperr.New("invalid payload, expect valid JSON")
+			}
 		}
 		if webhook.Payload == "" {
 			return gperr.New("invalid payload, expect non-empty")
@@ -50,7 +52,7 @@ func (webhook *Webhook) Validate() gperr.Error {
 	case "discord":
 		webhook.ColorMode = "dec"
 		webhook.Method = http.MethodPost
-		webhook.MIMEType = "application/json"
+		webhook.MIMEType = MimeTypeJSON
 		if webhook.Payload == "" {
 			webhook.Payload = discordPayload
 		}
@@ -115,6 +117,12 @@ func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if webhook.MIMEType == MimeTypeJSON {
+		message, err = json.Marshal(string(message))
+		if err != nil {
+			return nil, err
+		}
+	}
 	plTempl := strings.NewReplacer(
 		"$title", string(title),
 		"$message", string(message),
@@ -129,4 +137,15 @@ func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	}
 	pl = plTempl.Replace(pl)
 	return []byte(pl), nil
+}
+
+func validateJSONPayload(payload string) bool {
+	replacer := strings.NewReplacer(
+		"$title", `""`,
+		"$message", `""`,
+		"$fields", `""`,
+		"$color", "",
+	)
+	payload = replacer.Replace(payload)
+	return json.Valid([]byte(payload))
 }
