@@ -84,7 +84,7 @@ var iconsCache = &Cache{
 
 const (
 	walkxcodeIcons = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/tree.json"
-	selfhstIcons   = "https://cdn.selfh.st/directory/icons.json"
+	selfhstIcons   = "https://selfhst.github.io/cdn/directory/icons.json"
 )
 
 func NewIconKey(source IconSource, reference string) IconKey {
