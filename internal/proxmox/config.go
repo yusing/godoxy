@@ -34,16 +34,15 @@ func (c *Config) Client() *Client {
 func (c *Config) Init() gperr.Error {
 	var tr *http.Transport
 	if c.NoTLSVerify {
+		// user specified
 		tr = gphttp.NewTransportWithTLSConfig(&tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, //nolint:gosec
 		})
 	} else {
 		tr = gphttp.NewTransport()
 	}
 
-	if strings.HasSuffix(c.URL, "/") {
-		c.URL = c.URL[:len(c.URL)-1]
-	}
+	c.URL = strings.TrimSuffix(c.URL, "/")
 	if !strings.HasSuffix(c.URL, "/api2/json") {
 		c.URL += "/api2/json"
 	}

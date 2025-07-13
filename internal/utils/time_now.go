@@ -35,11 +35,8 @@ func DefaultTimeNow() time.Time {
 
 func init() {
 	go func() {
-		for {
-			select {
-			case <-timeNowTicker.C:
-				shouldCallTimeNow.Store(true)
-			}
+		for range timeNowTicker.C {
+			shouldCallTimeNow.Store(true)
 		}
 	}()
 }
