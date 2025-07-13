@@ -1,6 +1,6 @@
 module github.com/yusing/go-proxy/internal/dnsproviders
 
-go 1.24.4
+go 1.24.5
 
 replace github.com/yusing/go-proxy => ../..
 

@@ -1,6 +1,6 @@
 module github.com/yusing/go-proxy/internal/utils
 
-go 1.24.4
+go 1.24.5
 
 require (
 	github.com/goccy/go-yaml v1.18.0

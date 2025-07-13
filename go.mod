@@ -1,6 +1,6 @@
 module github.com/yusing/go-proxy
 
-go 1.24.4
+go 1.24.5
 
 replace github.com/yusing/go-proxy/agent => ./agent
 
