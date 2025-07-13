@@ -20,6 +20,11 @@ type modifyHTML struct {
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
+func (m *modifyHTML) before(w http.ResponseWriter, req *http.Request) bool {
+	req.Header.Set("Accept-Encoding", "")
+	return true
+}
+
 // modifyResponse implements ResponseModifier.
 func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	// including text/html and application/xhtml+xml
@@ -63,6 +68,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	}
 	resp.ContentLength = int64(len(h))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(h)))
+	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
 	resp.Body = io.NopCloser(bytes.NewReader(h))
 	return nil
 }
