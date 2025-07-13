@@ -24,6 +24,8 @@ var allMiddlewares = map[string]*Middleware{
 	"setxforwarded":  SetXForwarded,
 	"hidexforwarded": HideXForwarded,
 
+	"modifyhtml": ModifyHTML,
+
 	"errorpage":       CustomErrorPage,
 	"customerrorpage": CustomErrorPage,
 
