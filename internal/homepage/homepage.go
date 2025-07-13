@@ -1,7 +1,6 @@
 package homepage
 
 import (
-	"encoding/json"
 	"slices"
 
 	"github.com/yusing/go-proxy/internal/homepage/widgets"
@@ -18,6 +17,7 @@ type (
 		Icon        *IconURL `json:"icon"`
 		Category    string   `json:"category"`
 		Description string   `json:"description" aliases:"desc"`
+		URL         string   `json:"url,omitempty"`
 		SortOrder   int      `json:"sort_order"`
 	}
 
@@ -25,9 +25,9 @@ type (
 		*ItemConfig
 		WidgetConfig *widgets.Config `json:"widget_config,omitempty" aliases:"widget"`
 
-		Alias     string
-		Provider  string
-		OriginURL string
+		Alias     string `json:"alias"`
+		Provider  string `json:"provider"`
+		OriginURL string `json:"origin_url"`
 	}
 )
 
@@ -41,20 +41,6 @@ func init() {
 
 func (cfg *ItemConfig) GetOverride(alias string) *ItemConfig {
 	return overrideConfigInstance.GetOverride(alias, cfg)
-}
-
-func (item *Item) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"show":          item.Show,
-		"alias":         item.Alias,
-		"provider":      item.Provider,
-		"name":          item.Name,
-		"icon":          item.Icon,
-		"category":      item.Category,
-		"description":   item.Description,
-		"sort_order":    item.SortOrder,
-		"widget_config": item.WidgetConfig,
-	})
 }
 
 func (c Homepage) Add(item *Item) {
