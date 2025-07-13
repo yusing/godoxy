@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 
@@ -62,11 +63,10 @@ func (rt *requestRecorder) RoundTrip(req *http.Request) (resp *http.Response, er
 			TLS:           req.TLS,
 		}
 	}
-	if err == nil {
-		for k, v := range rt.args.respHeaders {
-			resp.Header[k] = v
-		}
+	if err != nil {
+		return nil, err
 	}
+	maps.Copy(resp.Header, rt.args.respHeaders)
 	return resp, nil
 }
 
@@ -143,9 +143,7 @@ func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult,
 	args.setDefaults()
 
 	req := httptest.NewRequest(args.reqMethod, args.reqURL.String(), args.bodyReader())
-	for k, v := range args.headers {
-		req.Header[k] = v
-	}
+	maps.Copy(req.Header, args.headers)
 
 	w := httptest.NewRecorder()
 
