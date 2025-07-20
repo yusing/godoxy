@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -26,10 +27,11 @@ import (
 
 type (
 	Provider struct {
-		cfg     *Config
-		user    *User
-		legoCfg *lego.Config
-		client  *lego.Client
+		cfg         *Config
+		user        *User
+		legoCfg     *lego.Config
+		client      *lego.Client
+		lastFailure time.Time
 
 		legoCert     *certificate.Resource
 		tlsCert      *tls.Certificate
@@ -40,6 +42,13 @@ type (
 )
 
 var ErrGetCertFailure = errors.New("get certificate failed")
+
+const (
+	// renew failed for whatever reason, 1 hour cooldown
+	renewalCooldownDuration = 1 * time.Hour
+	// prevents cert request docker compose across restarts with `restart: always` (non-zero exit code)
+	requestCooldownDuration = 15 * time.Second
+)
 
 func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) *Provider {
 	return &Provider{
@@ -72,6 +81,31 @@ func (p *Provider) GetExpiries() CertExpiries {
 	return p.certExpiries
 }
 
+func (p *Provider) GetLastFailure() (time.Time, error) {
+	if p.lastFailure.IsZero() {
+		data, err := os.ReadFile(filepath.Join(p.cfg.CertPath, ".last_failure"))
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return time.Time{}, err
+			}
+		} else {
+			p.lastFailure, _ = time.Parse(time.RFC3339, string(data))
+		}
+	}
+	return p.lastFailure, nil
+}
+
+func (p *Provider) UpdateLastFailure() error {
+	t := time.Now()
+	p.lastFailure = t
+	return os.WriteFile(filepath.Join(p.cfg.CertPath, ".last_failure"), t.AppendFormat(nil, time.RFC3339), 0o600)
+}
+
+func (p *Provider) ClearLastFailure() error {
+	p.lastFailure = time.Time{}
+	return os.Remove(filepath.Join(p.cfg.CertPath, ".last_failure"))
+}
+
 func (p *Provider) ObtainCert() error {
 	if p.cfg.Provider == ProviderLocal {
 		return nil
@@ -86,10 +120,23 @@ func (p *Provider) ObtainCert() error {
 		return nil
 	}
 
+	if lastFailure, err := p.GetLastFailure(); err != nil {
+		return err
+	} else if time.Since(lastFailure) < requestCooldownDuration {
+		return fmt.Errorf("%w: still in cooldown until %s", ErrGetCertFailure, strutils.FormatTime(lastFailure.Add(requestCooldownDuration).Local()))
+	}
+
 	if p.client == nil {
 		if err := p.initClient(); err != nil {
 			return err
 		}
+	}
+
+	// mark it as failed first, clear it later if successful
+	// in case the process crashed / failed to renew, we put it on a cooldown
+	// this prevents rate limiting by the ACME server
+	if err := p.UpdateLastFailure(); err != nil {
+		return fmt.Errorf("failed to update last failure: %w", err)
 	}
 
 	if p.user.Registration == nil {
@@ -139,6 +186,9 @@ func (p *Provider) ObtainCert() error {
 	p.tlsCert = &tlsCert
 	p.certExpiries = expiries
 
+	if err := p.ClearLastFailure(); err != nil {
+		return fmt.Errorf("failed to clear last failure: %w", err)
+	}
 	return nil
 }
 
@@ -154,7 +204,7 @@ func (p *Provider) LoadCert() error {
 	p.tlsCert = &cert
 	p.certExpiries = expiries
 
-	log.Info().Msgf("next renewal in %v", strutils.FormatDuration(time.Until(p.ShouldRenewOn())))
+	log.Info().Msgf("next cert renewal in %s", strutils.FormatDuration(time.Until(p.ShouldRenewOn())))
 	return p.renewIfNeeded()
 }
 
@@ -172,7 +222,6 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 		return
 	}
 	go func() {
-		lastErrOn := time.Time{}
 		renewalTime := p.ShouldRenewOn()
 		timer := time.NewTimer(time.Until(renewalTime))
 		defer timer.Stop()
@@ -186,12 +235,19 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 				return
 			case <-timer.C:
 				// Retry after 1 hour on failure
-				if !lastErrOn.IsZero() && time.Now().Before(lastErrOn.Add(time.Hour)) {
+				lastFailure, err := p.GetLastFailure()
+				if err != nil {
+					gperr.LogWarn("autocert: failed to get last failure", err)
+					continue
+				}
+				if !lastFailure.IsZero() && time.Since(lastFailure) < renewalCooldownDuration {
 					continue
 				}
 				if err := p.renewIfNeeded(); err != nil {
-					gperr.LogWarn("cert renew failed", err)
-					lastErrOn = time.Now()
+					gperr.LogWarn("autocert: cert renew failed", err)
+					if err := p.UpdateLastFailure(); err != nil {
+						gperr.LogWarn("autocert: failed to update last failure", err)
+					}
 					notif.Notify(&notif.LogMessage{
 						Level: zerolog.ErrorLevel,
 						Title: "SSL certificate renewal failed",
@@ -205,7 +261,9 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 					Body:  notif.ListBody(p.cfg.Domains),
 				})
 				// Reset on success
-				lastErrOn = time.Time{}
+				if err := p.ClearLastFailure(); err != nil {
+					gperr.LogWarn("autocert: failed to clear last failure", err)
+				}
 				renewalTime = p.ShouldRenewOn()
 				timer.Reset(time.Until(renewalTime))
 			}
