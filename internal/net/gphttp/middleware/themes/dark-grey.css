@@ -1,0 +1,116 @@
+:not(img, svg) {
+  background-color: #181818 !important;
+  color: #ccc !important;
+}
+pre {
+  background-color: #181818 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+pre code {
+  color: #00bcd4 !important;
+}
+h1 a,
+h2 a,
+h3 a,
+h4 a,
+h5 a {
+  color: #ccc !important;
+}
+code,
+strong {
+  color: #fff !important;
+}
+code {
+  font-weight: 100;
+}
+table {
+  color: #ccc !important;
+}
+table td,
+table th {
+  border-color: #444 !important;
+}
+table tbody td:first-child {
+  color: #fff !important;
+}
+.form-group label {
+  color: #ccc !important;
+  border-color: rgba(95, 95, 95, 0.78) !important;
+}
+.form-group.form-textarea label:after {
+  background-color: #181818 !important;
+}
+.form-control {
+  color: #ccc !important;
+  border-color: rgba(95, 95, 95, 0.78) !important;
+}
+.form-control:focus {
+  border-color: #ccc !important;
+  color: #ccc !important;
+}
+textarea.form-control {
+  color: #ccc !important;
+}
+.card {
+  border-color: rgba(95, 95, 95, 0.78) !important;
+}
+.card .card-header {
+  background-color: transparent !important;
+  color: #ccc !important;
+  border-bottom: 1px solid rgba(95, 95, 95, 0.78) !important;
+}
+.btn.btn-ghost.btn-default {
+  border-color: #ababab !important;
+  color: #ababab !important;
+}
+.btn.btn-ghost.btn-default:focus,
+.btn.btn-ghost.btn-default:hover {
+  border-color: #9c9c9c !important;
+  color: #9c9c9c !important;
+  z-index: 1;
+}
+.btn.btn-ghost.btn-default:focus,
+.btn.btn-ghost.btn-default:hover {
+  border-color: #e0e0e0 !important;
+  color: #e0e0e0 !important;
+}
+.btn.btn-ghost.btn-primary:focus,
+.btn.btn-ghost.btn-primary:hover {
+  border-color: #64b5f6 !important;
+  color: #64b5f6 !important;
+}
+.btn.btn-ghost.btn-success:focus,
+.btn.btn-ghost.btn-success:hover {
+  border-color: #81c784 !important;
+  color: #81c784 !important;
+}
+.btn.btn-ghost.btn-info:focus,
+.btn.btn-ghost.btn-info:hover {
+  border-color: #4dd0e1 !important;
+  color: #4dd0e1 !important;
+}
+.btn.btn-ghost.btn-error:focus,
+.btn.btn-ghost.btn-error:hover {
+  border-color: #e57373 !important;
+  color: #e57373 !important;
+}
+.btn.btn-ghost.btn-warning:focus,
+.btn.btn-ghost.btn-warning:hover {
+  border-color: #ffb74d !important;
+  color: #ffb74d !important;
+}
+.avatarholder,
+.placeholder {
+  background-color: transparent !important;
+  border-color: #333 !important;
+}
+.menu .menu-item {
+  color: #ccc !important;
+  border-color: rgba(95, 95, 95, 0.78) !important;
+}
+.menu .menu-item.active,
+.menu .menu-item:hover {
+  color: #fff !important;
+  border-color: #ccc !important;
+}
