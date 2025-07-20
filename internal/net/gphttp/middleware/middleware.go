@@ -89,16 +89,21 @@ func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
 	if len(optsRaw) == 0 {
 		return nil
 	}
-	commonOpts := map[string]any{
-		"priority": optsRaw["priority"],
-		"bypass":   optsRaw["bypass"],
+	commonOpts := map[string]any{}
+	if priority, ok := optsRaw["priority"]; ok {
+		commonOpts["priority"] = priority
 	}
-	if err := serialization.MapUnmarshalValidate(commonOpts, &m.commonOptions); err != nil {
-		return err
+	if bypass, ok := optsRaw["bypass"]; ok {
+		commonOpts["bypass"] = bypass
 	}
-	optsRaw = maps.Clone(optsRaw)
-	for k := range commonOpts {
-		delete(optsRaw, k)
+	if len(commonOpts) > 0 {
+		if err := serialization.MapUnmarshalValidate(commonOpts, &m.commonOptions); err != nil {
+			return err
+		}
+		optsRaw = maps.Clone(optsRaw)
+		for k := range commonOpts {
+			delete(optsRaw, k)
+		}
 	}
 	return serialization.MapUnmarshalValidate(optsRaw, m.impl)
 }
