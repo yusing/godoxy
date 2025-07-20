@@ -65,6 +65,11 @@ func Contains[T any](t *testing.T, got T, wants []T, msgAndArgs ...any) {
 	require.Contains(t, wants, got, msgAndArgs...)
 }
 
+func StringsContain(t *testing.T, got string, want string, msgAndArgs ...any) {
+	t.Helper()
+	require.Contains(t, got, want, msgAndArgs...)
+}
+
 func Type[T any](t *testing.T, got any, msgAndArgs ...any) (_ T) {
 	t.Helper()
 	_, ok := got.(T)

@@ -25,6 +25,8 @@ type (
 		Body  LogBody
 		Color Color
 	}
+
+	NotifyFunc func(msg *LogMessage)
 )
 
 var dispatcher *Dispatcher

@@ -4,7 +4,7 @@ type Status uint8
 
 const (
 	StatusUnknown Status = 0
-	StatusHealthy        = (1 << iota)
+	StatusHealthy Status = (1 << iota)
 	StatusNapping
 	StatusStarting
 	StatusUnhealthy

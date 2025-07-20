@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/notif"
@@ -32,6 +34,9 @@ type (
 		startTime   time.Time
 
 		isZeroPort bool
+
+		notifyFunc        notif.NotifyFunc
+		numConsecFailures atomic.Int64
 
 		task *task.Task
 	}
@@ -66,10 +71,14 @@ func NewMonitor(r routes.Route) health.HealthMonCheck {
 }
 
 func newMonitor(u *url.URL, config *health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+	if config.Retries == 0 {
+		config.Retries = int64(common.HealthCheckDownNotifyDelayDefault / config.Interval)
+	}
 	mon := &monitor{
 		config:      config,
 		checkHealth: healthCheckFunc,
 		startTime:   time.Now(),
+		notifyFunc:  notif.Notify,
 	}
 	if u == nil {
 		u = &url.URL{}
@@ -258,37 +267,60 @@ func (mon *monitor) checkUpdateHealth() error {
 	}
 	mon.lastResult.Store(result)
 
+	// change of status
 	if result.Healthy != (lastStatus == health.StatusHealthy) {
-		extras := notif.FieldsBody{
-			{Name: "Service Name", Value: mon.service},
-			{Name: "Time", Value: strutils.FormatTime(time.Now())},
-		}
-		if !result.Healthy {
-			extras.Add("Last Seen", strutils.FormatLastSeen(GetLastSeen(mon.service)))
-		}
-		if mon.url.Load() != nil {
-			extras.Add("Service URL", mon.url.Load().String())
-		}
-		if result.Detail != "" {
-			extras.Add("Detail", result.Detail)
-		}
 		if result.Healthy {
-			logger.Info().Msg("service is up")
-			extras.Add("Ping", fmt.Sprintf("%d ms", result.Latency.Milliseconds()))
-			notif.Notify(&notif.LogMessage{
-				Title: "✅ Service is up ✅",
-				Body:  extras,
-				Color: notif.ColorSuccess,
-			})
-		} else {
-			logger.Warn().Msg("service went down")
-			notif.Notify(&notif.LogMessage{
-				Title: "❌ Service went down ❌",
-				Body:  extras,
-				Color: notif.ColorError,
-			})
+			mon.notifyServiceUp(&logger, result)
+			mon.numConsecFailures.Store(0)
+		} else if mon.config.Retries < 0 {
+			// immediate or meet the threshold
+			mon.notifyServiceDown(&logger, result)
 		}
 	}
 
+	// if threshold > 0, notify after threshold consecutive failures
+	if !result.Healthy && mon.config.Retries >= 0 && mon.numConsecFailures.Add(1) >= mon.config.Retries {
+		mon.numConsecFailures.Store(0)
+		mon.notifyServiceDown(&logger, result)
+	}
+
 	return err
+}
+
+func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *health.HealthCheckResult) {
+	logger.Info().Msg("service is up")
+	extras := mon.buildNotificationExtras(result)
+	extras.Add("Ping", fmt.Sprintf("%d ms", result.Latency.Milliseconds()))
+	mon.notifyFunc(&notif.LogMessage{
+		Level: zerolog.InfoLevel,
+		Title: "✅ Service is up ✅",
+		Body:  extras,
+		Color: notif.ColorSuccess,
+	})
+}
+
+func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *health.HealthCheckResult) {
+	logger.Warn().Msg("service went down")
+	extras := mon.buildNotificationExtras(result)
+	extras.Add("Last Seen", strutils.FormatLastSeen(GetLastSeen(mon.service)))
+	mon.notifyFunc(&notif.LogMessage{
+		Level: zerolog.WarnLevel,
+		Title: "❌ Service went down ❌",
+		Body:  extras,
+		Color: notif.ColorError,
+	})
+}
+
+func (mon *monitor) buildNotificationExtras(result *health.HealthCheckResult) notif.FieldsBody {
+	extras := notif.FieldsBody{
+		{Name: "Service Name", Value: mon.service},
+		{Name: "Time", Value: strutils.FormatTime(time.Now())},
+	}
+	if mon.url.Load() != nil {
+		extras.Add("Service URL", mon.url.Load().String())
+	}
+	if result.Detail != "" {
+		extras.Add("Detail", result.Detail)
+	}
+	return extras
 }

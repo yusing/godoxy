@@ -38,8 +38,9 @@ var RequiredDirectories = []string{
 const DockerHostFromEnv = "$DOCKER_HOST"
 
 const (
-	HealthCheckIntervalDefault = 5 * time.Second
-	HealthCheckTimeoutDefault  = 5 * time.Second
+	HealthCheckIntervalDefault        = 5 * time.Second
+	HealthCheckTimeoutDefault         = 5 * time.Second
+	HealthCheckDownNotifyDelayDefault = 15 * time.Second
 
 	WakeTimeoutDefault = "3m"
 	StopTimeoutDefault = "3m"
