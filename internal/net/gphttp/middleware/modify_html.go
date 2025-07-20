@@ -9,6 +9,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/rs/zerolog/log"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/go-proxy/internal/utils/synk"
 	"golang.org/x/net/html"
 )
 
@@ -20,7 +21,9 @@ type modifyHTML struct {
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
-func (m *modifyHTML) before(w http.ResponseWriter, req *http.Request) bool {
+var bytePool = synk.NewBytesPool()
+
+func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
 	req.Header.Set("Accept-Encoding", "")
 	return true
 }
@@ -75,7 +78,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 
 // copied and modified from	(*goquery.Selection).Html()
 func buildHTML(s *goquery.Document) (ret []byte, err error) {
-	var buf bytes.Buffer
+	buf := bytes.NewBuffer(bytePool.Get())
 
 	// Merge all head nodes into one
 	headNodes := s.Find("head")
@@ -97,7 +100,7 @@ func buildHTML(s *goquery.Document) (ret []byte, err error) {
 
 	if len(s.Nodes) > 0 {
 		for c := s.Nodes[0].FirstChild; c != nil; c = c.NextSibling {
-			err = html.Render(&buf, c)
+			err = html.Render(buf, c)
 			if err != nil {
 				return
 			}
