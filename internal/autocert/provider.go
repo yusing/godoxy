@@ -8,7 +8,6 @@ import (
 	"maps"
 	"os"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -83,7 +82,7 @@ func (p *Provider) GetExpiries() CertExpiries {
 
 func (p *Provider) GetLastFailure() (time.Time, error) {
 	if p.lastFailure.IsZero() {
-		data, err := os.ReadFile(filepath.Join(p.cfg.CertPath, ".last_failure"))
+		data, err := os.ReadFile(LastFailureFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return time.Time{}, err
@@ -98,12 +97,12 @@ func (p *Provider) GetLastFailure() (time.Time, error) {
 func (p *Provider) UpdateLastFailure() error {
 	t := time.Now()
 	p.lastFailure = t
-	return os.WriteFile(filepath.Join(p.cfg.CertPath, ".last_failure"), t.AppendFormat(nil, time.RFC3339), 0o600)
+	return os.WriteFile(LastFailureFile, t.AppendFormat(nil, time.RFC3339), 0o600)
 }
 
 func (p *Provider) ClearLastFailure() error {
 	p.lastFailure = time.Time{}
-	return os.Remove(filepath.Join(p.cfg.CertPath, ".last_failure"))
+	return os.Remove(LastFailureFile)
 }
 
 func (p *Provider) ObtainCert() error {
