@@ -6,7 +6,7 @@ replace github.com/yusing/go-proxy/internal/utils => ../internal/utils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/go-proxy/internal/utils v0.0.0-20250720044732-46c7ee4d8443
+	github.com/yusing/go-proxy/internal/utils v0.0.0-20250721013917-68ac4f952d1e
 	golang.org/x/net v0.42.0
 )
 
