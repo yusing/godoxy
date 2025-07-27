@@ -35,8 +35,9 @@ type (
 
 		isZeroPort bool
 
-		notifyFunc        notif.NotifyFunc
-		numConsecFailures atomic.Int64
+		notifyFunc           notif.NotifyFunc
+		numConsecFailures    atomic.Int64
+		downNotificationSent atomic.Bool
 
 		task *task.Task
 	}
@@ -272,16 +273,21 @@ func (mon *monitor) checkUpdateHealth() error {
 		if result.Healthy {
 			mon.notifyServiceUp(&logger, result)
 			mon.numConsecFailures.Store(0)
+			mon.downNotificationSent.Store(false) // Reset notification state when service comes back up
 		} else if mon.config.Retries < 0 {
-			// immediate or meet the threshold
+			// immediate notification when retries < 0
 			mon.notifyServiceDown(&logger, result)
+			mon.downNotificationSent.Store(true)
 		}
 	}
 
-	// if threshold > 0, notify after threshold consecutive failures
-	if !result.Healthy && mon.config.Retries >= 0 && mon.numConsecFailures.Add(1) >= mon.config.Retries {
-		mon.numConsecFailures.Store(0)
-		mon.notifyServiceDown(&logger, result)
+	// if threshold >= 0, notify after threshold consecutive failures (but only once)
+	if !result.Healthy && mon.config.Retries >= 0 {
+		failureCount := mon.numConsecFailures.Add(1)
+		if failureCount >= mon.config.Retries && !mon.downNotificationSent.Load() {
+			mon.notifyServiceDown(&logger, result)
+			mon.downNotificationSent.Store(true)
+		}
 	}
 
 	return err
