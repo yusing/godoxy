@@ -27,7 +27,7 @@ type ValidateFileRequest struct {
 // @Success		200		{object}	apitypes.SuccessResponse "File validated"
 // @Failure		400		{object}	apitypes.ErrorResponse "Bad request"
 // @Failure		403		{object}	apitypes.ErrorResponse "Forbidden"
-// @Failure		417		{object}	apitypes.ErrorResponse "Validation failed"
+// @Failure		417		{object}	any "Validation failed"
 // @Failure		500		{object}	apitypes.ErrorResponse "Internal server error"
 // @Router			/file/validate [post]
 func Validate(c *gin.Context) {
@@ -45,7 +45,7 @@ func Validate(c *gin.Context) {
 	c.Request.Body.Close()
 
 	if valErr := validateFile(request.FileType, content); valErr != nil {
-		c.JSON(http.StatusExpectationFailed, apitypes.Error("invalid file", valErr))
+		c.JSON(http.StatusExpectationFailed, valErr)
 		return
 	}
 	c.JSON(http.StatusOK, apitypes.Success("file validated"))
