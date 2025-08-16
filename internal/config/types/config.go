@@ -45,7 +45,7 @@ type (
 	RouteProviderListResponse struct {
 		ShortName string `json:"short_name"`
 		FullName  string `json:"full_name"`
-	}
+	} // @name RouteProvider
 	ConfigInstance interface {
 		Value() *Config
 		Reload() gperr.Error

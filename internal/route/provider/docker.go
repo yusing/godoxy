@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	"github.com/yusing/go-proxy/internal/serialization"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/internal/watcher"
 )
@@ -78,7 +79,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 		}
 
 		if container.IsHostNetworkMode {
-			err := container.UpdatePorts()
+			err := docker.UpdatePorts(container)
 			if err != nil {
 				errs.Add(gperr.PrependSubject(container.ContainerName, err))
 				continue
@@ -111,7 +112,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 
 // Returns a list of proxy entries for a container.
 // Always non-nil.
-func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, gperr.Error) {
+func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (route.Routes, gperr.Error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
 		return make(route.Routes, 0), nil
 	}
@@ -138,10 +139,10 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 			continue
 		}
 
-		entryMap, ok := entryMapAny.(docker.LabelMap)
+		entryMap, ok := entryMapAny.(types.LabelMap)
 		if !ok {
 			// try to deserialize to map
-			entryMap = make(docker.LabelMap)
+			entryMap = make(types.LabelMap)
 			yamlStr, ok := entryMapAny.(string)
 			if !ok {
 				// should not happen

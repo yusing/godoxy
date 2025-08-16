@@ -4,18 +4,20 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type RouteContext struct{}
 
 var routeContextKey = RouteContext{}
 
-func WithRouteContext(r *http.Request, route HTTPRoute) *http.Request {
+func WithRouteContext(r *http.Request, route types.HTTPRoute) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), routeContextKey, route))
 }
 
-func TryGetRoute(r *http.Request) HTTPRoute {
-	if route, ok := r.Context().Value(routeContextKey).(HTTPRoute); ok {
+func TryGetRoute(r *http.Request) types.HTTPRoute {
+	if route, ok := r.Context().Value(routeContextKey).(types.HTTPRoute); ok {
 		return route
 	}
 	return nil

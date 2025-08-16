@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -88,4 +89,24 @@ func TestServerClient(t *testing.T) {
 	resp, err := httpClient.Get(server.URL)
 	require.NoError(t, err)
 	require.Equal(t, resp.StatusCode, http.StatusOK)
+}
+
+func TestPEMPairEncryptDecrypt(t *testing.T) {
+	encKey := make([]byte, 32)
+	_, err := rand.Read(encKey)
+	require.NoError(t, err)
+
+	ca, _, _, err := NewAgent()
+	require.NoError(t, err)
+
+	encCA, err := ca.Encrypt(encKey)
+	require.NoError(t, err)
+	require.NotNil(t, encCA)
+
+	decCA, err := encCA.Decrypt(encKey)
+	require.NoError(t, err)
+	require.NotNil(t, decCA)
+
+	require.Equal(t, string(ca.Cert), string(decCA.Cert))
+	require.Equal(t, string(ca.Key), string(decCA.Key))
 }

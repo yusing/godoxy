@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
 )
 
 var defaultAuth Provider
@@ -42,19 +41,6 @@ type nextHandler struct{}
 
 var nextHandlerContextKey = nextHandler{}
 
-func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
-	if !IsEnabled() {
-		return next
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := defaultAuth.CheckToken(r); err != nil {
-			gphttp.Unauthorized(w, err.Error())
-			return
-		}
-		next(w, r)
-	}
-}
-
 func ProceedNext(w http.ResponseWriter, r *http.Request) {
 	next, ok := r.Context().Value(nextHandlerContextKey).(http.HandlerFunc)
 	if ok {
@@ -65,7 +51,8 @@ func ProceedNext(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	if err := defaultAuth.CheckToken(r); err != nil {
+	err := defaultAuth.CheckToken(r)
+	if err != nil {
 		defaultAuth.LoginHandler(w, r)
 	} else {
 		w.WriteHeader(http.StatusOK)

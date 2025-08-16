@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"net/http"
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
+	apitypes "github.com/yusing/go-proxy/internal/api/types"
+	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
 )
 
 type logEntryRange struct {
@@ -20,6 +20,7 @@ type logEntryRange struct {
 type memLogger struct {
 	*bytes.Buffer
 	sync.RWMutex
+
 	notifyLock sync.RWMutex
 	connChans  *xsync.Map[chan *logEntryRange, struct{}]
 	listeners  *xsync.Map[chan []byte, struct{}]
@@ -31,6 +32,7 @@ const (
 	maxMemLogSize         = 16 * 1024
 	truncateSize          = maxMemLogSize / 2
 	initialWriteChunkSize = 4 * 1024
+	writeTimeout          = 10 * time.Second
 )
 
 var memLoggerInstance = &memLogger{
@@ -43,11 +45,7 @@ func GetMemLogger() MemLogger {
 	return memLoggerInstance
 }
 
-func Handler() http.Handler {
-	return memLoggerInstance
-}
-
-func HandlerFunc() http.HandlerFunc {
+func HandlerFunc() gin.HandlerFunc {
 	return memLoggerInstance.ServeHTTP
 }
 
@@ -70,9 +68,10 @@ func (m *memLogger) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	conn, err := gpwebsocket.Initiate(w, r)
+func (m *memLogger) ServeHTTP(c *gin.Context) {
+	manager, err := websocket.NewManagerWithUpgrade(c)
 	if err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to create websocket manager"))
 		return
 	}
 
@@ -80,20 +79,19 @@ func (m *memLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.connChans.Store(logCh, struct{}{})
 
 	defer func() {
-		_ = conn.Close()
-
+		manager.Close()
 		m.notifyLock.Lock()
 		m.connChans.Delete(logCh)
 		close(logCh)
 		m.notifyLock.Unlock()
 	}()
 
-	if err := m.wsInitial(conn); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := m.wsInitial(manager); err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to send initial log"))
 		return
 	}
 
-	m.wsStreamLog(r.Context(), conn, logCh)
+	m.wsStreamLog(c.Request.Context(), manager, logCh)
 }
 
 func (m *memLogger) truncateIfNeeded(n int) {
@@ -168,19 +166,14 @@ func (m *memLogger) events() (logs <-chan []byte, cancel func()) {
 	}
 }
 
-func (m *memLogger) writeBytes(conn *websocket.Conn, b []byte) error {
-	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	return conn.WriteMessage(websocket.TextMessage, b)
-}
-
-func (m *memLogger) wsInitial(conn *websocket.Conn) error {
+func (m *memLogger) wsInitial(manager *websocket.Manager) error {
 	m.Lock()
 	defer m.Unlock()
 
-	return m.writeBytes(conn, m.Bytes())
+	return manager.WriteData(websocket.TextMessage, m.Bytes(), writeTimeout)
 }
 
-func (m *memLogger) wsStreamLog(ctx context.Context, conn *websocket.Conn, ch <-chan *logEntryRange) {
+func (m *memLogger) wsStreamLog(ctx context.Context, manager *websocket.Manager, ch <-chan *logEntryRange) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -188,7 +181,7 @@ func (m *memLogger) wsStreamLog(ctx context.Context, conn *websocket.Conn, ch <-
 		case logRange := <-ch:
 			m.RLock()
 			msg := m.Bytes()[logRange.Start:logRange.End]
-			err := m.writeBytes(conn, msg)
+			err := manager.WriteData(websocket.TextMessage, msg, writeTimeout)
 			m.RUnlock()
 			if err != nil {
 				return

@@ -12,7 +12,7 @@ type Retention struct {
 	Days     uint64 `json:"days"`
 	Last     uint64 `json:"last"`
 	KeepSize uint64 `json:"keep_size"`
-}
+} // @name LogRetention
 
 var (
 	ErrInvalidSyntax = gperr.New("invalid syntax")

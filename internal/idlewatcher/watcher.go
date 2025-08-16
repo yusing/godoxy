@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
@@ -17,10 +18,10 @@ import (
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 	"github.com/yusing/go-proxy/internal/utils/atomic"
 	"github.com/yusing/go-proxy/internal/watcher/events"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
@@ -28,10 +29,10 @@ import (
 
 type (
 	routeHelper struct {
-		route  routes.Route
+		route  types.Route
 		rp     *reverseproxy.ReverseProxy
 		stream nettypes.Stream
-		hc     health.HealthChecker
+		hc     types.HealthChecker
 	}
 
 	containerState struct {
@@ -46,7 +47,7 @@ type (
 
 		l zerolog.Logger
 
-		cfg *idlewatcher.Config
+		cfg *types.IdlewatcherConfig
 
 		provider idlewatcher.Provider
 
@@ -80,7 +81,7 @@ const (
 	idleWakerCheckTimeout  = time.Second
 )
 
-var dummyHealthCheckConfig = &health.HealthCheckConfig{
+var dummyHealthCheckConfig = &types.HealthCheckConfig{
 	Interval: idleWakerCheckInterval,
 	Timeout:  idleWakerCheckTimeout,
 }
@@ -96,7 +97,7 @@ const reqTimeout = 3 * time.Second
 const neverTick = time.Duration(1<<63 - 1)
 
 // TODO: fix stream type.
-func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*Watcher, error) {
+func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig) (*Watcher, error) {
 	key := cfg.Key()
 
 	watcherMapMu.RLock()
@@ -109,7 +110,7 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 			w.cfg.DependsOn = cfg.DependsOn
 		}
 		if cfg.IdleTimeout > 0 {
-			w.cfg.IdlewatcherConfig = cfg.IdlewatcherConfig
+			w.cfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 		}
 		cfg = w.cfg
 		w.resetIdleTimer()
@@ -147,12 +148,12 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 
 		cont := r.ContainerInfo()
 
-		var depRoute routes.Route
+		var depRoute types.Route
 		var ok bool
 
 		// try to find the dependency in the same provider and the same docker compose project first
 		if cont != nil {
-			depRoute, ok = r.GetProvider().FindService(cont.DockerComposeProject(), dep)
+			depRoute, ok = r.GetProvider().FindService(docker.DockerComposeProject(cont), dep)
 		}
 
 		if !ok {
@@ -178,8 +179,8 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 
 		depCfg := depRoute.IdlewatcherConfig()
 		if depCfg == nil {
-			depCfg = new(idlewatcher.Config)
-			depCfg.IdlewatcherConfig = cfg.IdlewatcherConfig
+			depCfg = new(types.IdlewatcherConfig)
+			depCfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 			depCfg.IdleTimeout = neverTick // disable auto sleep for dependencies
 		} else if depCfg.IdleTimeout > 0 {
 			depErrors.Addf("dependency %q has positive idle timeout %s", dep, depCfg.IdleTimeout)
@@ -189,12 +190,12 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 		if depCfg.Docker == nil && depCfg.Proxmox == nil {
 			depCont := depRoute.ContainerInfo()
 			if depCont != nil {
-				depCfg.Docker = &idlewatcher.DockerConfig{
+				depCfg.Docker = &types.DockerConfig{
 					DockerHost:    depCont.DockerHost,
 					ContainerID:   depCont.ContainerID,
 					ContainerName: depCont.ContainerName,
 				}
-				depCfg.DependsOn = depCont.Dependencies()
+				depCfg.DependsOn = docker.Dependencies(depCont)
 			} else {
 				depErrors.Addf("dependency %q has no idlewatcher config but is not a docker container", dep)
 				continue
@@ -258,9 +259,9 @@ func NewWatcher(parent task.Parent, r routes.Route, cfg *idlewatcher.Config) (*W
 	w.provider = p
 
 	switch r := r.(type) {
-	case routes.ReverseProxyRoute:
+	case types.ReverseProxyRoute:
 		w.rp = r.ReverseProxy()
-	case routes.StreamRoute:
+	case types.StreamRoute:
 		w.stream = r.Stream()
 	default:
 		w.provider.Close()
@@ -443,11 +444,11 @@ func (w *Watcher) stopByMethod() error {
 	// stop itself first.
 	var err error
 	switch cfg.StopMethod {
-	case idlewatcher.StopMethodPause:
+	case types.ContainerStopMethodPause:
 		err = w.provider.ContainerPause(ctx)
-	case idlewatcher.StopMethodStop:
+	case types.ContainerStopMethodStop:
 		err = w.provider.ContainerStop(ctx, cfg.StopSignal, int(cfg.StopTimeout.Seconds()))
-	case idlewatcher.StopMethodKill:
+	case types.ContainerStopMethodKill:
 		err = w.provider.ContainerKill(ctx, cfg.StopSignal)
 	default:
 		err = w.newWatcherError(gperr.Errorf("unexpected stop method: %q", cfg.StopMethod))

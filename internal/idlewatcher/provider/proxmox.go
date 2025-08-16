@@ -8,6 +8,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/proxmox"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher"
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
@@ -52,11 +53,11 @@ func (p *ProxmoxProvider) ContainerStart(ctx context.Context) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCStart)
 }
 
-func (p *ProxmoxProvider) ContainerStop(ctx context.Context, _ idlewatcher.Signal, _ int) error {
+func (p *ProxmoxProvider) ContainerStop(ctx context.Context, _ types.ContainerSignal, _ int) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCShutdown)
 }
 
-func (p *ProxmoxProvider) ContainerKill(ctx context.Context, _ idlewatcher.Signal) error {
+func (p *ProxmoxProvider) ContainerKill(ctx context.Context, _ types.ContainerSignal) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCShutdown)
 }
 

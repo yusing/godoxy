@@ -4,30 +4,31 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	F "github.com/yusing/go-proxy/internal/utils/functional"
+	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type leastConn struct {
 	*LoadBalancer
-	nConn F.Map[Server, *atomic.Int64]
+	nConn *xsync.Map[types.LoadBalancerServer, *atomic.Int64]
 }
 
 func (lb *LoadBalancer) newLeastConn() impl {
 	return &leastConn{
 		LoadBalancer: lb,
-		nConn:        F.NewMapOf[Server, *atomic.Int64](),
+		nConn:        xsync.NewMap[types.LoadBalancerServer, *atomic.Int64](),
 	}
 }
 
-func (impl *leastConn) OnAddServer(srv Server) {
+func (impl *leastConn) OnAddServer(srv types.LoadBalancerServer) {
 	impl.nConn.Store(srv, new(atomic.Int64))
 }
 
-func (impl *leastConn) OnRemoveServer(srv Server) {
+func (impl *leastConn) OnRemoveServer(srv types.LoadBalancerServer) {
 	impl.nConn.Delete(srv)
 }
 
-func (impl *leastConn) ServeHTTP(srvs Servers, rw http.ResponseWriter, r *http.Request) {
+func (impl *leastConn) ServeHTTP(srvs types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request) {
 	srv := srvs[0]
 	minConn, ok := impl.nConn.Load(srv)
 	if !ok {

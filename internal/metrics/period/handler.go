@@ -5,12 +5,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
+	apitypes "github.com/yusing/go-proxy/internal/api/types"
 	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
 )
+
+type ResponseType[AggregateT any] struct {
+	Total int        `json:"total"`
+	Data  AggregateT `json:"data"`
+}
 
 // ServeHTTP serves the data for the given period.
 //
@@ -23,10 +28,10 @@ import (
 // If the data is not found, it returns a 204 error.
 //
 // If the request is a websocket request, it serves the data for the given period for every interval.
-func (p *Poller[T, AggregateT]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
+func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
+	query := c.Request.URL.Query()
 
-	if httpheaders.IsWebsocket(r.Header) {
+	if httpheaders.IsWebsocket(c.Request.Header) {
 		interval := metricsutils.QueryDuration(query, "interval", 0)
 
 		minInterval := 1 * time.Second
@@ -36,27 +41,20 @@ func (p *Poller[T, AggregateT]) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if interval < minInterval {
 			interval = minInterval
 		}
-		gpwebsocket.Periodic(w, r, interval, func(conn *websocket.Conn) error {
-			data, err := p.getRespData(r)
-			if err != nil {
-				return err
-			}
-			if data == nil {
-				return nil
-			}
-			return conn.WriteJSON(data)
+		websocket.PeriodicWrite(c, interval, func() (any, error) {
+			return p.getRespData(c.Request)
 		})
 	} else {
-		data, err := p.getRespData(r)
+		data, err := p.getRespData(c.Request)
 		if err != nil {
-			gphttp.ServerError(w, r, err)
+			c.Error(apitypes.InternalServerError(err, "failed to get response data"))
 			return
 		}
 		if data == nil {
-			http.Error(w, "no data", http.StatusNoContent)
+			c.JSON(http.StatusNoContent, apitypes.Error("no data"))
 			return
 		}
-		gphttp.RespondJSON(w, r, data)
+		c.JSON(http.StatusOK, data)
 	}
 }
 

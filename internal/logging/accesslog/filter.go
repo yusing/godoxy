@@ -14,19 +14,19 @@ type (
 	LogFilter[T Filterable] struct {
 		Negative bool
 		Values   []T
-	}
+	} // @name LogFilter
 	Filterable interface {
 		comparable
 		Fulfill(req *http.Request, res *http.Response) bool
 	}
-	HTTPMethod string
+	HTTPMethod string // @name HTTPMethod
 	HTTPHeader struct {
 		Key, Value string
-	}
-	Host string
+	} // @name HTTPHeader
+	Host string // @name Host
 	CIDR struct {
 		nettypes.CIDR
-	}
+	} // @name CIDR
 )
 
 var ErrInvalidHTTPHeaderFilter = gperr.New("invalid http header filter")

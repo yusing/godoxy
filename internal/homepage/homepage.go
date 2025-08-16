@@ -8,8 +8,8 @@ import (
 )
 
 type (
-	Homepage map[string]Category
-	Category []*Item
+	Homepage map[string]Category // @name HomepageItems
+	Category []*Item             // @name HomepageCategory
 
 	ItemConfig struct {
 		Show        bool     `json:"show"`
@@ -23,6 +23,7 @@ type (
 
 	Item struct {
 		*ItemConfig
+
 		WidgetConfig *widgets.Config `json:"widget_config,omitempty" aliases:"widget"`
 
 		Alias     string `json:"alias"`

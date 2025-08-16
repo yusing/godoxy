@@ -23,7 +23,7 @@ import (
 // json tags are left for tests
 
 type (
-	Sensors    []sensors.TemperatureStat
+	Sensors    []sensors.TemperatureStat // @name Sensors
 	Aggregated []map[string]any
 )
 
@@ -35,7 +35,7 @@ type SystemInfo struct {
 	DisksIO    map[string]*disk.IOCountersStat `json:"disks_io"` // disk IO by device
 	Network    *net.IOCountersStat             `json:"network"`
 	Sensors    Sensors                         `json:"sensors"` // sensor temperature by key
-}
+} // @name SystemInfo
 
 const (
 	queryCPUAverage         = "cpu_average"

@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,12 +13,6 @@ func GetVersion() Version {
 
 func GetLastVersion() Version {
 	return lastVersion
-}
-
-func GetVersionHTTPHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, GetVersion().String())
-	}
 }
 
 func init() {

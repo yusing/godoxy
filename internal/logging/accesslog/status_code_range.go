@@ -10,7 +10,7 @@ import (
 type StatusCodeRange struct {
 	Start int
 	End   int
-}
+} // @name StatusCodeRange
 
 var ErrInvalidStatusCodeRange = gperr.New("invalid status code range")
 

@@ -13,12 +13,12 @@ import (
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer"
-	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
@@ -30,7 +30,7 @@ type ReveseProxyRoute struct {
 	rp           *reverseproxy.ReverseProxy
 }
 
-var _ routes.ReverseProxyRoute = (*ReveseProxyRoute)(nil)
+var _ types.ReverseProxyRoute = (*ReveseProxyRoute)(nil)
 
 // var globalMux    = http.NewServeMux() // TODO: support regex subdomain matching.
 
@@ -196,7 +196,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	}
 	r.loadBalancer = lb
 
-	server := loadbalance.NewServer(r.task.Name(), r.ProxyURL, r.LoadBalance.Weight, r.handler, r.HealthMon)
+	server := loadbalancer.NewServer(r.task.Name(), r.ProxyURL, r.LoadBalance.Weight, r.handler, r.HealthMon)
 	lb.AddServer(server)
 	r.task.OnCancel("lb_remove_server", func() {
 		lb.RemoveServer(server)

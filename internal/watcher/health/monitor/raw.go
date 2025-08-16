@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type (
@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func NewRawHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *RawHealthMonitor {
+func NewRawHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *RawHealthMonitor {
 	mon := new(RawHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	mon.dialer = &net.Dialer{
@@ -25,7 +25,7 @@ func NewRawHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *RawHea
 	return mon
 }
 
-func (mon *RawHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
+func (mon *RawHealthMonitor) CheckHealth() (*types.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
 
@@ -36,7 +36,7 @@ func (mon *RawHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
 		return nil, err
 	}
 	defer conn.Close()
-	return &health.HealthCheckResult{
+	return &types.HealthCheckResult{
 		Latency: time.Since(start),
 		Healthy: true,
 	}, nil

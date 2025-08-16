@@ -1,6 +1,6 @@
 package provider
 
-type Type string
+type Type string //	@name	ProviderType
 
 const (
 	ProviderTypeDocker Type = "docker"

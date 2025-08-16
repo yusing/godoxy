@@ -6,7 +6,7 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 // Start implements health.HealthMonitor.
@@ -50,18 +50,18 @@ func (w *Watcher) Latency() time.Duration {
 }
 
 // Status implements health.HealthMonitor.
-func (w *Watcher) Status() health.Status {
+func (w *Watcher) Status() types.HealthStatus {
 	state := w.state.Load()
 	if state.err != nil {
-		return health.StatusError
+		return types.StatusError
 	}
 	if state.ready {
-		return health.StatusHealthy
+		return types.StatusHealthy
 	}
 	if state.status == idlewatcher.ContainerStatusRunning {
-		return health.StatusStarting
+		return types.StatusStarting
 	}
-	return health.StatusNapping
+	return types.StatusNapping
 }
 
 // Detail implements health.HealthMonitor.
@@ -89,7 +89,7 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 	if err := w.error(); err != nil {
 		detail = err.Error()
 	}
-	return (&health.JSONRepresentation{
+	return (&types.HealthJSONRepr{
 		Name:   w.Name(),
 		Status: w.Status(),
 		Config: dummyHealthCheckConfig,

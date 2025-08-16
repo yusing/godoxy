@@ -14,7 +14,7 @@ type AgentProvider struct {
 }
 
 func (p *AgentProvider) ShortName() string {
-	return p.AgentConfig.Name()
+	return p.AgentConfig.Name
 }
 
 func (p *AgentProvider) NewWatcher() watcher.Watcher {

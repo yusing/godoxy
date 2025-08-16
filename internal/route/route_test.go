@@ -5,11 +5,9 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/docker"
-	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	route "github.com/yusing/go-proxy/internal/route/types"
+	"github.com/yusing/go-proxy/internal/types"
 	expect "github.com/yusing/go-proxy/internal/utils/testing"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 func TestRouteValidate(t *testing.T) {
@@ -43,10 +41,10 @@ func TestRouteValidate(t *testing.T) {
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
-			HealthCheck: &health.HealthCheckConfig{
+			HealthCheck: &types.HealthCheckConfig{
 				Disable: true,
 			},
-			LoadBalance: &loadbalance.Config{
+			LoadBalance: &types.LoadBalancerConfig{
 				Link: "test-link",
 			}, // Minimal LoadBalance config with non-empty Link will be checked by UseLoadBalance
 		}
@@ -99,9 +97,9 @@ func TestRouteValidate(t *testing.T) {
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
 			Metadata: Metadata{
-				Container: &docker.Container{
+				Container: &types.Container{
 					ContainerID: "test-id",
-					Image: &docker.ContainerImage{
+					Image: &types.ContainerImage{
 						Name: "test-image",
 					},
 				},
@@ -157,9 +155,9 @@ func TestDockerRouteDisallowAgent(t *testing.T) {
 		Port:   route.Port{Proxy: 80},
 		Agent:  "test-agent",
 		Metadata: Metadata{
-			Container: &docker.Container{
+			Container: &types.Container{
 				ContainerID: "test-id",
-				Image: &docker.ContainerImage{
+				Image: &types.ContainerImage{
 					Name: "test-image",
 				},
 			},

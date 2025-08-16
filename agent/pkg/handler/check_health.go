@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
@@ -22,7 +23,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result *health.HealthCheckResult
+	var result *types.HealthCheckResult
 	var err error
 	switch scheme {
 	case "fileserver":
@@ -32,7 +33,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, err := os.Stat(path)
-		result = &health.HealthCheckResult{Healthy: err == nil}
+		result = &types.HealthCheckResult{Healthy: err == nil}
 		if err != nil {
 			result.Detail = err.Error()
 		}

@@ -10,16 +10,24 @@ type Period[T any] struct {
 	mu      sync.RWMutex
 }
 
-type Filter string
+type Filter string // @name MetricsPeriod
+
+const (
+	MetricsPeriod5m  Filter = "5m"  // @name MetricsPeriod5m
+	MetricsPeriod15m Filter = "15m" // @name MetricsPeriod15m
+	MetricsPeriod1h  Filter = "1h"  // @name MetricsPeriod1h
+	MetricsPeriod1d  Filter = "1d"  // @name MetricsPeriod1d
+	MetricsPeriod1mo Filter = "1mo" // @name MetricsPeriod1mo
+)
 
 func NewPeriod[T any]() *Period[T] {
 	return &Period[T]{
 		Entries: map[Filter]*Entries[T]{
-			"5m":  newEntries[T](5 * time.Minute),
-			"15m": newEntries[T](15 * time.Minute),
-			"1h":  newEntries[T](1 * time.Hour),
-			"1d":  newEntries[T](24 * time.Hour),
-			"1mo": newEntries[T](30 * 24 * time.Hour),
+			MetricsPeriod5m:  newEntries[T](5 * time.Minute),
+			MetricsPeriod15m: newEntries[T](15 * time.Minute),
+			MetricsPeriod1h:  newEntries[T](1 * time.Hour),
+			MetricsPeriod1d:  newEntries[T](24 * time.Hour),
+			MetricsPeriod1mo: newEntries[T](30 * 24 * time.Hour),
 		},
 	}
 }

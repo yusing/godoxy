@@ -8,7 +8,7 @@ import (
 	"time"
 
 	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type (
@@ -48,7 +48,7 @@ func (target *AgentCheckHealthTarget) displayURL() *url.URL {
 	}
 }
 
-func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *health.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
+func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
 	mon := &AgentProxiedMonitor{
 		agent:       agent,
 		endpointURL: agentPkg.EndpointHealth + "?" + target.buildQuery(),
@@ -57,9 +57,9 @@ func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *health.HealthCh
 	return mon
 }
 
-func (mon *AgentProxiedMonitor) CheckHealth() (result *health.HealthCheckResult, err error) {
+func (mon *AgentProxiedMonitor) CheckHealth() (result *types.HealthCheckResult, err error) {
 	startTime := time.Now()
-	result = new(health.HealthCheckResult)
+	result = new(types.HealthCheckResult)
 	ctx, cancel := mon.ContextWithTimeout("timeout querying agent")
 	defer cancel()
 	data, status, err := mon.agent.Fetch(ctx, mon.endpointURL)

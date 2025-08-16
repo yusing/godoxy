@@ -6,15 +6,14 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
-type LabelMap = map[string]any
-
 var ErrInvalidLabel = gperr.New("invalid label")
 
-func ParseLabels(labels map[string]string, aliases ...string) (LabelMap, gperr.Error) {
-	nestedMap := make(LabelMap)
+func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, gperr.Error) {
+	nestedMap := make(types.LabelMap)
 	errs := gperr.NewBuilder("labels error")
 
 	ExpandWildcard(labels, aliases...)
@@ -38,15 +37,15 @@ func ParseLabels(labels map[string]string, aliases ...string) (LabelMap, gperr.E
 			} else {
 				// If the key doesn't exist, create a new map
 				if _, exists := currentMap[k]; !exists {
-					currentMap[k] = make(LabelMap)
+					currentMap[k] = make(types.LabelMap)
 				}
 				// Move deeper into the nested map
-				m, ok := currentMap[k].(LabelMap)
+				m, ok := currentMap[k].(types.LabelMap)
 				if !ok && currentMap[k] != "" {
 					errs.Add(gperr.Errorf("expect mapping, got %T", currentMap[k]).Subject(lbl))
 					continue
 				} else if !ok {
-					m = make(LabelMap)
+					m = make(types.LabelMap)
 					currentMap[k] = m
 				}
 				currentMap = m

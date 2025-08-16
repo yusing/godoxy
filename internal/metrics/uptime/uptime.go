@@ -4,35 +4,46 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"sort"
+	"strings"
 	"time"
+
+	"slices"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/yusing/go-proxy/internal/metrics/period"
 	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
 	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]*routes.HealthInfoRaw `json:"statuses"`
-		Timestamp int64                            `json:"timestamp"`
-	}
+		Map       map[string]routes.HealthInfo `json:"statuses"`
+		Timestamp int64                        `json:"timestamp"`
+	} // @name RouteStatusesByAlias
 	Status struct {
-		Status    health.Status `json:"status"`
-		Latency   int64         `json:"latency"`
-		Timestamp int64         `json:"timestamp"`
-	}
-	RouteStatuses map[string][]*Status
-	Aggregated    []map[string]any
+		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
+		Latency   int64              `json:"latency"`
+		Timestamp int64              `json:"timestamp"`
+	} // @name RouteStatus
+	RouteStatuses  map[string][]*Status // @name RouteStatuses
+	RouteAggregate struct {
+		Alias       string    `json:"alias"`
+		DisplayName string    `json:"display_name"`
+		Uptime      float64   `json:"uptime"`
+		Downtime    float64   `json:"downtime"`
+		Idle        float64   `json:"idle"`
+		AvgLatency  float64   `json:"avg_latency"`
+		Statuses    []*Status `json:"statuses"`
+	} // @name RouteUptimeAggregate
+	Aggregated []RouteAggregate
 )
 
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ *StatusByAlias) (*StatusByAlias, error) {
 	return &StatusByAlias{
-		Map:       routes.HealthInfo(),
+		Map:       routes.GetHealthInfo(),
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -78,11 +89,11 @@ func (rs RouteStatuses) calculateInfo(statuses []*Status) (up float64, down floa
 	latency := float64(0)
 	for _, status := range statuses {
 		// ignoring unknown; treating napping and starting as downtime
-		if status.Status == health.StatusUnknown {
+		if status.Status == types.StatusUnknown {
 			continue
 		}
 		switch {
-		case status.Status == health.StatusHealthy:
+		case status.Status == types.StatusHealthy:
 			up++
 		case status.Status.Idling():
 			idle++
@@ -110,28 +121,39 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		sortedAliases[i] = alias
 		i++
 	}
-	sort.Strings(sortedAliases)
+	// unknown statuses are at the end, then sort by alias
+	slices.SortFunc(sortedAliases, func(a, b string) int {
+		if rs[a][len(rs[a])-1].Status == types.StatusUnknown {
+			return 1
+		}
+		if rs[b][len(rs[b])-1].Status == types.StatusUnknown {
+			return -1
+		}
+		return strings.Compare(a, b)
+	})
 	sortedAliases = sortedAliases[beg:end]
 	result := make(Aggregated, len(sortedAliases))
 	for i, alias := range sortedAliases {
 		statuses := rs[alias]
 		up, down, idle, latency := rs.calculateInfo(statuses)
-		result[i] = map[string]any{
-			"alias":       alias,
-			"uptime":      up,
-			"downtime":    down,
-			"idle":        idle,
-			"avg_latency": latency,
-			"statuses":    statuses,
+		result[i] = RouteAggregate{
+			Alias:      alias,
+			Uptime:     up,
+			Downtime:   down,
+			Idle:       idle,
+			AvgLatency: latency,
+			Statuses:   statuses,
 		}
 		r, ok := routes.Get(alias)
 		if ok {
-			result[i]["display_name"] = r.HomepageConfig().Name
+			result[i].DisplayName = r.HomepageConfig().Name
+		} else {
+			result[i].DisplayName = alias
 		}
 	}
 	return result
 }
 
 func (result Aggregated) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]map[string]any(result))
+	return json.Marshal([]RouteAggregate(result))
 }

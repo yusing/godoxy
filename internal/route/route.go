@@ -14,18 +14,16 @@ import (
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/homepage"
-	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	netutils "github.com/yusing/go-proxy/internal/net"
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	loadbalance "github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/rules"
 	route "github.com/yusing/go-proxy/internal/route/types"
@@ -43,39 +41,41 @@ type (
 		Root   string       `json:"root,omitempty"`
 
 		route.HTTPConfig
-		PathPatterns []string                       `json:"path_patterns,omitempty"`
-		Rules        rules.Rules                    `json:"rules,omitempty" validate:"omitempty,unique=Name"`
-		HealthCheck  *health.HealthCheckConfig      `json:"healthcheck,omitempty"`
-		LoadBalance  *loadbalance.Config            `json:"load_balance,omitempty"`
-		Middlewares  map[string]docker.LabelMap     `json:"middlewares,omitempty"`
-		Homepage     *homepage.ItemConfig           `json:"homepage,omitempty"`
-		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty"`
+		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
+		Rules        rules.Rules                    `json:"rules,omitempty" validate:"omitempty,unique=Name" extension:"x-nullable"`
+		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck"`
+		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
+		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
+		Homepage     *homepage.ItemConfig           `json:"homepage"`
+		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
 		Agent        string                         `json:"agent,omitempty"`
 
-		Idlewatcher *idlewatcher.Config  `json:"idlewatcher,omitempty"`
-		HealthMon   health.HealthMonitor `json:"health,omitempty"`
+		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
+		HealthMon   types.HealthMonitor      `json:"health,omitempty" swaggerignore:"true"`
+		// for swagger
+		HealthJSON *types.HealthJSON `form:"health"`
 
 		Metadata `deserialize:"-"`
 	}
 
 	Metadata struct {
 		/* Docker only */
-		Container *docker.Container `json:"container,omitempty"`
+		Container *types.Container `json:"container,omitempty" extensions:"x-nullable"`
 
-		Provider string `json:"provider,omitempty"` // for backward compatibility
+		Provider string `json:"provider,omitempty" extensions:"x-nullable"` // for backward compatibility
 
 		// private fields
-		LisURL   *nettypes.URL `json:"lurl,omitempty"`
-		ProxyURL *nettypes.URL `json:"purl,omitempty"`
+		LisURL   *nettypes.URL `json:"lurl,omitempty" swaggertype:"string" extensions:"x-nullable"`
+		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
 		Excluded *bool `json:"excluded"`
 
-		impl routes.Route
+		impl types.Route
 		task *task.Task
 
 		isValidated bool
 		lastError   gperr.Error
-		provider    routes.Provider
+		provider    types.RouteProvider
 
 		agent *agent.AgentConfig
 
@@ -212,7 +212,7 @@ func (r *Route) Validate() gperr.Error {
 
 	errs := gperr.NewBuilder("entry validation failed")
 
-	var impl routes.Route
+	var impl types.Route
 	var err gperr.Error
 
 	switch r.Scheme {
@@ -263,7 +263,7 @@ func (r *Route) Validate() gperr.Error {
 	return nil
 }
 
-func (r *Route) Impl() routes.Route {
+func (r *Route) Impl() types.Route {
 	return r.impl
 }
 
@@ -318,11 +318,11 @@ func (r *Route) Started() <-chan struct{} {
 	return r.started
 }
 
-func (r *Route) GetProvider() routes.Provider {
+func (r *Route) GetProvider() types.RouteProvider {
 	return r.provider
 }
 
-func (r *Route) SetProvider(p routes.Provider) {
+func (r *Route) SetProvider(p types.RouteProvider) {
 	r.provider = p
 	r.Provider = p.ShortName()
 }
@@ -384,26 +384,26 @@ func (r *Route) IsAgent() bool {
 	return r.GetAgent() != nil
 }
 
-func (r *Route) HealthMonitor() health.HealthMonitor {
+func (r *Route) HealthMonitor() types.HealthMonitor {
 	return r.HealthMon
 }
 
-func (r *Route) SetHealthMonitor(m health.HealthMonitor) {
+func (r *Route) SetHealthMonitor(m types.HealthMonitor) {
 	if r.HealthMon != nil && r.HealthMon != m {
 		r.HealthMon.Finish("health monitor replaced")
 	}
 	r.HealthMon = m
 }
 
-func (r *Route) IdlewatcherConfig() *idlewatcher.Config {
+func (r *Route) IdlewatcherConfig() *types.IdlewatcherConfig {
 	return r.Idlewatcher
 }
 
-func (r *Route) HealthCheckConfig() *health.HealthCheckConfig {
+func (r *Route) HealthCheckConfig() *types.HealthCheckConfig {
 	return r.HealthCheck
 }
 
-func (r *Route) LoadBalanceConfig() *loadbalance.Config {
+func (r *Route) LoadBalanceConfig() *types.LoadBalancerConfig {
 	return r.LoadBalance
 }
 
@@ -419,7 +419,7 @@ func (r *Route) HomepageItem() *homepage.Item {
 	}
 }
 
-func (r *Route) ContainerInfo() *docker.Container {
+func (r *Route) ContainerInfo() *types.Container {
 	return r.Container
 }
 
@@ -447,7 +447,7 @@ func (r *Route) ShouldExclude() bool {
 			return true
 		case r.IsZeroPort() && !r.UseIdleWatcher():
 			return true
-		case !r.Container.IsExplicit && r.Container.IsBlacklisted():
+		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
 			return true
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
 			return true
@@ -579,7 +579,7 @@ func (r *Route) Finalize() {
 	r.Port.Listening, r.Port.Proxy = lp, pp
 
 	if r.HealthCheck == nil {
-		r.HealthCheck = health.DefaultHealthConfig()
+		r.HealthCheck = types.DefaultHealthConfig()
 	}
 
 	if !r.HealthCheck.Disable {

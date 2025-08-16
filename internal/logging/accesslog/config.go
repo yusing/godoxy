@@ -13,7 +13,7 @@ type (
 		Path           string        `json:"path"`
 		Stdout         bool          `json:"stdout"`
 		Retention      *Retention    `json:"retention" aliases:"keep"`
-		RotateInterval time.Duration `json:"rotate_interval,omitempty"`
+		RotateInterval time.Duration `json:"rotate_interval,omitempty" swaggertype:"primitive,integer"`
 	}
 	ACLLoggerConfig struct {
 		ConfigBase
@@ -24,7 +24,7 @@ type (
 		Format  Format  `json:"format" validate:"oneof=common combined json"`
 		Filters Filters `json:"filters"`
 		Fields  Fields  `json:"fields"`
-	}
+	} // @name RequestLoggerConfig
 	Config struct {
 		*ConfigBase
 		acl *ACLLoggerConfig

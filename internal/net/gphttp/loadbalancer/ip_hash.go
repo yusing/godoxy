@@ -8,13 +8,14 @@ import (
 
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type ipHash struct {
 	*LoadBalancer
 
 	realIP *middleware.Middleware
-	pool   Servers
+	pool   types.LoadBalancerServers
 	mu     sync.Mutex
 }
 
@@ -31,7 +32,7 @@ func (lb *LoadBalancer) newIPHash() impl {
 	return impl
 }
 
-func (impl *ipHash) OnAddServer(srv Server) {
+func (impl *ipHash) OnAddServer(srv types.LoadBalancerServer) {
 	impl.mu.Lock()
 	defer impl.mu.Unlock()
 
@@ -48,7 +49,7 @@ func (impl *ipHash) OnAddServer(srv Server) {
 	impl.pool = append(impl.pool, srv)
 }
 
-func (impl *ipHash) OnRemoveServer(srv Server) {
+func (impl *ipHash) OnRemoveServer(srv types.LoadBalancerServer) {
 	impl.mu.Lock()
 	defer impl.mu.Unlock()
 
@@ -60,7 +61,7 @@ func (impl *ipHash) OnRemoveServer(srv Server) {
 	}
 }
 
-func (impl *ipHash) ServeHTTP(_ Servers, rw http.ResponseWriter, r *http.Request) {
+func (impl *ipHash) ServeHTTP(_ types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request) {
 	if impl.realIP != nil {
 		impl.realIP.ModifyRequest(impl.serveHTTP, rw, r)
 	} else {

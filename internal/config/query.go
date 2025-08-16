@@ -3,6 +3,7 @@ package config
 import (
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/route/provider"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 func (cfg *Config) DumpRouteProviders() map[string]*provider.Provider {
@@ -25,9 +26,9 @@ func (cfg *Config) RouteProviderList() []config.RouteProviderListResponse {
 }
 
 func (cfg *Config) Statistics() map[string]any {
-	var rps, streams provider.RouteStats
+	var rps, streams types.RouteStats
 	var total uint16
-	providerStats := make(map[string]provider.ProviderStats)
+	providerStats := make(map[string]types.ProviderStats)
 
 	for _, p := range cfg.providers.Range {
 		stats := p.Statistics()

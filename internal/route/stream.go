@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/stream"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
@@ -24,7 +25,7 @@ type StreamRoute struct {
 	l zerolog.Logger
 }
 
-func NewStreamRoute(base *Route) (routes.Route, gperr.Error) {
+func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
 	return &StreamRoute{
 		Route: base,

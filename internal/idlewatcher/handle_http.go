@@ -1,11 +1,12 @@
 package idlewatcher
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
+	api "github.com/yusing/go-proxy/internal/api/v1"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 )
@@ -62,7 +63,14 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// handle favicon request
 	if isFaviconPath(r.URL.Path) {
-		favicon.GetFavIconFromAlias(rw, r, w.route.Name())
+		result := api.GetFavIconFromAlias(r.Context(), w.route.Name())
+		if !result.OK() {
+			rw.WriteHeader(result.StatusCode)
+			fmt.Fprint(rw, result.ErrMsg)
+			return false
+		}
+		rw.Header().Set("Content-Type", result.ContentType())
+		rw.WriteHeader(result.StatusCode)
 		return false
 	}
 

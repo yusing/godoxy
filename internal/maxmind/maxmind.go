@@ -2,6 +2,7 @@ package maxmind
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -19,8 +20,15 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 )
 
+/*
+refactor(maxmind): switch to Country database
+
+- In compliance with [Title 28 of the Code of Federal Regulations of the United States of America Part 202](https://www.ecfr.gov/current/title-28/chapter-I/part-202), non US IPs are blocked from downloading the City database
+*/
+
 type MaxMind struct {
 	*Config
+
 	lastUpdate time.Time
 	db         struct {
 		*maxminddb.Reader
@@ -49,24 +57,21 @@ var (
 )
 
 func (cfg *MaxMind) dbPath() string {
-	if cfg.Database == maxmind.MaxMindGeoLite {
-		return filepath.Join(dataDir, "GeoLite2-City.mmdb")
-	}
-	return filepath.Join(dataDir, "GeoIP2-City.mmdb")
+	return filepath.Join(dataDir, cfg.dbFilename())
 }
 
 func (cfg *MaxMind) dbURL() string {
 	if cfg.Database == maxmind.MaxMindGeoLite {
-		return "https://download.maxmind.com/geoip/databases/GeoLite2-City/download?suffix=tar.gz"
+		return "https://download.maxmind.com/geoip/databases/GeoLite2-Country/download?suffix=tar.gz"
 	}
-	return "https://download.maxmind.com/geoip/databases/GeoIP2-City/download?suffix=tar.gz"
+	return "https://download.maxmind.com/geoip/databases/GeoIP2-Country/download?suffix=tar.gz"
 }
 
 func (cfg *MaxMind) dbFilename() string {
 	if cfg.Database == maxmind.MaxMindGeoLite {
-		return "GeoLite2-City.mmdb"
+		return "GeoLite2-Country.mmdb"
 	}
-	return "GeoIP2-City.mmdb"
+	return "GeoIP2-Country.mmdb"
 }
 
 func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
@@ -219,34 +224,17 @@ func (cfg *MaxMind) download() error {
 	}
 
 	dbFile := dbPath(cfg)
-	tmpGZPath := dbFile + "-tmp.tar.gz"
 	tmpDBPath := dbFile + "-tmp"
-
-	tmpGZFile, err := os.OpenFile(tmpGZPath, os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return err
-	}
-
-	// cleanup the tar.gz file
-	defer func() {
-		_ = tmpGZFile.Close()
-		_ = os.Remove(tmpGZPath)
-	}()
 
 	cfg.Logger().Info().Msg("MaxMind DB downloading...")
 
-	_, err = io.Copy(tmpGZFile, resp.Body)
+	databaseGZ, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
-	}
-
-	if _, err := tmpGZFile.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 
 	// extract .tar.gz and to database
-	err = extractFileFromTarGz(tmpGZFile, cfg.dbFilename(), tmpDBPath)
-
+	err = extractFileFromTarGz(databaseGZ, cfg.dbFilename(), tmpDBPath)
 	if err != nil {
 		return gperr.New("failed to extract database from archive").With(err)
 	}
@@ -284,15 +272,14 @@ func (cfg *MaxMind) download() error {
 	return nil
 }
 
-func extractFileFromTarGz(tarGzFile *os.File, targetFilename, destPath string) error {
-	defer tarGzFile.Close()
-
-	gzr, err := gzip.NewReader(tarGzFile)
+func extractFileFromTarGz(tarGzBytes []byte, targetFilename, destPath string) error {
+	gzr, err := gzip.NewReader(bytes.NewReader(tarGzBytes))
 	if err != nil {
 		return err
 	}
 	defer gzr.Close()
 
+	sumSize := int64(0)
 	tr := tar.NewReader(gzr)
 	for {
 		hdr, err := tr.Next()
@@ -302,6 +289,12 @@ func extractFileFromTarGz(tarGzFile *os.File, targetFilename, destPath string) e
 		if err != nil {
 			return err
 		}
+		// NOTE: it should be around 10MB, but just in case
+		// This is to prevent malicious tar.gz file (e.g. tar bomb)
+		sumSize += hdr.Size
+		if sumSize > 30*1024*1024 {
+			return errors.New("file size exceeds 30MB")
+		}
 		// Only extract the file that matches targetFilename (basename match)
 		if filepath.Base(hdr.Name) == targetFilename {
 			outFile, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, hdr.FileInfo().Mode())
@@ -309,7 +302,7 @@ func extractFileFromTarGz(tarGzFile *os.File, targetFilename, destPath string) e
 				return err
 			}
 			defer outFile.Close()
-			_, err = io.Copy(outFile, tr)
+			_, err = io.CopyN(outFile, tr, hdr.Size)
 			if err != nil {
 				return err
 			}

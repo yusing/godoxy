@@ -1,5 +1,7 @@
 package docker
 
+import "github.com/yusing/go-proxy/internal/types"
+
 var imageBlacklist = map[string]struct{}{
 	// pure databases without UI
 	"postgres":  {},
@@ -45,7 +47,7 @@ var authorBlacklist = map[string]struct{}{
 	"docker": {},
 }
 
-func (image *ContainerImage) IsBlacklisted() bool {
+func IsBlacklistedImage(image *types.ContainerImage) bool {
 	_, ok := imageBlacklist[image.Name]
 	if ok {
 		return true

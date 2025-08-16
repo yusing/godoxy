@@ -1,111 +1,155 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
-	v1 "github.com/yusing/go-proxy/internal/api/v1"
-	"github.com/yusing/go-proxy/internal/api/v1/certapi"
-	"github.com/yusing/go-proxy/internal/api/v1/dockerapi"
-	"github.com/yusing/go-proxy/internal/api/v1/favicon"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	apitypes "github.com/yusing/go-proxy/internal/api/types"
+	apiV1 "github.com/yusing/go-proxy/internal/api/v1"
+	agentApi "github.com/yusing/go-proxy/internal/api/v1/agent"
+	authApi "github.com/yusing/go-proxy/internal/api/v1/auth"
+	certApi "github.com/yusing/go-proxy/internal/api/v1/cert"
+	dockerApi "github.com/yusing/go-proxy/internal/api/v1/docker"
+	"github.com/yusing/go-proxy/internal/api/v1/docs"
+	fileApi "github.com/yusing/go-proxy/internal/api/v1/file"
+	homepageApi "github.com/yusing/go-proxy/internal/api/v1/homepage"
+	metricsApi "github.com/yusing/go-proxy/internal/api/v1/metrics"
+	routeApi "github.com/yusing/go-proxy/internal/api/v1/route"
 	"github.com/yusing/go-proxy/internal/auth"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/logging/memlogger"
-	"github.com/yusing/go-proxy/internal/metrics/uptime"
-	"github.com/yusing/go-proxy/internal/net/gphttp/gpwebsocket"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/pkg"
 )
 
-type (
-	ServeMux struct {
-		*http.ServeMux
-		cfg config.ConfigInstance
+func NewHandler() *gin.Engine {
+	gin.SetMode("release")
+	r := gin.New()
+	r.Use(ErrorHandler())
+	r.Use(ErrorLoggingMiddleware())
+
+	docs.SwaggerInfo.Title = "GoDoxy API"
+	docs.SwaggerInfo.BasePath = "/api/v1"
+
+	v1Auth := r.Group("/api/v1/auth")
+	{
+		v1Auth.HEAD("/check", authApi.Check)
+		v1Auth.POST("/login", authApi.Login)
+		v1Auth.POST("/callback", authApi.Callback)
+		v1Auth.POST("/logout", authApi.Logout)
 	}
-	WithCfgHandler = func(config.ConfigInstance, http.ResponseWriter, *http.Request)
-)
 
-func (mux ServeMux) HandleFunc(methods, endpoint string, h any, requireAuth ...bool) {
-	var handler http.HandlerFunc
-	switch h := h.(type) {
-	case func(http.ResponseWriter, *http.Request):
-		handler = h
-	case http.Handler:
-		handler = h.ServeHTTP
-	case WithCfgHandler:
-		handler = func(w http.ResponseWriter, r *http.Request) {
-			h(mux.cfg, w, r)
+	v1Swagger := r.Group("/api/v1/swagger")
+	{
+		v1Swagger.GET("/:any", func(c *gin.Context) {
+			c.Redirect(http.StatusTemporaryRedirect, "/api/v1/swagger/index.html")
+		})
+		v1Swagger.GET("/:any/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
+
+	v1 := r.Group("/api/v1")
+	v1.Use(AuthMiddleware())
+	{
+		v1.GET("/favicon", apiV1.FavIcon)
+		v1.GET("/health", apiV1.Health)
+		v1.GET("/icons", apiV1.Icons)
+		v1.POST("/reload", apiV1.Reload)
+		v1.GET("/stats", apiV1.Stats)
+		v1.GET("/version", apiV1.Version)
+
+		route := v1.Group("/route")
+		{
+			route.GET("/list", routeApi.Routes)
+			route.GET("/:which", routeApi.Route)
+			route.GET("/providers", routeApi.Providers)
+			route.GET("/by_provider", routeApi.ByProvider)
 		}
-	default:
-		panic(fmt.Errorf("unsupported handler type: %T", h))
+
+		file := v1.Group("/file")
+		{
+			file.GET("/list", fileApi.List)
+			file.GET("/content", fileApi.Get)
+			file.PUT("/content", fileApi.Set)
+			file.POST("/content", fileApi.Set)
+			file.POST("/validate", fileApi.Validate)
+		}
+
+		homepage := v1.Group("/homepage")
+		{
+			homepage.GET("/categories", homepageApi.Categories)
+			homepage.GET("/items", homepageApi.Items)
+			homepage.POST("/set", homepageApi.Set)
+		}
+
+		cert := v1.Group("/cert")
+		{
+			cert.GET("/info", certApi.Info)
+			cert.POST("/renew", certApi.Renew)
+		}
+
+		agent := v1.Group("/agent")
+		{
+			agent.GET("/list", agentApi.List)
+			agent.POST("/create", agentApi.Create)
+			agent.POST("/verify", agentApi.Verify)
+		}
+
+		metrics := v1.Group("/metrics")
+		{
+			metrics.GET("/system_info", metricsApi.SystemInfo)
+			metrics.GET("/uptime", metricsApi.Uptime)
+		}
+
+		docker := v1.Group("/docker")
+		{
+			docker.GET("/containers", dockerApi.Containers)
+			docker.GET("/info", dockerApi.Info)
+			docker.GET("/logs/:server/:container", dockerApi.Logs)
+		}
 	}
 
-	matchDomains := mux.cfg.Value().MatchDomains
-	if len(matchDomains) > 0 {
-		origHandler := handler
-		handler = func(w http.ResponseWriter, r *http.Request) {
-			if httpheaders.IsWebsocket(r.Header) {
-				gpwebsocket.SetWebsocketAllowedDomains(r.Header, matchDomains)
+	return r
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	if !auth.IsEnabled() {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+	return func(c *gin.Context) {
+		err := auth.GetDefaultAuth().CheckToken(c.Request)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, apitypes.Error("Unauthorized", err))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func ErrorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+		if len(c.Errors) > 0 {
+			for _, err := range c.Errors {
+				log.Err(err.Err).Str("uri", c.Request.RequestURI).Msg("Internal error")
 			}
-			origHandler(w, r)
-		}
-	}
-
-	if len(requireAuth) > 0 && requireAuth[0] {
-		handler = auth.RequireAuth(handler)
-	}
-	if methods == "" {
-		mux.ServeMux.HandleFunc(endpoint, handler)
-	} else {
-		for _, m := range strutils.CommaSeperatedList(methods) {
-			mux.ServeMux.HandleFunc(m+" "+endpoint, handler)
+			if !isWebSocketRequest(c) {
+				c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
+			}
 		}
 	}
 }
 
-func NewHandler(cfg config.ConfigInstance) http.Handler {
-	mux := ServeMux{http.NewServeMux(), cfg}
-	mux.HandleFunc("GET", "/v1", v1.Index)
-	mux.HandleFunc("GET", "/v1/version", pkg.GetVersionHTTPHandler())
+func ErrorLoggingMiddleware() gin.HandlerFunc {
+	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err any) {
+		log.Error().Any("error", err).Str("uri", c.Request.RequestURI).Msg("Internal error")
+		if !isWebSocketRequest(c) {
+			c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
+		}
+	})
+}
 
-	mux.HandleFunc("GET", "/v1/stats", v1.Stats, true)
-	mux.HandleFunc("POST", "/v1/reload", v1.Reload, true)
-	mux.HandleFunc("GET", "/v1/list", v1.ListRoutesHandler, true)
-	mux.HandleFunc("GET", "/v1/list/routes", v1.ListRoutesHandler, true)
-	mux.HandleFunc("GET", "/v1/list/route/{which}", v1.ListRouteHandler, true)
-	mux.HandleFunc("GET", "/v1/list/routes_by_provider", v1.ListRoutesByProviderHandler, true)
-	mux.HandleFunc("GET", "/v1/list/files", v1.ListFilesHandler, true)
-	mux.HandleFunc("GET", "/v1/list/homepage_config", v1.ListHomepageConfigHandler, true)
-	mux.HandleFunc("GET", "/v1/list/route_providers", v1.ListRouteProvidersHandler, true)
-	mux.HandleFunc("GET", "/v1/list/homepage_categories", v1.ListHomepageCategoriesHandler, true)
-	mux.HandleFunc("GET", "/v1/list/icons", v1.ListIconsHandler, true)
-	mux.HandleFunc("GET", "/v1/file/{type}/{filename}", v1.GetFileContent, true)
-	mux.HandleFunc("POST,PUT", "/v1/file/{type}/{filename}", v1.SetFileContent, true)
-	mux.HandleFunc("POST", "/v1/file/validate/{type}", v1.ValidateFile, true)
-	mux.HandleFunc("GET", "/v1/health", v1.Health, true)
-	mux.HandleFunc("GET", "/v1/logs", memlogger.Handler(), true)
-	mux.HandleFunc("GET", "/v1/favicon", favicon.GetFavIcon, true)
-	mux.HandleFunc("POST", "/v1/homepage/set", v1.SetHomePageOverrides, true)
-	mux.HandleFunc("GET", "/v1/agents", v1.ListAgents, true)
-	mux.HandleFunc("GET", "/v1/agents/new", v1.NewAgent, true)
-	mux.HandleFunc("POST", "/v1/agents/verify", v1.VerifyNewAgent, true)
-	mux.HandleFunc("GET", "/v1/metrics/system_info", v1.SystemInfo, true)
-	mux.HandleFunc("GET", "/v1/metrics/uptime", uptime.Poller.ServeHTTP, true)
-	mux.HandleFunc("GET", "/v1/cert/info", certapi.GetCertInfo, true)
-	mux.HandleFunc("", "/v1/cert/renew", certapi.RenewCert, true)
-	mux.HandleFunc("GET", "/v1/docker/info", dockerapi.DockerInfo, true)
-	mux.HandleFunc("GET", "/v1/docker/logs/{server}/{container}", dockerapi.Logs, true)
-	mux.HandleFunc("GET", "/v1/docker/containers", dockerapi.Containers, true)
-
-	defaultAuth := auth.GetDefaultAuth()
-	if defaultAuth == nil {
-		return mux
-	}
-
-	mux.HandleFunc("GET", "/v1/auth/check", auth.AuthCheckHandler)
-	mux.HandleFunc("GET,POST", "/v1/auth/redirect", defaultAuth.LoginHandler)
-	mux.HandleFunc("GET,POST", "/v1/auth/callback", defaultAuth.PostAuthCallbackHandler)
-	mux.HandleFunc("GET,POST", "/v1/auth/logout", defaultAuth.LogoutHandler)
-	return mux
+func isWebSocketRequest(c *gin.Context) bool {
+	return c.GetHeader("Upgrade") == "websocket"
 }

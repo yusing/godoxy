@@ -150,9 +150,9 @@ func ListAvailableIcons() (*Cache, error) {
 	return iconsCache, nil
 }
 
-func SearchIcons(keyword string, limit int) ([]IconMetaSearch, error) {
+func SearchIcons(keyword string, limit int) []IconMetaSearch {
 	if keyword == "" {
-		return make([]IconMetaSearch, 0), nil
+		return make([]IconMetaSearch, 0)
 	}
 	iconsCache.RLock()
 	defer iconsCache.RUnlock()
@@ -174,7 +174,7 @@ func SearchIcons(keyword string, limit int) ([]IconMetaSearch, error) {
 			break
 		}
 	}
-	return result, nil
+	return result
 }
 
 func HasIcon(icon *IconURL) bool {

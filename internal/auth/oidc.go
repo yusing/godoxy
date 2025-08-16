@@ -37,6 +37,8 @@ type (
 	}
 )
 
+var _ Provider = (*OIDCProvider)(nil)
+
 const (
 	CookieOauthState        = "godoxy_oidc_state"
 	CookieOauthToken        = "godoxy_oauth_token"   //nolint:gosec
@@ -257,11 +259,11 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	// verify state
 	state, err := r.Cookie(CookieOauthState)
 	if err != nil {
-		gphttp.BadRequest(w, "missing state cookie")
+		http.Error(w, "missing state cookie", http.StatusBadRequest)
 		return
 	}
 	if r.URL.Query().Get("state") != state.Value {
-		gphttp.BadRequest(w, "invalid oauth state")
+		http.Error(w, "invalid oauth state", http.StatusBadRequest)
 		return
 	}
 
@@ -335,12 +337,12 @@ func (auth *OIDCProvider) clearCookie(w http.ResponseWriter, r *http.Request) {
 func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Request) {
 	state, err := r.Cookie(CookieOauthState)
 	if err != nil {
-		gphttp.BadRequest(w, "missing state cookie")
+		http.Error(w, "missing state cookie", http.StatusBadRequest)
 		return
 	}
 
 	if r.URL.Query().Get("state") != state.Value {
-		gphttp.BadRequest(w, "invalid oauth state")
+		http.Error(w, "invalid oauth state", http.StatusBadRequest)
 		return
 	}
 

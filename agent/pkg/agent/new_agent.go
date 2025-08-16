@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -8,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"io"
 	"math/big"
 	"strings"
 	"time"
@@ -72,6 +75,62 @@ func (p *PEMPair) Load(data string) (err error) {
 		return err
 	}
 	return nil
+}
+
+func (p *PEMPair) Encrypt(encKey []byte) (PEMPair, error) {
+	cert, err := encrypt(p.Cert, encKey)
+	if err != nil {
+		return PEMPair{}, err
+	}
+	key, err := encrypt(p.Key, encKey)
+	if err != nil {
+		return PEMPair{}, err
+	}
+	return PEMPair{Cert: cert, Key: key}, nil
+}
+
+func (p *PEMPair) Decrypt(encKey []byte) (PEMPair, error) {
+	cert, err := decrypt(p.Cert, encKey)
+	if err != nil {
+		return PEMPair{}, err
+	}
+	key, err := decrypt(p.Key, encKey)
+	if err != nil {
+		return PEMPair{}, err
+	}
+	return PEMPair{Cert: cert, Key: key}, nil
+}
+
+func encrypt(data []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+	return gcm.Seal(nonce, nonce, data, nil), nil
+}
+
+func decrypt(data []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := data[:gcm.NonceSize()]
+	ciphertext := data[gcm.NonceSize():]
+	return gcm.Open(nil, nonce, ciphertext, nil)
 }
 
 func (p *PEMPair) ToTLSCert() (*tls.Certificate, error) {

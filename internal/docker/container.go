@@ -13,57 +13,19 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
-	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
 	"github.com/yusing/go-proxy/internal/serialization"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils"
 )
 
-type (
-	PortMapping = map[int]container.Port
-	Container   struct {
-		_ utils.NoCopy
-
-		DockerHost    string          `json:"docker_host"`
-		Image         *ContainerImage `json:"image"`
-		ContainerName string          `json:"container_name"`
-		ContainerID   string          `json:"container_id"`
-
-		Agent *agent.AgentConfig `json:"agent"`
-
-		Labels            map[string]string   `json:"-"`
-		IdlewatcherConfig *idlewatcher.Config `json:"idlewatcher_config"`
-
-		Mounts []string `json:"mounts"`
-
-		Network            string      `json:"network,omitempty"`
-		PublicPortMapping  PortMapping `json:"public_ports"`  // non-zero publicPort:types.Port
-		PrivatePortMapping PortMapping `json:"private_ports"` // privatePort:types.Port
-		PublicHostname     string      `json:"public_hostname"`
-		PrivateHostname    string      `json:"private_hostname"`
-
-		Aliases           []string `json:"aliases"`
-		IsExcluded        bool     `json:"is_excluded"`
-		IsExplicit        bool     `json:"is_explicit"`
-		IsHostNetworkMode bool     `json:"is_host_network_mode"`
-		Running           bool     `json:"running"`
-
-		Errors *containerError `json:"errors"`
-	}
-	ContainerImage struct {
-		Author string `json:"author,omitempty"`
-		Name   string `json:"name"`
-		Tag    string `json:"tag,omitempty"`
-	}
-)
-
-var DummyContainer = new(Container)
+var DummyContainer = new(types.Container)
 
 var (
 	ErrNetworkNotFound = errors.New("network not found")
 	ErrNoNetwork       = errors.New("no network found")
 )
 
-func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container) {
+func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) {
 	_, isExplicit := c.Labels[LabelAliases]
 	helper := containerHelper{c}
 	if !isExplicit {
@@ -78,7 +40,7 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 	network := helper.getDeleteLabel(LabelNetwork)
 
 	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
-	res = &Container{
+	res = &types.Container{
 		DockerHost:    dockerHost,
 		Image:         helper.parseImage(),
 		ContainerName: helper.getName(),
@@ -103,25 +65,25 @@ func FromDocker(c *container.SummaryTrimmed, dockerHost string) (res *Container)
 		var ok bool
 		res.Agent, ok = agent.GetAgent(dockerHost)
 		if !ok {
-			res.addError(fmt.Errorf("agent %q not found", dockerHost))
+			addError(res, fmt.Errorf("agent %q not found", dockerHost))
 		}
 	}
 
-	res.setPrivateHostname(helper)
-	res.setPublicHostname()
-	res.loadDeleteIdlewatcherLabels(helper)
+	setPrivateHostname(res, helper)
+	setPublicHostname(res)
+	loadDeleteIdlewatcherLabels(res, helper)
 
 	if res.PrivateHostname == "" && res.PublicHostname == "" && res.Running {
-		res.addError(ErrNoNetwork)
+		addError(res, ErrNoNetwork)
 	}
 	return
 }
 
-func (c *Container) IsBlacklisted() bool {
-	return c.Image.IsBlacklisted() || c.isDatabase()
+func IsBlacklisted(c *types.Container) bool {
+	return IsBlacklistedImage(c.Image) || isDatabase(c)
 }
 
-func (c *Container) UpdatePorts() error {
+func UpdatePorts(c *types.Container) error {
 	client, err := NewClient(c.DockerHost)
 	if err != nil {
 		return err
@@ -148,15 +110,15 @@ func (c *Container) UpdatePorts() error {
 	return nil
 }
 
-func (c *Container) DockerComposeProject() string {
+func DockerComposeProject(c *types.Container) string {
 	return c.Labels["com.docker.compose.project"]
 }
 
-func (c *Container) DockerComposeService() string {
+func DockerComposeService(c *types.Container) string {
 	return c.Labels["com.docker.compose.service"]
 }
 
-func (c *Container) Dependencies() []string {
+func Dependencies(c *types.Container) []string {
 	deps := c.Labels[LabelDependsOn]
 	if deps == "" {
 		deps = c.Labels["com.docker.compose.depends_on"]
@@ -173,7 +135,7 @@ var databaseMPs = map[string]struct{}{
 	"/var/lib/rabbitmq":        {},
 }
 
-func (c *Container) isDatabase() bool {
+func isDatabase(c *types.Container) bool {
 	for _, m := range c.Mounts {
 		if _, ok := databaseMPs[m]; ok {
 			return true
@@ -190,7 +152,7 @@ func (c *Container) isDatabase() bool {
 	return false
 }
 
-func (c *Container) isLocal() bool {
+func isLocal(c *types.Container) bool {
 	if strings.HasPrefix(c.DockerHost, "unix://") {
 		return true
 	}
@@ -206,11 +168,11 @@ func (c *Container) isLocal() bool {
 	return hostname == "localhost"
 }
 
-func (c *Container) setPublicHostname() {
+func setPublicHostname(c *types.Container) {
 	if !c.Running {
 		return
 	}
-	if c.isLocal() {
+	if isLocal(c) {
 		c.PublicHostname = "127.0.0.1"
 		return
 	}
@@ -222,8 +184,8 @@ func (c *Container) setPublicHostname() {
 	c.PublicHostname = url.Hostname()
 }
 
-func (c *Container) setPrivateHostname(helper containerHelper) {
-	if !c.isLocal() && c.Agent == nil {
+func setPrivateHostname(c *types.Container, helper containerHelper) {
+	if !isLocal(c) && c.Agent == nil {
 		return
 	}
 	if helper.NetworkSettings == nil {
@@ -236,7 +198,7 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 			return
 		}
 		// try {project_name}_{network_name}
-		if proj := c.DockerComposeProject(); proj != "" {
+		if proj := DockerComposeProject(c); proj != "" {
 			oldNetwork, newNetwork := c.Network, fmt.Sprintf("%s_%s", proj, c.Network)
 			if newNetwork != oldNetwork {
 				v, ok = helper.NetworkSettings.Networks[newNetwork]
@@ -248,7 +210,7 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 			}
 		}
 		nearest := gperr.DoYouMean(utils.NearestField(c.Network, helper.NetworkSettings.Networks))
-		c.addError(fmt.Errorf("network %q not found, %w", c.Network, nearest))
+		addError(c, fmt.Errorf("network %q not found, %w", c.Network, nearest))
 		return
 	}
 	// fallback to first network if no network is specified
@@ -261,7 +223,7 @@ func (c *Container) setPrivateHostname(helper containerHelper) {
 	}
 }
 
-func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
+func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 	cfg := map[string]any{
 		"idle_timeout":   helper.getDeleteLabel(LabelIdleTimeout),
 		"wake_timeout":   helper.getDeleteLabel(LabelWakeTimeout),
@@ -269,7 +231,7 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 		"stop_timeout":   helper.getDeleteLabel(LabelStopTimeout),
 		"stop_signal":    helper.getDeleteLabel(LabelStopSignal),
 		"start_endpoint": helper.getDeleteLabel(LabelStartEndpoint),
-		"depends_on":     c.Dependencies(),
+		"depends_on":     Dependencies(c),
 	}
 
 	// ensure it's deleted from labels
@@ -278,8 +240,8 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 	// set only if idlewatcher is enabled
 	idleTimeout := cfg["idle_timeout"]
 	if idleTimeout != "" {
-		idwCfg := new(idlewatcher.Config)
-		idwCfg.Docker = &idlewatcher.DockerConfig{
+		idwCfg := new(types.IdlewatcherConfig)
+		idwCfg.Docker = &types.DockerConfig{
 			DockerHost:    c.DockerHost,
 			ContainerID:   c.ContainerID,
 			ContainerName: c.ContainerName,
@@ -287,16 +249,16 @@ func (c *Container) loadDeleteIdlewatcherLabels(helper containerHelper) {
 
 		err := serialization.MapUnmarshalValidate(cfg, idwCfg)
 		if err != nil {
-			c.addError(err)
+			addError(c, err)
 		} else {
 			c.IdlewatcherConfig = idwCfg
 		}
 	}
 }
 
-func (c *Container) addError(err error) {
+func addError(c *types.Container, err error) {
 	if c.Errors == nil {
-		c.Errors = new(containerError)
+		c.Errors = new(types.ContainerError)
 	}
 	c.Errors.Add(err)
 }

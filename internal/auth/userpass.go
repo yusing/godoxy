@@ -32,6 +32,8 @@ type (
 	}
 )
 
+var _ Provider = (*UserPassAuth)(nil)
+
 func NewUserPassAuth(username, password string, secret []byte, tokenTTL time.Duration) (*UserPassAuth, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -100,18 +102,21 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	return nil
 }
 
+type UserPassAuthCallbackRequest struct {
+	User string `json:"username"`
+	Pass string `json:"password"`
+}
+
 func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	var creds struct {
-		User string `json:"username"`
-		Pass string `json:"password"`
-	}
+	var creds UserPassAuthCallbackRequest
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
-		gphttp.Unauthorized(w, "invalid credentials")
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	if err := auth.validatePassword(creds.User, creds.Pass); err != nil {
-		gphttp.Unauthorized(w, "invalid credentials")
+		// NOTE: do not include the actual error here
+		http.Error(w, "invalid credentials", http.StatusBadRequest)
 		return
 	}
 	token, err := auth.NewToken()

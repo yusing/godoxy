@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 // Test notification tracker
@@ -28,7 +28,7 @@ func (t *testNotificationTracker) getStats() (up, down int, last string) {
 }
 
 // Create test monitor with mock health checker - returns both monitor and tracker
-func createTestMonitor(config *health.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
+func createTestMonitor(config *types.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
 	testURL, _ := url.Parse("http://localhost:8080")
 
 	mon := newMonitor(testURL, config, checkFunc)
@@ -56,14 +56,14 @@ func createTestMonitor(config *health.HealthCheckConfig, checkFunc HealthCheckFu
 }
 
 func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  -1, // Immediate notification
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start with healthy service
@@ -72,8 +72,8 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 	require.True(t, result.Healthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// Simulate status change detection
@@ -81,7 +81,7 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 	require.NoError(t, err)
 
 	// With NotifyAfter=0, notification should happen immediately
-	require.Equal(t, health.StatusUnhealthy, mon.Status())
+	require.Equal(t, types.StatusUnhealthy, mon.Status())
 
 	// Check notification counts - should have 1 down notification
 	up, down, last := tracker.getStats()
@@ -91,22 +91,22 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 }
 
 func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 50 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(health.StatusHealthy)
+	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure - should not notify yet
@@ -130,22 +130,22 @@ func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
 }
 
 func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  3, // Notify after 3 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(health.StatusHealthy)
+	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure
@@ -162,8 +162,8 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 	require.Equal(t, 0, up)
 
 	// Service recovers before third failure
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	}
 
 	// Health check with recovery
@@ -179,22 +179,22 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 }
 
 func TestNotification_ConsecutiveFailureReset(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(health.StatusHealthy)
+	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure
@@ -202,8 +202,8 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.NoError(t, err)
 
 	// Recover briefly
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	}
 
 	err = mon.checkUpdateHealth()
@@ -215,8 +215,8 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.Equal(t, 1, up)
 
 	// Go down again - consecutive counter should start from 0
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure after recovery
@@ -240,14 +240,14 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 }
 
 func TestNotification_ContextCancellation(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  1,
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Create a task that we can cancel
@@ -255,9 +255,9 @@ func TestNotification_ContextCancellation(t *testing.T) {
 	mon.task = rootTask.Subtask("monitor", true)
 
 	// Start healthy, then go unhealthy
-	mon.status.Store(health.StatusHealthy)
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon.status.Store(types.StatusHealthy)
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// Trigger notification
@@ -279,22 +279,22 @@ func TestNotification_ContextCancellation(t *testing.T) {
 }
 
 func TestImmediateUpNotification(t *testing.T) {
-	config := &health.HealthCheckConfig{
+	config := &types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // NotifyAfter should not affect up notifications
 	}
 
-	mon, tracker := createTestMonitor(config, func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: false}, nil
+	mon, tracker := createTestMonitor(config, func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: false}, nil
 	})
 
 	// Start unhealthy
-	mon.status.Store(health.StatusUnhealthy)
+	mon.status.Store(types.StatusUnhealthy)
 
 	// Set to healthy
-	mon.checkHealth = func() (*health.HealthCheckResult, error) {
-		return &health.HealthCheckResult{Healthy: true, Latency: 50 * time.Millisecond}, nil
+	mon.checkHealth = func() (*types.HealthCheckResult, error) {
+		return &types.HealthCheckResult{Healthy: true, Latency: 50 * time.Millisecond}, nil
 	}
 
 	// Trigger health check
@@ -302,7 +302,7 @@ func TestImmediateUpNotification(t *testing.T) {
 	require.NoError(t, err)
 
 	// Up notification should happen immediately regardless of NotifyAfter setting
-	require.Equal(t, health.StatusHealthy, mon.Status())
+	require.Equal(t, types.StatusHealthy, mon.Status())
 
 	// Should have exactly 1 up notification immediately
 	up, down, last := tracker.getStats()

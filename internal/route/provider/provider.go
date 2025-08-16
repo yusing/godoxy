@@ -10,11 +10,12 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
 	provider "github.com/yusing/go-proxy/internal/route/provider/types"
-	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	W "github.com/yusing/go-proxy/internal/watcher"
 	"github.com/yusing/go-proxy/internal/watcher/events"
 )
@@ -45,7 +46,7 @@ const (
 
 var ErrEmptyProviderName = errors.New("empty provider name")
 
-var _ routes.Provider = (*Provider)(nil)
+var _ types.RouteProvider = (*Provider)(nil)
 
 func newProvider(t provider.Type) *Provider {
 	return &Provider{t: t}
@@ -76,7 +77,7 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	p := newProvider(provider.ProviderTypeAgent)
 	agent := &AgentProvider{
 		AgentConfig: cfg,
-		docker:      DockerProviderImpl(cfg.Name(), cfg.FakeDockerHost()),
+		docker:      DockerProviderImpl(cfg.Name, cfg.FakeDockerHost()),
 	}
 	p.ProviderImpl = agent
 	p.watcher = p.NewWatcher()
@@ -145,7 +146,7 @@ func (p *Provider) NumRoutes() int {
 	return len(p.routes)
 }
 
-func (p *Provider) IterRoutes(yield func(string, routes.Route) bool) {
+func (p *Provider) IterRoutes(yield func(string, types.Route) bool) {
 	routes := p.lockCloneRoutes()
 	for alias, r := range routes {
 		if !yield(alias, r.Impl()) {
@@ -154,7 +155,7 @@ func (p *Provider) IterRoutes(yield func(string, routes.Route) bool) {
 	}
 }
 
-func (p *Provider) FindService(project, service string) (routes.Route, bool) {
+func (p *Provider) FindService(project, service string) (types.Route, bool) {
 	switch p.GetType() {
 	case provider.ProviderTypeDocker, provider.ProviderTypeAgent:
 	default:
@@ -166,17 +167,17 @@ func (p *Provider) FindService(project, service string) (routes.Route, bool) {
 	routes := p.lockCloneRoutes()
 	for _, r := range routes {
 		cont := r.ContainerInfo()
-		if cont.DockerComposeProject() != project {
+		if docker.DockerComposeProject(cont) != project {
 			continue
 		}
-		if cont.DockerComposeService() == service {
+		if docker.DockerComposeService(cont) == service {
 			return r.Impl(), true
 		}
 	}
 	return nil, false
 }
 
-func (p *Provider) GetRoute(alias string) (routes.Route, bool) {
+func (p *Provider) GetRoute(alias string) (types.Route, bool) {
 	r, ok := p.lockGetRoute(alias)
 	if !ok {
 		return nil, false

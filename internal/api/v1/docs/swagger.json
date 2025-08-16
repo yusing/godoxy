@@ -1,0 +1,4144 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "contact": {}
+  },
+  "paths": {
+    "/agent/create": {
+      "post": {
+        "description": "Create a new agent and return the docker compose file, encrypted CA and client PEMs\nThe returned PEMs are encrypted with a random key and will be used for verification when adding a new agent",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "agent"
+        ],
+        "summary": "Create a new agent",
+        "parameters": [
+          {
+            "description": "Request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NewAgentRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/NewAgentResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "create",
+        "operationId": "create"
+      }
+    },
+    "/agent/list": {
+      "get": {
+        "description": "List agents",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "agent",
+          "websocket"
+        ],
+        "summary": "List agents",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Agent"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "list",
+        "operationId": "list"
+      }
+    },
+    "/agent/verify": {
+      "post": {
+        "description": "Verify a new agent and return the number of routes added",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "agent"
+        ],
+        "summary": "Verify a new agent",
+        "parameters": [
+          {
+            "description": "Request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/VerifyNewAgentRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "verify",
+        "operationId": "verify"
+      }
+    },
+    "/auth/callback": {
+      "post": {
+        "description": "Handles the callback from the provider after successful authentication",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "Post Auth Callback",
+        "parameters": [
+          {
+            "description": "Userpass only",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/auth.UserPassAuthCallbackRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Userpass: OK",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "302": {
+            "description": "OIDC: Redirects to home page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Userpass: invalid request / credentials",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "x-id": "callback",
+        "operationId": "callback"
+      }
+    },
+    "/auth/check": {
+      "head": {
+        "description": "Checks if the user is authenticated by validating their token",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "Check authentication status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "403": {
+            "description": "Forbidden: use X-Redirect-To header to redirect to login page",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "x-id": "check",
+        "operationId": "check"
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Initiates the login process by redirecting the user to the provider's login page",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "responses": {
+          "302": {
+            "description": "Redirects to login page or IdP",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "403": {
+            "description": "Forbidden(webui): follow X-Redirect-To header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "x-id": "login",
+        "operationId": "login"
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Logs out the user by invalidating the token",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "responses": {
+          "302": {
+            "description": "Redirects to home page",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "x-id": "logout",
+        "operationId": "logout"
+      }
+    },
+    "/cert/info": {
+      "get": {
+        "description": "Get cert info",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "cert"
+        ],
+        "summary": "Get cert info",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/CertInfo"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/cert/renew": {
+      "post": {
+        "description": "Renew cert",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "cert"
+        ],
+        "summary": "Renew cert",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/docker/containers": {
+      "get": {
+        "description": "Get containers",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Get containers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ContainerResponse"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/docker/info": {
+      "get": {
+        "description": "Get docker info",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Get docker info",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ServerInfo"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/docker/logs/{server}/{container}": {
+      "get": {
+        "description": "Get docker container logs",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker",
+          "websocket"
+        ],
+        "summary": "Get docker container logs",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "server name",
+            "name": "server",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "container id",
+            "name": "container",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "show stdout",
+            "name": "stdout",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "show stderr",
+            "name": "stderr",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "from timestamp",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "to timestamp",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "levels",
+            "name": "levels",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/favicon": {
+      "get": {
+        "description": "Get favicon",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "image/svg+xml",
+          "image/x-icon",
+          "image/png",
+          "image/webp"
+        ],
+        "tags": [
+          "v1"
+        ],
+        "summary": "Get favicon",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "URL of the route",
+            "name": "url",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Alias of the route",
+            "name": "alias",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/homepage.FetchResult"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "favicon",
+        "operationId": "favicon"
+      }
+    },
+    "/file/content": {
+      "get": {
+        "description": "Get file content",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json",
+          "application/godoxy+yaml"
+        ],
+        "tags": [
+          "file"
+        ],
+        "summary": "Get file content",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "filename",
+            "name": "filename",
+            "in": "query",
+            "required": true
+          },
+          {
+            "enum": [
+              "config",
+              "provider",
+              "middleware"
+            ],
+            "type": "string",
+            "x-enum-comments": {
+              "FileTypeConfig": "@name FileTypeConfig",
+              "FileTypeMiddleware": "@name FileTypeMiddleware",
+              "FileTypeProvider": "@name FileTypeProvider"
+            },
+            "x-enum-varnames": [
+              "FileTypeConfig",
+              "FileTypeProvider",
+              "FileTypeMiddleware"
+            ],
+            "name": "type",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "get",
+        "operationId": "get"
+      },
+      "put": {
+        "description": "Set file content",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "file"
+        ],
+        "summary": "Set file content",
+        "parameters": [
+          {
+            "enum": [
+              "config",
+              "provider",
+              "middleware"
+            ],
+            "type": "string",
+            "description": "Type",
+            "name": "type",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Filename",
+            "name": "filename",
+            "in": "query",
+            "required": true
+          },
+          {
+            "description": "File",
+            "name": "file",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set",
+        "operationId": "set"
+      }
+    },
+    "/file/list": {
+      "get": {
+        "description": "List files",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "file"
+        ],
+        "summary": "List files",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ListFilesResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "list",
+        "operationId": "list"
+      }
+    },
+    "/file/validate": {
+      "post": {
+        "description": "Validate file",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "file"
+        ],
+        "summary": "Validate file",
+        "parameters": [
+          {
+            "enum": [
+              "config",
+              "provider",
+              "middleware"
+            ],
+            "type": "string",
+            "description": "Type",
+            "name": "type",
+            "in": "query",
+            "required": true
+          },
+          {
+            "description": "File content",
+            "name": "file",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File validated",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "417": {
+            "description": "Validation failed",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "validate",
+        "operationId": "validate"
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Get health info by route name",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v1",
+          "websocket"
+        ],
+        "summary": "Get routes health info",
+        "responses": {
+          "200": {
+            "description": "Health info by route name",
+            "schema": {
+              "$ref": "#/definitions/HealthMap"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "health",
+        "operationId": "health"
+      }
+    },
+    "/homepage/categories": {
+      "get": {
+        "description": "List homepage categories",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "List homepage categories",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "categories",
+        "operationId": "categories"
+      }
+    },
+    "/homepage/items": {
+      "get": {
+        "description": "Homepage items",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Homepage items",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Category filter",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Provider filter",
+            "name": "provider",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/HomepageItems"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "items",
+        "operationId": "items"
+      }
+    },
+    "/homepage/set": {
+      "post": {
+        "description": "Set homepage overrides",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage overrides",
+        "parameters": [
+          {
+            "description": "Override single item",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "$ref": "#/definitions/HomepageOverrideItemParams"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "description": "Override multiple items",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "$ref": "#/definitions/HomepageOverrideItemsBatchParams"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "description": "Override category order",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "$ref": "#/definitions/HomepageOverrideCategoryOrderParams"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "description": "Override item visibility",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "$ref": "#/definitions/HomepageOverrideItemVisibleParams"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set",
+        "operationId": "set"
+      }
+    },
+    "/icons": {
+      "get": {
+        "description": "List icons",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v1"
+        ],
+        "summary": "List icons",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Limit",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Keyword",
+            "name": "keyword",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/homepage.IconMetaSearch"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "icons",
+        "operationId": "icons"
+      }
+    },
+    "/metrics/system_info": {
+      "get": {
+        "description": "Get system info",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "metrics",
+          "websocket"
+        ],
+        "summary": "Get system info",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Agent address",
+            "name": "agent_addr",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Period",
+            "name": "period",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "period specified",
+            "schema": {
+              "$ref": "#/definitions/SystemInfoAggregate"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "system_info",
+        "operationId": "system_info"
+      }
+    },
+    "/metrics/uptime": {
+      "get": {
+        "description": "Get uptime",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "metrics",
+          "websocket"
+        ],
+        "summary": "Get uptime",
+        "parameters": [
+          {
+            "enum": [
+              "5m",
+              "15m",
+              "1h",
+              "1d",
+              "1mo"
+            ],
+            "type": "string",
+            "example": "1m",
+            "x-enum-comments": {
+              "MetricsPeriod15m": "@name MetricsPeriod15m",
+              "MetricsPeriod1d": "@name MetricsPeriod1d",
+              "MetricsPeriod1h": "@name MetricsPeriod1h",
+              "MetricsPeriod1mo": "@name MetricsPeriod1mo",
+              "MetricsPeriod5m": "@name MetricsPeriod5m"
+            },
+            "x-enum-varnames": [
+              "MetricsPeriod5m",
+              "MetricsPeriod15m",
+              "MetricsPeriod1h",
+              "MetricsPeriod1d",
+              "MetricsPeriod1mo"
+            ],
+            "name": "interval",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "",
+            "name": "keyword",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "example": 10,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "example": "10",
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "period specified",
+            "schema": {
+              "$ref": "#/definitions/UptimeAggregate"
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "uptime",
+        "operationId": "uptime"
+      }
+    },
+    "/reload": {
+      "post": {
+        "description": "Reload config",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v1"
+        ],
+        "summary": "Reload config",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "reload",
+        "operationId": "reload"
+      }
+    },
+    "/route/by_provider": {
+      "get": {
+        "description": "List routes by provider",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route"
+        ],
+        "summary": "List routes by provider",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/routeApi.RoutesByProvider"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "byProvider",
+        "operationId": "byProvider"
+      }
+    },
+    "/route/list": {
+      "get": {
+        "description": "List routes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route",
+          "websocket"
+        ],
+        "summary": "List routes",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Provider",
+            "name": "provider",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Route"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "routes",
+        "operationId": "routes"
+      }
+    },
+    "/route/providers": {
+      "get": {
+        "description": "List route providers",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route",
+          "websocket"
+        ],
+        "summary": "List route providers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RouteProvider"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "providers",
+        "operationId": "providers"
+      }
+    },
+    "/route/{which}": {
+      "get": {
+        "description": "List route",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route"
+        ],
+        "summary": "List route",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Route name",
+            "name": "which",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/Route"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "route",
+        "operationId": "route"
+      }
+    },
+    "/stats": {
+      "get": {
+        "description": "Get stats",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v1",
+          "websocket"
+        ],
+        "summary": "Get GoDoxy stats",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/StatsResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "stats",
+        "operationId": "stats"
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "Get the version of the GoDoxy",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "v1"
+        ],
+        "summary": "Get version",
+        "responses": {
+          "200": {
+            "description": "version",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "x-id": "version",
+        "operationId": "version"
+      }
+    }
+  },
+  "definitions": {
+    "Agent": {
+      "type": "object",
+      "properties": {
+        "addr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "CIDR": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "description": "network number",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mask": {
+          "description": "network mask",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "CertInfo": {
+      "type": "object",
+      "properties": {
+        "dns_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "email_addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "issuer": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "not_after": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "not_before": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "subject": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "Container": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/Agent",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "docker_host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "errors": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "idlewatcher_config": {
+          "$ref": "#/definitions/IdlewatcherConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "image": {
+          "$ref": "#/definitions/ContainerImage",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_excluded": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_explicit": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_host_network_mode": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "network": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "private_hostname": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "private_ports": {
+          "description": "privatePort:types.Port",
+          "allOf": [
+            {
+              "$ref": "#/definitions/types.PortMapping"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "public_hostname": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "public_ports": {
+          "description": "non-zero publicPort:types.Port",
+          "allOf": [
+            {
+              "$ref": "#/definitions/types.PortMapping"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "running": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerImage": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tag": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "image": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "server": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "state": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerStats": {
+      "type": "object",
+      "properties": {
+        "paused": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "running": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stopped": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerStopMethod": {
+      "type": "string",
+      "enum": [
+        "pause",
+        "stop",
+        "kill"
+      ],
+      "x-enum-varnames": [
+        "ContainerStopMethodPause",
+        "ContainerStopMethodStop",
+        "ContainerStopMethodKill"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "DockerConfig": {
+      "type": "object",
+      "required": [
+        "container_id",
+        "container_name",
+        "docker_host"
+      ],
+      "properties": {
+        "container_id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "docker_host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "message": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "FileType": {
+      "type": "string",
+      "enum": [
+        "config",
+        "provider",
+        "middleware"
+      ],
+      "x-enum-comments": {
+        "FileTypeConfig": "@name FileTypeConfig",
+        "FileTypeMiddleware": "@name FileTypeMiddleware",
+        "FileTypeProvider": "@name FileTypeProvider"
+      },
+      "x-enum-varnames": [
+        "FileTypeConfig",
+        "FileTypeProvider",
+        "FileTypeMiddleware"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HTTPHeader": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthCheckConfig": {
+      "type": "object",
+      "properties": {
+        "disable": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "interval": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "retries": {
+          "description": "<0: immediate, >=0: threshold",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "timeout": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "use_get": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthExtra": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/LoadBalancerConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pool": {
+          "type": "object",
+          "additionalProperties": {},
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthJSON": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/HealthCheckConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "detail": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "extra": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthExtra"
+            }
+          ],
+          "x-nullable": true
+        },
+        "lastSeen": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "lastSeenStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latency": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latencyStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "started": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "startedStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptimeStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/routes.HealthInfo"
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageItems": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/homepage.Item"
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideCategoryOrderParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "$ref": "#/definitions/homepage.ItemConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemVisibleParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemsBatchParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/homepage.ItemConfig"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherConfig": {
+      "type": "object",
+      "properties": {
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "docker": {
+          "$ref": "#/definitions/DockerConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "idle_timeout": {
+          "description": "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative: idle watcher as a dependency.\tIdleTimeout time.Duration `json:\"idle_timeout\" json_ext:\"duration\"`",
+          "allOf": [
+            {
+              "$ref": "#/definitions/time.Duration"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "proxmox": {
+          "$ref": "#/definitions/ProxmoxConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "start_endpoint": {
+          "description": "Optional path that must be hit to start container",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stop_method": {
+          "$ref": "#/definitions/ContainerStopMethod",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stop_signal": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stop_timeout": {
+          "$ref": "#/definitions/time.Duration",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "wake_timeout": {
+          "$ref": "#/definitions/time.Duration",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ListFilesResponse": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "middleware": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LoadBalancerConfig": {
+      "type": "object",
+      "properties": {
+        "link": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mode": {
+          "$ref": "#/definitions/LoadBalancerMode",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {},
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "weight": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LoadBalancerMode": {
+      "type": "string",
+      "enum": [
+        "",
+        "roundrobin",
+        "leastconn",
+        "iphash"
+      ],
+      "x-enum-varnames": [
+        "LoadbalanceModeUnset",
+        "LoadbalanceModeRoundRobin",
+        "LoadbalanceModeLeastConn",
+        "LoadbalanceModeIPHash"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogFilter-CIDR": {
+      "type": "object",
+      "properties": {
+        "negative": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CIDR"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogFilter-HTTPHeader": {
+      "type": "object",
+      "properties": {
+        "negative": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HTTPHeader"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogFilter-HTTPMethod": {
+      "type": "object",
+      "properties": {
+        "negative": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogFilter-Host": {
+      "type": "object",
+      "properties": {
+        "negative": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogFilter-StatusCodeRange": {
+      "type": "object",
+      "properties": {
+        "negative": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StatusCodeRange"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "LogRetention": {
+      "type": "object",
+      "properties": {
+        "days": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "keep_size": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "last": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "MetricsPeriod": {
+      "type": "string",
+      "enum": [
+        "5m",
+        "15m",
+        "1h",
+        "1d",
+        "1mo"
+      ],
+      "x-enum-comments": {
+        "MetricsPeriod15m": "@name MetricsPeriod15m",
+        "MetricsPeriod1d": "@name MetricsPeriod1d",
+        "MetricsPeriod1h": "@name MetricsPeriod1h",
+        "MetricsPeriod1mo": "@name MetricsPeriod1mo",
+        "MetricsPeriod5m": "@name MetricsPeriod5m"
+      },
+      "x-enum-varnames": [
+        "MetricsPeriod5m",
+        "MetricsPeriod15m",
+        "MetricsPeriod1h",
+        "MetricsPeriod1d",
+        "MetricsPeriod1mo"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "NewAgentRequest": {
+      "type": "object",
+      "required": [
+        "host",
+        "name",
+        "port",
+        "type"
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "nightly": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "port": {
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 1,
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "docker",
+            "system"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "NewAgentResponse": {
+      "type": "object",
+      "properties": {
+        "ca": {
+          "$ref": "#/definitions/PEMPairResponse",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "client": {
+          "$ref": "#/definitions/PEMPairResponse",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "compose": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "PEMPairResponse": {
+      "type": "object",
+      "properties": {
+        "cert": {
+          "type": "string",
+          "format": "base64",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "key": {
+          "type": "string",
+          "format": "base64",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ProviderStats": {
+      "type": "object",
+      "properties": {
+        "reverse_proxies": {
+          "$ref": "#/definitions/RouteStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "streams": {
+          "$ref": "#/definitions/RouteStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "type": {
+          "$ref": "#/definitions/ProviderType",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ProviderType": {
+      "type": "string",
+      "enum": [
+        "docker",
+        "file",
+        "agent"
+      ],
+      "x-enum-varnames": [
+        "ProviderTypeDocker",
+        "ProviderTypeFile",
+        "ProviderTypeAgent"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ProxmoxConfig": {
+      "type": "object",
+      "required": [
+        "node",
+        "vmid"
+      ],
+      "properties": {
+        "node": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "vmid": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ProxyStats": {
+      "type": "object",
+      "properties": {
+        "providers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ProviderStats"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "reverse_proxies": {
+          "$ref": "#/definitions/RouteStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "streams": {
+          "$ref": "#/definitions/RouteStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RequestLoggerConfig": {
+      "type": "object",
+      "properties": {
+        "buffer_size": {
+          "description": "Deprecated: buffer size is adjusted dynamically",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "fields": {
+          "$ref": "#/definitions/accesslog.Fields",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "filters": {
+          "$ref": "#/definitions/accesslog.Filters",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "common",
+            "combined",
+            "json"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "retention": {
+          "$ref": "#/definitions/LogRetention",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rotate_interval": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stdout": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "Route": {
+      "type": "object",
+      "properties": {
+        "access_log": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequestLoggerConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "agent": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "alias": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container": {
+          "description": "Docker only",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Container"
+            }
+          ],
+          "x-nullable": true
+        },
+        "disable_compression": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "excluded": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "health": {
+          "description": "for swagger",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthJSON"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "healthcheck": {
+          "$ref": "#/definitions/HealthCheckConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "homepage": {
+          "$ref": "#/definitions/homepage.ItemConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "idlewatcher": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IdlewatcherConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "load_balance": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/LoadBalancerConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "lurl": {
+          "description": "private fields",
+          "type": "string",
+          "x-nullable": true
+        },
+        "middlewares": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/types.LabelMap"
+          },
+          "x-nullable": true
+        },
+        "no_tls_verify": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
+        },
+        "port": {
+          "$ref": "#/definitions/route.Port",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "description": "for backward compatibility",
+          "type": "string",
+          "x-nullable": true
+        },
+        "purl": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "response_header_timeout": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "root": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/rules.Rule"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "scheme": {
+          "$ref": "#/definitions/route.Scheme",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RouteProvider": {
+      "type": "object",
+      "properties": {
+        "full_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "short_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RouteStats": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "healthy": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "napping": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "unhealthy": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "unknown": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RouteStatus": {
+      "type": "object",
+      "properties": {
+        "latency": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "unknown",
+            "napping",
+            "starting"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "timestamp": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RouteStatusesByAlias": {
+      "type": "object",
+      "properties": {
+        "statuses": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/routes.HealthInfo"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "timestamp": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "RouteUptimeAggregate": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "avg_latency": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "display_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "downtime": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "idle": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RouteStatus"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ServerInfo": {
+      "type": "object",
+      "properties": {
+        "containers": {
+          "$ref": "#/definitions/ContainerStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "images": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "memory": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "n_cpu": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "StatsResponse": {
+      "type": "object",
+      "properties": {
+        "proxies": {
+          "$ref": "#/definitions/ProxyStats",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "StatusCodeRange": {
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "start": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "SuccessResponse": {
+      "type": "object",
+      "properties": {
+        "details": {
+          "type": "object",
+          "additionalProperties": {},
+          "x-nullable": true
+        },
+        "message": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "SystemInfo": {
+      "type": "object",
+      "properties": {
+        "cpu_average": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "disks": {
+          "description": "disk usage by partition",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/disk.UsageStat"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "disks_io": {
+          "description": "disk IO by device",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/disk.IOCountersStat"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "memory": {
+          "$ref": "#/definitions/mem.VirtualMemoryStat",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "network": {
+          "$ref": "#/definitions/net.IOCountersStat",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sensors": {
+          "description": "sensor temperature by key",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sensors.TemperatureStat"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "timestamp": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "SystemInfoAggregate": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "UptimeAggregate": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RouteUptimeAggregate"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "VerifyNewAgentRequest": {
+      "type": "object",
+      "properties": {
+        "ca": {
+          "$ref": "#/definitions/PEMPairResponse",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "client": {
+          "$ref": "#/definitions/PEMPairResponse",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "accesslog.FieldConfig": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/accesslog.FieldMode"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "default": {
+          "enum": [
+            "keep",
+            "drop",
+            "redact"
+          ],
+          "allOf": [
+            {
+              "$ref": "#/definitions/accesslog.FieldMode"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "accesslog.FieldMode": {
+      "type": "string",
+      "enum": [
+        "keep",
+        "drop",
+        "redact"
+      ],
+      "x-enum-varnames": [
+        "FieldModeKeep",
+        "FieldModeDrop",
+        "FieldModeRedact"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "accesslog.Fields": {
+      "type": "object",
+      "properties": {
+        "cookies": {
+          "$ref": "#/definitions/accesslog.FieldConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "$ref": "#/definitions/accesslog.FieldConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "query": {
+          "$ref": "#/definitions/accesslog.FieldConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "accesslog.Filters": {
+      "type": "object",
+      "properties": {
+        "cidr": {
+          "$ref": "#/definitions/LogFilter-CIDR",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "description": "header exists or header == value",
+          "allOf": [
+            {
+              "$ref": "#/definitions/LogFilter-HTTPHeader"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "$ref": "#/definitions/LogFilter-Host",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "method": {
+          "$ref": "#/definitions/LogFilter-HTTPMethod",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status_codes": {
+          "$ref": "#/definitions/LogFilter-StatusCodeRange",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "auth.UserPassAuthCallbackRequest": {
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "username": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.Port": {
+      "type": "object",
+      "properties": {
+        "IP": {
+          "description": "Host IP address that the container's port is mapped to",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "PrivatePort": {
+          "description": "Port on the container\nRequired: true",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "PublicPort": {
+          "description": "Port exposed on the host",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "Type": {
+          "description": "type\nRequired: true",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "disk.IOCountersStat": {
+      "type": "object",
+      "properties": {
+        "iops": {
+          "description": "godoxy",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "ReadCount        uint64 `json:\"readCount\"`\nMergedReadCount  uint64 `json:\"mergedReadCount\"`\nWriteCount       uint64 `json:\"writeCount\"`\nMergedWriteCount uint64 `json:\"mergedWriteCount\"`\nReadBytes        uint64 `json:\"readBytes\"`\nWriteBytes       uint64 `json:\"writeBytes\"`\nReadTime         uint64 `json:\"readTime\"`\nWriteTime        uint64 `json:\"writeTime\"`\nIopsInProgress   uint64 `json:\"iopsInProgress\"`\nIoTime           uint64 `json:\"ioTime\"`\nWeightedIO       uint64 `json:\"weightedIO\"`",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read_bytes": {
+          "description": "SerialNumber     string `json:\"serialNumber\"`\nLabel            string `json:\"label\"`",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read_count": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read_speed": {
+          "description": "godoxy",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_bytes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_count": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_speed": {
+          "description": "godoxy",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "disk.UsageStat": {
+      "type": "object",
+      "properties": {
+        "free": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "fstype": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "used": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "used_percent": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.FetchResult": {
+      "type": "object",
+      "properties": {
+        "errMsg": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "icon": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "statusCode": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.IconExtra": {
+      "type": "object",
+      "properties": {
+        "file_type": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_dark": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_light": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "key": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ref": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.IconMetaSearch": {
+      "type": "object",
+      "properties": {
+        "dark": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "light": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "png": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ref": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "source": {
+          "$ref": "#/definitions/homepage.IconSource",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "svg": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "webP": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.IconSource": {
+      "type": "string",
+      "enum": [
+        "https://",
+        "@target",
+        "@walkxcode",
+        "@selfhst"
+      ],
+      "x-enum-varnames": [
+        "IconSourceAbsolute",
+        "IconSourceRelative",
+        "IconSourceWalkXCode",
+        "IconSourceSelfhSt"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.IconURL": {
+      "type": "object",
+      "properties": {
+        "extra": {
+          "description": "only for walkxcode/selfhst icons",
+          "allOf": [
+            {
+              "$ref": "#/definitions/homepage.IconExtra"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "source": {
+          "$ref": "#/definitions/homepage.IconSource",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "description": "only for absolute/relative icons",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.Item": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "category": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "description": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "icon": {
+          "$ref": "#/definitions/homepage.IconURL",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "display name",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "origin_url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "show": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sort_order": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "widget_config": {
+          "$ref": "#/definitions/widgets.Config",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepage.ItemConfig": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "description": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "icon": {
+          "$ref": "#/definitions/homepage.IconURL",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "display name",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "show": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sort_order": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "homepageapi.SetHomePageOverridesRequest": {
+      "type": "object",
+      "required": [
+        "value",
+        "what"
+      ],
+      "properties": {
+        "value": {
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "what": {
+          "type": "string",
+          "enum": [
+            "item",
+            "items_batch",
+            "category_order",
+            "item_visible"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "mem.VirtualMemoryStat": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "description": "RAM available for programs to allocate\n\nThis value is computed from the kernel specific values.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "free": {
+          "description": "This is the kernel's notion of free memory; RAM chips whose bits nobody\ncares about the value of right now. For a human consumable number,\nAvailable is what you really want.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total": {
+          "description": "Total amount of RAM on this system",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "used": {
+          "description": "RAM used by programs\n\nThis value is computed from the kernel specific values.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "used_percent": {
+          "description": "Percentage of RAM used by programs\n\nThis value is computed from the kernel specific values.",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "net.IOCountersStat": {
+      "type": "object",
+      "properties": {
+        "bytes_recv": {
+          "description": "number of bytes received",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "bytes_sent": {
+          "description": "Name      string `json:\"name\"`       // interface name",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "download_speed": {
+          "description": "godoxy",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "upload_speed": {
+          "description": "godoxy",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "route.Port": {
+      "type": "object",
+      "properties": {
+        "listening": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "proxy": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "route.Route": {
+      "type": "object",
+      "properties": {
+        "access_log": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequestLoggerConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "agent": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "alias": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container": {
+          "description": "Docker only",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Container"
+            }
+          ],
+          "x-nullable": true
+        },
+        "disable_compression": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "excluded": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "health": {
+          "description": "for swagger",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthJSON"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "healthcheck": {
+          "$ref": "#/definitions/HealthCheckConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "homepage": {
+          "$ref": "#/definitions/homepage.ItemConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "idlewatcher": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IdlewatcherConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "load_balance": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/LoadBalancerConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "lurl": {
+          "description": "private fields",
+          "type": "string",
+          "x-nullable": true
+        },
+        "middlewares": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/types.LabelMap"
+          },
+          "x-nullable": true
+        },
+        "no_tls_verify": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
+        },
+        "port": {
+          "$ref": "#/definitions/route.Port",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "description": "for backward compatibility",
+          "type": "string",
+          "x-nullable": true
+        },
+        "purl": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "response_header_timeout": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "root": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/rules.Rule"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "scheme": {
+          "$ref": "#/definitions/route.Scheme",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "route.Scheme": {
+      "type": "string",
+      "enum": [
+        "http",
+        "https",
+        "tcp",
+        "udp",
+        "fileserver"
+      ],
+      "x-enum-varnames": [
+        "SchemeHTTP",
+        "SchemeHTTPS",
+        "SchemeTCP",
+        "SchemeUDP",
+        "SchemeFileServer"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "routeApi.RoutesByProvider": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/route.Route"
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "routes.HealthInfo": {
+      "type": "object",
+      "properties": {
+        "detail": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latency": {
+          "description": "latency in microseconds",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "napping",
+            "starting",
+            "error",
+            "unknown"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "description": "uptime in milliseconds",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "rules.Command": {
+      "type": "object",
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "rules.Rule": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "$ref": "#/definitions/rules.Command",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "on": {
+          "$ref": "#/definitions/rules.RuleOn",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "rules.RuleOn": {
+      "type": "object",
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "sensors.TemperatureStat": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "high": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "temperature": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "time.Duration": {
+      "type": "integer",
+      "enum": [
+        -9223372036854775808,
+        9223372036854775807,
+        1,
+        1000,
+        1000000,
+        1000000000,
+        60000000000,
+        3600000000000
+      ],
+      "x-enum-varnames": [
+        "minDuration",
+        "maxDuration",
+        "Nanosecond",
+        "Microsecond",
+        "Millisecond",
+        "Second",
+        "Minute",
+        "Hour"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "types.LabelMap": {
+      "type": "object",
+      "additionalProperties": {},
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "types.PortMapping": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/container.Port"
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "widgets.Config": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    }
+  }
+}

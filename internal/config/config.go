@@ -210,7 +210,7 @@ func (cfg *Config) StartServers(opts ...*StartServersOptions) {
 			Name:         "api",
 			CertProvider: cfg.AutoCertProvider(),
 			HTTPAddr:     common.APIHTTPAddr,
-			Handler:      api.NewHandler(cfg),
+			Handler:      api.NewHandler(),
 		})
 	}
 }

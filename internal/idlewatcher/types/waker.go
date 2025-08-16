@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type Waker interface {
-	health.HealthMonitor
+	types.HealthMonitor
 	http.Handler
 	nettypes.Stream
 	Wake() error

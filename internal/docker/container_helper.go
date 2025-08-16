@@ -4,11 +4,12 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type containerHelper struct {
-	*container.SummaryTrimmed
+	*container.Summary
 }
 
 // getDeleteLabel gets the value of a label and then deletes it from the container.
@@ -40,10 +41,10 @@ func (c containerHelper) getMounts() []string {
 	return m
 }
 
-func (c containerHelper) parseImage() *ContainerImage {
+func (c containerHelper) parseImage() *types.ContainerImage {
 	colonSep := strutils.SplitRune(c.Image, ':')
 	slashSep := strutils.SplitRune(colonSep[0], '/')
-	im := new(ContainerImage)
+	im := new(types.ContainerImage)
 	if len(slashSep) > 1 {
 		im.Author = strings.Join(slashSep[:len(slashSep)-1], "/")
 		im.Name = slashSep[len(slashSep)-1]
@@ -59,8 +60,8 @@ func (c containerHelper) parseImage() *ContainerImage {
 	return im
 }
 
-func (c containerHelper) getPublicPortMapping() PortMapping {
-	res := make(PortMapping)
+func (c containerHelper) getPublicPortMapping() types.PortMapping {
+	res := make(types.PortMapping)
 	for _, v := range c.Ports {
 		if v.PublicPort == 0 {
 			continue
@@ -70,8 +71,8 @@ func (c containerHelper) getPublicPortMapping() PortMapping {
 	return res
 }
 
-func (c containerHelper) getPrivatePortMapping() PortMapping {
-	res := make(PortMapping)
+func (c containerHelper) getPrivatePortMapping() types.PortMapping {
+	res := make(types.PortMapping)
 	for _, v := range c.Ports {
 		res[int(v.PrivatePort)] = v
 	}

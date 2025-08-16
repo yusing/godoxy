@@ -7,6 +7,7 @@ import (
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher"
 )
 
@@ -42,14 +43,14 @@ func (p *DockerProvider) ContainerStart(ctx context.Context) error {
 	return p.client.ContainerStart(ctx, p.containerID, startOptions)
 }
 
-func (p *DockerProvider) ContainerStop(ctx context.Context, signal idlewatcher.Signal, timeout int) error {
+func (p *DockerProvider) ContainerStop(ctx context.Context, signal types.ContainerSignal, timeout int) error {
 	return p.client.ContainerStop(ctx, p.containerID, container.StopOptions{
 		Signal:  string(signal),
 		Timeout: &timeout,
 	})
 }
 
-func (p *DockerProvider) ContainerKill(ctx context.Context, signal idlewatcher.Signal) error {
+func (p *DockerProvider) ContainerKill(ctx context.Context, signal types.ContainerSignal) error {
 	return p.client.ContainerKill(ctx, p.containerID, string(signal))
 }
 

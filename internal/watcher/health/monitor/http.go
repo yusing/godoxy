@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/watcher/health"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/pkg"
 )
 
@@ -26,7 +26,7 @@ var pinger = &http.Client{
 	},
 }
 
-func NewHTTPHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *HTTPHealthMonitor {
+func NewHTTPHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *HTTPHealthMonitor {
 	mon := new(HTTPHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	if config.UseGet {
@@ -37,7 +37,7 @@ func NewHTTPHealthMonitor(url *url.URL, config *health.HealthCheckConfig) *HTTPH
 	return mon
 }
 
-func (mon *HTTPHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
+func (mon *HTTPHealthMonitor) CheckHealth() (*types.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
 
@@ -67,19 +67,19 @@ func (mon *HTTPHealthMonitor) CheckHealth() (*health.HealthCheckResult, error) {
 		// treat tls error as healthy
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(respErr, &tlsErr); !ok {
-			return &health.HealthCheckResult{
+			return &types.HealthCheckResult{
 				Latency: lat,
 				Detail:  respErr.Error(),
 			}, nil
 		}
 	case resp.StatusCode == http.StatusServiceUnavailable:
-		return &health.HealthCheckResult{
+		return &types.HealthCheckResult{
 			Latency: lat,
 			Detail:  resp.Status,
 		}, nil
 	}
 
-	return &health.HealthCheckResult{
+	return &types.HealthCheckResult{
 		Latency: lat,
 		Healthy: true,
 	}, nil

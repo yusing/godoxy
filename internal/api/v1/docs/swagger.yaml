@@ -1,0 +1,2263 @@
+definitions:
+  Agent:
+    properties:
+      addr:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  CIDR:
+    properties:
+      ip:
+        description: network number
+        items:
+          type: integer
+        type: array
+      mask:
+        description: network mask
+        items:
+          type: integer
+        type: array
+    type: object
+  CertInfo:
+    properties:
+      dns_names:
+        items:
+          type: string
+        type: array
+      email_addresses:
+        items:
+          type: string
+        type: array
+      issuer:
+        type: string
+      not_after:
+        type: integer
+      not_before:
+        type: integer
+      subject:
+        type: string
+    type: object
+  Container:
+    properties:
+      agent:
+        $ref: '#/definitions/Agent'
+      aliases:
+        items:
+          type: string
+        type: array
+      container_id:
+        type: string
+      container_name:
+        type: string
+      docker_host:
+        type: string
+      errors:
+        type: string
+      idlewatcher_config:
+        $ref: '#/definitions/IdlewatcherConfig'
+      image:
+        $ref: '#/definitions/ContainerImage'
+      is_excluded:
+        type: boolean
+      is_explicit:
+        type: boolean
+      is_host_network_mode:
+        type: boolean
+      mounts:
+        items:
+          type: string
+        type: array
+      network:
+        type: string
+      private_hostname:
+        type: string
+      private_ports:
+        allOf:
+        - $ref: '#/definitions/types.PortMapping'
+        description: privatePort:types.Port
+      public_hostname:
+        type: string
+      public_ports:
+        allOf:
+        - $ref: '#/definitions/types.PortMapping'
+        description: non-zero publicPort:types.Port
+      running:
+        type: boolean
+    type: object
+  ContainerImage:
+    properties:
+      author:
+        type: string
+      name:
+        type: string
+      tag:
+        type: string
+    type: object
+  ContainerResponse:
+    properties:
+      id:
+        type: string
+      image:
+        type: string
+      name:
+        type: string
+      server:
+        type: string
+      state:
+        type: string
+    type: object
+  ContainerStats:
+    properties:
+      paused:
+        type: integer
+      running:
+        type: integer
+      stopped:
+        type: integer
+      total:
+        type: integer
+    type: object
+  ContainerStopMethod:
+    enum:
+    - pause
+    - stop
+    - kill
+    type: string
+    x-enum-varnames:
+    - ContainerStopMethodPause
+    - ContainerStopMethodStop
+    - ContainerStopMethodKill
+  DockerConfig:
+    properties:
+      container_id:
+        type: string
+      container_name:
+        type: string
+      docker_host:
+        type: string
+    required:
+    - container_id
+    - container_name
+    - docker_host
+    type: object
+  ErrorResponse:
+    properties:
+      error:
+        type: string
+        x-nullable: true
+      message:
+        type: string
+    type: object
+  FileType:
+    enum:
+    - config
+    - provider
+    - middleware
+    type: string
+    x-enum-comments:
+      FileTypeConfig: '@name FileTypeConfig'
+      FileTypeMiddleware: '@name FileTypeMiddleware'
+      FileTypeProvider: '@name FileTypeProvider'
+    x-enum-varnames:
+    - FileTypeConfig
+    - FileTypeProvider
+    - FileTypeMiddleware
+  HTTPHeader:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  HealthCheckConfig:
+    properties:
+      disable:
+        type: boolean
+      interval:
+        type: integer
+      path:
+        type: string
+      retries:
+        description: '<0: immediate, >=0: threshold'
+        type: integer
+      timeout:
+        type: integer
+      use_get:
+        type: boolean
+    type: object
+  HealthExtra:
+    properties:
+      config:
+        $ref: '#/definitions/LoadBalancerConfig'
+      pool:
+        additionalProperties: {}
+        type: object
+    type: object
+  HealthJSON:
+    properties:
+      config:
+        $ref: '#/definitions/HealthCheckConfig'
+      detail:
+        type: string
+      extra:
+        allOf:
+        - $ref: '#/definitions/HealthExtra'
+        x-nullable: true
+      lastSeen:
+        type: integer
+      lastSeenStr:
+        type: string
+      latency:
+        type: number
+      latencyStr:
+        type: string
+      name:
+        type: string
+      started:
+        type: integer
+      startedStr:
+        type: string
+      status:
+        type: string
+      uptime:
+        type: number
+      uptimeStr:
+        type: string
+      url:
+        type: string
+    type: object
+  HealthMap:
+    additionalProperties:
+      $ref: '#/definitions/routes.HealthInfo'
+    type: object
+  HomepageItems:
+    additionalProperties:
+      items:
+        $ref: '#/definitions/homepage.Item'
+      type: array
+    type: object
+  HomepageOverrideCategoryOrderParams:
+    properties:
+      value:
+        type: integer
+      which:
+        type: string
+    type: object
+  HomepageOverrideItemParams:
+    properties:
+      value:
+        $ref: '#/definitions/homepage.ItemConfig'
+      which:
+        type: string
+    type: object
+  HomepageOverrideItemVisibleParams:
+    properties:
+      value:
+        type: boolean
+      which:
+        items:
+          type: string
+        type: array
+    type: object
+  HomepageOverrideItemsBatchParams:
+    properties:
+      value:
+        additionalProperties:
+          $ref: '#/definitions/homepage.ItemConfig'
+        type: object
+    type: object
+  IdlewatcherConfig:
+    properties:
+      depends_on:
+        items:
+          type: string
+        type: array
+      docker:
+        $ref: '#/definitions/DockerConfig'
+      idle_timeout:
+        allOf:
+        - $ref: '#/definitions/time.Duration'
+        description: "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative:
+          idle watcher as a dependency.\tIdleTimeout time.Duration `json:\"idle_timeout\"
+          json_ext:\"duration\"`"
+      proxmox:
+        $ref: '#/definitions/ProxmoxConfig'
+      start_endpoint:
+        description: Optional path that must be hit to start container
+        type: string
+      stop_method:
+        $ref: '#/definitions/ContainerStopMethod'
+      stop_signal:
+        type: string
+      stop_timeout:
+        $ref: '#/definitions/time.Duration'
+      wake_timeout:
+        $ref: '#/definitions/time.Duration'
+    type: object
+  ListFilesResponse:
+    properties:
+      config:
+        items:
+          type: string
+        type: array
+      middleware:
+        items:
+          type: string
+        type: array
+      provider:
+        items:
+          type: string
+        type: array
+    type: object
+  LoadBalancerConfig:
+    properties:
+      link:
+        type: string
+      mode:
+        $ref: '#/definitions/LoadBalancerMode'
+      options:
+        additionalProperties: {}
+        type: object
+      weight:
+        type: integer
+    type: object
+  LoadBalancerMode:
+    enum:
+    - ""
+    - roundrobin
+    - leastconn
+    - iphash
+    type: string
+    x-enum-varnames:
+    - LoadbalanceModeUnset
+    - LoadbalanceModeRoundRobin
+    - LoadbalanceModeLeastConn
+    - LoadbalanceModeIPHash
+  LogFilter-CIDR:
+    properties:
+      negative:
+        type: boolean
+      values:
+        items:
+          $ref: '#/definitions/CIDR'
+        type: array
+    type: object
+  LogFilter-HTTPHeader:
+    properties:
+      negative:
+        type: boolean
+      values:
+        items:
+          $ref: '#/definitions/HTTPHeader'
+        type: array
+    type: object
+  LogFilter-HTTPMethod:
+    properties:
+      negative:
+        type: boolean
+      values:
+        items:
+          type: string
+        type: array
+    type: object
+  LogFilter-Host:
+    properties:
+      negative:
+        type: boolean
+      values:
+        items:
+          type: string
+        type: array
+    type: object
+  LogFilter-StatusCodeRange:
+    properties:
+      negative:
+        type: boolean
+      values:
+        items:
+          $ref: '#/definitions/StatusCodeRange'
+        type: array
+    type: object
+  LogRetention:
+    properties:
+      days:
+        type: integer
+      keep_size:
+        type: integer
+      last:
+        type: integer
+    type: object
+  MetricsPeriod:
+    enum:
+    - 5m
+    - 15m
+    - 1h
+    - 1d
+    - 1mo
+    type: string
+    x-enum-comments:
+      MetricsPeriod1mo: '@name MetricsPeriod1mo'
+      MetricsPeriod5m: '@name MetricsPeriod5m'
+      MetricsPeriod15m: '@name MetricsPeriod15m'
+      MetricsPeriod1d: '@name MetricsPeriod1d'
+      MetricsPeriod1h: '@name MetricsPeriod1h'
+    x-enum-varnames:
+    - MetricsPeriod5m
+    - MetricsPeriod15m
+    - MetricsPeriod1h
+    - MetricsPeriod1d
+    - MetricsPeriod1mo
+  NewAgentRequest:
+    properties:
+      host:
+        type: string
+      name:
+        type: string
+      nightly:
+        type: boolean
+      port:
+        maximum: 65535
+        minimum: 1
+        type: integer
+      type:
+        enum:
+        - docker
+        - system
+        type: string
+    required:
+    - host
+    - name
+    - port
+    - type
+    type: object
+  NewAgentResponse:
+    properties:
+      ca:
+        $ref: '#/definitions/PEMPairResponse'
+      client:
+        $ref: '#/definitions/PEMPairResponse'
+      compose:
+        type: string
+    type: object
+  PEMPairResponse:
+    properties:
+      cert:
+        format: base64
+        type: string
+      key:
+        format: base64
+        type: string
+    type: object
+  ProviderStats:
+    properties:
+      reverse_proxies:
+        $ref: '#/definitions/RouteStats'
+      streams:
+        $ref: '#/definitions/RouteStats'
+      total:
+        type: integer
+      type:
+        $ref: '#/definitions/ProviderType'
+    type: object
+  ProviderType:
+    enum:
+    - docker
+    - file
+    - agent
+    type: string
+    x-enum-varnames:
+    - ProviderTypeDocker
+    - ProviderTypeFile
+    - ProviderTypeAgent
+  ProxmoxConfig:
+    properties:
+      node:
+        type: string
+      vmid:
+        type: integer
+    required:
+    - node
+    - vmid
+    type: object
+  ProxyStats:
+    properties:
+      providers:
+        additionalProperties:
+          $ref: '#/definitions/ProviderStats'
+        type: object
+      reverse_proxies:
+        $ref: '#/definitions/RouteStats'
+      streams:
+        $ref: '#/definitions/RouteStats'
+      total:
+        type: integer
+    type: object
+  RequestLoggerConfig:
+    properties:
+      buffer_size:
+        description: 'Deprecated: buffer size is adjusted dynamically'
+        type: integer
+      fields:
+        $ref: '#/definitions/accesslog.Fields'
+      filters:
+        $ref: '#/definitions/accesslog.Filters'
+      format:
+        enum:
+        - common
+        - combined
+        - json
+        type: string
+      path:
+        type: string
+      retention:
+        $ref: '#/definitions/LogRetention'
+      rotate_interval:
+        type: integer
+      stdout:
+        type: boolean
+    type: object
+  Route:
+    properties:
+      access_log:
+        allOf:
+        - $ref: '#/definitions/RequestLoggerConfig'
+        x-nullable: true
+      agent:
+        type: string
+      alias:
+        type: string
+      container:
+        allOf:
+        - $ref: '#/definitions/Container'
+        description: Docker only
+        x-nullable: true
+      disable_compression:
+        type: boolean
+      excluded:
+        type: boolean
+      health:
+        allOf:
+        - $ref: '#/definitions/HealthJSON'
+        description: for swagger
+      healthcheck:
+        $ref: '#/definitions/HealthCheckConfig'
+      homepage:
+        $ref: '#/definitions/homepage.ItemConfig'
+      host:
+        type: string
+      idlewatcher:
+        allOf:
+        - $ref: '#/definitions/IdlewatcherConfig'
+        x-nullable: true
+      load_balance:
+        allOf:
+        - $ref: '#/definitions/LoadBalancerConfig'
+        x-nullable: true
+      lurl:
+        description: private fields
+        type: string
+        x-nullable: true
+      middlewares:
+        additionalProperties:
+          $ref: '#/definitions/types.LabelMap'
+        type: object
+        x-nullable: true
+      no_tls_verify:
+        type: boolean
+      path_patterns:
+        items:
+          type: string
+        type: array
+        x-nullable: true
+      port:
+        $ref: '#/definitions/route.Port'
+      provider:
+        description: for backward compatibility
+        type: string
+        x-nullable: true
+      purl:
+        type: string
+      response_header_timeout:
+        type: integer
+      root:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/rules.Rule'
+        type: array
+        uniqueItems: true
+      scheme:
+        $ref: '#/definitions/route.Scheme'
+    type: object
+  RouteProvider:
+    properties:
+      full_name:
+        type: string
+      short_name:
+        type: string
+    type: object
+  RouteStats:
+    properties:
+      error:
+        type: integer
+      healthy:
+        type: integer
+      napping:
+        type: integer
+      total:
+        type: integer
+      unhealthy:
+        type: integer
+      unknown:
+        type: integer
+    type: object
+  RouteStatus:
+    properties:
+      latency:
+        type: integer
+      status:
+        enum:
+        - healthy
+        - unhealthy
+        - unknown
+        - napping
+        - starting
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  RouteStatusesByAlias:
+    properties:
+      statuses:
+        additionalProperties:
+          $ref: '#/definitions/routes.HealthInfo'
+        type: object
+      timestamp:
+        type: integer
+    type: object
+  RouteUptimeAggregate:
+    properties:
+      alias:
+        type: string
+      avg_latency:
+        type: number
+      display_name:
+        type: string
+      downtime:
+        type: number
+      idle:
+        type: number
+      statuses:
+        items:
+          $ref: '#/definitions/RouteStatus'
+        type: array
+      uptime:
+        type: number
+    type: object
+  ServerInfo:
+    properties:
+      containers:
+        $ref: '#/definitions/ContainerStats'
+      images:
+        type: integer
+      memory:
+        type: string
+      n_cpu:
+        type: integer
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  StatsResponse:
+    properties:
+      proxies:
+        $ref: '#/definitions/ProxyStats'
+      uptime:
+        type: string
+    type: object
+  StatusCodeRange:
+    properties:
+      end:
+        type: integer
+      start:
+        type: integer
+    type: object
+  SuccessResponse:
+    properties:
+      details:
+        additionalProperties: {}
+        type: object
+        x-nullable: true
+      message:
+        type: string
+    type: object
+  SystemInfo:
+    properties:
+      cpu_average:
+        type: number
+      disks:
+        additionalProperties:
+          $ref: '#/definitions/disk.UsageStat'
+        description: disk usage by partition
+        type: object
+      disks_io:
+        additionalProperties:
+          $ref: '#/definitions/disk.IOCountersStat'
+        description: disk IO by device
+        type: object
+      memory:
+        $ref: '#/definitions/mem.VirtualMemoryStat'
+      network:
+        $ref: '#/definitions/net.IOCountersStat'
+      sensors:
+        description: sensor temperature by key
+        items:
+          $ref: '#/definitions/sensors.TemperatureStat'
+        type: array
+      timestamp:
+        type: integer
+    type: object
+  SystemInfoAggregate:
+    properties:
+      data:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      total:
+        type: integer
+    type: object
+  UptimeAggregate:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/RouteUptimeAggregate'
+        type: array
+      total:
+        type: integer
+    type: object
+  VerifyNewAgentRequest:
+    properties:
+      ca:
+        $ref: '#/definitions/PEMPairResponse'
+      client:
+        $ref: '#/definitions/PEMPairResponse'
+      host:
+        type: string
+    type: object
+  accesslog.FieldConfig:
+    properties:
+      config:
+        additionalProperties:
+          $ref: '#/definitions/accesslog.FieldMode'
+        type: object
+      default:
+        allOf:
+        - $ref: '#/definitions/accesslog.FieldMode'
+        enum:
+        - keep
+        - drop
+        - redact
+    type: object
+  accesslog.FieldMode:
+    enum:
+    - keep
+    - drop
+    - redact
+    type: string
+    x-enum-varnames:
+    - FieldModeKeep
+    - FieldModeDrop
+    - FieldModeRedact
+  accesslog.Fields:
+    properties:
+      cookies:
+        $ref: '#/definitions/accesslog.FieldConfig'
+      headers:
+        $ref: '#/definitions/accesslog.FieldConfig'
+      query:
+        $ref: '#/definitions/accesslog.FieldConfig'
+    type: object
+  accesslog.Filters:
+    properties:
+      cidr:
+        $ref: '#/definitions/LogFilter-CIDR'
+      headers:
+        allOf:
+        - $ref: '#/definitions/LogFilter-HTTPHeader'
+        description: header exists or header == value
+      host:
+        $ref: '#/definitions/LogFilter-Host'
+      method:
+        $ref: '#/definitions/LogFilter-HTTPMethod'
+      status_codes:
+        $ref: '#/definitions/LogFilter-StatusCodeRange'
+    type: object
+  auth.UserPassAuthCallbackRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  container.Port:
+    properties:
+      IP:
+        description: Host IP address that the container's port is mapped to
+        type: string
+      PrivatePort:
+        description: |-
+          Port on the container
+          Required: true
+        type: integer
+      PublicPort:
+        description: Port exposed on the host
+        type: integer
+      Type:
+        description: |-
+          type
+          Required: true
+        type: string
+    type: object
+  disk.IOCountersStat:
+    properties:
+      iops:
+        description: godoxy
+        type: integer
+      name:
+        description: |-
+          ReadCount        uint64 `json:"readCount"`
+          MergedReadCount  uint64 `json:"mergedReadCount"`
+          WriteCount       uint64 `json:"writeCount"`
+          MergedWriteCount uint64 `json:"mergedWriteCount"`
+          ReadBytes        uint64 `json:"readBytes"`
+          WriteBytes       uint64 `json:"writeBytes"`
+          ReadTime         uint64 `json:"readTime"`
+          WriteTime        uint64 `json:"writeTime"`
+          IopsInProgress   uint64 `json:"iopsInProgress"`
+          IoTime           uint64 `json:"ioTime"`
+          WeightedIO       uint64 `json:"weightedIO"`
+        type: string
+      read_bytes:
+        description: |-
+          SerialNumber     string `json:"serialNumber"`
+          Label            string `json:"label"`
+        type: integer
+      read_count:
+        type: integer
+      read_speed:
+        description: godoxy
+        type: number
+      write_bytes:
+        type: integer
+      write_count:
+        type: integer
+      write_speed:
+        description: godoxy
+        type: number
+    type: object
+  disk.UsageStat:
+    properties:
+      free:
+        type: integer
+      fstype:
+        type: string
+      path:
+        type: string
+      total:
+        type: integer
+      used:
+        type: integer
+      used_percent:
+        type: number
+    type: object
+  homepage.FetchResult:
+    properties:
+      errMsg:
+        type: string
+      icon:
+        items:
+          type: integer
+        type: array
+      statusCode:
+        type: integer
+    type: object
+  homepage.IconExtra:
+    properties:
+      file_type:
+        type: string
+      is_dark:
+        type: boolean
+      is_light:
+        type: boolean
+      key:
+        type: string
+      ref:
+        type: string
+    type: object
+  homepage.IconMetaSearch:
+    properties:
+      dark:
+        type: boolean
+      light:
+        type: boolean
+      png:
+        type: boolean
+      ref:
+        type: string
+      source:
+        $ref: '#/definitions/homepage.IconSource'
+      svg:
+        type: boolean
+      webP:
+        type: boolean
+    type: object
+  homepage.IconSource:
+    enum:
+    - https://
+    - '@target'
+    - '@walkxcode'
+    - '@selfhst'
+    type: string
+    x-enum-varnames:
+    - IconSourceAbsolute
+    - IconSourceRelative
+    - IconSourceWalkXCode
+    - IconSourceSelfhSt
+  homepage.IconURL:
+    properties:
+      extra:
+        allOf:
+        - $ref: '#/definitions/homepage.IconExtra'
+        description: only for walkxcode/selfhst icons
+      source:
+        $ref: '#/definitions/homepage.IconSource'
+      value:
+        description: only for absolute/relative icons
+        type: string
+    type: object
+  homepage.Item:
+    properties:
+      alias:
+        type: string
+      category:
+        type: string
+      description:
+        type: string
+      icon:
+        $ref: '#/definitions/homepage.IconURL'
+      name:
+        description: display name
+        type: string
+      origin_url:
+        type: string
+      provider:
+        type: string
+      show:
+        type: boolean
+      sort_order:
+        type: integer
+      url:
+        type: string
+      widget_config:
+        $ref: '#/definitions/widgets.Config'
+    type: object
+  homepage.ItemConfig:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      icon:
+        $ref: '#/definitions/homepage.IconURL'
+      name:
+        description: display name
+        type: string
+      show:
+        type: boolean
+      sort_order:
+        type: integer
+      url:
+        type: string
+    type: object
+  homepageapi.SetHomePageOverridesRequest:
+    properties:
+      value: {}
+      what:
+        enum:
+        - item
+        - items_batch
+        - category_order
+        - item_visible
+        type: string
+    required:
+    - value
+    - what
+    type: object
+  mem.VirtualMemoryStat:
+    properties:
+      available:
+        description: |-
+          RAM available for programs to allocate
+
+          This value is computed from the kernel specific values.
+        type: integer
+      free:
+        description: |-
+          This is the kernel's notion of free memory; RAM chips whose bits nobody
+          cares about the value of right now. For a human consumable number,
+          Available is what you really want.
+        type: integer
+      total:
+        description: Total amount of RAM on this system
+        type: integer
+      used:
+        description: |-
+          RAM used by programs
+
+          This value is computed from the kernel specific values.
+        type: integer
+      used_percent:
+        description: |-
+          Percentage of RAM used by programs
+
+          This value is computed from the kernel specific values.
+        type: number
+    type: object
+  net.IOCountersStat:
+    properties:
+      bytes_recv:
+        description: number of bytes received
+        type: integer
+      bytes_sent:
+        description: Name      string `json:"name"`       // interface name
+        type: integer
+      download_speed:
+        description: godoxy
+        type: number
+      upload_speed:
+        description: godoxy
+        type: number
+    type: object
+  route.Port:
+    properties:
+      listening:
+        type: integer
+      proxy:
+        type: integer
+    type: object
+  route.Route:
+    properties:
+      access_log:
+        allOf:
+        - $ref: '#/definitions/RequestLoggerConfig'
+        x-nullable: true
+      agent:
+        type: string
+      alias:
+        type: string
+      container:
+        allOf:
+        - $ref: '#/definitions/Container'
+        description: Docker only
+        x-nullable: true
+      disable_compression:
+        type: boolean
+      excluded:
+        type: boolean
+      health:
+        allOf:
+        - $ref: '#/definitions/HealthJSON'
+        description: for swagger
+      healthcheck:
+        $ref: '#/definitions/HealthCheckConfig'
+      homepage:
+        $ref: '#/definitions/homepage.ItemConfig'
+      host:
+        type: string
+      idlewatcher:
+        allOf:
+        - $ref: '#/definitions/IdlewatcherConfig'
+        x-nullable: true
+      load_balance:
+        allOf:
+        - $ref: '#/definitions/LoadBalancerConfig'
+        x-nullable: true
+      lurl:
+        description: private fields
+        type: string
+        x-nullable: true
+      middlewares:
+        additionalProperties:
+          $ref: '#/definitions/types.LabelMap'
+        type: object
+        x-nullable: true
+      no_tls_verify:
+        type: boolean
+      path_patterns:
+        items:
+          type: string
+        type: array
+        x-nullable: true
+      port:
+        $ref: '#/definitions/route.Port'
+      provider:
+        description: for backward compatibility
+        type: string
+        x-nullable: true
+      purl:
+        type: string
+      response_header_timeout:
+        type: integer
+      root:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/rules.Rule'
+        type: array
+        uniqueItems: true
+      scheme:
+        $ref: '#/definitions/route.Scheme'
+    type: object
+  route.Scheme:
+    enum:
+    - http
+    - https
+    - tcp
+    - udp
+    - fileserver
+    type: string
+    x-enum-varnames:
+    - SchemeHTTP
+    - SchemeHTTPS
+    - SchemeTCP
+    - SchemeUDP
+    - SchemeFileServer
+  routeApi.RoutesByProvider:
+    additionalProperties:
+      items:
+        $ref: '#/definitions/route.Route'
+      type: array
+    type: object
+  routes.HealthInfo:
+    properties:
+      detail:
+        type: string
+      latency:
+        description: latency in microseconds
+        type: number
+      status:
+        enum:
+        - healthy
+        - unhealthy
+        - napping
+        - starting
+        - error
+        - unknown
+        type: string
+      uptime:
+        description: uptime in milliseconds
+        type: number
+    type: object
+  rules.Command:
+    type: object
+  rules.Rule:
+    properties:
+      do:
+        $ref: '#/definitions/rules.Command'
+      name:
+        type: string
+      "on":
+        $ref: '#/definitions/rules.RuleOn'
+    type: object
+  rules.RuleOn:
+    type: object
+  sensors.TemperatureStat:
+    properties:
+      critical:
+        type: number
+      high:
+        type: number
+      name:
+        type: string
+      temperature:
+        type: number
+    type: object
+  time.Duration:
+    enum:
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    type: integer
+    x-enum-varnames:
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
+  types.LabelMap:
+    additionalProperties: {}
+    type: object
+  types.PortMapping:
+    additionalProperties:
+      $ref: '#/definitions/container.Port'
+    type: object
+  widgets.Config:
+    properties:
+      config: {}
+      provider:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /agent/create:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Create a new agent and return the docker compose file, encrypted CA and client PEMs
+        The returned PEMs are encrypted with a random key and will be used for verification when adding a new agent
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/NewAgentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Create a new agent
+      tags:
+      - agent
+      x-id: create
+  /agent/list:
+    get:
+      consumes:
+      - application/json
+      description: List agents
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/Agent'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List agents
+      tags:
+      - agent
+      - websocket
+      x-id: list
+  /agent/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verify a new agent and return the number of routes added
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/VerifyNewAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Verify a new agent
+      tags:
+      - agent
+      x-id: verify
+  /auth/callback:
+    post:
+      description: Handles the callback from the provider after successful authentication
+      parameters:
+      - description: Userpass only
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UserPassAuthCallbackRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: 'Userpass: OK'
+          schema:
+            type: string
+        "302":
+          description: 'OIDC: Redirects to home page'
+          schema:
+            type: string
+        "400":
+          description: 'Userpass: invalid request / credentials'
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Post Auth Callback
+      tags:
+      - auth
+      x-id: callback
+  /auth/check:
+    head:
+      description: Checks if the user is authenticated by validating their token
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "403":
+          description: 'Forbidden: use X-Redirect-To header to redirect to login page'
+          schema:
+            type: string
+      summary: Check authentication status
+      tags:
+      - auth
+      x-id: check
+  /auth/login:
+    post:
+      description: Initiates the login process by redirecting the user to the provider's
+        login page
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Redirects to login page or IdP
+          schema:
+            type: string
+        "403":
+          description: 'Forbidden(webui): follow X-Redirect-To header'
+          schema:
+            type: string
+        "429":
+          description: Too Many Requests
+          schema:
+            type: string
+      summary: Login
+      tags:
+      - auth
+      x-id: login
+  /auth/logout:
+    post:
+      description: Logs out the user by invalidating the token
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Redirects to home page
+          schema:
+            type: string
+      summary: Logout
+      tags:
+      - auth
+      x-id: logout
+  /cert/info:
+    get:
+      consumes:
+      - application/json
+      description: Get cert info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CertInfo'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get cert info
+      tags:
+      - cert
+  /cert/renew:
+    post:
+      consumes:
+      - application/json
+      description: Renew cert
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Renew cert
+      tags:
+      - cert
+  /docker/containers:
+    get:
+      consumes:
+      - application/json
+      description: Get containers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ContainerResponse'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get containers
+      tags:
+      - docker
+  /docker/info:
+    get:
+      consumes:
+      - application/json
+      description: Get docker info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ServerInfo'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get docker info
+      tags:
+      - docker
+  /docker/logs/{server}/{container}:
+    get:
+      consumes:
+      - application/json
+      description: Get docker container logs
+      parameters:
+      - description: server name
+        in: path
+        name: server
+        required: true
+        type: string
+      - description: container id
+        in: path
+        name: container
+        required: true
+        type: string
+      - description: show stdout
+        in: query
+        name: stdout
+        type: boolean
+      - description: show stderr
+        in: query
+        name: stderr
+        type: boolean
+      - description: from timestamp
+        in: query
+        name: from
+        type: string
+      - description: to timestamp
+        in: query
+        name: to
+        type: string
+      - description: levels
+        in: query
+        name: levels
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get docker container logs
+      tags:
+      - docker
+      - websocket
+  /favicon:
+    get:
+      consumes:
+      - application/json
+      description: Get favicon
+      parameters:
+      - description: URL of the route
+        in: query
+        name: url
+        type: string
+      - description: Alias of the route
+        in: query
+        name: alias
+        type: string
+      produces:
+      - image/svg+xml
+      - image/x-icon
+      - image/png
+      - image/webp
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/homepage.FetchResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get favicon
+      tags:
+      - v1
+      x-id: favicon
+  /file/content:
+    get:
+      consumes:
+      - application/json
+      description: Get file content
+      parameters:
+      - format: filename
+        in: query
+        name: filename
+        required: true
+        type: string
+      - enum:
+        - config
+        - provider
+        - middleware
+        in: query
+        name: type
+        required: true
+        type: string
+        x-enum-comments:
+          FileTypeConfig: '@name FileTypeConfig'
+          FileTypeMiddleware: '@name FileTypeMiddleware'
+          FileTypeProvider: '@name FileTypeProvider'
+        x-enum-varnames:
+        - FileTypeConfig
+        - FileTypeProvider
+        - FileTypeMiddleware
+      produces:
+      - application/json
+      - application/godoxy+yaml
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get file content
+      tags:
+      - file
+      x-id: get
+    put:
+      consumes:
+      - application/json
+      description: Set file content
+      parameters:
+      - description: Type
+        enum:
+        - config
+        - provider
+        - middleware
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: Filename
+        in: query
+        name: filename
+        required: true
+        type: string
+      - description: File
+        in: body
+        name: file
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set file content
+      tags:
+      - file
+      x-id: set
+  /file/list:
+    get:
+      consumes:
+      - application/json
+      description: List files
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListFilesResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List files
+      tags:
+      - file
+      x-id: list
+  /file/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validate file
+      parameters:
+      - description: Type
+        enum:
+        - config
+        - provider
+        - middleware
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: File content
+        in: body
+        name: file
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File validated
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "417":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Validate file
+      tags:
+      - file
+      x-id: validate
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get health info by route name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health info by route name
+          schema:
+            $ref: '#/definitions/HealthMap'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get routes health info
+      tags:
+      - v1
+      - websocket
+      x-id: health
+  /homepage/categories:
+    get:
+      consumes:
+      - application/json
+      description: List homepage categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List homepage categories
+      tags:
+      - homepage
+      x-id: categories
+  /homepage/items:
+    get:
+      consumes:
+      - application/json
+      description: Homepage items
+      parameters:
+      - description: Category filter
+        in: query
+        name: category
+        type: string
+      - description: Provider filter
+        in: query
+        name: provider
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/HomepageItems'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Homepage items
+      tags:
+      - homepage
+      x-id: items
+  /homepage/set:
+    post:
+      consumes:
+      - application/json
+      description: Set homepage overrides
+      parameters:
+      - description: Override single item
+        in: body
+        name: request
+        required: true
+        schema:
+          allOf:
+          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
+          - properties:
+              value:
+                $ref: '#/definitions/HomepageOverrideItemParams'
+            type: object
+      - description: Override multiple items
+        in: body
+        name: request
+        required: true
+        schema:
+          allOf:
+          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
+          - properties:
+              value:
+                $ref: '#/definitions/HomepageOverrideItemsBatchParams'
+            type: object
+      - description: Override category order
+        in: body
+        name: request
+        required: true
+        schema:
+          allOf:
+          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
+          - properties:
+              value:
+                $ref: '#/definitions/HomepageOverrideCategoryOrderParams'
+            type: object
+      - description: Override item visibility
+        in: body
+        name: request
+        required: true
+        schema:
+          allOf:
+          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
+          - properties:
+              value:
+                $ref: '#/definitions/HomepageOverrideItemVisibleParams'
+            type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage overrides
+      tags:
+      - homepage
+      x-id: set
+  /icons:
+    get:
+      consumes:
+      - application/json
+      description: List icons
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Keyword
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/homepage.IconMetaSearch'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List icons
+      tags:
+      - v1
+      x-id: icons
+  /metrics/system_info:
+    get:
+      description: Get system info
+      parameters:
+      - description: Agent address
+        in: query
+        name: agent_addr
+        type: string
+      - description: Period
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: period specified
+          schema:
+            $ref: '#/definitions/SystemInfoAggregate'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get system info
+      tags:
+      - metrics
+      - websocket
+      x-id: system_info
+  /metrics/uptime:
+    get:
+      description: Get uptime
+      parameters:
+      - enum:
+        - 5m
+        - 15m
+        - 1h
+        - 1d
+        - 1mo
+        example: 1m
+        in: query
+        name: interval
+        type: string
+        x-enum-comments:
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
+          MetricsPeriod1h: '@name MetricsPeriod1h'
+          MetricsPeriod1mo: '@name MetricsPeriod1mo'
+          MetricsPeriod5m: '@name MetricsPeriod5m'
+        x-enum-varnames:
+        - MetricsPeriod5m
+        - MetricsPeriod15m
+        - MetricsPeriod1h
+        - MetricsPeriod1d
+        - MetricsPeriod1mo
+      - example: ""
+        in: query
+        name: keyword
+        type: string
+      - example: 10
+        in: query
+        name: limit
+        type: integer
+      - example: "10"
+        in: query
+        name: offset
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: period specified
+          schema:
+            $ref: '#/definitions/UptimeAggregate'
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get uptime
+      tags:
+      - metrics
+      - websocket
+      x-id: uptime
+  /reload:
+    post:
+      consumes:
+      - application/json
+      description: Reload config
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Reload config
+      tags:
+      - v1
+      x-id: reload
+  /route/{which}:
+    get:
+      consumes:
+      - application/json
+      description: List route
+      parameters:
+      - description: Route name
+        in: path
+        name: which
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Route'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List route
+      tags:
+      - route
+      x-id: route
+  /route/by_provider:
+    get:
+      consumes:
+      - application/json
+      description: List routes by provider
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/routeApi.RoutesByProvider'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List routes by provider
+      tags:
+      - route
+      x-id: byProvider
+  /route/list:
+    get:
+      consumes:
+      - application/json
+      description: List routes
+      parameters:
+      - description: Provider
+        in: query
+        name: provider
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/Route'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List routes
+      tags:
+      - route
+      - websocket
+      x-id: routes
+  /route/providers:
+    get:
+      consumes:
+      - application/json
+      description: List route providers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/RouteProvider'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List route providers
+      tags:
+      - route
+      - websocket
+      x-id: providers
+  /stats:
+    get:
+      consumes:
+      - application/json
+      description: Get stats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/StatsResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get GoDoxy stats
+      tags:
+      - v1
+      - websocket
+      x-id: stats
+  /version:
+    get:
+      consumes:
+      - application/json
+      description: Get the version of the GoDoxy
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: version
+          schema:
+            type: string
+      summary: Get version
+      tags:
+      - v1
+      x-id: version
+swagger: "2.0"

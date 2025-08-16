@@ -10,44 +10,43 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/loadbalancer/types"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/pool"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 )
 
 // TODO: stats of each server.
 // TODO: support weighted mode.
 type (
 	impl interface {
-		ServeHTTP(srvs Servers, rw http.ResponseWriter, r *http.Request)
-		OnAddServer(srv Server)
-		OnRemoveServer(srv Server)
+		ServeHTTP(srvs types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request)
+		OnAddServer(srv types.LoadBalancerServer)
+		OnRemoveServer(srv types.LoadBalancerServer)
 	}
 
 	LoadBalancer struct {
 		impl
-		*Config
+		*types.LoadBalancerConfig
 
 		task *task.Task
 
-		pool   pool.Pool[Server]
+		pool   pool.Pool[types.LoadBalancerServer]
 		poolMu sync.Mutex
 
-		sumWeight Weight
+		sumWeight int
 		startTime time.Time
 
 		l zerolog.Logger
 	}
 )
 
-const maxWeight Weight = 100
+const maxWeight int = 100
 
-func New(cfg *Config) *LoadBalancer {
+func New(cfg *types.LoadBalancerConfig) *LoadBalancer {
 	lb := &LoadBalancer{
-		Config: new(Config),
-		pool:   pool.New[Server]("loadbalancer." + cfg.Link),
-		l:      log.With().Str("name", cfg.Link).Logger(),
+		LoadBalancerConfig: cfg,
+		pool:               pool.New[types.LoadBalancerServer]("loadbalancer." + cfg.Link),
+		l:                  log.With().Str("name", cfg.Link).Logger(),
 	}
 	lb.UpdateConfigIfNeeded(cfg)
 	return lb
@@ -80,11 +79,11 @@ func (lb *LoadBalancer) Finish(reason any) {
 
 func (lb *LoadBalancer) updateImpl() {
 	switch lb.Mode {
-	case types.ModeUnset, types.ModeRoundRobin:
+	case types.LoadbalanceModeUnset, types.LoadbalanceModeRoundRobin:
 		lb.impl = lb.newRoundRobin()
-	case types.ModeLeastConn:
+	case types.LoadbalanceModeLeastConn:
 		lb.impl = lb.newLeastConn()
-	case types.ModeIPHash:
+	case types.LoadbalanceModeIPHash:
 		lb.impl = lb.newIPHash()
 	default: // should happen in test only
 		lb.impl = lb.newRoundRobin()
@@ -94,14 +93,14 @@ func (lb *LoadBalancer) updateImpl() {
 	}
 }
 
-func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *Config) {
+func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *types.LoadBalancerConfig) {
 	if cfg != nil {
 		lb.poolMu.Lock()
 		defer lb.poolMu.Unlock()
 
 		lb.Link = cfg.Link
 
-		if lb.Mode == types.ModeUnset && cfg.Mode != types.ModeUnset {
+		if lb.Mode == types.LoadbalanceModeUnset && cfg.Mode != types.LoadbalanceModeUnset {
 			lb.Mode = cfg.Mode
 			if !lb.Mode.ValidateUpdate() {
 				lb.l.Error().Msgf("invalid mode %q, fallback to %q", cfg.Mode, lb.Mode)
@@ -119,7 +118,7 @@ func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *Config) {
 	}
 }
 
-func (lb *LoadBalancer) AddServer(srv Server) {
+func (lb *LoadBalancer) AddServer(srv types.LoadBalancerServer) {
 	lb.poolMu.Lock()
 	defer lb.poolMu.Unlock()
 
@@ -135,7 +134,7 @@ func (lb *LoadBalancer) AddServer(srv Server) {
 	lb.impl.OnAddServer(srv)
 }
 
-func (lb *LoadBalancer) RemoveServer(srv Server) {
+func (lb *LoadBalancer) RemoveServer(srv types.LoadBalancerServer) {
 	lb.poolMu.Lock()
 	defer lb.poolMu.Unlock()
 
@@ -170,8 +169,8 @@ func (lb *LoadBalancer) rebalance() {
 		return
 	}
 	if lb.sumWeight == 0 { // distribute evenly
-		weightEach := maxWeight / Weight(poolSize)
-		remainder := maxWeight % Weight(poolSize)
+		weightEach := maxWeight / poolSize
+		remainder := maxWeight % poolSize
 		for _, srv := range lb.pool.Iter {
 			w := weightEach
 			lb.sumWeight += weightEach
@@ -189,7 +188,7 @@ func (lb *LoadBalancer) rebalance() {
 	lb.sumWeight = 0
 
 	for _, srv := range lb.pool.Iter {
-		srv.SetWeight(Weight(float64(srv.Weight()) * scaleFactor))
+		srv.SetWeight(int(float64(srv.Weight()) * scaleFactor))
 		lb.sumWeight += srv.Weight()
 	}
 
@@ -241,16 +240,16 @@ func (lb *LoadBalancer) MarshalJSON() ([]byte, error) {
 
 	status, numHealthy := lb.status()
 
-	return (&health.JSONRepresentation{
+	return (&types.HealthJSONRepr{
 		Name:    lb.Name(),
 		Status:  status,
 		Detail:  fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size()),
 		Started: lb.startTime,
 		Uptime:  lb.Uptime(),
 		Latency: lb.Latency(),
-		Extra: map[string]any{
-			"config": lb.Config,
-			"pool":   extra,
+		Extra: &types.HealthExtra{
+			Config: lb.LoadBalancerConfig,
+			Pool:   extra,
 		},
 	}).MarshalJSON()
 }
@@ -261,7 +260,7 @@ func (lb *LoadBalancer) Name() string {
 }
 
 // Status implements health.HealthMonitor.
-func (lb *LoadBalancer) Status() health.Status {
+func (lb *LoadBalancer) Status() types.HealthStatus {
 	status, _ := lb.status()
 	return status
 }
@@ -272,9 +271,9 @@ func (lb *LoadBalancer) Detail() string {
 	return fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size())
 }
 
-func (lb *LoadBalancer) status() (status health.Status, numHealthy int) {
+func (lb *LoadBalancer) status() (status types.HealthStatus, numHealthy int) {
 	if lb.pool.Size() == 0 {
-		return health.StatusUnknown, 0
+		return types.StatusUnknown, 0
 	}
 
 	// should be healthy if at least one server is healthy
@@ -285,9 +284,9 @@ func (lb *LoadBalancer) status() (status health.Status, numHealthy int) {
 		}
 	}
 	if numHealthy == 0 {
-		return health.StatusUnhealthy, numHealthy
+		return types.StatusUnhealthy, numHealthy
 	}
-	return health.StatusHealthy, numHealthy
+	return types.StatusHealthy, numHealthy
 }
 
 // Uptime implements health.HealthMonitor.
@@ -309,8 +308,8 @@ func (lb *LoadBalancer) String() string {
 	return lb.Name()
 }
 
-func (lb *LoadBalancer) availServers() []Server {
-	avail := make([]Server, 0, lb.pool.Size())
+func (lb *LoadBalancer) availServers() []types.LoadBalancerServer {
+	avail := make([]types.LoadBalancerServer, 0, lb.pool.Size())
 	for _, srv := range lb.pool.Iter {
 		if srv.Status().Good() {
 			avail = append(avail, srv)
