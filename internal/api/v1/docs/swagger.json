@@ -682,7 +682,7 @@
       "put": {
         "description": "Set file content",
         "consumes": [
-          "application/json"
+          "text/plain"
         ],
         "produces": [
           "application/json"
@@ -792,7 +792,7 @@
       "post": {
         "description": "Validate file",
         "consumes": [
-          "application/json"
+          "text/plain"
         ],
         "produces": [
           "application/json"

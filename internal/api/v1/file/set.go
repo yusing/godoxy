@@ -15,7 +15,7 @@ type SetFileContentRequest GetFileContentRequest
 // @Summary		Set file content
 // @Description	Set file content
 // @Tags			file
-// @Accept			json
+// @Accept			text/plain
 // @Produce		json
 // @Param			type		query		FileType	true	"Type"
 // @Param			filename	query		string		true	"Filename"

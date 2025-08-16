@@ -684,7 +684,7 @@ const docTemplate = `{
             "put": {
                 "description": "Set file content",
                 "consumes": [
-                    "application/json"
+                    "text/plain"
                 ],
                 "produces": [
                     "application/json"
@@ -792,7 +792,7 @@ const docTemplate = `{
             "post": {
                 "description": "Validate file",
                 "consumes": [
-                    "application/json"
+                    "text/plain"
                 ],
                 "produces": [
                     "application/json"

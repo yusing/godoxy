@@ -399,11 +399,11 @@ definitions:
     - 1mo
     type: string
     x-enum-comments:
-      MetricsPeriod1mo: '@name MetricsPeriod1mo'
-      MetricsPeriod5m: '@name MetricsPeriod5m'
       MetricsPeriod15m: '@name MetricsPeriod15m'
       MetricsPeriod1d: '@name MetricsPeriod1d'
       MetricsPeriod1h: '@name MetricsPeriod1h'
+      MetricsPeriod1mo: '@name MetricsPeriod1mo'
+      MetricsPeriod5m: '@name MetricsPeriod5m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -1674,7 +1674,7 @@ paths:
       x-id: get
     put:
       consumes:
-      - application/json
+      - text/plain
       description: Set file content
       parameters:
       - description: Type
@@ -1747,7 +1747,7 @@ paths:
   /file/validate:
     post:
       consumes:
-      - application/json
+      - text/plain
       description: Validate file
       parameters:
       - description: Type
@@ -2031,11 +2031,11 @@ paths:
         name: interval
         type: string
         x-enum-comments:
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m
