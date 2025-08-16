@@ -3,6 +3,7 @@ package notif
 import (
 	"math"
 	"math/rand/v2"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -96,20 +97,26 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 		Str("level", msg.Level.String()).
 		Str("title", msg.Title).Logger()
 
-	disp.providers.RangeAllParallel(func(p Provider) {
-		if err := msg.notify(task.Context(), p); err != nil {
-			msg := &RetryMessage{
-				Message:   msg,
-				Trials:    0,
-				Provider:  p,
-				NextRetry: time.Now().Add(calculateBackoffDelay(0)),
+	var wg sync.WaitGroup
+	for p := range disp.providers.Range {
+		wg.Add(1)
+		go func(p Provider) {
+			defer wg.Done()
+			if err := msg.notify(task.Context(), p); err != nil {
+				msg := &RetryMessage{
+					Message:   msg,
+					Trials:    0,
+					Provider:  p,
+					NextRetry: time.Now().Add(calculateBackoffDelay(0)),
+				}
+				disp.retryMsg.Add(msg)
+				l.Debug().Err(err).EmbedObject(msg).Msg("notification failed, scheduling retry")
+			} else {
+				l.Debug().Str("provider", p.GetName()).Msg("notification sent successfully")
 			}
-			disp.retryMsg.Add(msg)
-			l.Debug().Err(err).EmbedObject(msg).Msg("notification failed, scheduling retry")
-		} else {
-			l.Debug().Str("provider", p.GetName()).Msg("notification sent successfully")
-		}
-	})
+		}(p)
+	}
+	wg.Wait()
 }
 
 func (disp *Dispatcher) processRetries() {
