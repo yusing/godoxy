@@ -332,7 +332,9 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        }
+        },
+        "x-id": "info",
+        "operationId": "info"
       }
     },
     "/cert/renew": {
@@ -367,7 +369,9 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        }
+        },
+        "x-id": "renew",
+        "operationId": "renew"
       }
     },
     "/docker/containers": {
@@ -405,7 +409,9 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        }
+        },
+        "x-id": "containers",
+        "operationId": "containers"
       }
     },
     "/docker/info": {
@@ -443,7 +449,9 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        }
+        },
+        "x-id": "info",
+        "operationId": "info"
       }
     },
     "/docker/logs/{server}/{container}": {
@@ -534,7 +542,9 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        }
+        },
+        "x-id": "logs",
+        "operationId": "logs"
       }
     },
     "/favicon": {

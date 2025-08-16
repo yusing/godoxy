@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
 )
 
+// @x-id				"renew"
 // @BasePath		/api/v1
 // @Summary		Renew cert
 // @Description	Renew cert

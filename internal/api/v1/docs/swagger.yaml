@@ -427,11 +427,11 @@ definitions:
     - 1mo
     type: string
     x-enum-comments:
-      MetricsPeriod15m: '@name MetricsPeriod15m'
       MetricsPeriod1d: '@name MetricsPeriod1d'
       MetricsPeriod1h: '@name MetricsPeriod1h'
       MetricsPeriod1mo: '@name MetricsPeriod1mo'
       MetricsPeriod5m: '@name MetricsPeriod5m'
+      MetricsPeriod15m: '@name MetricsPeriod15m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -1467,6 +1467,7 @@ paths:
       summary: Get cert info
       tags:
       - cert
+      x-id: info
   /cert/renew:
     post:
       consumes:
@@ -1490,6 +1491,7 @@ paths:
       summary: Renew cert
       tags:
       - cert
+      x-id: renew
   /docker/containers:
     get:
       consumes:
@@ -1515,6 +1517,7 @@ paths:
       summary: Get containers
       tags:
       - docker
+      x-id: containers
   /docker/info:
     get:
       consumes:
@@ -1540,6 +1543,7 @@ paths:
       summary: Get docker info
       tags:
       - docker
+      x-id: info
   /docker/logs/{server}/{container}:
     get:
       consumes:
@@ -1601,6 +1605,7 @@ paths:
       tags:
       - docker
       - websocket
+      x-id: logs
   /favicon:
     get:
       consumes:
@@ -2110,11 +2115,11 @@ paths:
         name: period
         type: string
         x-enum-comments:
-          MetricsPeriod15m: '@name MetricsPeriod15m'
           MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
+          MetricsPeriod15m: '@name MetricsPeriod15m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m

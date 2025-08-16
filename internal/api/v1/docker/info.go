@@ -42,6 +42,7 @@ func toDockerInfo(info dockerSystem.Info) dockerInfo {
 	}
 }
 
+// @x-id				"info"
 // @BasePath		/api/v1
 // @Summary		Get docker info
 // @Description	Get docker info

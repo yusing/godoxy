@@ -27,6 +27,7 @@ type LogsQueryParams struct {
 	Levels string `form:"levels"`
 } //	@name	LogsQueryParams
 
+// @x-id				"logs"
 // @BasePath		/api/v1
 // @Summary		Get docker container logs
 // @Description	Get docker container logs

@@ -17,6 +17,7 @@ type CertInfo struct {
 	EmailAddresses []string `json:"email_addresses"`
 } // @name CertInfo
 
+// @x-id				"info"
 // @BasePath		/api/v1
 // @Summary		Get cert info
 // @Description	Get cert info

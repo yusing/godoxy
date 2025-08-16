@@ -19,6 +19,7 @@ type Container struct {
 	State  ContainerState `json:"state"`
 } // @name ContainerResponse
 
+// @x-id				"containers"
 // @BasePath		/api/v1
 // @Summary		Get containers
 // @Description	Get containers

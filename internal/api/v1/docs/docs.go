@@ -336,7 +336,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     }
-                }
+                },
+                "x-id": "info"
             }
         },
         "/cert/renew": {
@@ -371,7 +372,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     }
-                }
+                },
+                "x-id": "renew"
             }
         },
         "/docker/containers": {
@@ -409,7 +411,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     }
-                }
+                },
+                "x-id": "containers"
             }
         },
         "/docker/info": {
@@ -447,7 +450,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     }
-                }
+                },
+                "x-id": "info"
             }
         },
         "/docker/logs/{server}/{container}": {
@@ -538,7 +542,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     }
-                }
+                },
+                "x-id": "logs"
             }
         },
         "/favicon": {
