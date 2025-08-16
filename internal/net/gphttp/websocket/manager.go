@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,8 @@ type Manager struct {
 	lastPingTime     atomic.Value
 	readCh           chan []byte
 	err              error
+
+	writeLock sync.Mutex
 }
 
 var defaultUpgrader = websocket.Upgrader{
@@ -97,6 +100,7 @@ func (cm *Manager) PeriodicWrite(interval time.Duration, getData func() (any, er
 			cm.Close()
 			return
 		}
+
 		if err := cm.WriteJSON(data, interval); err != nil {
 			cm.err = err
 			cm.Close()
@@ -143,6 +147,9 @@ func (cm *Manager) WriteData(typ int, data []byte, timeout time.Duration) error 
 	case <-cm.ctx.Done():
 		return cm.err
 	default:
+		cm.writeLock.Lock()
+		defer cm.writeLock.Unlock()
+
 		if err := cm.conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
@@ -183,8 +190,12 @@ func (cm *Manager) Close() {
 }
 
 func (cm *Manager) GracefulClose() {
+	cm.writeLock.Lock()
+	defer cm.writeLock.Unlock()
+
 	_ = cm.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	_ = cm.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
 	cm.Close()
 }
 
@@ -227,12 +238,7 @@ func (cm *Manager) readRoutine() {
 
 			if typ == websocket.TextMessage && string(data) == "ping" {
 				cm.lastPingTime.Store(time.Now())
-				if err := cm.conn.SetWriteDeadline(time.Now().Add(cm.pongWriteTimeout)); err != nil {
-					cm.err = fmt.Errorf("failed to set write deadline: %w", err)
-					cm.Close()
-					return
-				}
-				if err := cm.conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
+				if err := cm.WriteData(websocket.TextMessage, []byte("pong"), cm.pongWriteTimeout); err != nil {
 					cm.err = fmt.Errorf("failed to write pong message: %w", err)
 					cm.Close()
 					return
