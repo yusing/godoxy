@@ -66,10 +66,16 @@ definitions:
         type: boolean
       is_host_network_mode:
         type: boolean
-      mounts:
-        items:
+      labels:
+        additionalProperties:
           type: string
-        type: array
+        description: for displaying in UI
+        type: object
+      mounts:
+        additionalProperties:
+          type: string
+        description: source:destination
+        type: object
       network:
         type: string
       private_hostname:
@@ -93,7 +99,11 @@ definitions:
         type: string
       name:
         type: string
+      sha256:
+        type: string
       tag:
+        type: string
+      version:
         type: string
     type: object
   ContainerResponse:
@@ -215,47 +225,6 @@ definitions:
         type: integer
       use_get:
         type: boolean
-    type: object
-  HealthExtra:
-    properties:
-      config:
-        $ref: '#/definitions/LoadBalancerConfig'
-      pool:
-        additionalProperties: {}
-        type: object
-    type: object
-  HealthJSON:
-    properties:
-      config:
-        $ref: '#/definitions/HealthCheckConfig'
-      detail:
-        type: string
-      extra:
-        allOf:
-        - $ref: '#/definitions/HealthExtra'
-        x-nullable: true
-      lastSeen:
-        type: integer
-      lastSeenStr:
-        type: string
-      latency:
-        type: number
-      latencyStr:
-        type: string
-      name:
-        type: string
-      started:
-        type: integer
-      startedStr:
-        type: string
-      status:
-        type: string
-      uptime:
-        type: number
-      uptimeStr:
-        type: string
-      url:
-        type: string
     type: object
   HealthMap:
     additionalProperties:
@@ -427,11 +396,11 @@ definitions:
     - 1mo
     type: string
     x-enum-comments:
+      MetricsPeriod15m: '@name MetricsPeriod15m'
       MetricsPeriod1d: '@name MetricsPeriod1d'
       MetricsPeriod1h: '@name MetricsPeriod1h'
       MetricsPeriod1mo: '@name MetricsPeriod1mo'
       MetricsPeriod5m: '@name MetricsPeriod5m'
-      MetricsPeriod15m: '@name MetricsPeriod15m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -566,10 +535,6 @@ definitions:
         type: boolean
       excluded:
         type: boolean
-      health:
-        allOf:
-        - $ref: '#/definitions/HealthJSON'
-        description: for swagger
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
@@ -1095,10 +1060,6 @@ definitions:
         type: boolean
       excluded:
         type: boolean
-      health:
-        allOf:
-        - $ref: '#/definitions/HealthJSON'
-        description: for swagger
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
@@ -1813,8 +1774,7 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "417":
           description: Validation failed
-          schema:
-            $ref: '#/definitions/ErrorResponse'
+          schema: {}
         "500":
           description: Internal server error
           schema:
@@ -2115,11 +2075,11 @@ paths:
         name: period
         type: string
         x-enum-comments:
+          MetricsPeriod15m: '@name MetricsPeriod15m'
           MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
-          MetricsPeriod15m: '@name MetricsPeriod15m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m
@@ -2169,11 +2129,11 @@ paths:
         name: interval
         type: string
         x-enum-comments:
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m

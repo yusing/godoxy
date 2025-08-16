@@ -850,9 +850,7 @@ const docTemplate = `{
                     },
                     "417": {
                         "description": "Validation failed",
-                        "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
-                        }
+                        "schema": {}
                     },
                     "500": {
                         "description": "Internal server error",
@@ -1807,9 +1805,17 @@ const docTemplate = `{
                 "is_host_network_mode": {
                     "type": "boolean"
                 },
+                "labels": {
+                    "description": "for displaying in UI",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "mounts": {
-                    "type": "array",
-                    "items": {
+                    "description": "source:destination",
+                    "type": "object",
+                    "additionalProperties": {
                         "type": "string"
                     }
                 },
@@ -1852,7 +1858,13 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "sha256": {
+                    "type": "string"
+                },
                 "tag": {
+                    "type": "string"
+                },
+                "version": {
                     "type": "string"
                 }
             }
@@ -2018,70 +2030,6 @@ const docTemplate = `{
                 },
                 "use_get": {
                     "type": "boolean"
-                }
-            }
-        },
-        "HealthExtra": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "$ref": "#/definitions/LoadBalancerConfig"
-                },
-                "pool": {
-                    "type": "object",
-                    "additionalProperties": {}
-                }
-            }
-        },
-        "HealthJSON": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "$ref": "#/definitions/HealthCheckConfig"
-                },
-                "detail": {
-                    "type": "string"
-                },
-                "extra": {
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/HealthExtra"
-                        }
-                    ],
-                    "x-nullable": true
-                },
-                "lastSeen": {
-                    "type": "integer"
-                },
-                "lastSeenStr": {
-                    "type": "string"
-                },
-                "latency": {
-                    "type": "number"
-                },
-                "latencyStr": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "started": {
-                    "type": "integer"
-                },
-                "startedStr": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "uptime": {
-                    "type": "number"
-                },
-                "uptimeStr": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
                 }
             }
         },
@@ -2542,14 +2490,6 @@ const docTemplate = `{
                 },
                 "excluded": {
                     "type": "boolean"
-                },
-                "health": {
-                    "description": "for swagger",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/HealthJSON"
-                        }
-                    ]
                 },
                 "healthcheck": {
                     "$ref": "#/definitions/HealthCheckConfig"
@@ -3284,14 +3224,6 @@ const docTemplate = `{
                 },
                 "excluded": {
                     "type": "boolean"
-                },
-                "health": {
-                    "description": "for swagger",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/HealthJSON"
-                        }
-                    ]
                 },
                 "healthcheck": {
                     "$ref": "#/definitions/HealthCheckConfig"
