@@ -62,15 +62,13 @@ func (m Map[KT, VT]) RangeAllParallel(do func(k KT, v VT)) {
 	}
 
 	var wg sync.WaitGroup
-
-	m.Range(func(k KT, v VT) bool {
+	for k, v := range m.Range {
 		wg.Add(1)
-		go func() {
+		go func(k KT, v VT) {
+			defer wg.Done()
 			do(k, v)
-			wg.Done()
-		}()
-		return true
-	})
+		}(k, v)
+	}
 	wg.Wait()
 }
 

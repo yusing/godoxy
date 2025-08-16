@@ -92,16 +92,15 @@ func NewBidirectionalPipe(ctx context.Context, rw1 io.ReadWriteCloser, rw2 io.Re
 
 func (p BidirectionalPipe) Start() error {
 	var wg sync.WaitGroup
-	wg.Add(2)
 	var srcErr, dstErr error
-	go func() {
+	wg.Go(func() {
 		srcErr = p.pSrcDst.Start()
 		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		dstErr = p.pDstSrc.Start()
 		wg.Done()
-	}()
+	})
 	wg.Wait()
 	return errors.Join(srcErr, dstErr)
 }

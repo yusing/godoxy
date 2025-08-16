@@ -130,10 +130,9 @@ func TestFinishMultipleCalls(t *testing.T) {
 	n := 20
 	wg.Add(n)
 	for range n {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			task.Finish(nil)
-		}()
+		})
 	}
 	wg.Wait()
 }

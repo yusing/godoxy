@@ -1,8 +1,6 @@
 package functional
 
 import (
-	"sync"
-
 	"github.com/puzpuzpuz/xsync/v4"
 )
 
@@ -42,20 +40,6 @@ func (set Set[T]) RangeAll(f func(T)) {
 		f(k)
 		return true
 	})
-}
-
-func (set Set[T]) RangeAllParallel(f func(T)) {
-	var wg sync.WaitGroup
-
-	set.Range(func(k T) bool {
-		wg.Add(1)
-		go func() {
-			f(k)
-			wg.Done()
-		}()
-		return true
-	})
-	wg.Wait()
 }
 
 func (set Set[T]) Size() int {

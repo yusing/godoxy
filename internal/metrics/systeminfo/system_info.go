@@ -79,39 +79,29 @@ func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, er
 	var wg sync.WaitGroup
 
 	if !common.MetricsDisableCPU {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs.Add(s.collectCPUInfo(ctx))
-		}()
+		})
 	}
 	if !common.MetricsDisableMemory {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs.Add(s.collectMemoryInfo(ctx))
-		}()
+		})
 	}
 	if !common.MetricsDisableDisk {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs.Add(s.collectDisksInfo(ctx, lastResult))
-		}()
+		})
 	}
 	if !common.MetricsDisableNetwork {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs.Add(s.collectNetworkInfo(ctx, lastResult))
-		}()
+		})
 	}
 	if !common.MetricsDisableSensors {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs.Add(s.collectSensorsInfo(ctx))
-		}()
+		})
 	}
 	wg.Wait()
 

@@ -12,14 +12,12 @@ func TestRefCounterAddSub(t *testing.T) {
 	rc := NewRefCounter() // Count starts at 1
 
 	var wg sync.WaitGroup
-	wg.Add(2)
 
 	rc.Add()
 	for range 2 {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			rc.Sub()
-		}()
+		})
 	}
 
 	wg.Wait()
