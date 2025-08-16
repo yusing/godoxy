@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/yusing/ds/ordered"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -23,10 +24,11 @@ type (
 
 		Agent *agent.AgentConfig `json:"agent"`
 
-		Labels            map[string]string  `json:"-"`
+		Labels            map[string]string  `json:"-"`      // for creating routes
+		ActualLabels      map[string]string  `json:"labels"` // for displaying in UI
 		IdlewatcherConfig *IdlewatcherConfig `json:"idlewatcher_config"`
 
-		Mounts []string `json:"mounts"`
+		Mounts *ordered.Map[string, string] `json:"mounts,omitempty" swaggertype:"object,string"` // source:destination
 
 		Network            string      `json:"network,omitempty"`
 		PublicPortMapping  PortMapping `json:"public_ports"`  // non-zero publicPort:types.Port
@@ -43,9 +45,11 @@ type (
 		Errors *ContainerError `json:"errors" swaggertype:"string"`
 	} // @name Container
 	ContainerImage struct {
-		Author string `json:"author,omitempty"`
-		Name   string `json:"name"`
-		Tag    string `json:"tag,omitempty"`
+		Author  string `json:"author,omitempty"`
+		Name    string `json:"name"`
+		Tag     string `json:"tag,omitempty"`
+		SHA256  string `json:"sha256,omitempty"`
+		Version string `json:"version,omitempty"`
 	} // @name ContainerImage
 
 	ContainerError struct {

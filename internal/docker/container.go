@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"strconv"
@@ -26,6 +27,8 @@ var (
 )
 
 func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) {
+	actualLabels := maps.Clone(c.Labels)
+
 	_, isExplicit := c.Labels[LabelAliases]
 	helper := containerHelper{c}
 	if !isExplicit {
@@ -46,7 +49,8 @@ func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) 
 		ContainerName: helper.getName(),
 		ContainerID:   c.ID,
 
-		Labels: c.Labels,
+		Labels:       c.Labels,
+		ActualLabels: actualLabels,
 
 		Mounts: helper.getMounts(),
 
@@ -136,7 +140,7 @@ var databaseMPs = map[string]struct{}{
 }
 
 func isDatabase(c *types.Container) bool {
-	for _, m := range c.Mounts {
+	for _, m := range c.Mounts.Iter {
 		if _, ok := databaseMPs[m]; ok {
 			return true
 		}

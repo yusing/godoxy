@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/yusing/ds/ordered"
 	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
@@ -33,10 +34,10 @@ func (c containerHelper) getName() string {
 	return strings.TrimPrefix(c.Names[0], "/")
 }
 
-func (c containerHelper) getMounts() []string {
-	m := make([]string, len(c.Mounts))
-	for i, v := range c.Mounts {
-		m[i] = v.Destination
+func (c containerHelper) getMounts() *ordered.Map[string, string] {
+	m := ordered.NewMap[string, string](ordered.WithCapacity(len(c.Mounts)))
+	for _, v := range c.Mounts {
+		m.Set(v.Source, v.Destination)
 	}
 	return m
 }
@@ -44,7 +45,11 @@ func (c containerHelper) getMounts() []string {
 func (c containerHelper) parseImage() *types.ContainerImage {
 	colonSep := strutils.SplitRune(c.Image, ':')
 	slashSep := strutils.SplitRune(colonSep[0], '/')
-	im := new(types.ContainerImage)
+	_, sha256, _ := strings.Cut(c.ImageID, ":")
+	im := &types.ContainerImage{
+		SHA256:  sha256,
+		Version: c.Labels["org.opencontainers.image.version"],
+	}
 	if len(slashSep) > 1 {
 		im.Author = strings.Join(slashSep[:len(slashSep)-1], "/")
 		im.Name = slashSep[len(slashSep)-1]
