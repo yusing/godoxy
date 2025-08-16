@@ -18,8 +18,8 @@ import (
 
 type (
 	StatusByAlias struct {
-		Map       map[string]routes.HealthInfo `json:"statuses"`
-		Timestamp int64                        `json:"timestamp"`
+		Map       map[string]*routes.HealthInfo `json:"statuses"`
+		Timestamp int64                         `json:"timestamp"`
 	} // @name RouteStatusesByAlias
 	Status struct {
 		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`

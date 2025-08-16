@@ -139,6 +139,28 @@ func (s HealthStatus) Idling() bool {
 	return s&IdlingMask != 0
 }
 
+func (s HealthStatus) MarshalJSON() ([]byte, error) {
+	return strconv.AppendQuote(nil, s.String()), nil
+}
+
+func (s *HealthStatus) UnmarshalJSON(data []byte) error {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case string:
+		*s = NewHealthStatusFromString(v)
+		return nil
+	case int:
+		if v > 0 && v < NumStatuses {
+			*s = HealthStatus(v)
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid health status type %T of value %v", v, v)
+}
+
 func (jsonRepr *HealthJSONRepr) MarshalJSON() ([]byte, error) {
 	var url string
 	if jsonRepr.URL != nil {
