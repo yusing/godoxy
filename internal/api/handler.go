@@ -77,7 +77,10 @@ func NewHandler() *gin.Engine {
 		{
 			homepage.GET("/categories", homepageApi.Categories)
 			homepage.GET("/items", homepageApi.Items)
-			homepage.POST("/set", homepageApi.Set)
+			homepage.POST("/set/item", homepageApi.SetItem)
+			homepage.POST("/set/items_batch", homepageApi.SetItemsBatch)
+			homepage.POST("/set/item_visible", homepageApi.SetItemVisible)
+			homepage.POST("/set/category_order", homepageApi.SetCategoryOrder)
 		}
 
 		cert := v1.Group("/cert")

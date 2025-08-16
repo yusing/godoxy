@@ -37,30 +37,32 @@ type SystemInfo struct {
 	Sensors    Sensors                         `json:"sensors"` // sensor temperature by key
 } // @name SystemInfo
 
+type SystemInfoAggregateMode string // @name SystemInfoAggregateMode
+
 const (
-	queryCPUAverage         = "cpu_average"
-	queryMemoryUsage        = "memory_usage"
-	queryMemoryUsagePercent = "memory_usage_percent"
-	queryDisksReadSpeed     = "disks_read_speed"
-	queryDisksWriteSpeed    = "disks_write_speed"
-	queryDisksIOPS          = "disks_iops"
-	queryDiskUsage          = "disk_usage"
-	queryNetworkSpeed       = "network_speed"
-	queryNetworkTransfer    = "network_transfer"
-	querySensorTemperature  = "sensor_temperature"
+	SystemInfoAggregateModeCPUAverage         SystemInfoAggregateMode = "cpu_average"          // @name SystemInfoAggregateModeCPUAverage
+	SystemInfoAggregateModeMemoryUsage        SystemInfoAggregateMode = "memory_usage"         // @name SystemInfoAggregateModeMemoryUsage
+	SystemInfoAggregateModeMemoryUsagePercent SystemInfoAggregateMode = "memory_usage_percent" // @name SystemInfoAggregateModeMemoryUsagePercent
+	SystemInfoAggregateModeDisksReadSpeed     SystemInfoAggregateMode = "disks_read_speed"     // @name SystemInfoAggregateModeDisksReadSpeed
+	SystemInfoAggregateModeDisksWriteSpeed    SystemInfoAggregateMode = "disks_write_speed"    // @name SystemInfoAggregateModeDisksWriteSpeed
+	SystemInfoAggregateModeDisksIOPS          SystemInfoAggregateMode = "disks_iops"           // @name SystemInfoAggregateModeDisksIOPS
+	SystemInfoAggregateModeDiskUsage          SystemInfoAggregateMode = "disk_usage"           // @name SystemInfoAggregateModeDiskUsage
+	SystemInfoAggregateModeNetworkSpeed       SystemInfoAggregateMode = "network_speed"        // @name SystemInfoAggregateModeNetworkSpeed
+	SystemInfoAggregateModeNetworkTransfer    SystemInfoAggregateMode = "network_transfer"     // @name SystemInfoAggregateModeNetworkTransfer
+	SystemInfoAggregateModeSensorTemperature  SystemInfoAggregateMode = "sensor_temperature"   // @name SystemInfoAggregateModeSensorTemperature
 )
 
-var allQueries = []string{
-	queryCPUAverage,
-	queryMemoryUsage,
-	queryMemoryUsagePercent,
-	queryDisksReadSpeed,
-	queryDisksWriteSpeed,
-	queryDisksIOPS,
-	queryDiskUsage,
-	queryNetworkSpeed,
-	queryNetworkTransfer,
-	querySensorTemperature,
+var allQueries = []SystemInfoAggregateMode{
+	SystemInfoAggregateModeCPUAverage,
+	SystemInfoAggregateModeMemoryUsage,
+	SystemInfoAggregateModeMemoryUsagePercent,
+	SystemInfoAggregateModeDisksReadSpeed,
+	SystemInfoAggregateModeDisksWriteSpeed,
+	SystemInfoAggregateModeDisksIOPS,
+	SystemInfoAggregateModeDiskUsage,
+	SystemInfoAggregateModeNetworkSpeed,
+	SystemInfoAggregateModeNetworkTransfer,
+	SystemInfoAggregateModeSensorTemperature,
 }
 
 var Poller = period.NewPoller("system_info", getSystemInfo, aggregate)
@@ -227,8 +229,8 @@ func (s *SystemInfo) collectSensorsInfo(ctx context.Context) error {
 func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggregated) {
 	n := len(entries)
 	aggregated := make(Aggregated, 0, n)
-	switch query.Get("aggregate") {
-	case queryCPUAverage:
+	switch SystemInfoAggregateMode(query.Get("aggregate")) {
+	case SystemInfoAggregateModeCPUAverage:
 		for _, entry := range entries {
 			if entry.CPUAverage != nil {
 				aggregated = append(aggregated, map[string]any{
@@ -237,7 +239,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				})
 			}
 		}
-	case queryMemoryUsage:
+	case SystemInfoAggregateModeMemoryUsage:
 		for _, entry := range entries {
 			if entry.Memory != nil {
 				aggregated = append(aggregated, map[string]any{
@@ -246,7 +248,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				})
 			}
 		}
-	case queryMemoryUsagePercent:
+	case SystemInfoAggregateModeMemoryUsagePercent:
 		for _, entry := range entries {
 			if entry.Memory != nil {
 				aggregated = append(aggregated, map[string]any{
@@ -255,7 +257,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				})
 			}
 		}
-	case queryDisksReadSpeed:
+	case SystemInfoAggregateModeDisksReadSpeed:
 		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
@@ -267,7 +269,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m["timestamp"] = entry.Timestamp
 			aggregated = append(aggregated, m)
 		}
-	case queryDisksWriteSpeed:
+	case SystemInfoAggregateModeDisksWriteSpeed:
 		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
@@ -279,7 +281,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m["timestamp"] = entry.Timestamp
 			aggregated = append(aggregated, m)
 		}
-	case queryDisksIOPS:
+	case SystemInfoAggregateModeDisksIOPS:
 		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
@@ -291,7 +293,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m["timestamp"] = entry.Timestamp
 			aggregated = append(aggregated, m)
 		}
-	case queryDiskUsage:
+	case SystemInfoAggregateModeDiskUsage:
 		for _, entry := range entries {
 			if entry.Disks == nil {
 				continue
@@ -303,7 +305,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m["timestamp"] = entry.Timestamp
 			aggregated = append(aggregated, m)
 		}
-	case queryNetworkSpeed:
+	case SystemInfoAggregateModeNetworkSpeed:
 		for _, entry := range entries {
 			if entry.Network == nil {
 				continue
@@ -314,7 +316,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				"download":  entry.Network.DownloadSpeed,
 			})
 		}
-	case queryNetworkTransfer:
+	case SystemInfoAggregateModeNetworkTransfer:
 		for _, entry := range entries {
 			if entry.Network == nil {
 				continue
@@ -325,7 +327,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				"download":  entry.Network.BytesRecv,
 			})
 		}
-	case querySensorTemperature:
+	case SystemInfoAggregateModeSensorTemperature:
 		for _, entry := range entries {
 			if entry.Sensors == nil {
 				continue

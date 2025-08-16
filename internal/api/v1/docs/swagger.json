@@ -578,25 +578,25 @@
             }
           },
           "400": {
-            "description": "Bad Request",
+            "description": "Bad Request: alias is empty or route is not HTTPRoute",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "403": {
-            "description": "Forbidden",
+            "description": "Forbidden: unauthorized",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Not Found: route or icon not found",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "500": {
-            "description": "Internal Server Error",
+            "description": "Internal Server Error: internal error",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -983,9 +983,9 @@
         "operationId": "items"
       }
     },
-    "/homepage/set": {
+    "/homepage/set/category_order": {
       "post": {
-        "description": "Set homepage overrides",
+        "description": "Set homepage category order.",
         "consumes": [
           "application/json"
         ],
@@ -995,90 +995,15 @@
         "tags": [
           "homepage"
         ],
-        "summary": "Set homepage overrides",
+        "summary": "Set homepage category order",
         "parameters": [
-          {
-            "description": "Override single item",
-            "name": "request",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
-                      "$ref": "#/definitions/HomepageOverrideItemParams"
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "description": "Override multiple items",
-            "name": "request",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
-                      "$ref": "#/definitions/HomepageOverrideItemsBatchParams"
-                    }
-                  }
-                }
-              ]
-            }
-          },
           {
             "description": "Override category order",
             "name": "request",
             "in": "body",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
-                      "$ref": "#/definitions/HomepageOverrideCategoryOrderParams"
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "description": "Override item visibility",
-            "name": "request",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
-                      "$ref": "#/definitions/HomepageOverrideItemVisibleParams"
-                    }
-                  }
-                }
-              ]
+              "$ref": "#/definitions/HomepageOverrideCategoryOrderParams"
             }
           }
         ],
@@ -1102,8 +1027,152 @@
             }
           }
         },
-        "x-id": "set",
-        "operationId": "set"
+        "x-id": "set-category-order",
+        "operationId": "set-category-order"
+      }
+    },
+    "/homepage/set/item": {
+      "post": {
+        "description": "Override single homepage item.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Override single homepage item",
+        "parameters": [
+          {
+            "description": "Override single item",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item",
+        "operationId": "set-item"
+      }
+    },
+    "/homepage/set/item_visible": {
+      "post": {
+        "description": "POST list of item ids and visibility value.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage item visibility",
+        "parameters": [
+          {
+            "description": "Set item visibility",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemVisibleParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item-visible",
+        "operationId": "set-item-visible"
+      }
+    },
+    "/homepage/set/items_batch": {
+      "post": {
+        "description": "Override multiple homepage items.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Override multiple homepage items",
+        "parameters": [
+          {
+            "description": "Override multiple items",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemsBatchParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-items-batch",
+        "operationId": "set-items-batch"
       }
     },
     "/icons": {
@@ -1174,13 +1243,73 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Agent address",
-            "name": "agent_addr",
+            "name": "agentAddr",
             "in": "query"
           },
           {
+            "enum": [
+              "cpu_average",
+              "memory_usage",
+              "memory_usage_percent",
+              "disks_read_speed",
+              "disks_write_speed",
+              "disks_iops",
+              "disk_usage",
+              "network_speed",
+              "network_transfer",
+              "sensor_temperature"
+            ],
             "type": "string",
-            "description": "Period",
+            "x-enum-comments": {
+              "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
+              "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
+              "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
+              "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
+              "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
+              "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
+              "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
+              "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
+              "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
+              "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
+            },
+            "x-enum-varnames": [
+              "SystemInfoAggregateModeCPUAverage",
+              "SystemInfoAggregateModeMemoryUsage",
+              "SystemInfoAggregateModeMemoryUsagePercent",
+              "SystemInfoAggregateModeDisksReadSpeed",
+              "SystemInfoAggregateModeDisksWriteSpeed",
+              "SystemInfoAggregateModeDisksIOPS",
+              "SystemInfoAggregateModeDiskUsage",
+              "SystemInfoAggregateModeNetworkSpeed",
+              "SystemInfoAggregateModeNetworkTransfer",
+              "SystemInfoAggregateModeSensorTemperature"
+            ],
+            "name": "aggregate",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "5m",
+              "15m",
+              "1h",
+              "1d",
+              "1mo"
+            ],
+            "type": "string",
+            "x-enum-comments": {
+              "MetricsPeriod15m": "@name MetricsPeriod15m",
+              "MetricsPeriod1d": "@name MetricsPeriod1d",
+              "MetricsPeriod1h": "@name MetricsPeriod1h",
+              "MetricsPeriod1mo": "@name MetricsPeriod1mo",
+              "MetricsPeriod5m": "@name MetricsPeriod5m"
+            },
+            "x-enum-varnames": [
+              "MetricsPeriod5m",
+              "MetricsPeriod15m",
+              "MetricsPeriod1h",
+              "MetricsPeriod1d",
+              "MetricsPeriod1mo"
+            ],
             "name": "period",
             "in": "query"
           }
@@ -1839,11 +1968,43 @@
           "x-omitempty": false
         },
         "state": {
-          "type": "string",
+          "$ref": "#/definitions/ContainerState",
           "x-nullable": false,
           "x-omitempty": false
         }
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerState": {
+      "type": "string",
+      "enum": [
+        "created",
+        "running",
+        "paused",
+        "restarting",
+        "removing",
+        "exited",
+        "dead"
+      ],
+      "x-enum-comments": {
+        "StateCreated": "StateCreated indicates the container is created, but not (yet) started.",
+        "StateDead": "StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.",
+        "StateExited": "StateExited indicates that the container exited.",
+        "StatePaused": "StatePaused indicates that the container's current state is paused.",
+        "StateRemoving": "StateRemoving indicates that the container is being removed.",
+        "StateRestarting": "StateRestarting indicates that the container is currently restarting.",
+        "StateRunning": "StateRunning indicates that the container is running."
+      },
+      "x-enum-varnames": [
+        "StateCreated",
+        "StateRunning",
+        "StatePaused",
+        "StateRestarting",
+        "StateRemoving",
+        "StateExited",
+        "StateDead"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -3168,6 +3329,47 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "SystemInfoAggregateMode": {
+      "type": "string",
+      "enum": [
+        "cpu_average",
+        "memory_usage",
+        "memory_usage_percent",
+        "disks_read_speed",
+        "disks_write_speed",
+        "disks_iops",
+        "disk_usage",
+        "network_speed",
+        "network_transfer",
+        "sensor_temperature"
+      ],
+      "x-enum-comments": {
+        "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
+        "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
+        "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
+        "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
+        "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
+        "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
+        "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
+        "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
+        "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
+        "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
+      },
+      "x-enum-varnames": [
+        "SystemInfoAggregateModeCPUAverage",
+        "SystemInfoAggregateModeMemoryUsage",
+        "SystemInfoAggregateModeMemoryUsagePercent",
+        "SystemInfoAggregateModeDisksReadSpeed",
+        "SystemInfoAggregateModeDisksWriteSpeed",
+        "SystemInfoAggregateModeDisksIOPS",
+        "SystemInfoAggregateModeDiskUsage",
+        "SystemInfoAggregateModeNetworkSpeed",
+        "SystemInfoAggregateModeNetworkTransfer",
+        "SystemInfoAggregateModeSensorTemperature"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "UptimeAggregate": {
       "type": "object",
       "properties": {
@@ -3475,72 +3677,40 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconExtra": {
-      "type": "object",
-      "properties": {
-        "file_type": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_dark": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_light": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "key": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ref": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "homepage.IconMetaSearch": {
       "type": "object",
       "properties": {
-        "dark": {
+        "Dark": {
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "light": {
+        "Light": {
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "png": {
+        "PNG": {
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "ref": {
+        "Ref": {
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "source": {
+        "SVG": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "Source": {
           "$ref": "#/definitions/homepage.IconSource",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "svg": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "webP": {
+        "WebP": {
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
@@ -3566,34 +3736,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconURL": {
-      "type": "object",
-      "properties": {
-        "extra": {
-          "description": "only for walkxcode/selfhst icons",
-          "allOf": [
-            {
-              "$ref": "#/definitions/homepage.IconExtra"
-            }
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "source": {
-          "$ref": "#/definitions/homepage.IconSource",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "value": {
-          "description": "only for absolute/relative icons",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "homepage.Item": {
       "type": "object",
       "properties": {
@@ -3613,7 +3755,7 @@
           "x-omitempty": false
         },
         "icon": {
-          "$ref": "#/definitions/homepage.IconURL",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3649,9 +3791,12 @@
           "x-omitempty": false
         },
         "widget_config": {
-          "$ref": "#/definitions/widgets.Config",
-          "x-nullable": false,
-          "x-omitempty": false
+          "allOf": [
+            {
+              "$ref": "#/definitions/widgets.Config"
+            }
+          ],
+          "x-nullable": true
         }
       },
       "x-nullable": false,
@@ -3671,7 +3816,7 @@
           "x-omitempty": false
         },
         "icon": {
-          "$ref": "#/definitions/homepage.IconURL",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3693,32 +3838,6 @@
         },
         "url": {
           "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "homepageapi.SetHomePageOverridesRequest": {
-      "type": "object",
-      "required": [
-        "value",
-        "what"
-      ],
-      "properties": {
-        "value": {
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "what": {
-          "type": "string",
-          "enum": [
-            "item",
-            "items_batch",
-            "category_order",
-            "item_visible"
-          ],
           "x-nullable": false,
           "x-omitempty": false
         }

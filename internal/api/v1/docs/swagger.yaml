@@ -107,8 +107,36 @@ definitions:
       server:
         type: string
       state:
-        type: string
+        $ref: '#/definitions/ContainerState'
     type: object
+  ContainerState:
+    enum:
+    - created
+    - running
+    - paused
+    - restarting
+    - removing
+    - exited
+    - dead
+    type: string
+    x-enum-comments:
+      StateCreated: StateCreated indicates the container is created, but not (yet)
+        started.
+      StateDead: StateDead indicates that the container failed to be deleted. Containers
+        in this state are attempted to be cleaned up when the daemon restarts.
+      StateExited: StateExited indicates that the container exited.
+      StatePaused: StatePaused indicates that the container's current state is paused.
+      StateRemoving: StateRemoving indicates that the container is being removed.
+      StateRestarting: StateRestarting indicates that the container is currently restarting.
+      StateRunning: StateRunning indicates that the container is running.
+    x-enum-varnames:
+    - StateCreated
+    - StateRunning
+    - StatePaused
+    - StateRestarting
+    - StateRemoving
+    - StateExited
+    - StateDead
   ContainerStats:
     properties:
       paused:
@@ -731,6 +759,41 @@ definitions:
       total:
         type: integer
     type: object
+  SystemInfoAggregateMode:
+    enum:
+    - cpu_average
+    - memory_usage
+    - memory_usage_percent
+    - disks_read_speed
+    - disks_write_speed
+    - disks_iops
+    - disk_usage
+    - network_speed
+    - network_transfer
+    - sensor_temperature
+    type: string
+    x-enum-comments:
+      SystemInfoAggregateModeCPUAverage: '@name SystemInfoAggregateModeCPUAverage'
+      SystemInfoAggregateModeDiskUsage: '@name SystemInfoAggregateModeDiskUsage'
+      SystemInfoAggregateModeDisksIOPS: '@name SystemInfoAggregateModeDisksIOPS'
+      SystemInfoAggregateModeDisksReadSpeed: '@name SystemInfoAggregateModeDisksReadSpeed'
+      SystemInfoAggregateModeDisksWriteSpeed: '@name SystemInfoAggregateModeDisksWriteSpeed'
+      SystemInfoAggregateModeMemoryUsage: '@name SystemInfoAggregateModeMemoryUsage'
+      SystemInfoAggregateModeMemoryUsagePercent: '@name SystemInfoAggregateModeMemoryUsagePercent'
+      SystemInfoAggregateModeNetworkSpeed: '@name SystemInfoAggregateModeNetworkSpeed'
+      SystemInfoAggregateModeNetworkTransfer: '@name SystemInfoAggregateModeNetworkTransfer'
+      SystemInfoAggregateModeSensorTemperature: '@name SystemInfoAggregateModeSensorTemperature'
+    x-enum-varnames:
+    - SystemInfoAggregateModeCPUAverage
+    - SystemInfoAggregateModeMemoryUsage
+    - SystemInfoAggregateModeMemoryUsagePercent
+    - SystemInfoAggregateModeDisksReadSpeed
+    - SystemInfoAggregateModeDisksWriteSpeed
+    - SystemInfoAggregateModeDisksIOPS
+    - SystemInfoAggregateModeDiskUsage
+    - SystemInfoAggregateModeNetworkSpeed
+    - SystemInfoAggregateModeNetworkTransfer
+    - SystemInfoAggregateModeSensorTemperature
   UptimeAggregate:
     properties:
       data:
@@ -886,34 +949,21 @@ definitions:
       statusCode:
         type: integer
     type: object
-  homepage.IconExtra:
-    properties:
-      file_type:
-        type: string
-      is_dark:
-        type: boolean
-      is_light:
-        type: boolean
-      key:
-        type: string
-      ref:
-        type: string
-    type: object
   homepage.IconMetaSearch:
     properties:
-      dark:
+      Dark:
         type: boolean
-      light:
+      Light:
         type: boolean
-      png:
+      PNG:
         type: boolean
-      ref:
+      Ref:
         type: string
-      source:
-        $ref: '#/definitions/homepage.IconSource'
-      svg:
+      SVG:
         type: boolean
-      webP:
+      Source:
+        $ref: '#/definitions/homepage.IconSource'
+      WebP:
         type: boolean
     type: object
   homepage.IconSource:
@@ -928,18 +978,6 @@ definitions:
     - IconSourceRelative
     - IconSourceWalkXCode
     - IconSourceSelfhSt
-  homepage.IconURL:
-    properties:
-      extra:
-        allOf:
-        - $ref: '#/definitions/homepage.IconExtra'
-        description: only for walkxcode/selfhst icons
-      source:
-        $ref: '#/definitions/homepage.IconSource'
-      value:
-        description: only for absolute/relative icons
-        type: string
-    type: object
   homepage.Item:
     properties:
       alias:
@@ -949,7 +987,7 @@ definitions:
       description:
         type: string
       icon:
-        $ref: '#/definitions/homepage.IconURL'
+        type: string
       name:
         description: display name
         type: string
@@ -964,7 +1002,9 @@ definitions:
       url:
         type: string
       widget_config:
-        $ref: '#/definitions/widgets.Config'
+        allOf:
+        - $ref: '#/definitions/widgets.Config'
+        x-nullable: true
     type: object
   homepage.ItemConfig:
     properties:
@@ -973,7 +1013,7 @@ definitions:
       description:
         type: string
       icon:
-        $ref: '#/definitions/homepage.IconURL'
+        type: string
       name:
         description: display name
         type: string
@@ -983,20 +1023,6 @@ definitions:
         type: integer
       url:
         type: string
-    type: object
-  homepageapi.SetHomePageOverridesRequest:
-    properties:
-      value: {}
-      what:
-        enum:
-        - item
-        - items_batch
-        - category_order
-        - item_visible
-        type: string
-    required:
-    - value
-    - what
     type: object
   mem.VirtualMemoryStat:
     properties:
@@ -1602,19 +1628,19 @@ paths:
               $ref: '#/definitions/homepage.FetchResult'
             type: array
         "400":
-          description: Bad Request
+          description: 'Bad Request: alias is empty or route is not HTTPRoute'
           schema:
             $ref: '#/definitions/ErrorResponse'
         "403":
-          description: Forbidden
+          description: 'Forbidden: unauthorized'
           schema:
             $ref: '#/definitions/ErrorResponse'
         "404":
-          description: Not Found
+          description: 'Not Found: route or icon not found'
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: 'Internal Server Error: internal error'
           schema:
             $ref: '#/definitions/ErrorResponse'
       summary: Get favicon
@@ -1872,56 +1898,18 @@ paths:
       tags:
       - homepage
       x-id: items
-  /homepage/set:
+  /homepage/set/category_order:
     post:
       consumes:
       - application/json
-      description: Set homepage overrides
+      description: Set homepage category order.
       parameters:
-      - description: Override single item
-        in: body
-        name: request
-        required: true
-        schema:
-          allOf:
-          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
-          - properties:
-              value:
-                $ref: '#/definitions/HomepageOverrideItemParams'
-            type: object
-      - description: Override multiple items
-        in: body
-        name: request
-        required: true
-        schema:
-          allOf:
-          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
-          - properties:
-              value:
-                $ref: '#/definitions/HomepageOverrideItemsBatchParams'
-            type: object
       - description: Override category order
         in: body
         name: request
         required: true
         schema:
-          allOf:
-          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
-          - properties:
-              value:
-                $ref: '#/definitions/HomepageOverrideCategoryOrderParams'
-            type: object
-      - description: Override item visibility
-        in: body
-        name: request
-        required: true
-        schema:
-          allOf:
-          - $ref: '#/definitions/homepageapi.SetHomePageOverridesRequest'
-          - properties:
-              value:
-                $ref: '#/definitions/HomepageOverrideItemVisibleParams'
-            type: object
+          $ref: '#/definitions/HomepageOverrideCategoryOrderParams'
       produces:
       - application/json
       responses:
@@ -1937,10 +1925,103 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/ErrorResponse'
-      summary: Set homepage overrides
+      summary: Set homepage category order
       tags:
       - homepage
-      x-id: set
+      x-id: set-category-order
+  /homepage/set/item:
+    post:
+      consumes:
+      - application/json
+      description: Override single homepage item.
+      parameters:
+      - description: Override single item
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Override single homepage item
+      tags:
+      - homepage
+      x-id: set-item
+  /homepage/set/item_visible:
+    post:
+      consumes:
+      - application/json
+      description: POST list of item ids and visibility value.
+      parameters:
+      - description: Set item visibility
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemVisibleParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage item visibility
+      tags:
+      - homepage
+      x-id: set-item-visible
+  /homepage/set/items_batch:
+    post:
+      consumes:
+      - application/json
+      description: Override multiple homepage items.
+      parameters:
+      - description: Override multiple items
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemsBatchParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Override multiple homepage items
+      tags:
+      - homepage
+      x-id: set-items-batch
   /icons:
     get:
       consumes:
@@ -1980,14 +2061,66 @@ paths:
     get:
       description: Get system info
       parameters:
-      - description: Agent address
-        in: query
-        name: agent_addr
+      - in: query
+        name: agentAddr
         type: string
-      - description: Period
+      - enum:
+        - cpu_average
+        - memory_usage
+        - memory_usage_percent
+        - disks_read_speed
+        - disks_write_speed
+        - disks_iops
+        - disk_usage
+        - network_speed
+        - network_transfer
+        - sensor_temperature
+        in: query
+        name: aggregate
+        type: string
+        x-enum-comments:
+          SystemInfoAggregateModeCPUAverage: '@name SystemInfoAggregateModeCPUAverage'
+          SystemInfoAggregateModeDiskUsage: '@name SystemInfoAggregateModeDiskUsage'
+          SystemInfoAggregateModeDisksIOPS: '@name SystemInfoAggregateModeDisksIOPS'
+          SystemInfoAggregateModeDisksReadSpeed: '@name SystemInfoAggregateModeDisksReadSpeed'
+          SystemInfoAggregateModeDisksWriteSpeed: '@name SystemInfoAggregateModeDisksWriteSpeed'
+          SystemInfoAggregateModeMemoryUsage: '@name SystemInfoAggregateModeMemoryUsage'
+          SystemInfoAggregateModeMemoryUsagePercent: '@name SystemInfoAggregateModeMemoryUsagePercent'
+          SystemInfoAggregateModeNetworkSpeed: '@name SystemInfoAggregateModeNetworkSpeed'
+          SystemInfoAggregateModeNetworkTransfer: '@name SystemInfoAggregateModeNetworkTransfer'
+          SystemInfoAggregateModeSensorTemperature: '@name SystemInfoAggregateModeSensorTemperature'
+        x-enum-varnames:
+        - SystemInfoAggregateModeCPUAverage
+        - SystemInfoAggregateModeMemoryUsage
+        - SystemInfoAggregateModeMemoryUsagePercent
+        - SystemInfoAggregateModeDisksReadSpeed
+        - SystemInfoAggregateModeDisksWriteSpeed
+        - SystemInfoAggregateModeDisksIOPS
+        - SystemInfoAggregateModeDiskUsage
+        - SystemInfoAggregateModeNetworkSpeed
+        - SystemInfoAggregateModeNetworkTransfer
+        - SystemInfoAggregateModeSensorTemperature
+      - enum:
+        - 5m
+        - 15m
+        - 1h
+        - 1d
+        - 1mo
         in: query
         name: period
         type: string
+        x-enum-comments:
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
+          MetricsPeriod1h: '@name MetricsPeriod1h'
+          MetricsPeriod1mo: '@name MetricsPeriod1mo'
+          MetricsPeriod5m: '@name MetricsPeriod5m'
+        x-enum-varnames:
+        - MetricsPeriod5m
+        - MetricsPeriod15m
+        - MetricsPeriod1h
+        - MetricsPeriod1d
+        - MetricsPeriod1mo
       produces:
       - application/json
       responses:
@@ -2031,11 +2164,11 @@ paths:
         name: interval
         type: string
         x-enum-comments:
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m

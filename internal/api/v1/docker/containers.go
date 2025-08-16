@@ -9,12 +9,14 @@ import (
 	"github.com/yusing/go-proxy/internal/gperr"
 )
 
+type ContainerState = container.ContainerState // @name ContainerState
+
 type Container struct {
-	Server string `json:"server"`
-	Name   string `json:"name"`
-	ID     string `json:"id"`
-	Image  string `json:"image"`
-	State  string `json:"state"`
+	Server string         `json:"server"`
+	Name   string         `json:"name"`
+	ID     string         `json:"id"`
+	Image  string         `json:"image"`
+	State  ContainerState `json:"state"`
 } // @name ContainerResponse
 
 // @BasePath		/api/v1

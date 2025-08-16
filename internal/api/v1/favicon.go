@@ -15,15 +15,6 @@ type GetFavIconRequest struct {
 	Alias string `form:"alias" binding:"required_without=URL"`
 } //	@name	GetFavIconRequest
 
-// GetFavIcon returns the favicon of the route
-//
-// Returns:
-//   - 200 OK: if icon found
-//   - 400 Bad Request: if alias is empty or route is not HTTPRoute
-//   - 404 Not Found: if route or icon not found
-//   - 500 Internal Server Error: if internal error
-//   - others: depends on route handler response
-
 // @x-id				"favicon"
 // @BasePath		/api/v1
 // @Summary		Get favicon
@@ -34,10 +25,10 @@ type GetFavIconRequest struct {
 // @Param			url		query		string	false	"URL of the route"
 // @Param			alias	query		string	false	"Alias of the route"
 // @Success		200		{array}		homepage.FetchResult
-// @Failure		400		{object}	apitypes.ErrorResponse
-// @Failure		403		{object}	apitypes.ErrorResponse
-// @Failure		404		{object}	apitypes.ErrorResponse
-// @Failure		500		{object}	apitypes.ErrorResponse
+// @Failure		400		{object}	apitypes.ErrorResponse "Bad Request: alias is empty or route is not HTTPRoute"
+// @Failure		403		{object}	apitypes.ErrorResponse "Forbidden: unauthorized"
+// @Failure		404		{object}	apitypes.ErrorResponse "Not Found: route or icon not found"
+// @Failure		500		{object}	apitypes.ErrorResponse "Internal Server Error: internal error"
 // @Router			/favicon [get]
 func FavIcon(c *gin.Context) {
 	var request GetFavIconRequest

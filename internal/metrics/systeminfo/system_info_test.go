@@ -127,8 +127,8 @@ func TestSerialize(t *testing.T) {
 		entries[i] = testInfo
 	}
 	for _, query := range allQueries {
-		t.Run(query, func(t *testing.T) {
-			_, result := aggregate(entries, url.Values{"aggregate": []string{query}})
+		t.Run(string(query), func(t *testing.T) {
+			_, result := aggregate(entries, url.Values{"aggregate": []string{string(query)}})
 			s, err := result.MarshalJSON()
 			ExpectNoError(t, err)
 			var v []map[string]any
@@ -152,8 +152,8 @@ func BenchmarkSerialize(b *testing.B) {
 	}
 	queries := map[string]Aggregated{}
 	for _, query := range allQueries {
-		_, result := aggregate(entries, url.Values{"aggregate": []string{query}})
-		queries[query] = result
+		_, result := aggregate(entries, url.Values{"aggregate": []string{string(query)}})
+		queries[string(query)] = result
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -170,14 +170,14 @@ func BenchmarkSerialize(b *testing.B) {
 	b.Run("optimized", func(b *testing.B) {
 		for b.Loop() {
 			for _, query := range allQueries {
-				_, _ = queries[query].MarshalJSON()
+				_, _ = queries[string(query)].MarshalJSON()
 			}
 		}
 	})
 	b.Run("json", func(b *testing.B) {
 		for b.Loop() {
 			for _, query := range allQueries {
-				_, _ = json.Marshal([]map[string]any(queries[query]))
+				_, _ = json.Marshal([]map[string]any(queries[string(query)]))
 			}
 		}
 	})

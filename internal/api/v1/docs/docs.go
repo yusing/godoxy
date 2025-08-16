@@ -582,25 +582,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Bad Request: alias is empty or route is not HTTPRoute",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Forbidden: unauthorized",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Not Found: route or icon not found",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal Server Error: internal error",
                         "schema": {
                             "$ref": "#/definitions/ErrorResponse"
                         }
@@ -979,9 +979,9 @@ const docTemplate = `{
                 "x-id": "items"
             }
         },
-        "/homepage/set": {
+        "/homepage/set/category_order": {
             "post": {
-                "description": "Set homepage overrides",
+                "description": "Set homepage category order.",
                 "consumes": [
                     "application/json"
                 ],
@@ -991,90 +991,15 @@ const docTemplate = `{
                 "tags": [
                     "homepage"
                 ],
-                "summary": "Set homepage overrides",
+                "summary": "Set homepage category order",
                 "parameters": [
-                    {
-                        "description": "Override single item",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "value": {
-                                            "$ref": "#/definitions/HomepageOverrideItemParams"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "description": "Override multiple items",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "value": {
-                                            "$ref": "#/definitions/HomepageOverrideItemsBatchParams"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
                     {
                         "description": "Override category order",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "value": {
-                                            "$ref": "#/definitions/HomepageOverrideCategoryOrderParams"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "description": "Override item visibility",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/homepageapi.SetHomePageOverridesRequest"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "value": {
-                                            "$ref": "#/definitions/HomepageOverrideItemVisibleParams"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/HomepageOverrideCategoryOrderParams"
                         }
                     }
                 ],
@@ -1098,7 +1023,148 @@ const docTemplate = `{
                         }
                     }
                 },
-                "x-id": "set"
+                "x-id": "set-category-order"
+            }
+        },
+        "/homepage/set/item": {
+            "post": {
+                "description": "Override single homepage item.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "homepage"
+                ],
+                "summary": "Override single homepage item",
+                "parameters": [
+                    {
+                        "description": "Override single item",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/HomepageOverrideItemParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                },
+                "x-id": "set-item"
+            }
+        },
+        "/homepage/set/item_visible": {
+            "post": {
+                "description": "POST list of item ids and visibility value.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "homepage"
+                ],
+                "summary": "Set homepage item visibility",
+                "parameters": [
+                    {
+                        "description": "Set item visibility",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/HomepageOverrideItemVisibleParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                },
+                "x-id": "set-item-visible"
+            }
+        },
+        "/homepage/set/items_batch": {
+            "post": {
+                "description": "Override multiple homepage items.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "homepage"
+                ],
+                "summary": "Override multiple homepage items",
+                "parameters": [
+                    {
+                        "description": "Override multiple items",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/HomepageOverrideItemsBatchParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                },
+                "x-id": "set-items-batch"
             }
         },
         "/icons": {
@@ -1168,13 +1234,73 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Agent address",
-                        "name": "agent_addr",
+                        "name": "agentAddr",
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "cpu_average",
+                            "memory_usage",
+                            "memory_usage_percent",
+                            "disks_read_speed",
+                            "disks_write_speed",
+                            "disks_iops",
+                            "disk_usage",
+                            "network_speed",
+                            "network_transfer",
+                            "sensor_temperature"
+                        ],
                         "type": "string",
-                        "description": "Period",
+                        "x-enum-comments": {
+                            "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
+                            "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
+                            "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
+                            "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
+                            "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
+                            "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
+                            "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
+                            "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
+                            "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
+                            "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
+                        },
+                        "x-enum-varnames": [
+                            "SystemInfoAggregateModeCPUAverage",
+                            "SystemInfoAggregateModeMemoryUsage",
+                            "SystemInfoAggregateModeMemoryUsagePercent",
+                            "SystemInfoAggregateModeDisksReadSpeed",
+                            "SystemInfoAggregateModeDisksWriteSpeed",
+                            "SystemInfoAggregateModeDisksIOPS",
+                            "SystemInfoAggregateModeDiskUsage",
+                            "SystemInfoAggregateModeNetworkSpeed",
+                            "SystemInfoAggregateModeNetworkTransfer",
+                            "SystemInfoAggregateModeSensorTemperature"
+                        ],
+                        "name": "aggregate",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "5m",
+                            "15m",
+                            "1h",
+                            "1d",
+                            "1mo"
+                        ],
+                        "type": "string",
+                        "x-enum-comments": {
+                            "MetricsPeriod15m": "@name MetricsPeriod15m",
+                            "MetricsPeriod1d": "@name MetricsPeriod1d",
+                            "MetricsPeriod1h": "@name MetricsPeriod1h",
+                            "MetricsPeriod1mo": "@name MetricsPeriod1mo",
+                            "MetricsPeriod5m": "@name MetricsPeriod5m"
+                        },
+                        "x-enum-varnames": [
+                            "MetricsPeriod5m",
+                            "MetricsPeriod15m",
+                            "MetricsPeriod1h",
+                            "MetricsPeriod1d",
+                            "MetricsPeriod1mo"
+                        ],
                         "name": "period",
                         "in": "query"
                     }
@@ -1742,9 +1868,39 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "state": {
-                    "type": "string"
+                    "$ref": "#/definitions/ContainerState"
                 }
             }
+        },
+        "ContainerState": {
+            "type": "string",
+            "enum": [
+                "created",
+                "running",
+                "paused",
+                "restarting",
+                "removing",
+                "exited",
+                "dead"
+            ],
+            "x-enum-comments": {
+                "StateCreated": "StateCreated indicates the container is created, but not (yet) started.",
+                "StateDead": "StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.",
+                "StateExited": "StateExited indicates that the container exited.",
+                "StatePaused": "StatePaused indicates that the container's current state is paused.",
+                "StateRemoving": "StateRemoving indicates that the container is being removed.",
+                "StateRestarting": "StateRestarting indicates that the container is currently restarting.",
+                "StateRunning": "StateRunning indicates that the container is running."
+            },
+            "x-enum-varnames": [
+                "StateCreated",
+                "StateRunning",
+                "StatePaused",
+                "StateRestarting",
+                "StateRemoving",
+                "StateExited",
+                "StateDead"
+            ]
         },
         "ContainerStats": {
             "type": "object",
@@ -2675,6 +2831,45 @@ const docTemplate = `{
                 }
             }
         },
+        "SystemInfoAggregateMode": {
+            "type": "string",
+            "enum": [
+                "cpu_average",
+                "memory_usage",
+                "memory_usage_percent",
+                "disks_read_speed",
+                "disks_write_speed",
+                "disks_iops",
+                "disk_usage",
+                "network_speed",
+                "network_transfer",
+                "sensor_temperature"
+            ],
+            "x-enum-comments": {
+                "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
+                "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
+                "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
+                "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
+                "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
+                "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
+                "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
+                "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
+                "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
+                "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
+            },
+            "x-enum-varnames": [
+                "SystemInfoAggregateModeCPUAverage",
+                "SystemInfoAggregateModeMemoryUsage",
+                "SystemInfoAggregateModeMemoryUsagePercent",
+                "SystemInfoAggregateModeDisksReadSpeed",
+                "SystemInfoAggregateModeDisksWriteSpeed",
+                "SystemInfoAggregateModeDisksIOPS",
+                "SystemInfoAggregateModeDiskUsage",
+                "SystemInfoAggregateModeNetworkSpeed",
+                "SystemInfoAggregateModeNetworkTransfer",
+                "SystemInfoAggregateModeSensorTemperature"
+            ]
+        },
         "UptimeAggregate": {
             "type": "object",
             "properties": {
@@ -2884,48 +3079,28 @@ const docTemplate = `{
                 }
             }
         },
-        "homepage.IconExtra": {
-            "type": "object",
-            "properties": {
-                "file_type": {
-                    "type": "string"
-                },
-                "is_dark": {
-                    "type": "boolean"
-                },
-                "is_light": {
-                    "type": "boolean"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "ref": {
-                    "type": "string"
-                }
-            }
-        },
         "homepage.IconMetaSearch": {
             "type": "object",
             "properties": {
-                "dark": {
+                "Dark": {
                     "type": "boolean"
                 },
-                "light": {
+                "Light": {
                     "type": "boolean"
                 },
-                "png": {
+                "PNG": {
                     "type": "boolean"
                 },
-                "ref": {
+                "Ref": {
                     "type": "string"
                 },
-                "source": {
-                    "$ref": "#/definitions/homepage.IconSource"
-                },
-                "svg": {
+                "SVG": {
                     "type": "boolean"
                 },
-                "webP": {
+                "Source": {
+                    "$ref": "#/definitions/homepage.IconSource"
+                },
+                "WebP": {
                     "type": "boolean"
                 }
             }
@@ -2945,26 +3120,6 @@ const docTemplate = `{
                 "IconSourceSelfhSt"
             ]
         },
-        "homepage.IconURL": {
-            "type": "object",
-            "properties": {
-                "extra": {
-                    "description": "only for walkxcode/selfhst icons",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/homepage.IconExtra"
-                        }
-                    ]
-                },
-                "source": {
-                    "$ref": "#/definitions/homepage.IconSource"
-                },
-                "value": {
-                    "description": "only for absolute/relative icons",
-                    "type": "string"
-                }
-            }
-        },
         "homepage.Item": {
             "type": "object",
             "properties": {
@@ -2978,7 +3133,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "icon": {
-                    "$ref": "#/definitions/homepage.IconURL"
+                    "type": "string"
                 },
                 "name": {
                     "description": "display name",
@@ -3000,7 +3155,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "widget_config": {
-                    "$ref": "#/definitions/widgets.Config"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/widgets.Config"
+                        }
+                    ],
+                    "x-nullable": true
                 }
             }
         },
@@ -3014,7 +3174,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "icon": {
-                    "$ref": "#/definitions/homepage.IconURL"
+                    "type": "string"
                 },
                 "name": {
                     "description": "display name",
@@ -3028,25 +3188,6 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string"
-                }
-            }
-        },
-        "homepageapi.SetHomePageOverridesRequest": {
-            "type": "object",
-            "required": [
-                "value",
-                "what"
-            ],
-            "properties": {
-                "value": {},
-                "what": {
-                    "type": "string",
-                    "enum": [
-                        "item",
-                        "items_batch",
-                        "category_order",
-                        "item_visible"
-                    ]
                 }
             }
         },

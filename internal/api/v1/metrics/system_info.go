@@ -13,6 +13,12 @@ import (
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
+type SystemInfoRequest struct {
+	AgentAddr string                             `query:"agent_addr"`
+	Aggregate systeminfo.SystemInfoAggregateMode `query:"aggregate"`
+	Period    period.Filter                      `query:"period"`
+} // @name SystemInfoRequest
+
 type SystemInfoAggregate period.ResponseType[systeminfo.Aggregated] // @name SystemInfoAggregate
 
 // @x-id				"system_info"
@@ -21,8 +27,7 @@ type SystemInfoAggregate period.ResponseType[systeminfo.Aggregated] // @name Sys
 // @Description	Get system info
 // @Tags			metrics,websocket
 // @Produce		json
-// @Param			agent_addr	query		string	false	"Agent address"
-// @Param			period		query		string	false	"Period"
+// @Param			request	query		SystemInfoRequest	false	"Request"
 // @Success		200			{object}	systeminfo.SystemInfo "no period specified"
 // @Success		200			{object}	SystemInfoAggregate "period specified"
 // @Failure		400			{object}	apitypes.ErrorResponse

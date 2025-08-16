@@ -14,7 +14,7 @@ type (
 	ItemConfig struct {
 		Show        bool     `json:"show"`
 		Name        string   `json:"name"` // display name
-		Icon        *IconURL `json:"icon"`
+		Icon        *IconURL `json:"icon" swaggertype:"string"`
 		Category    string   `json:"category"`
 		Description string   `json:"description" aliases:"desc"`
 		URL         string   `json:"url,omitempty"`
@@ -24,7 +24,7 @@ type (
 	Item struct {
 		*ItemConfig
 
-		WidgetConfig *widgets.Config `json:"widget_config,omitempty" aliases:"widget"`
+		WidgetConfig *widgets.Config `json:"widget_config,omitempty" aliases:"widget" extensions:"x-nullable"`
 
 		Alias     string `json:"alias"`
 		Provider  string `json:"provider"`

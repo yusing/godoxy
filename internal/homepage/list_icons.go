@@ -29,13 +29,13 @@ type (
 		Tag            string
 	}
 	IconMetaSearch struct {
-		Source IconSource
-		Ref    string
-		SVG    bool
-		PNG    bool
-		WebP   bool
-		Light  bool
-		Dark   bool
+		Source IconSource `json:"Source"`
+		Ref    string     `json:"Ref"`
+		SVG    bool       `json:"SVG"`
+		PNG    bool       `json:"PNG"`
+		WebP   bool       `json:"WebP"`
+		Light  bool       `json:"Light"`
+		Dark   bool       `json:"Dark"`
 	}
 	Cache struct {
 		Icons        IconMap
