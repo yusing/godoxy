@@ -1,5 +1,11 @@
 package apitypes
 
+import (
+	"errors"
+
+	"github.com/yusing/go-proxy/internal/gperr"
+)
+
 type ErrorResponse struct {
 	Message string `json:"message"`
 	Error   string `json:"error,omitempty" extensions:"x-nullable"`
@@ -13,6 +19,13 @@ type serverError struct {
 // Error returns a generic error response
 func Error(message string, err ...error) ErrorResponse {
 	if len(err) > 0 {
+		var gpErr gperr.Error
+		if errors.As(err[0], &gpErr) {
+			return ErrorResponse{
+				Message: message,
+				Error:   string(gpErr.Plain()),
+			}
+		}
 		return ErrorResponse{
 			Message: message,
 			Error:   err[0].Error(),
