@@ -36,7 +36,7 @@ func TestContainerExplicit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := FromDocker(&container.SummaryTrimmed{Names: []string{"test"}, State: "test", Labels: tt.labels}, "")
+			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, "")
 			ExpectEqual(t, c.IsExplicit, tt.isExplicit)
 		})
 	}
@@ -45,25 +45,27 @@ func TestContainerExplicit(t *testing.T) {
 func TestContainerHostNetworkMode(t *testing.T) {
 	tests := []struct {
 		name              string
-		container         *container.SummaryTrimmed
+		container         *container.Summary
 		isHostNetworkMode bool
 	}{
 		{
 			name: "host network mode",
-			container: &container.SummaryTrimmed{
+			container: &container.Summary{
 				Names: []string{"test"},
 				State: "test",
 				HostConfig: struct {
-					NetworkMode string `json:",omitempty"`
+					NetworkMode string            "json:\",omitempty\""
+					Annotations map[string]string "json:\",omitempty\""
 				}{
 					NetworkMode: "host",
+					Annotations: map[string]string{},
 				},
 			},
 			isHostNetworkMode: true,
 		},
 		{
 			name: "not host network mode",
-			container: &container.SummaryTrimmed{
+			container: &container.Summary{
 				Names: []string{"test"},
 				State: "test",
 			},
@@ -105,7 +107,7 @@ func TestImageNameParsing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.full, func(t *testing.T) {
-			helper := containerHelper{&container.SummaryTrimmed{Image: tt.full}}
+			helper := containerHelper{&container.Summary{Image: tt.full}}
 			im := helper.parseImage()
 			ExpectEqual(t, im.Author, tt.author)
 			ExpectEqual(t, im.Name, tt.image)
