@@ -128,7 +128,6 @@ func TestFinishMultipleCalls(t *testing.T) {
 	task := testTask()
 	var wg sync.WaitGroup
 	n := 20
-	wg.Add(n)
 	for range n {
 		wg.Go(func() {
 			task.Finish(nil)

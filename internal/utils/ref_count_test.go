@@ -15,9 +15,7 @@ func TestRefCounterAddSub(t *testing.T) {
 
 	rc.Add()
 	for range 2 {
-		wg.Go(func() {
-			rc.Sub()
-		})
+		wg.Go(rc.Sub)
 	}
 
 	wg.Wait()

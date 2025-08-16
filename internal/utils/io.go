@@ -95,11 +95,9 @@ func (p BidirectionalPipe) Start() error {
 	var srcErr, dstErr error
 	wg.Go(func() {
 		srcErr = p.pSrcDst.Start()
-		wg.Done()
 	})
 	wg.Go(func() {
 		dstErr = p.pDstSrc.Start()
-		wg.Done()
 	})
 	wg.Wait()
 	return errors.Join(srcErr, dstErr)

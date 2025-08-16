@@ -82,12 +82,10 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 
 func parallelLog(logger *AccessLogger, req *http.Request, resp *http.Response, n int) {
 	var wg sync.WaitGroup
-	wg.Add(n)
 	for range n {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			logger.Log(req, resp)
-		}()
+		})
 	}
 	wg.Wait()
 }

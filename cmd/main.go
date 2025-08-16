@@ -23,9 +23,7 @@ import (
 func parallel(fns ...func()) {
 	var wg sync.WaitGroup
 	for _, fn := range fns {
-		wg.Go(func() {
-			fn()
-		})
+		wg.Go(fn)
 	}
 	wg.Wait()
 }
