@@ -1,8 +1,9 @@
 package agentapi
 
 import (
-	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 
 	_ "embed"
 
@@ -42,11 +43,11 @@ type NewAgentResponse struct {
 // @Router			/agent/create [post]
 func Create(c *gin.Context) {
 	var request NewAgentRequest
-	if err := c.ShouldBindQuery(&request); err != nil {
+	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
-	hostport := fmt.Sprintf("%s:%d", request.Host, request.Port)
+	hostport := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
 	if _, ok := agent.GetAgent(hostport); ok {
 		c.JSON(http.StatusConflict, apitypes.Error("agent already exists"))
 		return
