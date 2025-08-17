@@ -185,18 +185,15 @@ func (cm *Manager) ReadJSON(out any, timeout time.Duration) error {
 // Close closes the connection and cancels the context
 func (cm *Manager) Close() {
 	cm.cancel()
-	cm.pingCheckTicker.Stop()
-	cm.conn.Close()
-}
 
-func (cm *Manager) GracefulClose() {
 	cm.writeLock.Lock()
 	defer cm.writeLock.Unlock()
 
 	_ = cm.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	_ = cm.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	cm.conn.Close()
 
-	cm.Close()
+	cm.pingCheckTicker.Stop()
 }
 
 // Done returns a channel that is closed when the context is done or the connection is closed
