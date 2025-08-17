@@ -63,7 +63,9 @@ func NewHandler() *gin.Engine {
 	}
 
 	v1 := r.Group("/api/v1")
-	v1.Use(AuthMiddleware())
+	if auth.IsEnabled() {
+		v1.Use(AuthMiddleware())
+	}
 	{
 		v1.GET("/favicon", apiV1.FavIcon)
 		v1.GET("/health", apiV1.Health)
@@ -139,11 +141,6 @@ func NoCache() gin.HandlerFunc {
 }
 
 func AuthMiddleware() gin.HandlerFunc {
-	if !auth.IsEnabled() {
-		return func(c *gin.Context) {
-			c.Next()
-		}
-	}
 	return func(c *gin.Context) {
 		err := auth.GetDefaultAuth().CheckToken(c.Request)
 		if err != nil {
