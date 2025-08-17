@@ -10,8 +10,8 @@ import (
 
 type OverrideConfig struct {
 	ItemOverrides  map[string]*ItemConfig `json:"item_overrides"`
-	DisplayOrder   map[string]int         `json:"display_order"`  // TODO: implement this
-	CategoryOrder  map[string]int         `json:"category_order"` // TODO: implement this
+	DisplayOrder   map[string]int         `json:"display_order"`
+	CategoryOrder  map[string]int         `json:"category_order"`
 	ItemVisibility map[string]bool        `json:"item_visibility"`
 	mu             sync.RWMutex
 }

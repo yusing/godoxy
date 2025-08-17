@@ -96,7 +96,6 @@ const reqTimeout = 3 * time.Second
 // prevents dependencies from being stopped automatically.
 const neverTick = time.Duration(1<<63 - 1)
 
-// TODO: fix stream type.
 func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig) (*Watcher, error) {
 	key := cfg.Key()
 
