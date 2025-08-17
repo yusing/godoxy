@@ -73,12 +73,12 @@ const (
 // NewManagerWithUpgrade upgrades the HTTP connection to a WebSocket connection and returns a Manager.
 // If the upgrade fails, the error is returned.
 // If the upgrade succeeds, the Manager is returned.
-func NewManagerWithUpgrade(c *gin.Context, upgrader ...websocket.Upgrader) (*Manager, error) {
-	var actualUpgrader websocket.Upgrader
-	if len(upgrader) == 0 {
-		actualUpgrader = defaultUpgrader
-	} else {
-		actualUpgrader = upgrader[0]
+//
+// To use a custom upgrader, set the "upgrader" context value to the upgrader.
+func NewManagerWithUpgrade(c *gin.Context) (*Manager, error) {
+	actualUpgrader := &defaultUpgrader
+	if upgrader, ok := c.Get("upgrader"); ok {
+		actualUpgrader = upgrader.(*websocket.Upgrader)
 	}
 
 	conn, err := actualUpgrader.Upgrade(c.Writer, c.Request, nil)
