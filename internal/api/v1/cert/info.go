@@ -22,7 +22,6 @@ type CertInfo struct {
 // @Summary		Get cert info
 // @Description	Get cert info
 // @Tags			cert
-// @Accept			json
 // @Produce		json
 // @Success		200	{object}	CertInfo
 // @Failure		403	{object}	apitypes.ErrorResponse

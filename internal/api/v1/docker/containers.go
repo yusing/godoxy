@@ -24,7 +24,6 @@ type Container struct {
 // @Summary		Get containers
 // @Description	Get containers
 // @Tags			docker
-// @Accept			json
 // @Produce		json
 // @Success		200	{array}		Container
 // @Failure		403	{object}	apitypes.ErrorResponse

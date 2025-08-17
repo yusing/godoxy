@@ -437,11 +437,11 @@ definitions:
     - 1mo
     type: string
     x-enum-comments:
-      MetricsPeriod1mo: '@name MetricsPeriod1mo'
-      MetricsPeriod5m: '@name MetricsPeriod5m'
       MetricsPeriod15m: '@name MetricsPeriod15m'
       MetricsPeriod1d: '@name MetricsPeriod1d'
       MetricsPeriod1h: '@name MetricsPeriod1h'
+      MetricsPeriod1mo: '@name MetricsPeriod1mo'
+      MetricsPeriod5m: '@name MetricsPeriod5m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -1452,8 +1452,6 @@ paths:
       x-id: logout
   /cert/info:
     get:
-      consumes:
-      - application/json
       description: Get cert info
       produces:
       - application/json
@@ -1479,12 +1477,10 @@ paths:
       - cert
       x-id: info
   /cert/renew:
-    post:
-      consumes:
-      - application/json
+    get:
       description: Renew cert
       produces:
-      - application/json
+      - text/plain
       responses:
         "200":
           description: OK
@@ -1501,11 +1497,10 @@ paths:
       summary: Renew cert
       tags:
       - cert
+      - websocket
       x-id: renew
   /docker/containers:
     get:
-      consumes:
-      - application/json
       description: Get containers
       produces:
       - application/json
@@ -1530,8 +1525,6 @@ paths:
       x-id: containers
   /docker/info:
     get:
-      consumes:
-      - application/json
       description: Get docker info
       produces:
       - application/json
@@ -1539,9 +1532,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/ServerInfo'
-            type: array
+            $ref: '#/definitions/ServerInfo'
         "403":
           description: Forbidden
           schema:
@@ -2124,11 +2115,11 @@ paths:
         name: period
         type: string
         x-enum-comments:
-          MetricsPeriod1mo: '@name MetricsPeriod1mo'
-          MetricsPeriod5m: '@name MetricsPeriod5m'
           MetricsPeriod15m: '@name MetricsPeriod15m'
           MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
+          MetricsPeriod1mo: '@name MetricsPeriod1mo'
+          MetricsPeriod5m: '@name MetricsPeriod5m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m

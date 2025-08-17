@@ -301,9 +301,6 @@ const docTemplate = `{
         "/cert/info": {
             "get": {
                 "description": "Get cert info",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -341,16 +338,14 @@ const docTemplate = `{
             }
         },
         "/cert/renew": {
-            "post": {
+            "get": {
                 "description": "Renew cert",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
-                    "application/json"
+                    "text/plain"
                 ],
                 "tags": [
-                    "cert"
+                    "cert",
+                    "websocket"
                 ],
                 "summary": "Renew cert",
                 "responses": {
@@ -379,9 +374,6 @@ const docTemplate = `{
         "/docker/containers": {
             "get": {
                 "description": "Get containers",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -418,9 +410,6 @@ const docTemplate = `{
         "/docker/info": {
             "get": {
                 "description": "Get docker info",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -432,10 +421,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/ServerInfo"
-                            }
+                            "$ref": "#/definitions/ServerInfo"
                         }
                     },
                     "403": {

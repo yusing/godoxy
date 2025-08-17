@@ -17,13 +17,12 @@ import (
 // @BasePath		/api/v1
 // @Summary		Renew cert
 // @Description	Renew cert
-// @Tags			cert
-// @Accept			json
-// @Produce		json
+// @Tags			cert,websocket
+// @Produce		plain
 // @Success		200	{object}	apitypes.SuccessResponse
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
-// @Router			/cert/renew [post]
+// @Router			/cert/renew [get]
 func Renew(c *gin.Context) {
 	autocert := config.GetInstance().AutoCertProvider()
 	if autocert == nil {

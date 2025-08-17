@@ -47,9 +47,8 @@ func toDockerInfo(info dockerSystem.Info) dockerInfo {
 // @Summary		Get docker info
 // @Description	Get docker info
 // @Tags			docker
-// @Accept			json
 // @Produce		json
-// @Success		200	{array}		dockerInfo
+// @Success		200	{object}		dockerInfo
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/docker/info [get]

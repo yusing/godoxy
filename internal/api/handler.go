@@ -87,7 +87,7 @@ func NewHandler() *gin.Engine {
 		cert := v1.Group("/cert")
 		{
 			cert.GET("/info", certApi.Info)
-			cert.POST("/renew", certApi.Renew)
+			cert.GET("/renew", certApi.Renew)
 		}
 
 		agent := v1.Group("/agent")
