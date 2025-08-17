@@ -9,11 +9,10 @@ import (
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/watcher/health"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
 )
 
-var defaultHealthConfig = health.DefaultHealthConfig()
+var defaultHealthConfig = types.DefaultHealthConfig()
 
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
