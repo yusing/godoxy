@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -21,14 +20,14 @@ import (
 )
 
 type AgentConfig struct {
-	Addr string
+	Addr    string `json:"addr"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
 
 	httpClient *http.Client
 	tlsConfig  *tls.Config
-	name       string
-	version    string
 	l          zerolog.Logger
-}
+} // @name Agent
 
 const (
 	EndpointVersion    = "/version"
@@ -113,9 +112,9 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		return err
 	}
 
-	cfg.name = string(name)
+	cfg.Name = string(name)
 
-	cfg.l = log.With().Str("agent", cfg.name).Logger()
+	cfg.l = log.With().Str("agent", cfg.Name).Logger()
 
 	// check agent version
 	agentVersionBytes, _, err := cfg.Fetch(ctx, EndpointVersion)
@@ -123,14 +122,14 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		return err
 	}
 
-	cfg.version = string(agentVersionBytes)
-	agentVersion := pkg.ParseVersion(cfg.version)
+	cfg.Version = string(agentVersionBytes)
+	agentVersion := pkg.ParseVersion(cfg.Version)
 
 	if serverVersion.IsNewerMajorThan(agentVersion) {
-		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.name, serverVersion, agentVersion)
+		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.Name, serverVersion, agentVersion)
 	}
 
-	log.Info().Msgf("agent %q initialized", cfg.name)
+	log.Info().Msgf("agent %q initialized", cfg.Name)
 	return nil
 }
 
@@ -180,18 +179,6 @@ func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
 	return dialer.DialContext(ctx, "tcp", cfg.Addr)
 }
 
-func (cfg *AgentConfig) Name() string {
-	return cfg.name
-}
-
 func (cfg *AgentConfig) String() string {
-	return cfg.name + "@" + cfg.Addr
-}
-
-func (cfg *AgentConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
-		"name":    cfg.Name(),
-		"addr":    cfg.Addr,
-		"version": cfg.version,
-	})
+	return cfg.Name + "@" + cfg.Addr
 }

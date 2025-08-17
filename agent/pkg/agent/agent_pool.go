@@ -24,7 +24,7 @@ func GetAgent(agentAddrOrDockerHost string) (*AgentConfig, bool) {
 
 func GetAgentByName(name string) (*AgentConfig, bool) {
 	for _, agent := range agentPool.Range {
-		if agent.Name() == name {
+		if agent.Name == name {
 			return agent, true
 		}
 	}
