@@ -25,9 +25,15 @@ type Config struct {
 	KeyPath     string         `json:"key_path,omitempty"`
 	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
-	CADirURL    string         `json:"ca_dir_url,omitempty"`
-	CACerts     []string       `json:"ca_certs,omitempty"`
 	Options     map[string]any `json:"options,omitempty"`
+
+	// Custom ACME CA
+	CADirURL string   `json:"ca_dir_url,omitempty"`
+	CACerts  []string `json:"ca_certs,omitempty"`
+
+	// EAB
+	EABKid  string `json:"eab_kid,omitempty" validate:"required_with=EABHmac"`
+	EABHmac string `json:"eab_hmac,omitempty" validate:"required_with=EABKid"` // base64 encoded
 
 	HTTPClient *http.Client `json:"-"` // for tests only
 

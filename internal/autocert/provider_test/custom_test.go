@@ -138,6 +138,45 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 		require.True(t, time.Now().Before(x509Cert.NotAfter))
 		require.True(t, time.Now().After(x509Cert.NotBefore))
 	})
+
+	t.Run("obtain cert with EAB from custom step-ca server", func(t *testing.T) {
+		cfg := &autocert.Config{
+			Email:       "test@example.com",
+			Domains:     []string{"test.example.com"},
+			Provider:    autocert.ProviderCustom,
+			CADirURL:    acmeServer.URL() + "/acme/acme/directory",
+			CertPath:    "certs/stepca-eab-test.crt",
+			KeyPath:     "certs/stepca-eab-test.key",
+			ACMEKeyPath: "certs/stepca-eab-test-acme.key",
+			HTTPClient:  acmeServer.httpClient(),
+			EABKid:      "kid-123",
+			EABHmac:     base64.RawURLEncoding.EncodeToString([]byte("secret")),
+		}
+
+		err := error(cfg.Validate())
+		require.NoError(t, err)
+
+		user, legoCfg, err := cfg.GetLegoConfig()
+		require.NoError(t, err)
+		require.NotNil(t, user)
+		require.NotNil(t, legoCfg)
+
+		provider := autocert.NewProvider(cfg, user, legoCfg)
+		require.NotNil(t, provider)
+
+		err = provider.ObtainCert()
+		require.NoError(t, err)
+
+		cert, err := provider.GetCert(nil)
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+
+		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+		require.NoError(t, err)
+		require.Contains(t, x509Cert.DNSNames, "test.example.com")
+		require.True(t, time.Now().Before(x509Cert.NotAfter))
+		require.True(t, time.Now().After(x509Cert.NotBefore))
+	})
 }
 
 // testACMEServer implements a minimal ACME server for testing.

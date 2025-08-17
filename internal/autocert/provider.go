@@ -81,6 +81,10 @@ func (p *Provider) GetExpiries() CertExpiries {
 }
 
 func (p *Provider) GetLastFailure() (time.Time, error) {
+	if common.IsTest {
+		return time.Time{}, nil
+	}
+
 	if p.lastFailure.IsZero() {
 		data, err := os.ReadFile(LastFailureFile)
 		if err != nil {
@@ -95,12 +99,18 @@ func (p *Provider) GetLastFailure() (time.Time, error) {
 }
 
 func (p *Provider) UpdateLastFailure() error {
+	if common.IsTest {
+		return nil
+	}
 	t := time.Now()
 	p.lastFailure = t
 	return os.WriteFile(LastFailureFile, t.AppendFormat(nil, time.RFC3339), 0o600)
 }
 
 func (p *Provider) ClearLastFailure() error {
+	if common.IsTest {
+		return nil
+	}
 	p.lastFailure = time.Time{}
 	return os.Remove(LastFailureFile)
 }
@@ -289,13 +299,23 @@ func (p *Provider) registerACME() error {
 	if p.user.Registration != nil {
 		return nil
 	}
-	if reg, err := p.client.Registration.ResolveAccountByKey(); err == nil {
+
+	reg, err := p.client.Registration.ResolveAccountByKey()
+	if err == nil {
 		p.user.Registration = reg
 		log.Info().Msg("reused acme registration from private key")
 		return nil
 	}
 
-	reg, err := p.client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
+	if p.cfg.EABKid != "" && p.cfg.EABHmac != "" {
+		reg, err = p.client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
+			TermsOfServiceAgreed: true,
+			Kid:                  p.cfg.EABKid,
+			HmacEncoded:          p.cfg.EABHmac,
+		})
+	} else {
+		reg, err = p.client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
+	}
 	if err != nil {
 		return err
 	}
