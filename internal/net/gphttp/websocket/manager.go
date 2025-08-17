@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,9 +35,29 @@ type Manager struct {
 var defaultUpgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	// TODO: add CORS
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return false
+		}
+		if len(u.Host) == 0 {
+			return false
+		}
+		originHost := strings.ToLower(u.Hostname())
+		reqHost := r.Host
+		if h, _, e := net.SplitHostPort(reqHost); e == nil {
+			reqHost = h
+		}
+		reqHost = strings.ToLower(reqHost)
+
+		return originHost == reqHost
 	},
 }
 
