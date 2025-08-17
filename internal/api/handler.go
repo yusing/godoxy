@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -19,6 +20,7 @@ import (
 	metricsApi "github.com/yusing/go-proxy/internal/api/v1/metrics"
 	routeApi "github.com/yusing/go-proxy/internal/api/v1/route"
 	"github.com/yusing/go-proxy/internal/auth"
+	"github.com/yusing/go-proxy/internal/common"
 )
 
 // @title           GoDoxy API
@@ -65,6 +67,9 @@ func NewHandler() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	if auth.IsEnabled() {
 		v1.Use(AuthMiddleware())
+	}
+	if common.APISkipOriginCheck {
+		v1.Use(SkipOriginCheckMiddleware())
 	}
 	{
 		v1.GET("/favicon", apiV1.FavIcon)
@@ -148,6 +153,18 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		c.Next()
+	}
+}
+
+func SkipOriginCheckMiddleware() gin.HandlerFunc {
+	upgrader := &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	return func(c *gin.Context) {
+		c.Set("upgrader", upgrader)
 		c.Next()
 	}
 }

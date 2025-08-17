@@ -42,6 +42,8 @@ var (
 	APIUser        = GetEnvString("API_USER", "admin")
 	APIPassword    = GetEnvString("API_PASSWORD", "password")
 
+	APISkipOriginCheck = GetEnvBool("API_SKIP_ORIGIN_CHECK", false) // skip this in UI Demo
+
 	DebugDisableAuth = GetEnvBool("DEBUG_DISABLE_AUTH", false)
 
 	// OIDC Configuration.
