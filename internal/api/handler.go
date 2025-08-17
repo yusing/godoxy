@@ -21,6 +21,21 @@ import (
 	"github.com/yusing/go-proxy/internal/auth"
 )
 
+// @title           GoDoxy API
+// @version         1.0
+// @description     GoDoxy API
+// @termsOfService  https://github.com/yusing/godoxy/blob/main/LICENSE
+
+// @contact.name   Yusing
+// @contact.url    https://github.com/yusing/godoxy/issues
+
+// @license.name  MIT
+// @license.url   https://github.com/yusing/godoxy/blob/main/LICENSE
+
+// @BasePath  /api/v1
+
+// @externalDocs.description  GoDoxy Docs
+// @externalDocs.url          https://docs.godoxy.dev
 func NewHandler() *gin.Engine {
 	gin.SetMode("release")
 	r := gin.New()

@@ -1,3 +1,4 @@
+basePath: /api/v1
 definitions:
   Agent:
     properties:
@@ -13,11 +14,13 @@ definitions:
       ip:
         description: network number
         items:
+          format: int32
           type: integer
         type: array
       mask:
         description: network mask
         items:
+          format: int32
           type: integer
         type: array
     type: object
@@ -139,6 +142,15 @@ definitions:
       StateRemoving: StateRemoving indicates that the container is being removed.
       StateRestarting: StateRestarting indicates that the container is currently restarting.
       StateRunning: StateRunning indicates that the container is running.
+    x-enum-descriptions:
+    - StateCreated indicates the container is created, but not (yet) started.
+    - StateRunning indicates that the container is running.
+    - StatePaused indicates that the container's current state is paused.
+    - StateRestarting indicates that the container is currently restarting.
+    - StateRemoving indicates that the container is being removed.
+    - StateExited indicates that the container exited.
+    - StateDead indicates that the container failed to be deleted. Containers in this
+      state are attempted to be cleaned up when the daemon restarts.
     x-enum-varnames:
     - StateCreated
     - StateRunning
@@ -195,10 +207,6 @@ definitions:
     - provider
     - middleware
     type: string
-    x-enum-comments:
-      FileTypeConfig: '@name FileTypeConfig'
-      FileTypeMiddleware: '@name FileTypeMiddleware'
-      FileTypeProvider: '@name FileTypeProvider'
     x-enum-varnames:
     - FileTypeConfig
     - FileTypeProvider
@@ -436,12 +444,6 @@ definitions:
     - 1d
     - 1mo
     type: string
-    x-enum-comments:
-      MetricsPeriod15m: '@name MetricsPeriod15m'
-      MetricsPeriod1d: '@name MetricsPeriod1d'
-      MetricsPeriod1h: '@name MetricsPeriod1h'
-      MetricsPeriod1mo: '@name MetricsPeriod1mo'
-      MetricsPeriod5m: '@name MetricsPeriod5m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -782,17 +784,6 @@ definitions:
     - network_transfer
     - sensor_temperature
     type: string
-    x-enum-comments:
-      SystemInfoAggregateModeCPUAverage: '@name SystemInfoAggregateModeCPUAverage'
-      SystemInfoAggregateModeDiskUsage: '@name SystemInfoAggregateModeDiskUsage'
-      SystemInfoAggregateModeDisksIOPS: '@name SystemInfoAggregateModeDisksIOPS'
-      SystemInfoAggregateModeDisksReadSpeed: '@name SystemInfoAggregateModeDisksReadSpeed'
-      SystemInfoAggregateModeDisksWriteSpeed: '@name SystemInfoAggregateModeDisksWriteSpeed'
-      SystemInfoAggregateModeMemoryUsage: '@name SystemInfoAggregateModeMemoryUsage'
-      SystemInfoAggregateModeMemoryUsagePercent: '@name SystemInfoAggregateModeMemoryUsagePercent'
-      SystemInfoAggregateModeNetworkSpeed: '@name SystemInfoAggregateModeNetworkSpeed'
-      SystemInfoAggregateModeNetworkTransfer: '@name SystemInfoAggregateModeNetworkTransfer'
-      SystemInfoAggregateModeSensorTemperature: '@name SystemInfoAggregateModeSensorTemperature'
     x-enum-varnames:
     - SystemInfoAggregateModeCPUAverage
     - SystemInfoAggregateModeMemoryUsage
@@ -954,6 +945,7 @@ definitions:
         type: string
       icon:
         items:
+          format: int32
           type: integer
         type: array
       statusCode:
@@ -1233,6 +1225,7 @@ definitions:
     - 1000000000
     - 60000000000
     - 3600000000000
+    format: int64
     type: integer
     x-enum-varnames:
     - minDuration
@@ -1256,8 +1249,20 @@ definitions:
       provider:
         type: string
     type: object
+externalDocs:
+  description: GoDoxy Docs
+  url: https://docs.godoxy.dev
 info:
-  contact: {}
+  contact:
+    name: Yusing
+    url: https://github.com/yusing/godoxy/issues
+  description: GoDoxy API
+  license:
+    name: MIT
+    url: https://github.com/yusing/godoxy/blob/main/LICENSE
+  termsOfService: https://github.com/yusing/godoxy/blob/main/LICENSE
+  title: GoDoxy API
+  version: "1.0"
 paths:
   /agent/create:
     post:
@@ -1672,10 +1677,6 @@ paths:
         name: type
         required: true
         type: string
-        x-enum-comments:
-          FileTypeConfig: '@name FileTypeConfig'
-          FileTypeMiddleware: '@name FileTypeMiddleware'
-          FileTypeProvider: '@name FileTypeProvider'
         x-enum-varnames:
         - FileTypeConfig
         - FileTypeProvider
@@ -2083,17 +2084,6 @@ paths:
         in: query
         name: aggregate
         type: string
-        x-enum-comments:
-          SystemInfoAggregateModeCPUAverage: '@name SystemInfoAggregateModeCPUAverage'
-          SystemInfoAggregateModeDiskUsage: '@name SystemInfoAggregateModeDiskUsage'
-          SystemInfoAggregateModeDisksIOPS: '@name SystemInfoAggregateModeDisksIOPS'
-          SystemInfoAggregateModeDisksReadSpeed: '@name SystemInfoAggregateModeDisksReadSpeed'
-          SystemInfoAggregateModeDisksWriteSpeed: '@name SystemInfoAggregateModeDisksWriteSpeed'
-          SystemInfoAggregateModeMemoryUsage: '@name SystemInfoAggregateModeMemoryUsage'
-          SystemInfoAggregateModeMemoryUsagePercent: '@name SystemInfoAggregateModeMemoryUsagePercent'
-          SystemInfoAggregateModeNetworkSpeed: '@name SystemInfoAggregateModeNetworkSpeed'
-          SystemInfoAggregateModeNetworkTransfer: '@name SystemInfoAggregateModeNetworkTransfer'
-          SystemInfoAggregateModeSensorTemperature: '@name SystemInfoAggregateModeSensorTemperature'
         x-enum-varnames:
         - SystemInfoAggregateModeCPUAverage
         - SystemInfoAggregateModeMemoryUsage
@@ -2114,12 +2104,6 @@ paths:
         in: query
         name: period
         type: string
-        x-enum-comments:
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
-          MetricsPeriod1h: '@name MetricsPeriod1h'
-          MetricsPeriod1mo: '@name MetricsPeriod1mo'
-          MetricsPeriod5m: '@name MetricsPeriod5m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m
@@ -2168,12 +2152,6 @@ paths:
         in: query
         name: interval
         type: string
-        x-enum-comments:
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
-          MetricsPeriod1h: '@name MetricsPeriod1h'
-          MetricsPeriod1mo: '@name MetricsPeriod1mo'
-          MetricsPeriod5m: '@name MetricsPeriod5m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m
@@ -2184,14 +2162,16 @@ paths:
         in: query
         name: keyword
         type: string
-      - example: 10
+      - default: 0
+        example: 10
         in: query
         name: limit
         type: integer
-      - example: "10"
+      - default: 0
+        example: 10
         in: query
         name: offset
-        type: string
+        type: integer
       produces:
       - application/json
       responses:

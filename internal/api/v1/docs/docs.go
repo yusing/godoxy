@@ -9,7 +9,15 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "termsOfService": "https://github.com/yusing/godoxy/blob/main/LICENSE",
+        "contact": {
+            "name": "Yusing",
+            "url": "https://github.com/yusing/godoxy/issues"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/yusing/godoxy/blob/main/LICENSE"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -629,11 +637,6 @@ const docTemplate = `{
                             "middleware"
                         ],
                         "type": "string",
-                        "x-enum-comments": {
-                            "FileTypeConfig": "@name FileTypeConfig",
-                            "FileTypeMiddleware": "@name FileTypeMiddleware",
-                            "FileTypeProvider": "@name FileTypeProvider"
-                        },
                         "x-enum-varnames": [
                             "FileTypeConfig",
                             "FileTypeProvider",
@@ -1240,18 +1243,6 @@ const docTemplate = `{
                             "sensor_temperature"
                         ],
                         "type": "string",
-                        "x-enum-comments": {
-                            "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
-                            "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
-                            "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
-                            "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
-                            "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
-                            "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
-                            "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
-                            "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
-                            "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
-                            "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
-                        },
                         "x-enum-varnames": [
                             "SystemInfoAggregateModeCPUAverage",
                             "SystemInfoAggregateModeMemoryUsage",
@@ -1276,13 +1267,6 @@ const docTemplate = `{
                             "1mo"
                         ],
                         "type": "string",
-                        "x-enum-comments": {
-                            "MetricsPeriod15m": "@name MetricsPeriod15m",
-                            "MetricsPeriod1d": "@name MetricsPeriod1d",
-                            "MetricsPeriod1h": "@name MetricsPeriod1h",
-                            "MetricsPeriod1mo": "@name MetricsPeriod1mo",
-                            "MetricsPeriod5m": "@name MetricsPeriod5m"
-                        },
                         "x-enum-varnames": [
                             "MetricsPeriod5m",
                             "MetricsPeriod15m",
@@ -1351,13 +1335,6 @@ const docTemplate = `{
                         ],
                         "type": "string",
                         "example": "1m",
-                        "x-enum-comments": {
-                            "MetricsPeriod15m": "@name MetricsPeriod15m",
-                            "MetricsPeriod1d": "@name MetricsPeriod1d",
-                            "MetricsPeriod1h": "@name MetricsPeriod1h",
-                            "MetricsPeriod1mo": "@name MetricsPeriod1mo",
-                            "MetricsPeriod5m": "@name MetricsPeriod5m"
-                        },
                         "x-enum-varnames": [
                             "MetricsPeriod5m",
                             "MetricsPeriod15m",
@@ -1376,13 +1353,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
+                        "default": 0,
                         "example": 10,
                         "name": "limit",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "example": "10",
+                        "type": "integer",
+                        "default": 0,
+                        "example": 10,
                         "name": "offset",
                         "in": "query"
                     }
@@ -1711,14 +1690,16 @@ const docTemplate = `{
                     "description": "network number",
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "type": "integer",
+                        "format": "int32"
                     }
                 },
                 "mask": {
                     "description": "network mask",
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "type": "integer",
+                        "format": "int32"
                     }
                 }
             }
@@ -1895,6 +1876,15 @@ const docTemplate = `{
                 "StateRestarting": "StateRestarting indicates that the container is currently restarting.",
                 "StateRunning": "StateRunning indicates that the container is running."
             },
+            "x-enum-descriptions": [
+                "StateCreated indicates the container is created, but not (yet) started.",
+                "StateRunning indicates that the container is running.",
+                "StatePaused indicates that the container's current state is paused.",
+                "StateRestarting indicates that the container is currently restarting.",
+                "StateRemoving indicates that the container is being removed.",
+                "StateExited indicates that the container exited.",
+                "StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts."
+            ],
             "x-enum-varnames": [
                 "StateCreated",
                 "StateRunning",
@@ -1973,11 +1963,6 @@ const docTemplate = `{
                 "provider",
                 "middleware"
             ],
-            "x-enum-comments": {
-                "FileTypeConfig": "@name FileTypeConfig",
-                "FileTypeMiddleware": "@name FileTypeMiddleware",
-                "FileTypeProvider": "@name FileTypeProvider"
-            },
             "x-enum-varnames": [
                 "FileTypeConfig",
                 "FileTypeProvider",
@@ -2335,13 +2320,6 @@ const docTemplate = `{
                 "1d",
                 "1mo"
             ],
-            "x-enum-comments": {
-                "MetricsPeriod15m": "@name MetricsPeriod15m",
-                "MetricsPeriod1d": "@name MetricsPeriod1d",
-                "MetricsPeriod1h": "@name MetricsPeriod1h",
-                "MetricsPeriod1mo": "@name MetricsPeriod1mo",
-                "MetricsPeriod5m": "@name MetricsPeriod5m"
-            },
             "x-enum-varnames": [
                 "MetricsPeriod5m",
                 "MetricsPeriod15m",
@@ -2848,18 +2826,6 @@ const docTemplate = `{
                 "network_transfer",
                 "sensor_temperature"
             ],
-            "x-enum-comments": {
-                "SystemInfoAggregateModeCPUAverage": "@name SystemInfoAggregateModeCPUAverage",
-                "SystemInfoAggregateModeDiskUsage": "@name SystemInfoAggregateModeDiskUsage",
-                "SystemInfoAggregateModeDisksIOPS": "@name SystemInfoAggregateModeDisksIOPS",
-                "SystemInfoAggregateModeDisksReadSpeed": "@name SystemInfoAggregateModeDisksReadSpeed",
-                "SystemInfoAggregateModeDisksWriteSpeed": "@name SystemInfoAggregateModeDisksWriteSpeed",
-                "SystemInfoAggregateModeMemoryUsage": "@name SystemInfoAggregateModeMemoryUsage",
-                "SystemInfoAggregateModeMemoryUsagePercent": "@name SystemInfoAggregateModeMemoryUsagePercent",
-                "SystemInfoAggregateModeNetworkSpeed": "@name SystemInfoAggregateModeNetworkSpeed",
-                "SystemInfoAggregateModeNetworkTransfer": "@name SystemInfoAggregateModeNetworkTransfer",
-                "SystemInfoAggregateModeSensorTemperature": "@name SystemInfoAggregateModeSensorTemperature"
-            },
             "x-enum-varnames": [
                 "SystemInfoAggregateModeCPUAverage",
                 "SystemInfoAggregateModeMemoryUsage",
@@ -3074,7 +3040,8 @@ const docTemplate = `{
                 "icon": {
                     "type": "array",
                     "items": {
-                        "type": "integer"
+                        "type": "integer",
+                        "format": "int32"
                     }
                 },
                 "statusCode": {
@@ -3459,6 +3426,7 @@ const docTemplate = `{
         },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,
@@ -3499,17 +3467,21 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "externalDocs": {
+        "description": "GoDoxy Docs",
+        "url": "https://docs.godoxy.dev"
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
-	BasePath:         "",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "GoDoxy API",
+	Description:      "GoDoxy API",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -7,8 +7,8 @@ import (
 )
 
 type UptimeRequest struct {
-	Limit    int           `query:"limit" example:"10"`
-	Offset   string        `query:"offset" example:"10"`
+	Limit    int           `query:"limit" example:"10" default:"0"`
+	Offset   int           `query:"offset" example:"10" default:"0"`
 	Interval period.Filter `query:"interval" example:"1m"`
 	Keyword  string        `query:"keyword" example:""`
 } // @name UptimeRequest
