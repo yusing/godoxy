@@ -3,8 +3,10 @@ export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
 
-LDFLAGS = -X github.com/yusing/go-proxy/pkg.version=${VERSION}
+WEBUI_DIR ?= ../godoxy-frontend
+DOCS_DIR ?= ../godoxy-wiki
 
+LDFLAGS = -X github.com/yusing/go-proxy/pkg.version=${VERSION}
 
 ifeq ($(agent), 1)
 	NAME = godoxy-agent
@@ -140,7 +142,10 @@ gen-swagger:
 	swag init --parseDependency --parseInternal -g handler.go -d internal/api -o internal/api/v1/docs
 	python3 scripts/fix-swagger-json.py
 
+gen-swagger-markdown: gen-swagger
+	swagger generate markdown -f internal/api/v1/docs/swagger.yaml --skip-validation --output ${DOCS_DIR}/src/API.md
+
 gen-api-types: gen-swagger
 	# --disable-throw-on-error
 	pnpx swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
-		 --responses -o ../godoxy-frontend/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
+		 --responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
