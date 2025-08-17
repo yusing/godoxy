@@ -44,10 +44,7 @@ var defaultUpgrader = websocket.Upgrader{
 		if err != nil {
 			return false
 		}
-		if u.Scheme != "http" && u.Scheme != "https" {
-			return false
-		}
-		if len(u.Host) == 0 {
+		if u.Host == "" {
 			return false
 		}
 		originHost := strings.ToLower(u.Hostname())
@@ -55,8 +52,10 @@ var defaultUpgrader = websocket.Upgrader{
 		if h, _, e := net.SplitHostPort(reqHost); e == nil {
 			reqHost = h
 		}
+		if reqHost == "127.0.0.1" || reqHost == "localhost" {
+			return true
+		}
 		reqHost = strings.ToLower(reqHost)
-
 		return originHost == reqHost
 	},
 }
