@@ -18,6 +18,7 @@ linters:
     - gocognit
     - goconst
     - gocyclo
+    - godot
     - gomoddirectives
     - gosmopolitan
     - ireturn
@@ -29,16 +30,19 @@ linters:
     - nestif
     - nlreturn
     - nonamedreturns
+    - noinlineerr
     - paralleltest
     - revive
     - rowserrcheck
     - sqlclosecheck
+    - tagalign
     - tagliatelle
     - testpackage
     - tparallel
     - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
   settings:
     errcheck:
       exclude-functions:
