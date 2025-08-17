@@ -2033,6 +2033,70 @@ const docTemplate = `{
                 }
             }
         },
+        "HealthExtra": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/LoadBalancerConfig"
+                },
+                "pool": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "HealthJSON": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/HealthCheckConfig"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "extra": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/HealthExtra"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "lastSeen": {
+                    "type": "integer"
+                },
+                "lastSeenStr": {
+                    "type": "string"
+                },
+                "latency": {
+                    "type": "number"
+                },
+                "latencyStr": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "started": {
+                    "type": "integer"
+                },
+                "startedStr": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "number"
+                },
+                "uptimeStr": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "HealthMap": {
             "type": "object",
             "additionalProperties": {
@@ -2490,6 +2554,14 @@ const docTemplate = `{
                 },
                 "excluded": {
                     "type": "boolean"
+                },
+                "health": {
+                    "description": "for swagger",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/HealthJSON"
+                        }
+                    ]
                 },
                 "healthcheck": {
                     "$ref": "#/definitions/HealthCheckConfig"
@@ -3224,6 +3296,14 @@ const docTemplate = `{
                 },
                 "excluded": {
                     "type": "boolean"
+                },
+                "health": {
+                    "description": "for swagger",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/HealthJSON"
+                        }
+                    ]
                 },
                 "healthcheck": {
                     "$ref": "#/definitions/HealthCheckConfig"

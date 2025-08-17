@@ -226,6 +226,47 @@ definitions:
       use_get:
         type: boolean
     type: object
+  HealthExtra:
+    properties:
+      config:
+        $ref: '#/definitions/LoadBalancerConfig'
+      pool:
+        additionalProperties: {}
+        type: object
+    type: object
+  HealthJSON:
+    properties:
+      config:
+        $ref: '#/definitions/HealthCheckConfig'
+      detail:
+        type: string
+      extra:
+        allOf:
+        - $ref: '#/definitions/HealthExtra'
+        x-nullable: true
+      lastSeen:
+        type: integer
+      lastSeenStr:
+        type: string
+      latency:
+        type: number
+      latencyStr:
+        type: string
+      name:
+        type: string
+      started:
+        type: integer
+      startedStr:
+        type: string
+      status:
+        type: string
+      uptime:
+        type: number
+      uptimeStr:
+        type: string
+      url:
+        type: string
+    type: object
   HealthMap:
     additionalProperties:
       $ref: '#/definitions/routes.HealthInfo'
@@ -396,11 +437,11 @@ definitions:
     - 1mo
     type: string
     x-enum-comments:
+      MetricsPeriod1mo: '@name MetricsPeriod1mo'
+      MetricsPeriod5m: '@name MetricsPeriod5m'
       MetricsPeriod15m: '@name MetricsPeriod15m'
       MetricsPeriod1d: '@name MetricsPeriod1d'
       MetricsPeriod1h: '@name MetricsPeriod1h'
-      MetricsPeriod1mo: '@name MetricsPeriod1mo'
-      MetricsPeriod5m: '@name MetricsPeriod5m'
     x-enum-varnames:
     - MetricsPeriod5m
     - MetricsPeriod15m
@@ -535,6 +576,10 @@ definitions:
         type: boolean
       excluded:
         type: boolean
+      health:
+        allOf:
+        - $ref: '#/definitions/HealthJSON'
+        description: for swagger
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
@@ -1060,6 +1105,10 @@ definitions:
         type: boolean
       excluded:
         type: boolean
+      health:
+        allOf:
+        - $ref: '#/definitions/HealthJSON'
+        description: for swagger
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
@@ -2075,11 +2124,11 @@ paths:
         name: period
         type: string
         x-enum-comments:
+          MetricsPeriod1mo: '@name MetricsPeriod1mo'
+          MetricsPeriod5m: '@name MetricsPeriod5m'
           MetricsPeriod15m: '@name MetricsPeriod15m'
           MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
-          MetricsPeriod1mo: '@name MetricsPeriod1mo'
-          MetricsPeriod5m: '@name MetricsPeriod5m'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m
@@ -2129,11 +2178,11 @@ paths:
         name: interval
         type: string
         x-enum-comments:
+          MetricsPeriod15m: '@name MetricsPeriod15m'
+          MetricsPeriod1d: '@name MetricsPeriod1d'
           MetricsPeriod1h: '@name MetricsPeriod1h'
           MetricsPeriod1mo: '@name MetricsPeriod1mo'
           MetricsPeriod5m: '@name MetricsPeriod5m'
-          MetricsPeriod15m: '@name MetricsPeriod15m'
-          MetricsPeriod1d: '@name MetricsPeriod1d'
         x-enum-varnames:
         - MetricsPeriod5m
         - MetricsPeriod15m

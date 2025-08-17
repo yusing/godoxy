@@ -53,7 +53,7 @@ type (
 		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
 		HealthMon   types.HealthMonitor      `json:"health,omitempty" swaggerignore:"true"`
 		// for swagger
-		HealthJSON *types.HealthJSON `json:"-" form:"health"`
+		HealthJSON *types.HealthJSON `json:",omitempty" form:"health"`
 
 		Metadata `deserialize:"-"`
 	}

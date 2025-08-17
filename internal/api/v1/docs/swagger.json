@@ -2196,6 +2196,104 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "HealthExtra": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/LoadBalancerConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pool": {
+          "type": "object",
+          "additionalProperties": {},
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthJSON": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/HealthCheckConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "detail": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "extra": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthExtra"
+            }
+          ],
+          "x-nullable": true
+        },
+        "lastSeen": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "lastSeenStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latency": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latencyStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "started": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "startedStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptimeStr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "HealthMap": {
       "type": "object",
       "additionalProperties": {
@@ -2837,6 +2935,16 @@
         },
         "excluded": {
           "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "health": {
+          "description": "for swagger",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthJSON"
+            }
+          ],
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3887,6 +3995,16 @@
         },
         "excluded": {
           "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "health": {
+          "description": "for swagger",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthJSON"
+            }
+          ],
           "x-nullable": false,
           "x-omitempty": false
         },
