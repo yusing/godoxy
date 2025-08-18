@@ -122,6 +122,9 @@ func HomepageItems(proto, hostname, categoryFilter, providerFilter string) homep
 		// append hostname if provided and only if alias is not FQDN
 		if hostname != "" && item.URL == "" {
 			if !strings.Contains(item.Alias, ".") {
+				if strings.Count(hostname, ".") > 1 {
+					_, hostname, _ = strings.Cut(hostname, ".") // remove the subdomain
+				}
 				item.URL = fmt.Sprintf("%s://%s.%s", proto, item.Alias, hostname)
 			}
 		}
