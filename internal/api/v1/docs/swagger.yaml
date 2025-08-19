@@ -4,6 +4,8 @@ definitions:
     properties:
       addr:
         type: string
+      is_nerdctl:
+        type: boolean
       name:
         type: string
       version:
@@ -452,6 +454,13 @@ definitions:
     - MetricsPeriod1mo
   NewAgentRequest:
     properties:
+      container_runtime:
+        allOf:
+        - $ref: '#/definitions/agent.ContainerRuntime'
+        enum:
+        - docker
+        - podman
+        - nerdctl
       host:
         type: string
       name:
@@ -810,6 +819,8 @@ definitions:
         $ref: '#/definitions/PEMPairResponse'
       client:
         $ref: '#/definitions/PEMPairResponse'
+      container_runtime:
+        $ref: '#/definitions/agent.ContainerRuntime'
       host:
         type: string
     type: object
@@ -861,6 +872,16 @@ definitions:
       status_codes:
         $ref: '#/definitions/LogFilter-StatusCodeRange'
     type: object
+  agent.ContainerRuntime:
+    enum:
+    - docker
+    - podman
+    - nerdctl
+    type: string
+    x-enum-varnames:
+    - ContainerRuntimeDocker
+    - ContainerRuntimePodman
+    - ContainerRuntimeNerdctl
   auth.UserPassAuthCallbackRequest:
     properties:
       password:
@@ -1368,6 +1389,38 @@ paths:
       - agent
       x-id: verify
   /auth/callback:
+    get:
+      description: Handles the callback from the provider after successful authentication
+      parameters:
+      - description: Userpass only
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UserPassAuthCallbackRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: 'Userpass: OK'
+          schema:
+            type: string
+        "302":
+          description: 'OIDC: Redirects to home page'
+          schema:
+            type: string
+        "400":
+          description: 'Userpass: invalid request / credentials'
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Auth Callback
+      tags:
+      - auth
+      x-id: callback
     post:
       description: Handles the callback from the provider after successful authentication
       parameters:
@@ -1396,7 +1449,7 @@ paths:
           description: Internal server error
           schema:
             type: string
-      summary: Post Auth Callback
+      summary: Auth Callback
       tags:
       - auth
       x-id: callback

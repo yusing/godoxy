@@ -176,6 +176,54 @@ const docTemplate = `{
             }
         },
         "/auth/callback": {
+            "get": {
+                "description": "Handles the callback from the provider after successful authentication",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Auth Callback",
+                "parameters": [
+                    {
+                        "description": "Userpass only",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.UserPassAuthCallbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Userpass: OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "OIDC: Redirects to home page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Userpass: invalid request / credentials",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "x-id": "callback"
+            },
             "post": {
                 "description": "Handles the callback from the provider after successful authentication",
                 "produces": [
@@ -184,7 +232,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Post Auth Callback",
+                "summary": "Auth Callback",
                 "parameters": [
                     {
                         "description": "Userpass only",
@@ -1675,6 +1723,9 @@ const docTemplate = `{
                 "addr": {
                     "type": "string"
                 },
+                "is_nerdctl": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2337,6 +2388,18 @@ const docTemplate = `{
                 "type"
             ],
             "properties": {
+                "container_runtime": {
+                    "enum": [
+                        "docker",
+                        "podman",
+                        "nerdctl"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/agent.ContainerRuntime"
+                        }
+                    ]
+                },
                 "host": {
                     "type": "string"
                 },
@@ -2862,6 +2925,9 @@ const docTemplate = `{
                 "client": {
                     "$ref": "#/definitions/PEMPairResponse"
                 },
+                "container_runtime": {
+                    "$ref": "#/definitions/agent.ContainerRuntime"
+                },
                 "host": {
                     "type": "string"
                 }
@@ -2941,6 +3007,19 @@ const docTemplate = `{
                     "$ref": "#/definitions/LogFilter-StatusCodeRange"
                 }
             }
+        },
+        "agent.ContainerRuntime": {
+            "type": "string",
+            "enum": [
+                "docker",
+                "podman",
+                "nerdctl"
+            ],
+            "x-enum-varnames": [
+                "ContainerRuntimeDocker",
+                "ContainerRuntimePodman",
+                "ContainerRuntimeNerdctl"
+            ]
         },
         "auth.UserPassAuthCallbackRequest": {
             "type": "object",
