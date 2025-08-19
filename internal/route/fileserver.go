@@ -71,8 +71,9 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	}
 
 	if s.middleware != nil {
+		next := s.handler
 		s.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s.middleware.ServeHTTP(s.handler.ServeHTTP, w, r)
+			s.middleware.ServeHTTP(next.ServeHTTP, w, r)
 		})
 	}
 
