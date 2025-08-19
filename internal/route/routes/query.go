@@ -104,11 +104,15 @@ func HomepageItems(proto, hostname, categoryFilter, providerFilter string) homep
 
 	hp := make(homepage.Homepage)
 
+	if strings.Count(hostname, ".") > 1 {
+		_, hostname, _ = strings.Cut(hostname, ".") // remove the subdomain
+	}
+
 	for _, r := range HTTP.Iter {
 		if providerFilter != "" && r.ProviderName() != providerFilter {
 			continue
 		}
-		item := r.HomepageItem()
+		item := *r.HomepageItem()
 		if categoryFilter != "" && item.Category != categoryFilter {
 			continue
 		}
@@ -121,11 +125,11 @@ func HomepageItems(proto, hostname, categoryFilter, providerFilter string) homep
 
 		// append hostname if provided and only if alias is not FQDN
 		if hostname != "" && item.URL == "" {
-			if !strings.Contains(item.Alias, ".") {
-				if strings.Count(hostname, ".") > 1 {
-					_, hostname, _ = strings.Cut(hostname, ".") // remove the subdomain
-				}
+			isFQDNAlias := strings.Contains(item.Alias, ".")
+			if !isFQDNAlias {
 				item.URL = fmt.Sprintf("%s://%s.%s", proto, item.Alias, hostname)
+			} else {
+				item.URL = fmt.Sprintf("%s://%s", proto, item.Alias)
 			}
 		}
 
@@ -134,7 +138,7 @@ func HomepageItems(proto, hostname, categoryFilter, providerFilter string) homep
 			item.URL = fmt.Sprintf("%s://%s", proto, item.URL)
 		}
 
-		hp.Add(item)
+		hp.Add(&item)
 	}
 	return hp
 }

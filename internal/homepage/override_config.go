@@ -45,6 +45,7 @@ func (c *OverrideConfig) GetOverride(alias string, item *ItemConfig) *ItemConfig
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if itemOverride, hasOverride := c.ItemOverrides[alias]; hasOverride {
+		itemOverride.URL = item.URL // NOTE: we don't want to override the URL
 		item = itemOverride
 	}
 	if show, ok := c.ItemVisibility[alias]; ok {
