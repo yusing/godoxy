@@ -3,6 +3,7 @@ package period
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,7 @@ type ResponseType[AggregateT any] struct {
 //
 // If the request is a websocket request, it serves the data for the given period for every interval.
 func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
+	period := Filter(c.Query("period"))
 	query := c.Request.URL.Query()
 
 	if httpheaders.IsWebsocket(c.Request.Header) {
@@ -42,10 +44,10 @@ func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
 			interval = minInterval
 		}
 		websocket.PeriodicWrite(c, interval, func() (any, error) {
-			return p.getRespData(c.Request)
+			return p.getRespData(period, query)
 		})
 	} else {
-		data, err := p.getRespData(c.Request)
+		data, err := p.getRespData(period, query)
 		if err != nil {
 			c.Error(apitypes.InternalServerError(err, "failed to get response data"))
 			return
@@ -58,13 +60,11 @@ func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
 	}
 }
 
-func (p *Poller[T, AggregateT]) getRespData(r *http.Request) (any, error) {
-	query := r.URL.Query()
-	period := query.Get("period")
+func (p *Poller[T, AggregateT]) getRespData(period Filter, query url.Values) (any, error) {
 	if period == "" {
 		return p.GetLastResult(), nil
 	}
-	rangeData, ok := p.Get(Filter(period))
+	rangeData, ok := p.Get(period)
 	if !ok {
 		return nil, errors.New("invalid period")
 	}

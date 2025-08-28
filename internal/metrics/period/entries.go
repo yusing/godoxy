@@ -6,7 +6,7 @@ import (
 )
 
 type Entries[T any] struct {
-	entries  [maxEntries]*T
+	entries  [maxEntries]T
 	index    int
 	count    int
 	interval time.Duration
@@ -16,17 +16,14 @@ type Entries[T any] struct {
 const maxEntries = 100
 
 func newEntries[T any](duration time.Duration) *Entries[T] {
-	interval := duration / maxEntries
-	if interval < time.Second {
-		interval = time.Second
-	}
+	interval := max(duration/maxEntries, time.Second)
 	return &Entries[T]{
 		interval: interval,
 		lastAdd:  time.Now(),
 	}
 }
 
-func (e *Entries[T]) Add(now time.Time, info *T) {
+func (e *Entries[T]) Add(now time.Time, info T) {
 	if now.Sub(e.lastAdd) < e.interval {
 		return
 	}
@@ -38,11 +35,11 @@ func (e *Entries[T]) Add(now time.Time, info *T) {
 	e.lastAdd = now
 }
 
-func (e *Entries[T]) Get() []*T {
+func (e *Entries[T]) Get() []T {
 	if e.count < maxEntries {
 		return e.entries[:e.count]
 	}
-	res := make([]*T, maxEntries)
+	res := make([]T, maxEntries)
 	copy(res, e.entries[e.index:])
 	copy(res[maxEntries-e.index:], e.entries[:e.index])
 	return res
@@ -57,7 +54,7 @@ func (e *Entries[T]) MarshalJSON() ([]byte, error) {
 
 func (e *Entries[T]) UnmarshalJSON(data []byte) error {
 	var v struct {
-		Entries  []*T          `json:"entries"`
+		Entries  []T           `json:"entries"`
 		Interval time.Duration `json:"interval"`
 	}
 	if err := json.Unmarshal(data, &v); err != nil {

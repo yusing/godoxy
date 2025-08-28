@@ -32,7 +32,7 @@ func NewPeriod[T any]() *Period[T] {
 	}
 }
 
-func (p *Period[T]) Add(info *T) {
+func (p *Period[T]) Add(info T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	now := time.Now()
@@ -41,7 +41,7 @@ func (p *Period[T]) Add(info *T) {
 	}
 }
 
-func (p *Period[T]) Get(filter Filter) ([]*T, bool) {
+func (p *Period[T]) Get(filter Filter) ([]T, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	period, ok := p.Entries[filter]

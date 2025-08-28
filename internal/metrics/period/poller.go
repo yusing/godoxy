@@ -17,16 +17,16 @@ import (
 )
 
 type (
-	PollFunc[T any]                                 func(ctx context.Context, lastResult *T) (*T, error)
-	AggregateFunc[T any, AggregateT json.Marshaler] func(entries []*T, query url.Values) (total int, result AggregateT)
-	FilterFunc[T any]                               func(entries []*T, keyword string) (filtered []*T)
+	PollFunc[T any]                                 func(ctx context.Context, lastResult T) (T, error)
+	AggregateFunc[T any, AggregateT json.Marshaler] func(entries []T, query url.Values) (total int, result AggregateT)
+	FilterFunc[T any]                               func(entries []T, keyword string) (filtered []T)
 	Poller[T any, AggregateT json.Marshaler]        struct {
 		name         string
 		poll         PollFunc[T]
 		aggregate    AggregateFunc[T, AggregateT]
 		resultFilter FilterFunc[T]
 		period       *Period[T]
-		lastResult   atomic.Value[*T]
+		lastResult   atomic.Value[T]
 		errs         []pollErr
 	}
 	pollErr struct {
@@ -188,10 +188,10 @@ func (p *Poller[T, AggregateT]) Start() {
 	}()
 }
 
-func (p *Poller[T, AggregateT]) Get(filter Filter) ([]*T, bool) {
+func (p *Poller[T, AggregateT]) Get(filter Filter) ([]T, bool) {
 	return p.period.Get(filter)
 }
 
-func (p *Poller[T, AggregateT]) GetLastResult() *T {
+func (p *Poller[T, AggregateT]) GetLastResult() T {
 	return p.lastResult.Load()
 }
