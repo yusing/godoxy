@@ -6,8 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	apitypes "github.com/yusing/go-proxy/internal/api/types"
 	apiV1 "github.com/yusing/go-proxy/internal/api/v1"
 	agentApi "github.com/yusing/go-proxy/internal/api/v1/agent"
@@ -48,6 +46,8 @@ func NewHandler() *gin.Engine {
 	docs.SwaggerInfo.Title = "GoDoxy API"
 	docs.SwaggerInfo.BasePath = "/api/v1"
 
+	r.GET("/api/v1/version", apiV1.Version)
+
 	v1Auth := r.Group("/api/v1/auth")
 	{
 		v1Auth.HEAD("/check", authApi.Check)
@@ -55,14 +55,6 @@ func NewHandler() *gin.Engine {
 		v1Auth.GET("/callback", authApi.Callback)
 		v1Auth.POST("/callback", authApi.Callback)
 		v1Auth.POST("/logout", authApi.Logout)
-	}
-
-	v1Swagger := r.Group("/api/v1/swagger")
-	{
-		v1Swagger.GET("/:any", func(c *gin.Context) {
-			c.Redirect(http.StatusTemporaryRedirect, "/api/v1/swagger/index.html")
-		})
-		v1Swagger.GET("/:any/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
 	v1 := r.Group("/api/v1")
@@ -78,7 +70,6 @@ func NewHandler() *gin.Engine {
 		v1.GET("/icons", apiV1.Icons)
 		v1.POST("/reload", apiV1.Reload)
 		v1.GET("/stats", apiV1.Stats)
-		v1.GET("/version", apiV1.Version)
 
 		route := v1.Group("/route")
 		{
