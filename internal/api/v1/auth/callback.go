@@ -18,7 +18,6 @@ import (
 // @Failure		400	{string}	string	"OIDC: invalid request (missing state cookie or oauth state)"
 // @Failure		400	{string}	string	"Userpass: invalid request / credentials"
 // @Failure		500	{string}	string	"Internal server error"
-// @Router			/auth/callback [get]
 // @Router			/auth/callback [post]
 func Callback(c *gin.Context) {
 	auth.GetDefaultAuth().PostAuthCallbackHandler(c.Writer, c.Request)
