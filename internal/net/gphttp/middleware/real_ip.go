@@ -59,6 +59,17 @@ func (ri *realIP) isInCIDRList(ip net.IP) bool {
 }
 
 func (ri *realIP) setRealIP(req *http.Request) {
+	// skip first if header is not present
+	realIPs := req.Header.Values(ri.Header)
+	if len(realIPs) == 0 {
+		// try non-canonical key
+		realIPs = req.Header[ri.Header]
+	}
+
+	if len(realIPs) == 0 {
+		return
+	}
+
 	clientIPStr, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		clientIPStr = req.RemoteAddr
@@ -77,17 +88,7 @@ func (ri *realIP) setRealIP(req *http.Request) {
 		return
 	}
 
-	realIPs := req.Header.Values(ri.Header)
 	lastNonTrustedIP := ""
-
-	if len(realIPs) == 0 {
-		// try non-canonical key
-		realIPs = req.Header[ri.Header]
-	}
-
-	if len(realIPs) == 0 {
-		return
-	}
 
 	if !ri.Recursive {
 		lastNonTrustedIP = realIPs[len(realIPs)-1]
