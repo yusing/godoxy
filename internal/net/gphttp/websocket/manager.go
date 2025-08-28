@@ -31,6 +31,7 @@ type Manager struct {
 	err              error
 
 	writeLock sync.Mutex
+	closeOnce sync.Once
 }
 
 var defaultUpgrader = websocket.Upgrader{
@@ -110,6 +111,12 @@ func NewManagerWithUpgrade(c *gin.Context) (*Manager, error) {
 
 	go cm.pingCheckRoutine()
 	go cm.readRoutine()
+
+	// Ensure resources are released when parent context is canceled.
+	go func() {
+		<-ctx.Done()
+		cm.Close()
+	}()
 
 	return cm, nil
 }
@@ -209,6 +216,10 @@ func (cm *Manager) ReadJSON(out any, timeout time.Duration) error {
 
 // Close closes the connection and cancels the context
 func (cm *Manager) Close() {
+	cm.closeOnce.Do(cm.close)
+}
+
+func (cm *Manager) close() {
 	cm.cancel()
 
 	cm.writeLock.Lock()
