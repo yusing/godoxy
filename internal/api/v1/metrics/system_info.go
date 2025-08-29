@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"io"
+	"maps"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,25 +54,22 @@ func SystemInfo(c *gin.Context) {
 
 	isWS := httpheaders.IsWebsocket(c.Request.Header)
 	if !isWS {
-		respData, status, err := agent.Forward(c.Request, agentPkg.EndpointSystemInfo)
+		resp, err := agent.Forward(c.Request, agentPkg.EndpointSystemInfo)
 		if err != nil {
 			c.Error(apitypes.InternalServerError(err, "failed to forward request to agent"))
 			return
 		}
-		if status != http.StatusOK {
-			c.JSON(status, apitypes.Error(string(respData)))
-			return
-		}
-		c.JSON(status, respData)
+		maps.Copy(c.Writer.Header(), resp.Header)
+		c.Status(resp.StatusCode)
+		io.Copy(c.Writer, resp.Body)
 	} else {
 		rp := reverseproxy.NewReverseProxy("agent", nettypes.NewURL(agentPkg.AgentURL), agent.Transport())
-		header := c.Request.Header.Clone()
-		r, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, agentPkg.EndpointSystemInfo+"?"+query.Encode(), nil)
+		r, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, agentPkg.EndpointSystemInfo+"?"+query.Encode(), c.Request.Body)
 		if err != nil {
 			c.Error(apitypes.InternalServerError(err, "failed to create request"))
 			return
 		}
-		r.Header = header
+		r.Header = c.Request.Header
 		rp.ServeHTTP(c.Writer, r)
 	}
 }
