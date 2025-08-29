@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"compress/flate"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,8 +34,6 @@ type Manager struct {
 }
 
 var defaultUpgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
@@ -58,6 +57,7 @@ var defaultUpgrader = websocket.Upgrader{
 		reqHost = strings.ToLower(reqHost)
 		return originHost == reqHost
 	},
+	EnableCompression: true,
 }
 
 var (
@@ -85,6 +85,9 @@ func NewManagerWithUpgrade(c *gin.Context) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conn.EnableWriteCompression(true)
+	_ = conn.SetCompressionLevel(flate.BestSpeed)
 
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	cm := &Manager{
