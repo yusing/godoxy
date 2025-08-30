@@ -6,7 +6,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0
 	github.com/puzpuzpuz/xsync/v4 v4.1.0
 	github.com/rs/zerolog v1.34.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/atomic v1.11.0
 	golang.org/x/text v0.28.0
 )
