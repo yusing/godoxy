@@ -141,7 +141,7 @@ func getHTTPFlusher(dst io.Writer) flushErrorInterface {
 
 const copyBufSize = synk.SizedPoolThreshold
 
-var bytesPool = synk.NewBytesPool()
+var bytesPool = synk.GetBytesPool()
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

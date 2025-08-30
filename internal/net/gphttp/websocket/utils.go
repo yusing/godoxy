@@ -82,6 +82,7 @@ func PeriodicWrite(c *gin.Context, interval time.Duration, get func() (any, erro
 		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
 		return
 	}
+	defer manager.Close()
 	err = manager.PeriodicWrite(interval, get)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to write to websocket"))
