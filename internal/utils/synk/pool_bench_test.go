@@ -1,6 +1,7 @@
 package synk
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -33,6 +34,13 @@ func BenchmarkBytesPool_MakeLarge(b *testing.B) {
 func BenchmarkBytesPool_GetAll(b *testing.B) {
 	for i := range b.N {
 		bytesPool.Put(bytesPool.GetSized(sizes[i%len(sizes)]))
+	}
+}
+
+func BenchmarkBytesPoolWithMemory(b *testing.B) {
+	pool := GetBytesPoolWithUniqueMemory()
+	for i := range b.N {
+		pool.Put(slices.Grow(pool.Get(), sizes[i%len(sizes)]))
 	}
 }
 

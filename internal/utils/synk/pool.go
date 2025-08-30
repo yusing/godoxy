@@ -2,6 +2,7 @@ package synk
 
 import (
 	"runtime"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -34,6 +35,12 @@ type BytesPool struct {
 	initSize    int
 }
 
+type BytesPoolWithMemory struct {
+	maxAllocatedSize atomic.Uint32
+	numShouldShrink  atomic.Int32
+	pool             chan weakBuf
+}
+
 const (
 	kb = 1024
 	mb = 1024 * kb
@@ -48,6 +55,8 @@ const (
 
 	SizedPoolSize   = InPoolLimit * 8 / 10 / SizedPoolThreshold
 	UnsizedPoolSize = InPoolLimit * 2 / 10 / UnsizedAvg
+
+	ShouldShrinkThreshold = 10
 )
 
 var bytesPool = &BytesPool{
@@ -56,8 +65,16 @@ var bytesPool = &BytesPool{
 	initSize:    UnsizedAvg,
 }
 
-func NewBytesPool() *BytesPool {
+var bytesPoolWithMemory = make(chan weakBuf, UnsizedPoolSize)
+
+func GetBytesPool() *BytesPool {
 	return bytesPool
+}
+
+func GetBytesPoolWithUniqueMemory() *BytesPoolWithMemory {
+	return &BytesPoolWithMemory{
+		pool: bytesPoolWithMemory,
+	}
 }
 
 func (p *BytesPool) Get() []byte {
@@ -72,6 +89,25 @@ func (p *BytesPool) Get() []byte {
 			return bPtr
 		default:
 			return make([]byte, 0)
+		}
+	}
+}
+
+func (p *BytesPoolWithMemory) Get() []byte {
+	for {
+		size := int(p.maxAllocatedSize.Load())
+		select {
+		case bWeak := <-p.pool:
+			bPtr := getBufFromWeak(bWeak)
+			if bPtr == nil {
+				continue
+			}
+			capB := cap(bPtr)
+			addReused(capB)
+			return bPtr
+		default:
+			addNonPooled(size)
+			return make([]byte, 0, size)
 		}
 	}
 }
@@ -116,6 +152,46 @@ func (p *BytesPool) Put(b []byte) {
 		p.put(w, p.unsizedPool)
 	} else {
 		p.put(w, p.sizedPool)
+	}
+}
+
+func (p *BytesPoolWithMemory) Put(b []byte) {
+	capB := uint32(cap(b))
+
+	for {
+		current := p.maxAllocatedSize.Load()
+
+		if capB < current {
+			// Potential shrink case
+			if p.numShouldShrink.Add(1) > ShouldShrinkThreshold {
+				if p.maxAllocatedSize.CompareAndSwap(current, capB) {
+					p.numShouldShrink.Store(0) // reset counter
+					break
+				}
+				p.numShouldShrink.Add(-1) // undo if CAS failed
+			}
+			break
+		} else if capB > current {
+			// Growing case
+			if p.maxAllocatedSize.CompareAndSwap(current, capB) {
+				break
+			}
+			// retry if CAS failed
+		} else {
+			// equal case - no change needed
+			break
+		}
+	}
+
+	if capB > DropThreshold {
+		return
+	}
+	b = b[:0]
+	w := makeWeak(&b)
+	select {
+	case p.pool <- w:
+	default:
+		// just drop it
 	}
 }
 
