@@ -20,6 +20,7 @@ import (
 	routeApi "github.com/yusing/go-proxy/internal/api/v1/route"
 	"github.com/yusing/go-proxy/internal/auth"
 	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/go-proxy/internal/gperr"
 )
 
 // @title           GoDoxy API
@@ -184,8 +185,9 @@ func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 		if len(c.Errors) > 0 {
+			logger := log.With().Str("uri", c.Request.RequestURI).Logger()
 			for _, err := range c.Errors {
-				log.Err(err.Err).Str("uri", c.Request.RequestURI).Msg("Internal error")
+				gperr.LogError("Internal error", err.Err, &logger)
 			}
 			if !isWebSocketRequest(c) {
 				c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
