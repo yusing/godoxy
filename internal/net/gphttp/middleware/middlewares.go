@@ -15,8 +15,8 @@ import (
 var allMiddlewares = map[string]*Middleware{
 	"redirecthttp": RedirectHTTP,
 
-	"oidc":     OIDC,
-	"tinyauth": TinyAuth,
+	"oidc":        OIDC,
+	"forwardauth": ForwardAuth,
 
 	"request":        ModifyRequest,
 	"modifyrequest":  ModifyRequest,
