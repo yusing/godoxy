@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/gperr"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
@@ -187,6 +189,18 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		}
 	}
 	next(w, r)
+}
+
+func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {
+	return log.Warn().Str("middleware", m.name).
+		Str("host", req.Host).
+		Str("path", req.URL.Path)
+}
+
+func (m *Middleware) LogError(req *http.Request) *zerolog.Event {
+	return log.Error().Str("middleware", m.name).
+		Str("host", req.Host).
+		Str("path", req.URL.Path)
 }
 
 func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (err gperr.Error) {
