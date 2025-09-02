@@ -3,6 +3,7 @@ package auth
 import (
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/common"
@@ -44,8 +45,21 @@ func requestHost(r *http.Request) string {
 //
 //	"abc.example.com" -> ".example.com" (cross subdomain)
 //	"example.com" -> "" (same domain only)
+//	"abc.localhost" -> ".localhost"
+//	"abc.local" -> ".local"
+//	"abc.internal" -> ".internal"
 func cookieDomain(r *http.Request) string {
-	parts := strutils.SplitRune(requestHost(r), '.')
+	reqHost := requestHost(r)
+	switch {
+	case strings.HasSuffix(reqHost, ".internal"):
+		return ".internal"
+	case strings.HasSuffix(reqHost, ".localhost"):
+		return ".localhost"
+	case strings.HasSuffix(reqHost, ".local"):
+		return ".local"
+	}
+
+	parts := strutils.SplitRune(reqHost, '.')
 	if len(parts) < 2 {
 		return ""
 	}
