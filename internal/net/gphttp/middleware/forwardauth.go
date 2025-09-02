@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -14,7 +13,6 @@ import (
 
 type (
 	forwardAuthMiddleware struct {
-		initMu sync.Mutex
 		ForwardAuthMiddlewareOpts
 	}
 
@@ -41,9 +39,6 @@ func (m *forwardAuthMiddleware) setup() {
 
 // before implements RequestModifier.
 func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	m.initMu.Lock()
-	defer m.initMu.Unlock()
-
 	forwardAuthUrl := fmt.Sprintf("http://localhost:%d%s", m.ForwardAuthPort, m.ForwardAuthEndpoint)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
