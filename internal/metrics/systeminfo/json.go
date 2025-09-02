@@ -9,7 +9,7 @@ import (
 	"github.com/yusing/go-proxy/internal/utils/synk"
 )
 
-var bufPool = synk.NewBytesPool()
+var bufPool = synk.GetBytesPool()
 
 // explicitly implement MarshalJSON to avoid reflection.
 func (s *SystemInfo) MarshalJSON() ([]byte, error) {

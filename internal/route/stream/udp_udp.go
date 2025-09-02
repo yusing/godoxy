@@ -47,7 +47,7 @@ const (
 	udpReadTimeout     = 30 * time.Second
 )
 
-var bufPool = synk.NewBytesPool()
+var bufPool = synk.GetBytesPool()
 
 func NewUDPUDPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
 	dst, err := net.ResolveUDPAddr("udp", dstAddr)

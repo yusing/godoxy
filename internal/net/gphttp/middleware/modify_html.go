@@ -21,7 +21,7 @@ type modifyHTML struct {
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
-var bytePool = synk.NewBytesPool()
+var bytePool = synk.GetBytesPool()
 
 func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
 	req.Header.Set("Accept-Encoding", "")
