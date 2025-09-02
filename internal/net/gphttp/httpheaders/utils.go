@@ -3,8 +3,8 @@ package httpheaders
 import (
 	"net/http"
 	"net/textproto"
+	"strings"
 
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -51,7 +51,7 @@ func UpgradeType(h http.Header) string {
 func RemoveHopByHopHeaders(h http.Header) {
 	// RFC 7230, section 6.1: Remove headers listed in the "Connection" header.
 	for _, f := range h["Connection"] {
-		for _, sf := range strutils.SplitComma(f) {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
