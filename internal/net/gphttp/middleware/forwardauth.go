@@ -19,10 +19,11 @@ type (
 	}
 
 	ForwardAuthMiddlewareOpts struct {
-		ForwardAuthRoute    string `json:"forwardauth_route"`    // default: "tinyauth"
-		ForwardAuthPort     int    `json:"forwardauth_port"`     // default: 3000
-		ForwardAuthLogin    string `json:"forwardauth_login"`    // the redirect login path, e.g. "/login?redirect_uri="
-		ForwardAuthEndpoint string `json:"forwardauth_endpoint"` // default: "/api/auth/nginx"
+		ForwardAuthRoute    string   `json:"forwardauth_route"`    // default: "tinyauth"
+		ForwardAuthPort     int      `json:"forwardauth_port"`     // default: 3000
+		ForwardAuthLogin    string   `json:"forwardauth_login"`    // the redirect login path, e.g. "/login?redirect_uri="
+		ForwardAuthEndpoint string   `json:"forwardauth_endpoint"` // default: "/api/auth/nginx"
+		ForwardAuthHeaders  []string `json:"forwardauth_headers"`  // additional headers to forward from auth server to upstream, e.g. ["Remote-User", "Remote-Name"]
 	}
 )
 
@@ -34,6 +35,7 @@ func (m *forwardAuthMiddleware) setup() {
 		ForwardAuthPort:     3000,
 		ForwardAuthLogin:    "/login?redirect_uri=",
 		ForwardAuthEndpoint: "/api/auth/nginx",
+		ForwardAuthHeaders:  []string{"Remote-User", "Remote-Name", "Remote-Email", "Remote-Groups"},
 	}
 }
 
@@ -68,15 +70,9 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 	status_code := resp.StatusCode
 
 	if status_code == 200 {
-		// copy Remote- headers from resp to req
-		// e.g. Remote-User, Remote-Email, Remote-Name, Remote-Groups
-		// but it do nothing if tinyauthMiddleware is after ModifyResponse middleware
-		for k, values := range resp.Header {
-			key := strings.ToLower(k)
-			if strings.HasPrefix(key, "remote-") {
-				for _, v := range values {
-					r.Header[k] = append(r.Header[k], v)
-				}
+		for _, h := range m.ForwardAuthHeaders {
+			if v := resp.Header.Get(h); v != "" {
+				w.Header().Set(h, v)
 			}
 		}
 		return true
@@ -89,7 +85,6 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 		}
 
 		scheme := "http://"
-
 		if r.TLS != nil {
 			scheme = "https://"
 		}
@@ -97,8 +92,8 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 		parts := strings.Split(host, ".")
 		if len(parts) > 2 {
 			host = strings.Join(parts[len(parts)-2:], ".")
-
 		}
+
 		redirectUrl := scheme + m.ForwardAuthRoute + "." + host + m.ForwardAuthLogin + scheme + r.Host + r.URL.RequestURI()
 		http.Redirect(w, r, redirectUrl, http.StatusPermanentRedirect)
 		return false
