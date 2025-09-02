@@ -220,7 +220,13 @@ func (cfg *Config) load() gperr.Error {
 
 	data, err := os.ReadFile(common.ConfigPath)
 	if err != nil {
-		gperr.LogFatal(errMsg, err)
+		if os.IsNotExist(err) {
+			log.Warn().Msg("config file not found, using default config")
+			cfg.value = config.DefaultConfig()
+			return nil
+		} else {
+			gperr.LogFatal(errMsg, err)
+		}
 	}
 
 	model := config.DefaultConfig()
