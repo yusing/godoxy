@@ -62,9 +62,8 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 	}
 
 	defer resp.Body.Close()
-	status_code := resp.StatusCode
 
-	if status_code == 200 {
+	if resp.StatusCode == http.StatusOK {
 		for _, h := range m.ForwardAuthHeaders {
 			if v := resp.Header.Get(h); v != "" {
 				w.Header().Set(h, v)
@@ -73,7 +72,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 		return true
 	}
 
-	if status_code == 401 {
+	if resp.StatusCode == http.StatusUnauthorized {
 		host, _, err := net.SplitHostPort(r.Host)
 		if err != nil {
 			host = r.Host
@@ -94,7 +93,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 		return false
 	}
 
-	if status_code == 403 {
+	if resp.StatusCode == http.StatusForbidden {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return false
 	}
