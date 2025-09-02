@@ -36,6 +36,11 @@ type (
 		pSrcDst *Pipe
 		pDstSrc *Pipe
 	}
+
+	HookCloser struct {
+		c    io.ReadCloser
+		hook func()
+	}
 )
 
 func NewContextReader(ctx context.Context, r io.Reader) *ContextReader {
@@ -142,6 +147,41 @@ func getHTTPFlusher(dst io.Writer) flushErrorInterface {
 const copyBufSize = synk.SizedPoolThreshold
 
 var bytesPool = synk.GetBytesPool()
+
+// ReadAllBody reads the body of the response into a buffer and returns it and a function to release the buffer.
+func ReadAllBody(resp *http.Response) (buf []byte, release func(), err error) {
+	if contentLength := resp.ContentLength; contentLength > 0 {
+		buf = bytesPool.GetSized(int(contentLength))
+		_, err = io.ReadFull(resp.Body, buf)
+		if err != nil {
+			bytesPool.Put(buf)
+			return nil, nil, err
+		}
+		return buf, func() { bytesPool.Put(buf) }, nil
+	}
+	buf, err = io.ReadAll(resp.Body)
+	if err != nil {
+		bytesPool.Put(buf)
+		return nil, nil, err
+	}
+	return buf, func() { bytesPool.Put(buf) }, nil
+}
+
+// NewHookCloser wraps a io.ReadCloser and calls the hook function when the closer is closed.
+func NewHookCloser(c io.ReadCloser, hook func()) *HookCloser {
+	return &HookCloser{hook: hook, c: c}
+}
+
+// Close calls the hook function and closes the underlying reader
+func (r *HookCloser) Close() error {
+	r.hook()
+	return r.c.Close()
+}
+
+// Read reads from the underlying reader.
+func (r *HookCloser) Read(p []byte) (int, error) {
+	return r.c.Read(p)
+}
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
