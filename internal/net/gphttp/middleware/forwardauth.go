@@ -2,13 +2,13 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/go-proxy/internal/route/routes"
 )
 
 type (
@@ -18,7 +18,6 @@ type (
 
 	ForwardAuthMiddlewareOpts struct {
 		ForwardAuthRoute    string   `json:"forwardauth_route"`    // default: "tinyauth"
-		ForwardAuthPort     int      `json:"forwardauth_port"`     // default: 3000
 		ForwardAuthLogin    string   `json:"forwardauth_login"`    // the redirect login path, e.g. "/login?redirect_uri="
 		ForwardAuthEndpoint string   `json:"forwardauth_endpoint"` // default: "/api/auth/nginx"
 		ForwardAuthHeaders  []string `json:"forwardauth_headers"`  // additional headers to forward from auth server to upstream, e.g. ["Remote-User", "Remote-Name"]
@@ -30,7 +29,6 @@ var ForwardAuth = NewMiddleware[forwardAuthMiddleware]()
 func (m *forwardAuthMiddleware) setup() {
 	m.ForwardAuthMiddlewareOpts = ForwardAuthMiddlewareOpts{
 		ForwardAuthRoute:    "tinyauth",
-		ForwardAuthPort:     3000,
 		ForwardAuthLogin:    "/login?redirect_uri=",
 		ForwardAuthEndpoint: "/api/auth/nginx",
 		ForwardAuthHeaders:  []string{"Remote-User", "Remote-Name", "Remote-Email", "Remote-Groups"},
@@ -39,12 +37,20 @@ func (m *forwardAuthMiddleware) setup() {
 
 // before implements RequestModifier.
 func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	forwardAuthUrl := fmt.Sprintf("http://localhost:%d%s", m.ForwardAuthPort, m.ForwardAuthEndpoint)
+	route, ok := routes.HTTP.Get(m.ForwardAuthRoute)
+	if !ok {
+		log.Warn().Str("route", m.ForwardAuthRoute).Msg("forwardauth route not found")
+		w.WriteHeader(http.StatusInternalServerError)
+		return false
+	}
+
+	forwardAuthUrl := *route.TargetURL()
+	forwardAuthUrl.Path = m.ForwardAuthEndpoint
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, forwardAuthUrl, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, forwardAuthUrl.String(), nil)
 	if err != nil {
 		log.Err(err).Msg("failed to create request")
 		return false
