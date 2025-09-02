@@ -45,7 +45,9 @@ var (
 
 var fontCSSTemplate = template.Must(template.New("fontCSS").Parse(fontCSS))
 
-const overAllocate = 256
+func (m *themed) setup() {
+	m.m.setup()
+}
 
 func (m *themed) before(w http.ResponseWriter, req *http.Request) bool {
 	return m.m.before(w, req)
@@ -58,9 +60,8 @@ func (m *themed) modifyResponse(resp *http.Response) error {
 func (m *themed) finalize() error {
 	m.m.Target = "body"
 	if m.FontURL != "" && m.FontFamily != "" {
-		buf := bytes.NewBuffer(bytePool.GetSized(len(fontCSS) + overAllocate))
+		buf := bytes.NewBuffer(nil)
 		buf.WriteString(`<style type="text/css">`)
-		defer bytePool.Put(buf.Bytes())
 		err := fontCSSTemplate.Execute(buf, m)
 		if err != nil {
 			return err
