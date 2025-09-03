@@ -1,20 +1,13 @@
 package systeminfo
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
-
-	"github.com/shirou/gopsutil/v4/sensors"
-	"github.com/yusing/go-proxy/internal/utils/synk"
 )
-
-var bufPool = synk.GetBytesPool()
 
 // explicitly implement MarshalJSON to avoid reflection.
 func (s *SystemInfo) MarshalJSON() ([]byte, error) {
-	b := bufPool.Get()
-	defer bufPool.Put(b)
+	b := make([]byte, 0, 4096)
 
 	b = append(b, '{')
 
@@ -114,15 +107,14 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	// sensors
 	b = append(b, `,"sensors":`...)
 	if len(s.Sensors) > 0 {
-		b = append(b, '{')
+		b = append(b, '[')
 		first := true
 		for _, sensor := range s.Sensors {
 			if !first {
 				b = append(b, ',')
 			}
 			b = fmt.Appendf(b,
-				`"%s":{"name":"%s","temperature":%.2f,"high":%.2f,"critical":%.2f}`,
-				sensor.SensorKey,
+				`{"name":"%s","temperature":%.2f,"high":%.2f,"critical":%.2f}`,
 				sensor.SensorKey,
 				sensor.Temperature,
 				sensor.High,
@@ -130,7 +122,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 			)
 			first = false
 		}
-		b = append(b, '}')
+		b = append(b, ']')
 	} else {
 		b = append(b, "null"...)
 	}
@@ -139,34 +131,22 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-func (s *Sensors) UnmarshalJSON(data []byte) error {
-	var v map[string]map[string]any
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-	if len(v) == 0 {
-		return nil
-	}
-	*s = make(Sensors, 0, len(v))
-	for k, v := range v {
-		*s = append(*s, sensors.TemperatureStat{
-			SensorKey:   k,
-			Temperature: v["temperature"].(float64),
-			High:        v["high"].(float64),
-			Critical:    v["critical"].(float64),
-		})
-	}
-	return nil
-}
-
 func (result Aggregated) MarshalJSON() ([]byte, error) {
-	buf := bufPool.Get()
-	defer bufPool.Put(buf)
+	if len(result.Entries) == 0 {
+		return []byte("[]"), nil
+	}
+
+	capacity := 10 * 1024
+	if result.Mode == SystemInfoAggregateModeSensorTemperature {
+		// give each sensor key 30 bytes per entry per sensor key
+		capacity = 30 * len(result.Entries) * len(result.Entries[0])
+	}
+	buf := make([]byte, 0, capacity)
 
 	buf = append(buf, '[')
 	i := 0
-	n := len(result)
-	for _, entry := range result {
+	n := len(result.Entries)
+	for _, entry := range result.Entries {
 		buf = append(buf, '{')
 		j := 0
 		m := len(entry)
@@ -178,10 +158,12 @@ func (result Aggregated) MarshalJSON() ([]byte, error) {
 			switch v := v.(type) {
 			case float64:
 				buf = strconv.AppendFloat(buf, v, 'f', 2, 64)
-			case uint64:
-				buf = strconv.AppendUint(buf, v, 10)
+			case int32:
+				buf = strconv.AppendInt(buf, int64(v), 10)
 			case int64:
 				buf = strconv.AppendInt(buf, v, 10)
+			case uint64:
+				buf = strconv.AppendUint(buf, v, 10)
 			default:
 				panic(fmt.Sprintf("unexpected type: %T", v))
 			}
