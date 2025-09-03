@@ -24,6 +24,14 @@ func Title(s string) string {
 	return cases.Title(language.AmericanEnglish).String(s)
 }
 
+func ContainsFold(s, substr string) bool {
+	return IndexFold(s, substr) >= 0
+}
+
+func IndexFold(s, substr string) int {
+	return strings.Index(strings.ToLower(s), strings.ToLower(substr))
+}
+
 func ToLowerNoSnake(s string) string {
 	var buf strings.Builder
 	for _, r := range s {

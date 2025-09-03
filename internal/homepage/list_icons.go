@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,19 +24,20 @@ type (
 	IconMap  map[IconKey]*IconMeta
 	IconList []string
 	IconMeta struct {
-		SVG, PNG, WebP bool
-		Light, Dark    bool
-		DisplayName    string
-		Tag            string
+		SVG         bool   `json:"SVG"`
+		PNG         bool   `json:"PNG"`
+		WebP        bool   `json:"WebP"`
+		Light       bool   `json:"Light"`
+		Dark        bool   `json:"Dark"`
+		DisplayName string `json:"-"`
+		Tag         string `json:"-"`
 	}
 	IconMetaSearch struct {
 		Source IconSource `json:"Source"`
 		Ref    string     `json:"Ref"`
-		SVG    bool       `json:"SVG"`
-		PNG    bool       `json:"PNG"`
-		WebP   bool       `json:"WebP"`
-		Light  bool       `json:"Light"`
-		Dark   bool       `json:"Dark"`
+		*IconMeta
+
+		rank int
 	}
 	Cache struct {
 		Icons        IconMap
@@ -150,31 +152,54 @@ func ListAvailableIcons() (*Cache, error) {
 	return iconsCache, nil
 }
 
-func SearchIcons(keyword string, limit int) []IconMetaSearch {
+func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 	if keyword == "" {
-		return make([]IconMetaSearch, 0)
+		return []*IconMetaSearch{}
 	}
+
+	if limit == 0 {
+		limit = 10
+	}
+
 	iconsCache.RLock()
 	defer iconsCache.RUnlock()
-	result := make([]IconMetaSearch, 0)
+
+	searchLimit := min(limit*5, 50)
+
+	results := make([]*IconMetaSearch, 0, searchLimit)
+
+	sortByRank := func(a, b *IconMetaSearch) int {
+		return a.rank - b.rank
+	}
+
+	var rank int
 	for k, icon := range iconsCache.Icons {
-		if fuzzy.MatchFold(keyword, string(k)) {
-			source, ref := k.SourceRef()
-			result = append(result, IconMetaSearch{
-				Source: source,
-				Ref:    ref,
-				SVG:    icon.SVG,
-				PNG:    icon.PNG,
-				WebP:   icon.WebP,
-				Light:  icon.Light,
-				Dark:   icon.Dark,
-			})
+		if strutils.ContainsFold(string(k), keyword) || strutils.ContainsFold(icon.DisplayName, keyword) {
+			rank = 0
+		} else {
+			rank = fuzzy.RankMatchFold(keyword, string(k))
+			if rank == -1 || rank > 3 {
+				continue
+			}
 		}
-		if len(result) >= limit {
+
+		source, ref := k.SourceRef()
+		ranked := &IconMetaSearch{
+			Source:   source,
+			Ref:      ref,
+			IconMeta: icon,
+			rank:     rank,
+		}
+		// Sorted insert based on rank (lower rank = better match)
+		insertPos, _ := slices.BinarySearchFunc(results, ranked, sortByRank)
+		results = slices.Insert(results, insertPos, ranked)
+		if len(results) == searchLimit {
 			break
 		}
 	}
-	return result
+
+	// Extract results and limit to the requested count
+	return results[:min(len(results), limit)]
 }
 
 func HasIcon(icon *IconURL) bool {
