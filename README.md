@@ -20,6 +20,8 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
+**New WebUI and is now available in nightly tag [(Demo)](https://nightly.demo.godoxy.dev), feedbacks are welcomed!**
+
 </div>
 
 ## Table of content
