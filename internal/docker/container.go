@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,8 @@ import (
 )
 
 var DummyContainer = new(types.Container)
+
+var EnvDockerHost = os.Getenv("DOCKER_HOST")
 
 var (
 	ErrNetworkNotFound = errors.New("network not found")
@@ -158,6 +161,10 @@ func isDatabase(c *types.Container) bool {
 
 func isLocal(c *types.Container) bool {
 	if strings.HasPrefix(c.DockerHost, "unix://") {
+		return true
+	}
+	// treat it as local if the docker host is the same as the environment variable
+	if c.DockerHost == EnvDockerHost {
 		return true
 	}
 	url, err := url.Parse(c.DockerHost)
