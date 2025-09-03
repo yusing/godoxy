@@ -45,13 +45,15 @@ func NewHandler() *gin.Engine {
 
 	r.GET("/api/v1/version", apiV1.Version)
 
-	v1Auth := r.Group("/api/v1/auth")
-	{
-		v1Auth.HEAD("/check", authApi.Check)
-		v1Auth.POST("/login", authApi.Login)
-		v1Auth.GET("/callback", authApi.Callback)
-		v1Auth.POST("/callback", authApi.Callback)
-		v1Auth.POST("/logout", authApi.Logout)
+	if auth.IsEnabled() {
+		v1Auth := r.Group("/api/v1/auth")
+		{
+			v1Auth.HEAD("/check", authApi.Check)
+			v1Auth.POST("/login", authApi.Login)
+			v1Auth.GET("/callback", authApi.Callback)
+			v1Auth.POST("/callback", authApi.Callback)
+			v1Auth.POST("/logout", authApi.Logout)
+		}
 	}
 
 	v1 := r.Group("/api/v1")
