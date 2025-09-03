@@ -65,7 +65,8 @@ type (
 		LisURL   *nettypes.URL `json:"lurl,omitempty" swaggertype:"string" extensions:"x-nullable"`
 		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
-		Excluded *bool `json:"excluded"`
+		Excluded       bool   `json:"excluded,omitempty" extensions:"x-nullable"`
+		ExcludedReason string `json:"excluded_reason,omitempty" extensions:"x-nullable"`
 
 		HealthMon types.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
 		// for swagger
@@ -259,8 +260,10 @@ func (r *Route) Validate() gperr.Error {
 	}
 
 	r.impl = impl
-	excluded := r.ShouldExclude()
-	r.Excluded = &excluded
+	r.Excluded = r.ShouldExclude()
+	if r.Excluded {
+		r.ExcludedReason = r.GetExcludedReason()
+	}
 	return nil
 }
 
@@ -442,8 +445,8 @@ func (r *Route) ShouldExclude() bool {
 	if r.lastError != nil {
 		return true
 	}
-	if r.Excluded != nil {
-		return *r.Excluded
+	if r.Excluded {
+		return true
 	}
 	if r.Container != nil {
 		switch {
@@ -463,6 +466,33 @@ func (r *Route) ShouldExclude() bool {
 		return true
 	}
 	return false
+}
+
+func (r *Route) GetExcludedReason() string {
+	if r.lastError != nil {
+		return string(gperr.Plain(r.lastError))
+	}
+	if r.ExcludedReason != "" {
+		return r.ExcludedReason
+	}
+	if r.Container != nil {
+		switch {
+		case r.Container.IsExcluded:
+			return "Manual exclusion"
+		case r.IsZeroPort() && !r.UseIdleWatcher():
+			return "No port exposed in container"
+		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
+			return "Blacklisted (backend service or database)"
+		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
+			return "Buildx"
+		}
+	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
+		return "No port specified"
+	}
+	if strings.HasSuffix(r.Alias, "-old") {
+		return "Container renaming intermediate state"
+	}
+	return ""
 }
 
 func (r *Route) UseLoadBalance() bool {
