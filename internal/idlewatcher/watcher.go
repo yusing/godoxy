@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/ds/ordered"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/idlewatcher/provider"
@@ -545,13 +546,13 @@ func (w *Watcher) dedupDependencies() {
 	deps := w.dependencies()
 	for _, dep := range w.dependsOn {
 		depdeps := dep.dependencies()
-		for depdep := range depdeps {
-			delete(deps, depdep)
+		for depdep := range depdeps.Iter {
+			deps.Del(depdep)
 		}
 	}
-	newDepOn := make([]string, 0, len(deps))
-	newDeps := make([]*dependency, 0, len(deps))
-	for _, dep := range deps {
+	newDepOn := make([]string, 0, deps.Len())
+	newDeps := make([]*dependency, 0, deps.Len())
+	for _, dep := range deps.Iter {
 		newDepOn = append(newDepOn, dep.cfg.ContainerName())
 		newDeps = append(newDeps, dep)
 	}
@@ -559,11 +560,13 @@ func (w *Watcher) dedupDependencies() {
 	w.dependsOn = newDeps
 }
 
-func (w *Watcher) dependencies() map[string]*dependency {
-	deps := make(map[string]*dependency)
+func (w *Watcher) dependencies() *ordered.Map[string, *dependency] {
+	deps := ordered.NewMap[string, *dependency]()
 	for _, dep := range w.dependsOn {
-		deps[dep.Key()] = dep
-		maps.Copy(deps, dep.dependencies())
+		deps.Set(dep.Key(), dep)
+		for _, depdep := range dep.dependencies().Iter {
+			deps.Set(depdep.Key(), depdep)
+		}
 	}
 	return deps
 }
