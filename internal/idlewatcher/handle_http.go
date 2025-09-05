@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	api "github.com/yusing/go-proxy/internal/api/v1"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
@@ -112,34 +111,24 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	for {
-		w.resetIdleTimer()
+	// Wait for route to be started
+	if !w.waitStarted(ctx) {
+		return false
+	}
 
+	// Wait for container to become ready
+	if !w.waitForReady(ctx) {
 		if w.canceled(ctx) {
 			w.redirectToStartEndpoint(rw, r)
-			return false
 		}
-
-		if !w.waitStarted(ctx) {
-			return false
-		}
-
-		ready, err := w.checkUpdateState()
-		if err != nil {
-			gphttp.ServerError(rw, r, err)
-			return false
-		}
-		if ready {
-			if isCheckRedirect {
-				w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, redirecting")
-				rw.WriteHeader(http.StatusOK)
-				return false
-			}
-			w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
-			return true
-		}
-
-		// retry until the container is ready or timeout
-		time.Sleep(idleWakerCheckInterval)
+		return false
 	}
+
+	if isCheckRedirect {
+		w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, redirecting")
+		rw.WriteHeader(http.StatusOK)
+		return false
+	}
+	w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
+	return true
 }

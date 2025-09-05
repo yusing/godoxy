@@ -3,7 +3,6 @@ package idlewatcher
 import (
 	"context"
 	"net"
-	"time"
 
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
@@ -63,27 +62,18 @@ func (w *Watcher) wakeFromStream(ctx context.Context) error {
 		return err
 	}
 
-	for {
-		w.resetIdleTimer()
-
-		if w.canceled(ctx) {
-			return nil
-		}
-
-		if !w.waitStarted(ctx) {
-			return nil
-		}
-
-		ready, err := w.checkUpdateState()
-		if err != nil {
-			return err
-		}
-		if ready {
-			w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
-			return nil
-		}
-
-		// retry until the container is ready or timeout
-		time.Sleep(idleWakerCheckInterval)
+	// Wait for route to be started
+	if !w.waitStarted(ctx) {
+		return nil
 	}
+
+	// Wait for container to become ready
+	if !w.waitForReady(ctx) {
+		return nil // canceled or failed
+	}
+
+	// Container is ready
+	w.resetIdleTimer()
+	w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
+	return nil
 }

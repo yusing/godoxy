@@ -92,37 +92,69 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 	return (&types.HealthJSONRepr{
 		Name:   w.Name(),
 		Status: w.Status(),
-		Config: dummyHealthCheckConfig,
+		Config: &types.HealthCheckConfig{
+			Interval: idleWakerCheckInterval,
+			Timeout:  idleWakerCheckTimeout,
+		},
 		URL:    url,
 		Detail: detail,
 	}).MarshalJSON()
 }
 
 func (w *Watcher) checkUpdateState() (ready bool, err error) {
-	// already ready
-	if w.ready() {
-		return true, nil
-	}
-
-	if !w.running() {
-		return false, nil
-	}
-
 	// the new container info not yet updated
 	if w.hc.URL().Host == "" {
 		return false, nil
 	}
 
+	state := w.state.Load()
+
+	// Check if container has been starting for too long (timeout after WakeTimeout)
+	if !state.startedAt.IsZero() {
+		elapsed := time.Since(state.startedAt)
+		if elapsed > w.cfg.WakeTimeout {
+			err := gperr.Errorf("container failed to become ready within %v (started at %v, %d health check attempts)",
+				w.cfg.WakeTimeout, state.startedAt, state.healthTries)
+			w.l.Error().
+				Dur("elapsed", elapsed).
+				Time("started_at", state.startedAt).
+				Int("health_tries", state.healthTries).
+				Msg("container startup timeout")
+			w.setError(err)
+			return false, err
+		}
+	}
+
 	res, err := w.hc.CheckHealth()
 	if err != nil {
+		w.l.Debug().Err(err).Msg("health check error")
 		w.setError(err)
 		return false, err
 	}
 
 	if res.Healthy {
+		w.l.Debug().
+			Dur("startup_time", time.Since(state.startedAt)).
+			Int("health_tries", state.healthTries+1).
+			Msg("container ready")
 		w.setReady()
 		return true, nil
 	}
-	w.setStarting()
+
+	// Health check failed, increment counter and log
+	newHealthTries := state.healthTries + 1
+	w.state.Store(&containerState{
+		status:      state.status,
+		ready:       false,
+		err:         state.err,
+		startedAt:   state.startedAt,
+		healthTries: newHealthTries,
+	})
+
+	w.l.Debug().
+		Int("health_tries", newHealthTries).
+		Dur("elapsed", time.Since(state.startedAt)).
+		Msg("health check failed, still starting")
+
 	return false, nil
 }

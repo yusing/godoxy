@@ -3,7 +3,7 @@ package idlewatcher
 import (
 	"context"
 	"errors"
-	"maps"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -37,9 +37,11 @@ type (
 	}
 
 	containerState struct {
-		status idlewatcher.ContainerStatus
-		ready  bool
-		err    error
+		status      idlewatcher.ContainerStatus
+		ready       bool
+		err         error
+		startedAt   time.Time // when container started (for timeout detection)
+		healthTries int       // number of failed health check attempts
 	}
 
 	Watcher struct {
@@ -55,8 +57,10 @@ type (
 		state     atomic.Value[*containerState]
 		lastReset atomic.Value[time.Time]
 
-		idleTicker *time.Ticker
-		task       *task.Task
+		idleTicker    *time.Ticker
+		healthTicker  *time.Ticker
+		readyNotifyCh chan struct{} // notifies when container becomes ready
+		task          *task.Task
 
 		dependsOn []*dependency
 	}
@@ -78,14 +82,9 @@ var (
 )
 
 const (
-	idleWakerCheckInterval = 100 * time.Millisecond
+	idleWakerCheckInterval = 200 * time.Millisecond
 	idleWakerCheckTimeout  = time.Second
 )
-
-var dummyHealthCheckConfig = &types.HealthCheckConfig{
-	Interval: idleWakerCheckInterval,
-	Timeout:  idleWakerCheckTimeout,
-}
 
 var (
 	causeReload           = gperr.New("reloaded")            //nolint:errname
@@ -116,8 +115,10 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		w.resetIdleTimer()
 	} else {
 		w = &Watcher{
-			idleTicker: time.NewTicker(cfg.IdleTimeout),
-			cfg:        cfg,
+			idleTicker:    time.NewTicker(cfg.IdleTimeout),
+			healthTicker:  time.NewTicker(idleWakerCheckInterval),
+			readyNotifyCh: make(chan struct{}, 1), // buffered to avoid blocking
+			cfg:           cfg,
 			routeHelper: routeHelper{
 				hc: monitor.NewMonitor(r),
 			},
@@ -304,6 +305,8 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 			}
 
 			w.idleTicker.Stop()
+			w.healthTicker.Stop()
+			close(w.readyNotifyCh)
 			w.provider.Close()
 			w.task.Finish(cause)
 		}()
@@ -373,17 +376,25 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 				return err
 			}
 			if dep.waitHealthy {
+				// initial health check before starting the ticker
+				if h, err := dep.hc.CheckHealth(); err != nil {
+					return err
+				} else if h.Healthy {
+					return nil
+				}
+
+				tick := time.NewTicker(idleWakerCheckInterval)
+				defer tick.Stop()
 				for {
 					select {
 					case <-ctx.Done():
 						return w.newDepError("wait_healthy", dep, context.Cause(ctx))
-					default:
+					case <-tick.C:
 						if h, err := dep.hc.CheckHealth(); err != nil {
 							return err
 						} else if h.Healthy {
 							return nil
 						}
-						time.Sleep(idleWakerCheckInterval)
 					}
 				}
 			}
@@ -447,7 +458,7 @@ func (w *Watcher) stopByMethod() error {
 	case types.ContainerStopMethodPause:
 		err = w.provider.ContainerPause(ctx)
 	case types.ContainerStopMethodStop:
-		err = w.provider.ContainerStop(ctx, cfg.StopSignal, int(cfg.StopTimeout.Seconds()))
+		err = w.provider.ContainerStop(ctx, cfg.StopSignal, int(math.Ceil(cfg.StopTimeout.Seconds())))
 	case types.ContainerStopMethodKill:
 		err = w.provider.ContainerKill(ctx, cfg.StopSignal)
 	default:
@@ -511,15 +522,38 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 			switch {
 			case e.Action.IsContainerStart(): // create / start / unpause
 				w.setStarting()
+				w.healthTicker.Reset(idleWakerCheckInterval) // start health checking
 				w.l.Info().Msg("awaken")
 			case e.Action.IsContainerStop(): // stop / kill / die
 				w.setNapping(idlewatcher.ContainerStatusStopped)
 				w.idleTicker.Stop()
+				w.healthTicker.Stop() // stop health checking
 			case e.Action.IsContainerPause(): // pause
 				w.setNapping(idlewatcher.ContainerStatusPaused)
 				w.idleTicker.Stop()
+				w.healthTicker.Stop() // stop health checking
 			default:
 				w.l.Debug().Stringer("action", e.Action).Msg("unexpected container action")
+			}
+		case <-w.healthTicker.C:
+			// Only check health if container is starting (not ready yet)
+			if w.running() && !w.ready() {
+				ready, err := w.checkUpdateState()
+				if err != nil {
+					// Health check failed with error, stop health checking
+					w.healthTicker.Stop()
+					continue
+				}
+				if ready {
+					// Container is now ready, notify waiting handlers
+					w.healthTicker.Stop()
+					select {
+					case w.readyNotifyCh <- struct{}{}:
+					default: // channel full, notification already pending
+					}
+					w.resetIdleTimer()
+				}
+				// If not ready yet, keep checking on next tick
 			}
 		case <-w.idleTicker.C:
 			w.idleTicker.Stop()
