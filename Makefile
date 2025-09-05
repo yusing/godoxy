@@ -141,6 +141,8 @@ push-github:
 gen-swagger:
 	swag init --parseDependency --parseInternal -g handler.go -d internal/api -o internal/api/v1/docs
 	python3 scripts/fix-swagger-json.py
+	# we don't need this
+	rm internal/api/v1/docs/docs.go
 
 gen-swagger-markdown: gen-swagger
 	swagger generate markdown -f internal/api/v1/docs/swagger.yaml --skip-validation --output ${DOCS_DIR}/src/API.md

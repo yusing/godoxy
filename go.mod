@@ -213,7 +213,7 @@ require (
 	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/api v0.248.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250826171959-ef028d996bc1 // indirect
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/ns1/ns1-go.v2 v2.15.0 // indirect
@@ -222,16 +222,12 @@ require (
 )
 
 require (
-	github.com/containerd/containerd/v2 v2.1.4
-	github.com/containerd/nerdctl/v2 v2.1.3
 	github.com/gin-gonic/gin v1.10.1
-	github.com/swaggo/swag v1.16.6
 	github.com/yusing/ds v0.1.0
 )
 
 require (
-	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/Microsoft/hcsshim v0.13.0 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.11 // indirect
 	github.com/alibabacloud-go/debug v1.0.1 // indirect
@@ -243,53 +239,25 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/containerd/cgroups/v3 v3.0.5 // indirect
-	github.com/containerd/containerd/api v1.9.0 // indirect
-	github.com/containerd/continuity v0.4.5 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
-	github.com/containerd/fifo v1.1.0 // indirect
-	github.com/containerd/go-cni v1.1.13 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/containerd/platforms v1.0.0-rc.1 // indirect
-	github.com/containerd/plugin v1.0.0 // indirect
-	github.com/containerd/ttrpc v1.2.7 // indirect
-	github.com/containerd/typeurl/v2 v2.2.3 // indirect
-	github.com/containernetworking/cni v1.3.0 // indirect
 	github.com/dnsimple/dnsimple-go/v4 v4.0.0 // indirect
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-acme/alidns-20150109/v4 v4.5.11 // indirect
 	github.com/go-acme/tencentclouddnspod v1.0.1208 // indirect
-	github.com/go-openapi/jsonpointer v0.21.2 // indirect
-	github.com/go-openapi/jsonreference v0.21.0 // indirect
-	github.com/go-openapi/spec v0.21.0 // indirect
-	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
-	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
-	github.com/moby/sys/mountinfo v0.7.2 // indirect
-	github.com/moby/sys/sequential v0.6.0 // indirect
-	github.com/moby/sys/signal v0.7.1 // indirect
-	github.com/moby/sys/user v0.4.0 // indirect
-	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/namedotcom/go/v4 v4.0.2 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.99.1 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.99.1 // indirect
-	github.com/opencontainers/runtime-spec v1.2.1 // indirect
-	github.com/opencontainers/selinux v1.12.0 // indirect
-	github.com/petermattis/goid v0.0.0-20250813065127-a731cc31b4fe // indirect
-	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.1.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.37.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	google.golang.org/genproto v0.0.0-20250811230008-5f3141c8851a // indirect

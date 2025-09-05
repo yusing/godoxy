@@ -14,7 +14,6 @@ import (
 	authApi "github.com/yusing/go-proxy/internal/api/v1/auth"
 	certApi "github.com/yusing/go-proxy/internal/api/v1/cert"
 	dockerApi "github.com/yusing/go-proxy/internal/api/v1/docker"
-	"github.com/yusing/go-proxy/internal/api/v1/docs"
 	fileApi "github.com/yusing/go-proxy/internal/api/v1/file"
 	homepageApi "github.com/yusing/go-proxy/internal/api/v1/homepage"
 	metricsApi "github.com/yusing/go-proxy/internal/api/v1/metrics"
@@ -43,9 +42,6 @@ func NewHandler() *gin.Engine {
 	r := gin.New()
 	r.Use(ErrorHandler())
 	r.Use(ErrorLoggingMiddleware())
-
-	docs.SwaggerInfo.Title = "GoDoxy API"
-	docs.SwaggerInfo.BasePath = "/api/v1"
 
 	r.GET("/api/v1/version", apiV1.Version)
 
