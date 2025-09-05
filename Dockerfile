@@ -1,5 +1,5 @@
 # Stage 1: deps
-FROM golang:1.25.0-alpine AS deps
+FROM golang:1.25.1-alpine AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
