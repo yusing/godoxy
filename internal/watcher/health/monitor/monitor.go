@@ -72,6 +72,9 @@ func NewMonitor(r types.Route) types.HealthMonCheck {
 
 func newMonitor(u *url.URL, config *types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	if config.Retries == 0 {
+		if config.Interval == 0 {
+			config.Interval = common.HealthCheckIntervalDefault
+		}
 		config.Retries = int64(common.HealthCheckDownNotifyDelayDefault / config.Interval)
 	}
 	mon := &monitor{

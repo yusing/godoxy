@@ -51,9 +51,6 @@ type (
 		Agent        string                         `json:"agent,omitempty"`
 
 		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
-		HealthMon   types.HealthMonitor      `json:"health,omitempty" swaggerignore:"true"`
-		// for swagger
-		HealthJSON *types.HealthJSON `json:",omitempty" form:"health"`
 
 		Metadata `deserialize:"-"`
 	}
@@ -69,6 +66,10 @@ type (
 		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
 		Excluded *bool `json:"excluded"`
+
+		HealthMon types.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
+		// for swagger
+		HealthJSON *types.HealthJSON `json:",omitempty" form:"health"`
 
 		impl types.Route
 		task *task.Task
@@ -466,7 +467,7 @@ func (r *Route) UseLoadBalance() bool {
 }
 
 func (r *Route) UseIdleWatcher() bool {
-	return r.Idlewatcher != nil && r.Idlewatcher.IdleTimeout > 0
+	return r.Idlewatcher != nil && r.Idlewatcher.IdleTimeout > 0 && r.Idlewatcher.ValErr() == nil
 }
 
 func (r *Route) UseHealthCheck() bool {
@@ -582,13 +583,11 @@ func (r *Route) Finalize() {
 		r.HealthCheck = types.DefaultHealthConfig()
 	}
 
-	if !r.HealthCheck.Disable {
-		if r.HealthCheck.Interval == 0 {
-			r.HealthCheck.Interval = common.HealthCheckIntervalDefault
-		}
-		if r.HealthCheck.Timeout == 0 {
-			r.HealthCheck.Timeout = common.HealthCheckTimeoutDefault
-		}
+	if r.HealthCheck.Interval == 0 {
+		r.HealthCheck.Interval = common.HealthCheckIntervalDefault
+	}
+	if r.HealthCheck.Timeout == 0 {
+		r.HealthCheck.Timeout = common.HealthCheckTimeoutDefault
 	}
 }
 

@@ -30,6 +30,8 @@ type (
 
 		StartEndpoint string   `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
 		DependsOn     []string `json:"depends_on,omitempty"`
+
+		valErr gperr.Error
 	} // @name IdlewatcherConfig
 	ContainerStopMethod string // @name ContainerStopMethod
 	ContainerSignal     string // @name ContainerSignal
@@ -70,9 +72,10 @@ func (c *IdlewatcherConfig) ContainerName() string {
 
 func (c *IdlewatcherConfig) Validate() gperr.Error {
 	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
+		c.valErr = nil
 		return nil
 	}
-	errs := gperr.NewBuilder("idlewatcher config validation error")
+	errs := gperr.NewBuilder()
 	errs.AddRange(
 		c.validateProvider(),
 		c.validateTimeouts(),
@@ -80,7 +83,12 @@ func (c *IdlewatcherConfig) Validate() gperr.Error {
 		c.validateStopSignal(),
 		c.validateStartEndpoint(),
 	)
-	return errs.Error()
+	c.valErr = errs.Error()
+	return c.valErr
+}
+
+func (c *IdlewatcherConfig) ValErr() gperr.Error {
+	return c.valErr
 }
 
 func (c *IdlewatcherConfig) validateProvider() error {
