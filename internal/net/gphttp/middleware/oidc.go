@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +14,9 @@ import (
 type oidcMiddleware struct {
 	AllowedUsers  []string `json:"allowed_users"`
 	AllowedGroups []string `json:"allowed_groups"`
+	ClientID      string   `json:"client_id"`
+	ClientSecret  string   `json:"client_secret"`
+	Scopes        string   `json:"scopes"`
 
 	auth *auth.OIDCProvider
 
@@ -49,16 +53,38 @@ func (amw *oidcMiddleware) initSlow() error {
 		amw.initMu.Unlock()
 	}()
 
+	// Always start with the global OIDC provider (for issuer discovery)
 	authProvider, err := auth.NewOIDCProviderFromEnv()
 	if err != nil {
 		return err
 	}
 
+	// Check if custom client credentials are provided
+	if amw.ClientID != "" && amw.ClientSecret != "" {
+		// Use custom client credentials
+		customProvider, err := auth.NewOIDCProviderWithCustomClient(
+			authProvider,
+			amw.ClientID,
+			amw.ClientSecret,
+		)
+		if err != nil {
+			return err
+		}
+		authProvider = customProvider
+	}
+	// If no custom credentials, authProvider remains the global one
+
+	// Apply per-route user/group restrictions (these always override global)
 	if len(amw.AllowedUsers) > 0 {
 		authProvider.SetAllowedUsers(amw.AllowedUsers)
 	}
 	if len(amw.AllowedGroups) > 0 {
 		authProvider.SetAllowedGroups(amw.AllowedGroups)
+	}
+
+	// Apply custom scopes if provided
+	if amw.Scopes != "" {
+		authProvider.SetScopes(strings.Split(amw.Scopes, ","))
 	}
 
 	amw.auth = authProvider

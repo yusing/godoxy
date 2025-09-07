@@ -426,6 +426,9 @@ func TestCheckToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create the Auth Provider.
 			auth := &OIDCProvider{
+				oauthConfig: &oauth2.Config{
+					ClientID: clientID,
+				},
 				oidcVerifier:  provider.verifier,
 				allowedUsers:  tc.allowedUsers,
 				allowedGroups: tc.allowedGroups,
@@ -435,7 +438,7 @@ func TestCheckToken(t *testing.T) {
 			// Craft a test HTTP request that includes the token as a cookie.
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.AddCookie(&http.Cookie{
-				Name:  CookieOauthToken,
+				Name:  auth.getAppScopedCookieName(CookieOauthToken),
 				Value: signedToken,
 			})
 
