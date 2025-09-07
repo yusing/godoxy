@@ -2,8 +2,8 @@ package auth
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -54,7 +54,7 @@ func (auth *OIDCProvider) getAppScopedCookieName(baseName string) string {
 	// This prevents conflicts when multiple apps use different client IDs
 	if auth.oauthConfig.ClientID != "" {
 		// Create a hash of the client ID to keep cookie names short
-		hash := md5.Sum([]byte(auth.oauthConfig.ClientID))
+		hash := sha256.Sum256([]byte(auth.oauthConfig.ClientID))
 		clientHash := base64.URLEncoding.EncodeToString(hash[:])[:8]
 		return fmt.Sprintf("%s_%s", baseName, clientHash)
 	}
