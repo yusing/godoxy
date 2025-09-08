@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -39,11 +40,26 @@ type (
 
 var _ Provider = (*OIDCProvider)(nil)
 
+// Cookie names for OIDC authentication
 const (
 	CookieOauthState        = "godoxy_oidc_state"
 	CookieOauthToken        = "godoxy_oauth_token"   //nolint:gosec
 	CookieOauthSessionToken = "godoxy_session_token" //nolint:gosec
 )
+
+// getAppScopedCookieName returns a cookie name scoped to the specific application
+// to prevent conflicts between different OIDC clients
+func (auth *OIDCProvider) getAppScopedCookieName(baseName string) string {
+	// Use the client ID to scope the cookie name
+	// This prevents conflicts when multiple apps use different client IDs
+	if auth.oauthConfig.ClientID != "" {
+		// Create a hash of the client ID to keep cookie names short
+		hash := sha256.Sum256([]byte(auth.oauthConfig.ClientID))
+		clientHash := base64.URLEncoding.EncodeToString(hash[:])[:8]
+		return fmt.Sprintf("%s_%s", baseName, clientHash)
+	}
+	return baseName
+}
 
 const (
 	OIDCAuthInitPath = "/"
@@ -117,12 +133,47 @@ func NewOIDCProviderFromEnv() (*OIDCProvider, error) {
 	)
 }
 
+// NewOIDCProviderWithCustomClient creates a new OIDCProvider with custom client credentials
+// based on an existing provider (for issuer discovery)
+func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clientSecret string) (*OIDCProvider, error) {
+	if clientID == "" || clientSecret == "" {
+		return nil, errors.New("client ID and client secret are required")
+	}
+
+	// Create a new OIDC verifier with the custom client ID
+	oidcVerifier := baseProvider.oidcProvider.Verifier(&oidc.Config{
+		ClientID: clientID,
+	})
+
+	// Create new OAuth config with custom credentials
+	oauthConfig := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  "",
+		Endpoint:     baseProvider.oauthConfig.Endpoint,
+		Scopes:       baseProvider.oauthConfig.Scopes,
+	}
+
+	return &OIDCProvider{
+		oauthConfig:   oauthConfig,
+		oidcProvider:  baseProvider.oidcProvider,
+		oidcVerifier:  oidcVerifier,
+		endSessionURL: baseProvider.endSessionURL,
+		allowedUsers:  baseProvider.allowedUsers,
+		allowedGroups: baseProvider.allowedGroups,
+	}, nil
+}
+
 func (auth *OIDCProvider) SetAllowedUsers(users []string) {
 	auth.allowedUsers = users
 }
 
 func (auth *OIDCProvider) SetAllowedGroups(groups []string) {
 	auth.allowedGroups = groups
+}
+
+func (auth *OIDCProvider) SetScopes(scopes []string) {
+	auth.oauthConfig.Scopes = scopes
 }
 
 // optRedirectPostAuth returns an oauth2 option that sets the "redirect_uri"
@@ -169,7 +220,7 @@ var rateLimit = rate.NewLimiter(rate.Every(time.Second), 1)
 
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// check for session token
-	sessionToken, err := r.Cookie(CookieOauthSessionToken)
+	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
 	if err == nil { // session token exists
 		result, err := auth.TryRefreshToken(r.Context(), sessionToken.Value)
 		// redirect back to where they requested
@@ -193,7 +244,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state := generateState()
-	SetTokenCookie(w, r, CookieOauthState, state, 300*time.Second)
+	SetTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthState), state, 300*time.Second)
 	// redirect user to Idp
 	url := auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r))
 	if IsFrontend(r) {
@@ -209,7 +260,8 @@ func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
 	if err := idToken.Claims(&claim); err != nil {
 		return nil, fmt.Errorf("failed to parse claims: %w", err)
 	}
-	if claim.Username == "" {
+	// Username is optional if groups are present
+	if claim.Username == "" && len(claim.Groups) == 0 {
 		return nil, errors.New("missing username in ID token")
 	}
 	return &claim, nil
@@ -228,7 +280,7 @@ func (auth *OIDCProvider) checkAllowed(user string, groups []string) bool {
 }
 
 func (auth *OIDCProvider) CheckToken(r *http.Request) error {
-	tokenCookie, err := r.Cookie(CookieOauthToken)
+	tokenCookie, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthToken))
 	if err != nil {
 		return ErrMissingOAuthToken
 	}
@@ -257,7 +309,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	}
 
 	// verify state
-	state, err := r.Cookie(CookieOauthState)
+	state, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthState))
 	if err != nil {
 		http.Error(w, "missing state cookie", http.StatusBadRequest)
 		return
@@ -297,8 +349,8 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 }
 
 func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	oauthToken, _ := r.Cookie(CookieOauthToken)
-	sessionToken, _ := r.Cookie(CookieOauthSessionToken)
+	oauthToken, _ := r.Cookie(auth.getAppScopedCookieName(CookieOauthToken))
+	sessionToken, _ := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
 	auth.clearCookie(w, r)
 
 	if sessionToken != nil {
@@ -325,17 +377,17 @@ func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (auth *OIDCProvider) setIDTokenCookie(w http.ResponseWriter, r *http.Request, jwt string, ttl time.Duration) {
-	SetTokenCookie(w, r, CookieOauthToken, jwt, ttl)
+	SetTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthToken), jwt, ttl)
 }
 
 func (auth *OIDCProvider) clearCookie(w http.ResponseWriter, r *http.Request) {
-	ClearTokenCookie(w, r, CookieOauthToken)
-	ClearTokenCookie(w, r, CookieOauthSessionToken)
+	ClearTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthToken))
+	ClearTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthSessionToken))
 }
 
 // handleTestCallback handles OIDC callback in test environment.
 func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Request) {
-	state, err := r.Cookie(CookieOauthState)
+	state, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthState))
 	if err != nil {
 		http.Error(w, "missing state cookie", http.StatusBadRequest)
 		return
@@ -347,7 +399,7 @@ func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create test JWT token
-	SetTokenCookie(w, r, CookieOauthToken, "test", time.Hour)
+	SetTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthToken), "test", time.Hour)
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
