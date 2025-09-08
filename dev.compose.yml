@@ -1,0 +1,44 @@
+services:
+  app:
+    image: godoxy-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      args:
+        - TARGET=godoxy
+    container_name: godoxy-proxy-dev
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Hong_Kong
+      API_ADDR: :8999
+      API_USER: dev
+      API_PASSWORD: 1234
+      API_SKIP_ORIGIN_CHECK: true
+      API_JWT_SECURE: false
+      API_JWT_TTL: 24h
+      DEBUG: true
+      API_SECRET: 1234567891234567
+    labels:
+      proxy.exclude: true
+      proxy.#1.healthcheck.disable: true
+    ipc: host
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dev-data/config:/app/config
+      - ./dev-data/certs:/app/certs
+      - ./dev-data/error_pages:/app/error_pages:ro
+      - ./dev-data/data:/app/data
+      - ./dev-data/logs:/app/logs
+    depends_on:
+      - tinyauth
+  tinyauth:
+    image: ghcr.io/steveiliop56/tinyauth:v3
+    container_name: tinyauth
+    restart: unless-stopped
+    environment:
+      - SECRET=12345678912345671234567891234567
+      - APP_URL=https://tinyauth.my.app
+      - USERS=user:$$2a$$10$$UdLYoJ5lgPsC0RKqYH/jMua7zIn0g9kPqWmhYayJYLaZQ/FTmH2/u # user:password
+    labels:
+      proxy.tinyauth.port: "3000"

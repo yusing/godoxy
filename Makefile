@@ -2,6 +2,7 @@ shell := /bin/sh
 export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
+export GOARCH ?= amd64
 
 WEBUI_DIR ?= ../godoxy-frontend
 DOCS_DIR ?= ../godoxy-wiki
@@ -113,9 +114,11 @@ build:
 run:
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ./cmd
 
-debug:
-	make NAME="godoxy-test" debug=1 build
-	sh -c 'HTTP_ADDR=:81 HTTPS_ADDR=:8443 API_ADDR=:8899 DEBUG=1 bin/godoxy-test'
+dev:
+	docker compose -f dev.compose.yml up -t 0 -d
+
+dev-build: build
+	docker compose -f dev.compose.yml up -t 0 -d --build
 
 mtrace:
 	 ${BIN_PATH} debug-ls-mtrace > mtrace.json
