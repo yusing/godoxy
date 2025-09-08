@@ -174,7 +174,9 @@ func (mon *monitor) Task() *task.Task {
 
 // Finish implements task.TaskFinisher.
 func (mon *monitor) Finish(reason any) {
-	mon.task.Finish(reason)
+	if mon.task != nil {
+		mon.task.Finish(reason)
+	}
 }
 
 // UpdateURL implements HealthChecker.
