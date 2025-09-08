@@ -272,11 +272,14 @@ func (r *Route) Task() *task.Task {
 	return r.task
 }
 
-func (r *Route) Start(parent task.Parent) (err gperr.Error) {
+func (r *Route) Start(parent task.Parent) gperr.Error {
+	if r.lastError != nil {
+		return r.lastError
+	}
 	r.once.Do(func() {
-		err = r.start(parent)
+		r.lastError = r.start(parent)
 	})
-	return
+	return r.lastError
 }
 
 func (r *Route) start(parent task.Parent) gperr.Error {
