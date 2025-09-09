@@ -180,7 +180,24 @@ for dir in "${REQUIRED_DIRECTORIES[@]}"; do
 	mkdir_if_not_exists "$dir"
 done
 
-# 2. .env file
+# 2. check if rootless docker is used, verify again with user input
+if docker info -f "{{println .SecurityOptions}}" | grep rootless >/dev/null 2>&1; then
+	ask_while_empty "Rootless docker detected, is this correct? (y/n): " USE_ROOTLESS_DOCKER
+	if [ "$USE_ROOTLESS_DOCKER" == "n" ]; then
+		USE_ROOTLESS_DOCKER="false"
+	else
+		USE_ROOTLESS_DOCKER="true"
+	fi
+fi
+
+# 3. if rootless docker is used, switch to rootless docker compose and .env
+if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+	COMPOSE_EXAMPLE_FILE_NAME="rootless-compose.example.yml"
+	DOT_ENV_EXAMPLE_PATH="rootless.env.example"
+fi
+
+
+# 4. .env file
 fetch_file "$DOT_ENV_EXAMPLE_PATH" "$DOT_ENV_PATH"
 
 # set random JWT secret
@@ -192,13 +209,13 @@ if [ -n "$TIMEZONE" ]; then
 	setenv "TZ" "$TIMEZONE"
 fi
 
-# 3. docker-compose.yml
+# 5. docker-compose.yml
 fetch_file "$COMPOSE_EXAMPLE_FILE_NAME" "$COMPOSE_FILE_NAME"
 
-# 4. config.yml
+# 6. config.yml
 fetch_file "$CONFIG_EXAMPLE_FILE_NAME" "$CONFIG_FILE_PATH"
 
-# 5. setup authentication
+# 7. setup authentication
 
 # ask for user and password
 echo "Setting up login user"
@@ -208,7 +225,7 @@ echo "Setting up login user \"$LOGIN_USERNAME\" with password \"$LOGIN_PASSWORD\
 setenv "GODOXY_API_USER" "$LOGIN_USERNAME"
 setenv "GODOXY_API_PASSWORD" "$LOGIN_PASSWORD"
 
-# 6. setup autocert
+# 8. setup autocert
 ask_while_empty "Configure autocert? (y/n): " ENABLE_AUTOCERT
 
 # quit if not using autocert
@@ -269,8 +286,34 @@ autocert:
 	fi
 fi
 
-# 7. set uid and gid
-setenv "GODOXY_UID" "$(id -u)"
-setenv "GODOXY_GID" "$(id -g)"
+# 9. set uid and gid
+if [ "$USE_ROOTLESS_DOCKER" == "false" ]; then
+	setenv "GODOXY_UID" "$(id -u)"
+	setenv "GODOXY_GID" "$(id -g)"
+else
+	setenv "DOCKER_SOCKET" "/var/run/user/$(id -u)/docker.sock"
+fi
+
+# 10. proxy network (rootless docker only)
+if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+	echo "Setting up proxy network"
+	echo "Available networks:"
+	docker network ls
+	echo
+	ask_while_empty "Which network to use for proxy? (default: proxy): " PROXY_NETWORK
+	# check if network exists
+	if ! docker network ls | grep -q "$PROXY_NETWORK"; then
+	  ask_while_empty "Network \"$PROXY_NETWORK\" does not exist, do you want to create it? (y/n): " CREATE_NETWORK
+		if [ "$CREATE_NETWORK" == "y" ]; then
+			docker network create "$PROXY_NETWORK"
+			echo "Network \"$PROXY_NETWORK\" created"
+		else
+			echo "Error: network \"$PROXY_NETWORK\" does not exist, please create it first"
+			exit 1
+		fi
+	fi
+	sed -i "s|proxy: #|\"$PROXY_NETWORK\": #|" "$COMPOSE_FILE_NAME"
+	sed -i "s|- proxy|- \"$PROXY_NETWORK\"|" "$COMPOSE_FILE_NAME"
+fi
 
 echo "Setup finished"
