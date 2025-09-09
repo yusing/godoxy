@@ -1,0 +1,75 @@
+---
+services:
+  socket-proxy:
+    container_name: socket-proxy
+    image: ghcr.io/yusing/socket-proxy:latest
+    environment:
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+      - ALLOW_RESTARTS=1
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - PING=1
+      - POST=1
+      - VERSION=1
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    restart: unless-stopped
+    tmpfs:
+      - /run
+    networks:
+      - godoxy
+  frontend:
+    image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
+    container_name: godoxy-frontend
+    restart: unless-stopped
+    env_file: .env
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - all
+    depends_on:
+      - app
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    labels:
+      proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
+      proxy.#1.port: 3000
+    networks:
+      - godoxy
+  app:
+    image: yusing/godoxy:test
+    container_name: godoxy-proxy
+    restart: always
+    env_file: .env
+    depends_on:
+      socket-proxy:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - all
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      - DOCKER_HOST=tcp://${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}
+    ports:
+      - 80:80
+      - 443:443/tcp
+      - 443:443/udp # http3
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./error_pages:/app/error_pages:ro
+      - ./data:/app/data
+      - ./certs:/app/certs
+    networks:
+      - proxy
+      - godoxy
+networks:
+  proxy: # bridge network for all services that needs proxying
+    external: true
+  godoxy:
