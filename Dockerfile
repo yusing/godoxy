@@ -47,6 +47,7 @@ FROM scratch
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
+LABEL proxy.#1.healthcheck.disable=true
 
 # copy timezone data
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
