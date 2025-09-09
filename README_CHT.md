@@ -1,10 +1,11 @@
 <div align="center">
 
-# GoDoxy
+<img src="assets/godoxy.png" width="200">
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
+
 ![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
@@ -16,9 +17,9 @@
 
 <h5><a href="README.md">EN</a> | 中文</h5>
 
-有疑問? 問 [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)！（鳴謝 [@ismesid](https://github.com/arevindh)）
-
 <img src="https://github.com/user-attachments/assets/4bb371f4-6e4c-425c-89b2-b9e962bdd46f" style="max-width: 650">
+
+有疑問? 問 [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)！（鳴謝 [@ismesid](https://github.com/arevindh)）
 
 </div>
 
@@ -26,18 +27,17 @@
 
 <!-- TOC -->
 
-- [GoDoxy](#godoxy)
-  - [目錄](#目錄)
-  - [運行示例](#運行示例)
-  - [主要特點](#主要特點)
-  - [前置需求](#前置需求)
-  - [安裝](#安裝)
-    - [手動安裝](#手動安裝)
-    - [資料夾結構](#資料夾結構)
-  - [截圖](#截圖)
-    - [閒置休眠](#閒置休眠)
-    - [監控](#監控)
-  - [自行編譯](#自行編譯)
+- [目錄](#目錄)
+- [運行示例](#運行示例)
+- [主要特點](#主要特點)
+- [前置需求](#前置需求)
+- [安裝](#安裝)
+  - [手動安裝](#手動安裝)
+  - [資料夾結構](#資料夾結構)
+- [截圖](#截圖)
+  - [閒置休眠](#閒置休眠)
+  - [監控](#監控)
+- [自行編譯](#自行編譯)
 
 ## 運行示例
 

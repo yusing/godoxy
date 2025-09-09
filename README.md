@@ -1,10 +1,11 @@
 <div align="center">
 
-# GoDoxy
+<img src="assets/godoxy.png" width="200">
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yusing_go-proxy)
 ![GitHub last commit](https://img.shields.io/github/last-commit/yusing/godoxy)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=yusing_go-proxy&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=go-proxy)
+
 ![Demo](https://img.shields.io/website?url=https%3A%2F%2Fdemo.godoxy.dev&label=Demo&link=https%3A%2F%2Fdemo.godoxy.dev)
 [![Discord](https://dcbadge.limes.pink/api/server/umReR62nRd?style=flat)](https://discord.gg/umReR62nRd)
 
@@ -16,9 +17,9 @@ A lightweight, simple, and performant reverse proxy with WebUI.
 
 <h5>EN | <a href="README_CHT.md">中文</a></h5>
 
-Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)! (Thanks to [@ismesid](https://github.com/arevindh))
-
 <img src="screenshots/webui.jpg" style="max-width: 650">
+
+Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)! (Thanks to [@ismesid](https://github.com/arevindh))
 
 **New WebUI and is now available in nightly tag [(Demo)](https://nightly.demo.godoxy.dev), feedbacks are welcomed!**
 
@@ -28,19 +29,18 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 
 <!-- TOC -->
 
-- [GoDoxy](#godoxy)
-  - [Table of content](#table-of-content)
-  - [Running demo](#running-demo)
-  - [Key Features](#key-features)
-  - [Prerequisites](#prerequisites)
-  - [Setup](#setup)
-  - [How does GoDoxy work](#how-does-godoxy-work)
-  - [Screenshots](#screenshots)
-    - [idlesleeper](#idlesleeper)
-    - [Metrics and Logs](#metrics-and-logs)
-  - [Manual Setup](#manual-setup)
-    - [Folder structrue](#folder-structrue)
-  - [Build it yourself](#build-it-yourself)
+- [Table of content](#table-of-content)
+- [Running demo](#running-demo)
+- [Key Features](#key-features)
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+- [How does GoDoxy work](#how-does-godoxy-work)
+- [Screenshots](#screenshots)
+  - [idlesleeper](#idlesleeper)
+  - [Metrics and Logs](#metrics-and-logs)
+- [Manual Setup](#manual-setup)
+  - [Folder structrue](#folder-structrue)
+- [Build it yourself](#build-it-yourself)
 
 ## Running demo
 
