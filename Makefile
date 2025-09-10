@@ -2,7 +2,6 @@ shell := /bin/sh
 export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
-export GOARCH ?= amd64
 
 WEBUI_DIR ?= ../godoxy-frontend
 DOCS_DIR ?= ../godoxy-wiki
