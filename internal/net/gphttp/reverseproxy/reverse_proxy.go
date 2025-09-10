@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
@@ -31,6 +32,7 @@ import (
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	U "github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/net/http/httpguts"
+	"golang.org/x/net/http2"
 )
 
 // A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
@@ -170,9 +172,9 @@ func copyHeader(dst, src http.Header) {
 func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err error, writeHeader bool) {
 	reqURL := r.Host + r.URL.Path
 	switch {
-	case errors.Is(err, context.Canceled),
-		errors.Is(err, io.EOF),
-		errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.Canceled), errors.Is(err, io.EOF):
+		log.Trace().Err(err).Str("url", reqURL).Msg("http proxy error")
+	case errors.Is(err, context.DeadlineExceeded):
 		log.Debug().Err(err).Str("url", reqURL).Msg("http proxy error")
 	default:
 		var recordErr tls.RecordHeaderError
@@ -182,11 +184,30 @@ func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err
 				Msgf(`scheme was likely misconfigured as https,
 						try setting "proxy.%s.scheme" back to "http"`, p.TargetName)
 			log.Err(err).Msg("underlying error")
-		} else {
-			log.Err(err).Str("url", reqURL).Msg("http proxy error")
+			goto logged
 		}
+		var h2Err http2.StreamError
+		if errors.As(err, &h2Err) {
+			// ignore these errors
+			switch h2Err.Code {
+			case http2.ErrCodeStreamClosed:
+				goto logged
+			}
+		}
+		var h3Err *http3.Error
+		if errors.As(err, &h3Err) {
+			// ignore these errors
+			switch h3Err.ErrorCode {
+			case
+				http3.ErrCodeNoError,
+				http3.ErrCodeRequestCanceled:
+				goto logged
+			}
+		}
+		log.Err(err).Str("url", reqURL).Msg("http proxy error")
 	}
 
+logged:
 	if writeHeader {
 		rw.WriteHeader(http.StatusInternalServerError)
 	}
