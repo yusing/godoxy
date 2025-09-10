@@ -3,7 +3,6 @@ package notif
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/yusing/go-proxy/internal/gperr"
@@ -126,5 +125,5 @@ func (e ErrorBody) Format(format *LogFormat) ([]byte, error) {
 	case LogFormatMarkdown:
 		return gperr.Markdown(e.Error), nil
 	}
-	return nil, fmt.Errorf("unknown format: %v", format)
+	return gperr.Markdown(e.Error), nil
 }

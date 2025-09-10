@@ -30,7 +30,7 @@ var (
 
 // Validate implements the utils.CustomValidator interface.
 func (base *ProviderBase) Validate() gperr.Error {
-	if base.Format == nil {
+	if base.Format == nil || base.Format.string == "" {
 		base.Format = LogFormatMarkdown
 	}
 	if !strings.HasPrefix(base.URL, "http://") && !strings.HasPrefix(base.URL, "https://") {
