@@ -520,7 +520,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 
 var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}
 
-func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
+func substituteEnv(data []byte) ([]byte, gperr.Error) {
 	envError := gperr.NewBuilder("env substitution error")
 	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
 		varName := string(match[2 : len(match)-1])
@@ -531,7 +531,15 @@ func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 		return strconv.AppendQuote(nil, env)
 	})
 	if envError.HasError() {
-		return envError.Error()
+		return nil, envError.Error()
+	}
+	return data, nil
+}
+
+func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
+	data, err := substituteEnv(data)
+	if err != nil {
+		return err
 	}
 
 	m := make(map[string]any)
@@ -542,6 +550,11 @@ func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
 }
 
 func UnmarshalValidateYAMLIntercept[T any](data []byte, target *T, intercept func(m map[string]any) gperr.Error) gperr.Error {
+	data, err := substituteEnv(data)
+	if err != nil {
+		return err
+	}
+
 	m := make(map[string]any)
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return gperr.Wrap(err)
@@ -553,6 +566,11 @@ func UnmarshalValidateYAMLIntercept[T any](data []byte, target *T, intercept fun
 }
 
 func UnmarshalValidateYAMLXSync[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
+	data, err = substituteEnv(data)
+	if err != nil {
+		return
+	}
+
 	m := make(map[string]any)
 	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
 		return
