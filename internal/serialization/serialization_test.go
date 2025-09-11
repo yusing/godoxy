@@ -1,11 +1,13 @@
 package serialization
 
 import (
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/require"
 	. "github.com/yusing/go-proxy/internal/utils/testing"
 )
 
@@ -312,6 +314,26 @@ func TestStringToStruct(t *testing.T) {
 			B int
 		}{"a", 123})
 	})
+}
+
+func TestConfigEnvSubstitution(t *testing.T) {
+	os.Setenv("CLOUDFLARE_AUTH_TOKEN", "test")
+	data := []byte(`
+---
+autocert:
+  options:
+    auth_token: ${CLOUDFLARE_AUTH_TOKEN}
+`)
+
+	var cfg struct {
+		Autocert struct {
+			Options struct {
+				AuthToken string `yaml:"auth_token"`
+			} `yaml:"options"`
+		} `yaml:"autocert"`
+	}
+	require.NoError(t, UnmarshalValidateYAML(data, &cfg))
+	require.Equal(t, "test", cfg.Autocert.Options.AuthToken)
 }
 
 func BenchmarkStringToStruct(b *testing.B) {

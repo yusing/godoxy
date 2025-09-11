@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -517,7 +518,22 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	return true, Convert(reflect.ValueOf(tmp), dst, true)
 }
 
+var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}
+
 func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
+	envError := gperr.NewBuilder("env substitution error")
+	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
+		varName := string(match[2 : len(match)-1])
+		env, ok := os.LookupEnv(varName)
+		if !ok {
+			envError.Addf("%s is not set", varName)
+		}
+		return strconv.AppendQuote(nil, env)
+	})
+	if envError.HasError() {
+		return envError.Error()
+	}
+
 	m := make(map[string]any)
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return gperr.Wrap(err)

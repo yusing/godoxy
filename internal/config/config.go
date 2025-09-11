@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -216,23 +215,10 @@ func (cfg *Config) StartServers(opts ...*StartServersOptions) {
 	}
 }
 
-var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}
-var readFile = os.ReadFile
-
-func (cfg *Config) readConfigFile() ([]byte, error) {
-	data, err := readFile(common.ConfigPath)
-	if err != nil {
-		return nil, err
-	}
-	return envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
-		return strconv.AppendQuote(nil, os.Getenv(string(match[2:len(match)-1])))
-	}), nil
-}
-
 func (cfg *Config) load() gperr.Error {
 	const errMsg = "config load error"
 
-	data, err := cfg.readConfigFile()
+	data, err := os.ReadFile(common.ConfigPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Warn().Msg("config file not found, using default config")
