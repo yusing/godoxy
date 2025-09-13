@@ -9,12 +9,11 @@ import (
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
 	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type StatsResponse struct {
 	Proxies ProxyStats `json:"proxies"`
-	Uptime  string     `json:"uptime"`
+	Uptime  int64      `json:"uptime"`
 } //	@name	StatsResponse
 
 type ProxyStats struct {
@@ -40,7 +39,7 @@ func Stats(c *gin.Context) {
 	getStats := func() (any, error) {
 		return map[string]any{
 			"proxies": cfg.Statistics(),
-			"uptime":  strutils.FormatDuration(time.Since(startTime)),
+			"uptime":  int64(time.Since(startTime).Round(time.Second).Seconds()),
 		}, nil
 	}
 
