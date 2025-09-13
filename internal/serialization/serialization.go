@@ -189,15 +189,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 	dstV := reflect.ValueOf(dst)
 	dstT := dstV.Type()
 
-	if src == nil {
-		if dstV.CanSet() {
-			dstV.Set(reflect.Zero(dstT))
-			return nil
-		}
-		return gperr.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
-	}
-
-	if dstT.Implements(mapUnmarshalerType) {
+	if src != nil && dstT.Implements(mapUnmarshalerType) {
 		dstV, _, err = dive(dstV)
 		if err != nil {
 			return err
@@ -208,6 +200,14 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 	dstV, dstT, err = dive(dstV)
 	if err != nil {
 		return err
+	}
+
+	if src == nil {
+		if dstV.CanSet() {
+			dstV.Set(reflect.Zero(dstT))
+			return nil
+		}
+		return gperr.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
 	}
 
 	// convert data fields to lower no-snake
