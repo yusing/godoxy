@@ -6,15 +6,17 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/agent/pkg/certs"
 	. "github.com/yusing/go-proxy/internal/api/types"
 	config "github.com/yusing/go-proxy/internal/config/types"
 )
 
 type VerifyNewAgentRequest struct {
-	Host   string          `json:"host"`
-	CA     PEMPairResponse `json:"ca"`
-	Client PEMPairResponse `json:"client"`
+	Host             string                 `json:"host"`
+	CA               PEMPairResponse        `json:"ca"`
+	Client           PEMPairResponse        `json:"client"`
+	ContainerRuntime agent.ContainerRuntime `json:"container_runtime"`
 } // @name VerifyNewAgentRequest
 
 // @x-id          "verify"
@@ -55,7 +57,7 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, err := config.GetInstance().VerifyNewAgent(request.Host, ca, client)
+	nRoutesAdded, err := config.GetInstance().VerifyNewAgent(request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Error("invalid request", err))
 		return

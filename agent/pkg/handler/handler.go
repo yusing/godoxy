@@ -50,6 +50,9 @@ func NewAgentHandler() http.Handler {
 	mux.HandleEndpoint("GET", agent.EndpointName, func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, env.AgentName)
 	})
+	mux.HandleEndpoint("GET", agent.EndpointRuntime, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, env.Runtime)
+	})
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
 	mux.HandleEndpoint("GET", agent.EndpointSystemInfo, metricsHandler.ServeHTTP)
 	mux.ServeMux.HandleFunc("/", socketproxy.DockerSocketHandler(env.DockerSocket))

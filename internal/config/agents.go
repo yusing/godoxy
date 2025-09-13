@@ -6,15 +6,17 @@ import (
 	"github.com/yusing/go-proxy/internal/route/provider"
 )
 
-func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error) {
+func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
 	for _, a := range cfg.value.Providers.Agents {
 		if a.Addr == host {
 			return 0, gperr.New("agent already exists")
 		}
 	}
 
-	var agentCfg agent.AgentConfig
-	agentCfg.Addr = host
+	agentCfg := agent.AgentConfig{
+		Addr:    host,
+		Runtime: containerRuntime,
+	}
 	err := agentCfg.StartWithCerts(cfg.Task().Context(), ca.Cert, client.Cert, client.Key)
 	if err != nil {
 		return 0, gperr.Wrap(err, "failed to start agent")

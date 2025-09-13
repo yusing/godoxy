@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	//go:embed templates/agent.compose.yml
+	//go:embed templates/agent.compose.yml.tmpl
 	agentComposeYAML         string
-	agentComposeYAMLTemplate = template.Must(template.New("agent.compose.yml").Parse(agentComposeYAML))
+	agentComposeYAMLTemplate = template.Must(template.New("agent.compose.yml.tmpl").Parse(agentComposeYAML))
 )
 
 const (
@@ -20,7 +20,8 @@ const (
 
 func (c *AgentComposeConfig) Generate() (string, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-	if err := agentComposeYAMLTemplate.Execute(buf, c); err != nil {
+	err := agentComposeYAMLTemplate.Execute(buf, c)
+	if err != nil {
 		return "", err
 	}
 	return buf.String(), nil

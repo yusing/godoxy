@@ -20,9 +20,10 @@ import (
 )
 
 type AgentConfig struct {
-	Addr    string `json:"addr"`
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	Addr    string           `json:"addr"`
+	Name    string           `json:"name"`
+	Version string           `json:"version"`
+	Runtime ContainerRuntime `json:"runtime"`
 
 	httpClient *http.Client
 	tlsConfig  *tls.Config
@@ -32,6 +33,7 @@ type AgentConfig struct {
 const (
 	EndpointVersion    = "/version"
 	EndpointName       = "/name"
+	EndpointRuntime    = "/runtime"
 	EndpointProxyHTTP  = "/proxy/http"
 	EndpointHealth     = "/health"
 	EndpointLogs       = "/logs"
@@ -120,6 +122,30 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	agentVersionBytes, _, err := cfg.Fetch(ctx, EndpointVersion)
 	if err != nil {
 		return err
+	}
+
+	// check agent runtime
+	runtimeBytes, status, err := cfg.Fetch(ctx, EndpointRuntime)
+	if err != nil {
+		return err
+	}
+	switch status {
+	case http.StatusOK:
+		switch string(runtimeBytes) {
+		case "docker":
+			cfg.Runtime = ContainerRuntimeDocker
+		// case "nerdctl":
+		// 	cfg.Runtime = ContainerRuntimeNerdctl
+		case "podman":
+			cfg.Runtime = ContainerRuntimePodman
+		default:
+			return fmt.Errorf("invalid agent runtime: %s", runtimeBytes)
+		}
+	case http.StatusNotFound:
+		// backward compatibility, old agent does not have runtime endpoint
+		cfg.Runtime = ContainerRuntimeDocker
+	default:
+		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtimeBytes)
 	}
 
 	cfg.Version = string(agentVersionBytes)

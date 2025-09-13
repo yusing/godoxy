@@ -13,11 +13,12 @@ import (
 )
 
 type NewAgentRequest struct {
-	Name    string `form:"name" validate:"required"`
-	Host    string `form:"host" validate:"required"`
-	Port    int    `form:"port" validate:"required,min=1,max=65535"`
-	Type    string `form:"type" validate:"required,oneof=docker system"`
-	Nightly bool   `form:"nightly" validate:"omitempty"`
+	Name             string                 `json:"name" binding:"required"`
+	Host             string                 `json:"host" binding:"required"`
+	Port             int                    `json:"port" binding:"required,min=1,max=65535"`
+	Type             string                 `json:"type" binding:"required,oneof=docker system"`
+	Nightly          bool                   `json:"nightly" binding:"omitempty"`
+	ContainerRuntime agent.ContainerRuntime `json:"container_runtime" binding:"omitempty,oneof=docker podman" default:"docker"`
 } // @name NewAgentRequest
 
 type NewAgentResponse struct {
@@ -47,6 +48,7 @@ func Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
+
 	hostport := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
 	if _, ok := agent.GetAgent(hostport); ok {
 		c.JSON(http.StatusConflict, apitypes.Error("agent already exists"))
@@ -67,10 +69,11 @@ func Create(c *gin.Context) {
 	}
 
 	var cfg agent.Generator = &agent.AgentEnvConfig{
-		Name:    request.Name,
-		Port:    request.Port,
-		CACert:  ca.String(),
-		SSLCert: srv.String(),
+		Name:             request.Name,
+		Port:             request.Port,
+		CACert:           ca.String(),
+		SSLCert:          srv.String(),
+		ContainerRuntime: request.ContainerRuntime,
 	}
 	if request.Type == "docker" {
 		cfg = &agent.AgentComposeConfig{

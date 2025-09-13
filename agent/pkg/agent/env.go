@@ -1,11 +1,13 @@
 package agent
 
 type (
-	AgentEnvConfig struct {
-		Name    string
-		Port    int
-		CACert  string
-		SSLCert string
+	ContainerRuntime string
+	AgentEnvConfig   struct {
+		Name             string
+		Port             int
+		CACert           string
+		SSLCert          string
+		ContainerRuntime ContainerRuntime
 	}
 	AgentComposeConfig struct {
 		Image string
@@ -14,4 +16,10 @@ type (
 	Generator interface {
 		Generate() (string, error)
 	}
+)
+
+const (
+	ContainerRuntimeDocker ContainerRuntime = "docker"
+	ContainerRuntimePodman ContainerRuntime = "podman"
+	// ContainerRuntimeNerdctl ContainerRuntime = "nerdctl"
 )

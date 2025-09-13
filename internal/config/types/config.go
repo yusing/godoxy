@@ -52,7 +52,7 @@ type (
 		Statistics() map[string]any
 		RouteProviderList() []RouteProviderListResponse
 		Context() context.Context
-		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error)
+		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error)
 		AutoCertProvider() *autocert.Provider
 	}
 )
