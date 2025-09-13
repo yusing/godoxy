@@ -15,6 +15,7 @@ import (
 	"github.com/yusing/go-proxy/internal/notif"
 	"github.com/yusing/go-proxy/internal/proxmox"
 	"github.com/yusing/go-proxy/internal/serialization"
+	"github.com/yusing/go-proxy/internal/types"
 )
 
 type (
@@ -51,6 +52,7 @@ type (
 		Reload() gperr.Error
 		Statistics() map[string]any
 		RouteProviderList() []RouteProviderListResponse
+		SearchRoute(alias string) types.Route
 		Context() context.Context
 		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error)
 		AutoCertProvider() *autocert.Provider

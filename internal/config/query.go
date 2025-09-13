@@ -25,6 +25,15 @@ func (cfg *Config) RouteProviderList() []config.RouteProviderListResponse {
 	return list
 }
 
+func (cfg *Config) SearchRoute(alias string) types.Route {
+	for _, p := range cfg.providers.Range {
+		if r, ok := p.GetRoute(alias); ok {
+			return r
+		}
+	}
+	return nil
+}
+
 func (cfg *Config) Statistics() map[string]any {
 	var rps, streams types.RouteStats
 	var total uint16

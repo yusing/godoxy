@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apitypes "github.com/yusing/go-proxy/internal/api/types"
+	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/route/routes"
 )
 
@@ -35,7 +36,14 @@ func Route(c *gin.Context) {
 	route, ok := routes.Get(request.Which)
 	if ok {
 		c.JSON(http.StatusOK, route)
-	} else {
-		c.JSON(http.StatusNotFound, nil)
+		return
 	}
+
+	// also search for excluded routes
+	route = config.GetInstance().SearchRoute(request.Which)
+	if route != nil {
+		c.JSON(http.StatusOK, route)
+		return
+	}
+	c.JSON(http.StatusNotFound, nil)
 }
