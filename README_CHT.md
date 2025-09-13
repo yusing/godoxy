@@ -60,6 +60,9 @@
   - 使用 Let's Encrypt 自動管理 SSL 憑證 ([使用 DNS-01 驗證](https://docs.godoxy.dev/DNS-01-Providers))
   - Docker 容器自動配置
   - 設定檔與容器狀態變更時自動熱重載
+- **容器運行時支援**
+  - Docker
+  - Podman
 - **閒置休眠**：根據流量停止和喚醒容器 _(參見[截圖](#閒置休眠))_
   - Docker 容器
   - Proxmox LXC 容器
@@ -67,6 +70,7 @@
   - HTTP 反向代理
   - TCP/UDP 連接埠轉送
   - **OpenID Connect 支援**：輕鬆實現單點登入 (SSO) 並保護您的應用程式
+  - **ForwardAuth 支援**：整合任何 auth provider (例如 TinyAuth)
 - **客製化**
   - [HTTP 中介軟體](https://docs.godoxy.dev/Middlewares)
   - [支援自訂錯誤頁面](https://docs.godoxy.dev/Custom-Error-Pages)
