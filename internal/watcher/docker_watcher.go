@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	docker_events "github.com/docker/docker/api/types/events"
+	dockerEvents "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
@@ -16,19 +16,19 @@ import (
 
 type (
 	DockerWatcher     string
-	DockerListOptions = docker_events.ListOptions
+	DockerListOptions = dockerEvents.ListOptions
 )
 
 // https://docs.docker.com/reference/api/engine/version/v1.47/#tag/System/operation/SystemPingHead
 var (
-	DockerFilterContainer = filters.Arg("type", string(docker_events.ContainerEventType))
-	DockerFilterStart     = filters.Arg("event", string(docker_events.ActionStart))
-	DockerFilterStop      = filters.Arg("event", string(docker_events.ActionStop))
-	DockerFilterDie       = filters.Arg("event", string(docker_events.ActionDie))
-	DockerFilterDestroy   = filters.Arg("event", string(docker_events.ActionDestroy))
-	DockerFilterKill      = filters.Arg("event", string(docker_events.ActionKill))
-	DockerFilterPause     = filters.Arg("event", string(docker_events.ActionPause))
-	DockerFilterUnpause   = filters.Arg("event", string(docker_events.ActionUnPause))
+	DockerFilterContainer = filters.Arg("type", string(dockerEvents.ContainerEventType))
+	DockerFilterStart     = filters.Arg("event", string(dockerEvents.ActionStart))
+	DockerFilterStop      = filters.Arg("event", string(dockerEvents.ActionStop))
+	DockerFilterDie       = filters.Arg("event", string(dockerEvents.ActionDie))
+	DockerFilterDestroy   = filters.Arg("event", string(dockerEvents.ActionDestroy))
+	DockerFilterKill      = filters.Arg("event", string(dockerEvents.ActionKill))
+	DockerFilterPause     = filters.Arg("event", string(dockerEvents.ActionPause))
+	DockerFilterUnpause   = filters.Arg("event", string(dockerEvents.ActionUnPause))
 
 	NewDockerFilter = filters.NewArgs
 
@@ -102,6 +102,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 				retry := time.NewTicker(dockerWatcherRetryInterval)
 				defer retry.Stop()
 				ok := false
+			outer:
 				for !ok {
 					select {
 					case <-ctx.Done():
@@ -109,7 +110,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 					case <-retry.C:
 						if checkConnection(ctx, client) {
 							ok = true
-							break
+							break outer
 						}
 					}
 				}
@@ -134,7 +135,7 @@ func (w DockerWatcher) parseError(err error) gperr.Error {
 	return gperr.Wrap(err)
 }
 
-func (w DockerWatcher) handleEvent(event docker_events.Message, ch chan<- Event) {
+func (w DockerWatcher) handleEvent(event dockerEvents.Message, ch chan<- Event) {
 	action, ok := events.DockerEventMap[event.Action]
 	if !ok {
 		return
