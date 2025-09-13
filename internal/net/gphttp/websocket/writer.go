@@ -20,7 +20,3 @@ func (cm *Manager) NewWriter(msgType int) io.Writer {
 func (w *Writer) Write(p []byte) (int, error) {
 	return len(p), w.manager.WriteData(w.msgType, p, 10*time.Second)
 }
-
-func (w *Writer) Close() error {
-	return w.manager.conn.Close()
-}
