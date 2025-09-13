@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
+	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
 func (cfg *AgentConfig) Do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
@@ -16,7 +18,7 @@ func (cfg *AgentConfig) Do(ctx context.Context, method, endpoint string, body io
 	return cfg.httpClient.Do(req)
 }
 
-func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) ([]byte, int, error) {
+func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) (*http.Response, error) {
 	req = req.WithContext(req.Context())
 	req.URL.Host = AgentHost
 	req.URL.Scheme = "https"
@@ -24,11 +26,9 @@ func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) ([]byte, int
 	req.RequestURI = ""
 	resp, err := cfg.httpClient.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	return data, resp.StatusCode, nil
+	return resp, nil
 }
 
 func (cfg *AgentConfig) Fetch(ctx context.Context, endpoint string) ([]byte, int, error) {
@@ -50,4 +50,23 @@ func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websoc
 	return dialer.DialContext(ctx, APIBaseURL+endpoint, http.Header{
 		"Host": {AgentHost},
 	})
+}
+
+// ReverseProxy reverse proxies the request to the agent
+//
+// It will create a new request with the same context, method, and body, but with the agent host and scheme, and the endpoint
+// If the request has a query, it will be added to the proxy request's URL
+func (cfg *AgentConfig) ReverseProxy(w http.ResponseWriter, req *http.Request, endpoint string) error {
+	rp := reverseproxy.NewReverseProxy("agent", nettypes.NewURL(AgentURL), cfg.Transport())
+	uri := APIEndpointBase + endpoint
+	if req.URL.RawQuery != "" {
+		uri += "?" + req.URL.RawQuery
+	}
+	r, err := http.NewRequestWithContext(req.Context(), req.Method, uri, req.Body)
+	if err != nil {
+		return err
+	}
+	r.Header = req.Header
+	rp.ServeHTTP(w, r)
+	return nil
 }

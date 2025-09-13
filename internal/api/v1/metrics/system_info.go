@@ -11,17 +11,16 @@ import (
 	"github.com/yusing/go-proxy/internal/metrics/period"
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
 type SystemInfoRequest struct {
 	AgentAddr string                             `query:"agent_addr"`
+	AgentName string                             `query:"agent_name"`
 	Aggregate systeminfo.SystemInfoAggregateMode `query:"aggregate"`
 	Period    period.Filter                      `query:"period"`
 } // @name SystemInfoRequest
 
-type SystemInfoAggregate period.ResponseType[systeminfo.Aggregated] // @name SystemInfoAggregate
+type SystemInfoAggregate period.ResponseType[systeminfo.AggregatedJSON] // @name SystemInfoAggregate
 
 // @x-id				"system_info"
 // @BasePath		/api/v1
@@ -40,15 +39,20 @@ type SystemInfoAggregate period.ResponseType[systeminfo.Aggregated] // @name Sys
 func SystemInfo(c *gin.Context) {
 	query := c.Request.URL.Query()
 	agentAddr := query.Get("agent_addr")
+	agentName := query.Get("agent_name")
 	query.Del("agent_addr")
-	if agentAddr == "" {
+	query.Del("agent_name")
+	if agentAddr == "" && agentName == "" {
 		systeminfo.Poller.ServeHTTP(c)
 		return
 	}
 
 	agent, ok := agentPkg.GetAgent(agentAddr)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error("agent_addr not found"))
+		agent, ok = agentPkg.GetAgentByName(agentName)
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, apitypes.Error("agent_addr or agent_name not found"))
 		return
 	}
 
@@ -59,17 +63,16 @@ func SystemInfo(c *gin.Context) {
 			c.Error(apitypes.InternalServerError(err, "failed to forward request to agent"))
 			return
 		}
+		defer resp.Body.Close()
+
 		maps.Copy(c.Writer.Header(), resp.Header)
 		c.Status(resp.StatusCode)
 		io.Copy(c.Writer, resp.Body)
 	} else {
-		rp := reverseproxy.NewReverseProxy("agent", nettypes.NewURL(agentPkg.AgentURL), agent.Transport())
-		r, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, agentPkg.EndpointSystemInfo+"?"+query.Encode(), c.Request.Body)
+		err := agent.ReverseProxy(c.Writer, c.Request, agentPkg.EndpointSystemInfo+"?"+query.Encode())
 		if err != nil {
-			c.Error(apitypes.InternalServerError(err, "failed to create request"))
+			c.Error(apitypes.InternalServerError(err, "failed to reverse proxy"))
 			return
 		}
-		r.Header = c.Request.Header
-		rp.ServeHTTP(c.Writer, r)
 	}
 }
