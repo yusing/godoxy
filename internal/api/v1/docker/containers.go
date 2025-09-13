@@ -16,7 +16,7 @@ type Container struct {
 	Name   string         `json:"name"`
 	ID     string         `json:"id"`
 	Image  string         `json:"image"`
-	State  ContainerState `json:"state"`
+	State  ContainerState `json:"state,omitempty" extensions:"x-nullable"`
 } // @name ContainerResponse
 
 // @x-id				"containers"
