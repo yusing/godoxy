@@ -66,6 +66,7 @@ func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) 
 		IsExplicit:        isExplicit,
 		IsHostNetworkMode: c.HostConfig.NetworkMode == "host",
 		Running:           c.Status == "running" || c.State == "running",
+		State:             c.State,
 	}
 
 	if agent.IsDockerHostAgent(dockerHost) {
@@ -143,9 +144,11 @@ var databaseMPs = map[string]struct{}{
 }
 
 func isDatabase(c *types.Container) bool {
-	for _, m := range c.Mounts.Iter {
-		if _, ok := databaseMPs[m]; ok {
-			return true
+	if c.Mounts != nil { // only happens in test
+		for _, m := range c.Mounts.Iter {
+			if _, ok := databaseMPs[m]; ok {
+				return true
+			}
 		}
 	}
 

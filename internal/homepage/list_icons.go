@@ -94,8 +94,8 @@ func NewIconKey(source IconSource, reference string) IconKey {
 }
 
 func (k IconKey) SourceRef() (IconSource, string) {
-	parts := strings.Split(string(k), "/")
-	return IconSource(parts[0]), parts[1]
+	source, ref, _ := strings.Cut(string(k), "/")
+	return IconSource(source), ref
 }
 
 func InitIconListCache() {
@@ -118,6 +118,10 @@ func InitIconListCache() {
 	task.OnProgramExit("save_icons_cache", func() {
 		_ = serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
 	})
+}
+
+func TestClearIconsCache() {
+	clear(iconsCache.Icons)
 }
 
 func ListAvailableIcons() (*Cache, error) {
@@ -384,7 +388,8 @@ func UpdateSelfhstIcons() error {
 	for _, item := range data {
 		var tag string
 		if item.Tags != "" {
-			tag = strutils.CommaSeperatedList(item.Tags)[0]
+			tag, _, _ = strings.Cut(item.Tags, ",")
+			tag = strings.TrimSpace(tag)
 		}
 		icon := &IconMeta{
 			DisplayName: item.Name,

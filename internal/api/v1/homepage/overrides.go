@@ -1,7 +1,6 @@
 package homepageapi
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,16 +14,22 @@ type (
 		Value homepage.ItemConfig `json:"value"`
 	} //	@name	HomepageOverrideItemParams
 	HomepageOverrideItemsBatchParams struct {
-		Value map[string]*homepage.ItemConfig `json:"value"`
+		Value map[string]homepage.ItemConfig `json:"value"`
 	} //	@name	HomepageOverrideItemsBatchParams
+
 	HomepageOverrideCategoryOrderParams struct {
 		Which string `json:"which"`
 		Value int    `json:"value"`
 	} //	@name	HomepageOverrideCategoryOrderParams
+	HomepageOverrideItemSortOrderParams    HomepageOverrideCategoryOrderParams //	@name	HomepageOverrideItemSortOrderParams
+	HomepageOverrideItemAllSortOrderParams HomepageOverrideCategoryOrderParams //	@name	HomepageOverrideItemAllSortOrderParams
+	HomepageOverrideItemFavSortOrderParams HomepageOverrideCategoryOrderParams //	@name	HomepageOverrideItemFavSortOrderParams
+
 	HomepageOverrideItemVisibleParams struct {
 		Which []string `json:"which"`
 		Value bool     `json:"value"`
 	} //	@name	HomepageOverrideItemVisibleParams
+	HomepageOverrideItemFavoriteParams HomepageOverrideItemVisibleParams //	@name	HomepageOverrideItemFavoriteParams
 )
 
 // @x-id				"set-item"
@@ -46,7 +51,7 @@ func SetItem(c *gin.Context) {
 		return
 	}
 	overrides := homepage.GetOverrideConfig()
-	overrides.OverrideItem(params.Which, &params.Value)
+	overrides.OverrideItem(params.Which, params.Value)
 	c.JSON(http.StatusOK, apitypes.Success("success"))
 }
 
@@ -65,15 +70,8 @@ func SetItem(c *gin.Context) {
 func SetItemsBatch(c *gin.Context) {
 	var params HomepageOverrideItemsBatchParams
 	if err := c.ShouldBindJSON(&params); err != nil {
-		data, derr := c.GetRawData()
-		if derr != nil {
-			c.Error(apitypes.InternalServerError(derr, "failed to get raw data"))
-			return
-		}
-		if uerr := json.Unmarshal(data, &params); uerr != nil {
-			c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", uerr))
-			return
-		}
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
 	}
 	overrides := homepage.GetOverrideConfig()
 	overrides.OverrideItems(params.Value)
@@ -95,22 +93,103 @@ func SetItemsBatch(c *gin.Context) {
 func SetItemVisible(c *gin.Context) {
 	var params HomepageOverrideItemVisibleParams
 	if err := c.ShouldBindJSON(&params); err != nil {
-		data, derr := c.GetRawData()
-		if derr != nil {
-			c.Error(apitypes.InternalServerError(derr, "failed to get raw data"))
-			return
-		}
-		if uerr := json.Unmarshal(data, &params); uerr != nil {
-			c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", uerr))
-			return
-		}
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
 	}
 	overrides := homepage.GetOverrideConfig()
-	if params.Value {
-		overrides.UnhideItems(params.Which)
-	} else {
-		overrides.HideItems(params.Which)
+	overrides.SetItemsVisibility(params.Which, params.Value)
+	c.JSON(http.StatusOK, apitypes.Success("success"))
+}
+
+// @x-id				"set-item-favorite"
+// @BasePath		/api/v1
+// @Summary		Set homepage item favorite
+// @Description	Set homepage item favorite.
+// @Tags			homepage
+// @Accept		json
+// @Produce		json
+// @Param		request	body		HomepageOverrideItemFavoriteParams	true	"Set item favorite"
+// @Success		200		{object}	apitypes.SuccessResponse
+// @Failure		400		{object}	apitypes.ErrorResponse
+// @Failure		500		{object}	apitypes.ErrorResponse
+// @Router			/homepage/set/item_favorite [post]
+func SetItemFavorite(c *gin.Context) {
+	var params HomepageOverrideItemFavoriteParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
 	}
+	overrides := homepage.GetOverrideConfig()
+	overrides.SetItemsFavorite(params.Which, params.Value)
+	c.JSON(http.StatusOK, apitypes.Success("success"))
+}
+
+// @x-id				"set-item-sort-order"
+// @BasePath		/api/v1
+// @Summary		Set homepage item sort order
+// @Description	Set homepage item sort order.
+// @Tags			homepage
+// @Accept		json
+// @Produce		json
+// @Param		request	body		HomepageOverrideItemSortOrderParams	true	"Set item sort order"
+// @Success		200		{object}	apitypes.SuccessResponse
+// @Failure		400		{object}	apitypes.ErrorResponse
+// @Failure		500		{object}	apitypes.ErrorResponse
+// @Router			/homepage/set/item_sort_order [post]
+func SetItemSortOrder(c *gin.Context) {
+	var params HomepageOverrideItemSortOrderParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
+	}
+	overrides := homepage.GetOverrideConfig()
+	overrides.SetSortOrder(params.Which, params.Value)
+	c.JSON(http.StatusOK, apitypes.Success("success"))
+}
+
+// @x-id				"set-item-all-sort-order"
+// @BasePath		/api/v1
+// @Summary		Set homepage item all sort order
+// @Description	Set homepage item all sort order.
+// @Tags			homepage
+// @Accept		json
+// @Produce		json
+// @Param		request	body		HomepageOverrideItemAllSortOrderParams	true	"Set item all sort order"
+// @Success		200		{object}	apitypes.SuccessResponse
+// @Failure		400		{object}	apitypes.ErrorResponse
+// @Failure		500		{object}	apitypes.ErrorResponse
+// @Router			/homepage/set/item_all_sort_order [post]
+func SetItemAllSortOrder(c *gin.Context) {
+	var params HomepageOverrideItemAllSortOrderParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
+	}
+	overrides := homepage.GetOverrideConfig()
+	overrides.SetAllSortOrder(params.Which, params.Value)
+	c.JSON(http.StatusOK, apitypes.Success("success"))
+}
+
+// @x-id				"set-item-fav-sort-order"
+// @BasePath		/api/v1
+// @Summary		Set homepage item fav sort order
+// @Description	Set homepage item fav sort order.
+// @Tags			homepage
+// @Accept		json
+// @Produce		json
+// @Param		request	body		HomepageOverrideItemFavSortOrderParams	true	"Set item fav sort order"
+// @Success		200		{object}	apitypes.SuccessResponse
+// @Failure		400		{object}	apitypes.ErrorResponse
+// @Failure		500		{object}	apitypes.ErrorResponse
+// @Router			/homepage/set/item_fav_sort_order [post]
+func SetItemFavSortOrder(c *gin.Context) {
+	var params HomepageOverrideItemFavSortOrderParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
+	}
+	overrides := homepage.GetOverrideConfig()
+	overrides.SetFavSortOrder(params.Which, params.Value)
 	c.JSON(http.StatusOK, apitypes.Success("success"))
 }
 
@@ -129,15 +208,8 @@ func SetItemVisible(c *gin.Context) {
 func SetCategoryOrder(c *gin.Context) {
 	var params HomepageOverrideCategoryOrderParams
 	if err := c.ShouldBindJSON(&params); err != nil {
-		data, derr := c.GetRawData()
-		if derr != nil {
-			c.Error(apitypes.InternalServerError(derr, "failed to get raw data"))
-			return
-		}
-		if uerr := json.Unmarshal(data, &params); uerr != nil {
-			c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", uerr))
-			return
-		}
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
 	}
 	overrides := homepage.GetOverrideConfig()
 	overrides.SetCategoryOrder(params.Which, params.Value)

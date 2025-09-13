@@ -22,6 +22,8 @@ type (
 		ContainerName string          `json:"container_name"`
 		ContainerID   string          `json:"container_id"`
 
+		State container.ContainerState `json:"state"`
+
 		Agent *agent.AgentConfig `json:"agent"`
 
 		Labels            map[string]string  `json:"-"`      // for creating routes

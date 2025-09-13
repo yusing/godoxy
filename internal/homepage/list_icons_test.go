@@ -91,6 +91,8 @@ func runTests(t *testing.T, iconsCache *Cache, test []testCases) {
 }
 
 func TestListWalkxCodeIcons(t *testing.T) {
+	t.Cleanup(TestClearIconsCache)
+
 	MockHTTPGet([]byte(walkxcodeIcons))
 	if err := UpdateWalkxCodeIcons(); err != nil {
 		t.Fatal(err)
@@ -124,6 +126,7 @@ func TestListWalkxCodeIcons(t *testing.T) {
 }
 
 func TestListSelfhstIcons(t *testing.T) {
+	t.Cleanup(TestClearIconsCache)
 	MockHTTPGet([]byte(selfhstIcons))
 	if err := UpdateSelfhstIcons(); err != nil {
 		t.Fatal(err)
@@ -135,9 +138,6 @@ func TestListSelfhstIcons(t *testing.T) {
 	if len(iconsCache.Icons) != 3 {
 		t.Fatalf("expect 3 icons, got %d", len(iconsCache.Icons))
 	}
-	// if len(iconsCache.IconList) != 8 {
-	// 	t.Fatalf("expect 8 icons, got %d", len(iconsCache.IconList))
-	// }
 	test := []testCases{
 		{
 			Key: NewIconKey(IconSourceSelfhSt, "2fauth"),

@@ -28,8 +28,8 @@ type (
 		IdlewatcherConfig() *IdlewatcherConfig
 		HealthCheckConfig() *HealthCheckConfig
 		LoadBalanceConfig() *LoadBalancerConfig
-		HomepageConfig() *homepage.ItemConfig
-		HomepageItem() *homepage.Item
+		HomepageItem() homepage.Item
+		DisplayName() string
 		ContainerInfo() *Container
 
 		GetAgent() *agent.AgentConfig
