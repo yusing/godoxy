@@ -39,7 +39,9 @@ import (
 // @externalDocs.description  GoDoxy Docs
 // @externalDocs.url          https://docs.godoxy.dev
 func NewHandler() *gin.Engine {
-	gin.SetMode("release")
+	if !common.IsDebug {
+		gin.SetMode("release")
+	}
 	r := gin.New()
 	r.Use(ErrorHandler())
 	r.Use(ErrorLoggingMiddleware())
@@ -96,7 +98,12 @@ func NewHandler() *gin.Engine {
 			homepage.POST("/set/item", homepageApi.SetItem)
 			homepage.POST("/set/items_batch", homepageApi.SetItemsBatch)
 			homepage.POST("/set/item_visible", homepageApi.SetItemVisible)
+			homepage.POST("/set/item_favorite", homepageApi.SetItemFavorite)
+			homepage.POST("/set/item_sort_order", homepageApi.SetItemSortOrder)
+			homepage.POST("/set/item_all_sort_order", homepageApi.SetItemAllSortOrder)
+			homepage.POST("/set/item_fav_sort_order", homepageApi.SetItemFavSortOrder)
 			homepage.POST("/set/category_order", homepageApi.SetCategoryOrder)
+			homepage.POST("/item_click", homepageApi.ItemClick)
 		}
 
 		cert := v1.Group("/cert")
@@ -115,14 +122,19 @@ func NewHandler() *gin.Engine {
 		metrics := v1.Group("/metrics")
 		{
 			metrics.GET("/system_info", metricsApi.SystemInfo)
+			metrics.GET("/all_system_info", metricsApi.AllSystemInfo)
 			metrics.GET("/uptime", metricsApi.Uptime)
 		}
 
 		docker := v1.Group("/docker")
 		{
+			docker.GET("/container/:id", dockerApi.GetContainer)
 			docker.GET("/containers", dockerApi.Containers)
 			docker.GET("/info", dockerApi.Info)
 			docker.GET("/logs/:id", dockerApi.Logs)
+			docker.POST("/start", dockerApi.Start)
+			docker.POST("/stop", dockerApi.Stop)
+			docker.POST("/restart", dockerApi.Restart)
 		}
 	}
 
@@ -189,7 +201,7 @@ func ErrorHandler() gin.HandlerFunc {
 			for _, err := range c.Errors {
 				gperr.LogError("Internal error", err.Err, &logger)
 			}
-			if !isWebSocketRequest(c) {
+			if !c.IsWebsocket() {
 				c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
 			}
 		}
@@ -199,12 +211,8 @@ func ErrorHandler() gin.HandlerFunc {
 func ErrorLoggingMiddleware() gin.HandlerFunc {
 	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err any) {
 		log.Error().Any("error", err).Str("uri", c.Request.RequestURI).Msg("Internal error")
-		if !isWebSocketRequest(c) {
+		if !c.IsWebsocket() {
 			c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
 		}
 	})
-}
-
-func isWebSocketRequest(c *gin.Context) bool {
-	return c.GetHeader("Upgrade") == "websocket"
 }
