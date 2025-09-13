@@ -172,55 +172,6 @@
       }
     },
     "/auth/callback": {
-      "get": {
-        "description": "Handles the callback from the provider after successful authentication",
-        "produces": [
-          "text/plain"
-        ],
-        "tags": [
-          "auth"
-        ],
-        "summary": "Auth Callback",
-        "parameters": [
-          {
-            "description": "Userpass only",
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/auth.UserPassAuthCallbackRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Userpass: OK",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "302": {
-            "description": "OIDC: Redirects to home page",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "400": {
-            "description": "Userpass: invalid request / credentials",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "type": "string"
-            }
-          }
-        },
-        "x-id": "callback",
-        "operationId": "callback"
-      },
       "post": {
         "description": "Handles the callback from the provider after successful authentication",
         "produces": [
@@ -430,6 +381,61 @@
         "operationId": "renew"
       }
     },
+    "/docker/container/{id}": {
+      "get": {
+        "description": "Get container by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Get container",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Container ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ContainerResponse"
+            }
+          },
+          "400": {
+            "description": "ID is required",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "container",
+        "operationId": "container"
+      }
+    },
     "/docker/containers": {
       "get": {
         "description": "Get containers",
@@ -501,9 +507,9 @@
         "operationId": "info"
       }
     },
-    "/docker/logs/{server}/{container}": {
+    "/docker/logs/{id}": {
       "get": {
-        "description": "Get docker container logs",
+        "description": "Get docker container logs by container id",
         "consumes": [
           "application/json"
         ],
@@ -518,15 +524,8 @@
         "parameters": [
           {
             "type": "string",
-            "description": "server name",
-            "name": "server",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
             "description": "container id",
-            "name": "container",
+            "name": "id",
             "in": "path",
             "required": true
           },
@@ -578,7 +577,7 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "server not found or container not found",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -592,6 +591,177 @@
         },
         "x-id": "logs",
         "operationId": "logs"
+      }
+    },
+    "/docker/restart": {
+      "post": {
+        "description": "Restart container by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Restart container",
+        "parameters": [
+          {
+            "description": "Request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/dockerapi.StopRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "restart",
+        "operationId": "restart"
+      }
+    },
+    "/docker/start": {
+      "post": {
+        "description": "Start container by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Start container",
+        "parameters": [
+          {
+            "description": "Request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/dockerapi.StartRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "start",
+        "operationId": "start"
+      }
+    },
+    "/docker/stop": {
+      "post": {
+        "description": "Stop container by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker"
+        ],
+        "summary": "Stop container",
+        "parameters": [
+          {
+            "description": "Request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/dockerapi.StopRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "stop",
+        "operationId": "stop"
       }
     },
     "/favicon": {
@@ -982,6 +1152,51 @@
         "operationId": "categories"
       }
     },
+    "/homepage/item_click": {
+      "post": {
+        "description": "Increment item click.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Increment item click",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "which",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "item-click",
+        "operationId": "item-click"
+      }
+    },
     "/homepage/items": {
       "get": {
         "description": "Homepage items",
@@ -992,7 +1207,8 @@
           "application/json"
         ],
         "tags": [
-          "homepage"
+          "homepage",
+          "websocket"
         ],
         "summary": "Homepage items",
         "parameters": [
@@ -1007,13 +1223,34 @@
             "description": "Provider filter",
             "name": "provider",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Search query",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "clicks",
+              "alphabetical",
+              "custom"
+            ],
+            "type": "string",
+            "default": "alphabetical",
+            "description": "Sort method",
+            "name": "sort_method",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/HomepageItems"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/HomepageCategory"
+              }
             }
           },
           "400": {
@@ -1127,6 +1364,198 @@
         },
         "x-id": "set-item",
         "operationId": "set-item"
+      }
+    },
+    "/homepage/set/item_all_sort_order": {
+      "post": {
+        "description": "Set homepage item all sort order.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage item all sort order",
+        "parameters": [
+          {
+            "description": "Set item all sort order",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemAllSortOrderParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item-all-sort-order",
+        "operationId": "set-item-all-sort-order"
+      }
+    },
+    "/homepage/set/item_fav_sort_order": {
+      "post": {
+        "description": "Set homepage item fav sort order.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage item fav sort order",
+        "parameters": [
+          {
+            "description": "Set item fav sort order",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemFavSortOrderParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item-fav-sort-order",
+        "operationId": "set-item-fav-sort-order"
+      }
+    },
+    "/homepage/set/item_favorite": {
+      "post": {
+        "description": "Set homepage item favorite.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage item favorite",
+        "parameters": [
+          {
+            "description": "Set item favorite",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemFavoriteParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item-favorite",
+        "operationId": "set-item-favorite"
+      }
+    },
+    "/homepage/set/item_sort_order": {
+      "post": {
+        "description": "Set homepage item sort order.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "homepage"
+        ],
+        "summary": "Set homepage item sort order",
+        "parameters": [
+          {
+            "description": "Set item sort order",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/HomepageOverrideItemSortOrderParams"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "set-item-sort-order",
+        "operationId": "set-item-sort-order"
       }
     },
     "/homepage/set/item_visible": {
@@ -1279,6 +1708,106 @@
         "operationId": "icons"
       }
     },
+    "/metrics/all_system_info": {
+      "get": {
+        "description": "Get system info",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "metrics",
+          "websocket"
+        ],
+        "summary": "Get system info",
+        "parameters": [
+          {
+            "enum": [
+              "cpu_average",
+              "memory_usage",
+              "memory_usage_percent",
+              "disks_read_speed",
+              "disks_write_speed",
+              "disks_iops",
+              "disk_usage",
+              "network_speed",
+              "network_transfer",
+              "sensor_temperature"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "SystemInfoAggregateModeCPUAverage",
+              "SystemInfoAggregateModeMemoryUsage",
+              "SystemInfoAggregateModeMemoryUsagePercent",
+              "SystemInfoAggregateModeDisksReadSpeed",
+              "SystemInfoAggregateModeDisksWriteSpeed",
+              "SystemInfoAggregateModeDisksIOPS",
+              "SystemInfoAggregateModeDiskUsage",
+              "SystemInfoAggregateModeNetworkSpeed",
+              "SystemInfoAggregateModeNetworkTransfer",
+              "SystemInfoAggregateModeSensorTemperature"
+            ],
+            "name": "aggregate",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "duration",
+            "name": "interval",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "5m",
+              "15m",
+              "1h",
+              "1d",
+              "1mo"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "MetricsPeriod5m",
+              "MetricsPeriod15m",
+              "MetricsPeriod1h",
+              "MetricsPeriod1d",
+              "MetricsPeriod1mo"
+            ],
+            "name": "period",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "period specified, aggregated system info by agent name",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/SystemInfoAggregate"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "all_system_info",
+        "operationId": "all_system_info"
+      }
+    },
     "/metrics/system_info": {
       "get": {
         "description": "Get system info",
@@ -1294,6 +1823,11 @@
           {
             "type": "string",
             "name": "agentAddr",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "agentName",
             "in": "query"
           },
           {
@@ -1753,13 +2287,13 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "is_nerdctl": {
-          "type": "boolean",
+        "name": {
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "name": {
-          "type": "string",
+        "runtime": {
+          "$ref": "#/definitions/agent.ContainerRuntime",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -1960,6 +2494,11 @@
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "state": {
+          "$ref": "#/definitions/container.ContainerState",
+          "x-nullable": false,
+          "x-omitempty": false
         }
       },
       "x-nullable": false,
@@ -2021,9 +2560,12 @@
           "x-omitempty": false
         },
         "state": {
-          "$ref": "#/definitions/ContainerState",
-          "x-nullable": false,
-          "x-omitempty": false
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContainerState"
+            }
+          ],
+          "x-nullable": true
         }
       },
       "x-nullable": false,
@@ -2331,12 +2873,190 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "HomepageItems": {
+    "HomepageCategory": {
       "type": "object",
-      "additionalProperties": {
-        "type": "array",
+      "properties": {
         "items": {
-          "$ref": "#/definitions/homepage.Item"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HomepageItem"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageItem": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "all_sort_order": {
+          "description": "sort order in all",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "category": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "clicks": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_id": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "description": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "fav_sort_order": {
+          "description": "sort order in favorite",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "favorite": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "icon": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "display name",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "origin_url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "provider": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "show": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sort_order": {
+          "description": "sort order in category",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "widget_config": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/widgets.Config"
+            }
+          ],
+          "x-nullable": true
+        },
+        "widgets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HomepageItemWidget"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageItemConfig": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "description": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "favorite": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "icon": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "display name",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "show": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "widget_config": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/widgets.Config"
+            }
+          ],
+          "x-nullable": true
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageItemWidget": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
         }
       },
       "x-nullable": false,
@@ -2359,11 +3079,82 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "HomepageOverrideItemAllSortOrderParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemFavSortOrderParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemFavoriteParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "HomepageOverrideItemParams": {
       "type": "object",
       "properties": {
         "value": {
-          "$ref": "#/definitions/homepage.ItemConfig",
+          "$ref": "#/definitions/HomepageItemConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "which": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageOverrideItemSortOrderParams": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -2402,7 +3193,7 @@
         "value": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/homepage.ItemConfig"
+            "$ref": "#/definitions/HomepageItemConfig"
           },
           "x-nullable": false,
           "x-omitempty": false
@@ -2699,18 +3490,16 @@
       ],
       "properties": {
         "container_runtime": {
+          "default": "docker",
           "enum": [
             "docker",
-            "podman",
-            "nerdctl"
+            "podman"
           ],
           "allOf": [
             {
               "$ref": "#/definitions/agent.ContainerRuntime"
             }
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
+          ]
         },
         "host": {
           "type": "string",
@@ -2723,9 +3512,7 @@
           "x-omitempty": false
         },
         "nightly": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
+          "type": "boolean"
         },
         "port": {
           "type": "integer",
@@ -2971,8 +3758,11 @@
         },
         "excluded": {
           "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
+        },
+        "excluded_reason": {
+          "type": "string",
+          "x-nullable": true
         },
         "health": {
           "description": "for swagger",
@@ -2990,7 +3780,7 @@
           "x-omitempty": false
         },
         "homepage": {
-          "$ref": "#/definitions/homepage.ItemConfig",
+          "$ref": "#/definitions/HomepageItemConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3040,7 +3830,7 @@
           "x-nullable": true
         },
         "port": {
-          "$ref": "#/definitions/route.Port",
+          "$ref": "#/definitions/github_com_yusing_go-proxy_internal_route_types.Port",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3198,6 +3988,18 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "current_status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "unknown",
+            "napping",
+            "starting"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "display_name": {
           "type": "string",
           "x-nullable": false,
@@ -3210,6 +4012,11 @@
         },
         "idle": {
           "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "is_docker": {
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3276,7 +4083,7 @@
           "x-omitempty": false
         },
         "uptime": {
-          "type": "string",
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -3576,13 +4383,11 @@
       "type": "string",
       "enum": [
         "docker",
-        "podman",
-        "nerdctl"
+        "podman"
       ],
       "x-enum-varnames": [
         "ContainerRuntimeDocker",
-        "ContainerRuntimePodman",
-        "ContainerRuntimeNerdctl"
+        "ContainerRuntimePodman"
       ],
       "x-nullable": false,
       "x-omitempty": false
@@ -3601,6 +4406,47 @@
           "x-omitempty": false
         }
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.ContainerState": {
+      "type": "string",
+      "enum": [
+        "created",
+        "running",
+        "paused",
+        "restarting",
+        "removing",
+        "exited",
+        "dead"
+      ],
+      "x-enum-comments": {
+        "StateCreated": "StateCreated indicates the container is created, but not (yet) started.",
+        "StateDead": "StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.",
+        "StateExited": "StateExited indicates that the container exited.",
+        "StatePaused": "StatePaused indicates that the container's current state is paused.",
+        "StateRemoving": "StateRemoving indicates that the container is being removed.",
+        "StateRestarting": "StateRestarting indicates that the container is currently restarting.",
+        "StateRunning": "StateRunning indicates that the container is running."
+      },
+      "x-enum-descriptions": [
+        "StateCreated indicates the container is created, but not (yet) started.",
+        "StateRunning indicates that the container is running.",
+        "StatePaused indicates that the container's current state is paused.",
+        "StateRestarting indicates that the container is currently restarting.",
+        "StateRemoving indicates that the container is being removed.",
+        "StateExited indicates that the container exited.",
+        "StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts."
+      ],
+      "x-enum-varnames": [
+        "StateCreated",
+        "StateRunning",
+        "StatePaused",
+        "StateRestarting",
+        "StateRemoving",
+        "StateExited",
+        "StateDead"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -3724,6 +4570,67 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "dockerapi.StartRequest": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "checkpointDir": {
+          "type": "string"
+        },
+        "checkpointID": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "dockerapi.StopRequest": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "signal": {
+          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If not value is set, the default (SIGTERM) is used.",
+          "type": "string"
+        },
+        "timeout": {
+          "description": "Timeout (optional) is the timeout (in seconds) to wait for the container\nto stop gracefully before forcibly terminating it with SIGKILL.\n\n- Use nil to use the default timeout (10 seconds).\n- Use '-1' to wait indefinitely.\n- Use '0' to not wait for the container to exit gracefully, and\n  immediately proceeds to forcibly terminating the container.\n- Other positive values are used as timeout (in seconds).",
+          "type": "integer"
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "github_com_yusing_go-proxy_internal_route_types.Port": {
+      "type": "object",
+      "properties": {
+        "listening": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "proxy": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "homepage.FetchResult": {
       "type": "object",
       "properties": {
@@ -3809,115 +4716,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.Item": {
-      "type": "object",
-      "properties": {
-        "alias": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "category": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "description": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "icon": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "name": {
-          "description": "display name",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "origin_url": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "provider": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "show": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "sort_order": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "url": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "widget_config": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/widgets.Config"
-            }
-          ],
-          "x-nullable": true
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "homepage.ItemConfig": {
-      "type": "object",
-      "properties": {
-        "category": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "description": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "icon": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "name": {
-          "description": "display name",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "show": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "sort_order": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "url": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "mem.VirtualMemoryStat": {
       "type": "object",
       "properties": {
@@ -3986,23 +4784,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "route.Port": {
-      "type": "object",
-      "properties": {
-        "listening": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "proxy": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "route.Route": {
       "type": "object",
       "properties": {
@@ -4040,8 +4821,11 @@
         },
         "excluded": {
           "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
+        },
+        "excluded_reason": {
+          "type": "string",
+          "x-nullable": true
         },
         "health": {
           "description": "for swagger",
@@ -4059,7 +4843,7 @@
           "x-omitempty": false
         },
         "homepage": {
-          "$ref": "#/definitions/homepage.ItemConfig",
+          "$ref": "#/definitions/HomepageItemConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4109,7 +4893,7 @@
           "x-nullable": true
         },
         "port": {
-          "$ref": "#/definitions/route.Port",
+          "$ref": "#/definitions/github_com_yusing_go-proxy_internal_route_types.Port",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4218,16 +5002,11 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "rules.Command": {
-      "type": "object",
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "rules.Rule": {
       "type": "object",
       "properties": {
         "do": {
-          "$ref": "#/definitions/rules.Command",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4237,16 +5016,11 @@
           "x-omitempty": false
         },
         "on": {
-          "$ref": "#/definitions/rules.RuleOn",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         }
       },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "rules.RuleOn": {
-      "type": "object",
       "x-nullable": false,
       "x-omitempty": false
     },

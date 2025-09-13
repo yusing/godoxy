@@ -4,10 +4,10 @@ definitions:
     properties:
       addr:
         type: string
-      is_nerdctl:
-        type: boolean
       name:
         type: string
+      runtime:
+        $ref: '#/definitions/agent.ContainerRuntime'
       version:
         type: string
     type: object
@@ -97,6 +97,8 @@ definitions:
         description: non-zero publicPort:types.Port
       running:
         type: boolean
+      state:
+        $ref: '#/definitions/container.ContainerState'
     type: object
   ContainerImage:
     properties:
@@ -122,7 +124,9 @@ definitions:
       server:
         type: string
       state:
-        $ref: '#/definitions/ContainerState'
+        allOf:
+        - $ref: '#/definitions/ContainerState'
+        x-nullable: true
     type: object
   ContainerState:
     enum:
@@ -281,11 +285,89 @@ definitions:
     additionalProperties:
       $ref: '#/definitions/routes.HealthInfo'
     type: object
-  HomepageItems:
-    additionalProperties:
+  HomepageCategory:
+    properties:
       items:
-        $ref: '#/definitions/homepage.Item'
-      type: array
+        items:
+          $ref: '#/definitions/HomepageItem'
+        type: array
+      name:
+        type: string
+    type: object
+  HomepageItem:
+    properties:
+      alias:
+        type: string
+      all_sort_order:
+        description: sort order in all
+        type: integer
+      category:
+        type: string
+      clicks:
+        type: integer
+      container_id:
+        type: string
+        x-nullable: true
+      description:
+        type: string
+      fav_sort_order:
+        description: sort order in favorite
+        type: integer
+      favorite:
+        type: boolean
+      icon:
+        type: string
+      name:
+        description: display name
+        type: string
+      origin_url:
+        type: string
+      provider:
+        type: string
+      show:
+        type: boolean
+      sort_order:
+        description: sort order in category
+        type: integer
+      url:
+        type: string
+      widget_config:
+        allOf:
+        - $ref: '#/definitions/widgets.Config'
+        x-nullable: true
+      widgets:
+        items:
+          $ref: '#/definitions/HomepageItemWidget'
+        type: array
+    type: object
+  HomepageItemConfig:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      favorite:
+        type: boolean
+      icon:
+        type: string
+      name:
+        description: display name
+        type: string
+      show:
+        type: boolean
+      url:
+        type: string
+      widget_config:
+        allOf:
+        - $ref: '#/definitions/widgets.Config'
+        x-nullable: true
+    type: object
+  HomepageItemWidget:
+    properties:
+      label:
+        type: string
+      value:
+        type: string
     type: object
   HomepageOverrideCategoryOrderParams:
     properties:
@@ -294,10 +376,40 @@ definitions:
       which:
         type: string
     type: object
+  HomepageOverrideItemAllSortOrderParams:
+    properties:
+      value:
+        type: integer
+      which:
+        type: string
+    type: object
+  HomepageOverrideItemFavSortOrderParams:
+    properties:
+      value:
+        type: integer
+      which:
+        type: string
+    type: object
+  HomepageOverrideItemFavoriteParams:
+    properties:
+      value:
+        type: boolean
+      which:
+        items:
+          type: string
+        type: array
+    type: object
   HomepageOverrideItemParams:
     properties:
       value:
-        $ref: '#/definitions/homepage.ItemConfig'
+        $ref: '#/definitions/HomepageItemConfig'
+      which:
+        type: string
+    type: object
+  HomepageOverrideItemSortOrderParams:
+    properties:
+      value:
+        type: integer
       which:
         type: string
     type: object
@@ -314,7 +426,7 @@ definitions:
     properties:
       value:
         additionalProperties:
-          $ref: '#/definitions/homepage.ItemConfig'
+          $ref: '#/definitions/HomepageItemConfig'
         type: object
     type: object
   IdlewatcherConfig:
@@ -457,10 +569,10 @@ definitions:
       container_runtime:
         allOf:
         - $ref: '#/definitions/agent.ContainerRuntime'
+        default: docker
         enum:
         - docker
         - podman
-        - nerdctl
       host:
         type: string
       name:
@@ -587,6 +699,10 @@ definitions:
         type: boolean
       excluded:
         type: boolean
+        x-nullable: true
+      excluded_reason:
+        type: string
+        x-nullable: true
       health:
         allOf:
         - $ref: '#/definitions/HealthJSON'
@@ -594,7 +710,7 @@ definitions:
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
-        $ref: '#/definitions/homepage.ItemConfig'
+        $ref: '#/definitions/HomepageItemConfig'
       host:
         type: string
       idlewatcher:
@@ -622,7 +738,7 @@ definitions:
         type: array
         x-nullable: true
       port:
-        $ref: '#/definitions/route.Port'
+        $ref: '#/definitions/github_com_yusing_go-proxy_internal_route_types.Port'
       provider:
         description: for backward compatibility
         type: string
@@ -693,12 +809,22 @@ definitions:
         type: string
       avg_latency:
         type: number
+      current_status:
+        enum:
+        - healthy
+        - unhealthy
+        - unknown
+        - napping
+        - starting
+        type: string
       display_name:
         type: string
       downtime:
         type: number
       idle:
         type: number
+      is_docker:
+        type: boolean
       statuses:
         items:
           $ref: '#/definitions/RouteStatus'
@@ -726,7 +852,7 @@ definitions:
       proxies:
         $ref: '#/definitions/ProxyStats'
       uptime:
-        type: string
+        type: integer
     type: object
   StatusCodeRange:
     properties:
@@ -876,12 +1002,10 @@ definitions:
     enum:
     - docker
     - podman
-    - nerdctl
     type: string
     x-enum-varnames:
     - ContainerRuntimeDocker
     - ContainerRuntimePodman
-    - ContainerRuntimeNerdctl
   auth.UserPassAuthCallbackRequest:
     properties:
       password:
@@ -889,6 +1013,43 @@ definitions:
       username:
         type: string
     type: object
+  container.ContainerState:
+    enum:
+    - created
+    - running
+    - paused
+    - restarting
+    - removing
+    - exited
+    - dead
+    type: string
+    x-enum-comments:
+      StateCreated: StateCreated indicates the container is created, but not (yet)
+        started.
+      StateDead: StateDead indicates that the container failed to be deleted. Containers
+        in this state are attempted to be cleaned up when the daemon restarts.
+      StateExited: StateExited indicates that the container exited.
+      StatePaused: StatePaused indicates that the container's current state is paused.
+      StateRemoving: StateRemoving indicates that the container is being removed.
+      StateRestarting: StateRestarting indicates that the container is currently restarting.
+      StateRunning: StateRunning indicates that the container is running.
+    x-enum-descriptions:
+    - StateCreated indicates the container is created, but not (yet) started.
+    - StateRunning indicates that the container is running.
+    - StatePaused indicates that the container's current state is paused.
+    - StateRestarting indicates that the container is currently restarting.
+    - StateRemoving indicates that the container is being removed.
+    - StateExited indicates that the container exited.
+    - StateDead indicates that the container failed to be deleted. Containers in this
+      state are attempted to be cleaned up when the daemon restarts.
+    x-enum-varnames:
+    - StateCreated
+    - StateRunning
+    - StatePaused
+    - StateRestarting
+    - StateRemoving
+    - StateExited
+    - StateDead
   container.Port:
     properties:
       IP:
@@ -960,6 +1121,48 @@ definitions:
       used_percent:
         type: number
     type: object
+  dockerapi.StartRequest:
+    properties:
+      checkpointDir:
+        type: string
+      checkpointID:
+        type: string
+      id:
+        type: string
+    required:
+    - id
+    type: object
+  dockerapi.StopRequest:
+    properties:
+      id:
+        type: string
+      signal:
+        description: |-
+          Signal (optional) is the signal to send to the container to (gracefully)
+          stop it before forcibly terminating the container with SIGKILL after the
+          timeout expires. If not value is set, the default (SIGTERM) is used.
+        type: string
+      timeout:
+        description: |-
+          Timeout (optional) is the timeout (in seconds) to wait for the container
+          to stop gracefully before forcibly terminating it with SIGKILL.
+
+          - Use nil to use the default timeout (10 seconds).
+          - Use '-1' to wait indefinitely.
+          - Use '0' to not wait for the container to exit gracefully, and
+            immediately proceeds to forcibly terminating the container.
+          - Other positive values are used as timeout (in seconds).
+        type: integer
+    required:
+    - id
+    type: object
+  github_com_yusing_go-proxy_internal_route_types.Port:
+    properties:
+      listening:
+        type: integer
+      proxy:
+        type: integer
+    type: object
   homepage.FetchResult:
     properties:
       errMsg:
@@ -1001,52 +1204,6 @@ definitions:
     - IconSourceRelative
     - IconSourceWalkXCode
     - IconSourceSelfhSt
-  homepage.Item:
-    properties:
-      alias:
-        type: string
-      category:
-        type: string
-      description:
-        type: string
-      icon:
-        type: string
-      name:
-        description: display name
-        type: string
-      origin_url:
-        type: string
-      provider:
-        type: string
-      show:
-        type: boolean
-      sort_order:
-        type: integer
-      url:
-        type: string
-      widget_config:
-        allOf:
-        - $ref: '#/definitions/widgets.Config'
-        x-nullable: true
-    type: object
-  homepage.ItemConfig:
-    properties:
-      category:
-        type: string
-      description:
-        type: string
-      icon:
-        type: string
-      name:
-        description: display name
-        type: string
-      show:
-        type: boolean
-      sort_order:
-        type: integer
-      url:
-        type: string
-    type: object
   mem.VirtualMemoryStat:
     properties:
       available:
@@ -1092,13 +1249,6 @@ definitions:
         description: godoxy
         type: number
     type: object
-  route.Port:
-    properties:
-      listening:
-        type: integer
-      proxy:
-        type: integer
-    type: object
   route.Route:
     properties:
       access_log:
@@ -1118,6 +1268,10 @@ definitions:
         type: boolean
       excluded:
         type: boolean
+        x-nullable: true
+      excluded_reason:
+        type: string
+        x-nullable: true
       health:
         allOf:
         - $ref: '#/definitions/HealthJSON'
@@ -1125,7 +1279,7 @@ definitions:
       healthcheck:
         $ref: '#/definitions/HealthCheckConfig'
       homepage:
-        $ref: '#/definitions/homepage.ItemConfig'
+        $ref: '#/definitions/HomepageItemConfig'
       host:
         type: string
       idlewatcher:
@@ -1153,7 +1307,7 @@ definitions:
         type: array
         x-nullable: true
       port:
-        $ref: '#/definitions/route.Port'
+        $ref: '#/definitions/github_com_yusing_go-proxy_internal_route_types.Port'
       provider:
         description: for backward compatibility
         type: string
@@ -1212,18 +1366,14 @@ definitions:
         description: uptime in milliseconds
         type: number
     type: object
-  rules.Command:
-    type: object
   rules.Rule:
     properties:
       do:
-        $ref: '#/definitions/rules.Command'
+        type: string
       name:
         type: string
       "on":
-        $ref: '#/definitions/rules.RuleOn'
-    type: object
-  rules.RuleOn:
+        type: string
     type: object
   sensors.TemperatureStat:
     properties:
@@ -1389,38 +1539,6 @@ paths:
       - agent
       x-id: verify
   /auth/callback:
-    get:
-      description: Handles the callback from the provider after successful authentication
-      parameters:
-      - description: Userpass only
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/auth.UserPassAuthCallbackRequest'
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: 'Userpass: OK'
-          schema:
-            type: string
-        "302":
-          description: 'OIDC: Redirects to home page'
-          schema:
-            type: string
-        "400":
-          description: 'Userpass: invalid request / credentials'
-          schema:
-            type: string
-        "500":
-          description: Internal server error
-          schema:
-            type: string
-      summary: Auth Callback
-      tags:
-      - auth
-      x-id: callback
     post:
       description: Handles the callback from the provider after successful authentication
       parameters:
@@ -1557,6 +1675,42 @@ paths:
       - cert
       - websocket
       x-id: renew
+  /docker/container/{id}:
+    get:
+      description: Get container by container id
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ContainerResponse'
+        "400":
+          description: ID is required
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get container
+      tags:
+      - docker
+      x-id: container
   /docker/containers:
     get:
       description: Get containers
@@ -1603,20 +1757,15 @@ paths:
       tags:
       - docker
       x-id: info
-  /docker/logs/{server}/{container}:
+  /docker/logs/{id}:
     get:
       consumes:
       - application/json
-      description: Get docker container logs
+      description: Get docker container logs by container id
       parameters:
-      - description: server name
-        in: path
-        name: server
-        required: true
-        type: string
       - description: container id
         in: path
-        name: container
+        name: id
         required: true
         type: string
       - description: show stdout
@@ -1653,7 +1802,7 @@ paths:
           schema:
             $ref: '#/definitions/ErrorResponse'
         "404":
-          description: Not Found
+          description: server not found or container not found
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -1665,6 +1814,117 @@ paths:
       - docker
       - websocket
       x-id: logs
+  /docker/restart:
+    post:
+      description: Restart container by container id
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dockerapi.StopRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Restart container
+      tags:
+      - docker
+      x-id: restart
+  /docker/start:
+    post:
+      description: Start container by container id
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dockerapi.StartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Start container
+      tags:
+      - docker
+      x-id: start
+  /docker/stop:
+    post:
+      description: Stop container by container id
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dockerapi.StopRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Stop container
+      tags:
+      - docker
+      x-id: stop
   /favicon:
     get:
       consumes:
@@ -1924,6 +2184,35 @@ paths:
       tags:
       - homepage
       x-id: categories
+  /homepage/item_click:
+    post:
+      consumes:
+      - application/json
+      description: Increment item click.
+      parameters:
+      - in: query
+        name: which
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Increment item click
+      tags:
+      - homepage
+      x-id: item-click
   /homepage/items:
     get:
       consumes:
@@ -1938,13 +2227,28 @@ paths:
         in: query
         name: provider
         type: string
+      - description: Search query
+        in: query
+        name: search
+        type: string
+      - default: alphabetical
+        description: Sort method
+        enum:
+        - clicks
+        - alphabetical
+        - custom
+        in: query
+        name: sort_method
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/HomepageItems'
+            items:
+              $ref: '#/definitions/HomepageCategory'
+            type: array
         "400":
           description: Bad Request
           schema:
@@ -1956,6 +2260,7 @@ paths:
       summary: Homepage items
       tags:
       - homepage
+      - websocket
       x-id: items
   /homepage/set/category_order:
     post:
@@ -2019,6 +2324,130 @@ paths:
       tags:
       - homepage
       x-id: set-item
+  /homepage/set/item_all_sort_order:
+    post:
+      consumes:
+      - application/json
+      description: Set homepage item all sort order.
+      parameters:
+      - description: Set item all sort order
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemAllSortOrderParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage item all sort order
+      tags:
+      - homepage
+      x-id: set-item-all-sort-order
+  /homepage/set/item_fav_sort_order:
+    post:
+      consumes:
+      - application/json
+      description: Set homepage item fav sort order.
+      parameters:
+      - description: Set item fav sort order
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemFavSortOrderParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage item fav sort order
+      tags:
+      - homepage
+      x-id: set-item-fav-sort-order
+  /homepage/set/item_favorite:
+    post:
+      consumes:
+      - application/json
+      description: Set homepage item favorite.
+      parameters:
+      - description: Set item favorite
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemFavoriteParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage item favorite
+      tags:
+      - homepage
+      x-id: set-item-favorite
+  /homepage/set/item_sort_order:
+    post:
+      consumes:
+      - application/json
+      description: Set homepage item sort order.
+      parameters:
+      - description: Set item sort order
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/HomepageOverrideItemSortOrderParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Set homepage item sort order
+      tags:
+      - homepage
+      x-id: set-item-sort-order
   /homepage/set/item_visible:
     post:
       consumes:
@@ -2116,12 +2545,89 @@ paths:
       tags:
       - v1
       x-id: icons
+  /metrics/all_system_info:
+    get:
+      description: Get system info
+      parameters:
+      - enum:
+        - cpu_average
+        - memory_usage
+        - memory_usage_percent
+        - disks_read_speed
+        - disks_write_speed
+        - disks_iops
+        - disk_usage
+        - network_speed
+        - network_transfer
+        - sensor_temperature
+        in: query
+        name: aggregate
+        type: string
+        x-enum-varnames:
+        - SystemInfoAggregateModeCPUAverage
+        - SystemInfoAggregateModeMemoryUsage
+        - SystemInfoAggregateModeMemoryUsagePercent
+        - SystemInfoAggregateModeDisksReadSpeed
+        - SystemInfoAggregateModeDisksWriteSpeed
+        - SystemInfoAggregateModeDisksIOPS
+        - SystemInfoAggregateModeDiskUsage
+        - SystemInfoAggregateModeNetworkSpeed
+        - SystemInfoAggregateModeNetworkTransfer
+        - SystemInfoAggregateModeSensorTemperature
+      - format: duration
+        in: query
+        name: interval
+        type: string
+      - enum:
+        - 5m
+        - 15m
+        - 1h
+        - 1d
+        - 1mo
+        in: query
+        name: period
+        type: string
+        x-enum-varnames:
+        - MetricsPeriod5m
+        - MetricsPeriod15m
+        - MetricsPeriod1h
+        - MetricsPeriod1d
+        - MetricsPeriod1mo
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: period specified, aggregated system info by agent name
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/SystemInfoAggregate'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get system info
+      tags:
+      - metrics
+      - websocket
+      x-id: all_system_info
   /metrics/system_info:
     get:
       description: Get system info
       parameters:
       - in: query
         name: agentAddr
+        type: string
+      - in: query
+        name: agentName
         type: string
       - enum:
         - cpu_average
