@@ -38,6 +38,7 @@
   - [閒置休眠](#閒置休眠)
   - [監控](#監控)
 - [自行編譯](#自行編譯)
+- [Star History](#star-history)
 
 ## 運行示例
 
@@ -84,8 +85,6 @@
 - **高效能**
   - 以 **[Go](https://go.dev)** 語言編寫
 
-[🔼 回到頂部](#目錄)
-
 ## 前置需求
 
 設置 DNS 記錄指向運行 `GoDoxy` 的機器，例如：
@@ -109,8 +108,6 @@
    ```
 
 3. 現在可以在 WebUI `https://godoxy.yourdomain.com` 進行額外配置
-
-[🔼 回到頂部](#目錄)
 
 ### 手動安裝
 
@@ -153,29 +150,17 @@
 
 ![閒置休眠](screenshots/idlesleeper.webp)
 
-[🔼 回到頂部](#目錄)
-
 ### 監控
 
 <div align="center">
   <table>
     <tr>
-      <td align="center"><img src="screenshots/uptime.png" alt="Uptime Monitor" width="250"/></td>
-      <td align="center"><img src="screenshots/docker-logs.jpg" alt="Docker Logs" width="250"/></td>
-      <td align="center"><img src="screenshots/docker.jpg" alt="Server Overview" width="250"/></td>
+      <td align="center"><img src="screenshots/routes.jpg" alt="Routes" width="350"/></td>
+      <td align="center"><img src="screenshots/servers.jpg" alt="Servers" width="350"/></td>
     </tr>
     <tr>
-      <td align="center"><b>運行時間監控</b></td>
-      <td align="center"><b>Docker 日誌</b></td>
-      <td align="center"><b>伺服器概覽</b></td>
-    </tr>
-        <tr>
-      <td align="center"><img src="screenshots/system-monitor.jpg" alt="System Monitor" width="250"/></td>
-      <td align="center"><img src="screenshots/system-info-graphs.jpg" alt="Graphs" width="250"/></td>
-    </tr>
-    <tr>
-      <td align="center"><b>系統監控</b></td>
-      <td align="center"><b>圖表</b></td>
+      <td align="center"><b>路由</b></td>
+      <td align="center"><b>伺服器</b></td>
     </tr>
   </table>
 </div>
@@ -191,5 +176,9 @@
 4. 使用 `make get` 獲取依賴
 
 5. 使用 `make build` 編譯二進制檔案
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yusing/godoxy&type=Date)](https://www.star-history.com/#yusing/godoxy&Date)
 
 [🔼 回到頂部](#目錄)

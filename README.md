@@ -39,6 +39,7 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 - [Manual Setup](#manual-setup)
   - [Folder structrue](#folder-structrue)
 - [Build it yourself](#build-it-yourself)
+- [Star History](#star-history)
 
 ## Running demo
 
@@ -138,22 +139,12 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 <div align="center">
   <table>
     <tr>
-      <td align="center"><img src="screenshots/uptime.png" alt="Uptime Monitor" width="250"/></td>
-      <td align="center"><img src="screenshots/docker-logs.jpg" alt="Docker Logs" width="250"/></td>
-      <td align="center"><img src="screenshots/docker.jpg" alt="Server Overview" width="250"/></td>
+      <td align="center"><img src="screenshots/routes.jpg" alt="Routes" width="350"/></td>
+      <td align="center"><img src="screenshots/servers.jpg" alt="Servers" width="350"/></td>
     </tr>
     <tr>
-      <td align="center"><b>Uptime Monitor</b></td>
-      <td align="center"><b>Docker Logs</b></td>
-      <td align="center"><b>Server Overview</b></td>
-    </tr>
-        <tr>
-      <td align="center"><img src="screenshots/system-monitor.jpg" alt="System Monitor" width="250"/></td>
-      <td align="center"><img src="screenshots/system-info-graphs.jpg" alt="Graphs" width="250"/></td>
-    </tr>
-    <tr>
-      <td align="center"><b>System Monitor</b></td>
-      <td align="center"><b>Graphs</b></td>
+      <td align="center"><b>Routes</b></td>
+      <td align="center"><b>Servers</b></td>
     </tr>
   </table>
 </div>
@@ -204,5 +195,9 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 4. get dependencies with `make get`
 
 5. build binary with `make build`
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=yusing/godoxy&type=Date)](https://www.star-history.com/#yusing/godoxy&Date)
 
 [🔼Back to top](#table-of-content)
