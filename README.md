@@ -21,8 +21,6 @@ A lightweight, simple, and performant reverse proxy with WebUI.
 
 Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e48936a1-godoxy-assistant)! (Thanks to [@ismesid](https://github.com/arevindh))
 
-**New WebUI and is now available in nightly tag [(Demo)](https://nightly.demo.godoxy.dev), feedbacks are welcomed!**
-
 </div>
 
 ## Table of content
