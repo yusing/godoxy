@@ -40,8 +40,8 @@ type (
 	*/
 	Rule struct {
 		Name string  `json:"name"`
-		On   RuleOn  `json:"on"`
-		Do   Command `json:"do"`
+		On   RuleOn  `json:"on" swaggertype:"string"`
+		Do   Command `json:"do" swaggertype:"string"`
 	}
 )
 
