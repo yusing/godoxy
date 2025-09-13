@@ -33,6 +33,8 @@ import (
 	U "github.com/yusing/go-proxy/internal/utils"
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
+
+	_ "unsafe"
 )
 
 // A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
@@ -169,6 +171,9 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+//go:linkname errStreamClosed golang.org/x/net/http2.errStreamClosed
+var errStreamClosed error
+
 func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err error, writeHeader bool) {
 	reqURL := r.Host + r.URL.Path
 	switch {
@@ -184,6 +189,9 @@ func (p *ReverseProxy) errorHandler(rw http.ResponseWriter, r *http.Request, err
 				Msgf(`scheme was likely misconfigured as https,
 						try setting "proxy.%s.scheme" back to "http"`, p.TargetName)
 			log.Err(err).Msg("underlying error")
+			goto logged
+		}
+		if errors.Is(err, errStreamClosed) {
 			goto logged
 		}
 		var h2Err http2.StreamError
