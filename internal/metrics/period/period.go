@@ -42,12 +42,12 @@ func (p *Period[T]) Add(info T) {
 }
 
 func (p *Period[T]) Get(filter Filter) ([]T, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
 	period, ok := p.Entries[filter]
 	if !ok {
 		return nil, false
 	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return period.Get(), true
 }
 
@@ -59,4 +59,27 @@ func (p *Period[T]) Total() int {
 		total += period.count
 	}
 	return total
+}
+
+// ValidateAndFixIntervals checks all period intervals and fixes them if they're incorrect.
+// This should be called after loading data from JSON to ensure data integrity.
+func (p *Period[T]) ValidateAndFixIntervals() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	durations := map[Filter]time.Duration{
+		MetricsPeriod5m:  5 * time.Minute,
+		MetricsPeriod15m: 15 * time.Minute,
+		MetricsPeriod1h:  1 * time.Hour,
+		MetricsPeriod1d:  24 * time.Hour,
+		MetricsPeriod1mo: 30 * 24 * time.Hour,
+	}
+
+	for filter, entries := range p.Entries {
+		if expectedDuration, exists := durations[filter]; exists {
+			if !entries.validateInterval(expectedDuration) {
+				entries.fixInterval(expectedDuration)
+			}
+		}
+	}
 }

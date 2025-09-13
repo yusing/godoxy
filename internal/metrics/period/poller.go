@@ -36,7 +36,7 @@ type (
 )
 
 const (
-	pollInterval       = 1 * time.Second
+	PollInterval       = 1 * time.Second
 	gatherErrsInterval = 30 * time.Second
 	saveInterval       = 5 * time.Minute
 
@@ -73,7 +73,12 @@ func (p *Poller[T, AggregateT]) load() error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(entries, &p.period)
+	if err := json.Unmarshal(entries, &p.period); err != nil {
+		return err
+	}
+	// Validate and fix intervals after loading to ensure data integrity.
+	p.period.ValidateAndFixIntervals()
+	return nil
 }
 
 func (p *Poller[T, AggregateT]) save() error {
@@ -122,7 +127,7 @@ func (p *Poller[T, AggregateT]) clearErrs() {
 }
 
 func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, pollInterval)
+	ctx, cancel := context.WithTimeout(ctx, PollInterval)
 	defer cancel()
 	data, err := p.poll(ctx, p.lastResult.Load())
 	if err != nil {
@@ -146,7 +151,7 @@ func (p *Poller[T, AggregateT]) Start() {
 	}
 
 	go func() {
-		pollTicker := time.NewTicker(pollInterval)
+		pollTicker := time.NewTicker(PollInterval)
 		gatherErrsTicker := time.NewTicker(gatherErrsInterval)
 		saveTicker := time.NewTicker(saveInterval)
 
@@ -162,7 +167,7 @@ func (p *Poller[T, AggregateT]) Start() {
 			t.Finish(err)
 		}()
 
-		l.Debug().Dur("interval", pollInterval).Msg("Starting poller")
+		l.Debug().Dur("interval", PollInterval).Msg("Starting poller")
 
 		p.pollWithTimeout(t.Context())
 

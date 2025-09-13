@@ -27,12 +27,30 @@ func (e *Entries[T]) Add(now time.Time, info T) {
 	if now.Sub(e.lastAdd) < e.interval {
 		return
 	}
+	e.addWithTime(now, info)
+}
+
+// addWithTime adds an entry with a specific timestamp without interval checking.
+// This is used internally for reconstructing historical data.
+func (e *Entries[T]) addWithTime(timestamp time.Time, info T) {
 	e.entries[e.index] = info
 	e.index = (e.index + 1) % maxEntries
 	if e.count < maxEntries {
 		e.count++
 	}
-	e.lastAdd = now
+	e.lastAdd = timestamp
+}
+
+// validateInterval checks if the current interval matches the expected interval for the duration.
+// Returns true if valid, false if the interval needs to be recalculated.
+func (e *Entries[T]) validateInterval(expectedDuration time.Duration) bool {
+	expectedInterval := max(expectedDuration/maxEntries, time.Second)
+	return e.interval == expectedInterval
+}
+
+// fixInterval recalculates and sets the correct interval based on the expected duration.
+func (e *Entries[T]) fixInterval(expectedDuration time.Duration) {
+	e.interval = max(expectedDuration/maxEntries, time.Second)
 }
 
 func (e *Entries[T]) Get() []T {
@@ -67,10 +85,17 @@ func (e *Entries[T]) UnmarshalJSON(data []byte) error {
 	if len(entries) > maxEntries {
 		entries = entries[:maxEntries]
 	}
-	now := time.Now()
-	for _, info := range entries {
-		e.Add(now, info)
-	}
+
+	// Set the interval first before adding entries.
 	e.interval = v.Interval
+
+	// Add entries with proper time spacing to respect the interval.
+	now := time.Now()
+	for i, info := range entries {
+		// Calculate timestamp based on entry position and interval.
+		// Most recent entry gets current time, older entries get earlier times.
+		entryTime := now.Add(-time.Duration(len(entries)-1-i) * e.interval)
+		e.addWithTime(entryTime, info)
+	}
 	return nil
 }

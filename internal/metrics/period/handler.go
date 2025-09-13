@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	apitypes "github.com/yusing/go-proxy/internal/api/types"
@@ -36,20 +35,16 @@ func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		interval := metricsutils.QueryDuration(query, "interval", 0)
 
-		minInterval := 1 * time.Second
-		if interval == 0 {
-			interval = pollInterval
-		}
-		if interval < minInterval {
-			interval = minInterval
+		if interval < PollInterval {
+			interval = PollInterval
 		}
 		websocket.PeriodicWrite(c, interval, func() (any, error) {
-			return p.getRespData(period, query)
+			return p.GetRespData(period, query)
 		})
 	} else {
-		data, err := p.getRespData(period, query)
+		data, err := p.GetRespData(period, query)
 		if err != nil {
-			c.Error(apitypes.InternalServerError(err, "failed to get response data"))
+			c.JSON(http.StatusBadRequest, apitypes.Error("bad request", err))
 			return
 		}
 		if data == nil {
@@ -60,7 +55,18 @@ func (p *Poller[T, AggregateT]) ServeHTTP(c *gin.Context) {
 	}
 }
 
-func (p *Poller[T, AggregateT]) getRespData(period Filter, query url.Values) (any, error) {
+// GetRespData returns the aggregated data for the given period and query.
+//
+// When period is specified:
+//
+//	It returns a map with the total and the data.
+//	It returns an error if the period or query is invalid.
+//
+// When period is not specified:
+//
+//	It returns the last result.
+//	It returns nil if no last result is found.
+func (p *Poller[T, AggregateT]) GetRespData(period Filter, query url.Values) (any, error) {
 	if period == "" {
 		return p.GetLastResult(), nil
 	}
