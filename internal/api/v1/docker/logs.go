@@ -59,21 +59,15 @@ func Logs(c *gin.Context) {
 	// TODO: implement levels
 	dockerHost, ok := docker.GetDockerHostByContainerID(id)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error(fmt.Sprintf("container %s not found in %s", id, c.GetString("server"))))
+		c.JSON(http.StatusNotFound, apitypes.Error(fmt.Sprintf("container %s not found", id)))
 		return
 	}
 
-	dockerClient, found, err := getDockerClient(dockerHost)
+	dockerClient, err := docker.NewClient(dockerHost)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get docker client"))
 		return
 	}
-
-	if !found {
-		c.JSON(http.StatusNotFound, apitypes.Error("server not found"))
-		return
-	}
-
 	defer dockerClient.Close()
 
 	opts := container.LogsOptions{
