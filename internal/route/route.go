@@ -24,7 +24,6 @@ import (
 	"github.com/yusing/go-proxy/internal/common"
 	config "github.com/yusing/go-proxy/internal/config/types"
 	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/route/rules"
 	route "github.com/yusing/go-proxy/internal/route/types"
 	"github.com/yusing/go-proxy/internal/utils"
@@ -85,6 +84,7 @@ type (
 		once    sync.Once
 	}
 	Routes map[string]*Route
+	Port   = route.Port
 )
 
 const DefaultHost = "localhost"
@@ -298,25 +298,20 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	if err := r.impl.Start(parent); err != nil {
-		return err
+	if cont := r.ContainerInfo(); cont != nil {
+		docker.SetDockerHostByContainerID(cont.ContainerID, cont.DockerHost)
 	}
 
-	if conflict, added := routes.All.AddIfNotExists(r.impl); !added {
-		err := gperr.Errorf("route %s already exists: from %s and %s", r.Alias, r.ProviderName(), conflict.ProviderName())
-		r.task.FinishAndWait(err)
+	if err := r.impl.Start(parent); err != nil {
 		return err
-	} else {
-		// reference here because r.impl will be nil after Finish() is called.
-		impl := r.impl
-		r.task.OnCancel("remove_routes_from_all", func() {
-			routes.All.Del(impl)
-		})
 	}
 	return nil
 }
 
 func (r *Route) Finish(reason any) {
+	if cont := r.ContainerInfo(); cont != nil {
+		docker.DeleteDockerHostByContainerID(cont.ContainerID)
+	}
 	r.FinishAndWait(reason)
 }
 
@@ -421,16 +416,21 @@ func (r *Route) LoadBalanceConfig() *types.LoadBalancerConfig {
 	return r.LoadBalance
 }
 
-func (r *Route) HomepageConfig() *homepage.ItemConfig {
-	return r.Homepage.GetOverride(r.Alias)
+func (r *Route) HomepageItem() homepage.Item {
+	containerID := ""
+	if r.Container != nil {
+		containerID = r.Container.ContainerID
+	}
+	return homepage.Item{
+		Alias:       r.Alias,
+		Provider:    r.Provider,
+		ItemConfig:  *r.Homepage,
+		ContainerID: containerID,
+	}.GetOverride()
 }
 
-func (r *Route) HomepageItem() *homepage.Item {
-	return &homepage.Item{
-		Alias:      r.Alias,
-		Provider:   r.Provider,
-		ItemConfig: r.HomepageConfig(),
-	}
+func (r *Route) DisplayName() string {
+	return r.Homepage.Name
 }
 
 func (r *Route) ContainerInfo() *types.Container {
@@ -639,9 +639,11 @@ func (r *Route) FinalizeHomepageConfig() {
 	isDocker := r.Container != nil
 
 	if r.Homepage == nil {
-		r.Homepage = &homepage.ItemConfig{Show: true}
+		r.Homepage = &homepage.ItemConfig{
+			Show: true,
+			Name: r.Alias,
+		}
 	}
-	r.Homepage = r.Homepage.GetOverride(r.Alias)
 
 	if r.ShouldExclude() && isDocker {
 		r.Homepage.Show = false
