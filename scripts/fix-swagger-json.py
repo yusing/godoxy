@@ -17,8 +17,13 @@ def set_non_nullable(data):
     if "type" not in data:
         return
     if data["type"] == "object" and "properties" in data:
-        for v in data["properties"].values():
-            set_non_nullable(v)
+        if "required" in data:
+            for k, v in data["properties"].items():
+                if k in data["required"]:
+                    set_non_nullable(v)
+        else:
+            for v in data["properties"].values():
+                set_non_nullable(v)
     if data["type"] == "array":
         for v in data["items"]:
             set_non_nullable(v)
