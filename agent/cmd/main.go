@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
 	httpServer "github.com/yusing/go-proxy/internal/net/gphttp/server"
 	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/go-proxy/internal/utils/strutils"
 	"github.com/yusing/go-proxy/pkg"
 	socketproxy "github.com/yusing/go-proxy/socketproxy/pkg"
 )
@@ -46,6 +47,7 @@ func main() {
 	log.Info().Msgf("GoDoxy Agent version %s", pkg.GetVersion())
 	log.Info().Msgf("Agent name: %s", env.AgentName)
 	log.Info().Msgf("Agent port: %d", env.AgentPort)
+	log.Info().Msgf("Agent runtime: %s", env.Runtime)
 
 	log.Info().Msg(`
 Tips:
@@ -63,9 +65,11 @@ Tips:
 	server.StartAgentServer(t, opts)
 
 	if socketproxy.ListenAddr != "" {
-		log.Info().Msgf("Docker socket listening on: %s", socketproxy.ListenAddr)
+		runtime := strutils.Title(string(env.Runtime))
+
+		log.Info().Msgf("%s socket listening on: %s", runtime, socketproxy.ListenAddr)
 		opts := httpServer.Options{
-			Name:     "docker",
+			Name:     runtime,
 			HTTPAddr: socketproxy.ListenAddr,
 			Handler:  socketproxy.NewHandler(),
 		}

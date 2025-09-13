@@ -3,7 +3,10 @@ package env
 import (
 	"os"
 
+	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/common"
+
+	"github.com/rs/zerolog/log"
 )
 
 func DefaultAgentName() string {
@@ -21,6 +24,7 @@ var (
 	AgentCACert              string
 	AgentSSLCert             string
 	DockerSocket             string
+	Runtime                  agent.ContainerRuntime
 )
 
 func init() {
@@ -35,4 +39,11 @@ func Load() {
 
 	AgentCACert = common.GetEnvString("AGENT_CA_CERT", "")
 	AgentSSLCert = common.GetEnvString("AGENT_SSL_CERT", "")
+	Runtime = agent.ContainerRuntime(common.GetEnvString("RUNTIME", "docker"))
+
+	switch Runtime {
+	case agent.ContainerRuntimeDocker, agent.ContainerRuntimePodman: //, agent.ContainerRuntimeNerdctl:
+	default:
+		log.Fatal().Str("runtime", string(Runtime)).Msg("invalid runtime")
+	}
 }

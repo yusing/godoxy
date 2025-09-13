@@ -74,6 +74,14 @@ if [ -z "$COMMAND" ]; then
 		echo "AGENT_SSL_CERT is not set"
 		exit 1
 	fi
+	if [ -z "$DOCKER_SOCKET" ]; then
+		echo "DOCKER_SOCKET is not set"
+		exit 1
+	fi
+	if [ -z "$RUNTIME" ]; then
+		echo "RUNTIME is not set"
+		exit 1
+	fi
 fi
 
 # init variables
@@ -200,6 +208,8 @@ AGENT_NAME="${AGENT_NAME}"
 AGENT_PORT="${AGENT_PORT}"
 AGENT_CA_CERT="${AGENT_CA_CERT}"
 AGENT_SSL_CERT="${AGENT_SSL_CERT}"
+DOCKER_SOCKET="${DOCKER_SOCKET}"
+RUNTIME="${RUNTIME}"
 EOF
 chmod 600 $env_file
 
