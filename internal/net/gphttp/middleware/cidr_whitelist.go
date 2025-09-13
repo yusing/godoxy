@@ -5,16 +5,16 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/puzpuzpuz/xsync/v4"
 	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/serialization"
-	F "github.com/yusing/go-proxy/internal/utils/functional"
 )
 
 type (
 	cidrWhitelist struct {
 		CIDRWhitelistOpts
-		cachedAddr F.Map[string, bool] // cache for trusted IPs
+		cachedAddr *xsync.Map[string, bool] // cache for trusted IPs
 	}
 	CIDRWhitelistOpts struct {
 		Allow      []*nettypes.CIDR `validate:"min=1"`
@@ -42,7 +42,7 @@ func init() {
 // setup implements MiddlewareWithSetup.
 func (wl *cidrWhitelist) setup() {
 	wl.CIDRWhitelistOpts = cidrWhitelistDefaults
-	wl.cachedAddr = F.NewMapOf[string, bool]()
+	wl.cachedAddr = xsync.NewMap[string, bool](xsync.WithPresize(100))
 }
 
 // before implements RequestModifier.

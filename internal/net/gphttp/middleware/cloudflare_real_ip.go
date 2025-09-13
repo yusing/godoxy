@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -115,11 +116,12 @@ func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*nettypes.CIDR) error {
 		return err
 	}
 
-	for _, line := range strutils.SplitLine(string(body)) {
-		if line == "" {
+	for line := range bytes.Lines(body) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
 			continue
 		}
-		_, cidr, err := net.ParseCIDR(line)
+		_, cidr, err := net.ParseCIDR(string(line))
 		if err != nil {
 			return fmt.Errorf("cloudflare responeded an invalid CIDR: %s", line)
 		}
