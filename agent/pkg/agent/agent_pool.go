@@ -1,11 +1,12 @@
 package agent
 
 import (
+
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/utils/functional"
 )
 
-var agentPool = functional.NewMapOf[string, *AgentConfig]()
+var agentPool = xsync.NewMap[string, *AgentConfig](xsync.WithPresize(10))
 
 func init() {
 	if common.IsTest {

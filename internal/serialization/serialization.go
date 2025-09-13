@@ -15,7 +15,6 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/functional"
 	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
@@ -565,7 +564,7 @@ func UnmarshalValidateYAMLIntercept[T any](data []byte, target *T, intercept fun
 	return MapUnmarshalValidate(m, target)
 }
 
-func UnmarshalValidateYAMLXSync[V any](data []byte) (_ functional.Map[string, V], err gperr.Error) {
+func UnmarshalValidateYAMLXSync[V any](data []byte) (_ *xsync.Map[string, V], err gperr.Error) {
 	data, err = substituteEnv(data)
 	if err != nil {
 		return
@@ -579,7 +578,11 @@ func UnmarshalValidateYAMLXSync[V any](data []byte) (_ functional.Map[string, V]
 	if err = MapUnmarshalValidate(m, m2); err != nil {
 		return
 	}
-	return functional.NewMapFrom(m2), nil
+	ret := xsync.NewMap[string, V](xsync.WithPresize(len(m)))
+	for k, v := range m2 {
+		ret.Store(k, v)
+	}
+	return ret, nil
 }
 
 func loadSerialized[T any](path string, dst *T, deserialize func(data []byte, dst any) error) error {

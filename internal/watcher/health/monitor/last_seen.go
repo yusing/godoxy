@@ -3,10 +3,10 @@ package monitor
 import (
 	"time"
 
-	F "github.com/yusing/go-proxy/internal/utils/functional"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
-var lastSeenMap = F.NewMapOf[string, time.Time]()
+var lastSeenMap = xsync.NewMap[string, time.Time](xsync.WithPresize(50), xsync.WithGrowOnly())
 
 func SetLastSeen(service string, lastSeen time.Time) {
 	lastSeenMap.Store(service, lastSeen)
