@@ -1,18 +1,16 @@
 package config
 
 import (
-	"slices"
-
 	"github.com/yusing/go-proxy/agent/pkg/agent"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route/provider"
 )
 
 func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair) (int, gperr.Error) {
-	if slices.ContainsFunc(cfg.value.Providers.Agents, func(a *agent.AgentConfig) bool {
-		return a.Addr == host
-	}) {
-		return 0, gperr.New("agent already exists")
+	for _, a := range cfg.value.Providers.Agents {
+		if a.Addr == host {
+			return 0, gperr.New("agent already exists")
+		}
 	}
 
 	var agentCfg agent.AgentConfig
@@ -21,17 +19,20 @@ func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PE
 	if err != nil {
 		return 0, gperr.Wrap(err, "failed to start agent")
 	}
-	agent.AddAgent(&agentCfg)
 
 	provider := provider.NewAgentProvider(&agentCfg)
-	if err := cfg.errIfExists(provider); err != nil {
-		agent.RemoveAgent(&agentCfg)
-		return 0, err
+	if _, loaded := cfg.providers.LoadOrStore(provider.String(), provider); loaded {
+		return 0, gperr.Errorf("provider %s already exists", provider.String())
 	}
+
+	// agent must be added before loading routes
+	agent.AddAgent(&agentCfg)
 	err = provider.LoadRoutes()
 	if err != nil {
+		cfg.providers.Delete(provider.String())
 		agent.RemoveAgent(&agentCfg)
 		return 0, gperr.Wrap(err, "failed to load routes")
 	}
+
 	return provider.NumRoutes(), nil
 }
