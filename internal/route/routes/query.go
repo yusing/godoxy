@@ -4,11 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/url"
-	"strings"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/homepage"
 	"github.com/yusing/go-proxy/internal/types"
 )
 
@@ -76,71 +73,6 @@ func getHealthInfo(r types.Route) *HealthInfo {
 		Latency: mon.Latency(),
 		Detail:  mon.Detail(),
 	}
-}
-
-func HomepageCategories() []string {
-	check := make(map[string]struct{})
-	categories := make([]string, 0)
-	for _, r := range HTTP.Iter {
-		item := r.HomepageConfig()
-		if item == nil || item.Category == "" {
-			continue
-		}
-		if _, ok := check[item.Category]; ok {
-			continue
-		}
-		check[item.Category] = struct{}{}
-		categories = append(categories, item.Category)
-	}
-	return categories
-}
-
-func HomepageItems(proto, hostname, categoryFilter, providerFilter string) homepage.Homepage {
-	switch proto {
-	case "http", "https":
-	default:
-		proto = "http"
-	}
-
-	hp := make(homepage.Homepage)
-
-	if strings.Count(hostname, ".") > 1 {
-		_, hostname, _ = strings.Cut(hostname, ".") // remove the subdomain
-	}
-
-	for _, r := range HTTP.Iter {
-		if providerFilter != "" && r.ProviderName() != providerFilter {
-			continue
-		}
-		item := *r.HomepageItem()
-		if categoryFilter != "" && item.Category != categoryFilter {
-			continue
-		}
-
-		// clear url if invalid
-		_, err := url.Parse(item.URL)
-		if err != nil {
-			item.URL = ""
-		}
-
-		// append hostname if provided and only if alias is not FQDN
-		if hostname != "" && item.URL == "" {
-			isFQDNAlias := strings.Contains(item.Alias, ".")
-			if !isFQDNAlias {
-				item.URL = fmt.Sprintf("%s://%s.%s", proto, item.Alias, hostname)
-			} else {
-				item.URL = fmt.Sprintf("%s://%s", proto, item.Alias)
-			}
-		}
-
-		// prepend protocol if not exists
-		if !strings.HasPrefix(item.URL, "http://") && !strings.HasPrefix(item.URL, "https://") {
-			item.URL = fmt.Sprintf("%s://%s", proto, item.URL)
-		}
-
-		hp.Add(&item)
-	}
-	return hp
 }
 
 func ByProvider() map[string][]types.Route {
