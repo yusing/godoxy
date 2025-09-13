@@ -291,6 +291,13 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 	}
 	defer close(r.started)
 
+	// skip checking for excluded routes
+	if !r.ShouldExclude() {
+		if err := checkExists(r); err != nil {
+			return err
+		}
+	}
+
 	if err := r.impl.Start(parent); err != nil {
 		return err
 	}

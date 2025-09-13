@@ -136,10 +136,6 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		return nil
 	}
 
-	if err := checkExists(r); err != nil {
-		return err
-	}
-
 	if r.UseLoadBalance() {
 		r.addToLoadBalancer(parent)
 	} else {
@@ -171,7 +167,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		linked = l.(*ReveseProxyRoute)
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
-		if linked.Homepage == nil {
+		if linked.Homepage.Name == "" {
 			linked.Homepage = r.Homepage
 		}
 	} else {
@@ -187,10 +183,8 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		}
 		linked.SetHealthMonitor(lb)
 		routes.HTTP.AddKey(cfg.Link, linked)
-		routes.All.AddKey(cfg.Link, linked)
 		r.task.OnFinished("remove_loadbalancer_route", func() {
 			routes.HTTP.DelKey(cfg.Link)
-			routes.All.DelKey(cfg.Link)
 		})
 		lbLock.Unlock()
 	}

@@ -73,10 +73,6 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		return nil
 	}
 
-	if err := checkExists(r); err != nil {
-		return err
-	}
-
 	r.ListenAndServe(r.task.Context(), nil, nil)
 	r.l = r.l.With().Stringer("rurl", r.ProxyURL).Stringer("laddr", r.LocalAddr()).Logger()
 	r.l.Info().Msg("stream started")

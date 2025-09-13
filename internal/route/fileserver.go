@@ -97,10 +97,6 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		return nil
 	}
 
-	if err := checkExists(s); err != nil {
-		return err
-	}
-
 	routes.HTTP.Add(s)
 	s.task.OnFinished("remove_route_from_http", func() {
 		routes.HTTP.Del(s)
