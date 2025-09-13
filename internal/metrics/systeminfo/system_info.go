@@ -223,39 +223,39 @@ func (s *SystemInfo) collectSensorsInfo(ctx context.Context) error {
 func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggregated) {
 	n := len(entries)
 	aggregated := Aggregated{
-		Entries: make([]map[string]any, n),
+		Entries: make([]map[string]any, 0, n),
 		Mode:    SystemInfoAggregateMode(query.Get("aggregate")),
 	}
 	switch aggregated.Mode {
 	case SystemInfoAggregateModeCPUAverage:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.CPUAverage != nil {
-				aggregated.Entries[i] = map[string]any{
+				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":   entry.Timestamp,
 					"cpu_average": *entry.CPUAverage,
-				}
+				})
 			}
 		}
 	case SystemInfoAggregateModeMemoryUsage:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Memory != nil {
-				aggregated.Entries[i] = map[string]any{
+				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":    entry.Timestamp,
 					"memory_usage": entry.Memory.Used,
-				}
+				})
 			}
 		}
 	case SystemInfoAggregateModeMemoryUsagePercent:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Memory != nil {
-				aggregated.Entries[i] = map[string]any{
+				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":            entry.Timestamp,
 					"memory_usage_percent": entry.Memory.UsedPercent,
-				}
+				})
 			}
 		}
 	case SystemInfoAggregateModeDisksReadSpeed:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
 			}
@@ -264,10 +264,10 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.ReadSpeed
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries[i] = m
+			aggregated.Entries = append(aggregated.Entries, m)
 		}
 	case SystemInfoAggregateModeDisksWriteSpeed:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
 			}
@@ -276,10 +276,10 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.WriteSpeed
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries[i] = m
+			aggregated.Entries = append(aggregated.Entries, m)
 		}
 	case SystemInfoAggregateModeDisksIOPS:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.DisksIO == nil {
 				continue
 			}
@@ -288,10 +288,10 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.Iops
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries[i] = m
+			aggregated.Entries = append(aggregated.Entries, m)
 		}
 	case SystemInfoAggregateModeDiskUsage:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Disks == nil {
 				continue
 			}
@@ -300,32 +300,32 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = disk.Used
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries[i] = m
+			aggregated.Entries = append(aggregated.Entries, m)
 		}
 	case SystemInfoAggregateModeNetworkSpeed:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Network == nil {
 				continue
 			}
-			aggregated.Entries[i] = map[string]any{
+			aggregated.Entries = append(aggregated.Entries, map[string]any{
 				"timestamp": entry.Timestamp,
 				"upload":    entry.Network.UploadSpeed,
 				"download":  entry.Network.DownloadSpeed,
-			}
+			})
 		}
 	case SystemInfoAggregateModeNetworkTransfer:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Network == nil {
 				continue
 			}
-			aggregated.Entries[i] = map[string]any{
+			aggregated.Entries = append(aggregated.Entries, map[string]any{
 				"timestamp": entry.Timestamp,
 				"upload":    entry.Network.BytesSent,
 				"download":  entry.Network.BytesRecv,
-			}
+			})
 		}
 	case SystemInfoAggregateModeSensorTemperature:
-		for i, entry := range entries {
+		for _, entry := range entries {
 			if entry.Sensors == nil {
 				continue
 			}
@@ -334,7 +334,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[sensor.SensorKey] = sensor.Temperature
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries[i] = m
+			aggregated.Entries = append(aggregated.Entries, m)
 		}
 	default:
 		return -1, Aggregated{}

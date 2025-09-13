@@ -133,11 +133,11 @@ func TestSerialize(t *testing.T) {
 			ExpectNoError(t, err)
 			var v []map[string]any
 			ExpectNoError(t, json.Unmarshal(s, &v))
-			ExpectEqual(t, len(v), len(result))
+			ExpectEqual(t, len(v), len(result.Entries))
 			for i, m := range v {
 				for k, v := range m {
 					// some int64 values are converted to float64 on json.Unmarshal
-					vv := reflect.ValueOf(result[i][k])
+					vv := reflect.ValueOf(result.Entries[i][k])
 					ExpectEqual(t, reflect.ValueOf(v).Convert(vv.Type()).Interface(), vv.Interface())
 				}
 			}
@@ -177,7 +177,7 @@ func BenchmarkSerialize(b *testing.B) {
 	b.Run("json", func(b *testing.B) {
 		for b.Loop() {
 			for _, query := range allQueries {
-				_, _ = json.Marshal([]map[string]any(queries[string(query)]))
+				_, _ = json.Marshal([]map[string]any(queries[string(query)].Entries))
 			}
 		}
 	})

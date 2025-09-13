@@ -47,7 +47,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 				b = append(b, ',')
 			}
 			b = fmt.Appendf(b,
-				`"%s":{"device":"%s","path":"%s","fstype":"%s","total":%d,"free":%d,"used":%d,"used_percent":%.2f}`,
+				`%q:{"device":%q,"path":%q,"fstype":%q,"total":%d,"free":%d,"used":%d,"used_percent":%.2f}`,
 				device,
 				device,
 				disk.Path,
@@ -74,7 +74,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 				b = append(b, ',')
 			}
 			b = fmt.Appendf(b,
-				`"%s":{"name":"%s","read_bytes":%d,"write_bytes":%d,"read_speed":%.2f,"write_speed":%.2f,"iops":%d}`,
+				`%q:{"name":%q,"read_bytes":%d,"write_bytes":%d,"read_speed":%.2f,"write_speed":%.2f,"iops":%d}`,
 				name,
 				name,
 				usage.ReadBytes,
@@ -114,7 +114,7 @@ func (s *SystemInfo) MarshalJSON() ([]byte, error) {
 				b = append(b, ',')
 			}
 			b = fmt.Appendf(b,
-				`{"name":"%s","temperature":%.2f,"high":%.2f,"critical":%.2f}`,
+				`{"name":%q,"temperature":%.2f,"high":%.2f,"critical":%.2f}`,
 				sensor.SensorKey,
 				sensor.Temperature,
 				sensor.High,
