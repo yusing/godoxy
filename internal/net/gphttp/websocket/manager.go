@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
 )
 
@@ -121,10 +122,21 @@ func NewManagerWithUpgrade(c *gin.Context) (*Manager, error) {
 	return cm, nil
 }
 
-// Periodic writes data to the connection periodically.
+func (cm *Manager) Context() context.Context {
+	return cm.ctx
+}
+
+// Periodic writes data to the connection periodically, with deduplication.
 // If the connection is closed, the error is returned.
 // If the write timeout is reached, ErrWriteTimeout is returned.
-func (cm *Manager) PeriodicWrite(interval time.Duration, getData func() (any, error)) error {
+func (cm *Manager) PeriodicWrite(interval time.Duration, getData func() (any, error), deduplicate ...DeduplicateFunc) error {
+	var lastData any
+
+	var equals DeduplicateFunc
+	if len(deduplicate) > 0 {
+		equals = deduplicate[0]
+	}
+
 	write := func() {
 		data, err := getData()
 		if err != nil {
@@ -132,6 +144,13 @@ func (cm *Manager) PeriodicWrite(interval time.Duration, getData func() (any, er
 			cm.Close()
 			return
 		}
+
+		// skip if the data is the same as the last data
+		if equals != nil && equals(data, lastData) {
+			return
+		}
+
+		lastData = data
 
 		if err := cm.WriteJSON(data, interval); err != nil {
 			cm.err = err
@@ -214,6 +233,17 @@ func (cm *Manager) ReadJSON(out any, timeout time.Duration) error {
 	}
 }
 
+func (cm *Manager) ReadBinary(timeout time.Duration) ([]byte, error) {
+	select {
+	case <-cm.ctx.Done():
+		return nil, cm.err
+	case data := <-cm.readCh:
+		return data, nil
+	case <-time.After(timeout):
+		return nil, ErrReadTimeout
+	}
+}
+
 // Close closes the connection and cancels the context
 func (cm *Manager) Close() {
 	cm.closeOnce.Do(cm.close)
@@ -230,6 +260,12 @@ func (cm *Manager) close() {
 	cm.conn.Close()
 
 	cm.pingCheckTicker.Stop()
+
+	if cm.err != nil {
+		log.Debug().Caller(4).Msg("Closing WebSocket connection: " + cm.err.Error())
+	} else {
+		log.Debug().Caller(4).Msg("Closing WebSocket connection")
+	}
 }
 
 // Done returns a channel that is closed when the context is done or the connection is closed
