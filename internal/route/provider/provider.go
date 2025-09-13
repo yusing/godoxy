@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog"
 	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
@@ -67,6 +69,10 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 }
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
+	if dockerHost == common.DockerHostFromEnv {
+		dockerHost = common.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
+	}
+
 	p := newProvider(provider.ProviderTypeDocker)
 	p.ProviderImpl = DockerProviderImpl(name, dockerHost)
 	p.watcher = p.NewWatcher()

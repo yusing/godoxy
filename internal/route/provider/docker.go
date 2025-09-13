@@ -1,14 +1,14 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
 	"github.com/yusing/go-proxy/internal/docker"
 	"github.com/yusing/go-proxy/internal/gperr"
 	"github.com/yusing/go-proxy/internal/route"
@@ -31,9 +31,6 @@ const (
 var ErrAliasRefIndexOutOfRange = gperr.New("index out of range")
 
 func DockerProviderImpl(name, dockerHost string) ProviderImpl {
-	if dockerHost == common.DockerHostFromEnv {
-		dockerHost = common.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
-	}
 	return &DockerProvider{
 		name,
 		dockerHost,
@@ -62,7 +59,10 @@ func (p *DockerProvider) NewWatcher() watcher.Watcher {
 }
 
 func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
-	containers, err := docker.ListContainers(p.dockerHost)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	containers, err := docker.ListContainers(ctx, p.dockerHost)
 	if err != nil {
 		return nil, gperr.Wrap(err)
 	}
