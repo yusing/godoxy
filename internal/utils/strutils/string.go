@@ -20,8 +20,10 @@ func CommaSeperatedList(s string) []string {
 	return res
 }
 
+var caseTitle = cases.Title(language.AmericanEnglish)
+
 func Title(s string) string {
-	return cases.Title(language.AmericanEnglish).String(s)
+	return caseTitle.String(s)
 }
 
 func ContainsFold(s, substr string) bool {

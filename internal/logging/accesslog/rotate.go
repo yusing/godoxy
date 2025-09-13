@@ -66,7 +66,7 @@ type lineInfo struct {
 	Size int64 // Size of this line
 }
 
-var rotateBytePool = synk.GetBytesPool()
+var rotateBytePool = synk.GetBytesPoolWithUniqueMemory()
 
 // rotateLogFile rotates the log file based on the retention policy.
 // It returns the result of the rotation and an error if any.

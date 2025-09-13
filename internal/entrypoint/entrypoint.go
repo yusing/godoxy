@@ -13,7 +13,6 @@ import (
 	"github.com/yusing/go-proxy/internal/route/routes"
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
 )
 
 type Entrypoint struct {
@@ -73,12 +72,13 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w = accesslog.NewResponseRecorder(w)
 		defer ep.accessLogger.Log(r, w.(*accesslog.ResponseRecorder).Response())
 	}
-	mux, err := ep.findRouteFunc(r.Host)
+	route, err := ep.findRouteFunc(r.Host)
 	if err == nil {
+		r = routes.WithRouteContext(r, route)
 		if ep.middleware != nil {
-			ep.middleware.ServeHTTP(mux.ServeHTTP, w, routes.WithRouteContext(r, mux))
+			ep.middleware.ServeHTTP(route.ServeHTTP, w, r)
 		} else {
-			mux.ServeHTTP(w, r)
+			route.ServeHTTP(w, r)
 		}
 		return
 	}
@@ -106,20 +106,23 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func findRouteAnyDomain(host string) (types.HTTPRoute, error) {
-	hostSplit := strutils.SplitRune(host, '.')
-	target := hostSplit[0]
-
-	if r, ok := routes.GetHTTPRouteOrExact(target, host); ok {
+	idx := strings.IndexByte(host, '.')
+	if idx != -1 {
+		target := host[:idx]
+		if r, ok := routes.HTTP.Get(target); ok {
+			return r, nil
+		}
+	}
+	if r, ok := routes.HTTP.Get(host); ok {
 		return r, nil
 	}
-	return nil, fmt.Errorf("%w: %s", ErrNoSuchRoute, target)
+	return nil, fmt.Errorf("%w: %s", ErrNoSuchRoute, host)
 }
 
 func findRouteByDomains(domains []string) func(host string) (types.HTTPRoute, error) {
 	return func(host string) (types.HTTPRoute, error) {
 		for _, domain := range domains {
-			if strings.HasSuffix(host, domain) {
-				target := strings.TrimSuffix(host, domain)
+			if target, ok := strings.CutSuffix(host, domain); ok {
 				if r, ok := routes.HTTP.Get(target); ok {
 					return r, nil
 				}

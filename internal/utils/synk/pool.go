@@ -41,6 +41,28 @@ type BytesPoolWithMemory struct {
 	pool             chan weakBuf
 }
 
+type sliceInternal struct {
+	ptr unsafe.Pointer
+	len int
+	cap int
+}
+
+func sliceStruct(b *[]byte) *sliceInternal {
+	return (*sliceInternal)(unsafe.Pointer(b))
+}
+
+func underlyingPtr(b []byte) unsafe.Pointer {
+	return sliceStruct(&b).ptr
+}
+
+func setCap(b *[]byte, cap int) {
+	sliceStruct(b).cap = cap
+}
+
+func setLen(b *[]byte, len int) {
+	sliceStruct(b).len = len
+}
+
 const (
 	kb = 1024
 	mb = 1024 * kb
@@ -88,7 +110,7 @@ func (p *BytesPool) Get() []byte {
 			addReused(cap(bPtr))
 			return bPtr
 		default:
-			return make([]byte, 0)
+			return make([]byte, 0, p.initSize)
 		}
 	}
 }
@@ -113,10 +135,6 @@ func (p *BytesPoolWithMemory) Get() []byte {
 }
 
 func (p *BytesPool) GetSized(size int) []byte {
-	if size <= SizedPoolThreshold {
-		addNonPooled(size)
-		return make([]byte, size)
-	}
 	for {
 		select {
 		case bWeak := <-p.sizedPool:
@@ -125,10 +143,26 @@ func (p *BytesPool) GetSized(size int) []byte {
 				continue
 			}
 			capB := cap(bPtr)
-			if capB >= size {
+
+			remainingSize := capB - size
+			if remainingSize == 0 {
 				addReused(capB)
-				return (bPtr)[:size]
+				return bPtr[:size]
 			}
+
+			if remainingSize > 0 { // capB > size (buffer larger than requested)
+				addReused(size)
+
+				p.Put(bPtr[size:capB])
+
+				// return the first part and limit the capacity to the requested size
+				ret := bPtr[:size]
+				setLen(&ret, size)
+				setCap(&ret, size)
+				return ret
+			}
+
+			// size is not enough
 			select {
 			case p.sizedPool <- bWeak:
 			default:
@@ -147,11 +181,10 @@ func (p *BytesPool) Put(b []byte) {
 		return
 	}
 	b = b[:0]
-	w := makeWeak(&b)
-	if size <= SizedPoolThreshold {
-		p.put(w, p.unsizedPool)
+	if size >= SizedPoolThreshold {
+		p.put(makeWeak(&b), p.sizedPool)
 	} else {
-		p.put(w, p.sizedPool)
+		p.put(makeWeak(&b), p.unsizedPool)
 	}
 }
 

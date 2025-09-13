@@ -76,7 +76,7 @@ const (
 	errBurst     = 5
 )
 
-var lineBufPool = synk.GetBytesPool()
+var lineBufPool = synk.GetBytesPoolWithUniqueMemory()
 
 func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
 	io, err := cfg.IO()
