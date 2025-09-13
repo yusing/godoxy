@@ -42,12 +42,17 @@ func TestParseCommands(t *testing.T) {
 		// serve tests
 		{
 			name:    "serve_valid",
-			input:   "serve /var/www",
+			input:   "serve /",
 			wantErr: nil,
 		},
 		{
 			name:    "serve_missing_path",
 			input:   "serve ",
+			wantErr: ErrInvalidArguments,
+		},
+		{
+			name:    "serve_non_exist_path",
+			input:   "serve /non-exist-path",
 			wantErr: ErrInvalidArguments,
 		},
 		{

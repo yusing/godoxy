@@ -2,8 +2,11 @@ package middleware_test
 
 import (
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -135,17 +138,31 @@ func TestReverseProxyBypass(t *testing.T) {
 }
 
 func TestEntrypointBypassRoute(t *testing.T) {
-	go http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("test"))
 	}))
+	defer srv.Close()
+
+	url, err := url.Parse(srv.URL)
+	expect.NoError(t, err)
+
+	host, port, err := net.SplitHostPort(url.Host)
+	expect.NoError(t, err)
+
+	portInt, err := strconv.Atoi(port)
+	expect.NoError(t, err)
+
+	expect.NoError(t, err)
 	entry := entrypoint.NewEntrypoint()
 	r := &route.Route{
 		Alias: "test-route",
+		Host:  host,
 		Port: routeTypes.Port{
-			Proxy: 8080,
+			Proxy: portInt,
 		},
 	}
-	err := entry.SetMiddlewares([]map[string]any{
+
+	err = entry.SetMiddlewares([]map[string]any{
 		{
 			"use":    "redirectHTTP",
 			"bypass": []string{"route test-route"},
