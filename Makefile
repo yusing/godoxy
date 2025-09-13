@@ -119,6 +119,9 @@ dev:
 dev-build: build
 	docker compose -f dev.compose.yml up -t 0 -d --build
 
+dev-logs:
+	docker compose -f dev.compose.yml logs -f	app
+
 mtrace:
 	 ${BIN_PATH} debug-ls-mtrace > mtrace.json
 
@@ -152,4 +155,4 @@ gen-swagger-markdown: gen-swagger
 gen-api-types: gen-swagger
 	# --disable-throw-on-error
 	pnpx swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
-		 --responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
+		 --responses -o ${WEBUI_DIR}/lib -n api.ts -p internal/api/v1/docs/swagger.json
