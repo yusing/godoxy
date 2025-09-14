@@ -125,7 +125,7 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		return
 	}
 	SetTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)
-	http.Redirect(w, r, "/", http.StatusFound)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
