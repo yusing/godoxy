@@ -12,7 +12,6 @@ import (
 // @Tags       auth
 // @Produce    plain
 // @Success    302 {string} string "Redirects to login page or IdP"
-// @Failure    403 {string} string "Forbidden(webui): follow X-Redirect-To header"
 // @Failure    429 {string} string "Too Many Requests"
 // @Router     /auth/login [post]
 func Login(c *gin.Context) {

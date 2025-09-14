@@ -1581,8 +1581,8 @@ paths:
           description: OK
           schema:
             type: string
-        "403":
-          description: 'Forbidden: use X-Redirect-To header to redirect to login page'
+        "302":
+          description: Redirects to login page or IdP
           schema:
             type: string
       summary: Check authentication status
@@ -1598,10 +1598,6 @@ paths:
       responses:
         "302":
           description: Redirects to login page or IdP
-          schema:
-            type: string
-        "403":
-          description: 'Forbidden(webui): follow X-Redirect-To header'
           schema:
             type: string
         "429":

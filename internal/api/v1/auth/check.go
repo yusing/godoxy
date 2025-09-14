@@ -5,14 +5,14 @@ import (
 	"github.com/yusing/go-proxy/internal/auth"
 )
 
-// @x-id				"check"
+// @x-id	  	"check"
 // @Base			/api/v1
 // @Summary		Check authentication status
 // @Description	Checks if the user is authenticated by validating their token
 // @Tags			auth
 // @Produce		plain
 // @Success		200	{string}	string	"OK"
-// @Failure		403	{string}	string	"Forbidden: use X-Redirect-To header to redirect to login page"
+// @Failure		302	{string}	string	"Redirects to login page or IdP"
 // @Router			/auth/check [head]
 func Check(c *gin.Context) {
 	auth.AuthCheckHandler(c.Writer, c.Request)
