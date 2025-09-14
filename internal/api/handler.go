@@ -56,6 +56,7 @@ func NewHandler() *gin.Engine {
 			v1Auth.GET("/callback", authApi.Callback)
 			v1Auth.POST("/callback", authApi.Callback)
 			v1Auth.POST("/logout", authApi.Logout)
+			v1Auth.GET("/logout", authApi.Logout)
 		}
 	}
 

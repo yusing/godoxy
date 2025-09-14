@@ -1613,6 +1613,19 @@ paths:
       - auth
       x-id: login
   /auth/logout:
+    get:
+      description: Logs out the user by invalidating the token
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Redirects to home page
+          schema:
+            type: string
+      summary: Logout
+      tags:
+      - auth
+      x-id: logout
     post:
       description: Logs out the user by invalidating the token
       produces:
