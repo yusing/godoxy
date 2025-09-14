@@ -26,6 +26,8 @@ services:
     restart: unless-stopped
     env_file: .env
     read_only: true
+    tmpfs:
+      - /app/.next/cache # next image caching
     security_opt:
       - no-new-privileges:true
     cap_drop:

@@ -28,6 +28,8 @@ services:
     env_file: .env
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
     read_only: true
+    tmpfs:
+      - /app/.next/cache # next image caching
     security_opt:
       - no-new-privileges:true
     cap_drop:
