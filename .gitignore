@@ -29,6 +29,7 @@ todo.md
 .aider*
 mtrace.json
 .env
+*.env
 .cursorrules
 .cursor/
 .windsurfrules

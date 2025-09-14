@@ -8,6 +8,7 @@ services:
         - TARGET=godoxy
     container_name: godoxy-proxy-dev
     restart: unless-stopped
+    env_file: dev.env
     environment:
       TZ: Asia/Hong_Kong
       API_ADDR: :8999
@@ -30,8 +31,7 @@ services:
       - ./dev-data/error_pages:/app/error_pages:ro
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
-    depends_on:
-      - tinyauth
+      - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
   tinyauth:
     image: ghcr.io/steveiliop56/tinyauth:v3
     container_name: tinyauth
