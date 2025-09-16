@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/challenge"
+	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/go-proxy/internal/common"
@@ -26,6 +27,8 @@ type Config struct {
 	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
 	Options     map[string]any `json:"options,omitempty"`
+
+	Resolvers []string `json:"resolvers,omitempty"`
 
 	// Custom ACME CA
 	CADirURL string   `json:"ca_dir_url,omitempty"`
@@ -109,6 +112,12 @@ func (cfg *Config) Validate() gperr.Error {
 		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
 	}
 	return b.Error()
+}
+
+func (cfg *Config) dns01Options() []dns01.ChallengeOption {
+	return []dns01.ChallengeOption{
+		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
+	}
 }
 
 func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {

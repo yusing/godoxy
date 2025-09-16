@@ -286,7 +286,7 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
-	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider)
+	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider, p.cfg.dns01Options()...)
 	if err != nil {
 		return err
 	}
