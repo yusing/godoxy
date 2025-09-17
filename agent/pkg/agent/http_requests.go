@@ -55,17 +55,11 @@ func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websoc
 //
 // It will create a new request with the same context, method, and body, but with the agent host and scheme, and the endpoint
 // If the request has a query, it will be added to the proxy request's URL
-func (cfg *AgentConfig) ReverseProxy(w http.ResponseWriter, req *http.Request, endpoint string) error {
+func (cfg *AgentConfig) ReverseProxy(w http.ResponseWriter, req *http.Request, endpoint string) {
 	rp := reverseproxy.NewReverseProxy("agent", nettypes.NewURL(AgentURL), cfg.Transport())
-	uri := endpoint
-	if req.URL.RawQuery != "" {
-		uri += "?" + req.URL.RawQuery
-	}
-	r, err := http.NewRequestWithContext(req.Context(), req.Method, uri, req.Body)
-	if err != nil {
-		return err
-	}
-	r.Header = req.Header
-	rp.ServeHTTP(w, r)
-	return nil
+	req.URL.Host = AgentHost
+	req.URL.Scheme = "https"
+	req.URL.Path = endpoint
+	req.RequestURI = ""
+	rp.ServeHTTP(w, req)
 }

@@ -46,6 +46,7 @@ func SystemInfo(c *gin.Context) {
 		systeminfo.Poller.ServeHTTP(c)
 		return
 	}
+	c.Request.URL.RawQuery = query.Encode()
 
 	agent, ok := agentPkg.GetAgent(agentAddr)
 	if !ok {
@@ -69,10 +70,6 @@ func SystemInfo(c *gin.Context) {
 		c.Status(resp.StatusCode)
 		io.Copy(c.Writer, resp.Body)
 	} else {
-		err := agent.ReverseProxy(c.Writer, c.Request, agentPkg.EndpointSystemInfo+"?"+query.Encode())
-		if err != nil {
-			c.Error(apitypes.InternalServerError(err, "failed to reverse proxy"))
-			return
-		}
+		agent.ReverseProxy(c.Writer, c.Request, agentPkg.EndpointSystemInfo)
 	}
 }
