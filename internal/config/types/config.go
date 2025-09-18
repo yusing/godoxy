@@ -37,8 +37,9 @@ type (
 		MaxMind      *maxmind.Config            `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
 	Entrypoint struct {
-		Middlewares []map[string]any               `json:"middlewares"`
-		AccessLog   *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
+		SupportProxyProtocol bool                           `json:"support_proxy_protocol"`
+		Middlewares          []map[string]any               `json:"middlewares"`
+		AccessLog            *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
 	}
 	HomepageConfig struct {
 		UseDefaultCategories bool `json:"use_default_categories"`

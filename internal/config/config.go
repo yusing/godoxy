@@ -204,12 +204,13 @@ func (cfg *Config) StartServers(opts ...*StartServersOptions) {
 	opt := opts[0]
 	if opt.Proxy {
 		server.StartServer(cfg.task, server.Options{
-			Name:         "proxy",
-			CertProvider: cfg.AutoCertProvider(),
-			HTTPAddr:     common.ProxyHTTPAddr,
-			HTTPSAddr:    common.ProxyHTTPSAddr,
-			Handler:      cfg.entrypoint,
-			ACL:          cfg.value.ACL,
+			Name:                 "proxy",
+			CertProvider:         cfg.AutoCertProvider(),
+			HTTPAddr:             common.ProxyHTTPAddr,
+			HTTPSAddr:            common.ProxyHTTPSAddr,
+			Handler:              cfg.entrypoint,
+			ACL:                  cfg.value.ACL,
+			SupportProxyProtocol: cfg.value.Entrypoint.SupportProxyProtocol,
 		})
 	}
 	if opt.API {
