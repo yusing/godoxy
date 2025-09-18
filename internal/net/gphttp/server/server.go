@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pires/go-proxyproto"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -28,6 +29,7 @@ type Server struct {
 	https        *http.Server
 	startTime    time.Time
 	acl          *acl.Config
+	proxyProto   bool
 
 	l zerolog.Logger
 }
@@ -39,6 +41,8 @@ type Options struct {
 	CertProvider CertProvider
 	Handler      http.Handler
 	ACL          *acl.Config
+
+	SupportProxyProtocol bool
 }
 
 type httpServer interface {
@@ -86,6 +90,7 @@ func NewServer(opt Options) (s *Server) {
 		https:        httpsSer,
 		l:            logger,
 		acl:          opt.ACL,
+		proxyProto:   opt.SupportProxyProtocol,
 	}
 }
 
@@ -105,7 +110,8 @@ func (s *Server) Start(parent task.Parent) {
 			Handler:   s.https.Handler,
 			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
 		}
-		Start(subtask, h3, s.acl, &s.l)
+		// TODO: support proxy protocol for HTTP/3
+		Start(subtask, h3, WithACL(s.acl), WithLogger(&s.l))
 		if s.http != nil {
 			s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
 		}
@@ -113,16 +119,68 @@ func (s *Server) Start(parent task.Parent) {
 		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 	}
 
-	Start(subtask, s.http, s.acl, &s.l)
-	Start(subtask, s.https, s.acl, &s.l)
+	Start(subtask, s.http, WithProxyProtocolSupport(s.proxyProto), WithACL(s.acl), WithLogger(&s.l))
+	Start(subtask, s.https, WithProxyProtocolSupport(s.proxyProto), WithACL(s.acl), WithLogger(&s.l))
 }
 
-func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, logger *zerolog.Logger) (port int) {
+type ServerStartOptions struct {
+	tcpWrappers []func(l net.Listener) net.Listener
+	udpWrappers []func(l net.PacketConn) net.PacketConn
+	logger      *zerolog.Logger
+}
+
+type ServerStartOption func(opts *ServerStartOptions)
+
+func WithTCPWrappers(wrappers ...func(l net.Listener) net.Listener) ServerStartOption {
+	return func(opts *ServerStartOptions) {
+		opts.tcpWrappers = wrappers
+	}
+}
+
+func WithUDPWrappers(wrappers ...func(l net.PacketConn) net.PacketConn) ServerStartOption {
+	return func(opts *ServerStartOptions) {
+		opts.udpWrappers = wrappers
+	}
+}
+
+func WithLogger(logger *zerolog.Logger) ServerStartOption {
+	return func(opts *ServerStartOptions) {
+		opts.logger = logger
+	}
+}
+
+func WithACL(acl *acl.Config) ServerStartOption {
+	return func(opts *ServerStartOptions) {
+		if acl == nil {
+			return
+		}
+		opts.tcpWrappers = append(opts.tcpWrappers, acl.WrapTCP)
+		opts.udpWrappers = append(opts.udpWrappers, acl.WrapUDP)
+	}
+}
+
+func WithProxyProtocolSupport(value bool) ServerStartOption {
+	// TODO: HTTP/3 (UDP) support
+	return func(opts *ServerStartOptions) {
+		if value {
+			opts.tcpWrappers = append(opts.tcpWrappers, func(l net.Listener) net.Listener {
+				return &proxyproto.Listener{Listener: l}
+			})
+		}
+	}
+}
+
+func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerStartOption) (port int) {
 	if srv == nil {
 		return
 	}
 
-	setDebugLogger(srv, logger)
+	var opts ServerStartOptions
+	for _, optFn := range optFns {
+		optFn(&opts)
+	}
+
+	setDebugLogger(srv, opts.logger)
 
 	proto := proto(srv)
 	task := parent.Subtask(proto, true)
@@ -137,40 +195,40 @@ func Start[Server httpServer](parent task.Parent, srv Server, acl *acl.Config, l
 		}
 		l, err := lc.Listen(task.Context(), "tcp", srv.Addr)
 		if err != nil {
-			HandleError(logger, err, "failed to listen on port")
+			HandleError(opts.logger, err, "failed to listen on port")
 			return
 		}
 		port = l.Addr().(*net.TCPAddr).Port
 		if srv.TLSConfig != nil {
 			l = tls.NewListener(l, srv.TLSConfig)
 		}
-		if acl != nil {
-			l = acl.WrapTCP(l)
+		for _, wrapper := range opts.tcpWrappers {
+			l = wrapper(l)
 		}
 		serveFunc = getServeFunc(l, srv.Serve)
 		task.OnCancel("stop", func() {
-			stop(srv, l, logger)
+			stop(srv, l, opts.logger)
 		})
 	case *http3.Server:
 		l, err := lc.ListenPacket(task.Context(), "udp", srv.Addr)
 		if err != nil {
-			HandleError(logger, err, "failed to listen on port")
+			HandleError(opts.logger, err, "failed to listen on port")
 			return
 		}
 		port = l.LocalAddr().(*net.UDPAddr).Port
-		if acl != nil {
-			l = acl.WrapUDP(l)
+		for _, wrapper := range opts.udpWrappers {
+			l = wrapper(l)
 		}
 		serveFunc = getServeFunc(l, srv.Serve)
 		task.OnCancel("stop", func() {
-			stop(srv, l, logger)
+			stop(srv, l, opts.logger)
 		})
 	}
-	logStarted(srv, logger)
+	logStarted(srv, opts.logger)
 	go func() {
 		err := convertError(serveFunc())
 		if err != nil {
-			HandleError(logger, err, "failed to serve "+proto+" server")
+			HandleError(opts.logger, err, "failed to serve "+proto+" server")
 		}
 		task.Finish(err)
 	}()

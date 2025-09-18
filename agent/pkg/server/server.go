@@ -39,5 +39,5 @@ func StartAgentServer(parent task.Parent, opt Options) {
 		TLSConfig: tlsConfig,
 	}
 
-	server.Start(parent, agentServer, nil, &log.Logger)
+	server.Start(parent, agentServer, server.WithLogger(&log.Logger))
 }
