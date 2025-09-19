@@ -17,6 +17,10 @@
 
 # 3. other providers, see https://docs.godoxy.dev/DNS-01-Providers
 
+# Access Control
+# When enabled, it will be applied globally at connection level,
+# all incoming connections (web, tcp and udp) will be checked against the ACL rules.
+
 # acl:
 #   default: allow # or deny (default: allow)
 #   allow_local: true # or false (default: true)
@@ -37,6 +41,11 @@
 #     keep: last 10 # (default: none)
 
 entrypoint:
+  # Proxy Protocol: https://www.haproxy.com/blog/use-the-proxy-protocol-to-preserve-a-clients-ip-address
+  # When set to true, web entrypoint and all tcp routeswill be wrapped with Proxy Protocol listener in order to preserve the client's IP address.
+  # Note that HTTP/3 with proxy protocol is not supported yet.
+  support_proxy_protocol: false
+
   # Below define an example of middleware config
   # 1. set security headers
   # 2. block non local IP connections
@@ -57,14 +66,6 @@ entrypoint:
         X-Frame-Options: SAMEORIGIN
         Referrer-Policy: same-origin
         Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-    # - use: CIDRWhitelist
-    #   allow:
-    #     - "127.0.0.1"
-    #     - "10.0.0.0/8"
-    #     - "172.16.0.0/12"
-    #     - "192.168.0.0/16"
-    #   status: 403
-    #   message: "Forbidden"
     # - use: RedirectHTTP
 
   # below enables access log
@@ -115,8 +116,8 @@ providers:
   #     secret: aaaa-bbbb-cccc-dddd
   #     no_tls_verify: true
 
-# Check https://docs.godoxy.dev/Certificates-and-domain-matching
-# for explaination of `match_domains`
+# Match domains
+# See https://docs.godoxy.dev/Certificates-and-domain-matching
 #
 # match_domains:
 #   - my.site
