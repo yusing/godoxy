@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pires/go-proxyproto"
+	h2proxy "github.com/pires/go-proxyproto/helper/http2"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -104,19 +105,23 @@ func (s *Server) Start(parent task.Parent) {
 	subtask := parent.Subtask("server."+s.Name, false)
 
 	if s.https != nil && common.HTTP3Enabled {
-		s.https.TLSConfig.NextProtos = []string{http3.NextProtoH3, "h2", "http/1.1"}
-		h3 := &http3.Server{
-			Addr:      s.https.Addr,
-			Handler:   s.https.Handler,
-			TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
+		if s.proxyProto {
+			// TODO: support proxy protocol for HTTP/3
+			s.l.Warn().Msg("HTTP/3 is enabled, but proxy protocol is yet not supported for HTTP/3")
+		} else {
+			s.https.TLSConfig.NextProtos = []string{http3.NextProtoH3, "h2", "http/1.1"}
+			h3 := &http3.Server{
+				Addr:      s.https.Addr,
+				Handler:   s.https.Handler,
+				TLSConfig: http3.ConfigureTLSConfig(s.https.TLSConfig),
+			}
+			Start(subtask, h3, WithProxyProtocolSupport(s.proxyProto), WithACL(s.acl), WithLogger(&s.l))
+			if s.http != nil {
+				s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
+			}
+			// s.https is not nil (checked above)
+			s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 		}
-		// TODO: support proxy protocol for HTTP/3
-		Start(subtask, h3, WithACL(s.acl), WithLogger(&s.l))
-		if s.http != nil {
-			s.http.Handler = advertiseHTTP3(s.http.Handler, h3)
-		}
-		// s.https is not nil (checked above)
-		s.https.Handler = advertiseHTTP3(s.https.Handler, h3)
 	}
 
 	Start(subtask, s.http, WithProxyProtocolSupport(s.proxyProto), WithACL(s.acl), WithLogger(&s.l))
@@ -127,6 +132,7 @@ type ServerStartOptions struct {
 	tcpWrappers []func(l net.Listener) net.Listener
 	udpWrappers []func(l net.PacketConn) net.PacketConn
 	logger      *zerolog.Logger
+	proxyProto  bool
 }
 
 type ServerStartOption func(opts *ServerStartOptions)
@@ -160,13 +166,8 @@ func WithACL(acl *acl.Config) ServerStartOption {
 }
 
 func WithProxyProtocolSupport(value bool) ServerStartOption {
-	// TODO: HTTP/3 (UDP) support
 	return func(opts *ServerStartOptions) {
-		if value {
-			opts.tcpWrappers = append(opts.tcpWrappers, func(l net.Listener) net.Listener {
-				return &proxyproto.Listener{Listener: l}
-			})
-		}
+		opts.proxyProto = value
 	}
 }
 
@@ -202,13 +203,20 @@ func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerSt
 			return
 		}
 		port = l.Addr().(*net.TCPAddr).Port
+		if opts.proxyProto {
+			l = &proxyproto.Listener{Listener: l}
+		}
 		if srv.TLSConfig != nil {
 			l = tls.NewListener(l, srv.TLSConfig)
 		}
 		for _, wrapper := range opts.tcpWrappers {
 			l = wrapper(l)
 		}
-		serveFunc = getServeFunc(l, srv.Serve)
+		if opts.proxyProto {
+			serveFunc = getServeFunc(l, h2proxy.NewServer(srv, nil).Serve)
+		} else {
+			serveFunc = getServeFunc(l, srv.Serve)
+		}
 		task.OnCancel("stop", func() {
 			stop(srv, l, opts.logger)
 		})
