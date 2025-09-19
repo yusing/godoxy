@@ -179,6 +179,9 @@ func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerSt
 	for _, optFn := range optFns {
 		optFn(&opts)
 	}
+	if opts.logger == nil {
+		opts.logger = &log.Logger
+	}
 
 	setDebugLogger(srv, opts.logger)
 
