@@ -1,10 +1,10 @@
 {
   "yaml.schemas": {
-    "https://github.com/yusing/godoxy-webui/raw/refs/heads/main/src/types/godoxy/config.schema.json": [
+    "https://github.com/yusing/godoxy-webui/raw/refs/heads/main/types/godoxy/config.schema.json": [
       "config.example.yml",
       "config.yml"
     ],
-    "https://github.com/yusing/godoxy-webui/raw/refs/heads/main/src/types/godoxy/routes.schema.json": [
+    "https://github.com/yusing/godoxy-webui/raw/refs/heads/main/types/godoxy/routes.schema.json": [
       "providers.example.yml"
     ]
   }
