@@ -4,14 +4,16 @@ import (
 	"context"
 	"net"
 
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
+	config "github.com/yusing/go-proxy/internal/config/types"
 	nettypes "github.com/yusing/go-proxy/internal/net/types"
 	"github.com/yusing/go-proxy/internal/utils"
 	"go.uber.org/atomic"
 )
 
 type TCPTCPStream struct {
-	listener *net.TCPListener
+	listener net.Listener
 	laddr    *net.TCPAddr
 	dst      *net.TCPAddr
 
@@ -34,12 +36,20 @@ func NewTCPTCPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
-	listener, err := net.ListenTCP("tcp", s.laddr)
+	var err error
+	s.listener, err = net.ListenTCP("tcp", s.laddr)
 	if err != nil {
 		logErr(s, err, "failed to listen")
 		return
 	}
-	s.listener = listener
+
+	if proxyProto := config.GetInstance().Value().Entrypoint.SupportProxyProtocol; proxyProto {
+		s.listener = &proxyproto.Listener{Listener: s.listener}
+	}
+	if acl := config.GetInstance().Value().ACL; acl != nil {
+		s.listener = acl.WrapTCP(s.listener)
+	}
+
 	s.preDial = preDial
 	s.onRead = onRead
 	go s.listen(ctx)
