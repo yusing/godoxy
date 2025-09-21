@@ -43,8 +43,8 @@ func init() {
 
 type Version struct{ Generation, Major, Minor int }
 
-func Ver(major, minor, patch int) Version {
-	return Version{major, minor, patch}
+func Ver(gen, major, minor int) Version {
+	return Version{gen, major, minor}
 }
 
 func (v Version) String() string {
@@ -55,11 +55,36 @@ func (v Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
 
-func (v Version) IsNewerMajorThan(other Version) bool {
+func (v Version) IsNewerThan(other Version) bool {
+	if v.Generation != other.Generation {
+		return v.Generation > other.Generation
+	}
+	if v.Major != other.Major {
+		return v.Major > other.Major
+	}
+	return v.Minor > other.Minor
+}
+
+func (v Version) IsNewerThanMajor(other Version) bool {
 	if v.Generation != other.Generation {
 		return v.Generation > other.Generation
 	}
 	return v.Major > other.Major
+}
+
+func (v Version) IsOlderThan(other Version) bool {
+	return !v.IsNewerThan(other)
+}
+
+func (v Version) IsOlderThanMajor(other Version) bool {
+	if v.Generation != other.Generation {
+		return v.Generation < other.Generation
+	}
+	return v.Major < other.Major
+}
+
+func (v Version) IsOlderMajorThan(other Version) bool {
+	return !v.IsNewerThanMajor(other)
 }
 
 func (v Version) IsEqual(other Version) bool {
