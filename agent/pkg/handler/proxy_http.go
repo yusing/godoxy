@@ -30,6 +30,13 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport := NewTransport()
+	if cfg.ResponseHeaderTimeout > 0 {
+		transport.ResponseHeaderTimeout = cfg.ResponseHeaderTimeout
+	}
+	if cfg.DisableCompression {
+		transport.DisableCompression = true
+	}
+
 	transport.TLSClientConfig, err = cfg.BuildTLSConfig(r.URL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to build TLS client config: %s", err.Error()), http.StatusInternalServerError)
