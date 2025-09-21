@@ -1,7 +1,6 @@
 package route
 
 import (
-	"crypto/tls"
 	"net/http"
 	"sync"
 
@@ -44,10 +43,12 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		trans = a.Transport()
 		proxyURL = nettypes.NewURL(agent.HTTPProxyURL)
 	} else {
-		trans = gphttp.NewTransport()
-		if httpConfig.NoTLSVerify {
-			trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
+		tlsConfig, err := httpConfig.BuildTLSConfig(base.ProxyURL)
+		if err != nil {
+			return nil, err
 		}
+
+		trans = gphttp.NewTransportWithTLSConfig(tlsConfig)
 		if httpConfig.ResponseHeaderTimeout > 0 {
 			trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
 		}
