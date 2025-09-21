@@ -33,6 +33,7 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
 - [How does GoDoxy work](#how-does-godoxy-work)
+- [Update / Uninstall system agent](#update--uninstall-system-agent)
 - [Screenshots](#screenshots)
   - [idlesleeper](#idlesleeper)
   - [Metrics and Logs](#metrics-and-logs)
@@ -127,6 +128,20 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 > GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
 >
 > For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
+
+## Update / Uninstall system agent
+
+Update:
+
+```bash
+bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
+```
+
+Uninstall:
+
+```bash
+bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
+```
 
 ## Screenshots
 

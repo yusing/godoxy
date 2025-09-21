@@ -34,6 +34,7 @@
 - [安裝](#安裝)
   - [手動安裝](#手動安裝)
   - [資料夾結構](#資料夾結構)
+- [更新 / 卸載系統代理 (System Agent)](#更新--卸載系統代理-system-agent)
 - [截圖](#截圖)
   - [閒置休眠](#閒置休眠)
   - [監控](#監控)
@@ -142,6 +143,20 @@
 │   │   ├── uptime.json
 │   │   └── system_info.json
 └── .env
+```
+
+## 更新 / 卸載系統代理 (System Agent)
+
+更新：
+
+```bash
+bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
+```
+
+卸載：
+
+```bash
+bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
 ```
 
 ## 截圖
