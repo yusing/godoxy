@@ -1,22 +1,16 @@
 # Stage 1: deps
-FROM golang:1.25.0-alpine AS deps
+FROM alpine:3.22 AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make libcap-setcap
+RUN apk add --no-cache tzdata
 
-# Stage 3: Final image
-FROM alpine:3.22
+# Stage 2: Final image
+FROM deps
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
-
-# copy timezone data
-COPY --from=deps /usr/share/zoneinfo /usr/share/zoneinfo
-
-# copy certs
-COPY --from=deps /etc/ssl/certs /etc/ssl/certs
 
 ARG TARGET
 ENV TARGET=${TARGET}
