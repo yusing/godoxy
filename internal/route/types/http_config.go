@@ -3,12 +3,12 @@ package route
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/yusing/go-proxy/internal/gperr"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
 )
 
 type HTTPConfig struct {
@@ -25,7 +25,7 @@ type HTTPConfig struct {
 }
 
 // BuildTLSConfig creates a TLS configuration based on the HTTP config options.
-func (cfg *HTTPConfig) BuildTLSConfig(targetURL *nettypes.URL) (*tls.Config, gperr.Error) {
+func (cfg *HTTPConfig) BuildTLSConfig(targetURL *url.URL) (*tls.Config, gperr.Error) {
 	tlsConfig := &tls.Config{}
 
 	// Handle InsecureSkipVerify (legacy NoTLSVerify option)

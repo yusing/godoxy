@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
 	"time"
 
 	"github.com/yusing/go-proxy/agent/pkg/agent"
@@ -24,31 +23,17 @@ func NewTransport() *http.Transport {
 }
 
 func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
-	host := r.Header.Get(agentproxy.HeaderXProxyHost)
-	isHTTPS, _ := strconv.ParseBool(r.Header.Get(agentproxy.HeaderXProxyHTTPS))
-	skipTLSVerify, _ := strconv.ParseBool(r.Header.Get(agentproxy.HeaderXProxySkipTLSVerify))
-	responseHeaderTimeout, err := strconv.Atoi(r.Header.Get(agentproxy.HeaderXProxyResponseHeaderTimeout))
+	cfg, err := agentproxy.ConfigFromHeaders(r.Header)
 	if err != nil {
-		responseHeaderTimeout = 0
-	}
-
-	if host == "" {
-		http.Error(w, "missing required headers", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("failed to parse agent proxy config: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	scheme := "http"
-	if isHTTPS {
-		scheme = "https"
-	}
-
 	transport := NewTransport()
-	if skipTLSVerify {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	if responseHeaderTimeout > 0 {
-		transport.ResponseHeaderTimeout = time.Duration(responseHeaderTimeout) * time.Second
+	transport.TLSClientConfig, err = cfg.BuildTLSConfig(r.URL)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to build TLS client config: %s", err.Error()), http.StatusInternalServerError)
+		return
 	}
 
 	r.URL.Scheme = ""
@@ -58,8 +43,8 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 
 	rp := &httputil.ReverseProxy{
 		Director: func(r *http.Request) {
-			r.URL.Scheme = scheme
-			r.URL.Host = host
+			r.URL.Scheme = cfg.Scheme
+			r.URL.Host = cfg.Host
 		},
 		Transport: transport,
 	}

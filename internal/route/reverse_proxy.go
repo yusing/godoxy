@@ -19,6 +19,7 @@ import (
 	"github.com/yusing/go-proxy/internal/task"
 	"github.com/yusing/go-proxy/internal/types"
 	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
+	"github.com/yusing/go-proxy/pkg"
 )
 
 type ReveseProxyRoute struct {
@@ -43,7 +44,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 		trans = a.Transport()
 		proxyURL = nettypes.NewURL(agent.HTTPProxyURL)
 	} else {
-		tlsConfig, err := httpConfig.BuildTLSConfig(base.ProxyURL)
+		tlsConfig, err := httpConfig.BuildTLSConfig(&base.ProxyURL.URL)
 		if err != nil {
 			return nil, err
 		}
@@ -68,15 +69,19 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	}
 
 	if a != nil {
-		headers := &agentproxy.AgentProxyHeaders{
-			Host:                  base.ProxyURL.Host,
-			IsHTTPS:               base.ProxyURL.Scheme == "https",
-			SkipTLSVerify:         httpConfig.NoTLSVerify,
-			ResponseHeaderTimeout: int(httpConfig.ResponseHeaderTimeout.Seconds()),
+		cfg := agentproxy.Config{
+			Scheme:     base.ProxyURL.Scheme,
+			Host:       base.ProxyURL.Host,
+			HTTPConfig: httpConfig,
 		}
+		setHeaderFunc := cfg.SetAgentProxyConfigHeaders
+		if !a.Version.IsOlderThan(pkg.Ver(0, 18, 6)) {
+			setHeaderFunc = cfg.SetAgentProxyConfigHeadersLegacy
+		}
+
 		ori := rp.HandlerFunc
 		rp.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-			agentproxy.SetAgentProxyHeaders(r, headers)
+			setHeaderFunc(r.Header)
 			ori(w, r)
 		}
 	}
