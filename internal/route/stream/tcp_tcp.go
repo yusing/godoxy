@@ -70,7 +70,14 @@ func (s *TCPTCPStream) LocalAddr() net.Addr {
 }
 
 func (s *TCPTCPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "tcp-tcp").Str("listen", s.listener.Addr().String()).Str("dst", s.dst.String())
+	e.Str("protocol", "tcp-tcp")
+
+	if s.listener != nil {
+		e.Str("listen", s.listener.Addr().String())
+	}
+	if s.dst != nil {
+		e.Str("dst", s.dst.String())
+	}
 }
 
 func (s *TCPTCPStream) listen(ctx context.Context) {

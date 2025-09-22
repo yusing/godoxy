@@ -113,7 +113,13 @@ func (s *UDPUDPStream) LocalAddr() net.Addr {
 }
 
 func (s *UDPUDPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "udp-udp").Str("name", s.name).Str("dst", s.dst.String())
+	e.Str("protocol", "udp-udp")
+	if s.name != "" {
+		e.Str("name", s.name)
+	}
+	if s.dst != nil {
+		e.Str("dst", s.dst.String())
+	}
 }
 
 func (s *UDPUDPStream) listen(ctx context.Context) {
