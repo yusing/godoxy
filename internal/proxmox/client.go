@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/luthermonson/go-proxmox"
-	"github.com/yusing/go-proxy/internal/utils/pool"
+	"github.com/yusing/godoxy/internal/utils/pool"
 )
 
 type Client struct {

@@ -6,10 +6,10 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 )
 
 type ResponseType[AggregateT any] struct {

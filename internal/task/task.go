@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type (

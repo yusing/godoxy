@@ -6,12 +6,12 @@ import (
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/maxmind"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/maxmind"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type Config struct {

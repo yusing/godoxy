@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 )
 
 var defaultHealthConfig = types.DefaultHealthConfig()

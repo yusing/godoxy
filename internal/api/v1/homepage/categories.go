@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/internal/homepage"
-	"github.com/yusing/go-proxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/route/routes"
 )
 
 // @x-id				"categories"

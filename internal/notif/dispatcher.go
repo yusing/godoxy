@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/task"
-	F "github.com/yusing/go-proxy/internal/utils/functional"
+	"github.com/yusing/godoxy/internal/task"
+	F "github.com/yusing/godoxy/internal/utils/functional"
 )
 
 type (

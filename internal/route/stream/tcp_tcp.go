@@ -6,9 +6,9 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	config "github.com/yusing/godoxy/internal/config/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/utils"
 	"go.uber.org/atomic"
 )
 

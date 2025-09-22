@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	api "github.com/yusing/go-proxy/internal/api/v1"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	api "github.com/yusing/godoxy/internal/api/v1"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 )
 
 type ForceCacheControl struct {

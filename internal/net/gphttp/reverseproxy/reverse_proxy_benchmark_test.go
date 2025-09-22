@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 
 type noopTransport struct{}

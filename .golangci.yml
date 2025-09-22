@@ -108,8 +108,7 @@ linters:
         - all
         - -SA1019
       dot-import-whitelist:
-        - github.com/yusing/go-proxy/internal/utils/testing
-        - github.com/yusing/go-proxy/internal/api/v1/utils
+        - github.com/yusing/godoxy/internal/utils/testing
     tagalign:
       align: false
       sort: true

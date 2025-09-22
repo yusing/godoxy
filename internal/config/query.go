@@ -1,9 +1,9 @@
 package config
 
 import (
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/route/provider"
-	"github.com/yusing/go-proxy/internal/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/route/provider"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 func (cfg *Config) DumpRouteProviders() map[string]*provider.Provider {

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 const (

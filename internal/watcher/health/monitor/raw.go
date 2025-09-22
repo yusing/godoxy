@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type (

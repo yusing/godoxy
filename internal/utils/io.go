@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	"github.com/yusing/godoxy/internal/utils/synk"
 )
 
 // TODO: move to "utils/io".

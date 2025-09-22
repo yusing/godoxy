@@ -3,8 +3,8 @@ package accesslog
 import (
 	"strconv"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type StatusCodeRange struct {

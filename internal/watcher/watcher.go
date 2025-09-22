@@ -3,8 +3,8 @@ package watcher
 import (
 	"context"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/watcher/events"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/watcher/events"
 )
 
 type Event = events.Event

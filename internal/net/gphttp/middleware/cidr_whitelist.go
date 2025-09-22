@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/puzpuzpuz/xsync/v4"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/serialization"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/serialization"
 )
 
 type (

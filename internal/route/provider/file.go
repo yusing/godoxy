@@ -7,11 +7,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/serialization"
-	W "github.com/yusing/go-proxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/serialization"
+	W "github.com/yusing/godoxy/internal/watcher"
 )
 
 type FileProvider struct {

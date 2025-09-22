@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/yusing/ds/ordered"
-	"github.com/yusing/go-proxy/internal/homepage/widgets"
-	"github.com/yusing/go-proxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/homepage/widgets"
+	"github.com/yusing/godoxy/internal/serialization"
 )
 
 type (

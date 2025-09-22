@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils/atomic"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils/atomic"
 )
 
 type (

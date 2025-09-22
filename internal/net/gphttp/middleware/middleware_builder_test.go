@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/gperr"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 //go:embed test_data/middleware_compose.yml

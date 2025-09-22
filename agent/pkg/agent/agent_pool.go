@@ -4,7 +4,7 @@ import (
 	"iter"
 
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/godoxy/internal/common"
 )
 
 var agentPool = xsync.NewMap[string, *AgentConfig](xsync.WithPresize(10))

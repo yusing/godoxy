@@ -8,8 +8,8 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	slogzerolog "github.com/samber/slog-zerolog/v2"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 )
 
 func advertiseHTTP3(handler http.Handler, h3 *http3.Server) http.Handler {

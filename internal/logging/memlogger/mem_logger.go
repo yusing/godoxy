@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/puzpuzpuz/xsync/v4"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 )
 
 type logEntryRange struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/serialization"
 )
 
 func TestEABConfigRequired(t *testing.T) {

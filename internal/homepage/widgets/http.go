@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 var HTTPClient = &http.Client{

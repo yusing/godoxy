@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 var (

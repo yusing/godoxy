@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestRedirectToHTTPs(t *testing.T) {

@@ -3,7 +3,7 @@ package apitypes
 import (
 	"errors"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type ErrorResponse struct {

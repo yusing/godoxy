@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	config "github.com/yusing/go-proxy/internal/config/types"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	config "github.com/yusing/godoxy/internal/config/types"
 )
 
 // @x-id				"reload"

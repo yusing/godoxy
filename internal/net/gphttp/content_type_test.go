@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestContentTypes(t *testing.T) {

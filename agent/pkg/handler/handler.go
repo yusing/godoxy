@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/agent/pkg/env"
-	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
-	"github.com/yusing/go-proxy/pkg"
-	socketproxy "github.com/yusing/go-proxy/socketproxy/pkg"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/agent/pkg/env"
+	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	"github.com/yusing/godoxy/pkg"
+	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 )
 
 type ServeMux struct{ *http.ServeMux }

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
-	"github.com/yusing/go-proxy/internal/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type StatsResponse struct {

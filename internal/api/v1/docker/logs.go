@@ -10,10 +10,10 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
-	"github.com/yusing/go-proxy/internal/task"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 type LogsQueryParams struct {

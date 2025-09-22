@@ -4,8 +4,8 @@ import (
 	"maps"
 	"sync"
 
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/jsonstore"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/jsonstore"
 )
 
 type OverrideConfig struct {

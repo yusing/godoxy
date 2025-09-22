@@ -3,10 +3,10 @@ package accesslog_test
 import (
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/docker"
-	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/serialization"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/docker"
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/serialization"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestNewConfig(t *testing.T) {

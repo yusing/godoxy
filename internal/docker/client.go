@@ -14,9 +14,9 @@ import (
 	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 // TODO: implement reconnect here.

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"syscall"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 )
 
 // ServerError is for handling server errors.

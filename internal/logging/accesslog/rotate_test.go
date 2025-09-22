@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 var (

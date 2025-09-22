@@ -3,7 +3,7 @@ package autocert
 import (
 	"crypto/tls"
 
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 type Provider interface {

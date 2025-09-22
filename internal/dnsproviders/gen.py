@@ -16,7 +16,7 @@ names: list[str] = [
   "Pseudo = \"pseudo\"",
 ]
 imports: list[str] = [
-  "\"github.com/yusing/go-proxy/internal/autocert\""
+  "\"github.com/yusing/godoxy/internal/autocert\""
 ]
 genMap: list[str] = [
   "autocert.Providers[Local] = autocert.DNSProvider(NewDummyDefaultConfig, NewDummyDNSProviderConfig)",

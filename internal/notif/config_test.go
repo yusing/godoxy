@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/serialization"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/serialization"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestNotificationConfig(t *testing.T) {

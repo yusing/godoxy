@@ -3,8 +3,8 @@ package qbittorrent
 import (
 	"context"
 
-	"github.com/yusing/go-proxy/internal/homepage/widgets"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/homepage/widgets"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 const endpointTransferInfo = "/api/v2/transfer/info"

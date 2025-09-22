@@ -8,11 +8,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/pool"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/utils/pool"
 )
 
 // TODO: stats of each server.

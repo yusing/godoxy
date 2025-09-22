@@ -13,9 +13,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type SerializedObject = map[string]any

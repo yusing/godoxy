@@ -3,7 +3,7 @@ package maxmind
 import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type (

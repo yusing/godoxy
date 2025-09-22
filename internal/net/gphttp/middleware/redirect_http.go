@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/godoxy/internal/common"
 )
 
 type redirectHTTP struct {

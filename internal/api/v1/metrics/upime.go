@@ -2,8 +2,8 @@ package metrics
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/internal/metrics/period"
-	"github.com/yusing/go-proxy/internal/metrics/uptime"
+	"github.com/yusing/godoxy/internal/metrics/period"
+	"github.com/yusing/godoxy/internal/metrics/uptime"
 )
 
 type UptimeRequest struct {

@@ -3,7 +3,7 @@ package middleware
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestOIDCMiddlewarePerRouteConfig(t *testing.T) {

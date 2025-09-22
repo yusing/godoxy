@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"unicode"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 var escapedChars = map[rune]rune{

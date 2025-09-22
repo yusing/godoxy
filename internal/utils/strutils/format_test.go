@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	. "github.com/yusing/go-proxy/internal/utils/strutils"
+	. "github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 func mustParseTime(t *testing.T, layout, value string) time.Time {

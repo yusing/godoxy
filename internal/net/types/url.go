@@ -3,7 +3,7 @@ package nettypes
 import (
 	urlPkg "net/url"
 
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type URL struct {

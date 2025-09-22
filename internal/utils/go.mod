@@ -1,4 +1,4 @@
-module github.com/yusing/go-proxy/internal/utils
+module github.com/yusing/godoxy/internal/utils
 
 go 1.25.1
 

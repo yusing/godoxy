@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog"
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type (

@@ -14,9 +14,9 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/acl"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 type CertProvider interface {

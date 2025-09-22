@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/route/routes"
 )
 
 type (

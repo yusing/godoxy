@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type (

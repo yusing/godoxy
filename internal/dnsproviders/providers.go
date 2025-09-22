@@ -149,7 +149,7 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns/zoneedit"
 	"github.com/go-acme/lego/v4/providers/dns/zoneee"
 	"github.com/go-acme/lego/v4/providers/dns/zonomi"
-	"github.com/yusing/go-proxy/internal/autocert"
+	"github.com/yusing/godoxy/internal/autocert"
 )
 
 const (

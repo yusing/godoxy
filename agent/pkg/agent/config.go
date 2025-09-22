@@ -15,8 +15,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/agent/pkg/certs"
-	"github.com/yusing/go-proxy/pkg"
+	"github.com/yusing/godoxy/agent/pkg/certs"
+	"github.com/yusing/godoxy/pkg"
 )
 
 type AgentConfig struct {

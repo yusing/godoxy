@@ -3,7 +3,7 @@ package watcher
 import (
 	"context"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type fileWatcher struct {

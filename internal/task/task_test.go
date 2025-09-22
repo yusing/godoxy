@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func testTask() *Task {

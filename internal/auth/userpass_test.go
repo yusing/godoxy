@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
 

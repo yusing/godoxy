@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/go-proxy/internal/docker"
+	"github.com/yusing/godoxy/internal/docker"
 )
 
 func TestExpandWildcard(t *testing.T) {

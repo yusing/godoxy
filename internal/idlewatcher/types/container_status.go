@@ -1,6 +1,6 @@
 package idlewatcher
 
-import "github.com/yusing/go-proxy/internal/gperr"
+import "github.com/yusing/godoxy/internal/gperr"
 
 type ContainerStatus string
 

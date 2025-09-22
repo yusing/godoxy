@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 )
 
 type (

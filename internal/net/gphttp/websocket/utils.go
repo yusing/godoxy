@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
 )
 
 type DeduplicateFunc func(last, current any) bool

@@ -1,9 +1,9 @@
 package route
 
 import (
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 func checkExists(r types.Route) gperr.Error {

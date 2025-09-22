@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/route/routes"
 )
 
 type RoutesByProvider map[string][]route.Route

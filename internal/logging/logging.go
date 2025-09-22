@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 
 	zerologlog "github.com/rs/zerolog/log"
 )

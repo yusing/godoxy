@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/oschwald/maxminddb-golang"
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/task"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 func testCfg() *MaxMind {

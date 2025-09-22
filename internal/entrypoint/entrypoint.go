@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	"github.com/yusing/go-proxy/internal/net/gphttp/middleware/errorpage"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type Entrypoint struct {

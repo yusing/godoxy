@@ -3,8 +3,8 @@ package homepage_test
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/homepage"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/homepage"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func strPtr(s string) *string {

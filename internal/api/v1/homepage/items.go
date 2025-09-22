@@ -10,11 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/homepage"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
-	"github.com/yusing/go-proxy/internal/route/routes"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	"github.com/yusing/godoxy/internal/route/routes"
 )
 
 type HomepageItemsRequest struct {

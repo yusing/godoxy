@@ -3,7 +3,7 @@ package rules
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestParseCommands(t *testing.T) {

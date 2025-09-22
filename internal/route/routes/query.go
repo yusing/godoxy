@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type HealthInfo struct {

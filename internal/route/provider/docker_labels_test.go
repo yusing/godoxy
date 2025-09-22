@@ -5,8 +5,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/goccy/go-yaml"
-	"github.com/yusing/go-proxy/internal/docker"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/docker"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 
 	_ "embed"
 )

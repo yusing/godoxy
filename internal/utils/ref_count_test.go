@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestRefCounterAddSub(t *testing.T) {

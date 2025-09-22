@@ -3,8 +3,8 @@ package accesslog_test
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/logging/accesslog"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestParseRetention(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type RouteContextKey struct{}

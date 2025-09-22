@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestPathTraversalAttack(t *testing.T) {

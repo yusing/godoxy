@@ -5,7 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 	zerologlog "github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/godoxy/internal/common"
 )
 
 func log(msg string, err error, level zerolog.Level, logger ...*zerolog.Logger) {

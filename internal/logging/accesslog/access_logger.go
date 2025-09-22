@@ -9,12 +9,12 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/gperr"
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	"github.com/yusing/godoxy/internal/gperr"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/utils/synk"
 	"golang.org/x/time/rate"
 )
 

@@ -8,9 +8,9 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/rs/zerolog/log"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/synk"
 	"golang.org/x/net/html"
 )
 

@@ -3,10 +3,10 @@ package entrypoint
 import (
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/route/routes"
 
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 var ep = NewEntrypoint()

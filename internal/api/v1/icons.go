@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/homepage"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/homepage"
 )
 
 type ListIconsRequest struct {

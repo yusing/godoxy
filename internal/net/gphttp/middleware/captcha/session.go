@@ -7,8 +7,8 @@ import (
 
 	_ "embed"
 
-	"github.com/yusing/go-proxy/internal/jsonstore"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/jsonstore"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type CaptchaSession struct {

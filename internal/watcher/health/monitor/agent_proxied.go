@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"time"
 
-	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/types"
+	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type (

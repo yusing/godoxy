@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	. "github.com/yusing/go-proxy/internal/route/rules"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/route/routes"
+	. "github.com/yusing/godoxy/internal/route/rules"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
 

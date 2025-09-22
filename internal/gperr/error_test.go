@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/utils/strutils/ansi"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/utils/strutils/ansi"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestBaseString(t *testing.T) {

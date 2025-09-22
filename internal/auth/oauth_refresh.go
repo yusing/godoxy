@@ -12,8 +12,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/jsonstore"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/jsonstore"
 	"golang.org/x/oauth2"
 )
 

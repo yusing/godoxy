@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/gperr"
-	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/gperr"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/watcher"
 )
 
 type DockerProvider struct {

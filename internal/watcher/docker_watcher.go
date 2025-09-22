@@ -9,9 +9,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/watcher/events"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/watcher/events"
 )
 
 type (

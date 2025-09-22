@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type Key struct {

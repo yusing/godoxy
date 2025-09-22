@@ -10,7 +10,7 @@ import (
 
 	_ "embed"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type themed struct {

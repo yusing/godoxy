@@ -13,11 +13,11 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/serialization"
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 var DummyContainer = new(types.Container)

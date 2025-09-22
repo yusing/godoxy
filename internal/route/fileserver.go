@@ -5,13 +5,13 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/watcher/health/monitor"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 )
 
 type (

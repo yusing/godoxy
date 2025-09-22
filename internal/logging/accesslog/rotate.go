@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/utils/synk"
 )
 
 type supportRotate interface {

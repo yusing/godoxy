@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	config "github.com/yusing/godoxy/internal/config/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/utils/synk"
 	"go.uber.org/atomic"
 )
 

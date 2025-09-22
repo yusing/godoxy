@@ -1,12 +1,12 @@
-module github.com/yusing/go-proxy/socketproxy
+module github.com/yusing/godoxy/socketproxy
 
 go 1.25.1
 
-replace github.com/yusing/go-proxy/internal/utils => ../internal/utils
+replace github.com/yusing/godoxy/internal/utils => ../internal/utils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/go-proxy/internal/utils v0.0.0-20250913143824-493c0afdface
+	github.com/yusing/godoxy/internal/utils v0.0.0-20250913143824-493c0afdface
 	golang.org/x/net v0.44.0
 )
 

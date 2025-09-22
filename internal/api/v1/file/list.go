@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/utils"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type ListFilesResponse struct {

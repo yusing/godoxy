@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type (

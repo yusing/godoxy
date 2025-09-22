@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/jsonstore"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/utils/atomic"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/jsonstore"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils/atomic"
 )
 
 type cacheEntry struct {

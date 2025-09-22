@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/pkg"
+	"github.com/yusing/godoxy/pkg"
 )
 
 // @x-id				"version"

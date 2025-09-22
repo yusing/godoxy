@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 )
 
 func (w *Watcher) running() bool {

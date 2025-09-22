@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	. "github.com/yusing/go-proxy/internal/utils/strutils"
+	. "github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 var alphaNumeric = func() string {

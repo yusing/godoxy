@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/gperr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type (

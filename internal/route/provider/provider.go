@@ -10,16 +10,16 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/route"
-	provider "github.com/yusing/go-proxy/internal/route/provider/types"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/types"
-	W "github.com/yusing/go-proxy/internal/watcher"
-	"github.com/yusing/go-proxy/internal/watcher/events"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/route"
+	provider "github.com/yusing/godoxy/internal/route/provider/types"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/types"
+	W "github.com/yusing/godoxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/watcher/events"
 )
 
 type (

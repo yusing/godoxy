@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/route/routes"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/route/routes"
 )
 
 type ListRouteRequest struct {

@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/go-proxy/internal/route"
-	route "github.com/yusing/go-proxy/internal/route/types"
-	"github.com/yusing/go-proxy/internal/serialization"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/route"
+	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/serialization"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestHTTPConfigDeserialize(t *testing.T) {

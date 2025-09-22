@@ -1,4 +1,4 @@
-package systeminfo // import github.com/yusing/go-proxy/internal/metrics/systeminfo
+package systeminfo // import github.com/yusing/godoxy/internal/metrics/systeminfo
 
 import (
 	"context"
@@ -15,9 +15,9 @@ import (
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
 	"github.com/shirou/gopsutil/v4/warning"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/metrics/period"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/metrics/period"
 )
 
 // json tags are left for tests

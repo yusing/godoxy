@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"text/template"
 
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 )
 
 type templateData struct {

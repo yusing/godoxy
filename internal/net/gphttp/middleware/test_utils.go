@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 //go:embed test_data/sample_headers.json

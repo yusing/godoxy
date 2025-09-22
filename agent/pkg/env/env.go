@@ -3,8 +3,8 @@ package env
 import (
 	"os"
 
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/common"
 
 	"github.com/rs/zerolog/log"
 )

@@ -3,7 +3,7 @@ package homepage_test
 import (
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/homepage"
+	. "github.com/yusing/godoxy/internal/homepage"
 )
 
 const walkxcodeIcons = `{

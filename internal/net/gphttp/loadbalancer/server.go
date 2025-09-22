@@ -3,10 +3,10 @@ package loadbalancer
 import (
 	"net/http"
 
-	idlewatcher "github.com/yusing/go-proxy/internal/idlewatcher/types"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/types"
-	U "github.com/yusing/go-proxy/internal/utils"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/types"
+	U "github.com/yusing/godoxy/internal/utils"
 )
 
 type server struct {

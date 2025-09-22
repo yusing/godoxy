@@ -8,7 +8,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestDeserialize(t *testing.T) {

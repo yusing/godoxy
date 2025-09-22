@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/agent/pkg/env"
-	"github.com/yusing/go-proxy/agent/pkg/handler"
-	"github.com/yusing/go-proxy/internal/net/gphttp/server"
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/godoxy/agent/pkg/env"
+	"github.com/yusing/godoxy/agent/pkg/handler"
+	"github.com/yusing/godoxy/internal/net/gphttp/server"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 type Options struct {

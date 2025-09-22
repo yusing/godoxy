@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/serialization"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/serialization"
 )
 
 func TestMatchers(t *testing.T) {

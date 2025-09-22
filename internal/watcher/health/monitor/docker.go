@@ -2,8 +2,8 @@ package monitor
 
 import (
 	"github.com/docker/docker/api/types/container"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type DockerHealthMonitor struct {

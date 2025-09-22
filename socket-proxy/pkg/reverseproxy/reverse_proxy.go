@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils"
 	"golang.org/x/net/http/httpguts"
 )
 

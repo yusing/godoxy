@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestIntersect(t *testing.T) {

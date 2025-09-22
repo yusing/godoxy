@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	. "github.com/yusing/go-proxy/internal/utils/trie"
+	. "github.com/yusing/godoxy/internal/utils/trie"
 )
 
 // Test data for trie tests

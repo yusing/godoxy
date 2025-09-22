@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/go-proxy/agent/pkg/certs"
+	"github.com/yusing/godoxy/agent/pkg/certs"
 )
 
 func TestZipCert(t *testing.T) {

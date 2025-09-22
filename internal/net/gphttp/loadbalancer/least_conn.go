@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type leastConn struct {

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type noopResponseWriter struct {

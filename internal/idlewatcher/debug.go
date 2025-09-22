@@ -5,7 +5,7 @@ import (
 	"iter"
 	"strconv"
 
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type watcherDebug struct {

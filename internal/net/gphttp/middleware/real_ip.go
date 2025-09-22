@@ -4,8 +4,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 
 // https://nginx.org/en/docs/http/ngx_http_realip_module.html

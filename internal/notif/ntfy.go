@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 // See https://docs.ntfy.sh/publish

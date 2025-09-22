@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/yusing/go-proxy/socketproxy/pkg/reverseproxy"
+	"github.com/yusing/godoxy/socketproxy/pkg/reverseproxy"
 )
 
 var dialer = &net.Dialer{KeepAlive: 1 * time.Second}

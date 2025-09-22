@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 var ErrInvalidLabel = gperr.New("invalid label")

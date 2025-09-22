@@ -7,10 +7,10 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	D "github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/route"
-	T "github.com/yusing/go-proxy/internal/route/types"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	D "github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/route"
+	T "github.com/yusing/godoxy/internal/route/types"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 var dummyNames = []string{"/a"}

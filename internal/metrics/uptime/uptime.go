@@ -9,11 +9,11 @@ import (
 	"slices"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/metrics/period"
-	metricsutils "github.com/yusing/go-proxy/internal/metrics/utils"
-	"github.com/yusing/go-proxy/internal/route/routes"
-	"github.com/yusing/go-proxy/internal/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/metrics/period"
+	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
+	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type (

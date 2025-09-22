@@ -9,13 +9,13 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/docker"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/route"
-	"github.com/yusing/go-proxy/internal/serialization"
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
-	"github.com/yusing/go-proxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/watcher"
 )
 
 type DockerProvider struct {

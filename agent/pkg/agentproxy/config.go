@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	route "github.com/yusing/go-proxy/internal/route/types"
+	route "github.com/yusing/godoxy/internal/route/types"
 )
 
 type Config struct {

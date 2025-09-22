@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type File struct {

@@ -3,8 +3,8 @@ package loadbalancer
 import (
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/types"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/types"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestRebalance(t *testing.T) {

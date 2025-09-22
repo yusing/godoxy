@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/gperr"
 )
 
 type ProviderBase struct {

@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestWrapMultiline(t *testing.T) {

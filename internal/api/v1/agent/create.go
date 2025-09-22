@@ -8,8 +8,8 @@ import (
 	_ "embed"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
 )
 
 type NewAgentRequest struct {

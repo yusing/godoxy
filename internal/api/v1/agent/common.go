@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/agent/pkg/agent"
 )
 
 type PEMPairResponse struct {

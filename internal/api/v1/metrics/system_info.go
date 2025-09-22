@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	agentPkg "github.com/yusing/go-proxy/agent/pkg/agent"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/metrics/period"
-	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
+	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/metrics/period"
+	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 )
 
 type SystemInfoRequest struct {

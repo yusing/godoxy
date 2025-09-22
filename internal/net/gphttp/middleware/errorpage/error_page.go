@@ -8,12 +8,12 @@ import (
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/task"
-	"github.com/yusing/go-proxy/internal/utils"
-	"github.com/yusing/go-proxy/internal/watcher"
-	"github.com/yusing/go-proxy/internal/watcher/events"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/godoxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/watcher/events"
 )
 
 const errPagesBasePath = common.ErrorPagesBasePath

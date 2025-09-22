@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/yusing/go-proxy/internal/types"
-	"github.com/yusing/go-proxy/internal/utils/pool"
+	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/utils/pool"
 )
 
 var (

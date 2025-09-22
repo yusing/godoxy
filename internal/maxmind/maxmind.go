@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/oschwald/maxminddb-golang"
-	"github.com/yusing/go-proxy/internal/common"
-	"github.com/yusing/go-proxy/internal/gperr"
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/task"
+	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/gperr"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/task"
 )
 
 /*

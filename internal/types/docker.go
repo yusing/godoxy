@@ -5,9 +5,9 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/utils"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/utils"
 )
 
 type (

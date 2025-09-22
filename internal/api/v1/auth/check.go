@@ -2,7 +2,7 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/go-proxy/internal/auth"
+	"github.com/yusing/godoxy/internal/auth"
 )
 
 // @x-id	  	"check"

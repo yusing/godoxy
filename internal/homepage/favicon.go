@@ -13,8 +13,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/vincent-petithory/dataurl"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type FetchResult struct {

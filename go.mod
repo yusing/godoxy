@@ -1,12 +1,12 @@
-module github.com/yusing/go-proxy
+module github.com/yusing/godoxy
 
 go 1.25.1
 
-replace github.com/yusing/go-proxy/agent => ./agent
+replace github.com/yusing/godoxy/agent => ./agent
 
-replace github.com/yusing/go-proxy/internal/dnsproviders => ./internal/dnsproviders
+replace github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsproviders
 
-replace github.com/yusing/go-proxy/internal/utils => ./internal/utils
+replace github.com/yusing/godoxy/internal/utils => ./internal/utils
 
 replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.0.0-20250816044348-0630187cb14b
 
@@ -44,9 +44,9 @@ require (
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
-	github.com/yusing/go-proxy/agent v0.0.0-20250913143824-493c0afdface
-	github.com/yusing/go-proxy/internal/dnsproviders v0.0.0-20250913143824-493c0afdface
-	github.com/yusing/go-proxy/internal/utils v0.0.0
+	github.com/yusing/godoxy/agent v0.0.0-20250913143824-493c0afdface
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250913143824-493c0afdface
+	github.com/yusing/godoxy/internal/utils v0.0.0
 )
 
 require (

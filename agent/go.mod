@@ -1,12 +1,12 @@
-module github.com/yusing/go-proxy/agent
+module github.com/yusing/godoxy/agent
 
 go 1.25.1
 
-replace github.com/yusing/go-proxy => ..
+replace github.com/yusing/godoxy => ..
 
-replace github.com/yusing/go-proxy/socketproxy => ../socket-proxy
+replace github.com/yusing/godoxy/socketproxy => ../socket-proxy
 
-replace github.com/yusing/go-proxy/internal/utils => ../internal/utils
+replace github.com/yusing/godoxy/internal/utils => ../internal/utils
 
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250816043325-ee003f88b84d
 
@@ -18,9 +18,9 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.1.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
-	github.com/yusing/go-proxy v0.17.6
-	github.com/yusing/go-proxy/internal/utils v0.0.0
-	github.com/yusing/go-proxy/socketproxy v0.0.0-00010101000000-000000000000
+	github.com/yusing/godoxy v0.17.6
+	github.com/yusing/godoxy/internal/utils v0.0.0
+	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 )
 
 require (

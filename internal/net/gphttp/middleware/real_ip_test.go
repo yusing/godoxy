@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func TestSetRealIPOpts(t *testing.T) {

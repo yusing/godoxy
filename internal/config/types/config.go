@@ -6,16 +6,16 @@ import (
 	"sync"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/internal/acl"
-	"github.com/yusing/go-proxy/internal/autocert"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging/accesslog"
-	maxmind "github.com/yusing/go-proxy/internal/maxmind/types"
-	"github.com/yusing/go-proxy/internal/notif"
-	"github.com/yusing/go-proxy/internal/proxmox"
-	"github.com/yusing/go-proxy/internal/serialization"
-	"github.com/yusing/go-proxy/internal/types"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/autocert"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/godoxy/internal/proxmox"
+	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 type (

@@ -6,8 +6,8 @@ import (
 	"net/http/httputil"
 	"time"
 
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	"github.com/yusing/go-proxy/agent/pkg/agentproxy"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 )
 
 func NewTransport() *http.Transport {

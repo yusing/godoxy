@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils/atomic"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/common"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/utils/atomic"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type cloudflareRealIP struct {

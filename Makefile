@@ -6,7 +6,7 @@ export GOOS = linux
 WEBUI_DIR ?= ../godoxy-frontend
 DOCS_DIR ?= ../godoxy-wiki
 
-LDFLAGS = -X github.com/yusing/go-proxy/pkg.version=${VERSION} -checklinkname=0
+LDFLAGS = -X github.com/yusing/godoxy/pkg.version=${VERSION} -checklinkname=0
 
 ifeq ($(agent), 1)
 	NAME = godoxy-agent

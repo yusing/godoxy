@@ -1,8 +1,8 @@
 package provider
 
 import (
-	route "github.com/yusing/go-proxy/internal/route/types"
-	"github.com/yusing/go-proxy/internal/types"
+	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 func (p *Provider) Statistics() types.ProviderStats {

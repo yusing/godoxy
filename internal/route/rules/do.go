@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	gphttp "github.com/yusing/go-proxy/internal/net/gphttp"
-	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/utils/strutils"
+	"github.com/yusing/godoxy/internal/gperr"
+	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
 type (

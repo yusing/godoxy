@@ -12,14 +12,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/agent/pkg/agent"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/metrics/period"
-	"github.com/yusing/go-proxy/internal/metrics/systeminfo"
-	"github.com/yusing/go-proxy/internal/net/gphttp/httpheaders"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
-	"github.com/yusing/go-proxy/internal/utils/synk"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/metrics/period"
+	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	"github.com/yusing/godoxy/internal/utils/synk"
 )
 
 var (

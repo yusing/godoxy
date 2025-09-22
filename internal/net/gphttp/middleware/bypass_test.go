@@ -10,14 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/entrypoint"
-	. "github.com/yusing/go-proxy/internal/net/gphttp/middleware"
-	"github.com/yusing/go-proxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/go-proxy/internal/net/types"
-	"github.com/yusing/go-proxy/internal/route"
-	routeTypes "github.com/yusing/go-proxy/internal/route/types"
-	"github.com/yusing/go-proxy/internal/task"
-	expect "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/entrypoint"
+	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/route"
+	routeTypes "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/task"
+	expect "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 func noOpHandler(w http.ResponseWriter, r *http.Request) {}

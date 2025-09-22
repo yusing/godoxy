@@ -5,7 +5,7 @@ import (
 
 	_ "embed"
 
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 //go:embed all_fields.yaml

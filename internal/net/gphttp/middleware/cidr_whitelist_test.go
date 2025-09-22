@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/serialization"
-	. "github.com/yusing/go-proxy/internal/utils/testing"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/serialization"
+	. "github.com/yusing/godoxy/internal/utils/testing"
 )
 
 //go:embed test_data/cidr_whitelist_test.yml

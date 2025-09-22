@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	apitypes "github.com/yusing/go-proxy/internal/api/types"
-	config "github.com/yusing/go-proxy/internal/config/types"
-	"github.com/yusing/go-proxy/internal/gperr"
-	"github.com/yusing/go-proxy/internal/logging/memlogger"
-	"github.com/yusing/go-proxy/internal/net/gphttp/websocket"
+	apitypes "github.com/yusing/godoxy/internal/api/types"
+	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/gperr"
+	"github.com/yusing/godoxy/internal/logging/memlogger"
+	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 )
 
 // @x-id				"renew"

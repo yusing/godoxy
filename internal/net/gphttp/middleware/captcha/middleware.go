@@ -5,8 +5,8 @@ import (
 	"text/template"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/auth"
-	"github.com/yusing/go-proxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/auth"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 
 	_ "embed"
 )

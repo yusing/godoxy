@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/yusing/go-proxy/internal/route/rules"
+	"github.com/yusing/godoxy/internal/route/rules"
 )
 
 type Bypass []rules.RuleOn

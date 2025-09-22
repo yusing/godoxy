@@ -1,14 +1,14 @@
-module github.com/yusing/go-proxy/internal/dnsproviders
+module github.com/yusing/godoxy/internal/dnsproviders
 
 go 1.25.1
 
-replace github.com/yusing/go-proxy => ../..
+replace github.com/yusing/godoxy => ../..
 
-replace github.com/yusing/go-proxy/internal/utils => ../utils
+replace github.com/yusing/godoxy/internal/utils => ../utils
 
 require (
 	github.com/go-acme/lego/v4 v4.26.0
-	github.com/yusing/go-proxy v0.17.6
+	github.com/yusing/godoxy v0.17.6
 )
 
 require (
@@ -148,7 +148,7 @@ require (
 	github.com/volcengine/volc-sdk-golang v1.0.219 // indirect
 	github.com/vultr/govultr/v3 v3.23.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	github.com/yusing/go-proxy/internal/utils v0.0.0 // indirect
+	github.com/yusing/godoxy/internal/utils v0.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect

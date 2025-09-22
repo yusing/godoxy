@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/go-proxy/internal/common"
+	"github.com/yusing/godoxy/internal/common"
 )
 
 // Manager handles WebSocket connection state and ping-pong
