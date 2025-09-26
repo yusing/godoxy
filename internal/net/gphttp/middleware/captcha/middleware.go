@@ -32,7 +32,7 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 	}
 
 	if !gphttp.GetAccept(r.Header).AcceptHTML() {
-		gphttp.Forbidden(w, "Captcha is required")
+		http.Error(w, "Captcha is required", http.StatusForbidden)
 		return false
 	}
 
@@ -45,7 +45,9 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 			http.Redirect(w, r, r.URL.Path, http.StatusFound)
 			return false
 		}
-		gphttp.Unauthorized(w, err.Error())
+
+		log.Warn().Err(err).Str("url", r.URL.String()).Str("remote_addr", r.RemoteAddr).Msg("failed to verify captcha")
+		http.Error(w, "Failed to verify captcha", http.StatusUnauthorized)
 		return false
 	}
 
