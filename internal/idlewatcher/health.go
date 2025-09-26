@@ -151,10 +151,14 @@ func (w *Watcher) checkUpdateState() (ready bool, err error) {
 		healthTries: newHealthTries,
 	})
 
-	w.l.Debug().
-		Int("health_tries", newHealthTries).
-		Dur("elapsed", time.Since(state.startedAt)).
-		Msg("health check failed, still starting")
+	// log every 3 seconds
+	const everyN = int(3 * time.Second / idleWakerCheckInterval)
+	if newHealthTries%everyN == 0 {
+		w.l.Debug().
+			Int("health_tries", newHealthTries).
+			Dur("elapsed", time.Since(state.startedAt)).
+			Msg("health check failed, still starting")
+	}
 
 	return false, nil
 }
