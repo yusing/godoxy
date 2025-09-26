@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/goutils/env"
 
 	"github.com/rs/zerolog/log"
 )
@@ -32,14 +32,14 @@ func init() {
 }
 
 func Load() {
-	DockerSocket = common.GetEnvString("DOCKER_SOCKET", "/var/run/docker.sock")
-	AgentName = common.GetEnvString("AGENT_NAME", DefaultAgentName())
-	AgentPort = common.GetEnvInt("AGENT_PORT", 8890)
-	AgentSkipClientCertCheck = common.GetEnvBool("AGENT_SKIP_CLIENT_CERT_CHECK", false)
+	DockerSocket = env.GetEnvString("DOCKER_SOCKET", "/var/run/docker.sock")
+	AgentName = env.GetEnvString("AGENT_NAME", DefaultAgentName())
+	AgentPort = env.GetEnvInt("AGENT_PORT", 8890)
+	AgentSkipClientCertCheck = env.GetEnvBool("AGENT_SKIP_CLIENT_CERT_CHECK", false)
 
-	AgentCACert = common.GetEnvString("AGENT_CA_CERT", "")
-	AgentSSLCert = common.GetEnvString("AGENT_SSL_CERT", "")
-	Runtime = agent.ContainerRuntime(common.GetEnvString("RUNTIME", "docker"))
+	AgentCACert = env.GetEnvString("AGENT_CA_CERT", "")
+	AgentSSLCert = env.GetEnvString("AGENT_SSL_CERT", "")
+	Runtime = agent.ContainerRuntime(env.GetEnvString("RUNTIME", "docker"))
 
 	switch Runtime {
 	case agent.ContainerRuntimeDocker, agent.ContainerRuntimePodman: //, agent.ContainerRuntimeNerdctl:
