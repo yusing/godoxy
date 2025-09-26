@@ -67,6 +67,7 @@ type (
 
 	dependency struct {
 		*Watcher
+
 		waitHealthy bool
 	}
 

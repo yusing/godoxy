@@ -99,13 +99,14 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 	var shouldStop func() bool
 	t := utils.TimeNow()
 
-	if config.Last > 0 {
+	switch {
+	case config.Last > 0:
 		shouldStop = func() bool { return result.NumLinesKeep-result.NumLinesInvalid == int(config.Last) }
 		// not needed to parse time for last N lines
-	} else if config.Days > 0 {
+	case config.Days > 0:
 		cutoff := utils.TimeNow().AddDate(0, 0, -int(config.Days)+1)
 		shouldStop = func() bool { return t.Before(cutoff) }
-	} else {
+	default:
 		return nil, nil // should not happen
 	}
 

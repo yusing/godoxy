@@ -18,6 +18,7 @@ type RouteContextKey struct{}
 
 type RouteContext struct {
 	context.Context
+
 	Route types.HTTPRoute
 }
 

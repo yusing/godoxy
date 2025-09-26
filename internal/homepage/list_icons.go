@@ -33,9 +33,10 @@ type (
 		Tag         string `json:"-"`
 	}
 	IconMetaSearch struct {
+		*IconMeta
+
 		Source IconSource `json:"Source"`
 		Ref    string     `json:"Ref"`
-		*IconMeta
 
 		rank int
 	}

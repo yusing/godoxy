@@ -15,6 +15,7 @@ import (
 
 type ProxmoxProvider struct {
 	*proxmox.Node
+
 	vmid    int
 	lxcName string
 	running bool

@@ -9,9 +9,10 @@ import (
 
 type (
 	IconURL struct {
-		FullURL    *string    `json:"value,omitempty"` // only for absolute/relative icons
-		Extra      *IconExtra `json:"extra,omitempty"` // only for walkxcode/selfhst icons
 		IconSource `json:"source"`
+
+		FullURL *string    `json:"value,omitempty"` // only for absolute/relative icons
+		Extra   *IconExtra `json:"extra,omitempty"` // only for walkxcode/selfhst icons
 	}
 
 	IconExtra struct {
