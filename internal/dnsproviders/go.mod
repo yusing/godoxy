@@ -149,6 +149,7 @@ require (
 	github.com/vultr/govultr/v3 v3.23.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusing/godoxy/internal/utils v0.0.0 // indirect
+	github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect

@@ -20,6 +20,7 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 	W "github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
+	"github.com/yusing/goutils/env"
 )
 
 type (
@@ -70,7 +71,7 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
 	if dockerHost == common.DockerHostFromEnv {
-		dockerHost = common.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
+		dockerHost = env.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
 	}
 
 	p := newProvider(provider.ProviderTypeDocker)

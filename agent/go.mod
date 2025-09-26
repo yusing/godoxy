@@ -89,6 +89,7 @@ require (
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.1.0 // indirect
+	github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect

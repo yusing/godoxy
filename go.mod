@@ -215,6 +215,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/yusing/ds v0.1.0
+	github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72
 )
 
 require (
