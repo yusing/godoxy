@@ -6,7 +6,7 @@ replace github.com/yusing/godoxy/internal/utils => ../internal/utils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/godoxy/internal/utils v0.0.0-20250913143824-493c0afdface
+	github.com/yusing/godoxy/internal/utils v0.0.0-20250922084459-f9affba9fc4e
 	golang.org/x/net v0.44.0
 )
 
