@@ -945,8 +945,8 @@ github.com/goccy/go-yaml v1.18.0/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7Lk
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/godoxy-app/go-oidc/v3 v3.0.0-20250816044348-0630187cb14b h1:gMLF8Nhbl86088Sugp/FFmT+fJu62GUAm+Pev6ZGTfo=
 github.com/godoxy-app/go-oidc/v3 v3.0.0-20250816044348-0630187cb14b/go.mod h1:x2nHY0TayhBzI25mgwp38Ru7xgGRId0FdaeqXeH8l90=
-github.com/godoxy-app/gopsutil/v4 v4.0.0-20250816043325-ee003f88b84d h1:bNqtnmyhGDxpBSaFYIo7ferYRIc/QzlaGfIhh/JmMPk=
-github.com/godoxy-app/gopsutil/v4 v4.0.0-20250816043325-ee003f88b84d/go.mod h1:7iQ/w4jyGYJCZ56dZLNztwM4atNxj5C2HNTBxhLvV8A=
+github.com/godoxy-app/gopsutil/v4 v4.0.0-20250926133131-7ef260e41a49 h1:DqfJHUG+96pLB1FM7O3E7rq7Ilx+p7Zt2n2OyqToUH8=
+github.com/godoxy-app/gopsutil/v4 v4.0.0-20250926133131-7ef260e41a49/go.mod h1:Ks7ccJvOucVh3BbyyvPApw93nefgMYXrieZvLJdex+w=
 github.com/gofrs/flock v0.12.1 h1:MTLVXXHf8ekldpJk3AKicLij9MdwOWkZ+a/jHHZby9E=
 github.com/gofrs/flock v0.12.1/go.mod h1:9zxTsyu5xtJ9DK+1tFZyibEV7y3uwDxPPfbxeeHCoD0=
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=

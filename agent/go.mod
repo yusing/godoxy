@@ -8,7 +8,7 @@ replace github.com/yusing/godoxy/socketproxy => ../socket-proxy
 
 replace github.com/yusing/godoxy/internal/utils => ../internal/utils
 
-replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250816043325-ee003f88b84d
+replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250926133131-7ef260e41a49
 
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
