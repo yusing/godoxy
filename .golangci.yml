@@ -70,7 +70,6 @@ linters:
     govet:
       disable:
         - shadow
-        - fieldalignment
       enable-all: true
     misspell:
       locale: US
