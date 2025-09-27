@@ -22,8 +22,10 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result *types.HealthCheckResult
-	var err error
+	var (
+		result types.HealthCheckResult
+		err    error
+	)
 	switch scheme {
 	case "fileserver":
 		path := query.Get("path")
@@ -32,7 +34,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, err := os.Stat(path)
-		result = &types.HealthCheckResult{Healthy: err == nil}
+		result = types.HealthCheckResult{Healthy: err == nil}
 		if err != nil {
 			result.Detail = err.Error()
 		}

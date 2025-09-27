@@ -25,9 +25,10 @@ type AgentConfig struct {
 	Version pkg.Version      `json:"version"`
 	Runtime ContainerRuntime `json:"runtime"`
 
-	httpClient *http.Client
-	tlsConfig  *tls.Config
-	l          zerolog.Logger
+	httpClient            *http.Client
+	httpClientHealthCheck *http.Client
+	tlsConfig             *tls.Config
+	l                     zerolog.Logger
 } // @name Agent
 
 const (
@@ -104,6 +105,8 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 
 	// create transport and http client
 	cfg.httpClient = cfg.NewHTTPClient()
+	cfg.httpClientHealthCheck = cfg.NewHTTPClient()
+	applyHealthCheckTransportConfig(cfg.httpClientHealthCheck.Transport.(*http.Transport))
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -206,4 +209,13 @@ func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
 
 func (cfg *AgentConfig) String() string {
 	return cfg.Name + "@" + cfg.Addr
+}
+
+func applyHealthCheckTransportConfig(transport *http.Transport) {
+	transport.DisableKeepAlives = true
+	transport.DisableCompression = true
+	transport.MaxIdleConns = 1
+	transport.MaxIdleConnsPerHost = 1
+	transport.ReadBufferSize = 1024
+	transport.WriteBufferSize = 1024
 }

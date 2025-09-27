@@ -30,6 +30,24 @@ func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) (*http.Respo
 	return resp, nil
 }
 
+func (cfg *AgentConfig) DoHealthCheck(ctx context.Context, endpoint string) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", APIBaseURL+endpoint, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("Connection", "close")
+
+	resp, err := cfg.httpClientHealthCheck.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	return data, resp.StatusCode, nil
+}
+
 func (cfg *AgentConfig) Fetch(ctx context.Context, endpoint string) ([]byte, int, error) {
 	resp, err := cfg.Do(ctx, "GET", endpoint, nil)
 	if err != nil {

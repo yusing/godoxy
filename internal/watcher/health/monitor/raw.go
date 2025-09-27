@@ -25,7 +25,7 @@ func NewRawHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *RawHeal
 	return mon
 }
 
-func (mon *RawHealthMonitor) CheckHealth() (*types.HealthCheckResult, error) {
+func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
 	defer cancel()
 
@@ -33,10 +33,10 @@ func (mon *RawHealthMonitor) CheckHealth() (*types.HealthCheckResult, error) {
 	start := time.Now()
 	conn, err := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
 	if err != nil {
-		return nil, err
+		return types.HealthCheckResult{}, err
 	}
 	defer conn.Close()
-	return &types.HealthCheckResult{
+	return types.HealthCheckResult{
 		Latency: time.Since(start),
 		Healthy: true,
 	}, nil

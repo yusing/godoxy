@@ -11,7 +11,11 @@ type DockerHealthMonitor struct {
 	client      *docker.SharedClient
 	containerID string
 	fallback    types.HealthChecker
+
+	numDockerFailures int
 }
+
+const dockerFailuresThreshold = 3
 
 func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias string, config *types.HealthCheckConfig, fallback types.HealthChecker) *DockerHealthMonitor {
 	mon := new(DockerHealthMonitor)
@@ -23,35 +27,49 @@ func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias stri
 	return mon
 }
 
-func (mon *DockerHealthMonitor) CheckHealth() (result *types.HealthCheckResult, err error) {
-	ctx, cancel := mon.ContextWithTimeout("docker health check timed out")
-	defer cancel()
-	cont, err := mon.client.ContainerInspect(ctx, mon.containerID)
-	if err != nil {
+func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
+	// if docker health check failed too many times, use fallback forever
+	if mon.numDockerFailures > dockerFailuresThreshold {
 		return mon.fallback.CheckHealth()
 	}
+
+	ctx, cancel := mon.ContextWithTimeout("docker health check timed out")
+	defer cancel()
+
+	cont, err := mon.client.ContainerInspect(ctx, mon.containerID)
+	if err != nil {
+		mon.numDockerFailures++
+		return mon.fallback.CheckHealth()
+	}
+
 	status := cont.State.Status
 	switch status {
 	case "dead", "exited", "paused", "restarting", "removing":
-		return &types.HealthCheckResult{
+		mon.numDockerFailures = 0
+		return types.HealthCheckResult{
 			Healthy: false,
 			Detail:  "container is " + status,
 		}, nil
 	case "created":
-		return &types.HealthCheckResult{
+		mon.numDockerFailures = 0
+		return types.HealthCheckResult{
 			Healthy: false,
 			Detail:  "container is not started",
 		}, nil
 	}
-	if cont.State.Health == nil {
+	if cont.State.Health == nil { // no health check from docker, directly use fallback starting from next check
+		mon.numDockerFailures = dockerFailuresThreshold + 1
 		return mon.fallback.CheckHealth()
 	}
-	result = new(types.HealthCheckResult)
-	result.Healthy = cont.State.Health.Status == container.Healthy
+
+	mon.numDockerFailures = 0
+	result := types.HealthCheckResult{
+		Healthy: cont.State.Health.Status == container.Healthy,
+	}
 	if len(cont.State.Health.Log) > 0 {
 		lastLog := cont.State.Health.Log[len(cont.State.Health.Log)-1]
 		result.Detail = lastLog.Output
 		result.Latency = lastLog.End.Sub(lastLog.Start)
 	}
-	return
+	return result, nil
 }

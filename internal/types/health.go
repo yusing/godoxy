@@ -34,7 +34,7 @@ type (
 		json.Marshaler
 	}
 	HealthChecker interface {
-		CheckHealth() (result *HealthCheckResult, err error)
+		CheckHealth() (result HealthCheckResult, err error)
 		URL() *url.URL
 		Config() *HealthCheckConfig
 		UpdateURL(url *url.URL)

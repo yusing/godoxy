@@ -20,14 +20,14 @@ import (
 )
 
 type (
-	HealthCheckFunc func() (result *types.HealthCheckResult, err error)
+	HealthCheckFunc func() (result types.HealthCheckResult, err error)
 	monitor         struct {
 		service string
 		config  *types.HealthCheckConfig
 		url     atomic.Value[*url.URL]
 
 		status     atomic.Value[types.HealthStatus]
-		lastResult atomic.Value[*types.HealthCheckResult]
+		lastResult atomic.Value[types.HealthCheckResult]
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
@@ -88,12 +88,13 @@ func newMonitor(u *url.URL, config *types.HealthCheckConfig, healthCheckFunc Hea
 	}
 	mon.url.Store(u)
 	mon.status.Store(types.StatusHealthy)
+	mon.lastResult.Store(types.HealthCheckResult{Healthy: true, Detail: "started"})
 
 	port := u.Port()
 	mon.isZeroPort = port == "" || port == "0"
 	if mon.isZeroPort {
 		mon.status.Store(types.StatusUnknown)
-		mon.lastResult.Store(&types.HealthCheckResult{Healthy: false, Detail: "no port detected"})
+		mon.lastResult.Store(types.HealthCheckResult{Healthy: false, Detail: "no port detected"})
 	}
 	return mon
 }
@@ -207,18 +208,12 @@ func (mon *monitor) Uptime() time.Duration {
 // Latency implements HealthMonitor.
 func (mon *monitor) Latency() time.Duration {
 	res := mon.lastResult.Load()
-	if res == nil {
-		return 0
-	}
 	return res.Latency
 }
 
 // Detail implements HealthMonitor.
 func (mon *monitor) Detail() string {
 	res := mon.lastResult.Load()
-	if res == nil {
-		return ""
-	}
 	return res.Detail
 }
 
@@ -233,15 +228,9 @@ func (mon *monitor) String() string {
 	return mon.Name()
 }
 
-var resHealthy = types.HealthCheckResult{Healthy: true}
-
 // MarshalJSON implements health.HealthMonitor.
 func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
-	if res == nil {
-		res = &resHealthy
-	}
-
 	return (&types.HealthJSONRepr{
 		Name:     mon.service,
 		Config:   mon.config,
@@ -262,7 +251,7 @@ func (mon *monitor) checkUpdateHealth() error {
 	var lastStatus types.HealthStatus
 	switch {
 	case err != nil:
-		result = &types.HealthCheckResult{Healthy: false, Detail: err.Error()}
+		result = types.HealthCheckResult{Healthy: false, Detail: err.Error()}
 		lastStatus = mon.status.Swap(types.StatusError)
 	case result.Healthy:
 		lastStatus = mon.status.Swap(types.StatusHealthy)
@@ -275,12 +264,12 @@ func (mon *monitor) checkUpdateHealth() error {
 	// change of status
 	if result.Healthy != (lastStatus == types.StatusHealthy) {
 		if result.Healthy {
-			mon.notifyServiceUp(&logger, result)
+			mon.notifyServiceUp(&logger, &result)
 			mon.numConsecFailures.Store(0)
 			mon.downNotificationSent.Store(false) // Reset notification state when service comes back up
 		} else if mon.config.Retries < 0 {
 			// immediate notification when retries < 0
-			mon.notifyServiceDown(&logger, result)
+			mon.notifyServiceDown(&logger, &result)
 			mon.downNotificationSent.Store(true)
 		}
 	}
@@ -289,7 +278,7 @@ func (mon *monitor) checkUpdateHealth() error {
 	if !result.Healthy && mon.config.Retries >= 0 {
 		failureCount := mon.numConsecFailures.Add(1)
 		if failureCount >= mon.config.Retries && !mon.downNotificationSent.Load() {
-			mon.notifyServiceDown(&logger, result)
+			mon.notifyServiceDown(&logger, &result)
 			mon.downNotificationSent.Store(true)
 		}
 	}

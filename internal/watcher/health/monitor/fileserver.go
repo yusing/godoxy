@@ -18,18 +18,18 @@ func NewFileServerHealthMonitor(config *types.HealthCheckConfig, path string) *F
 	return mon
 }
 
-func (s *FileServerHealthMonitor) CheckHealth() (*types.HealthCheckResult, error) {
+func (s *FileServerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	start := time.Now()
 	_, err := os.Stat(s.path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &types.HealthCheckResult{
+			return types.HealthCheckResult{
 				Detail: err.Error(),
 			}, nil
 		}
-		return nil, err
+		return types.HealthCheckResult{}, err
 	}
-	return &types.HealthCheckResult{
+	return types.HealthCheckResult{
 		Healthy: true,
 		Latency: time.Since(start),
 	}, nil

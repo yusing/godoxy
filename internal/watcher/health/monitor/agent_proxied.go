@@ -57,19 +57,20 @@ func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *types.HealthChe
 	return mon
 }
 
-func (mon *AgentProxiedMonitor) CheckHealth() (result *types.HealthCheckResult, err error) {
+func (mon *AgentProxiedMonitor) CheckHealth() (result types.HealthCheckResult, err error) {
 	startTime := time.Now()
-	result = new(types.HealthCheckResult)
+
 	ctx, cancel := mon.ContextWithTimeout("timeout querying agent")
 	defer cancel()
-	data, status, err := mon.agent.Fetch(ctx, mon.endpointURL)
+	data, status, err := mon.agent.DoHealthCheck(ctx, mon.endpointURL)
 	if err != nil {
 		return result, err
 	}
+
 	endTime := time.Now()
 	switch status {
 	case http.StatusOK:
-		err = json.Unmarshal(data, result)
+		err = json.Unmarshal(data, &result)
 	default:
 		err = errors.New(string(data))
 	}
