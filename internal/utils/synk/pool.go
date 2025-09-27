@@ -1,33 +1,24 @@
 package synk
 
 import (
-	"runtime"
 	"sync/atomic"
 	"unsafe"
+	"weak"
 )
 
-type weakBuf = unsafe.Pointer
+type weakBuf = weak.Pointer[[]byte]
 
 func makeWeak(b *[]byte) weakBuf {
-	ptr := runtime_registerWeakPointer(unsafe.Pointer(b))
-	addCleanup(b, addGCed, cap(*b))
-	runtime.KeepAlive(ptr)
-	return weakBuf(ptr)
+	return weak.Make(b)
 }
 
 func getBufFromWeak(w weakBuf) []byte {
-	ptr := (*[]byte)(runtime_makeStrongFromWeak(w))
-	if ptr == nil {
-		return nil
+	ptr := w.Value()
+	if ptr != nil {
+		return *ptr
 	}
-	return *ptr
+	return nil
 }
-
-//go:linkname runtime_registerWeakPointer weak.runtime_registerWeakPointer
-func runtime_registerWeakPointer(unsafe.Pointer) unsafe.Pointer
-
-//go:linkname runtime_makeStrongFromWeak weak.runtime_makeStrongFromWeak
-func runtime_makeStrongFromWeak(unsafe.Pointer) unsafe.Pointer
 
 type BytesPool struct {
 	sizedPool   chan weakBuf
