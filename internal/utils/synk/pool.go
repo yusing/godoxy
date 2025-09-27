@@ -101,6 +101,7 @@ func (p *BytesPool) Get() []byte {
 			addReused(cap(bPtr))
 			return bPtr
 		default:
+			addNonPooled(p.initSize)
 			return make([]byte, 0, p.initSize)
 		}
 	}
@@ -115,8 +116,7 @@ func (p *BytesPoolWithMemory) Get() []byte {
 			if bPtr == nil {
 				continue
 			}
-			capB := cap(bPtr)
-			addReused(capB)
+			addReused(cap(bPtr))
 			return bPtr
 		default:
 			addNonPooled(size)
@@ -129,25 +129,25 @@ func (p *BytesPool) GetSized(size int) []byte {
 	for {
 		select {
 		case bWeak := <-p.sizedPool:
-			bPtr := getBufFromWeak(bWeak)
-			if bPtr == nil {
+			b := getBufFromWeak(bWeak)
+			if b == nil {
 				continue
 			}
-			capB := cap(bPtr)
+			capB := cap(b)
 
 			remainingSize := capB - size
 			if remainingSize == 0 {
 				addReused(capB)
-				return bPtr[:size]
+				return b[:size]
 			}
 
 			if remainingSize > 0 { // capB > size (buffer larger than requested)
 				addReused(size)
 
-				p.Put(bPtr[size:capB])
+				p.Put(b[size:capB])
 
 				// return the first part and limit the capacity to the requested size
-				ret := bPtr[:size]
+				ret := b[:size]
 				setLen(&ret, size)
 				setCap(&ret, size)
 				return ret
@@ -157,6 +157,7 @@ func (p *BytesPool) GetSized(size int) []byte {
 			select {
 			case p.sizedPool <- bWeak:
 			default:
+				addDropped(cap(b))
 				// just drop it
 			}
 		default:
@@ -169,13 +170,14 @@ func (p *BytesPool) GetSized(size int) []byte {
 func (p *BytesPool) Put(b []byte) {
 	size := cap(b)
 	if size > DropThreshold {
+		addDropped(size)
 		return
 	}
 	b = b[:0]
 	if size >= SizedPoolThreshold {
-		p.put(makeWeak(&b), p.sizedPool)
+		p.put(size, makeWeak(&b), p.sizedPool)
 	} else {
-		p.put(makeWeak(&b), p.unsizedPool)
+		p.put(size, makeWeak(&b), p.unsizedPool)
 	}
 }
 
@@ -208,6 +210,7 @@ func (p *BytesPoolWithMemory) Put(b []byte) {
 	}
 
 	if capB > DropThreshold {
+		addDropped(int(capB))
 		return
 	}
 	b = b[:0]
@@ -215,15 +218,17 @@ func (p *BytesPoolWithMemory) Put(b []byte) {
 	select {
 	case p.pool <- w:
 	default:
+		addDropped(int(capB))
 		// just drop it
 	}
 }
 
 //go:inline
-func (p *BytesPool) put(w weakBuf, pool chan weakBuf) {
+func (p *BytesPool) put(size int, w weakBuf, pool chan weakBuf) {
 	select {
 	case pool <- w:
 	default:
+		addDropped(size)
 		// just drop it
 	}
 }

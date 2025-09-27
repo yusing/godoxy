@@ -5,7 +5,6 @@ package synk
 import (
 	"os"
 	"os/signal"
-	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -13,28 +12,30 @@ import (
 	"github.com/yusing/godoxy/internal/utils/strutils"
 )
 
+type poolCounters struct {
+	num  atomic.Uint64
+	size atomic.Uint64
+}
+
 var (
-	numNonPooled, sizeNonPooled uint64
-	numReused, sizeReused       uint64
-	numGCed, sizeGCed           uint64
+	nonPooled poolCounters
+	dropped   poolCounters
+	reused    poolCounters
 )
 
 func addNonPooled(size int) {
-	atomic.AddUint64(&numNonPooled, 1)
-	atomic.AddUint64(&sizeNonPooled, uint64(size))
+	nonPooled.num.Add(1)
+	nonPooled.size.Add(uint64(size))
 }
 
 func addReused(size int) {
-	atomic.AddUint64(&numReused, 1)
-	atomic.AddUint64(&sizeReused, uint64(size))
+	reused.num.Add(1)
+	reused.size.Add(uint64(size))
 }
-
-func addGCed(size int) {
-	atomic.AddUint64(&numGCed, 1)
-	atomic.AddUint64(&sizeGCed, uint64(size))
+func addDropped(size int) {
+	dropped.num.Add(1)
+	dropped.size.Add(uint64(size))
 }
-
-var addCleanup = runtime.AddCleanup[[]byte, int]
 
 func initPoolStats() {
 	go func() {
@@ -50,12 +51,12 @@ func initPoolStats() {
 				return
 			case <-statsTicker.C:
 				log.Info().
-					Uint64("numReused", atomic.LoadUint64(&numReused)).
-					Str("sizeReused", strutils.FormatByteSize(atomic.LoadUint64(&sizeReused))).
-					Uint64("numGCed", atomic.LoadUint64(&numGCed)).
-					Str("sizeGCed", strutils.FormatByteSize(atomic.LoadUint64(&sizeGCed))).
-					Uint64("numNonPooled", atomic.LoadUint64(&numNonPooled)).
-					Str("sizeNonPooled", strutils.FormatByteSize(atomic.LoadUint64(&sizeNonPooled))).
+					Uint64("numReused", reused.num.Load()).
+					Str("sizeReused", strutils.FormatByteSize(reused.size.Load())).
+					Uint64("numDropped", dropped.num.Load()).
+					Str("sizeDropped", strutils.FormatByteSize(dropped.size.Load())).
+					Uint64("numNonPooled", nonPooled.num.Load()).
+					Str("sizeNonPooled", strutils.FormatByteSize(nonPooled.size.Load())).
 					Msg("bytes pool stats")
 			}
 		}
