@@ -19,7 +19,6 @@ import (
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/maxmind"
-	"github.com/yusing/godoxy/internal/net/gphttp/server"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	proxy "github.com/yusing/godoxy/internal/route/provider"
@@ -27,6 +26,7 @@ import (
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/strings/ansi"
 	"github.com/yusing/goutils/task"
 )

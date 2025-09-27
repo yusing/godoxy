@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 )
 
@@ -28,8 +28,8 @@ func (customErrorPage) before(w http.ResponseWriter, r *http.Request) (proceed b
 // modifyResponse implements ResponseModifier.
 func (customErrorPage) modifyResponse(resp *http.Response) error {
 	// only handles non-success status code and html/plain content type
-	contentType := gphttp.GetContentType(resp.Header)
-	if !gphttp.IsSuccess(resp.StatusCode) && (contentType.IsHTML() || contentType.IsPlainText()) {
+	contentType := httputils.GetContentType(resp.Header)
+	if !httputils.IsSuccess(resp.StatusCode) && (contentType.IsHTML() || contentType.IsPlainText()) {
 		errorPage, ok := errorpage.GetErrorPageByStatus(resp.StatusCode)
 		if ok {
 			log.Debug().Msgf("error page for status %d loaded", resp.StatusCode)

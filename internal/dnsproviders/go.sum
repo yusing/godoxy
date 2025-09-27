@@ -1513,8 +1513,8 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/yusing/goutils v0.3.1 h1:xCPoZ/haI8ZJ0ZaPU4g6+okSPdBczs8o98tIZ/TbpsQ=
-github.com/yusing/goutils v0.3.1/go.mod h1:meg9GcAU8yvBY21JgYjPuLsXD1Q5VdVHE32A4tG5Y5g=
+github.com/yusing/goutils v0.4.1 h1:80uFNxXfm4zXMYDku0rWMLyqEiXO0UOMFOaUC4b/6fI=
+github.com/yusing/goutils v0.4.1/go.mod h1:xsoLWLtIiu7k+9Bn6azERDs5o3Djb3b2/DW1htHrOjg=
 github.com/zeebo/assert v1.3.0/go.mod h1:Pq9JiuJQpG8JLJdtkwrJESF0Foym2/D9XMU5ciN/wJ0=
 github.com/zeebo/xxh3 v1.0.2/go.mod h1:5NWz9Sef7zIDm2JHfFlcQvNekmcEl9ekUZQQKCYaDcA=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=

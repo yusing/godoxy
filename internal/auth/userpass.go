@@ -8,8 +8,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/net/gphttp"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -122,7 +122,7 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	token, err := auth.NewToken()
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		gphttp.LogError(r).Msg(fmt.Sprintf("failed to generate token: %v", err))
+		httputils.LogError(r).Msg(fmt.Sprintf("failed to generate token: %v", err))
 		return
 	}
 	SetTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)

@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/puzpuzpuz/xsync/v4"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
-	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 type logEntryRange struct {

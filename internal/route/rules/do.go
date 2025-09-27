@@ -9,6 +9,7 @@ import (
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -118,7 +119,7 @@ var commands = map[string]struct {
 			if err != nil {
 				return nil, ErrInvalidArguments.With(err)
 			}
-			if !gphttp.IsStatusCodeValid(code) {
+			if !httputils.IsStatusCodeValid(code) {
 				return nil, ErrInvalidArguments.Subject(codeStr)
 			}
 			return &Tuple[int, string]{code, text}, nil

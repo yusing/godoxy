@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	api "github.com/yusing/godoxy/internal/api/v1"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 )
 
@@ -79,7 +79,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	accept := gphttp.GetAccept(r.Header)
+	accept := httputils.GetAccept(r.Header)
 	acceptHTML := (r.Method == http.MethodGet && accept.AcceptHTML() || r.RequestURI == "/" && accept.IsEmpty())
 
 	isCheckRedirect := r.Header.Get(httpheaders.HeaderGoDoxyCheckRedirect) != ""
@@ -108,7 +108,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	err := w.Wake(ctx)
 	if err != nil {
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
-		gphttp.LogError(r).Msg(fmt.Sprintf("failed to wake: %v", err))
+		httputils.LogError(r).Msg(fmt.Sprintf("failed to wake: %v", err))
 		return false
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/vincent-petithory/dataurl"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
+	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -196,7 +197,7 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) 
 		return &FetchResult{StatusCode: c.status, ErrMsg: "upstream error: " + string(c.data)}
 	}
 	// return icon data
-	if !gphttp.GetContentType(c.header).IsHTML() {
+	if !httputils.GetContentType(c.header).IsHTML() {
 		return &FetchResult{Icon: c.data, contentType: c.header.Get("Content-Type")}
 	}
 	// try extract from "link[rel=icon]" from path "/"

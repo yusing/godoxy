@@ -10,9 +10,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -179,7 +179,7 @@ func (m *Middleware) ModifyResponse(resp *http.Response) error {
 
 func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
 	if exec, ok := m.impl.(ResponseModifier); ok {
-		w = gphttp.NewModifyResponseWriter(w, r, func(resp *http.Response) error {
+		w = httputils.NewModifyResponseWriter(w, r, func(resp *http.Response) error {
 			return exec.modifyResponse(resp)
 		})
 	}

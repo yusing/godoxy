@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/puzpuzpuz/xsync/v4"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/serialization"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type (
@@ -35,7 +35,7 @@ var (
 func init() {
 	serialization.MustRegisterValidation("status_code", func(fl validator.FieldLevel) bool {
 		statusCode := fl.Field().Int()
-		return gphttp.IsStatusCodeValid(int(statusCode))
+		return httputils.IsStatusCodeValid(int(statusCode))
 	})
 }
 

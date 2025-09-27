@@ -42,15 +42,15 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/oschwald/maxminddb-golang v1.13.1
-	github.com/quic-go/quic-go v0.54.1 // http3 support
-	github.com/samber/slog-zerolog/v2 v2.7.3
+	github.com/quic-go/quic-go v0.54.1 // indirect; http3 support
+	github.com/samber/slog-zerolog/v2 v2.7.3 // indirect
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.2.0
 	github.com/yusing/godoxy/agent v0.0.0-20250926130035-55c1c918ba95
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250926130035-55c1c918ba95
 	github.com/yusing/godoxy/internal/utils v0.1.0
-	github.com/yusing/goutils v0.3.1
+	github.com/yusing/goutils v0.4.1
 )
 
 require (

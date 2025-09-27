@@ -10,9 +10,9 @@ import (
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 type (

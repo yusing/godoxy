@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 type RouteType route.Route // @name Route

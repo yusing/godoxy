@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 type StatsResponse struct {

@@ -9,9 +9,9 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/server"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	httpServer "github.com/yusing/godoxy/internal/net/gphttp/server"
 	"github.com/yusing/godoxy/pkg"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
+	httpServer "github.com/yusing/goutils/server"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 )

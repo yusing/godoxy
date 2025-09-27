@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/gobwas/glob"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type (
@@ -169,7 +169,7 @@ func validateMethod(args []string) (any, gperr.Error) {
 		return nil, ErrExpectOneArg
 	}
 	method := strings.ToUpper(args[0])
-	if !gphttp.IsMethodValid(method) {
+	if !httputils.IsMethodValid(method) {
 		return nil, ErrInvalidArguments.Subject(method)
 	}
 	return method, nil

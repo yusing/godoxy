@@ -8,7 +8,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/rs/zerolog/log"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 	"github.com/yusing/goutils/synk"
@@ -36,7 +35,7 @@ func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
 // modifyResponse implements ResponseModifier.
 func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	// including text/html and application/xhtml+xml
-	if !gphttp.GetContentType(resp.Header).IsHTML() {
+	if !httputils.GetContentType(resp.Header).IsHTML() {
 		return nil
 	}
 

@@ -16,9 +16,9 @@ import (
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 	"github.com/yusing/goutils/synk"
 )
 

@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/handler"
-	"github.com/yusing/godoxy/internal/net/gphttp/server"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
-	"github.com/yusing/godoxy/internal/net/gphttp"
+	httputils "github.com/yusing/goutils/http"
 
 	_ "embed"
 )
@@ -31,7 +31,7 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 		}
 	}
 
-	if !gphttp.GetAccept(r.Header).AcceptHTML() {
+	if !httputils.GetAccept(r.Header).AcceptHTML() {
 		http.Error(w, "Captcha is required", http.StatusForbidden)
 		return false
 	}

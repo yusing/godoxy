@@ -208,8 +208,8 @@ github.com/vincent-petithory/dataurl v1.0.0/go.mod h1:FHafX5vmDzyP+1CQATJn7WFKc9
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusing/ds v0.2.0 h1:lPhDU5eA2uvquVrBrzLCrQXRJJgSXlUYA53TbuK2sQY=
 github.com/yusing/ds v0.2.0/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
-github.com/yusing/goutils v0.3.1 h1:xCPoZ/haI8ZJ0ZaPU4g6+okSPdBczs8o98tIZ/TbpsQ=
-github.com/yusing/goutils v0.3.1/go.mod h1:meg9GcAU8yvBY21JgYjPuLsXD1Q5VdVHE32A4tG5Y5g=
+github.com/yusing/goutils v0.4.1 h1:80uFNxXfm4zXMYDku0rWMLyqEiXO0UOMFOaUC4b/6fI=
+github.com/yusing/goutils v0.4.1/go.mod h1:xsoLWLtIiu7k+9Bn6azERDs5o3Djb3b2/DW1htHrOjg=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=

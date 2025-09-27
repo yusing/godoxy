@@ -17,8 +17,6 @@ var (
 	IsDebug = env.GetEnvBool("DEBUG", IsTest)
 	IsTrace = env.GetEnvBool("TRACE", false) && IsDebug
 
-	HTTP3Enabled = env.GetEnvBool("HTTP3_ENABLED", true)
-
 	ProxyHTTPAddr,
 	ProxyHTTPHost,
 	ProxyHTTPPort,

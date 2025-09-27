@@ -15,9 +15,9 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 )
@@ -318,14 +318,14 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	oauth2Token, err := auth.oauthConfig.Exchange(r.Context(), code, optRedirectPostAuth(r))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		gphttp.LogError(r).Msg(fmt.Sprintf("failed to exchange token: %v", err))
+		httputils.LogError(r).Msg(fmt.Sprintf("failed to exchange token: %v", err))
 		return
 	}
 
 	idTokenJWT, idToken, err := auth.getIDToken(r.Context(), oauth2Token)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		gphttp.LogError(r).Msg(fmt.Sprintf("failed to get ID token: %v", err))
+		httputils.LogError(r).Msg(fmt.Sprintf("failed to get ID token: %v", err))
 		return
 	}
 
@@ -333,7 +333,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		claims, err := parseClaims(idToken)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			gphttp.LogError(r).Msg(fmt.Sprintf("failed to parse claims: %v", err))
+			httputils.LogError(r).Msg(fmt.Sprintf("failed to parse claims: %v", err))
 			return
 		}
 		session := newSession(claims.Username, claims.Groups)
