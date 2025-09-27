@@ -121,7 +121,8 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	}
 	token, err := auth.NewToken()
 	if err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		gphttp.LogError(r).Msg(fmt.Sprintf("failed to generate token: %v", err))
 		return
 	}
 	SetTokenCookie(w, r, auth.TokenCookieName(), token, auth.tokenTTL)

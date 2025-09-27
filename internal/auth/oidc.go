@@ -317,20 +317,23 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	code := r.URL.Query().Get("code")
 	oauth2Token, err := auth.oauthConfig.Exchange(r.Context(), code, optRedirectPostAuth(r))
 	if err != nil {
-		gphttp.ServerError(w, r, fmt.Errorf("failed to exchange token: %w", err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		gphttp.LogError(r).Msg(fmt.Sprintf("failed to exchange token: %v", err))
 		return
 	}
 
 	idTokenJWT, idToken, err := auth.getIDToken(r.Context(), oauth2Token)
 	if err != nil {
-		gphttp.ServerError(w, r, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		gphttp.LogError(r).Msg(fmt.Sprintf("failed to get ID token: %v", err))
 		return
 	}
 
 	if oauth2Token.RefreshToken != "" {
 		claims, err := parseClaims(idToken)
 		if err != nil {
-			gphttp.ServerError(w, r, err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			gphttp.LogError(r).Msg(fmt.Sprintf("failed to parse claims: %v", err))
 			return
 		}
 		session := newSession(claims.Username, claims.Groups)

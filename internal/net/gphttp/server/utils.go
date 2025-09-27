@@ -1,15 +1,19 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
+	"syscall"
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	slogzerolog "github.com/samber/slog-zerolog/v2"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 func advertiseHTTP3(handler http.Handler, h3 *http3.Server) http.Handler {
@@ -17,7 +21,17 @@ func advertiseHTTP3(handler http.Handler, h3 *http3.Server) http.Handler {
 		if r.ProtoMajor < 3 {
 			err := h3.SetQUICHeaders(w.Header())
 			if err != nil {
-				gphttp.ServerError(w, r, err)
+				switch {
+				case errors.Is(err, context.Canceled),
+					errors.Is(err, syscall.EPIPE),
+					errors.Is(err, syscall.ECONNRESET):
+					return
+				}
+				gphttp.LogError(r).Msg(err.Error())
+				if httpheaders.IsWebsocket(r.Header) {
+					return
+				}
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 		}
