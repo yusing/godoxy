@@ -6,7 +6,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/yusing/godoxy/internal/utils/strutils/ansi"
+	"github.com/yusing/goutils/strings/ansi"
 )
 
 //nolint:errname

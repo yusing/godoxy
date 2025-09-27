@@ -11,9 +11,9 @@ import (
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/gperr"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	. "github.com/yusing/godoxy/internal/utils/testing"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 //go:embed test_data/sample_headers.json
@@ -152,7 +152,7 @@ func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult,
 		rr.parent = http.DefaultTransport
 	}
 
-	rp := reverseproxy.NewReverseProxy("test", args.upstreamURL, rr)
+	rp := reverseproxy.NewReverseProxy("test", &args.upstreamURL.URL, rr)
 	patchReverseProxy(rp, middlewares)
 	rp.ServeHTTP(w, req)
 

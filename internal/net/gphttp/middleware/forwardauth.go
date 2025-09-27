@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/godoxy/internal/route/routes"
-	"github.com/yusing/godoxy/internal/utils"
+	httputils "github.com/yusing/goutils/http"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type (
@@ -91,7 +91,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		body, release, err := utils.ReadAllBody(resp)
+		body, release, err := httputils.ReadAllBody(resp)
 		defer release()
 
 		if err != nil {

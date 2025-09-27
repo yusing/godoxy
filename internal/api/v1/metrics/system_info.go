@@ -10,7 +10,7 @@ import (
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type SystemInfoRequest struct {

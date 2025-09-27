@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func (p *Provider) Setup() (err error) {

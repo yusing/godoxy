@@ -5,10 +5,10 @@ import (
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/homepage"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils/pool"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 type (

@@ -1,6 +1,6 @@
 package gperr
 
-import "github.com/yusing/godoxy/internal/utils/strutils/ansi"
+import "github.com/yusing/goutils/strings/ansi"
 
 type Hint struct {
 	Prefix  string

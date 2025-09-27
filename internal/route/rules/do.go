@@ -8,9 +8,9 @@ import (
 
 	"github.com/yusing/godoxy/internal/gperr"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
@@ -164,7 +164,7 @@ var commands = map[string]struct {
 			if target.Scheme == "" {
 				target.Scheme = "http"
 			}
-			rp := reverseproxy.NewReverseProxy("", target, gphttp.NewTransport())
+			rp := reverseproxy.NewReverseProxy("", &target.URL, gphttp.NewTransport())
 			return ReturningCommand(rp.ServeHTTP)
 		},
 	},

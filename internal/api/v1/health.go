@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type HealthMap = map[string]routes.HealthInfo //	@name	HealthMap

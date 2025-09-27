@@ -6,7 +6,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const AgentCertsBasePath = "certs"

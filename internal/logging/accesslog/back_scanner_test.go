@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/yusing/godoxy/internal/task"
-	"github.com/yusing/godoxy/internal/utils/strutils"
 	expect "github.com/yusing/godoxy/internal/utils/testing"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func TestBackScanner(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"github.com/yusing/godoxy/internal/gperr"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/task"
-	"github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/strutils"
-	"github.com/yusing/godoxy/internal/utils/synk"
+	ioutils "github.com/yusing/goutils/io"
+	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 	"golang.org/x/time/rate"
 )
 
@@ -26,7 +26,7 @@ type (
 		rawWriter     io.Writer
 		closer        []io.Closer
 		supportRotate []supportRotate
-		writer        *utils.BufferedWriter
+		writer        *ioutils.BufferedWriter
 		writeLock     sync.Mutex
 		closed        bool
 
@@ -119,7 +119,7 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
 		rawWriter:      writer,
-		writer:         utils.NewBufferedWriter(writer, MinBufferSize),
+		writer:         ioutils.NewBufferedWriter(writer, MinBufferSize),
 		bufSize:        MinBufferSize,
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         log.With().Str("file", writer.Name()).Logger(),

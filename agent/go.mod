@@ -19,9 +19,8 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/godoxy v0.18.6
-	github.com/yusing/godoxy/internal/utils v0.0.0
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72
+	github.com/yusing/goutils v0.2.1
 )
 
 require (
@@ -89,7 +88,8 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
-	github.com/yusing/ds v0.1.0 // indirect
+	github.com/yusing/ds v0.2.0 // indirect
+	github.com/yusing/godoxy/internal/utils v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect

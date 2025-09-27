@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/net/gphttp"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 	"golang.org/x/crypto/bcrypt"
 )
 

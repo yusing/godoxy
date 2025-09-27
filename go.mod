@@ -17,12 +17,14 @@ require (
 	github.com/coreos/go-oidc/v3 v3.15.0 // oidc authentication
 	github.com/docker/docker v28.4.0+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
+	github.com/gin-gonic/gin v1.11.0 // api server
 	github.com/go-acme/lego/v4 v4.26.0 // acme client
 	github.com/go-playground/validator/v10 v10.27.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.7.3 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
+	github.com/pires/go-proxyproto v0.8.1 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/shirou/gopsutil/v4 v4.25.8 // system info metrics
@@ -40,13 +42,15 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/oschwald/maxminddb-golang v1.13.1
-	github.com/quic-go/quic-go v0.54.1
+	github.com/quic-go/quic-go v0.54.1 // http3 support
 	github.com/samber/slog-zerolog/v2 v2.7.3
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
+	github.com/yusing/ds v0.2.0
 	github.com/yusing/godoxy/agent v0.0.0-20250926130035-55c1c918ba95
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250926130035-55c1c918ba95
-	github.com/yusing/godoxy/internal/utils v0.0.0
+	github.com/yusing/godoxy/internal/utils v0.1.0
+	github.com/yusing/goutils v0.2.1
 )
 
 require (
@@ -208,13 +212,6 @@ require (
 	gopkg.in/ns1/ns1-go.v2 v2.15.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-require (
-	github.com/gin-gonic/gin v1.11.0
-	github.com/pires/go-proxyproto v0.8.1
-	github.com/yusing/ds v0.1.0
-	github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72
 )
 
 require (

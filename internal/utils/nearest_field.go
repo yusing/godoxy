@@ -3,7 +3,7 @@ package utils
 import (
 	"reflect"
 
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func NearestField(input string, s any) string {

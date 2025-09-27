@@ -26,9 +26,9 @@ import (
 	proxy "github.com/yusing/godoxy/internal/route/provider"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/task"
-	"github.com/yusing/godoxy/internal/utils/strutils/ansi"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
+	"github.com/yusing/goutils/strings/ansi"
 )
 
 type Config struct {

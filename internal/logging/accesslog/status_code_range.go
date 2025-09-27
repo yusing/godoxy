@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/yusing/godoxy/internal/gperr"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type StatusCodeRange struct {

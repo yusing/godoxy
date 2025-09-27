@@ -15,7 +15,6 @@ import (
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/task"
@@ -24,6 +23,7 @@ import (
 	"github.com/yusing/godoxy/internal/utils/atomic"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
+	"github.com/yusing/goutils/http/reverseproxy"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )

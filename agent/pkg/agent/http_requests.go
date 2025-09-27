@@ -6,8 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 func (cfg *AgentConfig) Do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
@@ -74,7 +73,7 @@ func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websoc
 // It will create a new request with the same context, method, and body, but with the agent host and scheme, and the endpoint
 // If the request has a query, it will be added to the proxy request's URL
 func (cfg *AgentConfig) ReverseProxy(w http.ResponseWriter, req *http.Request, endpoint string) {
-	rp := reverseproxy.NewReverseProxy("agent", nettypes.NewURL(AgentURL), cfg.Transport())
+	rp := reverseproxy.NewReverseProxy("agent", AgentURL, cfg.Transport())
 	req.URL.Host = AgentHost
 	req.URL.Scheme = "https"
 	req.URL.Path = endpoint

@@ -7,7 +7,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 var ErrInvalidLabel = gperr.New("invalid label")

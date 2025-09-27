@@ -1646,10 +1646,10 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/yusing/ds v0.1.0 h1:aiZs7jPMN3MEChUsddMYjpZFHhhAmkxrwRyIUnGy5AU=
-github.com/yusing/ds v0.1.0/go.mod h1:KC785+mtt+Bau0LLR+slExDaUjeiqLT1k9Or6Rpryh4=
-github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72 h1:NHYq8ZqoLSCJYzZaIOn8mJ28/Ac7GEFgeZgcfBoamWE=
-github.com/yusing/goutils v0.0.0-20250922091446-1c6a11717d72/go.mod h1:XROGErdAT8UxsbLQbpejGhrTpknWEEgy+9HVjq7ULBI=
+github.com/yusing/ds v0.2.0 h1:lPhDU5eA2uvquVrBrzLCrQXRJJgSXlUYA53TbuK2sQY=
+github.com/yusing/ds v0.2.0/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
+github.com/yusing/goutils v0.2.1 h1:KjoCrNO0otthaPCZPfQY+5GKsqs5+J77CxP+TNHYa/Y=
+github.com/yusing/goutils v0.2.1/go.mod h1:v6RZsMRdzcts4udSg0vqUIFvaD0OaUMPTwYJZ4XnQYo=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 github.com/zeebo/assert v1.3.0/go.mod h1:Pq9JiuJQpG8JLJdtkwrJESF0Foym2/D9XMU5ciN/wJ0=

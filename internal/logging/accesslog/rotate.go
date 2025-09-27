@@ -8,8 +8,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/strutils"
-	"github.com/yusing/godoxy/internal/utils/synk"
+	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 )
 
 type supportRotate interface {

@@ -12,12 +12,11 @@ import (
 
 	"github.com/yusing/godoxy/internal/entrypoint"
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
-	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/task"
 	expect "github.com/yusing/godoxy/internal/utils/testing"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 func noOpHandler(w http.ResponseWriter, r *http.Request) {}
@@ -102,8 +101,10 @@ func (f fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestReverseProxyBypass(t *testing.T) {
-	rp := reverseproxy.NewReverseProxy("test", nettypes.MustParseURL("http://example.com"), fakeRoundTripper{})
-	err := PatchReverseProxy(rp, map[string]OptionsRaw{
+	url, err := url.Parse("http://example.com")
+	expect.NoError(t, err)
+	rp := reverseproxy.NewReverseProxy("test", url, fakeRoundTripper{})
+	err = PatchReverseProxy(rp, map[string]OptionsRaw{
 		"response": {
 			"bypass": "path /test/* | path /api",
 			"set_headers": map[string]string{

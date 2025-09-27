@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils/strutils"
 	"github.com/yusing/godoxy/internal/watcher"
 )
 
@@ -157,7 +156,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 		// check if it is an alias reference
 		switch alias[0] {
 		case aliasRefPrefix, aliasRefPrefixAlt:
-			index, err := strutils.Atoi(alias[1:])
+			index, err := strconv.Atoi(alias[1:])
 			if err != nil {
 				errs.Add(err)
 				break

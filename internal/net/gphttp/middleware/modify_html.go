@@ -9,8 +9,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/rs/zerolog/log"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
-	"github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/synk"
+	httputils "github.com/yusing/goutils/http"
+	ioutils "github.com/yusing/goutils/io"
+	"github.com/yusing/goutils/synk"
 	"golang.org/x/net/html"
 )
 
@@ -40,7 +41,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	}
 
 	// NOTE: do not put it in the defer, it will be used as resp.Body
-	content, release, err := utils.ReadAllBody(resp)
+	content, release, err := httputils.ReadAllBody(resp)
 	if err != nil {
 		resp.Body.Close()
 		return err
@@ -71,19 +72,19 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	}
 
 	buf := bytes.NewBuffer(content[:0])
-	err = buildHTML(m, doc, buf)
+	err = buildHTML(doc, buf)
 	if err != nil {
 		return err
 	}
 	resp.ContentLength = int64(buf.Len())
 	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
-	resp.Body = utils.NewHookCloser(io.NopCloser(bytes.NewReader(buf.Bytes())), release)
+	resp.Body = ioutils.NewHookReadCloser(io.NopCloser(bytes.NewReader(buf.Bytes())), release)
 	return nil
 }
 
 // copied and modified from	(*goquery.Selection).Html()
-func buildHTML(m *modifyHTML, s *goquery.Document, buf *bytes.Buffer) error {
+func buildHTML(s *goquery.Document, buf *bytes.Buffer) error {
 	// Merge all head nodes into one
 	headNodes := s.Find("head")
 	if headNodes.Length() > 1 {

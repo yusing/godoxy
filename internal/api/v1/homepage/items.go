@@ -12,9 +12,9 @@ import (
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/homepage"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type HomepageItemsRequest struct {

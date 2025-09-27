@@ -7,7 +7,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/gperr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (

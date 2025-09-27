@@ -9,8 +9,8 @@ import (
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/strutils"
 	expect "github.com/yusing/godoxy/internal/utils/testing"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 var (

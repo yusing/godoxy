@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/yusing/godoxy/internal/homepage/widgets"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const endpointTransferInfo = "/api/v2/transfer/info"

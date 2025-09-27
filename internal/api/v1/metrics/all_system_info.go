@@ -17,9 +17,9 @@ import (
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
-	"github.com/yusing/godoxy/internal/utils/synk"
+	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/synk"
 )
 
 var (

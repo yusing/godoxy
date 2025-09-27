@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type (

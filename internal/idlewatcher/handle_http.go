@@ -7,7 +7,7 @@ import (
 
 	api "github.com/yusing/godoxy/internal/api/v1"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type ForceCacheControl struct {
@@ -107,7 +107,8 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	w.l.Trace().Msg("signal received")
 	err := w.Wake(ctx)
 	if err != nil {
-		gphttp.ServerError(rw, r, err)
+		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
+		gphttp.LogError(r).Msg(fmt.Sprintf("failed to wake: %v", err))
 		return false
 	}
 

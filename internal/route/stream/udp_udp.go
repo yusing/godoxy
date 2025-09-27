@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	config "github.com/yusing/godoxy/internal/config/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils/synk"
+	"github.com/yusing/goutils/synk"
 	"go.uber.org/atomic"
 )
 

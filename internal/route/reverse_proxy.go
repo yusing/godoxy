@@ -13,13 +13,13 @@ import (
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/net/gphttp/loadbalancer"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
-	"github.com/yusing/godoxy/internal/net/gphttp/reverseproxy"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	"github.com/yusing/godoxy/pkg"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 type ReveseProxyRoute struct {
@@ -59,7 +59,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	}
 
 	service := base.Name()
-	rp := reverseproxy.NewReverseProxy(service, proxyURL, trans)
+	rp := reverseproxy.NewReverseProxy(service, &proxyURL.URL, trans)
 
 	if len(base.Middlewares) > 0 {
 		err := middleware.PatchReverseProxy(rp, base.Middlewares)

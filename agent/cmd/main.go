@@ -12,9 +12,9 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	httpServer "github.com/yusing/godoxy/internal/net/gphttp/server"
 	"github.com/yusing/godoxy/internal/task"
-	"github.com/yusing/godoxy/internal/utils/strutils"
 	"github.com/yusing/godoxy/pkg"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func main() {

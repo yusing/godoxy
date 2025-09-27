@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	config "github.com/yusing/godoxy/internal/config/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils"
+	ioutils "github.com/yusing/goutils/io"
 	"go.uber.org/atomic"
 )
 
@@ -153,7 +153,7 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 		}
 	}
 
-	pipe := utils.NewBidirectionalPipe(ctx, src, dst)
+	pipe := ioutils.NewBidirectionalPipe(ctx, src, dst)
 	if err := pipe.Start(); err != nil && !s.closed.Load() {
 		logErr(s, err, "error in bidirectional pipe")
 	}

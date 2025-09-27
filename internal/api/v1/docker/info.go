@@ -7,7 +7,7 @@ import (
 	dockerSystem "github.com/docker/docker/api/types/system"
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/gperr"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type containerStats struct {

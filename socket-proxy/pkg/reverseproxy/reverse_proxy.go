@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yusing/godoxy/internal/utils"
+	ioutils "github.com/yusing/goutils/io"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -218,7 +218,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(res.StatusCode)
 
-	err = utils.CopyCloseWithContext(ctx, rw, res.Body, int(res.ContentLength))
+	err = ioutils.CopyCloseWithContext(ctx, rw, res.Body, int(res.ContentLength))
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			p.getErrorHandler()(rw, req, err)

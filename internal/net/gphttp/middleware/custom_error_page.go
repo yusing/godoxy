@@ -10,8 +10,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
-	"github.com/yusing/godoxy/internal/net/gphttp/httpheaders"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type customErrorPage struct{}

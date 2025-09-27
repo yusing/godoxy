@@ -15,7 +15,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/strutils"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type SerializedObject = map[string]any

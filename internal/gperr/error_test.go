@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yusing/godoxy/internal/utils/strutils/ansi"
 	expect "github.com/yusing/godoxy/internal/utils/testing"
+	"github.com/yusing/goutils/strings/ansi"
 )
 
 func TestBaseString(t *testing.T) {
