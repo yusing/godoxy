@@ -9,12 +9,12 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/gperr"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
-	"github.com/yusing/godoxy/internal/task"
+	gperr "github.com/yusing/goutils/errs"
 	ioutils "github.com/yusing/goutils/io"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
+	"github.com/yusing/goutils/task"
 	"golang.org/x/time/rate"
 )
 

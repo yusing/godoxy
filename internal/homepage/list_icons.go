@@ -15,8 +15,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/godoxy/internal/task"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 type (

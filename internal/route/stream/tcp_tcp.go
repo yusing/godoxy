@@ -168,12 +168,12 @@ type wrapperConn struct {
 func (w *wrapperConn) Read(b []byte) (n int, err error) {
 	n, err = w.Conn.Read(b)
 	if err != nil {
-		return
+		return n, err
 	}
 	if w.onRead != nil {
 		if err = w.onRead(w.ctx); err != nil {
-			return
+			return n, err
 		}
 	}
-	return
+	return n, err
 }

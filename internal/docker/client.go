@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
 )
 
 // TODO: implement reconnect here.

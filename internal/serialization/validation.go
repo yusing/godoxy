@@ -2,7 +2,7 @@ package serialization
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var validate = validator.New()

@@ -2,8 +2,8 @@ package config
 
 import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/route/provider"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 func (cfg *Config) VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {

@@ -3,6 +3,8 @@ package agent
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,14 +12,11 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"strings"
 	"time"
-
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"fmt"
 )
 
 const (
@@ -244,5 +243,5 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 	}
 
 	client = toPEMPair(clientCertDER, clientKey)
-	return
+	return ca, srv, client, err
 }

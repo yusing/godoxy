@@ -130,5 +130,5 @@ func (rule *Rule) Check(cached Cache, r *http.Request) bool {
 
 func (rule *Rule) Handle(cached Cache, w http.ResponseWriter, r *http.Request) (proceed bool) {
 	proceed = rule.Do.exec.Handle(cached, w, r)
-	return
+	return proceed
 }

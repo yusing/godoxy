@@ -10,7 +10,7 @@ type CIDR net.IPNet
 
 func ParseCIDR(v string) (cidr CIDR, err error) {
 	err = cidr.Parse(v)
-	return
+	return cidr, err
 }
 
 func (cidr *CIDR) Parse(v string) error {

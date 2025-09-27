@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 

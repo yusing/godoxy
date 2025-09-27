@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 // Cookie header should be removed,

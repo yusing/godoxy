@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 

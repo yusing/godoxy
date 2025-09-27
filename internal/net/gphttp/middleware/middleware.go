@@ -10,9 +10,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/gperr"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/serialization"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -207,10 +207,10 @@ func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (
 	var middlewares []*Middleware
 	middlewares, err = compileMiddlewares(middlewaresMap)
 	if err != nil {
-		return
+		return err
 	}
 	patchReverseProxy(rp, middlewares)
-	return
+	return err
 }
 
 func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) {

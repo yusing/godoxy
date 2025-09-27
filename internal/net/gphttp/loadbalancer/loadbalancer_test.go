@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/yusing/godoxy/internal/types"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRebalance(t *testing.T) {
@@ -15,7 +15,7 @@ func TestRebalance(t *testing.T) {
 			lb.AddServer(TestNewServer(0))
 		}
 		lb.rebalance()
-		ExpectEqual(t, lb.sumWeight, maxWeight)
+		expect.Equal(t, lb.sumWeight, maxWeight)
 	})
 	t.Run("less", func(t *testing.T) {
 		lb := New(new(types.LoadBalancerConfig))
@@ -26,7 +26,7 @@ func TestRebalance(t *testing.T) {
 		lb.AddServer(TestNewServer(float64(maxWeight) * .1))
 		lb.rebalance()
 		// t.Logf("%s", U.Must(json.MarshalIndent(lb.pool, "", "  ")))
-		ExpectEqual(t, lb.sumWeight, maxWeight)
+		expect.Equal(t, lb.sumWeight, maxWeight)
 	})
 	t.Run("more", func(t *testing.T) {
 		lb := New(new(types.LoadBalancerConfig))
@@ -39,6 +39,6 @@ func TestRebalance(t *testing.T) {
 		lb.AddServer(TestNewServer(float64(maxWeight) * .1))
 		lb.rebalance()
 		// t.Logf("%s", U.Must(json.MarshalIndent(lb.pool, "", "  ")))
-		ExpectEqual(t, lb.sumWeight, maxWeight)
+		expect.Equal(t, lb.sumWeight, maxWeight)
 	})
 }

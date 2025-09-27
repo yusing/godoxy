@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/serialization"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (

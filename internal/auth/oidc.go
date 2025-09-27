@@ -15,9 +15,9 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 )

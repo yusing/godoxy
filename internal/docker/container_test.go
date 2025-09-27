@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestContainerExplicit(t *testing.T) {
@@ -37,7 +37,7 @@ func TestContainerExplicit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, "")
-			ExpectEqual(t, c.IsExplicit, tt.isExplicit)
+			expect.Equal(t, c.IsExplicit, tt.isExplicit)
 		})
 	}
 }
@@ -74,7 +74,7 @@ func TestContainerHostNetworkMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := FromDocker(tt.container, "")
-			ExpectEqual(t, c.IsHostNetworkMode, tt.isHostNetworkMode)
+			expect.Equal(t, c.IsHostNetworkMode, tt.isHostNetworkMode)
 		})
 	}
 }
@@ -109,9 +109,9 @@ func TestImageNameParsing(t *testing.T) {
 		t.Run(tt.full, func(t *testing.T) {
 			helper := containerHelper{&container.Summary{Image: tt.full}}
 			im := helper.parseImage()
-			ExpectEqual(t, im.Author, tt.author)
-			ExpectEqual(t, im.Name, tt.image)
-			ExpectEqual(t, im.Tag, tt.tag)
+			expect.Equal(t, im.Author, tt.author)
+			expect.Equal(t, im.Name, tt.image)
+			expect.Equal(t, im.Tag, tt.tag)
 		})
 	}
 }

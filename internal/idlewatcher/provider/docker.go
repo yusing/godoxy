@@ -5,10 +5,10 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/gperr"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type DockerProvider struct {

@@ -8,13 +8,12 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/server"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	httpServer "github.com/yusing/godoxy/internal/net/gphttp/server"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/pkg"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 func main() {
@@ -27,21 +26,21 @@ func main() {
 	ca := &agent.PEMPair{}
 	err := ca.Load(env.AgentCACert)
 	if err != nil {
-		gperr.LogFatal("init CA error", err)
+		log.Fatal().Err(err).Msg("init CA error")
 	}
 	caCert, err := ca.ToTLSCert()
 	if err != nil {
-		gperr.LogFatal("init CA error", err)
+		log.Fatal().Err(err).Msg("init CA error")
 	}
 
 	srv := &agent.PEMPair{}
 	srv.Load(env.AgentSSLCert)
 	if err != nil {
-		gperr.LogFatal("init SSL error", err)
+		log.Fatal().Err(err).Msg("init SSL error")
 	}
 	srvCert, err := srv.ToTLSCert()
 	if err != nil {
-		gperr.LogFatal("init SSL error", err)
+		log.Fatal().Err(err).Msg("init SSL error")
 	}
 
 	log.Info().Msgf("GoDoxy Agent version %s", pkg.GetVersion())

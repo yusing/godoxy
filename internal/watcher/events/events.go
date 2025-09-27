@@ -72,7 +72,7 @@ var actionNameMap = func() (m map[Action]string) {
 	for k, v := range fileActionNameMap {
 		m[k] = v
 	}
-	return
+	return m
 }()
 
 func (e Event) String() string {

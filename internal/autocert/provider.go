@@ -18,10 +18,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/notif"
-	"github.com/yusing/godoxy/internal/task"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 type (

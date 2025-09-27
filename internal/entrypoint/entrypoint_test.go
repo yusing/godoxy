@@ -6,7 +6,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 var ep = NewEntrypoint()

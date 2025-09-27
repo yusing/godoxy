@@ -101,30 +101,30 @@ var versionRegex = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)(\-\w+)?$`)
 
 func ParseVersion(v string) (ver Version) {
 	if v == "" {
-		return
+		return ver
 	}
 
 	if !versionRegex.MatchString(v) { // likely feature branch (e.g. feat/some-feature)
-		return
+		return ver
 	}
 
 	v = strings.Split(v, "-")[0]
 	v = strings.TrimPrefix(v, "v")
 	parts := strings.Split(v, ".")
 	if len(parts) != 3 {
-		return
+		return ver
 	}
 	gen, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return
+		return ver
 	}
 	major, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return
+		return ver
 	}
 	minor, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return
+		return ver
 	}
 	return Ver(gen, major, minor)
 }

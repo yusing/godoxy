@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type Provider interface {
@@ -16,6 +16,4 @@ type Provider interface {
 	FormHTML() string
 }
 
-var (
-	ErrCaptchaVerificationFailed = gperr.New("captcha verification failed")
-)
+var ErrCaptchaVerificationFailed = gperr.New("captcha verification failed")

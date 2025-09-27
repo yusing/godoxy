@@ -7,8 +7,8 @@ import (
 
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
 	strutils "github.com/yusing/goutils/strings"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestStatusCodeFilter(t *testing.T) {

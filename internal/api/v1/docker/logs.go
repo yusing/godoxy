@@ -13,7 +13,7 @@ import (
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
 )
 
 type LogsQueryParams struct {

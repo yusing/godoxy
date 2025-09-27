@@ -3,7 +3,7 @@ package middleware
 import (
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestOIDCMiddlewarePerRouteConfig(t *testing.T) {
@@ -16,20 +16,20 @@ func TestOIDCMiddlewarePerRouteConfig(t *testing.T) {
 			Scopes:        "openid,profile,email,groups",
 		}
 
-		ExpectEqual(t, middleware.AllowedUsers, []string{"custom-user"})
-		ExpectEqual(t, middleware.AllowedGroups, []string{"custom-group"})
-		ExpectEqual(t, middleware.ClientID, "custom-client-id")
-		ExpectEqual(t, middleware.ClientSecret, "custom-client-secret")
-		ExpectEqual(t, middleware.Scopes, "openid,profile,email,groups")
+		expect.Equal(t, middleware.AllowedUsers, []string{"custom-user"})
+		expect.Equal(t, middleware.AllowedGroups, []string{"custom-group"})
+		expect.Equal(t, middleware.ClientID, "custom-client-id")
+		expect.Equal(t, middleware.ClientSecret, "custom-client-secret")
+		expect.Equal(t, middleware.Scopes, "openid,profile,email,groups")
 	})
 
 	t.Run("middleware struct handles empty values", func(t *testing.T) {
 		middleware := &oidcMiddleware{}
 
-		ExpectEqual(t, middleware.AllowedUsers, nil)
-		ExpectEqual(t, middleware.AllowedGroups, nil)
-		ExpectEqual(t, middleware.ClientID, "")
-		ExpectEqual(t, middleware.ClientSecret, "")
-		ExpectEqual(t, middleware.Scopes, "")
+		expect.Equal(t, middleware.AllowedUsers, nil)
+		expect.Equal(t, middleware.AllowedGroups, nil)
+		expect.Equal(t, middleware.ClientID, "")
+		expect.Equal(t, middleware.ClientSecret, "")
+		expect.Equal(t, middleware.Scopes, "")
 	})
 }

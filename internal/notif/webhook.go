@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type Webhook struct {

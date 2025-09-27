@@ -1,12 +1,12 @@
 package provider
 
 import (
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/watcher"
 	eventsPkg "github.com/yusing/godoxy/internal/watcher/events"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 type EventHandler struct {

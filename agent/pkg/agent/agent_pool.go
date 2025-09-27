@@ -2,15 +2,16 @@ package agent
 
 import (
 	"iter"
+	"os"
+	"strings"
 
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/godoxy/internal/common"
 )
 
 var agentPool = xsync.NewMap[string, *AgentConfig](xsync.WithPresize(10))
 
 func init() {
-	if common.IsTest {
+	if strings.HasSuffix(os.Args[0], ".test") {
 		agentPool.Store("test-agent", &AgentConfig{
 			Addr: "test-agent",
 		})
@@ -63,5 +64,5 @@ func NumAgents() int {
 
 func getAgentByAddr(addr string) (agent *AgentConfig, ok bool) {
 	agent, ok = agentPool.Load(addr)
-	return
+	return agent, ok
 }

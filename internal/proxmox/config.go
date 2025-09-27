@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/net/gphttp"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type Config struct {

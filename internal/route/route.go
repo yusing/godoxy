@@ -12,14 +12,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/homepage"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
@@ -721,5 +721,5 @@ func preferredPort(portMapping map[int]container.Port) (res int) {
 			res = port
 		}
 	}
-	return
+	return res
 }

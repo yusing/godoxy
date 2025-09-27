@@ -7,10 +7,10 @@ import (
 	"time"
 
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 var (

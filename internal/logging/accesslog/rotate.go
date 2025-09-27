@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 )
@@ -251,14 +251,14 @@ func rotateLogFileBySize(file supportRotate, config *Retention) (result *RotateR
 // otherwise it returns zero time.
 func ParseLogTime(line []byte) (t time.Time) {
 	if len(line) == 0 {
-		return
+		return t
 	}
 
 	if timeStr := ExtractTime(line); timeStr != nil {
 		t, _ = time.Parse(LogTimeFormat, string(timeStr)) // ignore error
-		return
+		return t
 	}
-	return
+	return t
 }
 
 var timeJSON = []byte(`"time":"`)
@@ -272,8 +272,8 @@ func ExtractTime(line []byte) []byte {
 	switch line[0] {
 	case '{': // JSON format
 		if i := bytes.Index(line, timeJSON); i != -1 {
-			var jsonStart = i + len(`"time":"`)
-			var jsonEnd = i + len(`"time":"`) + len(LogTimeFormat)
+			jsonStart := i + len(`"time":"`)
+			jsonEnd := i + len(`"time":"`) + len(LogTimeFormat)
 			if len(line) < jsonEnd {
 				return nil
 			}

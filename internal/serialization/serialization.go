@@ -13,8 +13,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -146,7 +146,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 			if dst.IsNil() {
 				if !dst.CanSet() {
 					err = gperr.Errorf("dive: dst is %w and is not settable", ErrNilValue)
-					return
+					return v, t, err
 				}
 				dst.Set(New(dstT.Elem()))
 			}
@@ -437,20 +437,20 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	}
 	if dst.Kind() == reflect.String {
 		dst.SetString(src)
-		return
+		return convertible, convErr
 	}
 	switch dstT {
 	case reflect.TypeFor[time.Duration]():
 		if src == "" {
 			dst.Set(reflect.Zero(dstT))
-			return
+			return convertible, convErr
 		}
 		d, err := time.ParseDuration(src)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
 		dst.Set(reflect.ValueOf(d))
-		return
+		return convertible, convErr
 	default:
 	}
 	if dstKind := dst.Kind(); isIntFloat(dstKind) {
@@ -470,7 +470,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			return true, gperr.Wrap(err)
 		}
 		dst.Set(reflect.ValueOf(i).Convert(dstT))
-		return
+		return convertible, convErr
 	}
 	// check if (*T).Convertor is implemented
 	if parser, ok := dst.Addr().Interface().(strutils.Parser); ok {
@@ -496,7 +496,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			if errs.HasError() {
 				return true, errs.Error()
 			}
-			return
+			return convertible, convErr
 		}
 		sl := make([]any, 0)
 		err := yaml.Unmarshal([]byte(src), &sl)

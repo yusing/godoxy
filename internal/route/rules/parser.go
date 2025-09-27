@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"unicode"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var escapedChars = map[rune]rune{
@@ -57,7 +57,7 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 				buf.WriteRune(ch)
 			} else {
 				err = ErrUnsupportedEscapeChar.Subjectf("\\%c", r)
-				return
+				return subject, args, err
 			}
 			escaped = false
 			continue
@@ -93,5 +93,5 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 	} else {
 		flush(false)
 	}
-	return
+	return subject, args, err
 }

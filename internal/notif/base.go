@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type ProviderBase struct {

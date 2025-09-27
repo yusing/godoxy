@@ -3,10 +3,10 @@ package idlewatcher
 import (
 	"time"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 // Start implements health.HealthMonitor.

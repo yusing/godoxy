@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func newMockUserPassAuth() *UserPassAuth {
 	return &UserPassAuth{
 		username: "username",
-		pwdHash:  Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)),
+		pwdHash:  expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)),
 		secret:   []byte("abcdefghijklmnopqrstuvwxyz"),
 		tokenTTL: time.Hour,
 	}
@@ -25,17 +25,17 @@ func newMockUserPassAuth() *UserPassAuth {
 func TestUserPassValidateCredentials(t *testing.T) {
 	auth := newMockUserPassAuth()
 	err := auth.validatePassword("username", "password")
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	err = auth.validatePassword("username", "wrong-password")
-	ExpectError(t, ErrInvalidPassword, err)
+	expect.ErrorIs(t, ErrInvalidPassword, err)
 	err = auth.validatePassword("wrong-username", "password")
-	ExpectError(t, ErrInvalidUsername, err)
+	expect.ErrorIs(t, ErrInvalidUsername, err)
 }
 
 func TestUserPassCheckToken(t *testing.T) {
 	auth := newMockUserPassAuth()
 	token, err := auth.NewToken()
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	tests := []struct {
 		token   string
 		wantErr bool
@@ -60,9 +60,9 @@ func TestUserPassCheckToken(t *testing.T) {
 		}
 		err = auth.CheckToken(req)
 		if tt.wantErr {
-			ExpectTrue(t, err != nil)
+			expect.True(t, err != nil)
 		} else {
-			ExpectNoError(t, err)
+			expect.NoError(t, err)
 		}
 	}
 }
@@ -96,20 +96,20 @@ func TestUserPassLoginCallbackHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 		req := &http.Request{
 			Host: "app.example.com",
-			Body: io.NopCloser(bytes.NewReader(Must(json.Marshal(tt.creds)))),
+			Body: io.NopCloser(bytes.NewReader(expect.Must(json.Marshal(tt.creds)))),
 		}
 		auth.PostAuthCallbackHandler(w, req)
 		if tt.wantErr {
-			ExpectEqual(t, w.Code, http.StatusUnauthorized)
+			expect.Equal(t, w.Code, http.StatusUnauthorized)
 		} else {
-			setCookie := Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
-			ExpectTrue(t, setCookie.Name == auth.TokenCookieName())
-			ExpectTrue(t, setCookie.Value != "")
-			ExpectEqual(t, setCookie.Domain, "example.com")
-			ExpectEqual(t, setCookie.Path, "/")
-			ExpectEqual(t, setCookie.SameSite, http.SameSiteLaxMode)
-			ExpectEqual(t, setCookie.HttpOnly, true)
-			ExpectEqual(t, w.Code, http.StatusOK)
+			setCookie := expect.Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
+			expect.True(t, setCookie.Name == auth.TokenCookieName())
+			expect.True(t, setCookie.Value != "")
+			expect.Equal(t, setCookie.Domain, "example.com")
+			expect.Equal(t, setCookie.Path, "/")
+			expect.Equal(t, setCookie.SameSite, http.SameSiteLaxMode)
+			expect.Equal(t, setCookie.HttpOnly, true)
+			expect.Equal(t, w.Code, http.StatusOK)
 		}
 	}
 }

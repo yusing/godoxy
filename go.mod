@@ -50,7 +50,7 @@ require (
 	github.com/yusing/godoxy/agent v0.0.0-20250926130035-55c1c918ba95
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250926130035-55c1c918ba95
 	github.com/yusing/godoxy/internal/utils v0.1.0
-	github.com/yusing/goutils v0.2.1
+	github.com/yusing/goutils v0.3.1
 )
 
 require (

@@ -67,7 +67,7 @@ func getSchemePortByImageName(imageName string) (scheme string, port int, ok boo
 	if port, ok := ImageNamePortMapTCP[imageName]; ok {
 		return "tcp", port, true
 	}
-	return
+	return scheme, port, ok
 }
 
 func getSchemePortByAlias(alias string) (scheme string, port int, ok bool) {
@@ -77,5 +77,5 @@ func getSchemePortByAlias(alias string) (scheme string, port int, ok bool) {
 	if port, ok := AliasPortMapHTTPS[alias]; ok {
 		return "https", port, true
 	}
-	return
+	return scheme, port, ok
 }

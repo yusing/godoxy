@@ -9,9 +9,9 @@ import (
 	"time"
 
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	"github.com/yusing/goutils/task"
+	expect "github.com/yusing/goutils/testing"
 )
 
 const (

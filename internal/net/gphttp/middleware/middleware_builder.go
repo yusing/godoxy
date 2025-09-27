@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	"github.com/goccy/go-yaml"
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var ErrMissingMiddlewareUse = gperr.New("missing middleware 'use' field")

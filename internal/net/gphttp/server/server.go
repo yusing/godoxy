@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
 )
 
 type CertProvider interface {
@@ -173,7 +173,7 @@ func WithProxyProtocolSupport(value bool) ServerStartOption {
 
 func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerStartOption) (port int) {
 	if srv == nil {
-		return
+		return port
 	}
 
 	var opts ServerStartOptions
@@ -200,7 +200,7 @@ func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerSt
 		l, err := lc.Listen(task.Context(), "tcp", srv.Addr)
 		if err != nil {
 			HandleError(opts.logger, err, "failed to listen on port")
-			return
+			return port
 		}
 		port = l.Addr().(*net.TCPAddr).Port
 		if opts.proxyProto {
@@ -224,7 +224,7 @@ func Start[Server httpServer](parent task.Parent, srv Server, optFns ...ServerSt
 		l, err := lc.ListenPacket(task.Context(), "udp", srv.Addr)
 		if err != nil {
 			HandleError(opts.logger, err, "failed to listen on port")
-			return
+			return port
 		}
 		port = l.LocalAddr().(*net.UDPAddr).Port
 		for _, wrapper := range opts.udpWrappers {

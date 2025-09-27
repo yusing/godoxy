@@ -10,7 +10,7 @@ import (
 	D "github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	T "github.com/yusing/godoxy/internal/route/types"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 var dummyNames = []string{"/a"}

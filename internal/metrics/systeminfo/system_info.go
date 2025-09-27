@@ -16,8 +16,8 @@ import (
 	"github.com/shirou/gopsutil/v4/sensors"
 	"github.com/shirou/gopsutil/v4/warning"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/metrics/period"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 // json tags are left for tests

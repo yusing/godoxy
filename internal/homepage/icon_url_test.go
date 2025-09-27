@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func strPtr(s string) *string {

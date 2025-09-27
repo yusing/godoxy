@@ -20,7 +20,7 @@ import (
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 // @title           GoDoxy API

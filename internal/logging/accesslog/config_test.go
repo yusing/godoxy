@@ -6,7 +6,7 @@ import (
 	"github.com/yusing/godoxy/internal/docker"
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/serialization"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestNewConfig(t *testing.T) {

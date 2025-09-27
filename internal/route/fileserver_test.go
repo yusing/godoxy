@@ -10,26 +10,26 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestPathTraversalAttack(t *testing.T) {
 	tmp := t.TempDir()
 	root := filepath.Join(tmp, "static")
-	if err := os.Mkdir(root, 0755); err != nil {
+	if err := os.Mkdir(root, 0o755); err != nil {
 		t.Fatalf("Failed to create root directory: %v", err)
 	}
 
 	// Create a file inside the root
 	validPath := "test.txt"
 	validContent := "test content"
-	if err := os.WriteFile(filepath.Join(root, validPath), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, validPath), []byte(validContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	// create one at ..
 	secretFile := "secret.txt"
-	if err := os.WriteFile(filepath.Join(tmp, secretFile), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, secretFile), []byte(validContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestPathTraversalAttack(t *testing.T) {
 				t.Errorf("Expected status 404 or 400, got %d in url %s", resp.StatusCode, u.String())
 			}
 
-			u = Must(url.Parse(ts.URL + "/" + p))
+			u = expect.Must(url.Parse(ts.URL + "/" + p))
 			resp, err = http.DefaultClient.Do(&http.Request{
 				Method: http.MethodGet,
 				URL:    u,

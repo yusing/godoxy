@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/internal/docker"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 
 	_ "embed"
 )
@@ -18,7 +18,7 @@ func TestParseDockerLabels(t *testing.T) {
 	var provider DockerProvider
 
 	labels := make(map[string]string)
-	ExpectNoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
+	expect.NoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
 
 	routes, err := provider.routesFromContainerLabels(
 		docker.FromDocker(&container.Summary{
@@ -30,7 +30,7 @@ func TestParseDockerLabels(t *testing.T) {
 			},
 		}, "/var/run/docker.sock"),
 	)
-	ExpectNoError(t, err)
-	ExpectTrue(t, routes.Contains("app"))
-	ExpectTrue(t, routes.Contains("app1"))
+	expect.NoError(t, err)
+	expect.True(t, routes.Contains("app"))
+	expect.True(t, routes.Contains("app1"))
 }

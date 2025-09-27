@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type NewAgentRequest struct {

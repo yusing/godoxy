@@ -8,11 +8,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/gperr"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/utils/pool"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/task"
 )
 
 // TODO: stats of each server.

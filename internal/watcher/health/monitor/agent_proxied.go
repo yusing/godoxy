@@ -78,5 +78,5 @@ func (mon *AgentProxiedMonitor) CheckHealth() (result types.HealthCheckResult, e
 		// use godoxy to agent latency
 		result.Latency = endTime.Sub(startTime)
 	}
-	return
+	return result, err
 }

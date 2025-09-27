@@ -7,7 +7,7 @@ import (
 	. "github.com/yusing/godoxy/internal/route"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/serialization"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestHTTPConfigDeserialize(t *testing.T) {

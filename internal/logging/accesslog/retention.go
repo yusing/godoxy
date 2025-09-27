@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -70,7 +70,7 @@ func (r *Retention) Parse(v string) (err error) {
 	if !r.IsValid() {
 		return ErrZeroValue
 	}
-	return
+	return err
 }
 
 func (r *Retention) String() string {

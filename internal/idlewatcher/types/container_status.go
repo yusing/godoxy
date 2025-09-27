@@ -1,6 +1,6 @@
 package idlewatcher
 
-import "github.com/yusing/godoxy/internal/gperr"
+import gperr "github.com/yusing/goutils/errs"
 
 type ContainerStatus string
 

@@ -8,10 +8,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/serialization"
 	W "github.com/yusing/godoxy/internal/watcher"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type FileProvider struct {
@@ -44,12 +44,12 @@ func removeXPrefix(m map[string]any) gperr.Error {
 
 func validate(data []byte) (routes route.Routes, err gperr.Error) {
 	err = serialization.UnmarshalValidateYAMLIntercept(data, &routes, removeXPrefix)
-	return
+	return routes, err
 }
 
 func Validate(data []byte) (err gperr.Error) {
 	_, err = validate(data)
-	return
+	return err
 }
 
 func (p *FileProvider) String() string {

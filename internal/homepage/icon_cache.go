@@ -9,9 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/jsonstore"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils"
 	"github.com/yusing/godoxy/internal/utils/atomic"
+	"github.com/yusing/goutils/task"
 )
 
 type cacheEntry struct {

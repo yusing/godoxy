@@ -14,9 +14,9 @@ import (
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/task"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/task"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func noOpHandler(w http.ResponseWriter, r *http.Request) {}

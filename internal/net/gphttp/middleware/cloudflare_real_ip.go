@@ -63,14 +63,14 @@ func (cri *cloudflareRealIP) before(w http.ResponseWriter, r *http.Request) bool
 
 func tryFetchCFCIDR() (cfCIDRs []*nettypes.CIDR) {
 	if time.Since(cfCIDRsLastUpdate.Load()) < cfCIDRsUpdateInterval {
-		return
+		return cfCIDRs
 	}
 
 	cfCIDRsMu.Lock()
 	defer cfCIDRsMu.Unlock()
 
 	if time.Since(cfCIDRsLastUpdate.Load()) < cfCIDRsUpdateInterval {
-		return
+		return cfCIDRs
 	}
 
 	if common.IsTest {
@@ -93,7 +93,7 @@ func tryFetchCFCIDR() (cfCIDRs []*nettypes.CIDR) {
 
 	cfCIDRsLastUpdate.Store(time.Now())
 	log.Info().Msg("cloudflare CIDR range updated")
-	return
+	return cfCIDRs
 }
 
 func fetchUpdateCFIPRange(endpoint string, cfCIDRs *[]*nettypes.CIDR) error {

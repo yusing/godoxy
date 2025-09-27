@@ -1,7 +1,9 @@
 package dnsproviders
 
-type DummyConfig struct{}
-type DummyProvider struct{}
+type (
+	DummyConfig   struct{}
+	DummyProvider struct{}
+)
 
 func NewDummyDefaultConfig() *DummyConfig {
 	return &DummyConfig{}

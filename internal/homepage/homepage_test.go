@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestOverrideItem(t *testing.T) {
@@ -33,7 +34,7 @@ func TestOverrideItem(t *testing.T) {
 	overrides.Initialize()
 	overrides.OverrideItem(a.Alias, want)
 	got := a.GetOverride()
-	ExpectEqual(t, got, Item{
+	expect.Equal(t, got, Item{
 		ItemConfig: want,
 		Alias:      a.Alias,
 	})
@@ -58,8 +59,8 @@ func TestOverrideItem_PreservesURL(t *testing.T) {
 	overrides.OverrideItem(a.Alias, wantCfg)
 
 	got := a.GetOverride()
-	ExpectEqual(t, got.URL, "http://origin.local")
-	ExpectEqual(t, got.Name, "Overridden")
+	expect.Equal(t, got.URL, "http://origin.local")
+	expect.Equal(t, got.Name, "Overridden")
 }
 
 func TestVisibilityFavoriteAndSortOrders(t *testing.T) {
@@ -81,11 +82,11 @@ func TestVisibilityFavoriteAndSortOrders(t *testing.T) {
 	overrides.SetFavSortOrder(a.Alias, 2)
 
 	got := a.GetOverride()
-	ExpectEqual(t, got.Show, false)
-	ExpectEqual(t, got.Favorite, true)
-	ExpectEqual(t, got.SortOrder, 5)
-	ExpectEqual(t, got.AllSortOrder, 9)
-	ExpectEqual(t, got.FavSortOrder, 2)
+	expect.Equal(t, got.Show, false)
+	expect.Equal(t, got.Favorite, true)
+	expect.Equal(t, got.SortOrder, 5)
+	expect.Equal(t, got.AllSortOrder, 9)
+	expect.Equal(t, got.FavSortOrder, 2)
 }
 
 func TestCategoryDefaultedWhenEmpty(t *testing.T) {
@@ -97,7 +98,7 @@ func TestCategoryDefaultedWhenEmpty(t *testing.T) {
 		},
 	}
 	got := a.GetOverride()
-	ExpectEqual(t, got.Category, CategoryOthers)
+	expect.Equal(t, got.Category, CategoryOthers)
 }
 
 func TestOverrideItems_Bulk(t *testing.T) {
@@ -128,9 +129,9 @@ func TestOverrideItems_Bulk(t *testing.T) {
 	ga := a.GetOverride()
 	gb := b.GetOverride()
 
-	ExpectEqual(t, ga.Name, "A*")
-	ExpectEqual(t, ga.Category, "AX")
-	ExpectEqual(t, gb.Name, "B*")
-	ExpectEqual(t, gb.Category, "BY")
-	ExpectEqual(t, gb.Show, false)
+	expect.Equal(t, ga.Name, "A*")
+	expect.Equal(t, ga.Category, "AX")
+	expect.Equal(t, gb.Name, "B*")
+	expect.Equal(t, gb.Category, "BY")
+	expect.Equal(t, gb.Show, false)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/handler"
 	"github.com/yusing/godoxy/internal/net/gphttp/server"
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
 )
 
 type Options struct {

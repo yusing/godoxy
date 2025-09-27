@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRateLimit(t *testing.T) {
@@ -15,13 +15,13 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	rl, err := RateLimiter.New(opts)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 	for range 10 {
 		result, err := newMiddlewareTest(rl, nil)
-		ExpectNoError(t, err)
-		ExpectEqual(t, result.ResponseStatus, http.StatusOK)
+		expect.NoError(t, err)
+		expect.Equal(t, result.ResponseStatus, http.StatusOK)
 	}
 	result, err := newMiddlewareTest(rl, nil)
-	ExpectNoError(t, err)
-	ExpectEqual(t, result.ResponseStatus, http.StatusTooManyRequests)
+	expect.NoError(t, err)
+	expect.Equal(t, result.ResponseStatus, http.StatusTooManyRequests)
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/certs"
-	. "github.com/yusing/godoxy/internal/api/types"
 	config "github.com/yusing/godoxy/internal/config/types"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type VerifyNewAgentRequest struct {
@@ -35,44 +35,44 @@ type VerifyNewAgentRequest struct {
 func Verify(c *gin.Context) {
 	var request VerifyNewAgentRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, Error("invalid request", err))
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
 
 	filename, ok := certs.AgentCertsFilepath(request.Host)
 	if !ok {
-		c.JSON(http.StatusBadRequest, Error("invalid host", nil))
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid host", nil))
 		return
 	}
 
 	ca, err := fromEncryptedPEMPairResponse(request.CA)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, Error("invalid CA", err))
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid CA", err))
 		return
 	}
 
 	client, err := fromEncryptedPEMPairResponse(request.Client)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, Error("invalid client", err))
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid client", err))
 		return
 	}
 
 	nRoutesAdded, err := config.GetInstance().VerifyNewAgent(request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, Error("invalid request", err))
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
 
 	zip, err := certs.ZipCert(ca.Cert, client.Cert, client.Key)
 	if err != nil {
-		c.Error(InternalServerError(err, "failed to zip certs"))
+		c.Error(apitypes.InternalServerError(err, "failed to zip certs"))
 		return
 	}
 
 	if err := os.WriteFile(filename, zip, 0o600); err != nil {
-		c.Error(InternalServerError(err, "failed to write certs"))
+		c.Error(apitypes.InternalServerError(err, "failed to write certs"))
 		return
 	}
 
-	c.JSON(http.StatusOK, Success(fmt.Sprintf("Added %d routes", nRoutesAdded)))
+	c.JSON(http.StatusOK, apitypes.Success(fmt.Sprintf("Added %d routes", nRoutesAdded)))
 }

@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
-	"github.com/yusing/godoxy/internal/task"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
+
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 func TestBackScanner(t *testing.T) {

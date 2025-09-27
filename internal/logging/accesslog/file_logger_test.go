@@ -6,9 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	expect "github.com/yusing/godoxy/internal/utils/testing"
-
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {

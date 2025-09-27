@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/gobwas/glob"
-	"github.com/yusing/godoxy/internal/gperr"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (

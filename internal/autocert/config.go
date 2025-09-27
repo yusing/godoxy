@@ -15,8 +15,8 @@ import (
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type Config struct {

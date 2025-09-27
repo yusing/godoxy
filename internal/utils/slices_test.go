@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestIntersect(t *testing.T) {
@@ -19,7 +19,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -30,7 +30,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 	})
 	t.Run("ints", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -54,7 +54,7 @@ func TestIntersect(t *testing.T) {
 			result := Intersect(slice1, slice2)
 			slices.Sort(result)
 			slices.Sort(want)
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 	})
 	t.Run("complex", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestIntersect(t *testing.T) {
 			slices.SortFunc(want, func(i T, j T) int {
 				return strings.Compare(i.A, j.A)
 			})
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 		t.Run("intersection", func(t *testing.T) {
 			var (
@@ -90,7 +90,7 @@ func TestIntersect(t *testing.T) {
 			slices.SortFunc(want, func(i T, j T) int {
 				return strings.Compare(i.A, j.A)
 			})
-			ExpectEqual(t, result, want)
+			expect.Equal(t, result, want)
 		})
 	})
 }

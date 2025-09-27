@@ -61,11 +61,11 @@ func (m *memLogger) Write(p []byte) (n int, err error) {
 	pos, err := m.writeBuf(p)
 	if err != nil {
 		// not logging the error here, it will cause Run to be called again = infinite loop
-		return
+		return n, err
 	}
 
 	m.notifyWS(pos, n)
-	return
+	return n, err
 }
 
 func (m *memLogger) ServeHTTP(c *gin.Context) {
@@ -149,7 +149,7 @@ func (m *memLogger) writeBuf(b []byte) (pos int, err error) {
 	defer m.Unlock()
 	pos = m.Len()
 	_, err = m.Buffer.Write(b)
-	return
+	return pos, err
 }
 
 func (m *memLogger) events() (logs <-chan []byte, cancel func()) {

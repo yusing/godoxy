@@ -10,9 +10,9 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/godoxy/internal/task"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 type namespace string

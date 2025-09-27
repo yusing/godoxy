@@ -4,8 +4,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/maxmind"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type MatcherFunc func(*maxmind.IPInfo) bool

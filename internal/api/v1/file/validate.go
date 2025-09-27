@@ -6,9 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/provider"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type ValidateFileRequest struct {

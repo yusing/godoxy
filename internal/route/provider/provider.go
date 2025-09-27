@@ -13,14 +13,14 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
 	W "github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/goutils/env"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 type (
@@ -66,7 +66,7 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 		return nil, err
 	}
 	p.watcher = p.NewWatcher()
-	return
+	return p, err
 }
 
 func NewDockerProvider(name string, dockerHost string) *Provider {
@@ -146,7 +146,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 
 func (p *Provider) LoadRoutes() (err gperr.Error) {
 	p.routes, err = p.loadRoutes()
-	return
+	return err
 }
 
 func (p *Provider) NumRoutes() int {

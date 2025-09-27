@@ -6,9 +6,9 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils/pool"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/task"
 )
 
 type (

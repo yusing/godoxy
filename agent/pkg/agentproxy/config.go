@@ -43,7 +43,7 @@ func proxyConfigFromHeadersLegacy(h http.Header) (cfg Config) {
 		cfg.Scheme = "https"
 	}
 
-	return
+	return cfg
 }
 
 func proxyConfigFromHeaders(h http.Header) (cfg Config, err error) {

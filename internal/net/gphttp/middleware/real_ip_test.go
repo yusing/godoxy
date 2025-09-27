@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	. "github.com/yusing/godoxy/internal/utils/testing"
 	"github.com/yusing/goutils/http/httpheaders"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestSetRealIPOpts(t *testing.T) {
@@ -41,11 +41,11 @@ func TestSetRealIPOpts(t *testing.T) {
 	}
 
 	ri, err := RealIP.New(opts)
-	ExpectNoError(t, err)
-	ExpectEqual(t, ri.impl.(*realIP).Header, optExpected.Header)
-	ExpectEqual(t, ri.impl.(*realIP).Recursive, optExpected.Recursive)
+	expect.NoError(t, err)
+	expect.Equal(t, ri.impl.(*realIP).Header, optExpected.Header)
+	expect.Equal(t, ri.impl.(*realIP).Recursive, optExpected.Recursive)
 	for i, CIDR := range ri.impl.(*realIP).From {
-		ExpectEqual(t, CIDR.String(), optExpected.From[i].String())
+		expect.Equal(t, CIDR.String(), optExpected.From[i].String())
 	}
 }
 
@@ -62,15 +62,15 @@ func TestSetRealIP(t *testing.T) {
 		"set_headers": map[string]string{testHeader: testRealIP},
 	}
 	realip, err := RealIP.New(opts)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	mr, err := ModifyRequest.New(optsMr)
-	ExpectNoError(t, err)
+	expect.NoError(t, err)
 
 	mid := NewMiddlewareChain("test", []*Middleware{mr, realip})
 
 	result, err := newMiddlewareTest(mid, nil)
-	ExpectNoError(t, err)
-	ExpectEqual(t, result.ResponseStatus, http.StatusOK)
-	ExpectEqual(t, strings.Split(result.RemoteAddr, ":")[0], testRealIP)
+	expect.NoError(t, err)
+	expect.Equal(t, result.ResponseStatus, http.StatusOK)
+	expect.Equal(t, strings.Split(result.RemoteAddr, ":")[0], testRealIP)
 }

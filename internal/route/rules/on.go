@@ -2,14 +2,13 @@ package rules
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
-	"slices"
-
 	"github.com/gobwas/glob"
-	"github.com/yusing/godoxy/internal/gperr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -248,8 +247,10 @@ var checkers = map[string]struct {
 	},
 }
 
-var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
-var andSeps = [256]uint8{'&': 1, '\n': 1}
+var (
+	asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+	andSeps    = [256]uint8{'&': 1, '\n': 1}
+)
 
 func indexAnd(s string) int {
 	for i, c := range s {

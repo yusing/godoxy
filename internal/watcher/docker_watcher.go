@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/watcher/events"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (

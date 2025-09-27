@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 

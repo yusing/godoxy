@@ -11,8 +11,8 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/godoxy/internal/route/routes"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/task"
 )
 
 type Entrypoint struct {
@@ -56,15 +56,15 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.RequestLoggerConfig) (err error) {
 	if cfg == nil {
 		ep.accessLogger = nil
-		return
+		return err
 	}
 
 	ep.accessLogger, err = accesslog.NewAccessLogger(parent, cfg)
 	if err != nil {
-		return
+		return err
 	}
 	log.Debug().Msg("entrypoint access logger created")
-	return
+	return err
 }
 
 func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {

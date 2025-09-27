@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type middlewareChain struct {

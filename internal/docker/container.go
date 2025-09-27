@@ -14,10 +14,10 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var DummyContainer = new(types.Container)
@@ -84,7 +84,7 @@ func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) 
 	if res.PrivateHostname == "" && res.PublicHostname == "" && res.Running {
 		addError(res, ErrNoNetwork)
 	}
-	return
+	return res
 }
 
 func IsBlacklisted(c *types.Container) bool {

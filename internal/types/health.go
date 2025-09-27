@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yusing/godoxy/internal/task"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 type (

@@ -6,7 +6,7 @@ import (
 
 	dockerSystem "github.com/docker/docker/api/types/system"
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 

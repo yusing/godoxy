@@ -9,11 +9,11 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/utils"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 const errPagesBasePath = common.ErrorPagesBasePath
@@ -42,7 +42,7 @@ func GetErrorPageByStatus(statusCode int) (content []byte, ok bool) {
 	if !ok && statusCode != 404 {
 		return fileContentMap.Load("404.html")
 	}
-	return
+	return content, ok
 }
 
 func loadContent() {

@@ -3,8 +3,8 @@ package rules
 import (
 	"testing"
 
-	"github.com/yusing/godoxy/internal/gperr"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	gperr "github.com/yusing/goutils/errs"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestSplitAnd(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestModifyResponse(t *testing.T) {
@@ -47,10 +47,10 @@ func TestModifyResponse(t *testing.T) {
 
 	t.Run("set_options", func(t *testing.T) {
 		mr, err := ModifyResponse.New(opts)
-		ExpectNoError(t, err)
-		ExpectEqual(t, mr.impl.(*modifyResponse).SetHeaders, opts["set_headers"].(map[string]string))
-		ExpectEqual(t, mr.impl.(*modifyResponse).AddHeaders, opts["add_headers"].(map[string]string))
-		ExpectEqual(t, mr.impl.(*modifyResponse).HideHeaders, opts["hide_headers"].([]string))
+		expect.NoError(t, err)
+		expect.Equal(t, mr.impl.(*modifyResponse).SetHeaders, opts["set_headers"].(map[string]string))
+		expect.Equal(t, mr.impl.(*modifyResponse).AddHeaders, opts["add_headers"].(map[string]string))
+		expect.Equal(t, mr.impl.(*modifyResponse).HideHeaders, opts["hide_headers"].([]string))
 	})
 
 	t.Run("response_headers", func(t *testing.T) {
@@ -70,39 +70,39 @@ func TestModifyResponse(t *testing.T) {
 			respBody:   bytes.Repeat([]byte("a"), 50),
 			respStatus: http.StatusOK,
 		})
-		ExpectNoError(t, err)
-		ExpectTrue(t, slices.Contains(result.ResponseHeaders.Values("Accept-Encoding"), "test-value"))
-		ExpectEqual(t, result.ResponseHeaders.Get("Accept"), "")
+		expect.NoError(t, err)
+		expect.True(t, slices.Contains(result.ResponseHeaders.Values("Accept-Encoding"), "test-value"))
+		expect.Equal(t, result.ResponseHeaders.Get("Accept"), "")
 
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Resp-Status"), "200")
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Resp-Content-Type"), "application/json")
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Resp-Content-Length"), "50")
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Resp-Header-Content-Type"), "application/json")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Resp-Status"), "200")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Resp-Content-Type"), "application/json")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Resp-Content-Length"), "50")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Resp-Header-Content-Type"), "application/json")
 
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Method"), http.MethodGet)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Scheme"), reqURL.Scheme)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Host"), reqURL.Hostname())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Port"), reqURL.Port())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Addr"), reqURL.Host)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Path"), reqURL.Path)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Query"), reqURL.RawQuery)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Url"), reqURL.String())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Uri"), reqURL.RequestURI())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Content-Type"), "application/json")
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Req-Content-Length"), "100")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Method"), http.MethodGet)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Scheme"), reqURL.Scheme)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Host"), reqURL.Hostname())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Port"), reqURL.Port())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Addr"), reqURL.Host)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Path"), reqURL.Path)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Query"), reqURL.RawQuery)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Url"), reqURL.String())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Uri"), reqURL.RequestURI())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Content-Type"), "application/json")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Req-Content-Length"), "100")
 
 		remoteHost, remotePort, _ := net.SplitHostPort(result.RemoteAddr)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Remote-Host"), remoteHost)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Remote-Port"), remotePort)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Remote-Addr"), result.RemoteAddr)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Remote-Host"), remoteHost)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Remote-Port"), remotePort)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Remote-Addr"), result.RemoteAddr)
 
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Upstream-Scheme"), upstreamURL.Scheme)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Upstream-Host"), upstreamURL.Hostname())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Upstream-Port"), upstreamURL.Port())
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Upstream-Addr"), upstreamURL.Host)
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Upstream-Url"), upstreamURL.String())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Upstream-Scheme"), upstreamURL.Scheme)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Upstream-Host"), upstreamURL.Hostname())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Upstream-Port"), upstreamURL.Port())
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Upstream-Addr"), upstreamURL.Host)
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Upstream-Url"), upstreamURL.String())
 
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Header-Content-Type"), "application/json")
-		ExpectEqual(t, result.ResponseHeaders.Get("X-Test-Arg-Arg_1"), "b")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Header-Content-Type"), "application/json")
+		expect.Equal(t, result.ResponseHeaders.Get("X-Test-Arg-Arg_1"), "b")
 	})
 }

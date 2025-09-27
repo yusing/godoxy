@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type Client struct {

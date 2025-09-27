@@ -7,14 +7,14 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/stream"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 // TODO: support stream load balance.

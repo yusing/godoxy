@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	. "github.com/yusing/godoxy/internal/route/rules"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
 

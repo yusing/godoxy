@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"time"
-
 	"slices"
+	"time"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	config "github.com/yusing/godoxy/internal/config/types"

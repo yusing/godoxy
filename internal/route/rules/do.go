@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/gperr"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 	strutils "github.com/yusing/goutils/strings"
 )

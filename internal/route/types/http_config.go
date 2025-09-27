@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type HTTPConfig struct {

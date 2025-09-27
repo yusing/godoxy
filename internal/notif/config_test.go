@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/yusing/godoxy/internal/serialization"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestNotificationConfig(t *testing.T) {
@@ -183,11 +183,11 @@ func TestNotificationConfig(t *testing.T) {
 			provider := tt.cfg["provider"]
 			err := serialization.MapUnmarshalValidate(tt.cfg, &cfg)
 			if tt.wantErr {
-				ExpectHasError(t, err)
+				expect.NotNil(t, err)
 			} else {
-				ExpectNoError(t, err)
-				ExpectEqual(t, provider.(string), cfg.ProviderName)
-				ExpectEqual(t, cfg.Provider, tt.expected)
+				expect.NoError(t, err)
+				expect.Equal(t, provider.(string), cfg.ProviderName)
+				expect.Equal(t, cfg.Provider, tt.expected)
 			}
 		})
 	}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestInjectCSS(t *testing.T) {

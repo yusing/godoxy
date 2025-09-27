@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/task"
+	"github.com/yusing/goutils/task"
 )
 
 var (

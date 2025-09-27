@@ -7,7 +7,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
-	expect "github.com/yusing/godoxy/internal/utils/testing"
+	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRouteValidate(t *testing.T) {

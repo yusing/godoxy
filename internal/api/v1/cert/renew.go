@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog/log"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	"github.com/yusing/godoxy/internal/net/gphttp/websocket"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 // @x-id				"renew"

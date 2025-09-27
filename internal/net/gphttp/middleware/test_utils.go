@@ -10,9 +10,8 @@ import (
 	"net/http/httptest"
 
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	. "github.com/yusing/godoxy/internal/utils/testing"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -96,13 +95,13 @@ type testArgs struct {
 
 func (args *testArgs) setDefaults() {
 	if args.reqURL == nil {
-		args.reqURL = Must(nettypes.ParseURL("https://example.com"))
+		args.reqURL = nettypes.MustParseURL("https://example.com")
 	}
 	if args.reqMethod == "" {
 		args.reqMethod = http.MethodGet
 	}
 	if args.upstreamURL == nil {
-		args.upstreamURL = Must(nettypes.ParseURL("https://10.0.0.1:8443")) // dummy url, no actual effect
+		args.upstreamURL = nettypes.MustParseURL("https://10.0.0.1:8443") // dummy url, no actual effect
 	}
 	if args.respHeaders == nil {
 		args.respHeaders = http.Header{}

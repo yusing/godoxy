@@ -6,8 +6,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/utils"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (

@@ -12,8 +12,8 @@ import (
 
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
-	"github.com/yusing/godoxy/internal/task"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/task"
 )
 
 type noopResponseWriter struct {
@@ -24,10 +24,12 @@ type noopResponseWriter struct {
 func (w *noopResponseWriter) Header() http.Header {
 	return http.Header{}
 }
+
 func (w *noopResponseWriter) Write(b []byte) (int, error) {
 	w.written = b
 	return len(b), nil
 }
+
 func (w *noopResponseWriter) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
 }
@@ -45,7 +47,7 @@ func (t noopTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func BenchmarkEntrypointReal(b *testing.B) {
 	var ep Entrypoint
-	var req = http.Request{
+	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",
@@ -107,7 +109,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 
 func BenchmarkEntrypoint(b *testing.B) {
 	var ep Entrypoint
-	var req = http.Request{
+	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",

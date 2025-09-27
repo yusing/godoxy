@@ -17,7 +17,7 @@ func (mux ServeMux) Handle(pattern string, handler http.Handler) (err error) {
 		}
 	}()
 	mux.ServeMux.Handle(pattern, handler)
-	return
+	return err
 }
 
 func (mux ServeMux) HandleFunc(pattern string, handler http.HandlerFunc) (err error) {
@@ -27,5 +27,5 @@ func (mux ServeMux) HandleFunc(pattern string, handler http.HandlerFunc) (err er
 		}
 	}()
 	mux.ServeMux.HandleFunc(pattern, handler)
-	return
+	return err
 }

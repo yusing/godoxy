@@ -1,7 +1,7 @@
 package rules
 
 import (
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var (

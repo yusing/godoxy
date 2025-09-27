@@ -15,9 +15,9 @@ import (
 
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/gperr"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
-	"github.com/yusing/godoxy/internal/task"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/task"
 )
 
 /*

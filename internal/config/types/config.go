@@ -9,13 +9,13 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
-	"github.com/yusing/godoxy/internal/gperr"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (

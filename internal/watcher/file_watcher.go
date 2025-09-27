@@ -3,7 +3,7 @@ package watcher
 import (
 	"context"
 
-	"github.com/yusing/godoxy/internal/gperr"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type fileWatcher struct {
