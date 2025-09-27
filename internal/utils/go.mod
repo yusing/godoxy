@@ -5,7 +5,7 @@ go 1.25.1
 require (
 	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/rs/zerolog v1.34.0
-	github.com/yusing/goutils v0.3.1
+	github.com/yusing/goutils v0.4.1
 	go.uber.org/atomic v1.11.0
 )
 
