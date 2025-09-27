@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"time"
 
@@ -140,6 +141,9 @@ func (mon *monitor) Start(parent task.Parent) gperr.Error {
 			logger.Err(err).Msg("healthchecker error")
 			failures++
 		}
+
+		// add a random delay between 0 and 10 seconds to avoid thundering herd
+		time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
 
 		ticker := time.NewTicker(mon.config.Interval)
 		defer ticker.Stop()
