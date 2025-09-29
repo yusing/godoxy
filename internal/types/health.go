@@ -88,23 +88,38 @@ const (
 	StatusUnhealthy
 	StatusError
 
+	StatusUnknownStr   = "unknown"
+	StatusHealthyStr   = "healthy"
+	StatusNappingStr   = "napping"
+	StatusStartingStr  = "starting"
+	StatusUnhealthyStr = "unhealthy"
+	StatusErrorStr     = "error"
+
 	NumStatuses int = iota - 1
 
 	HealthyMask = StatusHealthy | StatusNapping | StatusStarting
 	IdlingMask  = StatusNapping | StatusStarting
 )
 
+var (
+	StatusHealthyStr2   = strconv.Itoa(int(StatusHealthy))
+	StatusNappingStr2   = strconv.Itoa(int(StatusNapping))
+	StatusStartingStr2  = strconv.Itoa(int(StatusStarting))
+	StatusUnhealthyStr2 = strconv.Itoa(int(StatusUnhealthy))
+	StatusErrorStr2     = strconv.Itoa(int(StatusError))
+)
+
 func NewHealthStatusFromString(s string) HealthStatus {
 	switch s {
-	case "healthy":
+	case StatusHealthyStr, StatusHealthyStr2:
 		return StatusHealthy
-	case "unhealthy":
+	case StatusUnhealthyStr, StatusUnhealthyStr2:
 		return StatusUnhealthy
-	case "napping":
+	case StatusNappingStr, StatusNappingStr2:
 		return StatusNapping
-	case "starting":
+	case StatusStartingStr, StatusStartingStr2:
 		return StatusStarting
-	case "error":
+	case StatusErrorStr, StatusErrorStr2:
 		return StatusError
 	default:
 		return StatusUnknown
@@ -114,17 +129,17 @@ func NewHealthStatusFromString(s string) HealthStatus {
 func (s HealthStatus) String() string {
 	switch s {
 	case StatusHealthy:
-		return "healthy"
+		return StatusHealthyStr
 	case StatusUnhealthy:
-		return "unhealthy"
+		return StatusUnhealthyStr
 	case StatusNapping:
-		return "napping"
+		return StatusNappingStr
 	case StatusStarting:
-		return "starting"
+		return StatusStartingStr
 	case StatusError:
-		return "error"
+		return StatusErrorStr
 	default:
-		return "unknown"
+		return StatusUnknownStr
 	}
 }
 
@@ -145,21 +160,13 @@ func (s HealthStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (s *HealthStatus) UnmarshalJSON(data []byte) error {
-	var v any
+	var v string
 	if err := sonic.Unmarshal(data, &v); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal health status: %w", err)
 	}
-	switch v := v.(type) {
-	case string:
-		*s = NewHealthStatusFromString(v)
-		return nil
-	case int:
-		if v > 0 && v < NumStatuses {
-			*s = HealthStatus(v)
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid health status type %T of value %v", v, v)
+
+	*s = NewHealthStatusFromString(v)
+	return nil
 }
 
 func (jsonRepr *HealthJSONRepr) MarshalJSON() ([]byte, error) {
