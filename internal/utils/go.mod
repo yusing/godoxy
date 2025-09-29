@@ -2,6 +2,8 @@ module github.com/yusing/godoxy/internal/utils
 
 go 1.25.1
 
+exclude github.com/yusing/goutils v0.4.2
+
 require (
 	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/rs/zerolog v1.34.0

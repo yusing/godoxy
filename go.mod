@@ -12,6 +12,8 @@ replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.0.0-
 
 replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250926133131-7ef260e41a49
 
+exclude github.com/yusing/goutils v0.4.2
+
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
 	github.com/coreos/go-oidc/v3 v3.15.0 // oidc authentication
@@ -46,8 +48,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.2.0
-	github.com/yusing/godoxy/agent v0.0.0-20250927061642-2a05c6a6301b
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250927054150-6776f2033287
+	github.com/yusing/godoxy/agent v0.0.0-20250928123002-024100aa8ced
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20250928123002-024100aa8ced
 	github.com/yusing/godoxy/internal/utils v0.1.0
 	github.com/yusing/goutils v0.4.1
 )

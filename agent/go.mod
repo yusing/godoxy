@@ -12,6 +12,8 @@ replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.
 
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
+exclude github.com/yusing/goutils v0.4.2
+
 require (
 	github.com/bytedance/sonic v1.14.1
 	github.com/gin-gonic/gin v1.11.0

@@ -44,7 +44,11 @@ require (
 	github.com/aziontech/azionapi-go-sdk v0.143.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
+	github.com/bytedance/gopkg v0.1.3 // indirect
+	github.com/bytedance/sonic v1.14.1 // indirect
+	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dnsimple/dnsimple-go/v4 v4.0.0 // indirect
 	github.com/exoscale/egoscale/v3 v3.1.26 // indirect
@@ -80,6 +84,7 @@ require (
 	github.com/infobloxopen/infoblox-go-client/v2 v2.10.0 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/k0kubun/go-ansi v0.0.0-20180517002512-3bf9e2903213 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labbsr0x/bindman-dns-webhook v1.0.2 // indirect
@@ -142,13 +147,14 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/transip/gotransip/v6 v6.26.0 // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ultradns/ultradns-go-sdk v1.8.1-20250722213956-faef419 // indirect
 	github.com/vinyldns/go-vinyldns v0.9.16 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.221 // indirect
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusing/godoxy/internal/utils v0.1.0 // indirect
-	github.com/yusing/goutils v0.4.1 // indirect
+	github.com/yusing/goutils v0.4.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
@@ -158,6 +164,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/arch v0.21.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
