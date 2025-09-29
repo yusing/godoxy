@@ -1,8 +1,7 @@
 package types
 
 import (
-	"encoding/json"
-
+	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -79,5 +78,5 @@ func (e *ContainerError) Unwrap() error {
 
 func (e *ContainerError) MarshalJSON() ([]byte, error) {
 	err := e.errs.Error().(interface{ Plain() []byte })
-	return json.Marshal(string(err.Plain()))
+	return sonic.Marshal(string(err.Plain()))
 }

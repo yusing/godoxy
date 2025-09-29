@@ -2,9 +2,9 @@ package notif
 
 import (
 	"bytes"
-	"encoding/json"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -83,7 +83,7 @@ func (f FieldsBody) Format(format *LogFormat) ([]byte, error) {
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
-		return json.Marshal(f)
+		return sonic.Marshal(f)
 	}
 	return f.Format(LogFormatMarkdown)
 }
@@ -101,7 +101,7 @@ func (l ListBody) Format(format *LogFormat) ([]byte, error) {
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
-		return json.Marshal(l)
+		return sonic.Marshal(l)
 	}
 	return l.Format(LogFormatMarkdown)
 }
@@ -111,7 +111,7 @@ func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
 	case LogFormatPlain, LogFormatMarkdown:
 		return []byte(m), nil
 	case LogFormatRawJSON:
-		return json.Marshal(m)
+		return sonic.Marshal(m)
 	}
 	return m.Format(LogFormatMarkdown)
 }
@@ -119,7 +119,7 @@ func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
 func (e ErrorBody) Format(format *LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
-		return json.Marshal(e.Error)
+		return sonic.Marshal(e.Error)
 	case LogFormatPlain:
 		return gperr.Plain(e.Error), nil
 	case LogFormatMarkdown:

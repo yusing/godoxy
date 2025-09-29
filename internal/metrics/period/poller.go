@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/utils/atomic"
 	gperr "github.com/yusing/goutils/errs"
@@ -73,7 +74,7 @@ func (p *Poller[T, AggregateT]) load() error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(entries, &p.period); err != nil {
+	if err := sonic.Unmarshal(entries, &p.period); err != nil {
 		return err
 	}
 	// Validate and fix intervals after loading to ensure data integrity.
@@ -83,7 +84,7 @@ func (p *Poller[T, AggregateT]) load() error {
 
 func (p *Poller[T, AggregateT]) save() error {
 	initDataDirOnce.Do(initDataDir)
-	entries, err := json.Marshal(p.period)
+	entries, err := sonic.Marshal(p.period)
 	if err != nil {
 		return err
 	}

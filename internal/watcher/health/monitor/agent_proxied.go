@@ -1,12 +1,12 @@
 package monitor
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/bytedance/sonic"
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -70,7 +70,7 @@ func (mon *AgentProxiedMonitor) CheckHealth() (result types.HealthCheckResult, e
 	endTime := time.Now()
 	switch status {
 	case http.StatusOK:
-		err = json.Unmarshal(data, &result)
+		err = sonic.Unmarshal(data, &result)
 	default:
 		err = errors.New(string(data))
 	}

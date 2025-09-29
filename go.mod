@@ -27,7 +27,6 @@ require (
 	github.com/pires/go-proxyproto v0.8.1 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
-	github.com/shirou/gopsutil/v4 v4.25.8 // system info metrics
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.42.0 // encrypting password with bcrypt
 	golang.org/x/net v0.44.0 // HTTP header utilities
@@ -102,7 +101,6 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
@@ -131,7 +129,6 @@ require (
 	github.com/linode/linodego v1.59.0 // indirect
 	github.com/liquidweb/liquidweb-cli v0.7.0 // indirect
 	github.com/liquidweb/liquidweb-go v1.6.4 // indirect
-	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -160,7 +157,6 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/regfish/regfish-dnsapi-go v0.1.1 // indirect
@@ -183,15 +179,12 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.15 // indirect
-	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/transip/gotransip/v6 v6.26.0 // indirect
 	github.com/ultradns/ultradns-go-sdk v1.8.1-20250722213956-faef419 // indirect
 	github.com/vinyldns/go-vinyldns v0.9.16 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.221 // indirect
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
@@ -215,10 +208,14 @@ require (
 )
 
 require (
+	github.com/bytedance/sonic v1.14.1
+	github.com/shirou/gopsutil/v4 v4.25.8
+)
+
+require (
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v11 v11.1.0 // indirect
 	github.com/aziontech/azionapi-go-sdk v0.143.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic v1.14.1 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -227,10 +224,12 @@ require (
 	github.com/dnsimple/dnsimple-go/v4 v4.0.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -240,10 +239,14 @@ require (
 	github.com/onsi/ginkgo/v2 v2.25.1 // indirect
 	github.com/onsi/gomega v1.38.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
+	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/tklauser/go-sysconf v0.3.15 // indirect
+	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.37.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.21.0 // indirect

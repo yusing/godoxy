@@ -1,8 +1,9 @@
 package rules
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/bytedance/sonic"
 )
 
 type (
@@ -117,7 +118,7 @@ func (rules Rules) MarshalJSON() ([]byte, error) {
 	for i, rule := range rules {
 		names[i] = rule.Name
 	}
-	return json.Marshal(names)
+	return sonic.Marshal(names)
 }
 
 func (rule *Rule) String() string {

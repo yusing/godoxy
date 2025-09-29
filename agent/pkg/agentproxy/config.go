@@ -2,7 +2,6 @@ package agentproxy
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -54,7 +53,7 @@ func proxyConfigFromHeaders(h http.Header) (cfg Config, err error) {
 		return cfg, err
 	}
 
-	err = json.Unmarshal(cfgJSON, &cfg)
+	err = sonic.Unmarshal(cfgJSON, &cfg)
 	return cfg, err
 }
 

@@ -2,7 +2,6 @@ package homepage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
@@ -310,7 +310,7 @@ func UpdateWalkxCodeIcons() error {
 	}
 
 	data := make(map[string][]string)
-	err = json.Unmarshal(body, &data)
+	err = sonic.Unmarshal(body, &data)
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func UpdateSelfhstIcons() error {
 	}
 
 	data := make([]SelfhStIcon, 0)
-	err = json.Unmarshal(body, &data) //nolint:musttag
+	err = sonic.Unmarshal(body, &data) //nolint:musttag
 	if err != nil {
 		return err
 	}

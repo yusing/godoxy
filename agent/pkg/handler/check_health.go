@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 )
@@ -78,5 +78,5 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	sonic.ConfigDefault.NewEncoder(w).Encode(result)
 }

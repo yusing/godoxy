@@ -2,11 +2,11 @@ package qbittorrent
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -59,7 +59,7 @@ func jsonRequest[T any](ctx context.Context, client *Client, endpoint string, qu
 	}
 	defer resp.Body.Close()
 
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	err = sonic.ConfigDefault.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return result, err
 	}

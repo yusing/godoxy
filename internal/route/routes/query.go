@@ -1,11 +1,11 @@
 package routes
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/types"
 )
 
@@ -17,7 +17,7 @@ type HealthInfo struct {
 }
 
 func (info *HealthInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+	return sonic.Marshal(map[string]any{
 		"status":  info.Status.String(),
 		"latency": info.Latency.Microseconds(),
 		"uptime":  info.Uptime.Milliseconds(),
@@ -32,7 +32,7 @@ func (info *HealthInfo) UnmarshalJSON(data []byte) error {
 		Uptime  int64  `json:"uptime"`
 		Detail  string `json:"detail"`
 	}
-	if err := json.Unmarshal(data, &v); err != nil {
+	if err := sonic.Unmarshal(data, &v); err != nil {
 		return err
 	}
 

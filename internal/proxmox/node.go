@@ -2,10 +2,10 @@ package proxmox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/yusing/godoxy/internal/utils/pool"
 )
@@ -40,7 +40,7 @@ func (n *Node) String() string {
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+	return sonic.Marshal(map[string]any{
 		"name": n.name,
 		"id":   n.id,
 	})

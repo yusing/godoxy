@@ -13,6 +13,7 @@ replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
 require (
+	github.com/bytedance/sonic v1.14.1
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/puzpuzpuz/xsync/v4 v4.2.0
@@ -29,7 +30,6 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic v1.14.1 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect

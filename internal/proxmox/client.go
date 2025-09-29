@@ -2,9 +2,9 @@ package proxmox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	"github.com/bytedance/sonic"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/yusing/godoxy/internal/utils/pool"
 )
@@ -47,7 +47,7 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
+	return sonic.Marshal(map[string]any{
 		"version": c.Version,
 		"cluster": map[string]any{
 			"name":    c.Cluster.Name,

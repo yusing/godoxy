@@ -2,10 +2,10 @@ package homepage
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/jsonstore"
@@ -123,8 +123,8 @@ func (e *cacheEntry) UnmarshalJSON(data []byte) error {
 		LastAccess  time.Time `json:"last_access"`
 	}
 	// check if data is json
-	if json.Valid(data) {
-		err := json.Unmarshal(data, &tmp)
+	if sonic.Valid(data) {
+		err := sonic.Unmarshal(data, &tmp)
 		// return only if unmarshal is successful
 		// otherwise fallback to base64
 		if err == nil {

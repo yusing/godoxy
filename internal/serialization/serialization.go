@@ -1,7 +1,6 @@
 package serialization
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
@@ -594,7 +594,7 @@ func loadSerialized[T any](path string, dst *T, deserialize func(data []byte, ds
 }
 
 func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
-	data, err := json.Marshal(src)
+	data, err := sonic.Marshal(src)
 	if err != nil {
 		return err
 	}
@@ -602,7 +602,7 @@ func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
 }
 
 func LoadJSONIfExist[T any](path string, dst *T) error {
-	err := loadSerialized(path, dst, json.Unmarshal)
+	err := loadSerialized(path, dst, sonic.Unmarshal)
 	if os.IsNotExist(err) {
 		return nil
 	}

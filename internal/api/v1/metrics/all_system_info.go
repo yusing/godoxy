@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -256,7 +257,7 @@ func marshalSystemInfo(ws *websocket.Manager, agentName string, systemInfo any) 
 	}
 
 	buf := bytes.NewBuffer(bytesBuf)
-	err := json.NewEncoder(buf).Encode(map[string]any{
+	err := sonic.ConfigDefault.NewEncoder(buf).Encode(map[string]any{
 		agentName: systemInfo,
 	})
 	if err != nil {

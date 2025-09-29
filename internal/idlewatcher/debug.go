@@ -1,10 +1,10 @@
 package idlewatcher
 
 import (
-	"encoding/json"
 	"iter"
 	"strconv"
 
+	"github.com/bytedance/sonic"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -14,7 +14,7 @@ type watcherDebug struct {
 
 func (w watcherDebug) MarshalJSON() ([]byte, error) {
 	state := w.state.Load()
-	return json.Marshal(map[string]any{
+	return sonic.Marshal(map[string]any{
 		"name": w.Name(),
 		"state": map[string]string{
 			"status": string(state.status),
