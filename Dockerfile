@@ -13,7 +13,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 
 # remove godoxy stuff from go.mod first
-RUN sed -i '/^module github\.com\/yusing\/go-proxy/!{/github\.com\/yusing\/go-proxy/d}' go.mod && \
+RUN sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && \
   go mod download -x
 
 # Stage 2: builder
