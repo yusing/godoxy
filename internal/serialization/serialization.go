@@ -441,28 +441,8 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 			return err
 		}
 	case dstT.Kind() == reflect.String:
-		if src.Kind() == reflect.Bool { // bool to string
-			if !dst.CanSet() {
-				return ErrUnsettable.Subject(dstT.String())
-			}
-			dst.SetString(strconv.FormatBool(src.Bool()))
-			return nil
-		} else if gi.ReflectIsNumeric(src) { // numeric to string
-			if !dst.CanSet() {
-				return ErrUnsettable.Subject(dstT.String())
-			}
-			var strV string
-			switch {
-			case src.CanInt():
-				strV = strconv.FormatInt(src.Int(), 10)
-			case src.CanUint():
-				strV = strconv.FormatUint(src.Uint(), 10)
-			case src.CanFloat():
-				strV = strconv.FormatFloat(src.Float(), 'f', -1, 64)
-			}
-			dst.SetString(strV)
-			return nil
-		}
+		dst.SetString(gi.ReflectToStr(src))
+		return nil
 	case srcKind == reflect.Map: // map to map
 		if src.Len() == 0 {
 			return nil
