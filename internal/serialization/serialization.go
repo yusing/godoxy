@@ -59,7 +59,7 @@ func RegisterDefaultValueFactory[T any](factory func() *T) {
 // otherwise, initialize the ptr with zero value.
 func initPtr(dst reflect.Value) {
 	dstT := dst.Type()
-	if dv, ok := defaultValues[dstT]; ok {
+	if dv, ok := defaultValues[dstT.Elem()]; ok {
 		dst.Set(reflect.ValueOf(dv()))
 	} else {
 		gi.ReflectInitPtr(dst)
