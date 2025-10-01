@@ -212,6 +212,7 @@ require (
 require (
 	github.com/bytedance/sonic v1.14.1
 	github.com/shirou/gopsutil/v4 v4.25.8
+	github.com/yusing/gointernals v0.1.16
 )
 
 require (

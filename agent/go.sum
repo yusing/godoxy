@@ -208,6 +208,8 @@ github.com/vincent-petithory/dataurl v1.0.0/go.mod h1:FHafX5vmDzyP+1CQATJn7WFKc9
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusing/ds v0.2.0 h1:lPhDU5eA2uvquVrBrzLCrQXRJJgSXlUYA53TbuK2sQY=
 github.com/yusing/ds v0.2.0/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
+github.com/yusing/gointernals v0.1.16 h1:GrhZZdxzA+jojLEqankctJrOuAYDb7kY1C93S1pVR34=
+github.com/yusing/gointernals v0.1.16/go.mod h1:B/0FVXt4WPmgzVy3ynzkqKi+BSGaJVmwCJBRXYapo34=
 github.com/yusing/goutils v0.4.1 h1:80uFNxXfm4zXMYDku0rWMLyqEiXO0UOMFOaUC4b/6fI=
 github.com/yusing/goutils v0.4.1/go.mod h1:xsoLWLtIiu7k+9Bn6azERDs5o3Djb3b2/DW1htHrOjg=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=

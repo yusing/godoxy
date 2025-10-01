@@ -10,7 +10,7 @@ import (
 
 type (
 	FieldConfig struct {
-		Default FieldMode            `json:"default" validate:"oneof=keep drop redact"`
+		Default FieldMode            `json:"default" validate:"omitempty,oneof=keep drop redact"`
 		Config  map[string]FieldMode `json:"config" validate:"dive,oneof=keep drop redact"`
 	}
 	FieldMode string
