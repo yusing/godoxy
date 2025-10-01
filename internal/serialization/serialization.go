@@ -44,6 +44,8 @@ var mapUnmarshalerType = reflect.TypeFor[MapUnmarshaller]()
 
 var defaultValues = make(map[reflect.Type]func() any)
 
+// RegisterDefaultValueFactory registers a factory function for a type.
+// This is not concurrent safe. Intended to be used in init functions.
 func RegisterDefaultValueFactory[T any](factory func() *T) {
 	t := reflect.TypeFor[T]()
 	if t.Kind() == reflect.Pointer {
