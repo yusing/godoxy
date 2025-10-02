@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -262,20 +261,6 @@ func TestStringToSlice(t *testing.T) {
 	})
 }
 
-func BenchmarkStringToSlice(b *testing.B) {
-	for range b.N {
-		dst := make([]int, 0)
-		_, _ = ConvertString("- 1\n- 2\n- 3", reflect.ValueOf(&dst))
-	}
-}
-
-func BenchmarkStringToSliceYAML(b *testing.B) {
-	for range b.N {
-		dst := make([]int, 0)
-		_ = yaml.Unmarshal([]byte("- 1\n- 2\n- 3"), &dst)
-	}
-}
-
 func TestStringToMap(t *testing.T) {
 	t.Run("yaml-like", func(t *testing.T) {
 		dst := make(map[string]string)
@@ -284,20 +269,6 @@ func TestStringToMap(t *testing.T) {
 		expect.NoError(t, err)
 		expect.Equal(t, dst, map[string]string{"a": "b", "c": "d"})
 	})
-}
-
-func BenchmarkStringToMap(b *testing.B) {
-	for range b.N {
-		dst := make(map[string]string)
-		_, _ = ConvertString("  a: b\n  c: d", reflect.ValueOf(&dst))
-	}
-}
-
-func BenchmarkStringToMapYAML(b *testing.B) {
-	for range b.N {
-		dst := make(map[string]string)
-		_ = yaml.Unmarshal([]byte("  a: b\n  c: d"), &dst)
-	}
 }
 
 func TestStringToStruct(t *testing.T) {
@@ -334,24 +305,4 @@ autocert:
 	}
 	require.NoError(t, UnmarshalValidateYAML(data, &cfg))
 	require.Equal(t, "test", cfg.Autocert.Options.AuthToken)
-}
-
-func BenchmarkStringToStruct(b *testing.B) {
-	for range b.N {
-		dst := struct {
-			A string `json:"a"`
-			B int    `json:"b"`
-		}{}
-		_, _ = ConvertString("  a: a\n  b: 123", reflect.ValueOf(&dst))
-	}
-}
-
-func BenchmarkStringToStructYAML(b *testing.B) {
-	for range b.N {
-		dst := struct {
-			A string `yaml:"a"`
-			B int    `yaml:"b"`
-		}{}
-		_ = yaml.Unmarshal([]byte("  a: a\n  b: 123"), &dst)
-	}
 }

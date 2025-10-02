@@ -14,6 +14,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/godoxy/internal/utils"
+	gi "github.com/yusing/gointernals"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -41,53 +42,30 @@ var (
 
 var mapUnmarshalerType = reflect.TypeFor[MapUnmarshaller]()
 
-var defaultValues = xsync.NewMapOf[reflect.Type, func() any]()
+var defaultValues = make(map[reflect.Type]func() any)
 
+// RegisterDefaultValueFactory registers a factory function for a type.
+// This is not concurrent safe. Intended to be used in init functions.
 func RegisterDefaultValueFactory[T any](factory func() *T) {
 	t := reflect.TypeFor[T]()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		panic("pointer of pointer")
 	}
-	if _, ok := defaultValues.Load(t); ok {
+	if _, ok := defaultValues[t]; ok {
 		panic("default value for " + t.String() + " already registered")
 	}
-	defaultValues.Store(t, func() any { return factory() })
+	defaultValues[t] = func() any { return factory() }
 }
 
-func New(t reflect.Type) reflect.Value {
-	if dv, ok := defaultValues.Load(t); ok {
-		return reflect.ValueOf(dv())
+// initPtr initialize the ptr with default value if exists,
+// otherwise, initialize the ptr with zero value.
+func initPtr(dst reflect.Value) {
+	dstT := dst.Type()
+	if dv, ok := defaultValues[dstT.Elem()]; ok {
+		dst.Set(reflect.ValueOf(dv()))
+	} else {
+		gi.ReflectInitPtr(dst)
 	}
-	return reflect.New(t)
-}
-
-func extractFields(t reflect.Type) (all, anonymous []reflect.StructField) {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct {
-		return nil, nil
-	}
-	n := t.NumField()
-	fields := make([]reflect.StructField, 0, n)
-	for i := range n {
-		field := t.Field(i)
-		if !field.IsExported() {
-			continue
-		}
-		if field.Tag.Get(tagDeserialize) == "-" {
-			continue
-		}
-		if field.Anonymous {
-			f1, f2 := extractFields(field.Type)
-			fields = append(fields, f1...)
-			anonymous = append(anonymous, field)
-			anonymous = append(anonymous, f2...)
-		} else {
-			fields = append(fields, field)
-		}
-	}
-	return fields, anonymous
 }
 
 func ValidateWithFieldTags(s any) gperr.Error {
@@ -141,30 +119,147 @@ func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
 func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) {
 	dstT := dst.Type()
 	for {
-		switch dst.Kind() {
-		case reflect.Pointer, reflect.Interface:
-			if dst.IsNil() {
-				if !dst.CanSet() {
-					err = gperr.Errorf("dive: dst is %w and is not settable", ErrNilValue)
-					return v, t, err
-				}
-				dst.Set(New(dstT.Elem()))
-			}
+		switch dstT.Kind() {
+		case reflect.Pointer:
 			dst = dst.Elem()
-			dstT = dst.Type()
-		case reflect.Map:
-			if dst.IsNil() {
-				dst.Set(reflect.MakeMap(dstT))
-			}
-			return dst, dstT, nil
-		case reflect.Slice:
-			if dst.IsNil() {
-				dst.Set(reflect.MakeSlice(dstT, 0, 0))
-			}
-			return dst, dstT, nil
+			dstT = dstT.Elem()
 		default:
 			return dst, dstT, nil
 		}
+	}
+}
+
+func fnv1IgnoreCaseSnake(s string) uint32 {
+	const (
+		offset32 uint32 = 2166136261
+		prime32  uint32 = 16777619
+	)
+	hash := offset32
+	for _, r := range s {
+		if r == '_' {
+			continue
+		}
+		if r >= 'A' && r <= 'Z' {
+			r += 'a' - 'A'
+		}
+		hash = hash*prime32 ^ uint32(r)
+	}
+	return hash
+}
+
+type typeInfo struct {
+	keyFieldIndexes map[uint32][]int
+	fieldNames      map[string]struct{}
+	hasValidateTag  bool
+}
+
+func (t typeInfo) getField(v reflect.Value, k string) (reflect.Value, bool) {
+	hash := fnv1IgnoreCaseSnake(k)
+	if field, ok := t.keyFieldIndexes[hash]; ok {
+		return fieldByIndexWithLazyPtrInitialization(v, field), true
+	}
+	return reflect.Value{}, false
+}
+
+func fieldByIndexWithLazyPtrInitialization(v reflect.Value, index []int) reflect.Value {
+	if len(index) == 1 {
+		return v.Field(index[0])
+	}
+	for i, x := range index {
+		if i > 0 {
+			if v.Kind() == reflect.Pointer && v.Type().Elem().Kind() == reflect.Struct {
+				if v.IsNil() {
+					initPtr(v)
+				}
+				v = v.Elem()
+			}
+		}
+		v = v.Field(x)
+	}
+	return v
+}
+
+var getTypeInfo func(t reflect.Type) typeInfo
+
+func init() {
+	m := xsync.NewMap[reflect.Type, typeInfo](xsync.WithGrowOnly(), xsync.WithPresize(100))
+	getTypeInfo = func(t reflect.Type) typeInfo {
+		if v, ok := m.Load(t); ok {
+			return v
+		}
+		v := initTypeKeyFieldIndexesMap(t)
+		m.Store(t, v)
+		return v
+	}
+}
+
+func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
+	hasValidateTag := false
+	numFields := t.NumField()
+
+	keyFieldIndexes := make(map[uint32][]int, numFields)
+	fieldNames := make(map[string]struct{}, numFields)
+
+	for i := range numFields {
+		field := t.Field(i)
+		if field.Tag.Get(tagDeserialize) == "-" || field.Tag.Get(tagJSON) == "-" {
+			continue
+		}
+
+		if !field.IsExported() {
+			continue
+		}
+		if field.Anonymous {
+			fieldT := field.Type
+			if fieldT.Kind() == reflect.Pointer {
+				fieldT = fieldT.Elem()
+			}
+			if fieldT.Kind() != reflect.Struct {
+				goto notAnonymousStruct
+			}
+			typeInfo := getTypeInfo(fieldT)
+			for k, v := range typeInfo.keyFieldIndexes {
+				keyFieldIndexes[k] = append(field.Index, v...)
+			}
+			for k := range typeInfo.fieldNames {
+				fieldNames[k] = struct{}{}
+			}
+			hasValidateTag = hasValidateTag || typeInfo.hasValidateTag
+			continue
+		}
+	notAnonymousStruct:
+		var key string
+		if jsonTag, ok := field.Tag.Lookup(tagJSON); ok {
+			if jsonTag == "-" {
+				continue
+			}
+			key = jsonTag
+			if idxComma := strings.Index(key, ","); idxComma != -1 {
+				key = key[:idxComma]
+			}
+		} else {
+			key = field.Name
+		}
+		keyFieldIndexes[fnv1IgnoreCaseSnake(key)] = field.Index
+		fieldNames[key] = struct{}{}
+
+		if !hasValidateTag {
+			_, hasValidateTag = field.Tag.Lookup(tagValidate)
+		}
+
+		aliases, ok := field.Tag.Lookup(tagAliases)
+		if ok {
+			for alias := range strings.SplitSeq(aliases, ",") {
+				keyFieldIndexes[fnv1IgnoreCaseSnake(alias)] = field.Index
+				fieldNames[alias] = struct{}{}
+			}
+		}
+	}
+
+	return typeInfo{
+		keyFieldIndexes: keyFieldIndexes,
+		fieldNames:      fieldNames,
+		hasValidateTag:  hasValidateTag,
 	}
 }
 
@@ -182,11 +277,10 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 //
 // The function returns an error if the target value is not a struct or a map[string]any, or if there is an error during deserialization.
 func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
-	return mapUnmarshalValidate(src, dst, true)
+	return mapUnmarshalValidate(src, reflect.ValueOf(dst), true)
 }
 
-func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) (err gperr.Error) {
-	dstV := reflect.ValueOf(dst)
+func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidateTag bool) (err gperr.Error) {
 	dstT := dstV.Type()
 
 	if src != nil && dstT.Implements(mapUnmarshalerType) {
@@ -204,7 +298,7 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 
 	if src == nil {
 		if dstV.CanSet() {
-			dstV.Set(reflect.Zero(dstT))
+			dstV.SetZero()
 			return nil
 		}
 		return gperr.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
@@ -218,49 +312,18 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 
 	switch dstV.Kind() {
 	case reflect.Struct, reflect.Interface:
-		hasValidateTag := false
-		mapping := make(map[string]reflect.Value)
-		fields, anonymous := extractFields(dstT)
-		for _, anon := range anonymous {
-			if field := dstV.FieldByName(anon.Name); field.Kind() == reflect.Ptr && field.IsNil() {
-				field.Set(New(anon.Type.Elem()))
-			}
-		}
-		for _, field := range fields {
-			var key string
-			if jsonTag, ok := field.Tag.Lookup(tagJSON); ok {
-				if jsonTag == "-" {
-					continue
-				}
-				key = strutils.CommaSeperatedList(jsonTag)[0]
-			} else {
-				key = field.Name
-			}
-			key = strutils.ToLowerNoSnake(key)
-			mapping[key] = dstV.FieldByName(field.Name)
-
-			if !hasValidateTag {
-				_, hasValidateTag = field.Tag.Lookup(tagValidate)
-			}
-
-			aliases, ok := field.Tag.Lookup(tagAliases)
-			if ok {
-				for _, alias := range strutils.CommaSeperatedList(aliases) {
-					mapping[alias] = dstV.FieldByName(field.Name)
-				}
-			}
-		}
+		info := getTypeInfo(dstT)
 		for k, v := range src {
-			if field, ok := mapping[strutils.ToLowerNoSnake(k)]; ok {
-				err := Convert(reflect.ValueOf(v), field, !hasValidateTag)
+			if field, ok := info.getField(dstV, k); ok {
+				err := Convert(reflect.ValueOf(v), field, !info.hasValidateTag)
 				if err != nil {
 					errs.Add(err.Subject(k))
 				}
 			} else {
-				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(utils.NearestField(k, mapping))))
+				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(utils.NearestField(k, info.fieldNames))))
 			}
 		}
-		if hasValidateTag && checkValidateTag {
+		if info.hasValidateTag && checkValidateTag {
 			errs.Add(ValidateWithFieldTags(dstV.Interface()))
 		}
 		if err := ValidateWithCustomValidator(dstV); err != nil {
@@ -268,18 +331,25 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 		}
 		return errs.Error()
 	case reflect.Map:
+		if dstV.IsNil() {
+			if !dstV.CanSet() {
+				return gperr.Errorf("dive: dst is %w and is not settable", ErrNilValue)
+			}
+			gi.ReflectInitMap(dstV, len(src))
+		}
+		if dstT.Key().Kind() != reflect.String {
+			return gperr.Errorf("deserialize: %w for map of non string keys (map of %s)", ErrUnsupportedConversion, dstT.Elem().String())
+		}
+		// ?: should we clear the  map?
 		for k, v := range src {
-			mapVT := dstT.Elem()
-			tmp := New(mapVT).Elem()
-			err := Convert(reflect.ValueOf(v), tmp, true)
+			elem := gi.ReflectStrMapAssign(dstV, k)
+			err := Convert(reflect.ValueOf(v), elem, true)
 			if err != nil {
 				errs.Add(err.Subject(k))
 				continue
 			}
-			if err := ValidateWithCustomValidator(tmp.Addr()); err != nil {
+			if err := ValidateWithCustomValidator(elem); err != nil {
 				errs.Add(err.Subject(k))
-			} else {
-				dstV.SetMapIndex(reflect.ValueOf(k), tmp)
 			}
 		}
 		if err := ValidateWithCustomValidator(dstV); err != nil {
@@ -289,10 +359,6 @@ func mapUnmarshalValidate(src SerializedObject, dst any, checkValidateTag bool) 
 	default:
 		return ErrUnsupportedConversion.Subject("mapping to " + dstT.String() + " ")
 	}
-}
-
-func isIntFloat(t reflect.Kind) bool {
-	return t >= reflect.Bool && t <= reflect.Float64
 }
 
 // Convert attempts to convert the src to dst.
@@ -316,8 +382,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if !dst.CanSet() {
 			return gperr.Errorf("convert: src is %w", ErrNilValue)
 		}
-		// manually set nil
-		dst.Set(reflect.Zero(dst.Type()))
+		dst.SetZero()
 		return nil
 	}
 
@@ -326,10 +391,10 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 			return gperr.Errorf("convert: src is %w", ErrNilValue)
 		}
 		switch dst.Kind() {
-		case reflect.Pointer, reflect.Interface:
-			dst.Set(reflect.New(dst.Type().Elem()))
+		case reflect.Pointer:
+			initPtr(dst)
 		default:
-			dst.Set(reflect.Zero(dst.Type()))
+			dst.SetZero()
 		}
 		return nil
 	}
@@ -344,7 +409,10 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
-			dst.Set(New(dstT.Elem()))
+			if !dst.CanSet() {
+				return ErrUnsettable.Subject(dstT.String())
+			}
+			initPtr(dst)
 		}
 		dst = dst.Elem()
 		dstT = dst.Type()
@@ -353,15 +421,12 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 	srcKind := srcT.Kind()
 
 	switch {
-	case srcT.AssignableTo(dstT):
+	case srcT == dstT, srcT.AssignableTo(dstT):
 		if !dst.CanSet() {
 			return ErrUnsettable.Subject(dstT.String())
 		}
 		dst.Set(src)
 		return nil
-	// case srcT.ConvertibleTo(dstT):
-	// 	dst.Set(src.Convert(dstT))
-	// 	return nil
 	case srcKind == reflect.String:
 		if !dst.CanSet() {
 			return ErrUnsettable.Subject(dstT.String())
@@ -369,25 +434,18 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if convertible, err := ConvertString(src.String(), dst); convertible {
 			return err
 		}
-	case isIntFloat(srcKind):
-		if !dst.CanSet() {
-			return ErrUnsettable.Subject(dstT.String())
-		}
-		var strV string
-		switch {
-		case src.CanInt():
-			strV = strconv.FormatInt(src.Int(), 10)
-		case srcKind == reflect.Bool:
-			strV = strconv.FormatBool(src.Bool())
-		case src.CanUint():
-			strV = strconv.FormatUint(src.Uint(), 10)
-		case src.CanFloat():
-			strV = strconv.FormatFloat(src.Float(), 'f', -1, 64)
-		}
-		if convertible, err := ConvertString(strV, dst); convertible {
+	case gi.ReflectIsNumeric(src) && gi.ReflectIsNumeric(dst):
+		dst.Set(src.Convert(dst.Type()))
+		return nil
+	case gi.ReflectIsNumeric(src):
+		// try ConvertString
+		if convertible, err := ConvertString(gi.ReflectToStr(src), dst); convertible {
 			return err
 		}
-	case srcKind == reflect.Map:
+	case dstT.Kind() == reflect.String:
+		dst.SetString(gi.ReflectToStr(src))
+		return nil
+	case srcKind == reflect.Map: // map to map
 		if src.Len() == 0 {
 			return nil
 		}
@@ -395,85 +453,77 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if !ok {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		return mapUnmarshalValidate(obj, dst.Addr().Interface(), checkValidateTag)
-	case srcKind == reflect.Slice:
-		if src.Len() == 0 {
+		return mapUnmarshalValidate(obj, dst.Addr(), checkValidateTag)
+	case srcKind == reflect.Slice: // slice to slice
+		srcLen := src.Len()
+		if srcLen == 0 {
+			dst.SetZero()
 			return nil
 		}
 		if dstT.Kind() != reflect.Slice {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
 		sliceErrs := gperr.NewBuilder()
-		newSlice := reflect.MakeSlice(dstT, src.Len(), src.Len())
 		i := 0
+		gi.ReflectInitSlice(dst, srcLen, srcLen)
 		for j, v := range src.Seq2() {
-			tmp := New(dstT.Elem()).Elem()
-			err := Convert(v, tmp, checkValidateTag)
+			err := Convert(v, dst.Index(i), checkValidateTag)
 			if err != nil {
 				sliceErrs.Add(err.Subjectf("[%d]", j))
 				continue
 			}
-			newSlice.Index(i).Set(tmp)
 			i++
 		}
 		if err := sliceErrs.Error(); err != nil {
+			dst.SetLen(i) // shrink to number of elements that were successfully converted
 			return err
 		}
-		dst.Set(newSlice)
 		return nil
 	}
-	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
+
+	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT.String(), dstT.String())
 }
+
+var parserType = reflect.TypeFor[strutils.Parser]()
 
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
-	if dst.Kind() == reflect.Ptr {
+	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
-			dst.Set(New(dstT.Elem()))
+			initPtr(dst)
 		}
 		dst = dst.Elem()
 		dstT = dst.Type()
 	}
 	if dst.Kind() == reflect.String {
 		dst.SetString(src)
-		return convertible, convErr
+		return true, nil
 	}
 	switch dstT {
 	case reflect.TypeFor[time.Duration]():
 		if src == "" {
-			dst.Set(reflect.Zero(dstT))
-			return convertible, convErr
+			dst.SetZero()
+			return true, nil
 		}
 		d, err := time.ParseDuration(src)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
-		dst.Set(reflect.ValueOf(d))
-		return convertible, convErr
+		gi.ReflectValueSet(dst, d)
+		return true, nil
 	default:
 	}
-	if dstKind := dst.Kind(); isIntFloat(dstKind) {
-		var i any
-		var err error
-		switch {
-		case dstKind == reflect.Bool:
-			i, err = strconv.ParseBool(src)
-		case dst.CanInt():
-			i, err = strconv.ParseInt(src, 10, dstT.Bits())
-		case dst.CanUint():
-			i, err = strconv.ParseUint(src, 10, dstT.Bits())
-		case dst.CanFloat():
-			i, err = strconv.ParseFloat(src, dstT.Bits())
-		}
+	if gi.ReflectIsNumeric(dst) || dst.Kind() == reflect.Bool {
+		err := gi.ReflectStrToNumBool(dst, src)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
-		dst.Set(reflect.ValueOf(i).Convert(dstT))
-		return convertible, convErr
+		return true, nil
 	}
 	// check if (*T).Convertor is implemented
-	if parser, ok := dst.Addr().Interface().(strutils.Parser); ok {
+	if dst.Addr().Type().Implements(parserType) {
+		parser := dst.Addr().Interface().(strutils.Parser)
 		return true, gperr.Wrap(parser.Parse(src))
 	}
 	// yaml like
@@ -485,10 +535,10 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		// one liner is comma separated list
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
-			dst.Set(reflect.MakeSlice(dst.Type(), len(values), len(values)))
+			gi.ReflectInitSlice(dst, len(values), len(values))
 			errs := gperr.NewBuilder()
 			for i, v := range values {
-				err := Convert(reflect.ValueOf(v), dst.Index(i), true)
+				_, err := ConvertString(v, dst.Index(i))
 				if err != nil {
 					errs.Add(err.Subjectf("[%d]", i))
 				}
@@ -496,16 +546,16 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			if errs.HasError() {
 				return true, errs.Error()
 			}
-			return convertible, convErr
+			return true, nil
 		}
-		sl := make([]any, 0)
+		sl := []any{}
 		err := yaml.Unmarshal([]byte(src), &sl)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
 		tmp = sl
 	case reflect.Map, reflect.Struct:
-		rawMap := make(SerializedObject)
+		rawMap := SerializedObject{}
 		err := yaml.Unmarshal([]byte(src), &rawMap)
 		if err != nil {
 			return true, gperr.Wrap(err)
