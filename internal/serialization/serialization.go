@@ -135,7 +135,9 @@ func fnv1IgnoreCaseSnake(s string) uint32 {
 		prime32  uint32 = 16777619
 	)
 	hash := offset32
-	for _, r := range s {
+	// range over bytes instead of runes
+	for i := range s {
+		r := s[i]
 		if r == '_' {
 			continue
 		}
@@ -202,7 +204,10 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 
 	for i := range numFields {
 		field := t.Field(i)
-		if field.Tag.Get(tagDeserialize) == "-" || field.Tag.Get(tagJSON) == "-" {
+		deserializeTag := field.Tag.Get(tagDeserialize)
+		jsonTag := field.Tag.Get(tagJSON)
+
+		if deserializeTag == "-" || jsonTag == "-" {
 			continue
 		}
 
@@ -229,10 +234,7 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 		}
 	notAnonymousStruct:
 		var key string
-		if jsonTag, ok := field.Tag.Lookup(tagJSON); ok {
-			if jsonTag == "-" {
-				continue
-			}
+		if jsonTag != "" {
 			key = jsonTag
 			if idxComma := strings.Index(key, ","); idxComma != -1 {
 				key = key[:idxComma]
@@ -247,8 +249,8 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 			_, hasValidateTag = field.Tag.Lookup(tagValidate)
 		}
 
-		aliases, ok := field.Tag.Lookup(tagAliases)
-		if ok {
+		aliases := field.Tag.Get(tagAliases)
+		if aliases != "" {
 			for alias := range strings.SplitSeq(aliases, ",") {
 				keyFieldIndexes[fnv1IgnoreCaseSnake(alias)] = field.Index
 				fieldNames[alias] = struct{}{}
@@ -500,12 +502,15 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		dst.SetString(src)
 		return true, nil
 	}
-	switch dstT {
-	case reflect.TypeFor[time.Duration]():
+
+	// Early return for empty string
 		if src == "" {
 			dst.SetZero()
 			return true, nil
 		}
+
+	switch dstT {
+	case reflect.TypeFor[time.Duration]():
 		d, err := time.ParseDuration(src)
 		if err != nil {
 			return true, gperr.Wrap(err)
@@ -514,6 +519,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		return true, nil
 	default:
 	}
+
 	if gi.ReflectIsNumeric(dst) || dst.Kind() == reflect.Bool {
 		err := gi.ReflectStrToNumBool(dst, src)
 		if err != nil {
@@ -521,17 +527,32 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		}
 		return true, nil
 	}
+
 	// check if (*T).Convertor is implemented
 	if dst.Addr().Type().Implements(parserType) {
 		parser := dst.Addr().Interface().(strutils.Parser)
 		return true, gperr.Wrap(parser.Parse(src))
 	}
+
 	// yaml like
 	var tmp any
 	switch dst.Kind() {
 	case reflect.Slice:
-		src = strings.TrimSpace(src)
-		isMultiline := strings.ContainsRune(src, '\n')
+		// Avoid unnecessary TrimSpace if we can detect the format early
+		srcLen := len(src)
+		if srcLen == 0 {
+			return true, nil
+		}
+
+		// Check for multiline without allocating
+		isMultiline := false
+		for i := range srcLen {
+			if src[i] == '\n' {
+				isMultiline = true
+				break
+			}
+		}
+
 		// one liner is comma separated list
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
@@ -548,6 +569,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			}
 			return true, nil
 		}
+
 		sl := []any{}
 		err := yaml.Unmarshal([]byte(src), &sl)
 		if err != nil {
