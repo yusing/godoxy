@@ -41,6 +41,9 @@ const (
 	gatherErrsInterval = 30 * time.Second
 	saveInterval       = 5 * time.Minute
 
+	gatherErrsTicks = int(gatherErrsInterval / PollInterval) // 30
+	saveTicks       = int(saveInterval / PollInterval)       // 300
+
 	saveBaseDir = "data/metrics"
 )
 
@@ -152,15 +155,12 @@ func (p *Poller[T, AggregateT]) Start() {
 	}
 
 	go func() {
-		pollTicker := time.NewTicker(PollInterval)
-		gatherErrsTicker := time.NewTicker(gatherErrsInterval)
-		saveTicker := time.NewTicker(saveInterval)
+		ticker := time.NewTicker(PollInterval)
+		defer ticker.Stop()
+
+		var tickCount int
 
 		defer func() {
-			pollTicker.Stop()
-			gatherErrsTicker.Stop()
-			saveTicker.Stop()
-
 			err := p.save()
 			if err != nil {
 				l.Err(err).Msg("failed to save metrics data")
@@ -176,19 +176,25 @@ func (p *Poller[T, AggregateT]) Start() {
 			select {
 			case <-t.Context().Done():
 				return
-			case <-pollTicker.C:
+			case <-ticker.C:
 				p.pollWithTimeout(t.Context())
-			case <-saveTicker.C:
-				err := p.save()
-				if err != nil {
-					p.appendErr(err)
+
+				tickCount++
+
+				if tickCount%gatherErrsTicks == 0 {
+					errs, ok := p.gatherErrs()
+					if ok {
+						log.Error().Msg(errs)
+					}
+					p.clearErrs()
 				}
-			case <-gatherErrsTicker.C:
-				errs, ok := p.gatherErrs()
-				if ok {
-					log.Error().Msg(errs)
+
+				if tickCount%saveTicks == 0 {
+					err := p.save()
+					if err != nil {
+						p.appendErr(err)
+					}
 				}
-				p.clearErrs()
 			}
 		}
 	}()

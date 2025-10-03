@@ -18,16 +18,22 @@ const (
 	MetricsPeriod1h  Filter = "1h"  // @name MetricsPeriod1h
 	MetricsPeriod1d  Filter = "1d"  // @name MetricsPeriod1d
 	MetricsPeriod1mo Filter = "1mo" // @name MetricsPeriod1mo
+
+	Duration5m  = 5 * time.Minute
+	Duration15m = 15 * time.Minute
+	Duration1h  = 1 * time.Hour
+	Duration1d  = 24 * time.Hour
+	Duration30d = 30 * 24 * time.Hour
 )
 
 func NewPeriod[T any]() *Period[T] {
 	return &Period[T]{
 		Entries: map[Filter]*Entries[T]{
-			MetricsPeriod5m:  newEntries[T](5 * time.Minute),
-			MetricsPeriod15m: newEntries[T](15 * time.Minute),
-			MetricsPeriod1h:  newEntries[T](1 * time.Hour),
-			MetricsPeriod1d:  newEntries[T](24 * time.Hour),
-			MetricsPeriod1mo: newEntries[T](30 * 24 * time.Hour),
+			MetricsPeriod5m:  newEntries[T](Duration5m),
+			MetricsPeriod15m: newEntries[T](Duration15m),
+			MetricsPeriod1h:  newEntries[T](Duration1h),
+			MetricsPeriod1d:  newEntries[T](Duration1d),
+			MetricsPeriod1mo: newEntries[T](Duration30d),
 		},
 	}
 }
@@ -68,11 +74,11 @@ func (p *Period[T]) ValidateAndFixIntervals() {
 	defer p.mu.Unlock()
 
 	durations := map[Filter]time.Duration{
-		MetricsPeriod5m:  5 * time.Minute,
-		MetricsPeriod15m: 15 * time.Minute,
-		MetricsPeriod1h:  1 * time.Hour,
-		MetricsPeriod1d:  24 * time.Hour,
-		MetricsPeriod1mo: 30 * 24 * time.Hour,
+		MetricsPeriod5m:  Duration5m,
+		MetricsPeriod15m: Duration15m,
+		MetricsPeriod1h:  Duration1h,
+		MetricsPeriod1d:  Duration1d,
+		MetricsPeriod1mo: Duration30d,
 	}
 
 	for filter, entries := range p.Entries {
