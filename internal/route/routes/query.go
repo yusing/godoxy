@@ -51,23 +51,23 @@ func (info *HealthInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func GetHealthInfo() map[string]*HealthInfo {
-	healthMap := make(map[string]*HealthInfo, NumRoutes())
+func GetHealthInfo() map[string]HealthInfo {
+	healthMap := make(map[string]HealthInfo, NumRoutes())
 	for r := range Iter {
 		healthMap[r.Name()] = getHealthInfo(r)
 	}
 	return healthMap
 }
 
-func getHealthInfo(r types.Route) *HealthInfo {
+func getHealthInfo(r types.Route) HealthInfo {
 	mon := r.HealthMonitor()
 	if mon == nil {
-		return &HealthInfo{
+		return HealthInfo{
 			Status: types.StatusUnknown,
 			Detail: "n/a",
 		}
 	}
-	return &HealthInfo{
+	return HealthInfo{
 		Status:  mon.Status(),
 		Uptime:  mon.Uptime(),
 		Latency: mon.Latency(),
