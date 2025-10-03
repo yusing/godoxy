@@ -58,10 +58,14 @@ func (e *Entries[T]) Get() []T {
 	if e.count < maxEntries {
 		return e.entries[:e.count]
 	}
-	res := make([]T, maxEntries)
-	copy(res, e.entries[e.index:])
-	copy(res[maxEntries-e.index:], e.entries[:e.index])
-	return res
+	var res [maxEntries]T
+	if e.index >= e.count {
+		copy(res[:], e.entries[:e.count])
+	} else {
+		copy(res[:], e.entries[e.index:])
+		copy(res[e.count-e.index:], e.entries[:e.index])
+	}
+	return res[:]
 }
 
 func (e *Entries[T]) MarshalJSON() ([]byte, error) {

@@ -17,8 +17,8 @@ import (
 
 type (
 	StatusByAlias struct {
-		Map       map[string]*routes.HealthInfo `json:"statuses"`
-		Timestamp int64                         `json:"timestamp"`
+		Map       map[string]routes.HealthInfo `json:"statuses"`
+		Timestamp int64                        `json:"timestamp"`
 	} // @name RouteStatusesByAlias
 	Status struct {
 		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
@@ -42,8 +42,8 @@ type (
 
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
-func getStatuses(ctx context.Context, _ *StatusByAlias) (*StatusByAlias, error) {
-	return &StatusByAlias{
+func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
+	return StatusByAlias{
 		Map:       routes.GetHealthInfo(),
 		Timestamp: time.Now().Unix(),
 	}, nil
@@ -57,7 +57,7 @@ func (s *Status) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func aggregateStatuses(entries []*StatusByAlias, query url.Values) (int, Aggregated) {
+func aggregateStatuses(entries []StatusByAlias, query url.Values) (int, Aggregated) {
 	limit := metricsutils.QueryInt(query, "limit", 0)
 	offset := metricsutils.QueryInt(query, "offset", 0)
 	keyword := query.Get("keyword")
