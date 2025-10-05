@@ -44,9 +44,9 @@ func FavIcon(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, apitypes.Error("invalid url", err))
 			return
 		}
-		fetchResult := homepage.FetchFavIconFromURL(c.Request.Context(), &iconURL)
-		if !fetchResult.OK() {
-			c.JSON(fetchResult.StatusCode, apitypes.Error(fetchResult.ErrMsg))
+		fetchResult, err := homepage.FetchFavIconFromURL(c.Request.Context(), &iconURL)
+		if err != nil {
+			homepage.GinFetchError(c, fetchResult.StatusCode, err)
 			return
 		}
 		c.Data(fetchResult.StatusCode, fetchResult.ContentType(), fetchResult.Icon)
@@ -54,38 +54,38 @@ func FavIcon(c *gin.Context) {
 	}
 
 	// try with alias
-	result := GetFavIconFromAlias(c.Request.Context(), request.Alias)
-	if !result.OK() {
-		c.JSON(result.StatusCode, apitypes.Error(result.ErrMsg))
+	result, err := GetFavIconFromAlias(c.Request.Context(), request.Alias)
+	if err != nil {
+		homepage.GinFetchError(c, result.StatusCode, err)
 		return
 	}
 	c.Data(result.StatusCode, result.ContentType(), result.Icon)
 }
 
-func GetFavIconFromAlias(ctx context.Context, alias string) *homepage.FetchResult {
+func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResult, error) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)
 	if !ok {
-		return &homepage.FetchResult{
-			StatusCode: http.StatusNotFound,
-			ErrMsg:     "route not found",
-		}
+		return homepage.FetchResultWithErrorf(http.StatusNotFound, "route not found")
 	}
 
-	var result *homepage.FetchResult
+	var (
+		result homepage.FetchResult
+		err    error
+	)
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
+			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
 		} else {
-			result = homepage.FetchFavIconFromURL(ctx, hp.Icon)
+			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
-		result = homepage.FindIcon(ctx, r, "/")
+		result, err = homepage.FindIcon(ctx, r, "/")
 	}
 	if result.StatusCode == 0 {
 		result.StatusCode = http.StatusOK
 	}
-	return result
+	return result, err
 }

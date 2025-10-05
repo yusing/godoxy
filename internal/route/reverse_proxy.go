@@ -6,7 +6,6 @@ import (
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
-	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
@@ -150,8 +149,6 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 			routes.HTTP.Del(r)
 		})
 	}
-
-	r.task.OnCancel("reset_favicon", func() { homepage.PruneRouteIconCache(r) })
 	return nil
 }
 

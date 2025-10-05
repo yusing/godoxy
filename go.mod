@@ -49,7 +49,7 @@ require (
 	github.com/yusing/godoxy/agent v0.0.0-20251005042105-448a2fbd6f50
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251005040558-74224c8e8784
 	github.com/yusing/godoxy/internal/utils v0.1.0
-	github.com/yusing/goutils v0.5.2
+	github.com/yusing/goutils v0.6.0
 )
 
 require (
@@ -217,6 +217,7 @@ require (
 	github.com/aziontech/azionapi-go-sdk v0.143.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect

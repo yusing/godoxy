@@ -62,10 +62,10 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// handle favicon request
 	if isFaviconPath(r.URL.Path) {
-		result := api.GetFavIconFromAlias(r.Context(), w.route.Name())
-		if !result.OK() {
+		result, err := api.GetFavIconFromAlias(r.Context(), w.route.Name())
+		if err != nil {
 			rw.WriteHeader(result.StatusCode)
-			fmt.Fprint(rw, result.ErrMsg)
+			fmt.Fprint(rw, err)
 			return false
 		}
 		rw.Header().Set("Content-Type", result.ContentType())
