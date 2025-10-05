@@ -8,13 +8,13 @@ replace github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsprovider
 
 replace github.com/yusing/godoxy/internal/utils => ./internal/utils
 
-replace github.com/coreos/go-oidc/v3 => github.com/godoxy-app/go-oidc/v3 v3.0.0-20250816044348-0630187cb14b
+replace github.com/coreos/go-oidc/v3 => ./internal/go-oidc
 
 replace github.com/shirou/gopsutil/v4 => ./internal/gopsutil
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
-	github.com/coreos/go-oidc/v3 v3.15.0 // oidc authentication
+	github.com/coreos/go-oidc/v3 v3.16.0 // oidc authentication
 	github.com/docker/docker v28.5.0+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
@@ -46,8 +46,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.2.0
-	github.com/yusing/godoxy/agent v0.0.0-20251002123031-4852efcf9c3d
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251002123031-4852efcf9c3d
+	github.com/yusing/godoxy/agent v0.0.0-20251005042105-448a2fbd6f50
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251005040558-74224c8e8784
 	github.com/yusing/godoxy/internal/utils v0.1.0
 	github.com/yusing/goutils v0.5.2
 )
@@ -98,7 +98,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

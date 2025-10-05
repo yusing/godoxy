@@ -1,3 +1,6 @@
 [submodule "internal/gopsutil"]
 	path = internal/gopsutil
 	url = git@github.com:godoxy-app/gopsutil.git
+[submodule "internal/go-oidc"]
+	path = internal/go-oidc
+	url = git@github.com:godoxy-app/go-oidc.git
