@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/godoxy v0.18.6
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils v0.6.0
+	github.com/yusing/goutils v0.6.1
 )
 
 require (
