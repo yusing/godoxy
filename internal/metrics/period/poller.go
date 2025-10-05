@@ -2,7 +2,6 @@ package period
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -18,10 +17,10 @@ import (
 )
 
 type (
-	PollFunc[T any]                                 func(ctx context.Context, lastResult T) (T, error)
-	AggregateFunc[T any, AggregateT json.Marshaler] func(entries []T, query url.Values) (total int, result AggregateT)
-	FilterFunc[T any]                               func(entries []T, keyword string) (filtered []T)
-	Poller[T any, AggregateT json.Marshaler]        struct {
+	PollFunc[T any]                      func(ctx context.Context, lastResult T) (T, error)
+	AggregateFunc[T any, AggregateT any] func(entries []T, query url.Values) (total int, result AggregateT)
+	FilterFunc[T any]                    func(entries []T, keyword string) (filtered []T)
+	Poller[T any, AggregateT any]        struct {
 		name         string
 		poll         PollFunc[T]
 		aggregate    AggregateFunc[T, AggregateT]
@@ -55,7 +54,7 @@ func initDataDir() {
 	}
 }
 
-func NewPoller[T any, AggregateT json.Marshaler](
+func NewPoller[T any, AggregateT any](
 	name string,
 	poll PollFunc[T],
 	aggregator AggregateFunc[T, AggregateT],

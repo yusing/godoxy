@@ -34,10 +34,10 @@ type (
 type SystemInfo struct {
 	Timestamp  int64                           `json:"timestamp"`
 	CPUAverage *float64                        `json:"cpu_average"`
-	Memory     *mem.VirtualMemoryStat          `json:"memory"`
-	Disks      map[string]*disk.UsageStat      `json:"disks"`    // disk usage by partition
+	Memory     mem.VirtualMemoryStat           `json:"memory"`
+	Disks      map[string]disk.UsageStat       `json:"disks"`    // disk usage by partition
 	DisksIO    map[string]*disk.IOCountersStat `json:"disks_io"` // disk IO by device
-	Network    *net.IOCountersStat             `json:"network"`
+	Network    net.IOCountersStat              `json:"network"`
 	Sensors    Sensors                         `json:"sensors"` // sensor temperature by key
 } // @name SystemInfo
 
@@ -165,8 +165,8 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 		interval := since(lastResult.Timestamp)
 		for name, disk := range s.DisksIO {
 			if lastUsage, ok := lastResult.DisksIO[name]; ok {
-				disk.ReadSpeed = float64(disk.ReadBytes-lastUsage.ReadBytes) / float64(interval)
-				disk.WriteSpeed = float64(disk.WriteBytes-lastUsage.WriteBytes) / float64(interval)
+				disk.ReadSpeed = float32(disk.ReadBytes-lastUsage.ReadBytes) / float32(interval)
+				disk.WriteSpeed = float32(disk.WriteBytes-lastUsage.WriteBytes) / float32(interval)
 				disk.Iops = diff(disk.ReadCount+disk.WriteCount, lastUsage.ReadCount+lastUsage.WriteCount) / uint64(interval) //nolint:gosec
 			}
 		}
@@ -176,7 +176,7 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 	if err != nil {
 		return err
 	}
-	s.Disks = make(map[string]*disk.UsageStat, len(partitions))
+	s.Disks = make(map[string]disk.UsageStat, len(partitions))
 	errs := gperr.NewBuilder("failed to get disks info")
 	for _, partition := range partitions {
 		diskInfo, err := disk.UsageWithContext(ctx, partition.Mountpoint)
@@ -203,9 +203,9 @@ func (s *SystemInfo) collectNetworkInfo(ctx context.Context, lastResult *SystemI
 	}
 	s.Network = networkIO[0]
 	if lastResult != nil {
-		interval := float64(since(lastResult.Timestamp))
-		s.Network.UploadSpeed = float64(networkIO[0].BytesSent-lastResult.Network.BytesSent) / interval
-		s.Network.DownloadSpeed = float64(networkIO[0].BytesRecv-lastResult.Network.BytesRecv) / interval
+		interval := float32(since(lastResult.Timestamp))
+		s.Network.UploadSpeed = float32(networkIO[0].BytesSent-lastResult.Network.BytesSent) / interval
+		s.Network.DownloadSpeed = float32(networkIO[0].BytesRecv-lastResult.Network.BytesRecv) / interval
 	}
 	return nil
 }
@@ -238,7 +238,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		}
 	case SystemInfoAggregateModeMemoryUsage:
 		for _, entry := range entries {
-			if entry.Memory != nil {
+			if entry.Memory.Used > 0 {
 				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":    entry.Timestamp,
 					"memory_usage": entry.Memory.Used,
@@ -247,7 +247,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		}
 	case SystemInfoAggregateModeMemoryUsagePercent:
 		for _, entry := range entries {
-			if entry.Memory != nil {
+			if entry.Memory.UsedPercent > 0 {
 				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":            entry.Timestamp,
 					"memory_usage_percent": entry.Memory.UsedPercent,
@@ -304,7 +304,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		}
 	case SystemInfoAggregateModeNetworkSpeed:
 		for _, entry := range entries {
-			if entry.Network == nil {
+			if entry.Network.BytesSent == 0 && entry.Network.BytesRecv == 0 {
 				continue
 			}
 			aggregated.Entries = append(aggregated.Entries, map[string]any{
@@ -315,7 +315,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		}
 	case SystemInfoAggregateModeNetworkTransfer:
 		for _, entry := range entries {
-			if entry.Network == nil {
+			if entry.Network.BytesRecv > 0 || entry.Network.BytesSent > 0 {
 				continue
 			}
 			aggregated.Entries = append(aggregated.Entries, map[string]any{

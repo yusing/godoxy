@@ -1,8 +1,9 @@
 package atomic
 
 import (
-	"encoding/json"
 	"sync/atomic"
+
+	"github.com/bytedance/sonic"
 )
 
 type Value[T any] struct {
@@ -30,5 +31,5 @@ func (a *Value[T]) Swap(v T) T {
 }
 
 func (a *Value[T]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(a.Load())
+	return sonic.Marshal(a.Load())
 }

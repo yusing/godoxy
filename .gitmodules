@@ -1,0 +1,3 @@
+[submodule "internal/gopsutil"]
+	path = internal/gopsutil
+	url = git@github.com:godoxy-app/gopsutil.git

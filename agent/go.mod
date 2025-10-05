@@ -8,11 +8,9 @@ replace github.com/yusing/godoxy/socketproxy => ../socket-proxy
 
 replace github.com/yusing/godoxy/internal/utils => ../internal/utils
 
-replace github.com/shirou/gopsutil/v4 => github.com/godoxy-app/gopsutil/v4 v4.0.0-20250926133131-7ef260e41a49
+replace github.com/shirou/gopsutil/v4 => ../internal/gopsutil
 
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
-
-exclude github.com/yusing/goutils v0.4.2
 
 require (
 	github.com/bytedance/sonic v1.14.1
@@ -23,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/godoxy v0.18.6
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils v0.4.1
+	github.com/yusing/goutils v0.5.2
 )
 
 require (
@@ -33,7 +31,6 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
