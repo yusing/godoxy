@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
-	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/httpheaders"
@@ -21,67 +19,6 @@ type (
 		map[string]T | []T
 	}
 )
-
-// getDockerClients returns a map of docker clients for the current config.
-//
-// Returns a map of docker clients by server name and an error if any.
-//
-// Even if there are errors, the map of docker clients might not be empty.
-func getDockerClients() (DockerClients, gperr.Error) {
-	cfg := config.GetInstance()
-
-	dockerHosts := cfg.Value().Providers.Docker
-	dockerClients := make(DockerClients)
-
-	connErrs := gperr.NewBuilder("failed to connect to docker")
-
-	for name, host := range dockerHosts {
-		dockerClient, err := docker.NewClient(host)
-		if err != nil {
-			connErrs.Add(err)
-			continue
-		}
-		dockerClients[name] = dockerClient
-	}
-
-	for _, agent := range agent.ListAgents() {
-		dockerClient, err := docker.NewClient(agent.FakeDockerHost())
-		if err != nil {
-			connErrs.Add(err)
-			continue
-		}
-		dockerClients[agent.Name] = dockerClient
-	}
-
-	return dockerClients, connErrs.Error()
-}
-
-func getDockerClient(server string) (*docker.SharedClient, bool, error) {
-	cfg := config.GetInstance()
-	var host string
-	for name, h := range cfg.Value().Providers.Docker {
-		if name == server {
-			host = h
-			break
-		}
-	}
-	if host == "" {
-		for _, agent := range agent.ListAgents() {
-			if agent.Name == server {
-				host = agent.FakeDockerHost()
-				break
-			}
-		}
-	}
-	if host == "" {
-		return nil, false, nil
-	}
-	dockerClient, err := docker.NewClient(host)
-	if err != nil {
-		return nil, false, err
-	}
-	return dockerClient, true, nil
-}
 
 // closeAllClients closes all docker clients after a delay.
 //
@@ -103,11 +40,7 @@ func handleResult[V any, T ResultType[V]](c *gin.Context, errs error, result T) 
 }
 
 func serveHTTP[V any, T ResultType[V]](c *gin.Context, getResult func(ctx context.Context, dockerClients DockerClients) (T, gperr.Error)) {
-	dockerClients, err := getDockerClients()
-	if err != nil {
-		handleResult[V, T](c, err, nil)
-		return
-	}
+	dockerClients := docker.Clients()
 	defer closeAllClients(dockerClients)
 
 	if httpheaders.IsWebsocket(c.Request.Header) {

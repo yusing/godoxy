@@ -84,12 +84,23 @@ func closeTimedOutClients() {
 	}
 }
 
+// Clients return a map of currently connected clients.
+// Close() must be called on all these clients after use.
 func Clients() map[string]*SharedClient {
 	clientMapMu.RLock()
-	defer clientMapMu.RUnlock()
 
 	clients := make(map[string]*SharedClient, len(clientMap))
 	maps.Copy(clients, clientMap)
+	clientMapMu.RUnlock()
+
+	// add 1 ref count to prevent them from
+	// being closed before caller finished using them
+	for _, c := range clients {
+		// last Close() has been called, reset closeOn
+		if atomic.AddUint32(&c.refCount, 1) == 1 {
+			atomic.StoreInt64(&c.closedOn, 0)
+		}
+	}
 	return clients
 }
 
