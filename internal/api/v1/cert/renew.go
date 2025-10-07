@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/websocket"
@@ -24,7 +24,7 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/cert/renew [get]
 func Renew(c *gin.Context) {
-	autocert := config.GetInstance().AutoCertProvider()
+	autocert := autocert.ActiveProvider.Load()
 	if autocert == nil {
 		c.JSON(http.StatusNotFound, apitypes.Error("autocert is not enabled"))
 		return

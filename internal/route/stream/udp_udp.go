@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/acl"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
 	"go.uber.org/atomic"
@@ -74,7 +74,7 @@ func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 		logErr(s, err, "failed to listen")
 		return
 	}
-	if acl := config.GetInstance().Value().ACL; acl != nil {
+	if acl := acl.ActiveConfig.Load(); acl != nil {
 		s.listener = acl.WrapUDP(s.listener)
 	}
 	s.preDial = preDial

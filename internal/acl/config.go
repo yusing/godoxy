@@ -2,6 +2,7 @@ package acl
 
 import (
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -38,6 +39,9 @@ type checkCache struct {
 	allow   bool
 	created time.Time
 }
+
+// could be nil
+var ActiveConfig atomic.Pointer[Config]
 
 const cacheTTL = 1 * time.Minute
 

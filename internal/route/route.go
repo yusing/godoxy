@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/homepage"
+	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
@@ -22,7 +23,6 @@ import (
 	"github.com/yusing/goutils/task"
 
 	"github.com/yusing/godoxy/internal/common"
-	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/route/rules"
 	route "github.com/yusing/godoxy/internal/route/types"
@@ -676,7 +676,7 @@ func (r *Route) FinalizeHomepageConfig() {
 	}
 
 	if hp.Category == "" {
-		if config.GetInstance().Value().Homepage.UseDefaultCategories {
+		if homepagecfg.ActiveConfig.Load().UseDefaultCategories {
 			for _, ref := range refs {
 				if category, ok := homepage.PredefinedCategories[ref]; ok {
 					hp.Category = category

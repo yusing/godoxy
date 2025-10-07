@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/autocert"
 )
 
 type CertInfo struct {
@@ -29,7 +29,7 @@ type CertInfo struct {
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/cert/info [get]
 func Info(c *gin.Context) {
-	autocert := config.GetInstance().AutoCertProvider()
+	autocert := autocert.ActiveProvider.Load()
 	if autocert == nil {
 		c.JSON(http.StatusNotFound, apitypes.Error("autocert is not enabled"))
 		return

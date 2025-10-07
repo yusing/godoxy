@@ -10,6 +10,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
@@ -48,6 +49,9 @@ const (
 	// prevents cert request docker compose across restarts with `restart: always` (non-zero exit code)
 	requestCooldownDuration = 15 * time.Second
 )
+
+// could be nil
+var ActiveProvider atomic.Pointer[Provider]
 
 func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) *Provider {
 	return &Provider{

@@ -6,7 +6,8 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
 	"go.uber.org/atomic"
@@ -43,10 +44,10 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 		return
 	}
 
-	if proxyProto := config.GetInstance().Value().Entrypoint.SupportProxyProtocol; proxyProto {
+	if proxyProto := entrypoint.ActiveConfig.Load().SupportProxyProtocol; proxyProto {
 		s.listener = &proxyproto.Listener{Listener: s.listener}
 	}
-	if acl := config.GetInstance().Value().ACL; acl != nil {
+	if acl := acl.ActiveConfig.Load(); acl != nil {
 		s.listener = acl.WrapTCP(s.listener)
 	}
 
