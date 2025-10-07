@@ -24,8 +24,8 @@ type (
 	SharedClient struct {
 		*client.Client
 
-		refCount uint32
-		closedOn int64
+		refCount atomic.Int32
+		closedOn atomic.Int64
 
 		key  string
 		addr string
@@ -76,7 +76,7 @@ func closeTimedOutClients() {
 	now := time.Now().Unix()
 
 	for _, c := range clientMap {
-		if atomic.LoadUint32(&c.refCount) == 0 && now-atomic.LoadInt64(&c.closedOn) > clientTTLSecs {
+		if c.refCount.Load() == 0 && now-c.closedOn.Load() > clientTTLSecs {
 			delete(clientMap, c.Key())
 			c.Client.Close()
 			log.Debug().Str("host", c.DaemonHost()).Msg("docker client closed")
@@ -97,8 +97,8 @@ func Clients() map[string]*SharedClient {
 	// being closed before caller finished using them
 	for _, c := range clients {
 		// last Close() has been called, reset closeOn
-		if atomic.AddUint32(&c.refCount, 1) == 1 {
-			atomic.StoreInt64(&c.closedOn, 0)
+		if c.refCount.Add(1) == 1 {
+			c.closedOn.Store(0)
 		}
 	}
 	return clients
@@ -121,8 +121,8 @@ func NewClient(host string) (*SharedClient, error) {
 	defer clientMapMu.Unlock()
 
 	if client, ok := clientMap[host]; ok {
-		atomic.StoreInt64(&client.closedOn, 0)
-		atomic.AddUint32(&client.refCount, 1)
+		client.closedOn.Store(0)
+		client.refCount.Add(1)
 		return client, nil
 	}
 
@@ -184,12 +184,12 @@ func NewClient(host string) (*SharedClient, error) {
 	}
 
 	c := &SharedClient{
-		Client:   client,
-		refCount: 1,
-		addr:     addr,
-		key:      host,
-		dial:     dial,
+		Client: client,
+		addr:   addr,
+		key:    host,
+		dial:   dial,
 	}
+	c.refCount.Store(1)
 
 	// non-agent client
 	if c.dial == nil {
@@ -224,6 +224,6 @@ func (c *SharedClient) CheckConnection(ctx context.Context) error {
 
 // if the client is still referenced, this is no-op.
 func (c *SharedClient) Close() {
-	atomic.StoreInt64(&c.closedOn, time.Now().Unix())
-	atomic.AddUint32(&c.refCount, ^uint32(0))
+	c.closedOn.Store(time.Now().Unix())
+	c.refCount.Add(-1)
 }
