@@ -6,9 +6,9 @@ replace github.com/yusing/godoxy => ..
 
 replace github.com/yusing/godoxy/socketproxy => ../socket-proxy
 
-replace github.com/yusing/godoxy/internal/utils => ../internal/utils
-
 replace github.com/shirou/gopsutil/v4 => ../internal/gopsutil
+
+replace github.com/yusing/goutils => ../goutils
 
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
@@ -87,7 +87,6 @@ require (
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.2.0 // indirect
-	github.com/yusing/godoxy/internal/utils v0.1.0 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

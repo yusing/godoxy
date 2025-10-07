@@ -4,8 +4,6 @@ go 1.25.1
 
 replace github.com/yusing/godoxy => ../..
 
-replace github.com/yusing/godoxy/internal/utils => ../utils
-
 require (
 	github.com/go-acme/lego/v4 v4.26.0
 	github.com/yusing/godoxy v0.18.6
@@ -153,7 +151,6 @@ require (
 	github.com/volcengine/volc-sdk-golang v1.0.221 // indirect
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	github.com/yusing/godoxy/internal/utils v0.1.0 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
 	github.com/yusing/goutils v0.6.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

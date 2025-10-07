@@ -2,9 +2,9 @@ module github.com/yusing/godoxy/socketproxy
 
 go 1.25.1
 
-replace github.com/yusing/godoxy/internal/utils => ../internal/utils
-
 exclude github.com/yusing/goutils v0.4.2
+
+replace github.com/yusing/goutils => ../goutils
 
 require (
 	github.com/gorilla/mux v1.8.1

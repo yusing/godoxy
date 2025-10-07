@@ -6,11 +6,11 @@ replace github.com/yusing/godoxy/agent => ./agent
 
 replace github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsproviders
 
-replace github.com/yusing/godoxy/internal/utils => ./internal/utils
-
 replace github.com/coreos/go-oidc/v3 => ./internal/go-oidc
 
 replace github.com/shirou/gopsutil/v4 => ./internal/gopsutil
+
+replace github.com/yusing/goutils => ./goutils
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
@@ -48,7 +48,6 @@ require (
 	github.com/yusing/ds v0.2.0
 	github.com/yusing/godoxy/agent v0.0.0-20251005042105-448a2fbd6f50
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251005040558-74224c8e8784
-	github.com/yusing/godoxy/internal/utils v0.1.0
 	github.com/yusing/goutils v0.6.1
 )
 
