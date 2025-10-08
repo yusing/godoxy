@@ -54,21 +54,15 @@ type (
 	} // @name ContainerImage
 
 	ContainerError struct {
-		errs *gperr.Builder
+		errs gperr.Builder
 	}
 )
 
 func (e *ContainerError) Add(err error) {
-	if e.errs == nil {
-		e.errs = gperr.NewBuilder()
-	}
 	e.errs.Add(err)
 }
 
 func (e *ContainerError) Error() string {
-	if e.errs == nil {
-		return "<niL>"
-	}
 	return e.errs.String()
 }
 
@@ -77,6 +71,6 @@ func (e *ContainerError) Unwrap() error {
 }
 
 func (e *ContainerError) MarshalJSON() ([]byte, error) {
-	err := e.errs.Error().(interface{ Plain() []byte })
+	err := e.errs.Error().(gperr.PlainError)
 	return sonic.Marshal(string(err.Plain()))
 }

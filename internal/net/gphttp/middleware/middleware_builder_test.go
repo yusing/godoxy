@@ -14,7 +14,7 @@ var testMiddlewareCompose []byte
 
 func TestBuild(t *testing.T) {
 	errs := gperr.NewBuilder("")
-	middlewares := BuildMiddlewaresFromYAML("", testMiddlewareCompose, errs)
+	middlewares := BuildMiddlewaresFromYAML("", testMiddlewareCompose, &errs)
 	expect.NoError(t, errs.Error())
 	expect.Must(json.MarshalIndent(middlewares, "", "  "))
 	// t.Log(string(data))

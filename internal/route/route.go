@@ -219,19 +219,19 @@ func (r *Route) Validate() gperr.Error {
 
 	switch r.Scheme {
 	case route.SchemeFileServer:
-		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, "file://"+r.Root)
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
 	case route.SchemeHTTP, route.SchemeHTTPS:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
-		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
 		if !r.ShouldExclude() {
-			r.LisURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
 		}
-		r.ProxyURL = gperr.Collect(errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {

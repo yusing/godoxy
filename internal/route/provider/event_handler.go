@@ -12,7 +12,7 @@ import (
 type EventHandler struct {
 	provider *Provider
 
-	errs *gperr.Builder
+	errs gperr.Builder
 }
 
 func (p *Provider) newEventHandler() *EventHandler {

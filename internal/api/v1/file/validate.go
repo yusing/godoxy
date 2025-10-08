@@ -57,7 +57,7 @@ func validateFile(fileType FileType, content []byte) gperr.Error {
 		return config.Validate(content)
 	case FileTypeMiddleware:
 		errs := gperr.NewBuilder("middleware errors")
-		middleware.BuildMiddlewaresFromYAML("", content, errs)
+		middleware.BuildMiddlewaresFromYAML("", content, &errs)
 		return errs.Error()
 	}
 	return provider.Validate(content)

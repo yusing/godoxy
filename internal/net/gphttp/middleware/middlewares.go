@@ -73,7 +73,7 @@ func LoadComposeFiles() {
 	}
 	for _, defFile := range middlewareDefs {
 		voidErrs := gperr.NewBuilder("") // ignore these errors, will be added in next step
-		mws := BuildMiddlewaresFromComposeFile(defFile, voidErrs)
+		mws := BuildMiddlewaresFromComposeFile(defFile, &voidErrs)
 		if len(mws) == 0 {
 			continue
 		}
@@ -92,7 +92,7 @@ func LoadComposeFiles() {
 	}
 	// build again to resolve cross references
 	for _, defFile := range middlewareDefs {
-		mws := BuildMiddlewaresFromComposeFile(defFile, errs)
+		mws := BuildMiddlewaresFromComposeFile(defFile, &errs)
 		if len(mws) == 0 {
 			continue
 		}

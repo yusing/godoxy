@@ -62,7 +62,7 @@ func TestCIDRWhitelistValidation(t *testing.T) {
 
 func TestCIDRWhitelist(t *testing.T) {
 	errs := gperr.NewBuilder("")
-	mids := BuildMiddlewaresFromYAML("", testCIDRWhitelistCompose, errs)
+	mids := BuildMiddlewaresFromYAML("", testCIDRWhitelistCompose, &errs)
 	expect.NoError(t, errs.Error())
 	deny = mids["deny@file"]
 	accept = mids["accept@file"]
