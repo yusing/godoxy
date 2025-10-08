@@ -14,8 +14,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils/atomic"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 )
 
 type cloudflareRealIP struct {
@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	cfCIDRsLastUpdate atomic.Value[time.Time]
+	cfCIDRsLastUpdate synk.Value[time.Time]
 	cfCIDRsMu         sync.Mutex
 
 	// RFC 1918.

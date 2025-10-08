@@ -11,8 +11,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/utils/atomic"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -26,7 +26,7 @@ type (
 		aggregate    AggregateFunc[T, AggregateT]
 		resultFilter FilterFunc[T]
 		period       *Period[T]
-		lastResult   atomic.Value[T]
+		lastResult   synk.Value[T]
 		errs         []pollErr
 	}
 	pollErr struct {

@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils/atomic"
 	"github.com/yusing/goutils/server"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -31,4 +31,4 @@ type State interface {
 }
 
 // could be nil
-var ActiveState atomic.Value[State]
+var ActiveState synk.Value[State]

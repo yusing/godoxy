@@ -18,11 +18,11 @@ import (
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	U "github.com/yusing/godoxy/internal/utils"
-	"github.com/yusing/godoxy/internal/utils/atomic"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
@@ -54,8 +54,8 @@ type (
 
 		provider idlewatcher.Provider
 
-		state     atomic.Value[*containerState]
-		lastReset atomic.Value[time.Time]
+		state     synk.Value[*containerState]
+		lastReset synk.Value[time.Time]
 
 		idleTicker    *time.Ticker
 		healthTicker  *time.Ticker

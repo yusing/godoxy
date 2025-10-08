@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -14,9 +15,9 @@ import (
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils/atomic"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -25,10 +26,10 @@ type (
 	monitor         struct {
 		service string
 		config  *types.HealthCheckConfig
-		url     atomic.Value[*url.URL]
+		url     synk.Value[*url.URL]
 
-		status     atomic.Value[types.HealthStatus]
-		lastResult atomic.Value[types.HealthCheckResult]
+		status     synk.Value[types.HealthStatus]
+		lastResult synk.Value[types.HealthCheckResult]
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
