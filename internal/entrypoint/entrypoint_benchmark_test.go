@@ -1,4 +1,4 @@
-package entrypoint
+package entrypoint_test
 
 import (
 	"io"
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"

@@ -1,8 +1,9 @@
-package entrypoint
+package entrypoint_test
 
 import (
 	"testing"
 
+	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 
@@ -29,14 +30,14 @@ func run(t *testing.T, match []string, noMatch []string) {
 
 	for _, test := range match {
 		t.Run(test, func(t *testing.T) {
-			found := ep.findRouteFunc(test)
+			found := ep.FindRoute(test)
 			expect.NotNil(t, found)
 		})
 	}
 
 	for _, test := range noMatch {
 		t.Run(test, func(t *testing.T) {
-			found := ep.findRouteFunc(test)
+			found := ep.FindRoute(test)
 			expect.Nil(t, found)
 		})
 	}

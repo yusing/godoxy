@@ -6,16 +6,20 @@ import (
 	"sync/atomic"
 
 	"github.com/rs/zerolog/log"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
 )
 
 type Entrypoint struct {
 	middleware      *middleware.Middleware
+	catchAllHandler http.Handler
+	notFoundHandler http.Handler
 	accessLogger    *accesslog.AccessLogger
 	findRouteFunc   func(host string) types.HTTPRoute
 }
@@ -58,6 +62,22 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	return nil
 }
 
+func (ep *Entrypoint) SetCatchAllRules(rules rules.Rules) {
+	if len(rules) == 0 {
+		ep.catchAllHandler = nil
+		return
+	}
+	ep.catchAllHandler = rules.BuildHandler(http.HandlerFunc(ep.serveHTTP))
+}
+
+func (ep *Entrypoint) SetNotFoundRules(rules rules.Rules) {
+	if len(rules) == 0 {
+		ep.notFoundHandler = nil
+		return
+	}
+	ep.notFoundHandler = rules.BuildHandler(http.HandlerFunc(ep.serveNotFound))
+}
+
 func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.RequestLoggerConfig) (err error) {
 	if cfg == nil {
 		ep.accessLogger = nil
@@ -72,7 +92,19 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 	return err
 }
 
+func (ep *Entrypoint) FindRoute(s string) types.HTTPRoute {
+	return ep.findRouteFunc(s)
+}
+
 func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if ep.catchAllHandler != nil {
+		ep.catchAllHandler.ServeHTTP(w, r)
+		return
+	}
+	ep.serveHTTP(w, r)
+}
+
+func (ep *Entrypoint) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if ep.accessLogger != nil {
 		w = accesslog.NewResponseRecorder(w)
 		defer ep.accessLogger.Log(r, w.(*accesslog.ResponseRecorder).Response())
@@ -87,8 +119,14 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			route.ServeHTTP(w, r)
 		}
-		return
+	case ep.notFoundHandler != nil:
+		ep.notFoundHandler.ServeHTTP(w, r)
+	default:
+		ep.serveNotFound(w, r)
 	}
+}
+
+func (ep *Entrypoint) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	// Why use StatusNotFound instead of StatusBadRequest or StatusBadGateway?
 	// On nginx, when route for domain does not exist, it returns StatusBadGateway.
 	// Then scraper / scanners will know the subdomain is invalid.
