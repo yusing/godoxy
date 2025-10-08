@@ -25,7 +25,7 @@ type (
 	FieldsBody  []LogField
 	ListBody    []string
 	MessageBody string
-	ErrorBody   struct {
+	errorBody   struct {
 		Error error
 	}
 )
@@ -38,6 +38,10 @@ var (
 
 func MakeLogFields(fields ...LogField) LogBody {
 	return FieldsBody(fields)
+}
+
+func ErrorBody(err error) LogBody {
+	return errorBody{Error: err}
 }
 
 func (f *LogFormat) Parse(format string) error {
@@ -116,7 +120,7 @@ func (m MessageBody) Format(format *LogFormat) ([]byte, error) {
 	return m.Format(LogFormatMarkdown)
 }
 
-func (e ErrorBody) Format(format *LogFormat) ([]byte, error) {
+func (e errorBody) Format(format *LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
 		return sonic.Marshal(e.Error)

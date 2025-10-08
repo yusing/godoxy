@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	config "github.com/yusing/godoxy/internal/config/types"
+	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -35,10 +35,9 @@ type ProxyStats struct {
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/stats [get]
 func Stats(c *gin.Context) {
-	cfg := config.GetInstance()
 	getStats := func() (any, error) {
 		return map[string]any{
-			"proxies": cfg.Statistics(),
+			"proxies": statequery.GetStatistics(),
 			"uptime":  int64(time.Since(startTime).Round(time.Second).Seconds()),
 		}, nil
 	}

@@ -29,16 +29,15 @@ func run(t *testing.T, match []string, noMatch []string) {
 
 	for _, test := range match {
 		t.Run(test, func(t *testing.T) {
-			found, err := ep.findRouteFunc(test)
-			expect.NoError(t, err)
+			found := ep.findRouteFunc(test)
 			expect.NotNil(t, found)
 		})
 	}
 
 	for _, test := range noMatch {
 		t.Run(test, func(t *testing.T) {
-			_, err := ep.findRouteFunc(test)
-			expect.ErrorIs(t, ErrNoSuchRoute, err)
+			found := ep.findRouteFunc(test)
+			expect.Nil(t, found)
 		})
 	}
 }

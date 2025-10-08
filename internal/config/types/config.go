@@ -1,100 +1,61 @@
 package config
 
 import (
-	"context"
 	"regexp"
-	"sync"
+	"sync/atomic"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
-	"github.com/yusing/godoxy/internal/logging/accesslog"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
 	Config struct {
-		ACL             *acl.Config      `json:"acl"`
-		AutoCert        *autocert.Config `json:"autocert"`
-		Entrypoint      Entrypoint       `json:"entrypoint"`
-		Providers       Providers        `json:"providers"`
-		MatchDomains    []string         `json:"match_domains" validate:"domain_name"`
-		Homepage        HomepageConfig   `json:"homepage"`
-		TimeoutShutdown int              `json:"timeout_shutdown" validate:"gte=0"`
+		ACL             *acl.Config       `json:"acl"`
+		AutoCert        *autocert.Config  `json:"autocert"`
+		Entrypoint      entrypoint.Config `json:"entrypoint"`
+		Providers       Providers         `json:"providers"`
+		MatchDomains    []string          `json:"match_domains" validate:"domain_name"`
+		Homepage        homepage.Config   `json:"homepage"`
+		TimeoutShutdown int               `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Providers struct {
 		Files        []string                   `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
 		Docker       map[string]string          `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
-		Agents       []*agent.AgentConfig       `json:"agents" yaml:"agents,omitempty"`
+		Agents       []agent.AgentConfig        `json:"agents" yaml:"agents,omitempty"`
 		Notification []notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
 		Proxmox      []proxmox.Config           `json:"proxmox" yaml:"proxmox,omitempty"`
 		MaxMind      *maxmind.Config            `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
-	Entrypoint struct {
-		SupportProxyProtocol bool                           `json:"support_proxy_protocol"`
-		Middlewares          []map[string]any               `json:"middlewares"`
-		AccessLog            *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
-	}
-	HomepageConfig struct {
-		UseDefaultCategories bool `json:"use_default_categories"`
-	}
-	RouteProviderListResponse struct {
-		ShortName string `json:"short_name"`
-		FullName  string `json:"full_name"`
-	} // @name RouteProvider
-	ConfigInstance interface {
-		Value() *Config
-		Reload() gperr.Error
-		Statistics() map[string]any
-		RouteProviderList() []RouteProviderListResponse
-		SearchRoute(alias string) types.Route
-		Context() context.Context
-		VerifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error)
-		AutoCertProvider() *autocert.Provider
-	}
 )
 
-var (
-	instance   ConfigInstance
-	instanceMu sync.RWMutex
-)
+// nil-safe
+var ActiveConfig atomic.Pointer[Config]
 
-func DefaultConfig() *Config {
-	return &Config{
-		TimeoutShutdown: 3,
-		Homepage: HomepageConfig{
-			UseDefaultCategories: true,
-		},
-	}
-}
-
-func GetInstance() ConfigInstance {
-	instanceMu.RLock()
-	defer instanceMu.RUnlock()
-	return instance
-}
-
-func SetInstance(cfg ConfigInstance) {
-	instanceMu.Lock()
-	defer instanceMu.Unlock()
-	instance = cfg
-}
-
-func HasInstance() bool {
-	instanceMu.RLock()
-	defer instanceMu.RUnlock()
-	return instance != nil
+func init() {
+	ActiveConfig.Store(DefaultConfig())
 }
 
 func Validate(data []byte) gperr.Error {
 	var model Config
 	return serialization.UnmarshalValidateYAML(data, &model)
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		TimeoutShutdown: 3,
+		Homepage: homepage.Config{
+			UseDefaultCategories: true,
+		},
+	}
 }
 
 var matchDomainsRegex = regexp.MustCompile(`^[^\.]?([\w\d\-_]\.?)+[^\.]?$`)

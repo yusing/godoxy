@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	config "github.com/yusing/godoxy/internal/config/types"
+	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
@@ -22,12 +22,11 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/route/providers [get]
 func Providers(c *gin.Context) {
-	cfg := config.GetInstance()
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 5*time.Second, func() (any, error) {
-			return config.GetInstance().RouteProviderList(), nil
+			return statequery.RouteProviderList(), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, cfg.RouteProviderList())
+		c.JSON(http.StatusOK, statequery.RouteProviderList())
 	}
 }

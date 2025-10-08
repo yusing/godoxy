@@ -8,7 +8,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	config "github.com/yusing/godoxy/internal/config/types"
+	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
 	"github.com/yusing/godoxy/internal/route/routes"
@@ -133,7 +133,7 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		r, ok := routes.Get(alias)
 		if !ok {
 			// also search for excluded routes
-			r = config.GetInstance().SearchRoute(alias)
+			r = statequery.SearchRoute(alias)
 		}
 		if r != nil {
 			displayName = r.DisplayName()

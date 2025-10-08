@@ -8,6 +8,8 @@ import (
 	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/route/routes"
+
+	_ "unsafe"
 )
 
 type GetFavIconRequest struct {
@@ -62,6 +64,7 @@ func FavIcon(c *gin.Context) {
 	c.Data(result.StatusCode, result.ContentType(), result.Icon)
 }
 
+//go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
 func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResult, error) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)

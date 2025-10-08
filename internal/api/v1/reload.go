@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apitypes "github.com/yusing/godoxy/internal/api/types"
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/config"
 )
 
 // @x-id				"reload"
@@ -20,7 +20,7 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/reload [post]
 func Reload(c *gin.Context) {
-	if err := config.GetInstance().Reload(); err != nil {
+	if err := config.Reload(); err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to reload config"))
 		return
 	}

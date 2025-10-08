@@ -6,7 +6,6 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/yusing/godoxy/internal/utils/pool"
 )
 
 type Client struct {
@@ -14,8 +13,6 @@ type Client struct {
 	proxmox.Cluster
 	Version *proxmox.Version
 }
-
-var Clients = pool.New[*Client]("proxmox_clients")
 
 func NewClient(baseUrl string, opts ...proxmox.Option) *Client {
 	return &Client{Client: proxmox.NewClient(baseUrl, opts...)}

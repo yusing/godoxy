@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/api"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/pkg"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 )
 
@@ -50,26 +52,26 @@ func main() {
 		prepareDirectory(dir)
 	}
 
-	cfg, err := config.Load()
+	err := config.Load()
 	if err != nil {
 		gperr.LogWarn("errors in config", err)
 	}
 
-	cfg.Start(&config.StartServersOptions{
-		Proxy: true,
-	})
+	config.StartProxyServers()
 	if err := auth.Initialize(); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize authentication")
 	}
 	// API Handler needs to start after auth is initialized.
-	cfg.StartServers(&config.StartServersOptions{
-		API: true,
+	server.StartServer(task.RootTask("api_server", false), server.Options{
+		Name:     "api",
+		HTTPAddr: common.APIHTTPAddr,
+		Handler:  api.NewHandler(),
 	})
 
 	uptime.Poller.Start()
 	config.WatchChanges()
 
-	task.WaitExit(cfg.Value().TimeoutShutdown)
+	task.WaitExit(config.Value().TimeoutShutdown)
 }
 
 func prepareDirectory(dir string) {

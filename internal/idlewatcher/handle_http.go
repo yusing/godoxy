@@ -1,13 +1,16 @@
 package idlewatcher
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 
-	api "github.com/yusing/godoxy/internal/api/v1"
+	"github.com/yusing/godoxy/internal/homepage"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
+
+	_ "unsafe"
 )
 
 type ForceCacheControl struct {
@@ -44,6 +47,9 @@ func isFaviconPath(path string) bool {
 	return path == "/favicon.ico"
 }
 
+//go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
+func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResult, error)
+
 func (w *Watcher) redirectToStartEndpoint(rw http.ResponseWriter, r *http.Request) {
 	uri := "/"
 	if w.cfg.StartEndpoint != "" {
@@ -62,7 +68,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// handle favicon request
 	if isFaviconPath(r.URL.Path) {
-		result, err := api.GetFavIconFromAlias(r.Context(), w.route.Name())
+		result, err := GetFavIconFromAlias(r.Context(), w.route.Name())
 		if err != nil {
 			rw.WriteHeader(result.StatusCode)
 			fmt.Fprint(rw, err)

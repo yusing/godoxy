@@ -9,7 +9,9 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/certs"
 	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/route/provider"
 	apitypes "github.com/yusing/goutils/apitypes"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type VerifyNewAgentRequest struct {
@@ -57,7 +59,7 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, err := config.GetInstance().VerifyNewAgent(request.Host, ca, client, request.ContainerRuntime)
+	nRoutesAdded, err := verifyNewAgent(request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -75,4 +77,38 @@ func Verify(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, apitypes.Success(fmt.Sprintf("Added %d routes", nRoutesAdded)))
+}
+
+func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
+	cfgState := config.ActiveState.Load()
+	for _, a := range cfgState.Value().Providers.Agents {
+		if a.Addr == host {
+			return 0, gperr.New("agent already exists")
+		}
+	}
+
+	var agentCfg agent.AgentConfig
+	agentCfg.Addr = host
+	agentCfg.Runtime = containerRuntime
+
+	err := agentCfg.StartWithCerts(cfgState.Context(), ca.Cert, client.Cert, client.Key)
+	if err != nil {
+		return 0, gperr.Wrap(err, "failed to start agent")
+	}
+
+	provider := provider.NewAgentProvider(&agentCfg)
+	if _, loaded := cfgState.LoadOrStoreProvider(provider.String(), provider); loaded {
+		return 0, gperr.Errorf("provider %s already exists", provider.String())
+	}
+
+	// agent must be added before loading routes
+	agent.AddAgent(&agentCfg)
+	err = provider.LoadRoutes()
+	if err != nil {
+		cfgState.DeleteProvider(provider.String())
+		agent.RemoveAgent(&agentCfg)
+		return 0, gperr.Wrap(err, "failed to load routes")
+	}
+
+	return provider.NumRoutes(), nil
 }
