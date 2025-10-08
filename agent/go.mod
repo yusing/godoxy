@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/agent
 
-go 1.25.1
+go 1.25.2
 
 replace github.com/yusing/godoxy => ..
 

@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/socketproxy
 
-go 1.25.1
+go 1.25.2
 
 exclude github.com/yusing/goutils v0.4.2
 
