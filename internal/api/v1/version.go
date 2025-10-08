@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/pkg"
+	"github.com/yusing/goutils/version"
 )
 
 // @x-id				"version"
@@ -17,5 +17,5 @@ import (
 // @Success		200	{string}	string	"version"
 // @Router			/version [get]
 func Version(c *gin.Context) {
-	c.JSON(http.StatusOK, pkg.GetVersion().String())
+	c.JSON(http.StatusOK, version.Get().String())
 }

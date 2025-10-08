@@ -16,13 +16,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/certs"
-	"github.com/yusing/godoxy/pkg"
+	"github.com/yusing/goutils/version"
 )
 
 type AgentConfig struct {
 	Addr    string           `json:"addr"`
 	Name    string           `json:"name"`
-	Version pkg.Version      `json:"version"`
+	Version version.Version  `json:"version"`
 	Runtime ContainerRuntime `json:"runtime"`
 
 	httpClient            *http.Client
@@ -82,7 +82,7 @@ func (cfg *AgentConfig) Parse(addr string) error {
 	return nil
 }
 
-var serverVersion = pkg.GetVersion()
+var serverVersion = version.Get()
 
 func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
@@ -151,7 +151,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtimeBytes)
 	}
 
-	cfg.Version = pkg.ParseVersion(string(agentVersionBytes))
+	cfg.Version = version.Parse(string(agentVersionBytes))
 
 	if serverVersion.IsNewerThanMajor(cfg.Version) {
 		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.Name, serverVersion, cfg.Version)

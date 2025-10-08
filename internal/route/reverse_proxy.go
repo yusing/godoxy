@@ -15,10 +15,10 @@ import (
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
-	"github.com/yusing/godoxy/pkg"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/task"
+	"github.com/yusing/goutils/version"
 )
 
 type ReveseProxyRoute struct {
@@ -74,7 +74,7 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 			HTTPConfig: httpConfig,
 		}
 		setHeaderFunc := cfg.SetAgentProxyConfigHeaders
-		if !a.Version.IsOlderThan(pkg.Ver(0, 18, 6)) {
+		if !a.Version.IsOlderThan(version.New(0, 18, 6)) {
 			setHeaderFunc = cfg.SetAgentProxyConfigHeadersLegacy
 		}
 

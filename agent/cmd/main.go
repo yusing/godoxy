@@ -9,11 +9,11 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/server"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/pkg"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 	httpServer "github.com/yusing/goutils/server"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
+	"github.com/yusing/goutils/version"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 		log.Fatal().Err(err).Msg("init SSL error")
 	}
 
-	log.Info().Msgf("GoDoxy Agent version %s", pkg.GetVersion())
+	log.Info().Msgf("GoDoxy Agent version %s", version.Get())
 	log.Info().Msgf("Agent name: %s", env.AgentName)
 	log.Info().Msgf("Agent port: %d", env.AgentPort)
 	log.Info().Msgf("Agent runtime: %s", env.Runtime)

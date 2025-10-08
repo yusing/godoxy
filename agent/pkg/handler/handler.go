@@ -9,8 +9,8 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/pkg"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
+	"github.com/yusing/goutils/version"
 )
 
 type ServeMux struct{ *http.ServeMux }
@@ -45,7 +45,7 @@ func NewAgentHandler() http.Handler {
 
 	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
 	mux.HandleEndpoint("GET", agent.EndpointVersion, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, pkg.GetVersion())
+		fmt.Fprint(w, version.Get())
 	})
 	mux.HandleEndpoint("GET", agent.EndpointName, func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, env.AgentName)

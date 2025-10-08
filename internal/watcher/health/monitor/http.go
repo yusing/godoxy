@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/pkg"
+	"github.com/yusing/goutils/version"
 )
 
 type HTTPHealthMonitor struct {
@@ -52,7 +52,7 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	}
 	req.Close = true
 	req.Header.Set("Connection", "close")
-	req.Header.Set("User-Agent", "GoDoxy/"+pkg.GetVersion().String())
+	req.Header.Set("User-Agent", "GoDoxy/"+version.Get().String())
 
 	start := time.Now()
 	resp, respErr := pinger.Do(req)

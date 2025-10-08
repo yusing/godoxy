@@ -16,11 +16,10 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
-	"github.com/yusing/godoxy/pkg"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
-)
+	"github.com/yusing/goutils/version"
 
 func parallel(fns ...func()) {
 	var wg sync.WaitGroup
@@ -34,7 +33,7 @@ func main() {
 	initProfiling()
 
 	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
-	log.Info().Msgf("GoDoxy version %s", pkg.GetVersion())
+	log.Info().Msgf("GoDoxy version %s", version.Get())
 	log.Trace().Msg("trace enabled")
 	parallel(
 		dnsproviders.InitProviders,
