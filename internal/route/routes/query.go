@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -37,11 +36,13 @@ func (info *HealthInfo) UnmarshalJSON(data []byte) error {
 	}
 
 	// overflow check
-	if math.MaxInt64/time.Microsecond < time.Duration(v.Latency) {
-		return fmt.Errorf("latency overflow: %d", v.Latency)
+	// Check if latency (in microseconds) would overflow when converted to nanoseconds
+	if v.Latency > math.MaxInt64/int64(time.Microsecond) {
+		v.Latency = 0
 	}
-	if math.MaxInt64/time.Millisecond < time.Duration(v.Uptime) {
-		return fmt.Errorf("uptime overflow: %d", v.Uptime)
+	// Check if uptime (in milliseconds) would overflow when converted to nanoseconds
+	if v.Uptime > math.MaxInt64/int64(time.Millisecond) {
+		v.Uptime = 0
 	}
 
 	info.Status = types.NewHealthStatusFromString(v.Status)
