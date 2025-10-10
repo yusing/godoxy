@@ -2,6 +2,7 @@ package pool
 
 import (
 	"sort"
+	"sync/atomic"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
@@ -11,20 +12,24 @@ type (
 	Pool[T Object] struct {
 		m          *xsync.Map[string, T]
 		name       string
-		disableLog bool
+		disableLog atomic.Bool
 	}
 	Object interface {
 		Key() string
 		Name() string
 	}
+	ObjectWithDisplayName interface {
+		Object
+		DisplayName() string
+	}
 )
 
 func New[T Object](name string) Pool[T] {
-	return Pool[T]{xsync.NewMap[string, T](), name, false}
+	return Pool[T]{m: xsync.NewMap[string, T](), name: name}
 }
 
-func (p *Pool[T]) DisableLog() {
-	p.disableLog = true
+func (p *Pool[T]) ToggleLog(v bool) {
+	p.disableLog.Store(v)
 }
 
 func (p *Pool[T]) Name() string {
@@ -34,35 +39,31 @@ func (p *Pool[T]) Name() string {
 func (p *Pool[T]) Add(obj T) {
 	p.checkExists(obj.Key())
 	p.m.Store(obj.Key(), obj)
-	if !p.disableLog {
-		log.Info().Msgf("%s: added %s", p.name, obj.Name())
-	}
+	p.logAction("added", obj)
 }
 
 func (p *Pool[T]) AddKey(key string, obj T) {
 	p.checkExists(key)
 	p.m.Store(key, obj)
-	if !p.disableLog {
-		log.Info().Msgf("%s: added %s", p.name, obj.Name())
-	}
+	p.logAction("added", obj)
 }
 
 func (p *Pool[T]) AddIfNotExists(obj T) (actual T, added bool) {
 	actual, loaded := p.m.LoadOrStore(obj.Key(), obj)
+	if !loaded {
+		p.logAction("added", obj)
+	}
 	return actual, !loaded
 }
 
 func (p *Pool[T]) Del(obj T) {
 	p.m.Delete(obj.Key())
-	if !p.disableLog {
-		log.Info().Msgf("%s: removed %s", p.name, obj.Name())
-	}
+	p.logAction("removed", obj)
 }
 
 func (p *Pool[T]) DelKey(key string) {
-	p.m.Delete(key)
-	if !p.disableLog {
-		log.Info().Msgf("%s: removed %s", p.name, key)
+	if v, exists := p.m.LoadAndDelete(key); exists {
+		p.logAction("removed", v)
 	}
 }
 
@@ -91,4 +92,20 @@ func (p *Pool[T]) Slice() []T {
 		return slice[i].Name() < slice[j].Name()
 	})
 	return slice
+}
+
+func (p *Pool[T]) logAction(action string, obj T) {
+	if p.disableLog.Load() {
+		return
+	}
+	if obj, ok := any(obj).(ObjectWithDisplayName); ok {
+		disp, name := obj.DisplayName(), obj.Name()
+		if disp != name {
+			log.Info().Msgf("%s: %s %s (%s)", p.name, action, disp, name)
+		} else {
+			log.Info().Msgf("%s: %s %s", p.name, action, name)
+		}
+	} else {
+		log.Info().Msgf("%s: %s %s", p.name, action, obj.Name())
+	}
 }

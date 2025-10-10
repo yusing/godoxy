@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
+	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
@@ -21,6 +24,7 @@ import (
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
 	route "github.com/yusing/godoxy/internal/route/provider"
+	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -238,6 +242,15 @@ func (state *state) storeProvider(p types.RouteProvider) {
 }
 
 func (state *state) loadRouteProviders() error {
+	// disable pool logging temporary since we will have pretty logging below
+	routes.HTTP.ToggleLog(false)
+	routes.Stream.ToggleLog(false)
+
+	defer func() {
+		routes.HTTP.ToggleLog(true)
+		routes.Stream.ToggleLog(true)
+	}()
+
 	providers := &state.Providers
 	errs := gperr.NewBuilderWithConcurrency("route provider errors")
 	results := gperr.NewBuilder("loaded route providers")
@@ -316,7 +329,66 @@ func (state *state) loadRouteProviders() error {
 	providersLoader.Wait()
 
 	log.Info().Msg(results.String())
+
+	state.printRoutesByProvider(lenLongestName)
+	state.printState()
 	return errs.Error()
+}
+
+func (state *state) printRoutesByProvider(lenLongestName int) {
+	var routeResults strings.Builder
+	routeResults.Grow(4096) // more than enough
+	routeResults.WriteString("routes by provider\n")
+
+	lenLongestName += 2 // > + space
+	for _, p := range state.providers.Range {
+		providerName := p.String()
+		routeCount := p.NumRoutes()
+
+		// Print provider header
+		fmt.Fprintf(&routeResults, "> %-"+strconv.Itoa(lenLongestName)+"s %d routes:\n", providerName, routeCount)
+
+		if routeCount == 0 {
+			continue
+		}
+
+		// calculate longest name
+		for alias, r := range p.IterRoutes {
+			if r.ShouldExclude() {
+				continue
+			}
+			displayName := r.DisplayName()
+			if displayName != alias {
+				displayName = fmt.Sprintf("%s (%s)", displayName, alias)
+			}
+			if len(displayName)+3 > lenLongestName { // 3 spaces + "-"
+				lenLongestName = len(displayName) + 3
+			}
+		}
+
+		for alias, r := range p.IterRoutes {
+			if r.ShouldExclude() {
+				continue
+			}
+			displayName := r.DisplayName()
+			if displayName != alias {
+				displayName = fmt.Sprintf("%s (%s)", displayName, alias)
+			}
+			fmt.Fprintf(&routeResults, "  - %-"+strconv.Itoa(lenLongestName-2)+"s -> %s\n", displayName, r.TargetURL().String())
+		}
+	}
+
+	// Always print the routes since we want to show even empty providers
+	routeStr := routeResults.String()
+	if routeStr != "" {
+		log.Info().Msg(routeStr)
+	}
+}
+
+func (state *state) printState() {
+	log.Info().Msg("active config")
+	l := log.Level(zerolog.InfoLevel)
+	yaml.NewEncoder(l).Encode(state.Config)
 }
 
 func (state *state) startRouteProviders() error {
