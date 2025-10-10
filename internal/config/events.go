@@ -39,12 +39,12 @@ func Load() error {
 	state := NewState()
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
-	err := state.InitFromFileOrExit(common.ConfigPath)
+	err := errors.Join(state.InitFromFileOrExit(common.ConfigPath), state.StartProviders())
 	if err != nil {
 		notifyError("init", err)
 	}
 	SetState(state)
-	return err
+	return nil
 }
 
 func notifyError(action string, err error) {
@@ -72,6 +72,12 @@ func Reload() gperr.Error {
 	// -> replace config -> start new subtasks
 	GetState().Task().FinishAndWait("config changed")
 	SetState(newState)
+
+	if err := newState.StartProviders(); err != nil {
+		gperr.LogWarn("start providers error", err)
+		notifyError("start providers", err)
+		return nil // continue
+	}
 	StartProxyServers()
 	return nil
 }

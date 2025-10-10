@@ -108,8 +108,6 @@ func (state *state) Init(data []byte) error {
 	errs.Add(state.initNotification())
 	errs.Add(state.initAccessLogger())
 	errs.Add(state.initEntrypoint())
-	// this must be run after loadRouteProviders
-	errs.Add(state.startRouteProviders())
 	return errs.Error()
 }
 
@@ -153,6 +151,16 @@ func (state *state) IterProviders() iter.Seq2[string, types.RouteProvider] {
 			}
 		}
 	}
+}
+
+func (state *state) StartProviders() error {
+	errs := gperr.NewGroup("provider errors")
+	for _, p := range state.providers.Range {
+		errs.Go(func() error {
+			return p.Start(state.Task())
+		})
+	}
+	return errs.Wait().Error()
 }
 
 func (state *state) NumProviders() int {
@@ -389,14 +397,4 @@ func (state *state) printState() {
 	log.Info().Msg("active config")
 	l := log.Level(zerolog.InfoLevel)
 	yaml.NewEncoder(l).Encode(state.Config)
-}
-
-func (state *state) startRouteProviders() error {
-	errs := gperr.NewGroup("provider errors")
-	for _, p := range state.providers.Range {
-		errs.Go(func() error {
-			return p.Start(state.Task())
-		})
-	}
-	return errs.Wait().Error()
 }

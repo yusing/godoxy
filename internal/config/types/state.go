@@ -28,6 +28,7 @@ type State interface {
 	DeleteProvider(key string)
 	IterProviders() iter.Seq2[string, types.RouteProvider]
 	NumProviders() int
+	StartProviders() error
 }
 
 // could be nil
