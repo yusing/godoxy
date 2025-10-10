@@ -26,11 +26,10 @@ ifeq ($(trace), 1)
 endif
 
 ifeq ($(race), 1)
-	debug = 1
-  BUILD_FLAGS += -race
-endif
-
-ifeq ($(debug), 1)
+	CGO_ENABLED = 1
+	GODOXY_DEBUG = 1
+	BUILD_FLAGS += -tags debug -race
+else ifeq ($(debug), 1)
 	CGO_ENABLED = 1
 	GODOXY_DEBUG = 1
 	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug -asan
@@ -72,7 +71,7 @@ endif
 .PHONY: debug
 
 test:
-	GODOXY_TEST=1 go test ./internal/...
+	go test -v -race ./internal/...
 
 docker-build-test:
 	docker build -t godoxy .
@@ -117,10 +116,13 @@ dev:
 	docker compose -f dev.compose.yml up -t 0 -d
 
 dev-build: build
-	docker compose -f dev.compose.yml up -t 0 -d --build
+	docker compose -f dev.compose.yml up -t 0 -d
 
 dev-logs:
 	docker compose -f dev.compose.yml logs -f	app
+
+dev-run: build
+	cd dev-data && ${BIN_PATH}
 
 mtrace:
 	 ${BIN_PATH} debug-ls-mtrace > mtrace.json
