@@ -24,6 +24,7 @@ type (
 		HealthMonitor() HealthMonitor
 		SetHealthMonitor(m HealthMonitor)
 		References() []string
+		ShouldExclude() bool
 
 		Started() <-chan struct{}
 
@@ -60,6 +61,7 @@ type (
 		Start(task.Parent) gperr.Error
 		LoadRoutes() gperr.Error
 		GetRoute(alias string) (r Route, ok bool)
+		// should be used like `for _, r := range p.IterRoutes` (no braces), not calling it directly
 		IterRoutes(yield func(alias string, r Route) bool)
 		NumRoutes() int
 		FindService(project, service string) (r Route, ok bool)
