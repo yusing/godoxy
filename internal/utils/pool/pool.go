@@ -98,8 +98,8 @@ func (p *Pool[T]) logAction(action string, obj T) {
 	if p.disableLog.Load() {
 		return
 	}
-	if obj, ok := any(obj).(ObjectWithDisplayName); ok {
-		disp, name := obj.DisplayName(), obj.Name()
+	if withName, ok := any(obj).(ObjectWithDisplayName); ok {
+		disp, name := withName.DisplayName(), withName.Name()
 		if disp != name {
 			log.Info().Msgf("%s: %s %s (%s)", p.name, action, disp, name)
 		} else {
