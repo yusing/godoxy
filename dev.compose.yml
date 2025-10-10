@@ -4,12 +4,11 @@ services:
     build:
       context: .
       dockerfile: dev.Dockerfile
-      args:
-        - TARGET=godoxy
     container_name: godoxy-proxy-dev
     restart: unless-stopped
     env_file: dev.env
     environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
       TZ: Asia/Hong_Kong
       API_ADDR: 127.0.0.1:8999
       API_USER: dev
@@ -24,6 +23,7 @@ services:
     ipc: host
     network_mode: host
     volumes:
+      - ./bin/godoxy:/app/run:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./dev-data/config:/app/config
       - ./dev-data/certs:/app/certs

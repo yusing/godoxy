@@ -34,7 +34,7 @@ else ifeq ($(debug), 1)
 	GODOXY_DEBUG = 1
 	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug -asan
 else ifeq ($(pprof), 1)
-	CGO_ENABLED = 1
+	CGO_ENABLED = 0
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
 	BUILD_FLAGS += -tags pprof
 	VERSION := ${VERSION}-pprof
@@ -113,13 +113,10 @@ run:
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ./cmd
 
 dev:
-	docker compose -f dev.compose.yml up -t 0 -d
+	docker compose -f dev.compose.yml $(args)
 
 dev-build: build
-	docker compose -f dev.compose.yml up -t 0 -d
-
-dev-logs:
-	docker compose -f dev.compose.yml logs -f	app
+	docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 
 dev-run: build
 	cd dev-data && ${BIN_PATH}
