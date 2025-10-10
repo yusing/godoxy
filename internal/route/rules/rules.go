@@ -28,7 +28,7 @@ type (
 					on: method POST | method PUT
 					do: error 403 Forbidden
 	*/
-	Rules []*Rule
+	Rules []Rule
 	/*
 		Rule is a rule for a reverse proxy.
 		It do `Do` when `On` matches.
@@ -54,8 +54,8 @@ type (
 //	if no rule matches, the default rule is executed
 //	if no rule matches and default rule is not set,
 //	the request is passed to the upstream.
-func (rules Rules) BuildHandler(caller string, up http.Handler) http.HandlerFunc {
-	defaultRule := &Rule{
+func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
+	defaultRule := Rule{
 		Name: "default",
 		Do: Command{
 			raw:  "pass",
