@@ -65,18 +65,26 @@ func TestOnCorrectness(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "path_exact_match",
-			checker: "path /example",
+			name:    "host_match",
+			checker: "host example.com",
 			input: &http.Request{
-				URL: &url.URL{Path: "/example"},
+				Host: "example.com",
 			},
 			want: true,
 		},
 		{
-			name:    "path_wildcard_match",
-			checker: "path /example/*",
+			name:    "host_no_match",
+			checker: "host example.com",
 			input: &http.Request{
-				URL: &url.URL{Path: "/example/123"},
+				Host: "example.org",
+			},
+			want: false,
+		},
+		{
+			name:    "path_exact_match",
+			checker: "path /example",
+			input: &http.Request{
+				URL: &url.URL{Path: "/example"},
 			},
 			want: true,
 		},
@@ -133,6 +141,46 @@ func TestOnCorrectness(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name:    "regex_match",
+			checker: `host regex(example\w+\.com)`,
+			input: &http.Request{
+				Host: "exampleabc.com",
+			},
+			want: true,
+		},
+		{
+			name:    "regex_no_match",
+			checker: `host regex(example\w+\.com)`,
+			input: &http.Request{
+				Host: "example.org",
+			},
+			want: false,
+		},
+		{
+			name:    "glob match",
+			checker: `host glob(*.example.com)`,
+			input: &http.Request{
+				Host: "abc.example.com",
+			},
+			want: true,
+		},
+		{
+			name:    "glob no match",
+			checker: `host glob(*.example.com)`,
+			input: &http.Request{
+				Host: "example.com",
+			},
+			want: false,
+		},
+		{
+			name:    "glob no match 2",
+			checker: `host glob(*.example.com)`,
+			input: &http.Request{
+				Host: "example.org",
+			},
+			want: false,
+		},
 	}
 
 	tests = append(tests, genCorrectnessTestCases("header", func(k, v string) *http.Request {
@@ -175,7 +223,7 @@ func TestOnCorrectness(t *testing.T) {
 			err := on.Parse(tt.checker)
 			expect.NoError(t, err)
 			got := on.Check(Cache{}, tt.input)
-			expect.Equal(t, tt.want, got)
+			expect.Equal(t, tt.want, got, fmt.Sprintf("expect %s to %v", tt.checker, tt.want))
 		})
 	}
 }
