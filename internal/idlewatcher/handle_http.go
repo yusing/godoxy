@@ -47,15 +47,31 @@ func isFaviconPath(path string) bool {
 	return path == "/favicon.ico"
 }
 
-//go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
-func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResult, error)
-
 func (w *Watcher) redirectToStartEndpoint(rw http.ResponseWriter, r *http.Request) {
 	uri := "/"
 	if w.cfg.StartEndpoint != "" {
 		uri = w.cfg.StartEndpoint
 	}
 	http.Redirect(rw, r, uri, http.StatusTemporaryRedirect)
+}
+
+func (w *Watcher) getFavIcon(ctx context.Context) (result homepage.FetchResult, err error) {
+	r := w.route
+	hp := r.HomepageItem()
+	if hp.Icon != nil {
+		if hp.Icon.IconSource == homepage.IconSourceRelative {
+			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
+		} else {
+			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
+		}
+	} else {
+		// try extract from "link[rel=icon]"
+		result, err = homepage.FindIcon(ctx, r, "/")
+	}
+	if result.StatusCode == 0 {
+		result.StatusCode = http.StatusOK
+	}
+	return result, err
 }
 
 func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldNext bool) {
@@ -68,7 +84,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// handle favicon request
 	if isFaviconPath(r.URL.Path) {
-		result, err := GetFavIconFromAlias(r.Context(), w.route.Name())
+		result, err := w.getFavIcon(r.Context())
 		if err != nil {
 			rw.WriteHeader(result.StatusCode)
 			fmt.Fprint(rw, err)
@@ -76,6 +92,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		}
 		rw.Header().Set("Content-Type", result.ContentType())
 		rw.WriteHeader(result.StatusCode)
+		rw.Write(result.Icon)
 		return false
 	}
 
