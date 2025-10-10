@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -16,6 +15,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -39,11 +39,6 @@ type (
 		Ref    string     `json:"Ref"`
 
 		rank int
-	}
-	Cache struct {
-		Icons        IconMap
-		LastUpdate   time.Time
-		sync.RWMutex `json:"-"`
 	}
 )
 
@@ -81,9 +76,7 @@ func (icon *IconMeta) Filenames(ref string) []string {
 
 const updateInterval = 2 * time.Hour
 
-var iconsCache = &Cache{
-	Icons: make(IconMap),
-}
+var iconsCache synk.Value[IconMap]
 
 const (
 	walkxcodeIcons = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/tree.json"
@@ -100,61 +93,72 @@ func (k IconKey) SourceRef() (IconSource, string) {
 }
 
 func InitIconListCache() {
-	iconsCache.Lock()
-	defer iconsCache.Unlock()
-
-	err := serialization.LoadJSONIfExist(common.IconListCachePath, iconsCache)
+	m := iconsCache.Load()
+	err := serialization.LoadJSONIfExist(common.IconListCachePath, &m)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to load icons")
-	} else if len(iconsCache.Icons) > 0 {
+		// backward compatible
+		oldFormat := struct {
+			Icons      IconMap
+			LastUpdate time.Time
+		}{}
+		err = serialization.LoadJSONIfExist(common.IconListCachePath, &oldFormat)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to load icons")
+		} else {
+			m = oldFormat.Icons
+			// store it to disk immediately
+			_ = serialization.SaveJSON(common.IconListCachePath, &m, 0o644)
+		}
+	} else if len(m) > 0 {
 		log.Info().
-			Int("icons", len(iconsCache.Icons)).
+			Int("icons", len(m)).
 			Msg("icons loaded")
-	}
-
-	if err = updateIcons(); err != nil {
-		log.Error().Err(err).Msg("failed to update icons")
+	} else {
+		if err := updateIcons(m); err != nil {
+			log.Error().Err(err).Msg("failed to update icons")
+		}
 	}
 
 	task.OnProgramExit("save_icons_cache", func() {
-		_ = serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
+		_ = serialization.SaveJSON(common.IconListCachePath, &m, 0o644)
 	})
+
+	go backgroundUpdateIcons()
+}
+
+func backgroundUpdateIcons() {
+	ticker := time.NewTicker(updateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			log.Info().Msg("updating icon data")
+			newCache := make(IconMap, len(iconsCache.Load()))
+			if err := updateIcons(newCache); err != nil {
+				log.Error().Err(err).Msg("failed to update icons")
+			} else {
+				// swap old cache with new cache
+				iconsCache.Store(newCache)
+				// save it to disk
+				err := serialization.SaveJSON(common.IconListCachePath, &newCache, 0o644)
+				if err != nil {
+					log.Warn().Err(err).Msg("failed to save icons")
+				}
+				log.Info().Int("icons", len(newCache)).Msg("icons list updated")
+			}
+		case <-task.RootContext().Done():
+			return
+		}
+	}
 }
 
 func TestClearIconsCache() {
-	clear(iconsCache.Icons)
+	clear(iconsCache.Load())
 }
 
-func ListAvailableIcons() (*Cache, error) {
-	if common.IsTest {
-		return iconsCache, nil
-	}
-
-	iconsCache.RLock()
-	if time.Since(iconsCache.LastUpdate) < updateInterval {
-		if len(iconsCache.Icons) > 0 {
-			iconsCache.RUnlock()
-			return iconsCache, nil
-		}
-	}
-	iconsCache.RUnlock()
-
-	iconsCache.Lock()
-	defer iconsCache.Unlock()
-
-	log.Info().Msg("updating icon data")
-	if err := updateIcons(); err != nil {
-		return nil, err
-	}
-	log.Info().Int("icons", len(iconsCache.Icons)).Msg("icons list updated")
-
-	iconsCache.LastUpdate = time.Now()
-
-	err := serialization.SaveJSON(common.IconListCachePath, iconsCache, 0o644)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to save icons")
-	}
-	return iconsCache, nil
+func ListAvailableIcons() IconMap {
+	return iconsCache.Load()
 }
 
 func SearchIcons(keyword string, limit int) []*IconMetaSearch {
@@ -166,9 +170,6 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 		limit = 10
 	}
 
-	iconsCache.RLock()
-	defer iconsCache.RUnlock()
-
 	searchLimit := min(limit*5, 50)
 
 	results := make([]*IconMetaSearch, 0, searchLimit)
@@ -178,7 +179,8 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 	}
 
 	var rank int
-	for k, icon := range iconsCache.Icons {
+	icons := ListAvailableIcons()
+	for k, icon := range icons {
 		if strutils.ContainsFold(string(k), keyword) || strutils.ContainsFold(icon.DisplayName, keyword) {
 			rank = 0
 		} else {
@@ -214,10 +216,8 @@ func HasIcon(icon *IconURL) bool {
 	if common.IsTest {
 		return true
 	}
-	iconsCache.RLock()
-	defer iconsCache.RUnlock()
 	key := NewIconKey(icon.IconSource, icon.Extra.Ref)
-	meta, ok := iconsCache.Icons[key]
+	meta, ok := ListAvailableIcons()[key]
 	if !ok {
 		return false
 	}
@@ -239,11 +239,7 @@ type HomepageMeta struct {
 }
 
 func GetHomepageMeta(ref string) (HomepageMeta, bool) {
-	cache, err := ListAvailableIcons()
-	if err != nil { // sliently ignore
-		return HomepageMeta{}, false
-	}
-	meta, ok := cache.Icons[NewIconKey(IconSourceSelfhSt, ref)]
+	meta, ok := ListAvailableIcons()[NewIconKey(IconSourceSelfhSt, ref)]
 	// these info is not available in walkxcode
 	// if !ok {
 	// 	meta, ok = iconsCache.Icons[NewIconKey(IconSourceWalkXCode, ref)]
@@ -257,12 +253,11 @@ func GetHomepageMeta(ref string) (HomepageMeta, bool) {
 	}, true
 }
 
-func updateIcons() error {
-	clear(iconsCache.Icons)
-	if err := UpdateWalkxCodeIcons(); err != nil {
+func updateIcons(m IconMap) error {
+	if err := UpdateWalkxCodeIcons(m); err != nil {
 		return err
 	}
-	return UpdateSelfhstIcons()
+	return UpdateSelfhstIcons(m)
 }
 
 var httpGet = httpGetImpl
@@ -309,7 +304,7 @@ format:
 		]
 	}
 */
-func UpdateWalkxCodeIcons() error {
+func UpdateWalkxCodeIcons(m IconMap) error {
 	body, err := httpGet(walkxcodeIcons)
 	if err != nil {
 		return err
@@ -338,10 +333,10 @@ func UpdateWalkxCodeIcons() error {
 				f = strings.TrimSuffix(f, "-light")
 			}
 			key := NewIconKey(IconSourceWalkXCode, f)
-			icon, ok := iconsCache.Icons[key]
+			icon, ok := m[key]
 			if !ok {
 				icon = new(IconMeta)
-				iconsCache.Icons[key] = icon
+				m[key] = icon
 			}
 			setExt(icon)
 			if isLight {
@@ -369,7 +364,7 @@ format:
 	}
 */
 
-func UpdateSelfhstIcons() error {
+func UpdateSelfhstIcons(m IconMap) error {
 	type SelfhStIcon struct {
 		Name      string
 		Reference string
@@ -408,7 +403,7 @@ func UpdateSelfhstIcons() error {
 			Dark:        item.Dark == "Yes",
 		}
 		key := NewIconKey(IconSourceSelfhSt, item.Reference)
-		iconsCache.Icons[key] = icon
+		m[key] = icon
 	}
 	return nil
 }
