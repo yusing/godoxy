@@ -31,6 +31,17 @@ services:
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
       - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
+  parca:
+    image: ghcr.io/parca-dev/parca:v0.24.2
+    container_name: godoxy-parca
+    restart: unless-stopped
+    command: [/parca, --config-path, /parca.yaml]
+    network_mode: host
+    # ports:
+    #   - 7070:7070
+    configs:
+      - source: parca
+        target: /parca.yaml
   tinyauth:
     image: ghcr.io/steveiliop56/tinyauth:v3
     container_name: tinyauth
@@ -41,3 +52,16 @@ services:
       - USERS=user:$$2a$$10$$UdLYoJ5lgPsC0RKqYH/jMua7zIn0g9kPqWmhYayJYLaZQ/FTmH2/u # user:password
     labels:
       proxy.tinyauth.port: "3000"
+configs:
+  parca:
+    content: |
+      object_storage:
+        bucket:
+          type: "FILESYSTEM"
+          config:
+            directory: "./data"
+      scrape_configs:
+        - job_name: "parca"
+          scrape_interval: "1s"
+          static_configs:
+            - targets: [ 'localhost:7777' ]
