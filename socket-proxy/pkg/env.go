@@ -1,10 +1,6 @@
 package socketproxy
 
-import (
-	"log"
-	"os"
-	"strconv"
-)
+import "github.com/yusing/goutils/env"
 
 var (
 	DockerSocket,
@@ -43,59 +39,35 @@ func init() {
 	Load()
 }
 
-func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T {
-	value, ok := os.LookupEnv(key)
-	if !ok || value == "" {
-		return defaultValue
-	}
-	parsed, err := parser(value)
-	if err != nil {
-		log.Fatalf("env %s: invalid %T value: %s", key, parsed, value)
-	}
-	return parsed
-}
-
-func GetEnvString(key string, defaultValue string) string {
-	return GetEnv(key, defaultValue, stringstring)
-}
-
-func GetEnvBool(key string, defaultValue bool) bool {
-	return GetEnv(key, defaultValue, strconv.ParseBool)
-}
-
-func stringstring(s string) (string, error) {
-	return s, nil
-}
-
 func Load() {
-	DockerSocket = GetEnvString("DOCKER_SOCKET", "/var/run/docker.sock")
-	ListenAddr = GetEnvString("LISTEN_ADDR", GetEnvString("DOCKER_SOCKET_ADDR", "")) // default to disabled
+	DockerSocket = env.GetEnvString("DOCKER_SOCKET", "/var/run/docker.sock")
+	ListenAddr = env.GetEnvString("LISTEN_ADDR", env.GetEnvString("DOCKER_SOCKET_ADDR", "")) // default to disabled
 
-	DockerPost = GetEnvBool("POST", false)
-	DockerRestarts = GetEnvBool("ALLOW_RESTARTS", false)
-	DockerStart = GetEnvBool("ALLOW_START", false)
-	DockerStop = GetEnvBool("ALLOW_STOP", false)
-	DockerAuth = GetEnvBool("AUTH", false)
-	DockerBuild = GetEnvBool("BUILD", false)
-	DockerCommit = GetEnvBool("COMMIT", false)
-	DockerConfigs = GetEnvBool("CONFIGS", false)
-	DockerContainers = GetEnvBool("CONTAINERS", false)
-	DockerDistribution = GetEnvBool("DISTRIBUTION", false)
-	DockerEvents = GetEnvBool("EVENTS", true)
-	DockerExec = GetEnvBool("EXEC", false)
-	DockerGrpc = GetEnvBool("GRPC", false)
-	DockerImages = GetEnvBool("IMAGES", false)
-	DockerInfo = GetEnvBool("INFO", false)
-	DockerNetworks = GetEnvBool("NETWORKS", false)
-	DockerNodes = GetEnvBool("NODES", false)
-	DockerPing = GetEnvBool("PING", true)
-	DockerPlugins = GetEnvBool("PLUGINS", false)
-	DockerSecrets = GetEnvBool("SECRETS", false)
-	DockerServices = GetEnvBool("SERVICES", false)
-	DockerSession = GetEnvBool("SESSION", false)
-	DockerSwarm = GetEnvBool("SWARM", false)
-	DockerSystem = GetEnvBool("SYSTEM", false)
-	DockerTasks = GetEnvBool("TASKS", false)
-	DockerVersion = GetEnvBool("VERSION", true)
-	DockerVolumes = GetEnvBool("VOLUMES", false)
+	DockerPost = env.GetEnvBool("POST", false)
+	DockerRestarts = env.GetEnvBool("ALLOW_RESTARTS", false)
+	DockerStart = env.GetEnvBool("ALLOW_START", false)
+	DockerStop = env.GetEnvBool("ALLOW_STOP", false)
+	DockerAuth = env.GetEnvBool("AUTH", false)
+	DockerBuild = env.GetEnvBool("BUILD", false)
+	DockerCommit = env.GetEnvBool("COMMIT", false)
+	DockerConfigs = env.GetEnvBool("CONFIGS", false)
+	DockerContainers = env.GetEnvBool("CONTAINERS", false)
+	DockerDistribution = env.GetEnvBool("DISTRIBUTION", false)
+	DockerEvents = env.GetEnvBool("EVENTS", true)
+	DockerExec = env.GetEnvBool("EXEC", false)
+	DockerGrpc = env.GetEnvBool("GRPC", false)
+	DockerImages = env.GetEnvBool("IMAGES", false)
+	DockerInfo = env.GetEnvBool("INFO", false)
+	DockerNetworks = env.GetEnvBool("NETWORKS", false)
+	DockerNodes = env.GetEnvBool("NODES", false)
+	DockerPing = env.GetEnvBool("PING", true)
+	DockerPlugins = env.GetEnvBool("PLUGINS", false)
+	DockerSecrets = env.GetEnvBool("SECRETS", false)
+	DockerServices = env.GetEnvBool("SERVICES", false)
+	DockerSession = env.GetEnvBool("SESSION", false)
+	DockerSwarm = env.GetEnvBool("SWARM", false)
+	DockerSystem = env.GetEnvBool("SYSTEM", false)
+	DockerTasks = env.GetEnvBool("TASKS", false)
+	DockerVersion = env.GetEnvBool("VERSION", true)
+	DockerVolumes = env.GetEnvBool("VOLUMES", false)
 }
