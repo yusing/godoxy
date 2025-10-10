@@ -13,7 +13,7 @@ import (
 type (
 	LogFilter[T Filterable] struct {
 		Negative bool
-		Values   []T
+		Values   []T `json:",omitempty"`
 	} // @name LogFilter
 	Filterable interface {
 		comparable

@@ -11,7 +11,7 @@ import (
 type (
 	FieldConfig struct {
 		Default FieldMode            `json:"default" validate:"omitempty,oneof=keep drop redact"`
-		Config  map[string]FieldMode `json:"config" validate:"dive,oneof=keep drop redact"`
+		Config  map[string]FieldMode `json:"config,omitempty" yaml:"config,omitempty" validate:"dive,oneof=keep drop redact"`
 	}
 	FieldMode string
 )
