@@ -197,7 +197,7 @@ func (state *state) initNotification() error {
 
 	dispatcher := notif.StartNotifDispatcher(state.task)
 	for _, notifier := range notifCfg {
-		dispatcher.RegisterProvider(&notifier)
+		dispatcher.RegisterProvider(notifier)
 	}
 	return nil
 }
@@ -279,8 +279,8 @@ func (state *state) loadRouteProviders() error {
 				errs.Add(gperr.PrependSubject(a.String(), err))
 				return
 			}
-			agent.AddAgent(&a)
-			p := route.NewAgentProvider(&a)
+			agent.AddAgent(a)
+			p := route.NewAgentProvider(a)
 			providersCh <- p
 		})
 	}
