@@ -122,10 +122,10 @@ func parseCIDR(s string) net.IP {
 	if err != nil {
 		return nil
 	}
-	return checkIPPrivate(ip)
+	return privateIPOrNil(ip)
 }
 
-func checkIPPrivate(ip net.IP) net.IP {
+func privateIPOrNil(ip net.IP) net.IP {
 	if ip == nil {
 		return nil
 	}
@@ -145,9 +145,9 @@ func getIPFromNet(s string) (res []net.IP) { // name:...,bridge:...,gw=..,ip=...
 		cidrIndex += 3
 		slash := strings.Index(s[cidrIndex:], "/")
 		if slash != -1 {
-			i4 = checkIPPrivate(net.ParseIP(s[cidrIndex : cidrIndex+slash]))
+			i4 = privateIPOrNil(net.ParseIP(s[cidrIndex : cidrIndex+slash]))
 		} else {
-			i4 = checkIPPrivate(net.ParseIP(s[cidrIndex:]))
+			i4 = privateIPOrNil(net.ParseIP(s[cidrIndex:]))
 		}
 	}
 	cidr6Index := strings.Index(s, "ip6=")
@@ -155,9 +155,9 @@ func getIPFromNet(s string) (res []net.IP) { // name:...,bridge:...,gw=..,ip=...
 		cidr6Index += 4
 		slash := strings.Index(s[cidr6Index:], "/")
 		if slash != -1 {
-			i6 = checkIPPrivate(net.ParseIP(s[cidr6Index : cidr6Index+slash]))
+			i6 = privateIPOrNil(net.ParseIP(s[cidr6Index : cidr6Index+slash]))
 		} else {
-			i6 = checkIPPrivate(net.ParseIP(s[cidr6Index:]))
+			i6 = privateIPOrNil(net.ParseIP(s[cidr6Index:]))
 		}
 	}
 	if i4 != nil {
