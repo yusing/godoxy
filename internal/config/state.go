@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"iter"
@@ -21,6 +22,7 @@ import (
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
+	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
 	route "github.com/yusing/godoxy/internal/route/provider"
@@ -40,13 +42,21 @@ type state struct {
 	entrypoint       entrypoint.Entrypoint
 
 	task *task.Task
+
+	// used for temporary logging
+	// discarded on failed reload
+	tmpLogBuf *bytes.Buffer
+	tmpLog    zerolog.Logger
 }
 
 func NewState() config.State {
+	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	return &state{
 		providers:  xsync.NewMap[string, types.RouteProvider](),
 		entrypoint: entrypoint.NewEntrypoint(),
 		task:       task.RootTask("config", false),
+		tmpLogBuf:  tmpLogBuf,
+		tmpLog:     logging.NewLogger(tmpLogBuf),
 	}
 }
 
@@ -165,6 +175,11 @@ func (state *state) StartProviders() error {
 
 func (state *state) NumProviders() int {
 	return state.providers.Size()
+}
+
+func (state *state) FlushTmpLog() {
+	state.tmpLogBuf.WriteTo(os.Stdout)
+	state.tmpLogBuf.Reset()
 }
 
 // this one is connection level access logger, different from entrypoint access logger
@@ -336,8 +351,7 @@ func (state *state) loadRouteProviders() error {
 	}
 	providersLoader.Wait()
 
-	log.Info().Msg(results.String())
-
+	state.tmpLog.Info().Msg(results.String())
 	state.printRoutesByProvider(lenLongestName)
 	state.printState()
 	return errs.Error()
@@ -389,12 +403,11 @@ func (state *state) printRoutesByProvider(lenLongestName int) {
 	// Always print the routes since we want to show even empty providers
 	routeStr := routeResults.String()
 	if routeStr != "" {
-		log.Info().Msg(routeStr)
+		state.tmpLog.Info().Msg(routeStr)
 	}
 }
 
 func (state *state) printState() {
-	log.Info().Msg("active config")
-	l := log.Level(zerolog.InfoLevel)
-	yaml.NewEncoder(l).Encode(state.Config)
+	state.tmpLog.Info().Msg("active config:")
+	yaml.NewEncoder(state.tmpLog).Encode(state.Config)
 }

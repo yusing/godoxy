@@ -48,7 +48,7 @@ func fmtMessage(msg string) string {
 	return strutils.JoinRune(lines, '\n')
 }
 
-func InitLogger(out ...io.Writer) {
+func NewLogger(out ...io.Writer) zerolog.Logger {
 	writer := zerolog.ConsoleWriter{
 		Out:        zerolog.MultiLevelWriter(out...),
 		TimeFormat: timeFmt,
@@ -56,10 +56,14 @@ func InitLogger(out ...io.Writer) {
 			return fmtMessage(msgI.(string))
 		},
 	}
-	logger = zerolog.New(
+	return zerolog.New(
 		writer,
 	).Level(level).With().Timestamp().Logger()
-	log.SetOutput(writer)
+}
+
+func InitLogger(out ...io.Writer) {
+	logger = NewLogger(out...)
+	log.SetOutput(logger)
 	log.SetPrefix("")
 	log.SetFlags(0)
 	zerolog.TimeFieldFormat = timeFmt

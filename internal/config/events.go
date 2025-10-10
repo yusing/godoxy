@@ -45,6 +45,9 @@ func Load() error {
 		notifyError("init", err)
 	}
 	SetState(state)
+
+	// flush temporary log
+	state.FlushTmpLog()
 	return nil
 }
 
@@ -68,6 +71,9 @@ func Reload() gperr.Error {
 		notifyError("reload", err)
 		return gperr.New(ansi.Warning("using last config")).With(err)
 	}
+
+	// flush temporary log
+	newState.FlushTmpLog()
 
 	// cancel all current subtasks -> wait
 	// -> replace config -> start new subtasks

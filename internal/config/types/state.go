@@ -30,6 +30,8 @@ type State interface {
 	IterProviders() iter.Seq2[string, types.RouteProvider]
 	NumProviders() int
 	StartProviders() error
+
+	FlushTmpLog()
 }
 
 // could be nil
