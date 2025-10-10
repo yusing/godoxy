@@ -3,6 +3,7 @@ package notif
 import (
 	"math"
 	"math/rand/v2"
+	"slices"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ type (
 		Title string
 		Body  LogBody
 		Color Color
+
+		To []string
 	}
 
 	NotifyFunc func(msg *LogMessage)
@@ -99,6 +102,9 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 
 	var wg sync.WaitGroup
 	for p := range disp.providers.Range {
+		if len(msg.To) > 0 && !slices.Contains(msg.To, p.GetName()) {
+			continue
+		}
 		wg.Add(1)
 		go func(p Provider) {
 			defer wg.Done()
