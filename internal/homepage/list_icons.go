@@ -132,7 +132,7 @@ func ListAvailableIcons() (*Cache, error) {
 
 	iconsCache.RLock()
 	if time.Since(iconsCache.LastUpdate) < updateInterval {
-		if len(iconsCache.Icons) == 0 {
+		if len(iconsCache.Icons) > 0 {
 			iconsCache.RUnlock()
 			return iconsCache, nil
 		}
@@ -239,9 +239,15 @@ type HomepageMeta struct {
 }
 
 func GetHomepageMeta(ref string) (HomepageMeta, bool) {
-	iconsCache.RLock()
-	defer iconsCache.RUnlock()
-	meta, ok := iconsCache.Icons[NewIconKey(IconSourceSelfhSt, ref)]
+	cache, err := ListAvailableIcons()
+	if err != nil { // sliently ignore
+		return HomepageMeta{}, false
+	}
+	meta, ok := cache.Icons[NewIconKey(IconSourceSelfhSt, ref)]
+	// these info is not available in walkxcode
+	// if !ok {
+	// 	meta, ok = iconsCache.Icons[NewIconKey(IconSourceWalkXCode, ref)]
+	// }
 	if !ok {
 		return HomepageMeta{}, false
 	}
