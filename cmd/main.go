@@ -20,6 +20,7 @@ import (
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
+)
 
 func parallel(fns ...func()) {
 	var wg sync.WaitGroup
