@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/ds/ordered"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
@@ -296,10 +297,12 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 
 		go func() {
 			cause := w.watchUntilDestroy()
-			if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) {
-				watcherMapMu.Lock()
-				delete(watcherMap, key)
-				watcherMapMu.Unlock()
+
+			watcherMapMu.Lock()
+			delete(watcherMap, key)
+			watcherMapMu.Unlock()
+
+			if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) || errors.Is(cause, config.ErrConfigChanged) {
 				w.l.Info().Msg("idlewatcher stopped")
 			} else if !errors.Is(cause, causeReload) {
 				gperr.LogError("idlewatcher stopped unexpectedly", cause, &w.l)

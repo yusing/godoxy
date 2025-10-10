@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
@@ -70,7 +71,7 @@ func Reload() gperr.Error {
 
 	// cancel all current subtasks -> wait
 	// -> replace config -> start new subtasks
-	GetState().Task().FinishAndWait("config changed")
+	GetState().Task().FinishAndWait(config.ErrConfigChanged)
 	SetState(newState)
 
 	if err := newState.StartProviders(); err != nil {

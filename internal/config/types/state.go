@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"iter"
 	"net/http"
 
@@ -33,3 +34,5 @@ type State interface {
 
 // could be nil
 var ActiveState synk.Value[State]
+
+var ErrConfigChanged = errors.New("config changed")
