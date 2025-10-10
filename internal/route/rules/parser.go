@@ -128,6 +128,10 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 				buf.WriteRune(r)
 			}
 		default:
+			if expectingBrace { // last was $ but { not matched
+				buf.WriteRune('$')
+				expectingBrace = false
+			}
 			if inEnvVar {
 				envVar.WriteRune(r)
 			} else {
