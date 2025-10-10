@@ -28,8 +28,9 @@ type Config struct {
 	Log        *accesslog.ACLLoggerConfig `json:"log"`
 
 	Notify struct {
-		To       []string      `json:"to"`       // list of notification providers
-		Interval time.Duration `json:"interval"` // interval between notifications
+		To             []string      `json:"to"`              // list of notification providers
+		Interval       time.Duration `json:"interval"`        // interval between notifications
+		IncludeAllowed *bool         `json:"include_allowed"` // default: false
 	} `json:"notify"`
 
 	config
@@ -52,7 +53,8 @@ type config struct {
 	logger *accesslog.AccessLogger
 
 	// will never tick if Notify.To is empty
-	notifyTicker *time.Ticker
+	notifyTicker  *time.Ticker
+	notifyAllowed bool
 
 	// will be nil if both Log and Notify.To are empty
 	logNotifyCh chan ipLog
@@ -130,6 +132,12 @@ func (c *Config) Validate() gperr.Error {
 	} else {
 		c.notifyTicker = time.NewTicker(time.Duration(math.MaxInt64)) // never tick
 	}
+
+	if c.Notify.IncludeAllowed != nil {
+		c.notifyAllowed = *c.Notify.IncludeAllowed
+	} else {
+		c.notifyAllowed = false
+	}
 	return nil
 }
 
@@ -196,13 +204,19 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 			}
 			if c.needNotify() {
 				if log.allowed {
-					c.allowCounts[log.info.Str]++
+					if c.notifyAllowed {
+						c.allowCounts[log.info.Str]++
+					}
 				} else {
 					c.blockedCounts[log.info.Str]++
 				}
 			}
 		case <-c.notifyTicker.C: // will never tick when notify is disabled
-			fieldsBody := make(notif.FieldsBody, 0, len(c.allowCounts)+len(c.blockedCounts))
+			total := len(c.allowCounts) + len(c.blockedCounts)
+			if total == 0 {
+				continue
+			}
+			fieldsBody := make(notif.FieldsBody, 0, total)
 			for ip, count := range c.allowCounts {
 				fieldsBody = append(fieldsBody, notif.LogField{
 					Name:  ip,
