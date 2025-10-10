@@ -30,7 +30,7 @@ type Config struct {
 	Notify struct {
 		To       []string      `json:"to"`       // list of notification providers
 		Interval time.Duration `json:"interval"` // interval between notifications
-	}
+	} `json:"notify"`
 
 	config
 	valErr gperr.Error
