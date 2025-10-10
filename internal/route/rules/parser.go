@@ -2,6 +2,8 @@ package rules
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"unicode"
 
 	gperr "github.com/yusing/goutils/errs"
@@ -14,20 +16,27 @@ var escapedChars = map[rune]rune{
 	'\'': '\'',
 	'"':  '"',
 	'\\': '\\',
-	'$':  '$',
 	' ':  ' ',
 }
 
 // parse expression to subject and args
-// with support for quotes and escaped chars, e.g.
+// with support for quotes, escaped chars, and env substitution, e.g.
 //
 //	error 403 "Forbidden 'foo' 'bar'"
 //	error 403 Forbidden\ \"foo\"\ \"bar\".
+//	error 403 "Message: ${CLOUDFLARE_API_KEY}"
 func parse(v string) (subject string, args []string, err gperr.Error) {
 	buf := bytes.NewBuffer(make([]byte, 0, len(v)))
 
 	escaped := false
 	quote := rune(0)
+	brackets := 0
+
+	var envVar bytes.Buffer
+	var missingEnvVars bytes.Buffer
+	inEnvVar := false
+	expectingBrace := false
+
 	flush := func(quoted bool) {
 		part := buf.String()
 		if !quoted {
@@ -56,8 +65,7 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			if ch, ok := escapedChars[r]; ok {
 				buf.WriteRune(ch)
 			} else {
-				err = ErrUnsupportedEscapeChar.Subjectf("\\%c", r)
-				return subject, args, err
+				fmt.Fprintf(buf, `\%c`, r)
 			}
 			escaped = false
 			continue
@@ -65,10 +73,36 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 		switch r {
 		case '\\':
 			escaped = true
-			continue
-		case '"', '\'':
+		case '$':
+			if expectingBrace { // $$ => $ and continue
+				buf.WriteRune('$')
+				expectingBrace = false
+			} else {
+				expectingBrace = true
+			}
+		case '{':
+			if expectingBrace {
+				inEnvVar = true
+				expectingBrace = false
+				envVar.Reset()
+			} else {
+				buf.WriteRune(r)
+			}
+		case '}':
+			if inEnvVar {
+				envValue, ok := os.LookupEnv(envVar.String())
+				if !ok {
+					fmt.Fprintf(&missingEnvVars, "%q, ", envVar.String())
+				} else {
+					buf.WriteString(envValue)
+				}
+				inEnvVar = false
+			} else {
+				buf.WriteRune(r)
+			}
+		case '"', '\'', '`':
 			switch {
-			case quote == 0:
+			case quote == 0 && brackets == 0:
 				quote = r
 				flush(false)
 			case r == quote:
@@ -77,21 +111,40 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			default:
 				buf.WriteRune(r)
 			}
+		case '(':
+			brackets++
+			buf.WriteRune(r)
+		case ')':
+			if brackets == 0 {
+				err = ErrUnterminatedBrackets
+				return subject, args, err
+			}
+			brackets--
+			buf.WriteRune(r)
 		case ' ':
 			if quote == 0 {
 				flush(false)
-				continue
+			} else {
+				buf.WriteRune(r)
 			}
-			fallthrough
 		default:
-			buf.WriteRune(r)
+			if inEnvVar {
+				envVar.WriteRune(r)
+			} else {
+				buf.WriteRune(r)
+			}
 		}
 	}
 
 	if quote != 0 {
 		err = ErrUnterminatedQuotes
+	} else if brackets != 0 {
+		err = ErrUnterminatedBrackets
 	} else {
 		flush(false)
+	}
+	if missingEnvVars.Len() > 0 {
+		err = gperr.Join(err, ErrEnvVarNotFound.Subject(missingEnvVars.String()))
 	}
 	return subject, args, err
 }

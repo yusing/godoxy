@@ -52,11 +52,21 @@ var commands = map[string]struct {
 			if len(args) != 2 {
 				return nil, ErrExpectTwoArgs
 			}
-			return validateURLPaths(args)
+			path1, err1 := validateURLPath(args[:1])
+			path2, err2 := validateURLPath(args[1:])
+			if err1 != nil {
+				err1 = gperr.Errorf("from: %w", err1)
+			}
+			if err2 != nil {
+				err2 = gperr.Errorf("to: %w", err2)
+			}
+			if err1 != nil || err2 != nil {
+				return nil, gperr.Join(err1, err2)
+			}
+			return &StrTuple{path1.(string), path2.(string)}, nil
 		},
 		build: func(args any) CommandHandler {
-			a := args.([]string)
-			orig, repl := a[0], a[1]
+			orig, repl := args.(*StrTuple).Unpack()
 			return StaticCommand(func(w http.ResponseWriter, r *http.Request) {
 				path := r.URL.Path
 				if len(path) > 0 && path[0] != '/' {

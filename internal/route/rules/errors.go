@@ -6,8 +6,9 @@ import (
 
 var (
 	ErrUnterminatedQuotes     = gperr.New("unterminated quotes")
-	ErrUnsupportedEscapeChar  = gperr.New("unsupported escape char")
+	ErrUnterminatedBrackets   = gperr.New("unterminated brackets")
 	ErrUnknownDirective       = gperr.New("unknown directive")
+	ErrEnvVarNotFound         = gperr.New("env variable not found")
 	ErrInvalidArguments       = gperr.New("invalid arguments")
 	ErrInvalidOnTarget        = gperr.New("invalid `rule.on` target")
 	ErrInvalidCommandSequence = gperr.New("invalid command sequence")

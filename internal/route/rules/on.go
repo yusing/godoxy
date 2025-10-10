@@ -1,12 +1,11 @@
 package rules
 
 import (
+	"net"
 	"net/http"
 	"slices"
 	"strings"
 
-	"github.com/gobwas/glob"
-	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
@@ -28,6 +27,7 @@ const (
 	OnForm      = "form"
 	OnPostForm  = "postform"
 	OnMethod    = "method"
+	OnHost      = "host"
 	OnPath      = "path"
 	OnRemote    = "remote"
 	OnBasicAuth = "basic_auth"
@@ -42,58 +42,69 @@ var checkers = map[string]struct {
 	OnHeader: {
 		help: Help{
 			command: OnHeader,
+			description: `Value supports string, glob pattern, or regex pattern, e.g.:
+			header username "user"
+			header username glob("user*")
+			header username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the header key",
 				"[value]": "the header value",
 			},
 		},
-		validate: toKVOptionalV,
+		validate: toKVOptionalVMatcher,
 		builder: func(args any) CheckFunc {
-			k, v := args.(*StrTuple).Unpack()
-			if v == "" {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
 				return func(cached Cache, r *http.Request) bool {
 					return len(r.Header[k]) > 0
 				}
 			}
 			return func(cached Cache, r *http.Request) bool {
-				return slices.Contains(r.Header[k], v)
+				return slices.ContainsFunc(r.Header[k], matcher)
 			}
 		},
 	},
 	OnQuery: {
 		help: Help{
 			command: OnQuery,
+			description: `Value supports string, glob pattern, or regex pattern, e.g.:
+			query username "user"
+			query username glob("user*")
+			query username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the query key",
 				"[value]": "the query value",
 			},
 		},
-		validate: toKVOptionalV,
+		validate: toKVOptionalVMatcher,
 		builder: func(args any) CheckFunc {
-			k, v := args.(*StrTuple).Unpack()
-			if v == "" {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
 				return func(cached Cache, r *http.Request) bool {
 					return len(cached.GetQueries(r)[k]) > 0
 				}
 			}
 			return func(cached Cache, r *http.Request) bool {
-				queries := cached.GetQueries(r)[k]
-				return slices.Contains(queries, v)
+				return slices.ContainsFunc(cached.GetQueries(r)[k], matcher)
 			}
 		},
 	},
 	OnCookie: {
 		help: Help{
 			command: OnCookie,
+			description: `Value supports string, glob pattern, or regex pattern, e.g.:
+			cookie username "user"
+			cookie username glob("user*")
+			cookie username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the cookie key",
 				"[value]": "the cookie value",
 			},
 		},
-		validate: toKVOptionalV,
+		validate: toKVOptionalVMatcher,
 		builder: func(args any) CheckFunc {
-			k, v := args.(*StrTuple).Unpack()
-			if v == "" {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
 				return func(cached Cache, r *http.Request) bool {
 					cookies := cached.GetCookies(r)
 					for _, cookie := range cookies {
@@ -107,9 +118,10 @@ var checkers = map[string]struct {
 			return func(cached Cache, r *http.Request) bool {
 				cookies := cached.GetCookies(r)
 				for _, cookie := range cookies {
-					if cookie.Name == k &&
-						cookie.Value == v {
-						return true
+					if cookie.Name == k {
+						if matcher(cookie.Value) {
+							return true
+						}
 					}
 				}
 				return false
@@ -119,42 +131,50 @@ var checkers = map[string]struct {
 	OnForm: {
 		help: Help{
 			command: OnForm,
+			description: `Value supports string, glob pattern, or regex pattern, e.g.:
+			form username "user"
+			form username glob("user*")
+			form username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the form key",
 				"[value]": "the form value",
 			},
 		},
-		validate: toKVOptionalV,
+		validate: toKVOptionalVMatcher,
 		builder: func(args any) CheckFunc {
-			k, v := args.(*StrTuple).Unpack()
-			if v == "" {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
 				return func(cached Cache, r *http.Request) bool {
 					return r.FormValue(k) != ""
 				}
 			}
 			return func(cached Cache, r *http.Request) bool {
-				return r.FormValue(k) == v
+				return matcher(r.FormValue(k))
 			}
 		},
 	},
 	OnPostForm: {
 		help: Help{
 			command: OnPostForm,
+			description: `Value supports string, glob pattern, or regex pattern, e.g.:
+			postform username "user"
+			postform username glob("user*")
+			postform username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the form key",
 				"[value]": "the form value",
 			},
 		},
-		validate: toKVOptionalV,
+		validate: toKVOptionalVMatcher,
 		builder: func(args any) CheckFunc {
-			k, v := args.(*StrTuple).Unpack()
-			if v == "" {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
 				return func(cached Cache, r *http.Request) bool {
 					return r.PostFormValue(k) != ""
 				}
 			}
 			return func(cached Cache, r *http.Request) bool {
-				return r.PostFormValue(k) == v
+				return matcher(r.PostFormValue(k))
 			}
 		},
 	},
@@ -173,25 +193,47 @@ var checkers = map[string]struct {
 			}
 		},
 	},
+	OnHost: {
+		help: Help{
+			command: OnHost,
+			description: `Supports string, glob pattern, or regex pattern, e.g.:
+				host example.com
+				host glob(example*.com)
+				host regex(example\w+\.com)
+				host regex(example\.com$)`,
+			args: map[string]string{
+				"host": "the host name",
+			},
+		},
+		validate: validateSingleMatcher,
+		builder: func(args any) CheckFunc {
+			matcher := args.(Matcher)
+			return func(cached Cache, r *http.Request) bool {
+				return matcher(r.Host)
+			}
+		},
+	},
 	OnPath: {
 		help: Help{
 			command: OnPath,
-			description: `The path can be a glob pattern, e.g.:
-				/path/to
-				/path/to/*`,
+			description: `Supports string, glob pattern, or regex pattern, e.g.:
+				path /path/to
+				path glob(/path/to/*)
+				path regex(^/path/to/.*$)
+				path regex(/path/[A-Z]+/)`,
 			args: map[string]string{
 				"path": "the request path",
 			},
 		},
-		validate: validateURLPathGlob,
+		validate: validateURLPathMatcher,
 		builder: func(args any) CheckFunc {
-			pat := args.(glob.Glob)
+			matcher := args.(Matcher)
 			return func(cached Cache, r *http.Request) bool {
 				reqPath := r.URL.Path
 				if len(reqPath) > 0 && reqPath[0] != '/' {
 					reqPath = "/" + reqPath
 				}
-				return pat.Match(reqPath)
+				return matcher(reqPath)
 			}
 		},
 	},
@@ -204,13 +246,24 @@ var checkers = map[string]struct {
 		},
 		validate: validateCIDR,
 		builder: func(args any) CheckFunc {
-			cidr := args.(nettypes.CIDR)
+			ipnet := args.(*net.IPNet)
+			// for /32 (IPv4) or /128 (IPv6), just compare the IP
+			if ones, bits := ipnet.Mask.Size(); ones == bits {
+				wantIP := ipnet.IP
+				return func(cached Cache, r *http.Request) bool {
+					ip := cached.GetRemoteIP(r)
+					if ip == nil {
+						return false
+					}
+					return ip.Equal(wantIP)
+				}
+			}
 			return func(cached Cache, r *http.Request) bool {
 				ip := cached.GetRemoteIP(r)
 				if ip == nil {
 					return false
 				}
-				return cidr.Contains(ip)
+				return ipnet.Contains(ip)
 			}
 		},
 	},
@@ -233,15 +286,19 @@ var checkers = map[string]struct {
 	OnRoute: {
 		help: Help{
 			command: OnRoute,
+			description: `Supports string, glob pattern, or regex pattern, e.g.:
+				route example
+				route glob(example*)
+				route regex(example\w+)`,
 			args: map[string]string{
 				"route": "the route name",
 			},
 		},
-		validate: validateSingleArg,
+		validate: validateSingleMatcher,
 		builder: func(args any) CheckFunc {
-			route := args.(string)
+			matcher := args.(Matcher)
 			return func(_ Cache, r *http.Request) bool {
-				return routes.TryGetUpstreamName(r) == route
+				return matcher(routes.TryGetUpstreamName(r))
 			}
 		},
 	},
@@ -253,8 +310,8 @@ var (
 )
 
 func indexAnd(s string) int {
-	for i, c := range s {
-		if andSeps[c] != 0 {
+	for i := range s {
+		if andSeps[s[i]] != 0 {
 			return i
 		}
 	}
@@ -263,8 +320,8 @@ func indexAnd(s string) int {
 
 func countAnd(s string) int {
 	n := 0
-	for _, c := range s {
-		if andSeps[c] != 0 {
+	for i := range s {
+		if andSeps[s[i]] != 0 {
 			n++
 		}
 	}

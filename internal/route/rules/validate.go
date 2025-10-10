@@ -2,9 +2,12 @@ package rules
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gobwas/glob"
@@ -19,7 +22,9 @@ type (
 		First  T1
 		Second T2
 	}
-	StrTuple = Tuple[string, string]
+	StrTuple        = Tuple[string, string]
+	IntTuple        = Tuple[int, int]
+	MapValueMatcher = Tuple[string, Matcher]
 )
 
 func (t *Tuple[T1, T2]) Unpack() (T1, T2) {
@@ -30,11 +35,101 @@ func (t *Tuple[T1, T2]) String() string {
 	return fmt.Sprintf("%v:%v", t.First, t.Second)
 }
 
-func validateSingleArg(args []string) (any, gperr.Error) {
+type (
+	Matcher     func(string) bool
+	MatcherType string
+)
+
+const (
+	MatcherTypeString MatcherType = "string"
+	MatcherTypeGlob   MatcherType = "glob"
+	MatcherTypeRegex  MatcherType = "regex"
+)
+
+func unquoteExpr(s string) (string, gperr.Error) {
+	if s == "" {
+		return "", nil
+	}
+	switch s[0] {
+	case '"', '\'', '`':
+		if s[0] != s[len(s)-1] {
+			return "", ErrUnterminatedQuotes
+		}
+		return s[1 : len(s)-1], nil
+	default:
+		return s, nil
+	}
+}
+
+func ExtractExpr(s string) (matcherType MatcherType, expr string, err gperr.Error) {
+	idx := strings.IndexByte(s, '(')
+	if idx == -1 {
+		return MatcherTypeString, s, nil
+	}
+	idxEnd := strings.LastIndexByte(s, ')')
+	if idxEnd == -1 {
+		return "", "", ErrUnterminatedBrackets
+	}
+
+	expr, err = unquoteExpr(s[idx+1 : idxEnd])
+	if err != nil {
+		return "", "", err
+	}
+	matcherType = MatcherType(strings.ToLower(s[:idx]))
+
+	switch matcherType {
+	case MatcherTypeGlob, MatcherTypeRegex, MatcherTypeString:
+		return
+	default:
+		return "", "", ErrInvalidArguments.Withf("invalid matcher type: %s", matcherType)
+	}
+}
+
+func ParseMatcher(expr string) (Matcher, gperr.Error) {
+	t, expr, err := ExtractExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	switch t {
+	case MatcherTypeString:
+		return StringMatcher(expr)
+	case MatcherTypeGlob:
+		return GlobMatcher(expr)
+	case MatcherTypeRegex:
+		return RegexMatcher(expr)
+	}
+	// won't reach here
+	return nil, ErrInvalidArguments.Withf("invalid matcher type: %s", t)
+}
+
+func StringMatcher(s string) (Matcher, gperr.Error) {
+	return func(s2 string) bool {
+		return s == s2
+	}, nil
+}
+
+func GlobMatcher(expr string) (Matcher, gperr.Error) {
+	g, err := glob.Compile(expr)
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	return g.Match, nil
+}
+
+func RegexMatcher(expr string) (Matcher, gperr.Error) {
+	re, err := regexp.Compile(expr)
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	return re.MatchString, nil
+}
+
+// validateSingleMatcher returns Matcher with the matcher validated.
+func validateSingleMatcher(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	return args[0], nil
+	return ParseMatcher(args[0])
 }
 
 // toStrTuple returns *StrTuple.
@@ -45,13 +140,17 @@ func toStrTuple(args []string) (any, gperr.Error) {
 	return &StrTuple{args[0], args[1]}, nil
 }
 
-// toKVOptionalV returns *StrTuple that value is optional.
-func toKVOptionalV(args []string) (any, gperr.Error) {
+// toKVOptionalVMatcher returns *MapValueMatcher that value is optional.
+func toKVOptionalVMatcher(args []string) (any, gperr.Error) {
 	switch len(args) {
 	case 1:
-		return &StrTuple{args[0], ""}, nil
+		return &MapValueMatcher{args[0], nil}, nil
 	case 2:
-		return &StrTuple{args[0], args[1]}, nil
+		m, err := ParseMatcher(args[1])
+		if err != nil {
+			return nil, err
+		}
+		return &MapValueMatcher{args[0], m}, nil
 	default:
 		return nil, ErrExpectKVOptionalV
 	}
@@ -95,11 +194,11 @@ func validateCIDR(args []string) (any, gperr.Error) {
 	if !strings.Contains(args[0], "/") {
 		args[0] += "/32"
 	}
-	cidr, err := nettypes.ParseCIDR(args[0])
+	_, ipnet, err := net.ParseCIDR(args[0])
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
-	return cidr, nil
+	return ipnet, nil
 }
 
 // validateURLPath returns string with the path validated.
@@ -120,35 +219,12 @@ func validateURLPath(args []string) (any, gperr.Error) {
 	return p, nil
 }
 
-// validateURLPathGlob returns []string with each element validated.
-func validateURLPathGlob(args []string) (any, gperr.Error) {
-	p, err := validateURLPath(args)
+func validateURLPathMatcher(args []string) (any, gperr.Error) {
+	path, err := validateURLPath(args)
 	if err != nil {
 		return nil, err
 	}
-
-	g, gErr := glob.Compile(p.(string))
-	if gErr != nil {
-		return nil, ErrInvalidArguments.With(gErr)
-	}
-	return g, nil
-}
-
-// validateURLPaths returns []string with each element validated.
-func validateURLPaths(paths []string) (any, gperr.Error) {
-	errs := gperr.NewBuilder("invalid url paths")
-	for i, p := range paths {
-		val, err := validateURLPath([]string{p})
-		if err != nil {
-			errs.Add(err.Subject(p))
-			continue
-		}
-		paths[i] = val.(string)
-	}
-	if err := errs.Error(); err != nil {
-		return nil, err
-	}
-	return paths, nil
+	return ParseMatcher(path.(string))
 }
 
 // validateFSPath returns string with the path validated.

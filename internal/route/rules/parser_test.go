@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"os"
 	"strconv"
 	"testing"
 
@@ -47,9 +48,28 @@ func TestParser(t *testing.T) {
 			args:    []string{"", ""},
 		},
 		{
-			name:    "invalid_escape",
-			input:   `foo \bar`,
-			wantErr: ErrUnsupportedEscapeChar,
+			name:    "regex_escaped",
+			input:   `foo regex(\b\B\s\S\w\W\d\D\$\.)`,
+			subject: "foo",
+			args:    []string{`regex(\b\B\s\S\w\W\d\D\$\.)`},
+		},
+		{
+			name:    "quote inside argument",
+			input:   `foo "abc 'def'"`,
+			subject: "foo",
+			args:    []string{"abc 'def'"},
+		},
+		{
+			name:    "quote inside function",
+			input:   `foo glob("'/**/to/path'")`,
+			subject: "foo",
+			args:    []string{"glob(\"'/**/to/path'\")"},
+		},
+		{
+			name:    "quote inside quoted function",
+			input:   "foo 'glob(\"`/**/to/path`\")'",
+			subject: "foo",
+			args:    []string{"glob(\"`/**/to/path`\")"},
 		},
 		{
 			name:    "chaos",
@@ -74,12 +94,69 @@ func TestParser(t *testing.T) {
 			// t.Log(subject, args, err)
 			expect.NoError(t, err)
 			expect.Equal(t, subject, tt.subject)
-			expect.Equal(t, len(args), len(tt.args))
-			for i, arg := range args {
-				expect.Equal(t, arg, tt.args[i])
-			}
+			expect.Equal(t, args, tt.args)
 		})
 	}
+	t.Run("env substitution", func(t *testing.T) {
+		// Set up test environment variables
+		os.Setenv("CLOUDFLARE_API_KEY", "test-api-key-123")
+		os.Setenv("DOMAIN", "example.com")
+		defer func() {
+			os.Unsetenv("CLOUDFLARE_API_KEY")
+			os.Unsetenv("DOMAIN")
+		}()
+
+		tests := []struct {
+			name    string
+			input   string
+			subject string
+			args    []string
+			wantErr string
+		}{
+			{
+				name:    "simple env var",
+				input:   `error 403 "Forbidden: ${CLOUDFLARE_API_KEY}"`,
+				subject: "error",
+				args:    []string{"403", "Forbidden: test-api-key-123"},
+			},
+			{
+				name:    "multiple env vars",
+				input:   `forward https://${DOMAIN}/api`,
+				subject: "forward",
+				args:    []string{"https://example.com/api"},
+			},
+			{
+				name:    "env var with other text",
+				input:   `auth "user-${DOMAIN}-admin" "password"`,
+				subject: "auth",
+				args:    []string{"user-example.com-admin", "password"},
+			},
+			{
+				name:    "non-existent env var",
+				input:   `error 404 "${NON_EXISTENT}"`,
+				wantErr: ErrEnvVarNotFound.Error(),
+			},
+			{
+				name:    "escaped",
+				input:   `error 404 "$${NON_EXISTENT}"`,
+				subject: "error",
+				args:    []string{"404", "${NON_EXISTENT}"},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				subject, args, err := parse(tt.input)
+				if tt.wantErr != "" {
+					expect.ErrorContains(t, err, tt.wantErr)
+					return
+				}
+				expect.NoError(t, err)
+				expect.Equal(t, subject, tt.subject)
+				expect.Equal(t, args, tt.args)
+			})
+		}
+	})
 	t.Run("unterminated quotes", func(t *testing.T) {
 		tests := []string{
 			`error 403 "Forbidden 'foo' 'bar'`,
@@ -97,7 +174,7 @@ func TestParser(t *testing.T) {
 
 func BenchmarkParser(b *testing.B) {
 	const input = `error 403 "Forbidden "foo" "bar""\ baz`
-	for range b.N {
+	for b.Loop() {
 		_, _, err := parse(input)
 		if err != nil {
 			b.Fatal(err)
