@@ -216,18 +216,21 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 			if total == 0 {
 				continue
 			}
-			fieldsBody := make(notif.FieldsBody, 0, total)
+			fieldsBody := make(notif.FieldsBody, total)
+			i := 0
 			for ip, count := range c.allowCounts {
-				fieldsBody = append(fieldsBody, notif.LogField{
+				fieldsBody[i] = notif.LogField{
 					Name:  ip,
 					Value: fmt.Sprintf("allowed %d times", count),
-				})
+				}
+				i++
 			}
 			for ip, count := range c.blockedCounts {
-				fieldsBody = append(fieldsBody, notif.LogField{
+				fieldsBody[i] = notif.LogField{
 					Name:  ip,
 					Value: fmt.Sprintf("blocked %d times", count),
-				})
+				}
+				i++
 			}
 			notif.Notify(&notif.LogMessage{
 				Level: zerolog.InfoLevel,
