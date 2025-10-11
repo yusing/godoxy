@@ -109,6 +109,10 @@ func (c *Config) Validate() gperr.Error {
 		c.allowLocal = true
 	}
 
+	if c.Notify.Interval < 0 {
+		c.Notify.Interval = defaultNotifyInterval
+	}
+
 	if c.Log != nil {
 		c.logAllowed = c.Log.LogAllowed
 	}
@@ -119,24 +123,6 @@ func (c *Config) Validate() gperr.Error {
 	}
 
 	c.ipCache = xsync.NewMap[string, *checkCache]()
-
-	if c.needLogOrNotify() {
-		c.logNotifyCh = make(chan ipLog, 100)
-	}
-
-	if c.needNotify() {
-		c.allowedCount = make(map[string]uint32)
-		c.blockedCount = make(map[string]uint32)
-	}
-
-	if c.Notify.Interval < 0 {
-		c.Notify.Interval = defaultNotifyInterval
-	}
-	if c.needNotify() {
-		c.notifyTicker = time.NewTicker(c.Notify.Interval)
-	} else {
-		c.notifyTicker = time.NewTicker(time.Duration(math.MaxInt64)) // never tick
-	}
 
 	if c.Notify.IncludeAllowed != nil {
 		c.notifyAllowed = *c.Notify.IncludeAllowed
@@ -160,6 +146,18 @@ func (c *Config) Start(parent task.Parent) gperr.Error {
 	}
 	if c.valErr != nil {
 		return c.valErr
+	}
+
+	if c.needLogOrNotify() {
+		c.logNotifyCh = make(chan ipLog, 100)
+	}
+
+	if c.needNotify() {
+		c.allowedCount = make(map[string]uint32)
+		c.blockedCount = make(map[string]uint32)
+		c.notifyTicker = time.NewTicker(c.Notify.Interval)
+	} else {
+		c.notifyTicker = time.NewTicker(time.Duration(math.MaxInt64)) // never tick
 	}
 
 	if c.needLogOrNotify() {
@@ -187,11 +185,28 @@ func (c *Config) cacheRecord(info *maxmind.IPInfo, allow bool) {
 }
 
 func (c *Config) needLogOrNotify() bool {
-	return c.logger != nil || c.needNotify()
+	return c.needLog() || c.needNotify()
+}
+
+func (c *Config) needLog() bool {
+	return c.logger != nil
 }
 
 func (c *Config) needNotify() bool {
 	return len(c.Notify.To) > 0
+}
+
+func (c *Config) getCachedCity(ip string) string {
+	record, ok := c.ipCache.Load(ip)
+	if ok {
+		if record.City != nil {
+			if record.City.Country.IsoCode != "" {
+				return record.City.Country.IsoCode
+			}
+			return record.City.Location.TimeZone
+		}
+	}
+	return "unknown location"
 }
 
 func (c *Config) logNotifyLoop(parent task.Parent) {
@@ -229,11 +244,11 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 			fieldsBody[i] = fmt.Sprintf("Total: allowed %d, blocked %d", c.totalAllowedCount, c.totalBlockedCount)
 			i++
 			for ip, count := range c.allowedCount {
-				fieldsBody[i] = fmt.Sprintf("%s: allowed %d times", ip, count)
+				fieldsBody[i] = fmt.Sprintf("%s (%s): allowed %d times", ip, c.getCachedCity(ip), count)
 				i++
 			}
 			for ip, count := range c.blockedCount {
-				fieldsBody[i] = fmt.Sprintf("%s: blocked %d times", ip, count)
+				fieldsBody[i] = fmt.Sprintf("%s (%s): blocked %d times", ip, c.getCachedCity(ip), count)
 				i++
 			}
 			notif.Notify(&notif.LogMessage{
