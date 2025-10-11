@@ -64,6 +64,9 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 	}
 	provider.SetHeaders(msg, req.Header)
 
+	fmt.Println(req.Header)
+	fmt.Println(string(body))
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
