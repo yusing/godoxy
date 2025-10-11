@@ -8,10 +8,6 @@ import (
 	"github.com/yusing/goutils/env"
 )
 
-func init() {
-	env.SetPrefixes("GODOXY_", "GOPROXY_", "")
-}
-
 var (
 	IsTest  = env.GetEnvBool("TEST", false) || strings.HasSuffix(os.Args[0], ".test")
 	IsDebug = env.GetEnvBool("DEBUG", IsTest)
