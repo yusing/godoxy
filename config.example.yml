@@ -38,11 +38,11 @@
 #     buffer_size: 65536 # (default: 64KB)
 #     path: /app/logs/acl.log # (default: none)
 #     stdout: false # (default: false)
-#     keep: last 10 # (default: none)
+#     keep: 30 days # (default: 30 days)
 
 entrypoint:
   # Proxy Protocol: https://www.haproxy.com/blog/use-the-proxy-protocol-to-preserve-a-clients-ip-address
-  # When set to true, web entrypoint and all tcp routeswill be wrapped with Proxy Protocol listener in order to preserve the client's IP address.
+  # When set to true, web entrypoint and all tcp routes will be wrapped with Proxy Protocol listener in order to preserve the client's IP address.
   # Note that HTTP/3 with proxy protocol is not supported yet.
   support_proxy_protocol: false
 
@@ -72,6 +72,8 @@ entrypoint:
   access_log:
     format: combined
     path: /app/logs/entrypoint.log
+    stdout: false # (default: false)
+    keep: 30 days # (default: 30 days)
 
 providers:
   # include files are standalone yaml files under `config/` directory
@@ -96,9 +98,13 @@ providers:
     # remote-1: tcp://10.0.2.1:2375
     # remote-2: ssh://root:1234@10.0.2.2
 
-  # notification providers (notify when service health changes)
+  # notification providers
   #
   # notification:
+  #   - name: ntfy
+  #     provider: ntfy
+  #     url: https://ntfy.domain.tld
+  #     topic: godoxy
   #   - name: gotify
   #     provider: gotify
   #     url: https://gotify.domain.tld
