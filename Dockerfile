@@ -10,11 +10,13 @@ ENV GOPATH=/root/go
 
 WORKDIR /src
 
+COPY goutils/go.mod goutils/go.sum ./goutils/
+COPY internal/go-oidc/go.mod internal/go-oidc/go.sum ./internal/go-oidc/
+COPY internal/gopsutil/go.mod internal/gopsutil/go.sum ./internal/gopsutil/
 COPY go.mod go.sum ./
 
 # remove godoxy stuff from go.mod first
-RUN sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && \
-  go mod download -x
+RUN sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && go mod download -x
 
 # Stage 2: builder
 FROM deps AS builder
@@ -28,6 +30,7 @@ COPY internal ./internal
 COPY pkg ./pkg
 COPY agent ./agent
 COPY socket-proxy ./socket-proxy
+COPY goutils ./goutils
 
 ARG VERSION
 ENV VERSION=${VERSION}
