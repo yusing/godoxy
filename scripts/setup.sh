@@ -196,7 +196,6 @@ if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
 	DOT_ENV_EXAMPLE_PATH="rootless.env.example"
 fi
 
-
 # 4. .env file
 fetch_file "$DOT_ENV_EXAMPLE_PATH" "$DOT_ENV_PATH"
 
@@ -230,9 +229,11 @@ ask_while_empty "Configure autocert? (y/n): " ENABLE_AUTOCERT
 
 # quit if not using autocert
 if [ "$ENABLE_AUTOCERT" == "y" ]; then
-	# ask for domain
 	echo "Setting up autocert"
 	skip=false
+
+	# ask for domain
+	ask_while_empty "Enter domain for autocert: " BASE_DOMAIN
 
 	# ask for email
 	ask_while_empty "Enter email for Let's Encrypt: " EMAIL
@@ -303,7 +304,7 @@ if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
 	ask_while_empty "Which network to use for proxy? (default: proxy): " PROXY_NETWORK
 	# check if network exists
 	if ! docker network ls | grep -q "$PROXY_NETWORK"; then
-	  ask_while_empty "Network \"$PROXY_NETWORK\" does not exist, do you want to create it? (y/n): " CREATE_NETWORK
+		ask_while_empty "Network \"$PROXY_NETWORK\" does not exist, do you want to create it? (y/n): " CREATE_NETWORK
 		if [ "$CREATE_NETWORK" == "y" ]; then
 			docker network create "$PROXY_NETWORK"
 			echo "Network \"$PROXY_NETWORK\" created"
