@@ -1,16 +1,17 @@
 package accesslog
 
 import (
-	"io"
-	"os"
+	"github.com/rs/zerolog/log"
 )
 
-type StdoutLogger struct {
-	io.Writer
+type StdoutLogger struct{}
+
+var stdoutIO StdoutLogger
+
+func (l StdoutLogger) Write(p []byte) (int, error) {
+	return log.Logger.Write(p)
 }
 
-var stdoutIO = &StdoutLogger{os.Stdout}
-
-func (l *StdoutLogger) Name() string {
+func (l StdoutLogger) Name() string {
 	return "stdout"
 }
