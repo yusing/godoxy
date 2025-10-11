@@ -24,8 +24,8 @@ type (
 		cfg  *Config
 
 		rawWriter     io.Writer
-		closer        []io.Closer
-		supportRotate []supportRotate
+		closer        io.Closer
+		supportRotate supportRotate
 		writer        *ioutils.BufferedWriter
 		writeLock     sync.Mutex
 		closed        bool
@@ -42,7 +42,7 @@ type (
 	}
 
 	WriterWithName interface {
-		io.Writer
+		io.WriteCloser
 		Name() string // file name or path
 	}
 
@@ -63,8 +63,8 @@ type (
 )
 
 const (
-	MinBufferSize = 4 * kilobyte
-	MaxBufferSize = 8 * megabyte
+	InitialBufferSize = 4 * kilobyte
+	MaxBufferSize     = 8 * megabyte
 
 	bufferAdjustInterval = 5 * time.Second // How often we check & adjust
 )
@@ -83,30 +83,11 @@ func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
 	if err != nil {
 		return nil, err
 	}
-	if io == nil {
-		return nil, nil //nolint:nilnil
-	}
 	return NewAccessLoggerWithIO(parent, io, cfg), nil
 }
 
 func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) *AccessLogger {
 	return NewAccessLoggerWithIO(parent, NewMockFile(), cfg)
-}
-
-func unwrap[Writer any](w io.Writer) []Writer {
-	var result []Writer
-	if unwrapped, ok := w.(MultiWriterInterface); ok {
-		for _, w := range unwrapped.Unwrap() {
-			if unwrapped, ok := w.(Writer); ok {
-				result = append(result, unwrapped)
-			}
-		}
-		return result
-	}
-	if unwrapped, ok := w.(Writer); ok {
-		return []Writer{unwrapped}
-	}
-	return nil
 }
 
 func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg AnyConfig) *AccessLogger {
@@ -119,14 +100,20 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
 		rawWriter:      writer,
-		writer:         ioutils.NewBufferedWriter(writer, MinBufferSize),
-		bufSize:        MinBufferSize,
+		bufSize:        InitialBufferSize,
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         log.With().Str("file", writer.Name()).Logger(),
 	}
 
-	l.supportRotate = unwrap[supportRotate](writer)
-	l.closer = unwrap[io.Closer](writer)
+	if writer != nil {
+		l.writer = ioutils.NewBufferedWriter(writer, InitialBufferSize)
+		if supportRotate, ok := writer.(SupportRotate); ok {
+			l.supportRotate = supportRotate
+		}
+		if closer, ok := writer.(io.Closer); ok {
+			l.closer = closer
+		}
+	}
 
 	if cfg.req != nil {
 		fmt := CommonFormatter{cfg: &cfg.req.Fields}
@@ -144,7 +131,9 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		l.ACLFormatter = ACLLogFormatter{}
 	}
 
-	go l.start()
+	if l.writer != nil {
+		go l.start()
+	} // otherwise stdout only
 	return l
 }
 
@@ -194,26 +183,17 @@ func (l *AccessLogger) ShouldRotate() bool {
 	return l.supportRotate != nil && l.cfg.Retention.IsValid()
 }
 
-func (l *AccessLogger) Rotate() (result *RotateResult, err error) {
+func (l *AccessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 	if !l.ShouldRotate() {
-		return nil, nil //nolint:nilnil
+		return false, nil
 	}
 
 	l.writer.Flush()
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 
-	result = new(RotateResult)
-	for _, sr := range l.supportRotate {
-		r, err := rotateLogFile(sr, l.cfg.Retention)
-		if err != nil {
-			return nil, err
-		}
-		if r != nil {
-			result.Add(r)
-		}
-	}
-	return result, nil
+	rotated, err = rotateLogFile(l.supportRotate, l.cfg.Retention, result)
+	return
 }
 
 func (l *AccessLogger) handleErr(err error) {
@@ -247,9 +227,10 @@ func (l *AccessLogger) start() {
 				continue
 			}
 			l.logger.Info().Msg("rotating access log file")
-			if res, err := l.Rotate(); err != nil {
+			var res RotateResult
+			if rotated, err := l.Rotate(&res); err != nil {
 				l.handleErr(err)
-			} else if res != nil {
+			} else if rotated {
 				res.Print(&l.logger)
 			} else {
 				l.logger.Info().Msg("no rotation needed")
@@ -267,9 +248,7 @@ func (l *AccessLogger) Close() error {
 		return nil
 	}
 	if l.closer != nil {
-		for _, c := range l.closer {
-			c.Close()
-		}
+		l.closer.Close()
 	}
 	l.writer.Release()
 	l.closed = true
@@ -288,18 +267,23 @@ func (l *AccessLogger) Flush() {
 }
 
 func (l *AccessLogger) write(data []byte) {
-	l.writeLock.Lock()
-	defer l.writeLock.Unlock()
-	if l.closed {
-		return
+	if l.writer != nil {
+		l.writeLock.Lock()
+		defer l.writeLock.Unlock()
+		if l.closed {
+			return
+		}
+		n, err := l.writer.Write(data)
+		if err != nil {
+			l.handleErr(err)
+		} else if n < len(data) {
+			l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
+		}
+		atomic.AddInt64(&l.writeCount, int64(n))
 	}
-	n, err := l.writer.Write(data)
-	if err != nil {
-		l.handleErr(err)
-	} else if n < len(data) {
-		l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
+	if l.cfg.Stdout {
+		log.Logger.Write(data) // write to stdout immediately
 	}
-	atomic.AddInt64(&l.writeCount, int64(n))
 }
 
 func (l *AccessLogger) adjustBuffer() {
@@ -321,8 +305,8 @@ func (l *AccessLogger) adjustBuffer() {
 		}
 	case origBufSize > wps:
 		newBufSize -= step
-		if newBufSize < MinBufferSize {
-			newBufSize = MinBufferSize
+		if newBufSize < InitialBufferSize {
+			newBufSize = InitialBufferSize
 		}
 	}
 

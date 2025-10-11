@@ -26,7 +26,7 @@ var (
 	openedFilesMu sync.Mutex
 )
 
-func newFileIO(path string) (SupportRotate, error) {
+func newFileIO(path string) (WriterWithName, error) {
 	openedFilesMu.Lock()
 	defer openedFilesMu.Unlock()
 

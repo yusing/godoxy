@@ -26,7 +26,7 @@ type (
 		Fields  Fields  `json:"fields"`
 	} // @name RequestLoggerConfig
 	Config struct {
-		*ConfigBase
+		ConfigBase
 		acl *ACLLoggerConfig
 		req *RequestLoggerConfig
 	}
@@ -65,34 +65,29 @@ func (cfg *ConfigBase) Validate() gperr.Error {
 	return nil
 }
 
+// IO returns a writer for the config.
+// If only stdout is enabled, it returns nil, nil.
 func (cfg *ConfigBase) IO() (WriterWithName, error) {
-	ios := make([]WriterWithName, 0, 2)
-	if cfg.Stdout {
-		ios = append(ios, stdoutIO)
-	}
 	if cfg.Path != "" {
 		io, err := newFileIO(cfg.Path)
 		if err != nil {
 			return nil, err
 		}
-		ios = append(ios, io)
+		return io, nil
 	}
-	if len(ios) == 0 {
-		return nil, nil
-	}
-	return NewMultiWriter(ios...), nil
+	return nil, nil
 }
 
 func (cfg *ACLLoggerConfig) ToConfig() *Config {
 	return &Config{
-		ConfigBase: &cfg.ConfigBase,
+		ConfigBase: cfg.ConfigBase,
 		acl:        cfg,
 	}
 }
 
 func (cfg *RequestLoggerConfig) ToConfig() *Config {
 	return &Config{
-		ConfigBase: &cfg.ConfigBase,
+		ConfigBase: cfg.ConfigBase,
 		req:        cfg,
 	}
 }

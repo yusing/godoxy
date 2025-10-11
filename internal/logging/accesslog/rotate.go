@@ -2,6 +2,7 @@ package accesslog
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"time"
 
@@ -52,15 +53,6 @@ func (r *RotateResult) Print(logger *zerolog.Logger) {
 		Msg("log rotate result")
 }
 
-func (r *RotateResult) Add(other *RotateResult) {
-	r.OriginalSize += other.OriginalSize
-	r.NumBytesRead += other.NumBytesRead
-	r.NumBytesKeep += other.NumBytesKeep
-	r.NumLinesRead += other.NumLinesRead
-	r.NumLinesKeep += other.NumLinesKeep
-	r.NumLinesInvalid += other.NumLinesInvalid
-}
-
 type lineInfo struct {
 	Pos  int64 // Position from the start of the file
 	Size int64 // Size of this line
@@ -69,7 +61,7 @@ type lineInfo struct {
 var rotateBytePool = synk.GetBytesPoolWithUniqueMemory()
 
 // rotateLogFile rotates the log file based on the retention policy.
-// It returns the result of the rotation and an error if any.
+// It writes to the result and returns an error if any.
 //
 // The file is rotated by reading the file backward line-by-line
 // and stop once error occurs or found a line that should not be kept.
@@ -77,25 +69,19 @@ var rotateBytePool = synk.GetBytesPoolWithUniqueMemory()
 // Any invalid lines will be skipped and not included in the result.
 //
 // If the file does not need to be rotated, it returns nil, nil.
-func rotateLogFile(file supportRotate, config *Retention) (result *RotateResult, err error) {
+func rotateLogFile(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
 	if config.KeepSize > 0 {
-		result, err = rotateLogFileBySize(file, config)
+		rotated, err = rotateLogFileBySize(file, config, result)
 	} else {
-		result, err = rotateLogFileByPolicy(file, config)
+		rotated, err = rotateLogFileByPolicy(file, config, result)
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := file.Seek(0, io.SeekEnd); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	_, ferr := file.Seek(0, io.SeekEnd)
+	err = errors.Join(err, ferr)
+	return
 }
 
-func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *RotateResult, err error) {
+func rotateLogFileByPolicy(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
 	var shouldStop func() bool
 	t := utils.TimeNow()
 
@@ -107,23 +93,21 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 		cutoff := utils.TimeNow().AddDate(0, 0, -int(config.Days)+1)
 		shouldStop = func() bool { return t.Before(cutoff) }
 	default:
-		return nil, nil // should not happen
+		return false, nil // should not happen
 	}
 
 	fileSize, err := file.Size()
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	// nothing to rotate, return the nothing
 	if fileSize == 0 {
-		return nil, nil
+		return false, nil
 	}
 
 	s := NewBackScanner(file, fileSize, defaultChunkSize)
-	result = &RotateResult{
-		OriginalSize: fileSize,
-	}
+	result.OriginalSize = fileSize
 
 	// Store the line positions and sizes we want to keep
 	linesToKeep := make([]lineInfo, 0)
@@ -167,17 +151,17 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 	}
 
 	if s.Err() != nil {
-		return nil, s.Err()
+		return false, s.Err()
 	}
 
 	// nothing to keep, truncate to empty
 	if len(linesToKeep) == 0 {
-		return nil, file.Truncate(0)
+		return true, file.Truncate(0)
 	}
 
 	// nothing to rotate, return nothing
 	if result.NumBytesKeep == result.OriginalSize {
-		return nil, nil
+		return false, nil
 	}
 
 	// Read each line and write it to the beginning of the file
@@ -196,23 +180,23 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 
 		// Read the line from its original position
 		if _, err := file.ReadAt(buf, line.Pos); err != nil {
-			return nil, err
+			return false, err
 		}
 
 		// Write it to the new position
 		if _, err := file.WriteAt(buf, writePos); err != nil {
-			return nil, err
+			return false, err
 		} else if n < line.Size {
-			return nil, gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, line.Size, n)
+			return false, gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, line.Size, n)
 		}
 		writePos += n
 	}
 
 	if err := file.Truncate(writePos); err != nil {
-		return nil, err
+		return false, err
 	}
 
-	return result, nil
+	return true, nil
 }
 
 // rotateLogFileBySize rotates the log file by size.
@@ -221,29 +205,27 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention) (result *Rotat
 // The file is not being read, it just truncate the file to the new size.
 //
 // Invalid lines will not be detected and included in the result.
-func rotateLogFileBySize(file supportRotate, config *Retention) (result *RotateResult, err error) {
+func rotateLogFileBySize(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
 	filesize, err := file.Size()
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	result = &RotateResult{
-		OriginalSize: filesize,
-	}
+	result.OriginalSize = filesize
 
 	keepSize := int64(config.KeepSize)
 	if keepSize >= filesize {
 		result.NumBytesKeep = filesize
-		return result, nil
+		return false, nil
 	}
 	result.NumBytesKeep = keepSize
 
 	err = file.Truncate(keepSize)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	return result, nil
+	return true, nil
 }
 
 // ParseLogTime parses the time from the log line.

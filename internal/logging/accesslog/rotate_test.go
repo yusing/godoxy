@@ -76,8 +76,10 @@ func TestRotateKeepLast(t *testing.T) {
 			expect.Equal(t, retention.KeepSize, 0)
 			logger.Config().Retention = retention
 
-			result, err := logger.Rotate()
+			var result RotateResult
+			rotated, err := logger.Rotate(&result)
 			expect.NoError(t, err)
+			expect.Equal(t, rotated, true)
 			expect.Equal(t, file.NumLines(), int(retention.Last))
 			expect.Equal(t, result.NumLinesKeep, int(retention.Last))
 			expect.Equal(t, result.NumLinesInvalid, 0)
@@ -104,14 +106,15 @@ func TestRotateKeepLast(t *testing.T) {
 			logger.Config().Retention = retention
 
 			utils.MockTimeNow(testTime)
-			result, err := logger.Rotate()
+			var result RotateResult
+			rotated, err := logger.Rotate(&result)
 			expect.NoError(t, err)
+			expect.Equal(t, rotated, true)
 			expect.Equal(t, file.NumLines(), int(retention.Days))
 			expect.Equal(t, result.NumLinesKeep, int(retention.Days))
 			expect.Equal(t, result.NumLinesInvalid, 0)
 
-			rotated := file.Content()
-			rotatedLines := bytes.Split(rotated, []byte("\n"))
+			rotatedLines := bytes.Split(file.Content(), []byte("\n"))
 			for i, line := range rotatedLines {
 				if i >= int(retention.Days) { // may ends with a newline
 					break
@@ -149,10 +152,12 @@ func TestRotateKeepFileSize(t *testing.T) {
 			logger.Config().Retention = retention
 
 			utils.MockTimeNow(testTime)
-			result, err := logger.Rotate()
+			var result RotateResult
+			rotated, err := logger.Rotate(&result)
 			expect.NoError(t, err)
 
 			// file should be untouched as 100KB > 10 lines * bytes per line
+			expect.Equal(t, rotated, false)
 			expect.Equal(t, result.NumBytesKeep, file.Len())
 			expect.Equal(t, result.NumBytesRead, 0, "should not read any bytes")
 		})
@@ -179,8 +184,10 @@ func TestRotateKeepFileSize(t *testing.T) {
 		logger.Config().Retention = retention
 
 		utils.MockTimeNow(testTime)
-		result, err := logger.Rotate()
+		var result RotateResult
+		rotated, err := logger.Rotate(&result)
 		expect.NoError(t, err)
+		expect.Equal(t, rotated, true)
 		expect.Equal(t, result.NumBytesKeep, int64(retention.KeepSize))
 		expect.Equal(t, file.Len(), int64(retention.KeepSize))
 		expect.Equal(t, result.NumBytesRead, 0, "should not read any bytes")
@@ -213,8 +220,10 @@ func TestRotateSkipInvalidTime(t *testing.T) {
 			expect.Equal(t, retention.Last, 0)
 			logger.Config().Retention = retention
 
-			result, err := logger.Rotate()
+			var result RotateResult
+			rotated, err := logger.Rotate(&result)
 			expect.NoError(t, err)
+			expect.Equal(t, rotated, true)
 			// should read one invalid line after every valid line
 			expect.Equal(t, result.NumLinesKeep, int(retention.Days))
 			expect.Equal(t, result.NumLinesInvalid, nLines-int(retention.Days)*2)
@@ -230,7 +239,7 @@ func BenchmarkRotate(b *testing.B) {
 		{KeepSize: 24 * 1024},
 	}
 	for _, retention := range tests {
-		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
+		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := NewMockFile()
 			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				ConfigBase: ConfigBase{
@@ -250,7 +259,8 @@ func BenchmarkRotate(b *testing.B) {
 				file = NewMockFile()
 				_, _ = file.Write(content)
 				b.StartTimer()
-				_, _ = logger.Rotate()
+				var result RotateResult
+				_, _ = logger.Rotate(&result)
 			}
 		})
 	}
@@ -263,7 +273,7 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 		{KeepSize: 24 * 1024},
 	}
 	for _, retention := range tests {
-		b.Run(fmt.Sprintf("retention_%s", retention), func(b *testing.B) {
+		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := NewMockFile()
 			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
 				ConfigBase: ConfigBase{
@@ -286,7 +296,8 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 				file = NewMockFile()
 				_, _ = file.Write(content)
 				b.StartTimer()
-				_, _ = logger.Rotate()
+				var result RotateResult
+				_, _ = logger.Rotate(&result)
 			}
 		})
 	}
