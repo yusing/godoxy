@@ -14,7 +14,6 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
@@ -91,16 +90,11 @@ func Value() *config.Config {
 	return config.ActiveConfig.Load()
 }
 
-func (state *state) InitFromFileOrExit(filename string) error {
+func (state *state) InitFromFile(filename string) error {
 	data, err := os.ReadFile(common.ConfigPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			log.Warn().Msg("config file not found, using default config")
-			state.Config = *config.DefaultConfig()
-			return nil
-		} else {
-			gperr.LogFatal("config init error", err)
-		}
+		state.Config = *config.DefaultConfig()
+		return err
 	}
 	return state.Init(data)
 }

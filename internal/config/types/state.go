@@ -13,8 +13,7 @@ import (
 )
 
 type State interface {
-	// InitFromFileOrExit logs and exits on critical errors, non-critical ones will be returned
-	InitFromFileOrExit(filename string) error
+	InitFromFile(filename string) error
 	Init(data []byte) error
 
 	Task() *task.Task

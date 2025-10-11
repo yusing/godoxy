@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"sync"
 	"time"
 
@@ -33,6 +34,24 @@ Make sure you rename it back before next time you start.`
 You may run "ls-config" to show or dump the current config.`
 )
 
+func logNotifyError(action string, err error) {
+	gperr.LogError("config "+action+" error", err)
+	notif.Notify(&notif.LogMessage{
+		Level: zerolog.ErrorLevel,
+		Title: fmt.Sprintf("Config %s error", action),
+		Body:  notif.ErrorBody(err),
+	})
+}
+
+func logNotifyWarn(action string, err error) {
+	gperr.LogWarn("config "+action+" error", err)
+	notif.Notify(&notif.LogMessage{
+		Level: zerolog.WarnLevel,
+		Title: fmt.Sprintf("Config %s warning", action),
+		Body:  notif.ErrorBody(err),
+	})
+}
+
 func Load() error {
 	if HasState() {
 		panic(errors.New("config already loaded"))
@@ -40,9 +59,15 @@ func Load() error {
 	state := NewState()
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
-	err := errors.Join(state.InitFromFileOrExit(common.ConfigPath), state.StartProviders())
+	initErr := state.InitFromFile(common.ConfigPath)
+	if errors.Is(initErr, fs.ErrNotExist) {
+		// log only
+		log.Warn().Msg("config file not found, using default config")
+		initErr = nil
+	}
+	err := errors.Join(initErr, state.StartProviders())
 	if err != nil {
-		notifyError("init", err)
+		logNotifyError("init", err)
 	}
 	SetState(state)
 
@@ -51,24 +76,16 @@ func Load() error {
 	return nil
 }
 
-func notifyError(action string, err error) {
-	notif.Notify(&notif.LogMessage{
-		Level: zerolog.ErrorLevel,
-		Title: fmt.Sprintf("Config %s Error", action),
-		Body:  notif.ErrorBody(err),
-	})
-}
-
 func Reload() gperr.Error {
 	// avoid race between config change and API reload request
 	reloadMu.Lock()
 	defer reloadMu.Unlock()
 
 	newState := NewState()
-	err := newState.InitFromFileOrExit(common.ConfigPath)
+	err := newState.InitFromFile(common.ConfigPath)
 	if err != nil {
 		newState.Task().FinishAndWait(err)
-		notifyError("reload", err)
+		logNotifyError("reload", err)
 		return gperr.New(ansi.Warning("using last config")).With(err)
 	}
 
@@ -82,7 +99,7 @@ func Reload() gperr.Error {
 
 	if err := newState.StartProviders(); err != nil {
 		gperr.LogWarn("start providers error", err)
-		notifyError("start providers", err)
+		logNotifyError("start providers", err)
 		return nil // continue
 	}
 	StartProxyServers()
@@ -107,10 +124,10 @@ func OnConfigChange(ev []events.Event) {
 	// just reload once and check the last event
 	switch ev[len(ev)-1].Action {
 	case events.ActionFileRenamed:
-		log.Warn().Msg(cfgRenameWarn)
+		logNotifyWarn("rename", errors.New(cfgRenameWarn))
 		return
 	case events.ActionFileDeleted:
-		log.Warn().Msg(cfgDeleteWarn)
+		logNotifyWarn("delete", errors.New(cfgDeleteWarn))
 		return
 	}
 
