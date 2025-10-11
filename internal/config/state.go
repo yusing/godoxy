@@ -76,7 +76,11 @@ func SetState(state config.State) {
 	acl.ActiveConfig.Store(cfg.ACL)
 	entrypoint.ActiveConfig.Store(&cfg.Entrypoint)
 	homepage.ActiveConfig.Store(&cfg.Homepage)
-	autocert.ActiveProvider.Store(state.AutoCertProvider().(*autocert.Provider))
+	if autocertProvider := state.AutoCertProvider(); autocertProvider != nil {
+		autocert.ActiveProvider.Store(autocertProvider.(*autocert.Provider))
+	} else {
+		autocert.ActiveProvider.Store(nil)
+	}
 }
 
 func HasState() bool {
@@ -141,6 +145,9 @@ func (state *state) EntrypointHandler() http.Handler {
 //
 // If the autocert provider is not configured, it returns nil.
 func (state *state) AutoCertProvider() server.CertProvider {
+	if state.autocertProvider == nil {
+		return nil
+	}
 	return state.autocertProvider
 }
 
