@@ -45,8 +45,13 @@ type config struct {
 	ipCache      *xsync.Map[string, *checkCache]
 
 	// will be nil if Notify.To is empty
-	allowCounts   map[string]uint32
-	blockedCounts map[string]uint32
+	// these are per IP, reset every Notify.Interval
+	allowedCount map[string]uint32
+	blockedCount map[string]uint32
+
+	// these are total, never reset
+	totalAllowedCount uint64
+	totalBlockedCount uint64
 
 	logAllowed bool
 	// will be nil if Log is nil
@@ -120,8 +125,8 @@ func (c *Config) Validate() gperr.Error {
 	}
 
 	if c.needNotify() {
-		c.allowCounts = make(map[string]uint32)
-		c.blockedCounts = make(map[string]uint32)
+		c.allowedCount = make(map[string]uint32)
+		c.blockedCount = make(map[string]uint32)
 	}
 
 	if c.Notify.Interval < 0 {
@@ -205,31 +210,30 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 			if c.needNotify() {
 				if log.allowed {
 					if c.notifyAllowed {
-						c.allowCounts[log.info.Str]++
+						c.allowedCount[log.info.Str]++
+						c.totalAllowedCount++
 					}
 				} else {
-					c.blockedCounts[log.info.Str]++
+					c.blockedCount[log.info.Str]++
+					c.totalBlockedCount++
 				}
 			}
 		case <-c.notifyTicker.C: // will never tick when notify is disabled
-			total := len(c.allowCounts) + len(c.blockedCounts)
+			total := len(c.allowedCount) + len(c.blockedCount)
 			if total == 0 {
 				continue
 			}
-			fieldsBody := make(notif.FieldsBody, total)
+			total++
+			fieldsBody := make(notif.ListBody, total)
 			i := 0
-			for ip, count := range c.allowCounts {
-				fieldsBody[i] = notif.LogField{
-					Name:  ip,
-					Value: fmt.Sprintf("allowed %d times", count),
-				}
+			fieldsBody[i] = fmt.Sprintf("Total: allowed %d, blocked %d", c.totalAllowedCount, c.totalBlockedCount)
+			i++
+			for ip, count := range c.allowedCount {
+				fieldsBody[i] = fmt.Sprintf("%s: allowed %d times", ip, count)
 				i++
 			}
-			for ip, count := range c.blockedCounts {
-				fieldsBody[i] = notif.LogField{
-					Name:  ip,
-					Value: fmt.Sprintf("blocked %d times", count),
-				}
+			for ip, count := range c.blockedCount {
+				fieldsBody[i] = fmt.Sprintf("%s: blocked %d times", ip, count)
 				i++
 			}
 			notif.Notify(&notif.LogMessage{
@@ -238,8 +242,8 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 				Body:  fieldsBody,
 				To:    c.Notify.To,
 			})
-			clear(c.allowCounts)
-			clear(c.blockedCounts)
+			clear(c.allowedCount)
+			clear(c.blockedCount)
 		}
 	}
 }
