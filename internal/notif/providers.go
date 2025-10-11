@@ -48,7 +48,7 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 
 	req, err := http.NewRequestWithContext(
 		ctx,
-		http.MethodPost,
+		provider.GetMethod(),
 		provider.GetURL(),
 		bytes.NewReader(body),
 	)
@@ -56,7 +56,9 @@ func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 		return err
 	}
 
-	req.Header.Set("Content-Type", provider.GetMIMEType())
+	if mimeType := provider.GetMIMEType(); mimeType != "" {
+		req.Header.Set("Content-Type", mimeType)
+	}
 	if provider.GetToken() != "" {
 		req.Header.Set("Authorization", "Bearer "+provider.GetToken())
 	}

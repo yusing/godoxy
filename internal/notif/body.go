@@ -72,9 +72,9 @@ func (f FieldsBody) Format(format *LogFormat) ([]byte, error) {
 		for _, field := range f {
 			msg.WriteString("#### ")
 			msg.WriteString(field.Name)
-			msg.WriteRune('\n')
+			msg.WriteByte('\n')
 			msg.WriteString(field.Value)
-			msg.WriteRune('\n')
+			msg.WriteByte('\n')
 		}
 		return msg.Bytes(), nil
 	case LogFormatPlain:
@@ -83,7 +83,7 @@ func (f FieldsBody) Format(format *LogFormat) ([]byte, error) {
 			msg.WriteString(field.Name)
 			msg.WriteString(": ")
 			msg.WriteString(field.Value)
-			msg.WriteRune('\n')
+			msg.WriteByte('\n')
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
@@ -101,7 +101,7 @@ func (l ListBody) Format(format *LogFormat) ([]byte, error) {
 		for _, item := range l {
 			msg.WriteString("* ")
 			msg.WriteString(item)
-			msg.WriteRune('\n')
+			msg.WriteByte('\n')
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
