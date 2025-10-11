@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"errors"
 	"io"
 	"net"
 	"time"
@@ -52,6 +53,21 @@ func (s *TCPListener) Accept() (net.Conn, error) {
 		return noConn{}, nil
 	}
 	return c, nil
+}
+
+type tcpListener interface {
+	SetDeadline(t time.Time) error
+}
+
+var _ tcpListener = (*net.TCPListener)(nil)
+
+func (s *TCPListener) SetDeadline(t time.Time) error {
+	switch lis := s.lis.(type) {
+	case tcpListener:
+		return lis.SetDeadline(t)
+	default:
+		return errors.New("not a TCPListener")
+	}
 }
 
 func (s *TCPListener) Close() error {

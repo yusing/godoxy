@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"errors"
 	"net"
 	"time"
 )
@@ -72,6 +73,31 @@ func (s *UDPListener) SetReadDeadline(t time.Time) error {
 
 func (s *UDPListener) SetWriteDeadline(t time.Time) error {
 	return s.lis.SetWriteDeadline(t)
+}
+
+type udpListener interface {
+	SetReadBuffer(bytes int) error
+	SetWriteBuffer(bytes int) error
+}
+
+var _ udpListener = (*net.UDPConn)(nil)
+
+func (s *UDPListener) SetReadBuffer(bytes int) error {
+	switch lis := s.lis.(type) {
+	case udpListener:
+		return lis.SetReadBuffer(bytes)
+	default:
+		return errors.New("not a UDPConn")
+	}
+}
+
+func (s *UDPListener) SetWriteBuffer(bytes int) error {
+	switch lis := s.lis.(type) {
+	case udpListener:
+		return lis.SetWriteBuffer(bytes)
+	default:
+		return errors.New("not a UDPConn")
+	}
 }
 
 func (s *UDPListener) Close() error {
