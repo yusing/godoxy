@@ -93,7 +93,7 @@ func (k IconKey) SourceRef() (IconSource, string) {
 }
 
 func InitIconListCache() {
-	m := iconsCache.Load()
+	m := make(IconMap)
 	err := serialization.LoadJSONIfExist(common.IconListCachePath, &m)
 	if err != nil {
 		// backward compatible
@@ -119,8 +119,11 @@ func InitIconListCache() {
 		}
 	}
 
+	iconsCache.Store(m)
+
 	task.OnProgramExit("save_icons_cache", func() {
-		_ = serialization.SaveJSON(common.IconListCachePath, &m, 0o644)
+		icons := iconsCache.Load()
+		_ = serialization.SaveJSON(common.IconListCachePath, &icons, 0o644)
 	})
 
 	go backgroundUpdateIcons()
