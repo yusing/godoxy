@@ -7,6 +7,7 @@ HEALTHCHECK NONE
 RUN apk add --no-cache tzdata make libcap-setcap
 
 ENV GOPATH=/root/go
+ENV GOCACHE=/root/.cache/go-build
 
 WORKDIR /src
 
@@ -16,7 +17,9 @@ COPY internal/gopsutil/go.mod internal/gopsutil/go.sum ./internal/gopsutil/
 COPY go.mod go.sum ./
 
 # remove godoxy stuff from go.mod first
-RUN sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && go mod download -x
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && go mod download -x
 
 # Stage 2: builder
 FROM deps AS builder
@@ -37,9 +40,6 @@ ENV VERSION=${VERSION}
 
 ARG MAKE_ARGS
 ENV MAKE_ARGS=${MAKE_ARGS}
-
-ENV GOCACHE=/root/.cache/go-build
-ENV GOPATH=/root/go
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
