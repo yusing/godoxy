@@ -44,7 +44,7 @@ services:
     networks:
       - godoxy
   app:
-    image: yusing/godoxy:test
+    image: ghcr.io/yusing/godoxy:${TAG:-latest}
     container_name: godoxy-proxy
     restart: always
     env_file: .env
