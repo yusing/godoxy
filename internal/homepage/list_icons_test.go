@@ -67,11 +67,11 @@ type testCases struct {
 	IconMeta
 }
 
-func runTests(t *testing.T, iconsCache *Cache, test []testCases) {
+func runTests(t *testing.T, iconsCache IconMap, test []testCases) {
 	t.Helper()
 
 	for _, item := range test {
-		icon, ok := iconsCache.Icons[item.Key]
+		icon, ok := iconsCache[item.Key]
 		if !ok {
 			t.Fatalf("icon %s not found", item.Key)
 		}
@@ -94,15 +94,12 @@ func TestListWalkxCodeIcons(t *testing.T) {
 	t.Cleanup(TestClearIconsCache)
 
 	MockHTTPGet([]byte(walkxcodeIcons))
-	if err := UpdateWalkxCodeIcons(); err != nil {
+	m := make(IconMap)
+	if err := UpdateWalkxCodeIcons(m); err != nil {
 		t.Fatal(err)
 	}
-	iconsCache, err := ListAvailableIcons()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(iconsCache.Icons) != 2 {
-		t.Fatalf("expect 2 icons, got %d", len(iconsCache.Icons))
+	if len(m) != 2 {
+		t.Fatalf("expect 2 icons, got %d", len(m))
 	}
 	test := []testCases{
 		{
@@ -122,21 +119,18 @@ func TestListWalkxCodeIcons(t *testing.T) {
 			},
 		},
 	}
-	runTests(t, iconsCache, test)
+	runTests(t, m, test)
 }
 
 func TestListSelfhstIcons(t *testing.T) {
 	t.Cleanup(TestClearIconsCache)
 	MockHTTPGet([]byte(selfhstIcons))
-	if err := UpdateSelfhstIcons(); err != nil {
+	m := make(IconMap)
+	if err := UpdateSelfhstIcons(m); err != nil {
 		t.Fatal(err)
 	}
-	iconsCache, err := ListAvailableIcons()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(iconsCache.Icons) != 3 {
-		t.Fatalf("expect 3 icons, got %d", len(iconsCache.Icons))
+	if len(m) != 3 {
+		t.Fatalf("expect 3 icons, got %d", len(m))
 	}
 	test := []testCases{
 		{
@@ -171,5 +165,5 @@ func TestListSelfhstIcons(t *testing.T) {
 			},
 		},
 	}
-	runTests(t, iconsCache, test)
+	runTests(t, m, test)
 }
