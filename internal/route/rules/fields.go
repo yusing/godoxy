@@ -41,14 +41,14 @@ var modFields = map[string]struct {
 		builder: func(args any) *FieldHandler {
 			k, v := args.(*StrTuple).Unpack()
 			return &FieldHandler{
-				set: StaticCommand(func(w http.ResponseWriter, r *http.Request) {
+				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 					w.Header()[k] = []string{v}
 				}),
-				add: StaticCommand(func(w http.ResponseWriter, r *http.Request) {
+				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 					h := w.Header()
 					h[k] = append(h[k], v)
 				}),
-				remove: StaticCommand(func(w http.ResponseWriter, r *http.Request) {
+				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 					delete(w.Header(), k)
 				}),
 			}

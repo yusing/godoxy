@@ -67,7 +67,7 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			orig, repl := args.(*StrTuple).Unpack()
-			return StaticCommand(func(w http.ResponseWriter, r *http.Request) {
+			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 				path := r.URL.Path
 				if len(path) > 0 && path[0] != '/' {
 					path = "/" + path
@@ -92,7 +92,7 @@ var commands = map[string]struct {
 		validate: validateFSPath,
 		build: func(args any) CommandHandler {
 			root := args.(string)
-			return ReturningCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 				http.ServeFile(w, r, path.Join(root, path.Clean(r.URL.Path)))
 			})
 		},
@@ -107,7 +107,7 @@ var commands = map[string]struct {
 		validate: validateURL,
 		build: func(args any) CommandHandler {
 			target := args.(*nettypes.URL).String()
-			return ReturningCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 			})
 		},
@@ -136,7 +136,7 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			code, text := args.(*Tuple[int, string]).Unpack()
-			return ReturningCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, text, code)
 			})
 		},
@@ -156,7 +156,7 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			realm := args.(string)
-			return ReturningCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			})
@@ -176,7 +176,7 @@ var commands = map[string]struct {
 				target.Scheme = "http"
 			}
 			rp := reverseproxy.NewReverseProxy("", &target.URL, gphttp.NewTransport())
-			return ReturningCommand(rp.ServeHTTP)
+			return TerminatingCommand(rp.ServeHTTP)
 		},
 	},
 	CommandSet: {
@@ -280,7 +280,7 @@ func (cmd *Command) Parse(v string) error {
 func buildCmd(executors []CommandHandler) (CommandHandler, error) {
 	for i, exec := range executors {
 		switch exec.(type) {
-		case ReturningCommand, BypassCommand:
+		case TerminatingCommand, BypassCommand:
 			if i != len(executors)-1 {
 				return nil, ErrInvalidCommandSequence.
 					Withf("a returning / bypass command must be the last command")
