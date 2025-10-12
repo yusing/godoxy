@@ -58,6 +58,7 @@
   - 國家 **(需要 Maxmind 帳戶)**
   - 時區 **(需要 Maxmind 帳戶)**
   - **存取日誌記錄**
+  - 定時發送摘要 (允許和拒絕的連線次數)
 - **自動化**
   - 使用 Let's Encrypt 自動管理 SSL 憑證 ([使用 DNS-01 驗證](https://docs.godoxy.dev/DNS-01-Providers))
   - Docker 容器自動配置
@@ -150,13 +151,13 @@
 更新：
 
 ```bash
-bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
+sudo /bin/bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
 ```
 
 卸載：
 
 ```bash
-bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
+sudo /bin/bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
 ```
 
 ## 截圖

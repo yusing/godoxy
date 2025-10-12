@@ -35,10 +35,14 @@
 #     - country:US
 #     - timezone:Asia/Shanghai
 #   log: # warning: logging ACL can be slow based on the number of incoming connections and configured rules
-#     buffer_size: 65536 # (default: 64KB)
 #     path: /app/logs/acl.log # (default: none)
 #     stdout: false # (default: false)
 #     keep: 30 days # (default: 30 days)
+#     log_allowed: false # (default: false)
+#   notify:
+#     interval: 1m # (default: 1m)
+#     to: [gotify, discord] # names under providers.notification
+#     include_allowed: false # (default: false)
 
 entrypoint:
   # Proxy Protocol: https://www.haproxy.com/blog/use-the-proxy-protocol-to-preserve-a-clients-ip-address
@@ -113,6 +117,11 @@ providers:
   #     provider: webhook
   #     url: https://discord.com/api/webhooks/...
   #     template: discord # this means use payload template from internal/notif/templates/discord.json
+  #   - name: pushover
+  #     provider: webhook
+  #     url: https://api.pushover.net/1/messages.json
+  #     mime_type: application/x-www-form-urlencoded
+  #     payload: '{"token": "your-app-token", "user": "your-user-key", "title": $title, "message": $message}'
 
   # Proxmox providers (for idlesleep support for proxmox LXCs)
   #

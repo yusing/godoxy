@@ -59,6 +59,7 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
   - Country **(Maxmind account required)**
   - Timezone **(Maxmind account required)**
   - **Access logging**
+  - Periodic notification of access summaries for number of allowed and blocked connections
 - **Advanced Automation**
   - Automatic SSL certificate management with Let's Encrypt ([using DNS-01 Challenge](https://docs.godoxy.dev/DNS-01-Providers))
   - Auto-configuration for Docker containers
