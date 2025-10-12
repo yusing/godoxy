@@ -211,6 +211,10 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 		deserializeTag := field.Tag.Get(tagDeserialize)
 		jsonTag := field.Tag.Get(tagJSON)
 
+		if jsonTag != "" {
+			jsonTag, _, _ = strings.Cut(jsonTag, ",")
+		}
+
 		if deserializeTag == "-" || jsonTag == "-" {
 			continue
 		}
@@ -508,10 +512,10 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	}
 
 	// Early return for empty string
-		if src == "" {
-			dst.SetZero()
-			return true, nil
-		}
+	if src == "" {
+		dst.SetZero()
+		return true, nil
+	}
 
 	switch dstT {
 	case reflect.TypeFor[time.Duration]():
