@@ -49,9 +49,9 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:    "regex_escaped",
-			input:   `foo regex(\b\B\s\S\w\W\d\D\$\.)`,
+			input:   `foo regex(\b\B\s\S\w\W\d\D\$\.\(\)\{\}\|\?\"\')`,
 			subject: "foo",
-			args:    []string{`regex(\b\B\s\S\w\W\d\D\$\.)`},
+			args:    []string{`regex(\b\B\s\S\w\W\d\D\$\.\(\)\{\}\|\?"')`},
 		},
 		{
 			name:    "quote inside argument",

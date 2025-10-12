@@ -12,8 +12,13 @@ import (
 )
 
 type RuleOn struct {
-	raw     string
-	checker Checker
+	raw               string
+	checker           Checker
+	isResponseChecker bool
+}
+
+func (on *RuleOn) IsResponseChecker() bool {
+	return on.isResponseChecker
 }
 
 func (on *RuleOn) Check(cached Cache, r *http.Request) bool {
@@ -32,12 +37,16 @@ const (
 	OnRemote    = "remote"
 	OnBasicAuth = "basic_auth"
 	OnRoute     = "route"
+
+	// on response
+	OnStatus = "status"
 )
 
 var checkers = map[string]struct {
-	help     Help
-	validate ValidateFunc
-	builder  func(args any) CheckFunc
+	help              Help
+	validate          ValidateFunc
+	builder           func(args any) CheckFunc
+	isResponseChecker bool
 }{
 	OnHeader: {
 		help: Help{
@@ -302,6 +311,35 @@ var checkers = map[string]struct {
 			}
 		},
 	},
+	OnStatus: {
+		help: Help{
+			command: OnStatus,
+			description: `Supported formats are:
+				- <status>
+				- <status>-<status>
+				- 1xx
+				- 2xx
+				- 3xx
+				- 4xx
+				- 5xx`,
+			args: map[string]string{
+				"status": "the status code range",
+			},
+		},
+		validate: validateStatusRange,
+		builder: func(args any) CheckFunc {
+			beg, end := args.(*IntTuple).Unpack()
+			if beg == end {
+				return func(cached Cache, r *http.Request) bool {
+					return r.Response.StatusCode == beg
+				}
+			}
+			return func(cached Cache, r *http.Request) bool {
+				return r.Response.StatusCode >= beg && r.Response.StatusCode <= end
+			}
+		},
+		isResponseChecker: true,
+	},
 }
 
 var (
@@ -375,19 +413,24 @@ func (on *RuleOn) Parse(v string) error {
 	checkAnd := make(CheckMatchAll, 0, len(rules))
 
 	errs := gperr.NewBuilder("rule.on syntax errors")
+	isResponseChecker := false
 	for i, rule := range rules {
 		if rule == "" {
 			continue
 		}
-		parsed, err := parseOn(rule)
+		parsed, isResp, err := parseOn(rule)
 		if err != nil {
 			errs.Add(err.Subjectf("line %d", i+1))
 			continue
+		}
+		if isResp {
+			isResponseChecker = true
 		}
 		checkAnd = append(checkAnd, parsed)
 	}
 
 	on.checker = checkAnd
+	on.isResponseChecker = isResponseChecker
 	return errs.Error()
 }
 
@@ -399,40 +442,44 @@ func (on *RuleOn) MarshalText() ([]byte, error) {
 	return []byte(on.String()), nil
 }
 
-func parseOn(line string) (Checker, gperr.Error) {
+func parseOn(line string) (Checker, bool, gperr.Error) {
 	ors := strutils.SplitRune(line, '|')
 
 	if len(ors) > 1 {
 		errs := gperr.NewBuilder("rule.on syntax errors")
 		checkOr := make(CheckMatchSingle, len(ors))
+		isResponseChecker := false
 		for i, or := range ors {
-			curCheckers, err := parseOn(or)
+			curCheckers, isResp, err := parseOn(or)
 			if err != nil {
 				errs.Add(err)
 				continue
 			}
+			if isResp {
+				isResponseChecker = true
+			}
 			checkOr[i] = curCheckers.(CheckFunc)
 		}
 		if err := errs.Error(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return checkOr, nil
+		return checkOr, isResponseChecker, nil
 	}
 
 	subject, args, err := parse(line)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	checker, ok := checkers[subject]
 	if !ok {
-		return nil, ErrInvalidOnTarget.Subject(subject)
+		return nil, false, ErrInvalidOnTarget.Subject(subject)
 	}
 
 	validArgs, err := checker.validate(args)
 	if err != nil {
-		return nil, err.Subject(subject).Withf("%s", checker.help.String())
+		return nil, false, err.Subject(subject).Withf("%s", checker.help.String())
 	}
 
-	return checker.builder(validArgs), nil
+	return checker.builder(validArgs), checker.isResponseChecker, nil
 }

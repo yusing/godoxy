@@ -17,5 +17,7 @@ var (
 	ErrExpectNoArg       = gperr.Wrap(ErrInvalidArguments, "expect no arg")
 	ErrExpectOneArg      = gperr.Wrap(ErrInvalidArguments, "expect 1 arg")
 	ErrExpectTwoArgs     = gperr.Wrap(ErrInvalidArguments, "expect 2 args")
+	ErrExpectThreeArgs   = gperr.Wrap(ErrInvalidArguments, "expect 3 args")
+	ErrExpectFourArgs    = gperr.Wrap(ErrInvalidArguments, "expect 4 args")
 	ErrExpectKVOptionalV = gperr.Wrap(ErrInvalidArguments, "expect 'key' or 'key value'")
 )

@@ -1,25 +1,38 @@
 package rules
 
 import (
+	"bytes"
+	"html/template"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog"
+	"github.com/yusing/godoxy/internal/logging"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/notif"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
-	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/synk"
 )
 
 type (
 	Command struct {
-		raw  string
-		exec CommandHandler
+		raw               string
+		exec              CommandHandler
+		isResponseHandler bool
 	}
 )
+
+func (cmd *Command) IsResponseHandler() bool {
+	return cmd.isResponseHandler
+}
 
 const (
 	CommandRewrite          = "rewrite"
@@ -31,14 +44,17 @@ const (
 	CommandSet              = "set"
 	CommandAdd              = "add"
 	CommandRemove           = "remove"
+	CommandLog              = "log"
+	CommandNotify           = "notify"
 	CommandPass             = "pass"
 	CommandPassAlt          = "bypass"
 )
 
 var commands = map[string]struct {
-	help     Help
-	validate ValidateFunc
-	build    func(args any) CommandHandler
+	help              Help
+	validate          ValidateFunc
+	build             func(args any) CommandHandler
+	isResponseHandler bool
 }{
 	CommandRewrite: {
 		help: Help{
@@ -183,8 +199,9 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandSet,
 			args: map[string]string{
-				"field": "the field to set",
-				"value": "the value to set",
+				"target": "the target to set, can be header, query, cookie",
+				"field":  "the field to set",
+				"value":  "the value to set",
 			},
 		},
 		validate: func(args []string) (any, gperr.Error) {
@@ -198,8 +215,9 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandAdd,
 			args: map[string]string{
-				"field": "the field to add",
-				"value": "the value to add",
+				"target": "the target to add, can be header, query, cookie",
+				"field":  "the field to add",
+				"value":  "the value to add",
 			},
 		},
 		validate: func(args []string) (any, gperr.Error) {
@@ -213,7 +231,8 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandRemove,
 			args: map[string]string{
-				"field": "the field to remove",
+				"target": "the target to remove, can be header, query, cookie",
+				"field":  "the field to remove",
 			},
 		},
 		validate: func(args []string) (any, gperr.Error) {
@@ -223,17 +242,199 @@ var commands = map[string]struct {
 			return args.(CommandHandler)
 		},
 	},
+	CommandLog: {
+		help: Help{
+			command: CommandLog,
+			description: `The template supports the following variables:
+				Request: the request object
+				Response: the response object
+
+				Example:
+					log info /dev/stdout "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"
+				`,
+			args: map[string]string{
+				"level":    "the log level",
+				"path":     "the log path (/dev/stdout for stdout, /dev/stderr for stderr)",
+				"template": "the template to log",
+			},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 3 {
+				return nil, ErrExpectThreeArgs
+			}
+			tmpl, err := validateTemplate(args[2])
+			if err != nil {
+				return nil, err
+			}
+			level, err := validateLevel(args[0])
+			if err != nil {
+				return nil, err
+			}
+			// NOTE: file will stay opened forever
+			// but will be opened only once for the same path
+			f, err := openFile(args[1])
+			if err != nil {
+				return nil, err
+			}
+			return &Tuple3[zerolog.Level, io.WriteCloser, *template.Template]{level, f, tmpl}, nil
+		},
+		build: func(args any) CommandHandler {
+			level, f, tmpl := args.(*Tuple3[zerolog.Level, io.WriteCloser, *template.Template]).Unpack()
+			var logger io.Writer
+			if f == stdout || f == stderr {
+				logger = logging.NewLoggerWithLevel(level, f)
+			} else {
+				logger = f
+			}
+			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) {
+				var resp *http.Response
+				if interceptor, ok := w.(interface {
+					StatusCode() int
+					Header() http.Header
+				}); ok {
+					resp = &http.Response{
+						StatusCode: interceptor.StatusCode(),
+						Header:     interceptor.Header(),
+						Request:    r,
+					}
+				} else {
+					resp = &emptyResponse
+				}
+
+				tmpl.Execute(logger, map[string]any{
+					"Request":  r,
+					"Response": resp,
+				})
+			})
+		},
+		isResponseHandler: true,
+	},
+	CommandNotify: {
+		help: Help{
+			command: CommandNotify,
+			description: `The template supports the following variables:
+				Request: the request object
+				Response: the response object
+
+				Example:
+					notify info ntfy "Received request to {{ .Request.URL }}" "{{ .Request.Method }} {{ .Response.StatusCode }}"
+				`,
+			args: map[string]string{
+				"level":    "the log level",
+				"provider": "the notification provider (must be defined in config `providers.notification`)",
+				"title":    "the title of the notification",
+				"body":     "the body of the notification",
+			},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 4 {
+				return nil, ErrExpectFourArgs
+			}
+			titleTmpl, err := validateTemplate(args[2])
+			if err != nil {
+				return nil, err
+			}
+			bodyTmpl, err := validateTemplate(args[3])
+			if err != nil {
+				return nil, err
+			}
+			level, err := validateLevel(args[0])
+			if err != nil {
+				return nil, err
+			}
+			// TODO: validate provider
+			// currently it is not possible, because rule validation happens on UnmarshalYAMLValidate
+			// and we cannot call config.ActiveConfig.Load() because it will cause import cycle
+
+			// err = validateNotifProvider(args[1])
+			// if err != nil {
+			// 	return nil, err
+			// }
+			return &onNotifyArgs{level, args[1], titleTmpl, bodyTmpl}, nil
+		},
+		build: func(args any) CommandHandler {
+			level, provider, titleTmpl, bodyTmpl := args.(*onNotifyArgs).Unpack()
+			to := []string{provider}
+
+			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) {
+				var resp *http.Response
+				if interceptor, ok := w.(interface {
+					StatusCode() int
+					Header() http.Header
+				}); ok {
+					resp = &http.Response{
+						StatusCode: interceptor.StatusCode(),
+						Header:     interceptor.Header(),
+						Request:    r,
+					}
+				} else {
+					resp = &emptyResponse
+				}
+
+				buf := bufPool.Get()
+				defer bufPool.Put(buf)
+
+				respBuf := bytes.NewBuffer(buf)
+
+				tmplData := reqResponseTemplateData{r, resp}
+				titleTmpl.Execute(respBuf, tmplData)
+				titleLen := respBuf.Len()
+				bodyTmpl.Execute(respBuf, tmplData)
+
+				notif.Notify(&notif.LogMessage{
+					Level: level,
+					Title: string(buf[:titleLen]),
+					Body:  notif.MessageBodyBytes(buf[titleLen:]),
+					To:    to,
+				})
+			})
+		},
+		isResponseHandler: true,
+	},
+}
+
+type reqResponseTemplateData struct {
+	Request  *http.Request
+	Response *http.Response
+}
+
+var bufPool = synk.GetBytesPoolWithUniqueMemory()
+
+type onNotifyArgs = Tuple4[zerolog.Level, string, *template.Template, *template.Template]
+
+var emptyResponse http.Response
+
+type nopCloser struct {
+	io.Writer
+}
+
+func (n nopCloser) Close() error {
+	return nil
+}
+
+var (
+	stdout io.WriteCloser = nopCloser{os.Stdout}
+	stderr io.WriteCloser = nopCloser{os.Stderr}
+)
+
+func openFile(path string) (io.WriteCloser, gperr.Error) {
+	switch path {
+	case "/dev/stdout":
+		return stdout, nil
+	case "/dev/stderr":
+		return stderr, nil
+	}
+	f, err := accesslog.NewFileIO(path)
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	return f, nil
 }
 
 // Parse implements strutils.Parser.
 func (cmd *Command) Parse(v string) error {
-	lines := strutils.SplitLine(v)
-	if len(lines) == 0 {
-		return nil
-	}
-
-	executors := make([]CommandHandler, 0, len(lines))
-	for _, line := range lines {
+	executors := make([]CommandHandler, 0)
+	for line := range strings.SplitSeq(v, "\n") {
 		if line == "" {
 			continue
 		}
@@ -277,7 +478,7 @@ func (cmd *Command) Parse(v string) error {
 	return nil
 }
 
-func buildCmd(executors []CommandHandler) (CommandHandler, error) {
+func buildCmd(executors []CommandHandler) (cmd CommandHandler, err error) {
 	for i, exec := range executors {
 		switch exec.(type) {
 		case TerminatingCommand, BypassCommand:
@@ -306,6 +507,10 @@ func (cmd *Command) isBypass() bool {
 	default:
 		return false
 	}
+}
+
+func (cmd *Command) ServeHTTP(w http.ResponseWriter, r *http.Request) (proceed bool) {
+	return cmd.exec.Handle(Cache{}, w, r)
 }
 
 func (cmd *Command) String() string {

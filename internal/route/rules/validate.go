@@ -2,14 +2,19 @@ package rules
 
 import (
 	"fmt"
+	"html/template"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gobwas/glob"
+	"github.com/rs/zerolog"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
@@ -21,6 +26,17 @@ type (
 		First  T1
 		Second T2
 	}
+	Tuple3[T1, T2, T3 any] struct {
+		First  T1
+		Second T2
+		Third  T3
+	}
+	Tuple4[T1, T2, T3, T4 any] struct {
+		First  T1
+		Second T2
+		Third  T3
+		Fourth T4
+	}
 	StrTuple        = Tuple[string, string]
 	IntTuple        = Tuple[int, int]
 	MapValueMatcher = Tuple[string, Matcher]
@@ -30,8 +46,24 @@ func (t *Tuple[T1, T2]) Unpack() (T1, T2) {
 	return t.First, t.Second
 }
 
+func (t *Tuple3[T1, T2, T3]) Unpack() (T1, T2, T3) {
+	return t.First, t.Second, t.Third
+}
+
+func (t *Tuple4[T1, T2, T3, T4]) Unpack() (T1, T2, T3, T4) {
+	return t.First, t.Second, t.Third, t.Fourth
+}
+
 func (t *Tuple[T1, T2]) String() string {
 	return fmt.Sprintf("%v:%v", t.First, t.Second)
+}
+
+func (t *Tuple3[T1, T2, T3]) String() string {
+	return fmt.Sprintf("%v:%v:%v", t.First, t.Second, t.Third)
+}
+
+func (t *Tuple4[T1, T2, T3, T4]) String() string {
+	return fmt.Sprintf("%v:%v:%v:%v", t.First, t.Second, t.Third, t.Fourth)
 }
 
 type (
@@ -250,6 +282,47 @@ func validateMethod(args []string) (any, gperr.Error) {
 	return method, nil
 }
 
+// validateStatusRange returns Tuple[int, int] with the status range validated.
+
+// accepted formats are:
+//   - <status>
+//   - <status>-<status>
+//   - 1xx
+//   - 2xx
+//   - 3xx
+//   - 4xx
+//   - 5xx
+func validateStatusRange(args []string) (any, gperr.Error) {
+	if len(args) != 1 {
+		return nil, ErrExpectOneArg
+	}
+
+	beg, end, ok := strings.Cut(args[0], "-")
+	if !ok { // <status>
+		end = beg
+	}
+
+	switch beg {
+	case "1xx":
+		return &IntTuple{100, 199}, nil
+	case "2xx":
+		return &IntTuple{200, 299}, nil
+	case "3xx":
+		return &IntTuple{300, 399}, nil
+	case "4xx":
+		return &IntTuple{400, 499}, nil
+	case "5xx":
+		return &IntTuple{500, 599}, nil
+	}
+
+	begInt, begErr := strconv.Atoi(beg)
+	endInt, endErr := strconv.Atoi(end)
+	if begErr != nil || endErr != nil {
+		return nil, ErrInvalidArguments.With(gperr.Join(begErr, endErr))
+	}
+	return &IntTuple{begInt, endInt}, nil
+}
+
 // validateUserBCryptPassword returns *HashedCrendential with the password validated.
 func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 	if len(args) != 2 {
@@ -277,3 +350,39 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	}
 	return modder.set, nil
 }
+
+func validateTemplate(tmplStr string) (*template.Template, gperr.Error) {
+	tmpl, err := template.New("template").Parse(tmplStr)
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+
+	// test template
+	var (
+		req  http.Request
+		resp http.Response
+	)
+	err = tmpl.Execute(io.Discard, map[string]any{
+		"Request":  &req,
+		"Response": &resp,
+	})
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	return tmpl, nil
+}
+
+func validateLevel(level string) (zerolog.Level, gperr.Error) {
+	l, err := zerolog.ParseLevel(level)
+	if err != nil {
+		return zerolog.NoLevel, ErrInvalidArguments.With(err)
+	}
+	return l, nil
+}
+
+// func validateNotifProvider(provider string) gperr.Error {
+// 	if !notif.HasProvider(provider) {
+// 		return ErrInvalidArguments.Subject(provider)
+// 	}
+// 	return nil
+// }

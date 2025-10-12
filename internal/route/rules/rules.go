@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/bytedance/sonic"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -46,6 +47,10 @@ type (
 	}
 )
 
+func (rule *Rule) IsResponseRule() bool {
+	return rule.On.IsResponseChecker() || rule.Do.IsResponseHandler()
+}
+
 // BuildHandler returns a http.HandlerFunc that implements the rules.
 //
 //	if a bypass rule matches,
@@ -63,19 +68,57 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 		},
 	}
 
-	nonDefaultRules := make(Rules, 0, len(rules))
-	for i, rule := range rules {
+	var nonDefaultRules Rules
+	hasDefaultRule := false
+	hasResponseRule := false
+	modifyResponse := false
+	for _, rule := range rules {
 		if rule.Name == "default" {
 			defaultRule = rule
-			nonDefaultRules = append(nonDefaultRules, rules[:i]...)
-			nonDefaultRules = append(nonDefaultRules, rules[i+1:]...)
-			break
+			hasDefaultRule = true
+		} else {
+			if rule.IsResponseRule() {
+				hasResponseRule = true
+			} else if hasResponseRule {
+				origUp := up
+				up = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w = GetInitResponseModifier(w)
+					origUp.ServeHTTP(w, r)
+					// TODO: cache should be shared
+					cache := NewCache()
+					defer cache.Release()
+					if rule.Check(cache, r) {
+						rule.Do.exec.Handle(cache, w, r)
+					}
+				})
+				modifyResponse = true
+			} else {
+				nonDefaultRules = append(nonDefaultRules, rule)
+			}
 		}
+	}
+
+	if modifyResponse {
+		up = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rm := GetInitResponseModifier(w)
+			up.ServeHTTP(rm, r)
+			if _, err := rm.FlushRelease(); err != nil {
+				log.Err(err).Msg("failed to flush response modifier")
+			}
+		})
 	}
 
 	if len(rules) == 0 {
 		if defaultRule.Do.isBypass() {
 			return up.ServeHTTP
+		}
+		if defaultRule.IsResponseRule() {
+			return func(w http.ResponseWriter, r *http.Request) {
+				cache := NewCache()
+				defer cache.Release()
+				up.ServeHTTP(w, r)
+				defaultRule.Do.exec.Handle(cache, w, r)
+			}
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
 			cache := NewCache()
@@ -86,29 +129,60 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 		}
 	}
 
-	if len(nonDefaultRules) == 0 {
-		nonDefaultRules = rules
+	preRules := make(Rules, 0, len(nonDefaultRules))
+	postRules := make(Rules, 0, len(nonDefaultRules))
+	for _, rule := range nonDefaultRules {
+		if rule.IsResponseRule() {
+			postRules = append(postRules, rule)
+		} else {
+			preRules = append(preRules, rule)
+		}
 	}
+
+	isDefaultRulePost := hasDefaultRule && defaultRule.IsResponseRule()
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache := NewCache()
 		defer cache.Release()
 
-		for _, rule := range nonDefaultRules {
+		for _, rule := range preRules {
 			if rule.Check(cache, r) {
 				if rule.Do.isBypass() {
 					up.ServeHTTP(w, r)
-					return
+					break
 				}
+				if !rule.Handle(cache, w, r) {
+					break
+				}
+			}
+		}
+
+		if hasDefaultRule && !isDefaultRulePost {
+			if defaultRule.Do.isBypass() {
+				// continue to upstream
+			} else if !defaultRule.Handle(cache, w, r) {
+				return
+			}
+		}
+
+		// if no post rules, we are done here
+		if len(postRules) == 0 && !isDefaultRulePost {
+			up.ServeHTTP(w, r)
+			return
+		}
+
+		for _, rule := range postRules {
+			if rule.Check(cache, r) {
+				// for post-request rules, proceed=false means stop processing more post-rules
+				// for now it always proceed
 				if !rule.Handle(cache, w, r) {
 					return
 				}
 			}
 		}
 
-		// bypass or proceed
-		if defaultRule.Do.isBypass() || defaultRule.Handle(cache, w, r) {
-			up.ServeHTTP(w, r)
+		if hasDefaultRule && isDefaultRulePost {
+			defaultRule.Handle(cache, w, r)
 		}
 	}
 }
