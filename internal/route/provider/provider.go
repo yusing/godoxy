@@ -156,7 +156,11 @@ func (p *Provider) NumRoutes() int {
 func (p *Provider) IterRoutes(yield func(string, types.Route) bool) {
 	routes := p.lockCloneRoutes()
 	for alias, r := range routes {
-		if !yield(alias, r.Impl()) {
+		impl := r.Impl()
+		if impl == nil {
+			continue
+		}
+		if !yield(alias, impl) {
 			break
 		}
 	}
