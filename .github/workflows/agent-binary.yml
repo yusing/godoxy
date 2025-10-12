@@ -25,6 +25,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
