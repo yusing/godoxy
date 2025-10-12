@@ -1,6 +1,10 @@
 package rules
 
-import "strings"
+import (
+	"strings"
+
+	gperr "github.com/yusing/goutils/errs"
+)
 
 type Help struct {
 	command     string
@@ -9,32 +13,22 @@ type Help struct {
 }
 
 /*
-Generate help string, e.g.
+Generate help string as error, e.g.
 
 	 rewrite <from> <to>
 		from: the path to rewrite, must start with /
 		to: the path to rewrite to, must start with /
 */
-func (h *Help) String() string {
-	var sb strings.Builder
-	sb.WriteString(h.command)
-	sb.WriteString(" ")
-	for arg := range h.args {
-		sb.WriteString(strings.ToUpper(arg))
-		sb.WriteRune(' ')
-	}
+func (h *Help) Error() gperr.Error {
+	errs := gperr.Multiline()
+	errs.Adds(h.command)
 	if h.description != "" {
-		sb.WriteString("\n\t")
-		sb.WriteString(h.description)
-		sb.WriteRune('\n')
+		for line := range strings.SplitSeq(h.description, "\n") {
+			errs.Adds(line)
+		}
 	}
-	sb.WriteRune('\n')
 	for arg, desc := range h.args {
-		sb.WriteRune('\t')
-		sb.WriteString(strings.ToUpper(arg))
-		sb.WriteString(": ")
-		sb.WriteString(desc)
-		sb.WriteRune('\n')
+		errs.AddLinesString(arg + ": " + desc)
 	}
-	return sb.String()
+	return errs
 }

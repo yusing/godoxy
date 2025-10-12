@@ -99,9 +99,10 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 	}
 
 	if modifyResponse {
+		origUp := up
 		up = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rm := GetInitResponseModifier(w)
-			up.ServeHTTP(rm, r)
+			origUp.ServeHTTP(rm, r)
 			if _, err := rm.FlushRelease(); err != nil {
 				log.Err(err).Msg("failed to flush response modifier")
 			}
@@ -164,10 +165,10 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 				return
 			}
 		}
+		up.ServeHTTP(w, r)
 
 		// if no post rules, we are done here
 		if len(postRules) == 0 && !isDefaultRulePost {
-			up.ServeHTTP(w, r)
 			return
 		}
 
@@ -200,6 +201,9 @@ func (rule *Rule) String() string {
 }
 
 func (rule *Rule) Check(cached Cache, r *http.Request) bool {
+	if rule.On.checker == nil {
+		return true
+	}
 	return rule.On.checker.Check(cached, r)
 }
 

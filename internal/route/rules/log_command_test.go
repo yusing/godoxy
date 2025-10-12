@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,14 +24,12 @@ func TestLogCommand_TemporaryFile(t *testing.T) {
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	rules := Rules{
-		{
-			Name: "log-request-response",
-			Do: Command{},
-		},
-	}
-
-	err = rules[0].Do.Parse("log info " + tempFile.Name() + " {{ .Request.Method }} {{ .Request.URL.Path }} {{ .Response.StatusCode }} {{ .Response.Header.Content-Type }}")
+	var rules Rules
+	err = parseRules(fmt.Sprintf(`
+- name: log-request-response
+  do: |
+    log info %q '{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }} {{ index .Response.Header "Content-Type" }}'
+`, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -58,11 +57,11 @@ func TestLogCommand_StdoutAndStderr(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-stdout",
-			Do: Command{},
+			Do:   Command{},
 		},
 		{
 			Name: "log-stderr",
-			Do: Command{},
+			Do:   Command{},
 		},
 	}
 
@@ -106,15 +105,15 @@ func TestLogCommand_DifferentLogLevels(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-info",
-			Do: Command{},
+			Do:   Command{},
 		},
 		{
 			Name: "log-warn",
-			Do: Command{},
+			Do:   Command{},
 		},
 		{
 			Name: "log-error",
-			Do: Command{},
+			Do:   Command{},
 		},
 	}
 
@@ -164,22 +163,12 @@ func TestLogCommand_TemplateVariables(t *testing.T) {
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	rules := Rules{
-		{
-			Name: "log-with-templates",
-			Do: Command{},
-		},
-	}
-
-	// Test various template variables
-	template := `Request: {{ .Request.Method }} {{ .Request.URL }}
-Host: {{ .Request.Host }}
-User-Agent: {{ .Request.Header.User-Agent }}
-Response: {{ .Response.StatusCode }}
-Custom-Header: {{ .Response.Header.X-Custom-Header }}
-Content-Length: {{ .Response.Header.Content-Length }}`
-
-	err = rules[0].Do.Parse("log info " + tempFile.Name() + " " + template)
+	var rules Rules
+	err = parseRules(fmt.Sprintf(`
+- name: log-with-templates
+  do: |
+    log info %s 'Request: {{ .Request.Method }} {{ .Request.URL }} Host: {{ .Request.Host }} User-Agent: {{ index .Request.Header "User-Agent" }} Response: {{ .Response.StatusCode }} Custom-Header: {{ index .Response.Header "X-Custom-Header" }} Content-Length: {{ index .Response.Header "Content-Length" }}'
+`, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -234,13 +223,13 @@ func TestLogCommand_ConditionalLogging(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-success",
-			On: RuleOn{},
-			Do: Command{},
+			On:   RuleOn{},
+			Do:   Command{},
 		},
 		{
 			Name: "log-errors",
-			On: RuleOn{},
-			Do: Command{},
+			On:   RuleOn{},
+			Do:   Command{},
 		},
 	}
 
@@ -304,7 +293,7 @@ func TestLogCommand_MultipleLogEntries(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-every-request",
-			Do: Command{},
+			Do:   Command{},
 		},
 	}
 
@@ -360,7 +349,7 @@ func TestLogCommand_FilePermissions(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-to-file",
-			Do: Command{},
+			Do:   Command{},
 		},
 	}
 
@@ -402,7 +391,7 @@ func TestLogCommand_InvalidTemplate(t *testing.T) {
 	rules := Rules{
 		{
 			Name: "log-with-invalid-template",
-			Do: Command{},
+			Do:   Command{},
 		},
 	}
 

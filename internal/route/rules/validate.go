@@ -3,9 +3,7 @@ package rules
 import (
 	"fmt"
 	"html/template"
-	"io"
 	"net"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -339,7 +337,7 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	}
 	validArgs, err := setField.validate(args[1:])
 	if err != nil {
-		return nil, err.Withf(setField.help.String())
+		return nil, err.With(setField.help.Error())
 	}
 	modder := setField.builder(validArgs)
 	switch mod {
@@ -353,19 +351,6 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 
 func validateTemplate(tmplStr string) (*template.Template, gperr.Error) {
 	tmpl, err := template.New("template").Parse(tmplStr)
-	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
-	}
-
-	// test template
-	var (
-		req  http.Request
-		resp http.Response
-	)
-	err = tmpl.Execute(io.Discard, map[string]any{
-		"Request":  &req,
-		"Response": &resp,
-	})
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

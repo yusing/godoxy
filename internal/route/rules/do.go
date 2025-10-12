@@ -246,11 +246,11 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandLog,
 			description: `The template supports the following variables:
-				Request: the request object
-				Response: the response object
+Request: the request object
+Response: the response object
 
-				Example:
-					log info /dev/stdout "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"
+Example:
+	log info /dev/stdout "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"
 				`,
 			args: map[string]string{
 				"level":    "the log level",
@@ -313,12 +313,11 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandNotify,
 			description: `The template supports the following variables:
-				Request: the request object
-				Response: the response object
+Request: the request object
+Response: the response object
 
-				Example:
-					notify info ntfy "Received request to {{ .Request.URL }}" "{{ .Request.Method }} {{ .Response.StatusCode }}"
-				`,
+Example:
+	notify info ntfy "Received request to {{ .Request.URL }}" "{{ .Request.Method }} {{ .Response.StatusCode }}"`,
 			args: map[string]string{
 				"level":    "the log level",
 				"provider": "the notification provider (must be defined in config `providers.notification`)",
@@ -458,7 +457,8 @@ func (cmd *Command) Parse(v string) error {
 		}
 		validArgs, err := builder.validate(args)
 		if err != nil {
-			return err.Subject(directive).Withf("%s", builder.help.String())
+			// Only attach help for the directive that failed, avoid bringing in unrelated KV errors
+			return err.Subject(directive).With(builder.help.Error())
 		}
 
 		executors = append(executors, builder.build(validArgs))

@@ -52,9 +52,9 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnHeader,
 			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-			header username "user"
-			header username glob("user*")
-			header username regex("user.*")`,
+header username "user"
+header username glob("user*")
+header username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the header key",
 				"[value]": "the header value",
@@ -77,9 +77,9 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnQuery,
 			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-			query username "user"
-			query username glob("user*")
-			query username regex("user.*")`,
+query username "user"
+query username glob("user*")
+query username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the query key",
 				"[value]": "the query value",
@@ -102,9 +102,9 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnCookie,
 			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-			cookie username "user"
-			cookie username glob("user*")
-			cookie username regex("user.*")`,
+cookie username "user"
+cookie username glob("user*")
+cookie username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the cookie key",
 				"[value]": "the cookie value",
@@ -166,9 +166,9 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnPostForm,
 			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-			postform username "user"
-			postform username glob("user*")
-			postform username regex("user.*")`,
+postform username "user"
+postform username glob("user*")
+postform username regex("user.*")`,
 			args: map[string]string{
 				"key":     "the form key",
 				"[value]": "the form value",
@@ -206,10 +206,10 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnHost,
 			description: `Supports string, glob pattern, or regex pattern, e.g.:
-				host example.com
-				host glob(example*.com)
-				host regex(example\w+\.com)
-				host regex(example\.com$)`,
+host example.com
+host glob(example*.com)
+host regex(example\w+\.com)
+host regex(example\.com$)`,
 			args: map[string]string{
 				"host": "the host name",
 			},
@@ -226,10 +226,10 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnPath,
 			description: `Supports string, glob pattern, or regex pattern, e.g.:
-				path /path/to
-				path glob(/path/to/*)
-				path regex(^/path/to/.*$)
-				path regex(/path/[A-Z]+/)`,
+path /path/to
+path glob(/path/to/*)
+path regex(^/path/to/.*$)
+path regex(/path/[A-Z]+/)`,
 			args: map[string]string{
 				"path": "the request path",
 			},
@@ -296,9 +296,9 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnRoute,
 			description: `Supports string, glob pattern, or regex pattern, e.g.:
-				route example
-				route glob(example*)
-				route regex(example\w+)`,
+route example
+route glob(example*)
+route regex(example\w+)`,
 			args: map[string]string{
 				"route": "the route name",
 			},
@@ -315,13 +315,13 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnStatus,
 			description: `Supported formats are:
-				- <status>
-				- <status>-<status>
-				- 1xx
-				- 2xx
-				- 3xx
-				- 4xx
-				- 5xx`,
+- <status>
+- <status>-<status>
+- 1xx
+- 2xx
+- 3xx
+- 4xx
+- 5xx`,
 			args: map[string]string{
 				"status": "the status code range",
 			},
@@ -478,7 +478,7 @@ func parseOn(line string) (Checker, bool, gperr.Error) {
 
 	validArgs, err := checker.validate(args)
 	if err != nil {
-		return nil, false, err.Subject(subject).Withf("%s", checker.help.String())
+		return nil, false, err.Subject(subject).With(checker.help.Error())
 	}
 
 	return checker.builder(validArgs), checker.isResponseChecker, nil
