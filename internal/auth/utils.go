@@ -59,6 +59,17 @@ func cookieDomain(r *http.Request) string {
 		return ".local"
 	}
 
+	// if the host is an IP address, return an empty string
+	{
+		host, _, err := net.SplitHostPort(reqHost)
+		if err != nil {
+			host = reqHost
+		}
+		if net.ParseIP(host) != nil {
+			return ""
+		}
+	}
+
 	parts := strutils.SplitRune(reqHost, '.')
 	if len(parts) < 2 {
 		return ""

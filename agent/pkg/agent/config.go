@@ -27,7 +27,7 @@ type AgentConfig struct {
 
 	httpClient            *http.Client
 	httpClientHealthCheck *http.Client
-	tlsConfig             *tls.Config
+	tlsConfig             tls.Config
 	l                     zerolog.Logger
 } // @name Agent
 

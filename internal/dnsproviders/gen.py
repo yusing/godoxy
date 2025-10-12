@@ -53,6 +53,8 @@ allowlist = [
     "spaceship",
     "vercel",
     "vultr",
+
+    "timewebcloud"
 ]
 
 for name in allowlist:

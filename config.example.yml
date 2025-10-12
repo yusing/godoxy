@@ -79,6 +79,13 @@ entrypoint:
     stdout: false # (default: false)
     keep: 30 days # (default: 30 days)
 
+  # customize behavior for non-existent routes, e.g. pass over to another proxy
+  #
+  # rules:
+  #   not_found:
+  #     - name: default
+  #       do: proxy http://other-proxy:8080
+
 providers:
   # include files are standalone yaml files under `config/` directory
   #

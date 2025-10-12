@@ -109,7 +109,7 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 		})
 	}
 
-	if len(rules) == 0 {
+	if len(nonDefaultRules) == 0 {
 		if defaultRule.Do.isBypass() {
 			return up.ServeHTTP
 		}
