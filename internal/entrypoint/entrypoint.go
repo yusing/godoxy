@@ -18,7 +18,6 @@ import (
 
 type Entrypoint struct {
 	middleware      *middleware.Middleware
-	catchAllHandler http.Handler
 	notFoundHandler http.Handler
 	accessLogger    *accesslog.AccessLogger
 	findRouteFunc   func(host string) types.HTTPRoute
@@ -62,19 +61,7 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	return nil
 }
 
-func (ep *Entrypoint) SetCatchAllRules(rules rules.Rules) {
-	if len(rules) == 0 {
-		ep.catchAllHandler = nil
-		return
-	}
-	ep.catchAllHandler = rules.BuildHandler(http.HandlerFunc(ep.serveHTTP))
-}
-
 func (ep *Entrypoint) SetNotFoundRules(rules rules.Rules) {
-	if len(rules) == 0 {
-		ep.notFoundHandler = nil
-		return
-	}
 	ep.notFoundHandler = rules.BuildHandler(http.HandlerFunc(ep.serveNotFound))
 }
 
@@ -97,14 +84,6 @@ func (ep *Entrypoint) FindRoute(s string) types.HTTPRoute {
 }
 
 func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if ep.catchAllHandler != nil {
-		ep.catchAllHandler.ServeHTTP(w, r)
-		return
-	}
-	ep.serveHTTP(w, r)
-}
-
-func (ep *Entrypoint) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if ep.accessLogger != nil {
 		rec := accesslog.NewResponseRecorder(w)
 		w = rec

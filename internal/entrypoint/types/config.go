@@ -8,7 +8,6 @@ import (
 type Config struct {
 	SupportProxyProtocol bool `json:"support_proxy_protocol"`
 	Rules                struct {
-		CatchAll rules.Rules `json:"catch_all"`
 		NotFound rules.Rules `json:"not_found"`
 	} `json:"rules"`
 	Middlewares []map[string]any               `json:"middlewares"`

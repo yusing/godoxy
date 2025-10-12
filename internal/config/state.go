@@ -196,7 +196,6 @@ func (state *state) initEntrypoint() error {
 	matchDomains := state.MatchDomains
 
 	state.entrypoint.SetFindRouteDomains(matchDomains)
-	state.entrypoint.SetCatchAllRules(epCfg.Rules.CatchAll)
 	state.entrypoint.SetNotFoundRules(epCfg.Rules.NotFound)
 
 	errs := gperr.NewBuilder("entrypoint error")
