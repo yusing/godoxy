@@ -27,6 +27,7 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns/rfc2136"
 	"github.com/go-acme/lego/v4/providers/dns/scaleway"
 	"github.com/go-acme/lego/v4/providers/dns/spaceship"
+	"github.com/go-acme/lego/v4/providers/dns/timewebcloud"
 	"github.com/go-acme/lego/v4/providers/dns/vercel"
 	"github.com/go-acme/lego/v4/providers/dns/vultr"
 	"github.com/yusing/godoxy/internal/autocert"
@@ -66,4 +67,5 @@ func InitProviders() {
 	autocert.Providers["spaceship"] = autocert.DNSProvider(spaceship.NewDefaultConfig, spaceship.NewDNSProviderConfig)
 	autocert.Providers["vercel"] = autocert.DNSProvider(vercel.NewDefaultConfig, vercel.NewDNSProviderConfig)
 	autocert.Providers["vultr"] = autocert.DNSProvider(vultr.NewDefaultConfig, vultr.NewDNSProviderConfig)
+	autocert.Providers["timewebcloud"] = autocert.DNSProvider(timewebcloud.NewDefaultConfig, timewebcloud.NewDNSProviderConfig)
 }
