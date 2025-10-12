@@ -64,16 +64,15 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 	}
 
 	nonDefaultRules := make(Rules, 0, len(rules))
-	for i, rule := range rules {
+	for _, rule := range rules {
 		if rule.Name == "default" {
 			defaultRule = rule
-			nonDefaultRules = append(nonDefaultRules, rules[:i]...)
-			nonDefaultRules = append(nonDefaultRules, rules[i+1:]...)
-			break
+		} else {
+			nonDefaultRules = append(nonDefaultRules, rule)
 		}
 	}
 
-	if len(rules) == 0 {
+	if len(nonDefaultRules) == 0 {
 		if defaultRule.Do.isBypass() {
 			return up.ServeHTTP
 		}
