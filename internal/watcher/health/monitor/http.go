@@ -18,8 +18,15 @@ type HTTPHealthMonitor struct {
 
 var pinger = &http.Client{
 	Transport: &http.Transport{
-		DisableKeepAlives: true,
-		ForceAttemptHTTP2: false,
+		DisableKeepAlives:     true,
+		ForceAttemptHTTP2:     false,
+		TLSHandshakeTimeout:   3 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		MaxIdleConnsPerHost: 1,
+		IdleConnTimeout:     10 * time.Second,
 	},
 	CheckRedirect: func(r *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -51,13 +58,16 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{}, err
 	}
 	req.Close = true
-	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", "GoDoxy/"+version.Get().String())
+	req.Header.Set("Accept", "text/plain,text/html,*/*;q=0.8")
+	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
 
 	start := time.Now()
 	resp, respErr := pinger.Do(req)
 	if respErr == nil {
-		defer resp.Body.Close()
+		resp.Body.Close()
 	}
 
 	lat := time.Since(start)

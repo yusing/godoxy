@@ -1,7 +1,7 @@
 package monitor
 
 import (
-	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -9,6 +9,7 @@ import (
 	"github.com/bytedance/sonic"
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/types"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type (
@@ -62,17 +63,24 @@ func (mon *AgentProxiedMonitor) CheckHealth() (result types.HealthCheckResult, e
 
 	ctx, cancel := mon.ContextWithTimeout("timeout querying agent")
 	defer cancel()
-	data, status, err := mon.agent.DoHealthCheck(ctx, mon.endpointURL)
+	resp, err := mon.agent.DoHealthCheck(ctx, mon.endpointURL)
 	if err != nil {
 		return result, err
 	}
 
+	data, release, err := httputils.ReadAllBody(resp)
+	resp.Body.Close()
+	if err != nil {
+		return result, err
+	}
+	defer release(data)
+
 	endTime := time.Now()
-	switch status {
+	switch resp.StatusCode {
 	case http.StatusOK:
 		err = sonic.Unmarshal(data, &result)
 	default:
-		err = errors.New(string(data))
+		err = fmt.Errorf("HTTP %d %s", resp.StatusCode, data)
 	}
 	if err == nil && result.Latency != 0 {
 		// use godoxy to agent latency

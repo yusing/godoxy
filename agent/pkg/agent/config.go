@@ -97,7 +97,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		return errors.New("invalid ca certificate")
 	}
 
-	cfg.tlsConfig = &tls.Config{
+	cfg.tlsConfig = tls.Config{
 		Certificates: []tls.Certificate{clientCert},
 		RootCAs:      caCertPool,
 		ServerName:   CertsDNSName,
@@ -105,36 +105,38 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 
 	// create transport and http client
 	cfg.httpClient = cfg.NewHTTPClient()
+	applyNormalTransportConfig(cfg.httpClient)
+
 	cfg.httpClientHealthCheck = cfg.NewHTTPClient()
-	applyHealthCheckTransportConfig(cfg.httpClientHealthCheck.Transport.(*http.Transport))
+	applyHealthCheckTransportConfig(cfg.httpClientHealthCheck)
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// get agent name
-	name, _, err := cfg.Fetch(ctx, EndpointName)
+	name, _, err := cfg.fetchString(ctx, EndpointName)
 	if err != nil {
 		return err
 	}
 
-	cfg.Name = string(name)
+	cfg.Name = name
 
 	cfg.l = log.With().Str("agent", cfg.Name).Logger()
 
 	// check agent version
-	agentVersionBytes, _, err := cfg.Fetch(ctx, EndpointVersion)
+	agentVersion, _, err := cfg.fetchString(ctx, EndpointVersion)
 	if err != nil {
 		return err
 	}
 
 	// check agent runtime
-	runtimeBytes, status, err := cfg.Fetch(ctx, EndpointRuntime)
+	runtime, status, err := cfg.fetchString(ctx, EndpointRuntime)
 	if err != nil {
 		return err
 	}
 	switch status {
 	case http.StatusOK:
-		switch string(runtimeBytes) {
+		switch runtime {
 		case "docker":
 			cfg.Runtime = ContainerRuntimeDocker
 		// case "nerdctl":
@@ -142,16 +144,16 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		case "podman":
 			cfg.Runtime = ContainerRuntimePodman
 		default:
-			return fmt.Errorf("invalid agent runtime: %s", runtimeBytes)
+			return fmt.Errorf("invalid agent runtime: %s", runtime)
 		}
 	case http.StatusNotFound:
 		// backward compatibility, old agent does not have runtime endpoint
 		cfg.Runtime = ContainerRuntimeDocker
 	default:
-		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtimeBytes)
+		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtime)
 	}
 
-	cfg.Version = version.Parse(string(agentVersionBytes))
+	cfg.Version = version.Parse(agentVersion)
 
 	if serverVersion.IsNewerThanMajor(cfg.Version) {
 		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.Name, serverVersion, cfg.Version)
@@ -197,7 +199,7 @@ func (cfg *AgentConfig) Transport() *http.Transport {
 			}
 			return cfg.DialContext(ctx)
 		},
-		TLSClientConfig: cfg.tlsConfig,
+		TLSClientConfig: &cfg.tlsConfig,
 	}
 }
 
@@ -211,7 +213,16 @@ func (cfg *AgentConfig) String() string {
 	return cfg.Name + "@" + cfg.Addr
 }
 
-func applyHealthCheckTransportConfig(transport *http.Transport) {
+func applyNormalTransportConfig(client *http.Client) {
+	transport := client.Transport.(*http.Transport)
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 100
+	transport.ReadBufferSize = 16384
+	transport.WriteBufferSize = 16384
+}
+
+func applyHealthCheckTransportConfig(client *http.Client) {
+	transport := client.Transport.(*http.Transport)
 	transport.DisableKeepAlives = true
 	transport.DisableCompression = true
 	transport.MaxIdleConns = 1

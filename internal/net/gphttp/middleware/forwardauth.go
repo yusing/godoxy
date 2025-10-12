@@ -92,7 +92,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		body, release, err := httputils.ReadAllBody(resp)
-		defer release()
+		defer release(body)
 
 		if err != nil {
 			ForwardAuth.LogError(r).Err(err).Msg("failed to read response body")

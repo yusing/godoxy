@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -29,32 +30,31 @@ func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) (*http.Respo
 	return resp, nil
 }
 
-func (cfg *AgentConfig) DoHealthCheck(ctx context.Context, endpoint string) ([]byte, int, error) {
+func (cfg *AgentConfig) DoHealthCheck(ctx context.Context, endpoint string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", APIBaseURL+endpoint, nil)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Connection", "close")
 
-	resp, err := cfg.httpClientHealthCheck.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	return data, resp.StatusCode, nil
+	return cfg.httpClientHealthCheck.Do(req)
 }
 
-func (cfg *AgentConfig) Fetch(ctx context.Context, endpoint string) ([]byte, int, error) {
+func (cfg *AgentConfig) fetchString(ctx context.Context, endpoint string) (string, int, error) {
 	resp, err := cfg.Do(ctx, "GET", endpoint, nil)
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	return data, resp.StatusCode, nil
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return "", 0, err
+	}
+	ret := string(data)
+	release(data)
+	return ret, resp.StatusCode, nil
 }
 
 func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websocket.Conn, *http.Response, error) {

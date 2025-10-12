@@ -32,6 +32,17 @@ func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
 	return true
 }
 
+func readerWithRelease(b []byte, release func([]byte)) io.ReadCloser {
+	return ioutils.NewHookReadCloser(io.NopCloser(bytes.NewReader(b)), func() {
+		release(b)
+	})
+}
+
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+func (eofReader) Close() error             { return nil }
+
 // modifyResponse implements ResponseModifier.
 func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	// including text/html and application/xhtml+xml
@@ -42,7 +53,9 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	// NOTE: do not put it in the defer, it will be used as resp.Body
 	content, release, err := httputils.ReadAllBody(resp)
 	if err != nil {
+		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to read response body")
 		resp.Body.Close()
+		resp.Body = eofReader{}
 		return err
 	}
 	resp.Body.Close()
@@ -50,7 +63,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
 	if err != nil {
 		// invalid html, restore the original body
-		resp.Body = io.NopCloser(bytes.NewReader(content))
+		resp.Body = readerWithRelease(content, release)
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("invalid html found")
 		return nil
 	}
@@ -58,7 +71,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	ele := doc.Find(m.Target)
 	if ele.Length() == 0 {
 		// no target found, restore the original body
-		resp.Body = io.NopCloser(bytes.NewReader(content))
+		resp.Body = readerWithRelease(content, release)
 		return nil
 	}
 
@@ -73,12 +86,18 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	buf := bytes.NewBuffer(content[:0])
 	err = buildHTML(doc, buf)
 	if err != nil {
+		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to build html")
+		// invalid html, restore the original body
+		resp.Body = readerWithRelease(content, release)
 		return err
 	}
 	resp.ContentLength = int64(buf.Len())
 	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
-	resp.Body = ioutils.NewHookReadCloser(io.NopCloser(bytes.NewReader(buf.Bytes())), release)
+	resp.Body = readerWithRelease(buf.Bytes(), func(_ []byte) {
+		// release content, not buf.Bytes()
+		release(content)
+	})
 	return nil
 }
 

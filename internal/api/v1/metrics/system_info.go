@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/synk"
 )
 
 type SystemInfoRequest struct {
@@ -68,8 +69,13 @@ func SystemInfo(c *gin.Context) {
 
 		maps.Copy(c.Writer.Header(), resp.Header)
 		c.Status(resp.StatusCode)
-		io.Copy(c.Writer, resp.Body)
+
+		buf := pool.Get()
+		defer pool.Put(buf)
+		io.CopyBuffer(c.Writer, resp.Body, buf)
 	} else {
 		agent.ReverseProxy(c.Writer, c.Request, agentPkg.EndpointSystemInfo)
 	}
 }
+
+var pool = synk.GetBytesPool()
