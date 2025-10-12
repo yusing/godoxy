@@ -41,6 +41,11 @@ func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 	if len(domains) == 0 {
 		ep.findRouteFunc = findRouteAnyDomain
 	} else {
+		for i, domain := range domains {
+			if !strings.HasPrefix(domain, ".") {
+				domains[i] = "." + domain
+			}
+		}
 		ep.findRouteFunc = findRouteByDomains(domains)
 	}
 }
