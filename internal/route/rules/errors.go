@@ -7,6 +7,7 @@ import (
 var (
 	ErrUnterminatedQuotes     = gperr.New("unterminated quotes")
 	ErrUnterminatedBrackets   = gperr.New("unterminated brackets")
+	ErrUnterminatedEnvVar     = gperr.New("unterminated env var")
 	ErrUnknownDirective       = gperr.New("unknown directive")
 	ErrUnknownModField        = gperr.New("unknown field")
 	ErrEnvVarNotFound         = gperr.New("env variable not found")

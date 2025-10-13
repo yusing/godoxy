@@ -70,6 +70,10 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			escaped = false
 			continue
 		}
+		if expectingBrace && r != '{' && r != '$' { // not escaped and not env var
+			buf.WriteRune('$')
+			expectingBrace = false
+		}
 		switch r {
 		case '\\':
 			escaped = true
@@ -140,10 +144,16 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 		}
 	}
 
+	if expectingBrace {
+		buf.WriteRune('$')
+	}
+
 	if quote != 0 {
 		err = ErrUnterminatedQuotes
 	} else if brackets != 0 {
 		err = ErrUnterminatedBrackets
+	} else if inEnvVar {
+		err = ErrUnterminatedEnvVar
 	} else {
 		flush(false)
 	}
