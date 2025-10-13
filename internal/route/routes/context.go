@@ -86,6 +86,13 @@ func TryGetUpstreamPort(r *http.Request) string {
 	return ""
 }
 
+func TryGetUpstreamHostPort(r *http.Request) string {
+	if u := tryGetURL(r); u != nil {
+		return u.Host
+	}
+	return ""
+}
+
 func TryGetUpstreamAddr(r *http.Request) string {
 	if u := tryGetURL(r); u != nil {
 		return u.Host

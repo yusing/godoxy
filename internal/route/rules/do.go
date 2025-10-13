@@ -15,6 +15,7 @@ import (
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -246,8 +247,11 @@ var commands = map[string]struct {
 			if target.Host == "" {
 				return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 					url := target.URL
-					url.Host = r.Host
-					rp := reverseproxy.NewReverseProxy(target.Host, &url, gphttp.NewTransport())
+					url.Host = routes.TryGetUpstreamHostPort(r)
+					if url.Host == "" {
+						return fmt.Errorf("no upstream host: %s", r.URL.String())
+					}
+					rp := reverseproxy.NewReverseProxy(url.Host, &url, gphttp.NewTransport())
 					r.URL.Path = target.Path
 					r.URL.RawPath = r.URL.EscapedPath()
 					r.RequestURI = r.URL.RequestURI()
