@@ -69,8 +69,10 @@ var commands = map[string]struct {
 			return nil, nil
 		},
 		build: func(args any) CommandHandler {
-			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-				auth.AuthCheckHandler(w, r)
+			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				if !auth.AuthOrProceed(w, r) {
+					return errTerminated
+				}
 				return nil
 			})
 		},
