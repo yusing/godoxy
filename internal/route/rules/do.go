@@ -2,17 +2,16 @@ package rules
 
 import (
 	"bytes"
-	"html/template"
+	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/logging"
-	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -35,6 +34,7 @@ func (cmd *Command) IsResponseHandler() bool {
 }
 
 const (
+	CommandRequireAuth      = "require_auth"
 	CommandRewrite          = "rewrite"
 	CommandServe            = "serve"
 	CommandProxy            = "proxy"
@@ -56,9 +56,32 @@ var commands = map[string]struct {
 	build             func(args any) CommandHandler
 	isResponseHandler bool
 }{
+	CommandRequireAuth: {
+		help: Help{
+			command:     CommandRequireAuth,
+			description: makeLines("Require HTTP authentication for incoming requests"),
+			args:        map[string]string{},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 0 {
+				return nil, ErrExpectNoArg
+			}
+			return nil, nil
+		},
+		build: func(args any) CommandHandler {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				auth.AuthCheckHandler(w, r)
+				return nil
+			})
+		},
+	},
 	CommandRewrite: {
 		help: Help{
 			command: CommandRewrite,
+			description: makeLines(
+				"Rewrite a request path from one prefix to another, e.g.:",
+				helpExample(CommandRewrite, "/foo", "/bar"),
+			),
 			args: map[string]string{
 				"from": "the path to rewrite, must start with /",
 				"to":   "the path to rewrite to, must start with /",
@@ -83,24 +106,29 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			orig, repl := args.(*StrTuple).Unpack()
-			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
+			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				path := r.URL.Path
 				if len(path) > 0 && path[0] != '/' {
 					path = "/" + path
 				}
 				if !strings.HasPrefix(path, orig) {
-					return
+					return nil
 				}
 				path = repl + path[len(orig):]
 				r.URL.Path = path
 				r.URL.RawPath = r.URL.EscapedPath()
 				r.RequestURI = r.URL.RequestURI()
+				return nil
 			})
 		},
 	},
 	CommandServe: {
 		help: Help{
 			command: CommandServe,
+			description: makeLines(
+				"Serve static files from a local file system path, e.g.:",
+				helpExample(CommandServe, "/var/www"),
+			),
 			args: map[string]string{
 				"root": "the file system path to serve, must be an existing directory",
 			},
@@ -108,14 +136,19 @@ var commands = map[string]struct {
 		validate: validateFSPath,
 		build: func(args any) CommandHandler {
 			root := args.(string)
-			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				http.ServeFile(w, r, path.Join(root, path.Clean(r.URL.Path)))
+				return nil
 			})
 		},
 	},
 	CommandRedirect: {
 		help: Help{
 			command: CommandRedirect,
+			description: makeLines(
+				"Redirect request to another URL, e.g.:",
+				helpExample(CommandRedirect, "https://example.com"),
+			),
 			args: map[string]string{
 				"to": "the url to redirect to, can be relative or absolute URL",
 			},
@@ -123,14 +156,19 @@ var commands = map[string]struct {
 		validate: validateURL,
 		build: func(args any) CommandHandler {
 			target := args.(*nettypes.URL).String()
-			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				return nil
 			})
 		},
 	},
 	CommandError: {
 		help: Help{
 			command: CommandError,
+			description: makeLines(
+				"Send an HTTP error response and terminate processing, e.g.:",
+				helpExample(CommandError, "400", "bad request"),
+			),
 			args: map[string]string{
 				"code": "the http status code to return",
 				"text": "the error message to return",
@@ -152,14 +190,21 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			code, text := args.(*Tuple[int, string]).Unpack()
-			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				// error command should overwrite the response body
+				GetInitResponseModifier(w).ResetBody()
 				http.Error(w, text, code)
+				return nil
 			})
 		},
 	},
 	CommandRequireBasicAuth: {
 		help: Help{
 			command: CommandRequireBasicAuth,
+			description: makeLines(
+				"Require HTTP basic authentication for incoming requests, e.g.:",
+				helpExample(CommandRequireBasicAuth, "Restricted Area"),
+			),
 			args: map[string]string{
 				"realm": "the authentication realm",
 			},
@@ -172,34 +217,58 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			realm := args.(string)
-			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) {
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return nil
 			})
 		},
 	},
 	CommandProxy: {
 		help: Help{
 			command: CommandProxy,
+			description: makeLines(
+				"Proxy the request to the specified absolute URL, e.g.:",
+				helpExample(CommandProxy, "http://upstream:8080"),
+			),
 			args: map[string]string{
 				"to": "the url to proxy to, must be an absolute URL",
 			},
 		},
-		validate: validateAbsoluteURL,
+		validate: validateURL,
 		build: func(args any) CommandHandler {
 			target := args.(*nettypes.URL)
 			if target.Scheme == "" {
 				target.Scheme = "http"
 			}
+			if target.Host == "" {
+				return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+					url := target.URL
+					url.Host = r.Host
+					rp := reverseproxy.NewReverseProxy(target.Host, &url, gphttp.NewTransport())
+					r.URL.Path = target.Path
+					r.URL.RawPath = r.URL.EscapedPath()
+					r.RequestURI = r.URL.RequestURI()
+					rp.ServeHTTP(w, r)
+					return nil
+				})
+			}
 			rp := reverseproxy.NewReverseProxy("", &target.URL, gphttp.NewTransport())
-			return TerminatingCommand(rp.ServeHTTP)
+			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				rp.ServeHTTP(w, r)
+				return nil
+			})
 		},
 	},
 	CommandSet: {
 		help: Help{
 			command: CommandSet,
+			description: makeLines(
+				"Set a field in the request or response, e.g.:",
+				helpExample(CommandSet, "header", "User-Agent", "godoxy"),
+			),
 			args: map[string]string{
-				"target": "the target to set, can be header, query, cookie",
+				"target": fmt.Sprintf("the target to set, can be %s", strings.Join(AllFields, ", ")),
 				"field":  "the field to set",
 				"value":  "the value to set",
 			},
@@ -214,8 +283,12 @@ var commands = map[string]struct {
 	CommandAdd: {
 		help: Help{
 			command: CommandAdd,
+			description: makeLines(
+				"Add a value to a field in the request or response, e.g.:",
+				helpExample(CommandAdd, "header", "X-Foo", "bar"),
+			),
 			args: map[string]string{
-				"target": "the target to add, can be header, query, cookie",
+				"target": fmt.Sprintf("the target to add, can be %s", strings.Join(AllFields, ", ")),
 				"field":  "the field to add",
 				"value":  "the value to add",
 			},
@@ -230,8 +303,12 @@ var commands = map[string]struct {
 	CommandRemove: {
 		help: Help{
 			command: CommandRemove,
+			description: makeLines(
+				"Remove a field from the request or response, e.g.:",
+				helpExample(CommandRemove, "header", "User-Agent"),
+			),
 			args: map[string]string{
-				"target": "the target to remove, can be header, query, cookie",
+				"target": fmt.Sprintf("the target to remove, can be %s", strings.Join(AllFields, ", ")),
 				"field":  "the field to remove",
 			},
 		},
@@ -243,15 +320,17 @@ var commands = map[string]struct {
 		},
 	},
 	CommandLog: {
+		isResponseHandler: true,
 		help: Help{
 			command: CommandLog,
-			description: `The template supports the following variables:
-Request: the request object
-Response: the response object
-
-Example:
-	log info /dev/stdout "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"
-				`,
+			description: makeLines(
+				"The template supports the following variables:",
+				helpListItem("Request", "the request object"),
+				helpListItem("Response", "the response object"),
+				"",
+				"Example:",
+				helpExample(CommandLog, "info", "/dev/stdout", "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"),
+			),
 			args: map[string]string{
 				"level":    "the log level",
 				"path":     "the log path (/dev/stdout for stdout, /dev/stderr for stderr)",
@@ -262,7 +341,7 @@ Example:
 			if len(args) != 3 {
 				return nil, ErrExpectThreeArgs
 			}
-			tmpl, err := validateTemplate(args[2])
+			tmpl, err := validateTemplate(args[2], true)
 			if err != nil {
 				return nil, err
 			}
@@ -276,48 +355,37 @@ Example:
 			if err != nil {
 				return nil, err
 			}
-			return &Tuple3[zerolog.Level, io.WriteCloser, *template.Template]{level, f, tmpl}, nil
+			return &onLogArgs{level, f, tmpl}, nil
 		},
 		build: func(args any) CommandHandler {
-			level, f, tmpl := args.(*Tuple3[zerolog.Level, io.WriteCloser, *template.Template]).Unpack()
+			level, f, tmpl := args.(*onLogArgs).Unpack()
 			var logger io.Writer
 			if f == stdout || f == stderr {
 				logger = logging.NewLoggerWithLevel(level, f)
 			} else {
 				logger = f
 			}
-			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) {
-				var resp *http.Response
-				if interceptor, ok := w.(interface {
-					StatusCode() int
-					Header() http.Header
-				}); ok {
-					resp = &http.Response{
-						StatusCode: interceptor.StatusCode(),
-						Header:     interceptor.Header(),
-						Request:    r,
-					}
-				} else {
-					resp = &emptyResponse
+			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
+				err := executeReqRespTemplateTo(tmpl, logger, w, r)
+				if err != nil {
+					return err
 				}
-
-				tmpl.Execute(logger, map[string]any{
-					"Request":  r,
-					"Response": resp,
-				})
+				return nil
 			})
 		},
-		isResponseHandler: true,
 	},
 	CommandNotify: {
+		isResponseHandler: true,
 		help: Help{
 			command: CommandNotify,
-			description: `The template supports the following variables:
-Request: the request object
-Response: the response object
-
-Example:
-	notify info ntfy "Received request to {{ .Request.URL }}" "{{ .Request.Method }} {{ .Response.StatusCode }}"`,
+			description: makeLines(
+				"The template supports the following variables:",
+				helpListItem("Request", "the request object"),
+				helpListItem("Response", "the response object"),
+				"",
+				"Example:",
+				helpExample(CommandNotify, "info", "ntfy", "Received request to {{ .Request.URL }}", "{{ .Request.Method }} {{ .Response.StatusCode }}"),
+			),
 			args: map[string]string{
 				"level":    "the log level",
 				"provider": "the notification provider (must be defined in config `providers.notification`)",
@@ -329,11 +397,11 @@ Example:
 			if len(args) != 4 {
 				return nil, ErrExpectFourArgs
 			}
-			titleTmpl, err := validateTemplate(args[2])
+			titleTmpl, err := validateTemplate(args[2], false)
 			if err != nil {
 				return nil, err
 			}
-			bodyTmpl, err := validateTemplate(args[3])
+			bodyTmpl, err := validateTemplate(args[3], false)
 			if err != nil {
 				return nil, err
 			}
@@ -355,30 +423,21 @@ Example:
 			level, provider, titleTmpl, bodyTmpl := args.(*onNotifyArgs).Unpack()
 			to := []string{provider}
 
-			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) {
-				var resp *http.Response
-				if interceptor, ok := w.(interface {
-					StatusCode() int
-					Header() http.Header
-				}); ok {
-					resp = &http.Response{
-						StatusCode: interceptor.StatusCode(),
-						Header:     interceptor.Header(),
-						Request:    r,
-					}
-				} else {
-					resp = &emptyResponse
-				}
-
+			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
 				buf := bufPool.Get()
 				defer bufPool.Put(buf)
 
 				respBuf := bytes.NewBuffer(buf)
 
-				tmplData := reqResponseTemplateData{r, resp}
-				titleTmpl.Execute(respBuf, tmplData)
+				err := executeReqRespTemplateTo(titleTmpl, respBuf, w, r)
+				if err != nil {
+					return err
+				}
 				titleLen := respBuf.Len()
-				bodyTmpl.Execute(respBuf, tmplData)
+				err = executeReqRespTemplateTo(bodyTmpl, respBuf, w, r)
+				if err != nil {
+					return err
+				}
 
 				notif.Notify(&notif.LogMessage{
 					Level: level,
@@ -386,53 +445,29 @@ Example:
 					Body:  notif.MessageBodyBytes(buf[titleLen:]),
 					To:    to,
 				})
+				return nil
 			})
 		},
-		isResponseHandler: true,
 	},
 }
 
 type reqResponseTemplateData struct {
 	Request  *http.Request
-	Response *http.Response
+	Response struct {
+		StatusCode int
+		Header     http.Header
+	}
 }
 
 var bufPool = synk.GetBytesPoolWithUniqueMemory()
 
-type onNotifyArgs = Tuple4[zerolog.Level, string, *template.Template, *template.Template]
-
-var emptyResponse http.Response
-
-type nopCloser struct {
-	io.Writer
-}
-
-func (n nopCloser) Close() error {
-	return nil
-}
-
-var (
-	stdout io.WriteCloser = nopCloser{os.Stdout}
-	stderr io.WriteCloser = nopCloser{os.Stderr}
-)
-
-func openFile(path string) (io.WriteCloser, gperr.Error) {
-	switch path {
-	case "/dev/stdout":
-		return stdout, nil
-	case "/dev/stderr":
-		return stderr, nil
-	}
-	f, err := accesslog.NewFileIO(path)
-	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
-	}
-	return f, nil
-}
+type onLogArgs = Tuple3[zerolog.Level, io.WriteCloser, templateOrStr]
+type onNotifyArgs = Tuple4[zerolog.Level, string, templateOrStr, templateOrStr]
 
 // Parse implements strutils.Parser.
 func (cmd *Command) Parse(v string) error {
 	executors := make([]CommandHandler, 0)
+	isResponseHandler := false
 	for line := range strings.SplitSeq(v, "\n") {
 		if line == "" {
 			continue
@@ -461,10 +496,17 @@ func (cmd *Command) Parse(v string) error {
 			return err.Subject(directive).With(builder.help.Error())
 		}
 
-		executors = append(executors, builder.build(validArgs))
+		handler := builder.build(validArgs)
+		executors = append(executors, handler)
+		if builder.isResponseHandler || handler.IsResponseHandler() {
+			isResponseHandler = true
+		}
 	}
 
 	if len(executors) == 0 {
+		cmd.raw = v
+		cmd.exec = nil
+		cmd.isResponseHandler = false
 		return nil
 	}
 
@@ -475,6 +517,10 @@ func (cmd *Command) Parse(v string) error {
 
 	cmd.raw = v
 	cmd.exec = exec
+	if exec.IsResponseHandler() {
+		isResponseHandler = true
+	}
+	cmd.isResponseHandler = isResponseHandler
 	return nil
 }
 
@@ -509,8 +555,8 @@ func (cmd *Command) isBypass() bool {
 	}
 }
 
-func (cmd *Command) ServeHTTP(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	return cmd.exec.Handle(Cache{}, w, r)
+func (cmd *Command) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
+	return cmd.exec.Handle(w, r)
 }
 
 func (cmd *Command) String() string {

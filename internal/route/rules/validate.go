@@ -2,16 +2,14 @@ package rules
 
 import (
 	"fmt"
-	"html/template"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 
-	"github.com/gobwas/glob"
 	"github.com/rs/zerolog"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -64,109 +62,12 @@ func (t *Tuple4[T1, T2, T3, T4]) String() string {
 	return fmt.Sprintf("%v:%v:%v:%v", t.First, t.Second, t.Third, t.Fourth)
 }
 
-type (
-	Matcher     func(string) bool
-	MatcherType string
-)
-
-const (
-	MatcherTypeString MatcherType = "string"
-	MatcherTypeGlob   MatcherType = "glob"
-	MatcherTypeRegex  MatcherType = "regex"
-)
-
-func unquoteExpr(s string) (string, gperr.Error) {
-	if s == "" {
-		return "", nil
-	}
-	switch s[0] {
-	case '"', '\'', '`':
-		if s[0] != s[len(s)-1] {
-			return "", ErrUnterminatedQuotes
-		}
-		return s[1 : len(s)-1], nil
-	default:
-		return s, nil
-	}
-}
-
-func ExtractExpr(s string) (matcherType MatcherType, expr string, err gperr.Error) {
-	idx := strings.IndexByte(s, '(')
-	if idx == -1 {
-		return MatcherTypeString, s, nil
-	}
-	idxEnd := strings.LastIndexByte(s, ')')
-	if idxEnd == -1 {
-		return "", "", ErrUnterminatedBrackets
-	}
-
-	expr, err = unquoteExpr(s[idx+1 : idxEnd])
-	if err != nil {
-		return "", "", err
-	}
-	matcherType = MatcherType(strings.ToLower(s[:idx]))
-
-	switch matcherType {
-	case MatcherTypeGlob, MatcherTypeRegex, MatcherTypeString:
-		return
-	default:
-		return "", "", ErrInvalidArguments.Withf("invalid matcher type: %s", matcherType)
-	}
-}
-
-func ParseMatcher(expr string) (Matcher, gperr.Error) {
-	t, expr, err := ExtractExpr(expr)
-	if err != nil {
-		return nil, err
-	}
-	switch t {
-	case MatcherTypeString:
-		return StringMatcher(expr)
-	case MatcherTypeGlob:
-		return GlobMatcher(expr)
-	case MatcherTypeRegex:
-		return RegexMatcher(expr)
-	}
-	// won't reach here
-	return nil, ErrInvalidArguments.Withf("invalid matcher type: %s", t)
-}
-
-func StringMatcher(s string) (Matcher, gperr.Error) {
-	return func(s2 string) bool {
-		return s == s2
-	}, nil
-}
-
-func GlobMatcher(expr string) (Matcher, gperr.Error) {
-	g, err := glob.Compile(expr)
-	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
-	}
-	return g.Match, nil
-}
-
-func RegexMatcher(expr string) (Matcher, gperr.Error) {
-	re, err := regexp.Compile(expr)
-	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
-	}
-	return re.MatchString, nil
-}
-
 // validateSingleMatcher returns Matcher with the matcher validated.
 func validateSingleMatcher(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
 	return ParseMatcher(args[0])
-}
-
-// toStrTuple returns *StrTuple.
-func toStrTuple(args []string) (any, gperr.Error) {
-	if len(args) != 2 {
-		return nil, ErrExpectTwoArgs
-	}
-	return &StrTuple{args[0], args[1]}, nil
 }
 
 // toKVOptionalVMatcher returns *MapValueMatcher that value is optional.
@@ -183,6 +84,18 @@ func toKVOptionalVMatcher(args []string) (any, gperr.Error) {
 	default:
 		return nil, ErrExpectKVOptionalV
 	}
+}
+
+func toKeyValueTemplate(args []string) (any, gperr.Error) {
+	if len(args) != 2 {
+		return nil, ErrExpectTwoArgs
+	}
+
+	tmpl, err := validateTemplate(args[1], false)
+	if err != nil {
+		return nil, err
+	}
+	return &keyValueTemplate{args[0], tmpl}, nil
 }
 
 // validateURL returns types.URL with the URL validated.
@@ -333,7 +246,14 @@ func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.Error) {
 	setField, ok := modFields[args[0]]
 	if !ok {
-		return nil, ErrInvalidSetTarget.Subject(args[0])
+		return nil, ErrUnknownModField.Subject(args[0])
+	}
+	if mod == ModFieldRemove {
+		if len(args[1:]) != 1 {
+			return nil, ErrExpectOneArg
+		}
+		// setField expect validateStrTuple
+		args = append(args, "")
 	}
 	validArgs, err := setField.validate(args[1:])
 	if err != nil {
@@ -342,14 +262,38 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	modder := setField.builder(validArgs)
 	switch mod {
 	case ModFieldAdd:
-		return modder.add, nil
+		add := modder.add
+		if add == nil {
+			return nil, ErrInvalidArguments.Withf("add is not supported for %s", mod)
+		}
+		return add, nil
 	case ModFieldRemove:
-		return modder.remove, nil
+		remove := modder.remove
+		if remove == nil {
+			return nil, ErrInvalidArguments.Withf("remove is not supported for %s", mod)
+		}
+		return remove, nil
 	}
-	return modder.set, nil
+	set := modder.set
+	if set == nil {
+		return nil, ErrInvalidArguments.Withf("set is not supported for %s", mod)
+	}
+	return set, nil
 }
 
-func validateTemplate(tmplStr string) (*template.Template, gperr.Error) {
+func isTemplate(tmplStr string) bool {
+	return strings.Contains(tmplStr, "{{")
+}
+
+func validateTemplate(tmplStr string, newline bool) (templateOrStr, gperr.Error) {
+	if newline && !strings.HasSuffix(tmplStr, "\n") {
+		tmplStr += "\n"
+	}
+
+	if !isTemplate(tmplStr) {
+		return strTemplate(tmplStr), nil
+	}
+
 	tmpl, err := template.New("template").Parse(tmplStr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)

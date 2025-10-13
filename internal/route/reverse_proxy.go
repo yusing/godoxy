@@ -128,7 +128,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	if len(r.Rules) > 0 {
-		r.handler = r.Rules.BuildHandler(r.handler)
+		r.handler = r.Rules.BuildHandler(r.handler.ServeHTTP)
 	}
 
 	if r.HealthMon != nil {

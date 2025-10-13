@@ -21,8 +21,8 @@ func (on *RuleOn) IsResponseChecker() bool {
 	return on.isResponseChecker
 }
 
-func (on *RuleOn) Check(cached Cache, r *http.Request) bool {
-	return on.checker.Check(cached, r)
+func (on *RuleOn) Check(w http.ResponseWriter, r *http.Request) bool {
+	return on.checker.Check(w, r)
 }
 
 const (
@@ -39,7 +39,8 @@ const (
 	OnRoute     = "route"
 
 	// on response
-	OnStatus = "status"
+	OnResponseHeader = "resp_header"
+	OnStatus         = "status"
 )
 
 var checkers = map[string]struct {
@@ -51,10 +52,12 @@ var checkers = map[string]struct {
 	OnHeader: {
 		help: Help{
 			command: OnHeader,
-			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-header username "user"
-header username glob("user*")
-header username regex("user.*")`,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnHeader, "username", "user"),
+				helpExample(OnHeader, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnHeader, "username", helpFuncCall("regex", "user.*")),
+			),
 			args: map[string]string{
 				"key":     "the header key",
 				"[value]": "the header value",
@@ -64,22 +67,52 @@ header username regex("user.*")`,
 		builder: func(args any) CheckFunc {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
-				return func(cached Cache, r *http.Request) bool {
+				return func(w http.ResponseWriter, r *http.Request) bool {
 					return len(r.Header[k]) > 0
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				return slices.ContainsFunc(r.Header[k], matcher)
+			}
+		},
+	},
+	OnResponseHeader: {
+		isResponseChecker: true,
+		help: Help{
+			command: OnResponseHeader,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnResponseHeader, "username", "user"),
+				helpExample(OnResponseHeader, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnResponseHeader, "username", helpFuncCall("regex", "user.*")),
+			),
+			args: map[string]string{
+				"key":     "the response header key",
+				"[value]": "the response header value",
+			},
+		},
+		validate: toKVOptionalVMatcher,
+		builder: func(args any) CheckFunc {
+			k, matcher := args.(*MapValueMatcher).Unpack()
+			if matcher == nil {
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					return len(GetInitResponseModifier(w).Header()[k]) > 0
+				}
+			}
+			return func(w http.ResponseWriter, r *http.Request) bool {
+				return slices.ContainsFunc(GetInitResponseModifier(w).Header()[k], matcher)
 			}
 		},
 	},
 	OnQuery: {
 		help: Help{
 			command: OnQuery,
-			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-query username "user"
-query username glob("user*")
-query username regex("user.*")`,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnQuery, "username", "user"),
+				helpExample(OnQuery, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnQuery, "username", helpFuncCall("regex", "user.*")),
+			),
 			args: map[string]string{
 				"key":     "the query key",
 				"[value]": "the query value",
@@ -89,22 +122,24 @@ query username regex("user.*")`,
 		builder: func(args any) CheckFunc {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
-				return func(cached Cache, r *http.Request) bool {
-					return len(cached.GetQueries(r)[k]) > 0
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					return len(GetSharedData(w).GetQueries(r)[k]) > 0
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
-				return slices.ContainsFunc(cached.GetQueries(r)[k], matcher)
+			return func(w http.ResponseWriter, r *http.Request) bool {
+				return slices.ContainsFunc(GetSharedData(w).GetQueries(r)[k], matcher)
 			}
 		},
 	},
 	OnCookie: {
 		help: Help{
 			command: OnCookie,
-			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-cookie username "user"
-cookie username glob("user*")
-cookie username regex("user.*")`,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnCookie, "username", "user"),
+				helpExample(OnCookie, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnCookie, "username", helpFuncCall("regex", "user.*")),
+			),
 			args: map[string]string{
 				"key":     "the cookie key",
 				"[value]": "the cookie value",
@@ -114,8 +149,8 @@ cookie username regex("user.*")`,
 		builder: func(args any) CheckFunc {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
-				return func(cached Cache, r *http.Request) bool {
-					cookies := cached.GetCookies(r)
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					cookies := GetSharedData(w).GetCookies(r)
 					for _, cookie := range cookies {
 						if cookie.Name == k {
 							return true
@@ -124,8 +159,8 @@ cookie username regex("user.*")`,
 					return false
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
-				cookies := cached.GetCookies(r)
+			return func(w http.ResponseWriter, r *http.Request) bool {
+				cookies := GetSharedData(w).GetCookies(r)
 				for _, cookie := range cookies {
 					if cookie.Name == k {
 						if matcher(cookie.Value) {
@@ -140,10 +175,12 @@ cookie username regex("user.*")`,
 	OnForm: {
 		help: Help{
 			command: OnForm,
-			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-			form username "user"
-			form username glob("user*")
-			form username regex("user.*")`,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnForm, "username", "user"),
+				helpExample(OnForm, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnForm, "username", helpFuncCall("regex", "user.*")),
+			),
 			args: map[string]string{
 				"key":     "the form key",
 				"[value]": "the form value",
@@ -153,11 +190,11 @@ cookie username regex("user.*")`,
 		builder: func(args any) CheckFunc {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
-				return func(cached Cache, r *http.Request) bool {
+				return func(w http.ResponseWriter, r *http.Request) bool {
 					return r.FormValue(k) != ""
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				return matcher(r.FormValue(k))
 			}
 		},
@@ -165,10 +202,12 @@ cookie username regex("user.*")`,
 	OnPostForm: {
 		help: Help{
 			command: OnPostForm,
-			description: `Value supports string, glob pattern, or regex pattern, e.g.:
-postform username "user"
-postform username glob("user*")
-postform username regex("user.*")`,
+			description: makeLines(
+				"Value supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnPostForm, "username", "user"),
+				helpExample(OnPostForm, "username", helpFuncCall("glob", "user*")),
+				helpExample(OnPostForm, "username", helpFuncCall("regex", "user.*")),
+			),
 			args: map[string]string{
 				"key":     "the form key",
 				"[value]": "the form value",
@@ -178,11 +217,11 @@ postform username regex("user.*")`,
 		builder: func(args any) CheckFunc {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
-				return func(cached Cache, r *http.Request) bool {
+				return func(w http.ResponseWriter, r *http.Request) bool {
 					return r.PostFormValue(k) != ""
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				return matcher(r.PostFormValue(k))
 			}
 		},
@@ -197,7 +236,7 @@ postform username regex("user.*")`,
 		validate: validateMethod,
 		builder: func(args any) CheckFunc {
 			method := args.(string)
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				return r.Method == method
 			}
 		},
@@ -205,11 +244,13 @@ postform username regex("user.*")`,
 	OnHost: {
 		help: Help{
 			command: OnHost,
-			description: `Supports string, glob pattern, or regex pattern, e.g.:
-host example.com
-host glob(example*.com)
-host regex(example\w+\.com)
-host regex(example\.com$)`,
+			description: makeLines(
+				"Supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnHost, "example.com"),
+				helpExample(OnHost, helpFuncCall("glob", "example*.com")),
+				helpExample(OnHost, helpFuncCall("regex", `(example\w+\.com)`)),
+				helpExample(OnHost, helpFuncCall("regex", `example\.com$`)),
+			),
 			args: map[string]string{
 				"host": "the host name",
 			},
@@ -217,7 +258,7 @@ host regex(example\.com$)`,
 		validate: validateSingleMatcher,
 		builder: func(args any) CheckFunc {
 			matcher := args.(Matcher)
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				return matcher(r.Host)
 			}
 		},
@@ -225,11 +266,13 @@ host regex(example\.com$)`,
 	OnPath: {
 		help: Help{
 			command: OnPath,
-			description: `Supports string, glob pattern, or regex pattern, e.g.:
-path /path/to
-path glob(/path/to/*)
-path regex(^/path/to/.*$)
-path regex(/path/[A-Z]+/)`,
+			description: makeLines(
+				"Supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnPath, "/path/to"),
+				helpExample(OnPath, helpFuncCall("glob", "/path/to/*")),
+				helpExample(OnPath, helpFuncCall("regex", `^/path/to/.*$`)),
+				helpExample(OnPath, helpFuncCall("regex", `/path/[A-Z]+/`)),
+			),
 			args: map[string]string{
 				"path": "the request path",
 			},
@@ -237,7 +280,7 @@ path regex(/path/[A-Z]+/)`,
 		validate: validateURLPathMatcher,
 		builder: func(args any) CheckFunc {
 			matcher := args.(Matcher)
-			return func(cached Cache, r *http.Request) bool {
+			return func(w http.ResponseWriter, r *http.Request) bool {
 				reqPath := r.URL.Path
 				if len(reqPath) > 0 && reqPath[0] != '/' {
 					reqPath = "/" + reqPath
@@ -259,16 +302,16 @@ path regex(/path/[A-Z]+/)`,
 			// for /32 (IPv4) or /128 (IPv6), just compare the IP
 			if ones, bits := ipnet.Mask.Size(); ones == bits {
 				wantIP := ipnet.IP
-				return func(cached Cache, r *http.Request) bool {
-					ip := cached.GetRemoteIP(r)
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					ip := GetSharedData(w).GetRemoteIP(r)
 					if ip == nil {
 						return false
 					}
 					return ip.Equal(wantIP)
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
-				ip := cached.GetRemoteIP(r)
+			return func(w http.ResponseWriter, r *http.Request) bool {
+				ip := GetSharedData(w).GetRemoteIP(r)
 				if ip == nil {
 					return false
 				}
@@ -287,18 +330,20 @@ path regex(/path/[A-Z]+/)`,
 		validate: validateUserBCryptPassword,
 		builder: func(args any) CheckFunc {
 			cred := args.(*HashedCrendentials)
-			return func(cached Cache, r *http.Request) bool {
-				return cred.Match(cached.GetBasicAuth(r))
+			return func(w http.ResponseWriter, r *http.Request) bool {
+				return cred.Match(GetSharedData(w).GetBasicAuth(r))
 			}
 		},
 	},
 	OnRoute: {
 		help: Help{
 			command: OnRoute,
-			description: `Supports string, glob pattern, or regex pattern, e.g.:
-route example
-route glob(example*)
-route regex(example\w+)`,
+			description: makeLines(
+				"Supports string, glob pattern, or regex pattern, e.g.:",
+				helpExample(OnRoute, "example"),
+				helpExample(OnRoute, helpFuncCall("glob", "example*")),
+				helpExample(OnRoute, helpFuncCall("regex", "example\\w+")),
+			),
 			args: map[string]string{
 				"route": "the route name",
 			},
@@ -306,22 +351,25 @@ route regex(example\w+)`,
 		validate: validateSingleMatcher,
 		builder: func(args any) CheckFunc {
 			matcher := args.(Matcher)
-			return func(_ Cache, r *http.Request) bool {
+			return func(_ http.ResponseWriter, r *http.Request) bool {
 				return matcher(routes.TryGetUpstreamName(r))
 			}
 		},
 	},
 	OnStatus: {
+		isResponseChecker: true,
 		help: Help{
 			command: OnStatus,
-			description: `Supported formats are:
-- <status>
-- <status>-<status>
-- 1xx
-- 2xx
-- 3xx
-- 4xx
-- 5xx`,
+			description: makeLines(
+				"Supported formats are:",
+				helpExample(OnStatus, "<status>"),
+				helpExample(OnStatus, "<status>-<status>"),
+				helpExample(OnStatus, "1xx"),
+				helpExample(OnStatus, "2xx"),
+				helpExample(OnStatus, "3xx"),
+				helpExample(OnStatus, "4xx"),
+				helpExample(OnStatus, "5xx"),
+			),
 			args: map[string]string{
 				"status": "the status code range",
 			},
@@ -330,15 +378,15 @@ route regex(example\w+)`,
 		builder: func(args any) CheckFunc {
 			beg, end := args.(*IntTuple).Unpack()
 			if beg == end {
-				return func(cached Cache, r *http.Request) bool {
-					return r.Response.StatusCode == beg
+				return func(w http.ResponseWriter, _ *http.Request) bool {
+					return GetInitResponseModifier(w).StatusCode() == beg
 				}
 			}
-			return func(cached Cache, r *http.Request) bool {
-				return r.Response.StatusCode >= beg && r.Response.StatusCode <= end
+			return func(w http.ResponseWriter, _ *http.Request) bool {
+				statusCode := GetInitResponseModifier(w).StatusCode()
+				return statusCode >= beg && statusCode <= end
 			}
 		},
-		isResponseChecker: true,
 	},
 }
 

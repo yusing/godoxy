@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -217,12 +218,13 @@ func TestOnCorrectness(t *testing.T) {
 		}
 	})...)
 
+	w := httptest.NewRecorder()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var on RuleOn
 			err := on.Parse(tt.checker)
 			expect.NoError(t, err)
-			got := on.Check(Cache{}, tt.input)
+			got := on.Check(w, tt.input)
 			expect.Equal(t, tt.want, got, fmt.Sprintf("expect %s to %v", tt.checker, tt.want))
 		})
 	}

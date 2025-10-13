@@ -41,7 +41,7 @@ type (
 
 		route.HTTPConfig
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
-		Rules        rules.Rules                    `json:"rules,omitempty" validate:"omitempty,unique=Name" extension:"x-nullable"`
+		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
 		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck"`
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
 		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`

@@ -1,10 +1,13 @@
 package rules
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -52,14 +55,11 @@ func (rule *Rule) IsResponseRule() bool {
 }
 
 // BuildHandler returns a http.HandlerFunc that implements the rules.
-//
-//	if a bypass rule matches,
-//	the request is passed to the upstream and no more rules are executed.
-//
-//	if no rule matches, the default rule is executed
-//	if no rule matches and default rule is not set,
-//	the request is passed to the upstream.
-func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
+func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
+	if len(rules) == 0 {
+		return up
+	}
+
 	defaultRule := Rule{
 		Name: "default",
 		Do: Command{
@@ -70,62 +70,44 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 
 	var nonDefaultRules Rules
 	hasDefaultRule := false
-	hasResponseRule := false
-	modifyResponse := false
-	for _, rule := range rules {
+	for i, rule := range rules {
 		if rule.Name == "default" {
 			defaultRule = rule
 			hasDefaultRule = true
 		} else {
-			if rule.IsResponseRule() {
-				hasResponseRule = true
-			} else if hasResponseRule {
-				origUp := up
-				up = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w = GetInitResponseModifier(w)
-					origUp.ServeHTTP(w, r)
-					// TODO: cache should be shared
-					cache := NewCache()
-					defer cache.Release()
-					if rule.Check(cache, r) {
-						rule.Do.exec.Handle(cache, w, r)
-					}
-				})
-				modifyResponse = true
-			} else {
-				nonDefaultRules = append(nonDefaultRules, rule)
+			// set name to index if name is empty
+			if rule.Name == "" {
+				rule.Name = fmt.Sprintf("rule[%d]", i)
 			}
+			nonDefaultRules = append(nonDefaultRules, rule)
 		}
-	}
-
-	if modifyResponse {
-		origUp := up
-		up = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rm := GetInitResponseModifier(w)
-			origUp.ServeHTTP(rm, r)
-			if _, err := rm.FlushRelease(); err != nil {
-				log.Err(err).Msg("failed to flush response modifier")
-			}
-		})
 	}
 
 	if len(nonDefaultRules) == 0 {
 		if defaultRule.Do.isBypass() {
-			return up.ServeHTTP
+			return up
 		}
 		if defaultRule.IsResponseRule() {
 			return func(w http.ResponseWriter, r *http.Request) {
-				cache := NewCache()
-				defer cache.Release()
-				up.ServeHTTP(w, r)
-				defaultRule.Do.exec.Handle(cache, w, r)
+				rm := NewResponseModifier(w)
+				w = rm
+				up(w, r)
+				err := defaultRule.Do.exec.Handle(w, r)
+				if err != nil && !errors.Is(err, errTerminated) {
+					rm.AppendError(defaultRule, err)
+				}
 			}
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
-			cache := NewCache()
-			defer cache.Release()
-			if defaultRule.Do.exec.Handle(cache, w, r) {
-				up.ServeHTTP(w, r)
+			rm := NewResponseModifier(w)
+			w = rm
+			err := defaultRule.Do.exec.Handle(w, r)
+			if err == nil {
+				up(w, r)
+				return
+			}
+			if !errors.Is(err, errTerminated) {
+				rm.AppendError(defaultRule, err)
 			}
 		}
 	}
@@ -141,31 +123,72 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 	}
 
 	isDefaultRulePost := hasDefaultRule && defaultRule.IsResponseRule()
+	defaultTerminates := isTerminatingHandler(defaultRule.Do.exec)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		cache := NewCache()
-		defer cache.Release()
-
-		for _, rule := range preRules {
-			if rule.Check(cache, r) {
-				if rule.Do.isBypass() {
-					up.ServeHTTP(w, r)
-					break
-				}
-				if !rule.Handle(cache, w, r) {
-					break
-				}
+		rm := NewResponseModifier(w)
+		defer func() {
+			if _, err := rm.FlushRelease(); err != nil {
+				gperr.LogError("error executing rules", err)
 			}
-		}
+		}()
 
-		if hasDefaultRule && !isDefaultRulePost {
+		w = rm
+
+		shouldCallUpstream := true
+		preMatched := false
+
+		if hasDefaultRule && !isDefaultRulePost && !defaultTerminates {
 			if defaultRule.Do.isBypass() {
 				// continue to upstream
-			} else if !defaultRule.Handle(cache, w, r) {
-				return
+			} else {
+				err := defaultRule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(defaultRule, err)
+					}
+					shouldCallUpstream = false
+				}
 			}
 		}
-		up.ServeHTTP(w, r)
+
+		if shouldCallUpstream {
+			for _, rule := range preRules {
+				if rule.Check(w, r) {
+					preMatched = true
+					if rule.Do.isBypass() {
+						break // post rules should still execute
+					}
+					err := rule.Handle(w, r)
+					if err != nil {
+						if !errors.Is(err, errTerminated) {
+							rm.AppendError(rule, err)
+						}
+						shouldCallUpstream = false
+						break
+					}
+				}
+			}
+		}
+
+		if hasDefaultRule && !isDefaultRulePost && defaultTerminates && shouldCallUpstream && !preMatched {
+			if defaultRule.Do.isBypass() {
+				// continue to upstream
+			} else {
+				err := defaultRule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(defaultRule, err)
+						return
+					}
+					shouldCallUpstream = false
+				}
+			}
+		}
+
+		if shouldCallUpstream {
+			up(w, r)
+		}
 
 		// if no post rules, we are done here
 		if len(postRules) == 0 && !isDefaultRulePost {
@@ -173,18 +196,37 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 		}
 
 		for _, rule := range postRules {
-			if rule.Check(cache, r) {
-				// for post-request rules, proceed=false means stop processing more post-rules
-				// for now it always proceed
-				if !rule.Handle(cache, w, r) {
+			if rule.Check(w, r) {
+				err := rule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(rule, err)
+					}
 					return
 				}
 			}
 		}
 
-		if hasDefaultRule && isDefaultRulePost {
-			defaultRule.Handle(cache, w, r)
+		if isDefaultRulePost {
+			err := defaultRule.Handle(w, r)
+			if err != nil && !errors.Is(err, errTerminated) {
+				rm.AppendError(defaultRule, err)
+			}
 		}
+	}
+}
+
+func isTerminatingHandler(handler CommandHandler) bool {
+	switch h := handler.(type) {
+	case TerminatingCommand:
+		return true
+	case Commands:
+		if len(h) == 0 {
+			return false
+		}
+		return isTerminatingHandler(h[len(h)-1])
+	default:
+		return false
 	}
 }
 
@@ -200,14 +242,16 @@ func (rule *Rule) String() string {
 	return rule.Name
 }
 
-func (rule *Rule) Check(cached Cache, r *http.Request) bool {
+func (rule *Rule) Check(w http.ResponseWriter, r *http.Request) bool {
 	if rule.On.checker == nil {
 		return true
 	}
-	return rule.On.checker.Check(cached, r)
+	v := rule.On.checker.Check(w, r)
+	log.Info().Msgf("checking rule %q: %v", rule.Name, v)
+	return v
 }
 
-func (rule *Rule) Handle(cached Cache, w http.ResponseWriter, r *http.Request) (proceed bool) {
-	proceed = rule.Do.exec.Handle(cached, w, r)
-	return proceed
+func (rule *Rule) Handle(w http.ResponseWriter, r *http.Request) error {
+	log.Info().Msgf("handling rule %q", rule.Name)
+	return rule.Do.exec.Handle(w, r)
 }
