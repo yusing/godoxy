@@ -7,6 +7,86 @@ import (
 	expect "github.com/yusing/goutils/testing"
 )
 
+func TestSplitPipe(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  []string{},
+		},
+		{
+			name:  "single",
+			input: "rule",
+			want:  []string{"rule"},
+		},
+		{
+			name:  "simple_pipe",
+			input: "rule1 | rule2",
+			want:  []string{"rule1", "rule2"},
+		},
+		{
+			name:  "multiple_pipes",
+			input: "rule1 | rule2 | rule3",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "pipe_in_quotes",
+			input: `path regex("^(_next/static|_next/image|favicon.ico).*$")`,
+			want:  []string{`path regex("^(_next/static|_next/image|favicon.ico).*$")`},
+		},
+		{
+			name:  "pipe_in_single_quotes",
+			input: `path regex('^(_next/static|_next/image|favicon.ico).*$')`,
+			want:  []string{`path regex('^(_next/static|_next/image|favicon.ico).*$')`},
+		},
+		{
+			name:  "pipe_in_backticks",
+			input: "path regex(`^(_next/static|_next/image|favicon.ico).*$`)",
+			want:  []string{"path regex(`^(_next/static|_next/image|favicon.ico).*$`)"},
+		},
+		{
+			name:  "pipe_in_brackets",
+			input: "path regex(^(_next/static|_next/image|favicon.ico).*$)",
+			want:  []string{"path regex(^(_next/static|_next/image|favicon.ico).*$)"},
+		},
+		{
+			name:  "escaped_pipe",
+			input: `path regex("^(_next/static\|_next/image\|favicon.ico).*$")`,
+			want:  []string{`path regex("^(_next/static\|_next/image\|favicon.ico).*$")`},
+		},
+		{
+			name:  "mixed_quotes_and_pipes",
+			input: `rule1 | path regex("^(_next/static|_next/image|favicon.ico).*$") | rule3`,
+			want:  []string{"rule1", `path regex("^(_next/static|_next/image|favicon.ico).*$")`, "rule3"},
+		},
+		{
+			name:  "nested_brackets",
+			input: "path regex(^(foo|bar(baz|qux)).*$)",
+			want:  []string{"path regex(^(foo|bar(baz|qux)).*$)"},
+		},
+		{
+			name:  "spaces_around",
+			input: " rule1 | rule2 | rule3 ",
+			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "empty_segments",
+			input: "rule1 || rule2 | | rule3",
+			want:  []string{"rule1", "", "rule2", "", "rule3"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitPipe(tt.input)
+			expect.Equal(t, got, tt.want)
+		})
+	}
+}
+
 func TestSplitAnd(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -178,6 +258,27 @@ func TestParseOn(t *testing.T) {
 			name:    "route_extra_arg",
 			input:   "route example1 example2",
 			wantErr: ErrExpectOneArg,
+		},
+		// pipe splitting tests
+		{
+			name:    "pipe_simple",
+			input:   "method GET | method POST",
+			wantErr: nil,
+		},
+		{
+			name:    "pipe_in_quotes",
+			input:   `path regex("^(_next/static|_next/image|favicon.ico).*$")`,
+			wantErr: nil,
+		},
+		{
+			name:    "pipe_in_brackets",
+			input:   "path regex(^(_next/static|_next/image|favicon.ico).*$)",
+			wantErr: nil,
+		},
+		{
+			name:    "pipe_mixed",
+			input:   `method GET | path regex("^(_next/static|_next/image|favicon.ico).*$") | header Authorization`,
+			wantErr: nil,
 		},
 	}
 

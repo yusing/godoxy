@@ -4,7 +4,7 @@ import "testing"
 
 func BenchmarkMatcher(b *testing.B) {
 	b.Run("StringMatcher", func(b *testing.B) {
-		matcher, err := StringMatcher("foo")
+		matcher, err := StringMatcher("foo", false)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -14,7 +14,7 @@ func BenchmarkMatcher(b *testing.B) {
 	})
 
 	b.Run("GlobMatcher", func(b *testing.B) {
-		matcher, err := GlobMatcher("foo*bar?baz*[abc]*.txt")
+		matcher, err := GlobMatcher("foo*bar?baz*[abc]*.txt", false)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -24,7 +24,7 @@ func BenchmarkMatcher(b *testing.B) {
 	})
 
 	b.Run("RegexMatcher", func(b *testing.B) {
-		matcher, err := RegexMatcher(`^(foo\d+|bar(_baz)?)[a-z]{3,}\.txt$`)
+		matcher, err := RegexMatcher(`^(foo\d+|bar(_baz)?)[a-z]{3,}\.txt$`, false)
 		if err != nil {
 			b.Fatal(err)
 		}

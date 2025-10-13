@@ -8,7 +8,6 @@ import (
 
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
-	strutils "github.com/yusing/goutils/strings"
 )
 
 type RuleOn struct {
@@ -453,6 +452,66 @@ func splitAnd(s string) []string {
 	return a[:i]
 }
 
+// splitPipe splits a string by "|" but respects quotes, brackets, and escaped characters.
+// It's similar to the parser.go logic but specifically for pipe splitting.
+func splitPipe(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+
+	var result []string
+	var current strings.Builder
+	escaped := false
+	quote := rune(0)
+	brackets := 0
+
+	for _, r := range s {
+		if escaped {
+			current.WriteRune(r)
+			escaped = false
+			continue
+		}
+
+		switch r {
+		case '\\':
+			escaped = true
+			current.WriteRune(r)
+		case '"', '\'', '`':
+			if quote == 0 && brackets == 0 {
+				quote = r
+			} else if r == quote {
+				quote = 0
+			}
+			current.WriteRune(r)
+		case '(':
+			brackets++
+			current.WriteRune(r)
+		case ')':
+			if brackets > 0 {
+				brackets--
+			}
+			current.WriteRune(r)
+		case '|':
+			if quote == 0 && brackets == 0 {
+				// Found a pipe outside quotes/brackets, split here
+				result = append(result, strings.TrimSpace(current.String()))
+				current.Reset()
+			} else {
+				current.WriteRune(r)
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	// Add the last part
+	if current.Len() > 0 {
+		result = append(result, strings.TrimSpace(current.String()))
+	}
+
+	return result
+}
+
 // Parse implements strutils.Parser.
 func (on *RuleOn) Parse(v string) error {
 	on.raw = v
@@ -491,7 +550,7 @@ func (on *RuleOn) MarshalText() ([]byte, error) {
 }
 
 func parseOn(line string) (Checker, bool, gperr.Error) {
-	ors := strutils.SplitRune(line, '|')
+	ors := splitPipe(line)
 
 	if len(ors) > 1 {
 		errs := gperr.NewBuilder("rule.on syntax errors")
@@ -519,6 +578,12 @@ func parseOn(line string) (Checker, bool, gperr.Error) {
 		return nil, false, err
 	}
 
+	negate := false
+	if strings.HasPrefix(subject, "!") {
+		negate = true
+		subject = subject[1:]
+	}
+
 	checker, ok := checkers[subject]
 	if !ok {
 		return nil, false, ErrInvalidOnTarget.Subject(subject)
@@ -529,5 +594,12 @@ func parseOn(line string) (Checker, bool, gperr.Error) {
 		return nil, false, err.Subject(subject).With(checker.help.Error())
 	}
 
-	return checker.builder(validArgs), checker.isResponseChecker, nil
+	checkFunc := checker.builder(validArgs)
+	if negate {
+		origCheckFunc := checkFunc
+		checkFunc = func(w http.ResponseWriter, r *http.Request) bool {
+			return !origCheckFunc(w, r)
+		}
+	}
+	return checkFunc, checker.isResponseChecker, nil
 }

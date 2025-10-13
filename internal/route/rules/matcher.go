@@ -59,40 +59,62 @@ func ExtractExpr(s string) (matcherType MatcherType, expr string, err gperr.Erro
 }
 
 func ParseMatcher(expr string) (Matcher, gperr.Error) {
+	negate := false
+	if strings.HasPrefix(expr, "!") {
+		negate = true
+		expr = expr[1:]
+	}
+
 	t, expr, err := ExtractExpr(expr)
 	if err != nil {
 		return nil, err
 	}
+
 	switch t {
 	case MatcherTypeString:
-		return StringMatcher(expr)
+		return StringMatcher(expr, negate)
 	case MatcherTypeGlob:
-		return GlobMatcher(expr)
+		return GlobMatcher(expr, negate)
 	case MatcherTypeRegex:
-		return RegexMatcher(expr)
+		return RegexMatcher(expr, negate)
 	}
 	// won't reach here
 	return nil, ErrInvalidArguments.Withf("invalid matcher type: %s", t)
 }
 
-func StringMatcher(s string) (Matcher, gperr.Error) {
+func StringMatcher(s string, negate bool) (Matcher, gperr.Error) {
+	if negate {
+		return func(s2 string) bool {
+			return s != s2
+		}, nil
+	}
 	return func(s2 string) bool {
 		return s == s2
 	}, nil
 }
 
-func GlobMatcher(expr string) (Matcher, gperr.Error) {
+func GlobMatcher(expr string, negate bool) (Matcher, gperr.Error) {
 	g, err := glob.Compile(expr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
+	if negate {
+		return func(s string) bool {
+			return !g.Match(s)
+		}, nil
+	}
 	return g.Match, nil
 }
 
-func RegexMatcher(expr string) (Matcher, gperr.Error) {
+func RegexMatcher(expr string, negate bool) (Matcher, gperr.Error) {
 	re, err := regexp.Compile(expr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
+	}
+	if negate {
+		return func(s string) bool {
+			return !re.MatchString(s)
+		}, nil
 	}
 	return re.MatchString, nil
 }

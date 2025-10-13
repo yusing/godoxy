@@ -48,6 +48,18 @@ func genCorrectnessTestCases(field string, genRequest func(k, v string) *http.Re
 			input:   genRequest("bar", "abcd"),
 			want:    false,
 		},
+		{
+			name:    field + "_negated_match",
+			checker: "!" + field + " foo",
+			input:   genRequest("foo", "bar"),
+			want:    false,
+		},
+		{
+			name:    field + "_negated_no_match",
+			checker: "!" + field + " foo",
+			input:   genRequest("bar", "foo"),
+			want:    true,
+		},
 	}
 }
 
@@ -66,6 +78,18 @@ func TestOnCorrectness(t *testing.T) {
 			want:    false,
 		},
 		{
+			name:    "method_negated_match",
+			checker: "!method GET",
+			input:   &http.Request{Method: http.MethodGet},
+			want:    false,
+		},
+		{
+			name:    "method_negated_no_match",
+			checker: "!method GET",
+			input:   &http.Request{Method: http.MethodPost},
+			want:    true,
+		},
+		{
 			name:    "host_match",
 			checker: "host example.com",
 			input: &http.Request{
@@ -82,6 +106,22 @@ func TestOnCorrectness(t *testing.T) {
 			want: false,
 		},
 		{
+			name:    "host_negated_match",
+			checker: "!host example.com",
+			input: &http.Request{
+				Host: "example.com",
+			},
+			want: false,
+		},
+		{
+			name:    "host_negated_no_match",
+			checker: "!host example.com",
+			input: &http.Request{
+				Host: "example.org",
+			},
+			want: true,
+		},
+		{
 			name:    "path_exact_match",
 			checker: "path /example",
 			input: &http.Request{
@@ -90,10 +130,42 @@ func TestOnCorrectness(t *testing.T) {
 			want: true,
 		},
 		{
+			name:    "path_negated_match",
+			checker: "!path /example",
+			input: &http.Request{
+				URL: &url.URL{Path: "/example"},
+			},
+			want: false,
+		},
+		{
+			name:    "path_negated_no_match",
+			checker: "!path /example",
+			input: &http.Request{
+				URL: &url.URL{Path: "/example/foo"},
+			},
+			want: true,
+		},
+		{
 			name:    "remote_match",
 			checker: "remote 192.168.1.0/24",
 			input: &http.Request{
 				RemoteAddr: "192.168.1.5",
+			},
+			want: true,
+		},
+		{
+			name:    "remote_negated_match",
+			checker: "!remote 192.168.1.0/24",
+			input: &http.Request{
+				RemoteAddr: "192.168.1.5",
+			},
+			want: false,
+		},
+		{
+			name:    "remote_negated_no_match",
+			checker: "!remote 192.168.1.0/24",
+			input: &http.Request{
+				RemoteAddr: "192.168.2.5",
 			},
 			want: true,
 		},
@@ -126,6 +198,16 @@ func TestOnCorrectness(t *testing.T) {
 			want: false,
 		},
 		{
+			name:    "basic_auth_negated_match",
+			checker: "!basic_auth user " + string(expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
+			input: &http.Request{
+				Header: http.Header{
+					"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte("user:password"))}, // "user:password"
+				},
+			},
+			want: false,
+		},
+		{
 			name:    "route_match",
 			checker: "route example",
 			input: routes.WithRouteContext(&http.Request{}, expect.Must(route.NewFileServer(&route.Route{
@@ -143,6 +225,23 @@ func TestOnCorrectness(t *testing.T) {
 			want: false,
 		},
 		{
+			name:    "route_negated_match",
+			checker: "!route example",
+			input: routes.WithRouteContext(&http.Request{}, expect.Must(route.NewFileServer(&route.Route{
+				Alias: "example",
+				Root:  "/",
+			}))),
+			want: false,
+		},
+		{
+			name:    "route_negated_no_match",
+			checker: "!route example",
+			input: &http.Request{
+				Header: http.Header{},
+			},
+			want: true,
+		},
+		{
 			name:    "regex_match",
 			checker: `host regex(example\w+\.com)`,
 			input: &http.Request{
@@ -155,6 +254,22 @@ func TestOnCorrectness(t *testing.T) {
 			checker: `host regex(example\w+\.com)`,
 			input: &http.Request{
 				Host: "example.org",
+			},
+			want: false,
+		},
+		{
+			name:    "regex_negated_match",
+			checker: `!host regex(example\w+\.com)`,
+			input: &http.Request{
+				Host: "example.org",
+			},
+			want: true,
+		},
+		{
+			name:    "regex_negated_no_match",
+			checker: `!host regex(example\w+\.com)`,
+			input: &http.Request{
+				Host: "exampleabc.com",
 			},
 			want: false,
 		},
@@ -179,6 +294,22 @@ func TestOnCorrectness(t *testing.T) {
 			checker: `host glob(*.example.com)`,
 			input: &http.Request{
 				Host: "example.org",
+			},
+			want: false,
+		},
+		{
+			name:    "glob negated_match",
+			checker: `!host glob(*.example.com)`,
+			input: &http.Request{
+				Host: "example.com",
+			},
+			want: true,
+		},
+		{
+			name:    "glob negated_no_match",
+			checker: `!host glob(*.example.com)`,
+			input: &http.Request{
+				Host: "a.example.com",
 			},
 			want: false,
 		},
