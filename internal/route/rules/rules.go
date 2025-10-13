@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/bytedance/sonic"
-	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -247,11 +246,9 @@ func (rule *Rule) Check(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	v := rule.On.checker.Check(w, r)
-	log.Info().Msgf("checking rule %q: %v", rule.Name, v)
 	return v
 }
 
 func (rule *Rule) Handle(w http.ResponseWriter, r *http.Request) error {
-	log.Info().Msgf("handling rule %q", rule.Name)
 	return rule.Do.exec.Handle(w, r)
 }
