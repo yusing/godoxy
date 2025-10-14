@@ -254,12 +254,15 @@ func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 
 // validateModField returns CommandHandler with the field validated.
 func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.Error) {
+	if len(args) == 0 {
+		return nil, ErrExpectOneOrTwoArgs
+	}
 	setField, ok := modFields[args[0]]
 	if !ok {
 		return nil, ErrUnknownModField.Subject(args[0])
 	}
 	if mod == ModFieldRemove {
-		if len(args[1:]) != 1 {
+		if len(args) != 1 {
 			return nil, ErrExpectOneArg
 		}
 		// setField expect validateStrTuple
