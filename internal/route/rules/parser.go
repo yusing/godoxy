@@ -33,7 +33,7 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 	brackets := 0
 
 	var envVar bytes.Buffer
-	var missingEnvVars bytes.Buffer
+	var missingEnvVars []string
 	inEnvVar := false
 	expectingBrace := false
 
@@ -98,7 +98,7 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 				// like ${API_ADDR} will lookup for GODOXY_API_ADDR, GOPROXY_API_ADDR and API_ADDR.
 				envValue, ok := env.LookupEnv(envVar.String())
 				if !ok {
-					fmt.Fprintf(&missingEnvVars, "%q, ", envVar.String())
+					missingEnvVars = append(missingEnvVars, envVar.String())
 				} else {
 					buf.WriteString(envValue)
 				}
@@ -159,8 +159,8 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 	} else {
 		flush(false)
 	}
-	if missingEnvVars.Len() > 0 {
-		err = gperr.Join(err, ErrEnvVarNotFound.Subject(missingEnvVars.String()))
+	if len(missingEnvVars) > 0 {
+		err = gperr.Join(err, ErrEnvVarNotFound.With(gperr.Multiline().AddStrings(missingEnvVars...)))
 	}
 	return subject, args, err
 }
