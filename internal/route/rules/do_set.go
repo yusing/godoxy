@@ -31,7 +31,7 @@ const (
 	FieldCookie         = "cookie"
 	FieldBody           = "body"
 	FieldResponseBody   = "resp_body"
-	FieldStatusCode     = "status_code"
+	FieldStatusCode     = "status"
 )
 
 var AllFields = []string{FieldHeader, FieldResponseHeader, FieldQuery, FieldCookie, FieldBody, FieldResponseBody, FieldStatusCode}

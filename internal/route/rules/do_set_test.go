@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -495,8 +496,12 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
 			rm := NewResponseModifier(w)
-			handler := modFields[FieldStatusCode].builder(tt.status)
-			err := handler.set.Handle(rm, req)
+			var cmd Command
+			err := cmd.Parse(fmt.Sprintf("set %s %d", FieldStatusCode, tt.status))
+			if err != nil {
+				t.Fatalf("Handler returned error: %v", err)
+			}
+			err = cmd.ServeHTTP(rm, req)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
