@@ -107,6 +107,12 @@ func validateURL(args []string) (any, gperr.Error) {
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
+	if u.Scheme == "" {
+		// expect relative URL, must starts with /
+		if !strings.HasPrefix(u.Path, "/") {
+			return nil, ErrInvalidArguments.Withf("relative URL must starts with /")
+		}
+	}
 	return u, nil
 }
 
@@ -255,15 +261,15 @@ func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 // validateModField returns CommandHandler with the field validated.
 func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.Error) {
 	if len(args) == 0 {
-		return nil, ErrExpectOneOrTwoArgs
+		return nil, ErrExpectTwoOrThreeArgs
 	}
 	setField, ok := modFields[args[0]]
 	if !ok {
 		return nil, ErrUnknownModField.Subject(args[0])
 	}
 	if mod == ModFieldRemove {
-		if len(args) != 1 {
-			return nil, ErrExpectOneArg
+		if len(args) != 2 {
+			return nil, ErrExpectTwoArgs
 		}
 		// setField expect validateStrTuple
 		args = append(args, "")

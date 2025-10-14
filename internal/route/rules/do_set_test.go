@@ -6,6 +6,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFieldHandler_Header(t *testing.T) {
@@ -26,9 +29,8 @@ func TestFieldHandler_Header(t *testing.T) {
 				r.Header.Set("X-Test", "old-value")
 			},
 			verify: func(r *http.Request, w *httptest.ResponseRecorder) {
-				if got := r.Header.Get("X-Test"); got != "test-value" {
-					t.Errorf("Expected header X-Test to be 'test-value', got '%s'", got)
-				}
+				got := r.Header.Get("X-Test")
+				assert.Equal(t, "test-value", got, "Expected header X-Test to be 'test-value'")
 			},
 		},
 		{
@@ -41,12 +43,9 @@ func TestFieldHandler_Header(t *testing.T) {
 			},
 			verify: func(r *http.Request, w *httptest.ResponseRecorder) {
 				values := r.Header["X-Test"]
-				if len(values) != 2 {
-					t.Errorf("Expected 2 header values, got %d", len(values))
-				}
-				if values[0] != "existing-value" || values[1] != "new-value" {
-					t.Errorf("Expected ['existing-value', 'new-value'], got %v", values)
-				}
+				require.Len(t, values, 2, "Expected 2 header values")
+				assert.Equal(t, "existing-value", values[0], "Expected first value of X-Test header to be 'existing-value'")
+				assert.Equal(t, "new-value", values[1], "Expected second value of X-Test header to be 'new-value'")
 			},
 		},
 		{
@@ -58,9 +57,8 @@ func TestFieldHandler_Header(t *testing.T) {
 				r.Header.Set("X-Test", "to-be-removed")
 			},
 			verify: func(r *http.Request, w *httptest.ResponseRecorder) {
-				if got := r.Header.Get("X-Test"); got != "" {
-					t.Errorf("Expected header X-Test to be removed, got '%s'", got)
-				}
+				got := r.Header.Get("X-Test")
+				assert.Empty(t, got, "Expected header X-Test to be removed")
 			},
 		},
 	}
@@ -102,6 +100,7 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 		key      string
 		value    string
 		modifier FieldModifier
+		setup    func(*httptest.ResponseRecorder)
 		verify   func(*httptest.ResponseRecorder)
 	}{
 		{
@@ -110,9 +109,8 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 			value:    "response-value",
 			modifier: ModFieldSet,
 			verify: func(w *httptest.ResponseRecorder) {
-				if got := w.Header().Get("X-Response-Test"); got != "response-value" {
-					t.Errorf("Expected response header X-Response-Test to be 'response-value', got '%s'", got)
-				}
+				got := w.Header().Get("X-Response-Test")
+				assert.Equal(t, "response-value", got, "Expected response header X-Response-Test to be 'response-value'")
 			},
 		},
 		{
@@ -120,11 +118,14 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 			key:      "X-Response-Test",
 			value:    "additional-value",
 			modifier: ModFieldAdd,
+			setup: func(w *httptest.ResponseRecorder) {
+				w.Header().Set("X-Response-Test", "existing-value")
+			},
 			verify: func(w *httptest.ResponseRecorder) {
 				values := w.Header()["X-Response-Test"]
-				if len(values) != 1 || values[0] != "additional-value" {
-					t.Errorf("Expected ['additional-value'], got %v", values)
-				}
+				require.Len(t, values, 2)
+				assert.Equal(t, values[0], "existing-value")
+				assert.Equal(t, values[1], "additional-value")
 			},
 		},
 		{
@@ -133,9 +134,7 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 			value:    "",
 			modifier: ModFieldRemove,
 			verify: func(w *httptest.ResponseRecorder) {
-				if got := w.Header().Get("X-Response-Test"); got != "" {
-					t.Errorf("Expected response header X-Response-Test to be removed, got '%s'", got)
-				}
+				assert.Empty(t, w.Header().Get("X-Response-Test"))
 			},
 		},
 	}
@@ -144,6 +143,9 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
+			if tt.setup != nil {
+				tt.setup(w)
+			}
 
 			tmpl, tErr := validateTemplate(tt.value, false)
 			if tErr != nil {
@@ -188,12 +190,10 @@ func TestFieldHandler_Query(t *testing.T) {
 				r.URL.RawQuery = "test=old-value&other=keep"
 			},
 			verify: func(r *http.Request) {
-				if got := r.URL.Query().Get("test"); got != "new-value" {
-					t.Errorf("Expected query 'test' to be 'new-value', got '%s'", got)
-				}
-				if got := r.URL.Query().Get("other"); got != "keep" {
-					t.Errorf("Expected query 'other' to be 'keep', got '%s'", got)
-				}
+				got := r.URL.Query().Get("test")
+				assert.Equal(t, "new-value", got, "Expected query 'test' to be 'new-value'")
+				gotOther := r.URL.Query().Get("other")
+				assert.Equal(t, "keep", gotOther, "Expected query 'other' to be 'keep'")
 			},
 		},
 		{
@@ -206,12 +206,9 @@ func TestFieldHandler_Query(t *testing.T) {
 			},
 			verify: func(r *http.Request) {
 				values := r.URL.Query()["test"]
-				if len(values) != 2 {
-					t.Errorf("Expected 2 query values, got %d", len(values))
-				}
-				if values[0] != "existing-value" || values[1] != "additional-value" {
-					t.Errorf("Expected ['existing-value', 'additional-value'], got %v", values)
-				}
+				require.Len(t, values, 2, "Expected 2 query values")
+				assert.Equal(t, "existing-value", values[0], "Expected first value of test query param to be 'existing-value'")
+				assert.Equal(t, "additional-value", values[1], "Expected second value of test query param to be 'additional-value'")
 			},
 		},
 		{
@@ -223,12 +220,10 @@ func TestFieldHandler_Query(t *testing.T) {
 				r.URL.RawQuery = "test=to-be-removed&other=keep"
 			},
 			verify: func(r *http.Request) {
-				if got := r.URL.Query().Get("test"); got != "" {
-					t.Errorf("Expected query 'test' to be removed, got '%s'", got)
-				}
-				if got := r.URL.Query().Get("other"); got != "keep" {
-					t.Errorf("Expected query 'other' to be 'keep', got '%s'", got)
-				}
+				got := r.URL.Query().Get("test")
+				assert.Empty(t, got, "Expected query 'test' to be removed")
+				gotOther := r.URL.Query().Get("other")
+				assert.Equal(t, "keep", gotOther, "Expected query 'other' to be 'keep'")
 			},
 		},
 	}
@@ -283,11 +278,9 @@ func TestFieldHandler_Cookie(t *testing.T) {
 			},
 			verify: func(r *http.Request) {
 				cookie, err := r.Cookie("test")
-				if err != nil {
-					t.Fatalf("Expected cookie 'test' to exist, got error: %v", err)
-				}
-				if cookie.Value != "new-value" {
-					t.Errorf("Expected cookie 'test' to be 'new-value', got '%s'", cookie.Value)
+				assert.NoError(t, err, "Expected cookie 'test' to exist")
+				if err == nil {
+					assert.Equal(t, "new-value", cookie.Value, "Expected cookie 'test' to be 'new-value'")
 				}
 			},
 		},
@@ -307,12 +300,9 @@ func TestFieldHandler_Cookie(t *testing.T) {
 						testCookies = append(testCookies, c.Value)
 					}
 				}
-				if len(testCookies) != 2 {
-					t.Errorf("Expected 2 cookies with name 'test', got %d", len(testCookies))
-				}
-				if testCookies[0] != "existing-value" || testCookies[1] != "additional-value" {
-					t.Errorf("Expected ['existing-value', 'additional-value'], got %v", testCookies)
-				}
+				require.Len(t, testCookies, 2, "Expected 2 cookies with name 'test'")
+				assert.Equal(t, "existing-value", testCookies[0], "Expected first value of 'test' cookie to be 'existing-value'")
+				assert.Equal(t, "additional-value", testCookies[1], "Expected second value of 'test' cookie to be 'additional-value'")
 			},
 		},
 		{
@@ -325,11 +315,12 @@ func TestFieldHandler_Cookie(t *testing.T) {
 				r.AddCookie(&http.Cookie{Name: "other", Value: "keep"})
 			},
 			verify: func(r *http.Request) {
-				if _, err := r.Cookie("test"); err == nil {
-					t.Errorf("Expected cookie 'test' to be removed")
-				}
-				if cookie, err := r.Cookie("other"); err != nil || cookie.Value != "keep" {
-					t.Errorf("Expected cookie 'other' to be 'keep', got error: %v", err)
+				_, err := r.Cookie("test")
+				assert.Error(t, err, "Expected cookie 'test' to be removed")
+				cookie, err := r.Cookie("other")
+				assert.NoError(t, err, "Expected cookie 'other' to exist")
+				if err == nil {
+					assert.Equal(t, "keep", cookie.Value, "Expected cookie 'other' to be 'keep'")
 				}
 			},
 		},
@@ -382,13 +373,9 @@ func TestFieldHandler_Body(t *testing.T) {
 			},
 			verify: func(r *http.Request) {
 				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					t.Fatalf("Failed to read body: %v", err)
-				}
+				assert.NoError(t, err, "Failed to read body")
 				expected := "Hello POST /test"
-				if string(body) != expected {
-					t.Errorf("Expected body '%s', got '%s'", expected, string(body))
-				}
+				assert.Equal(t, expected, string(body), "Expected body content")
 			},
 		},
 		{
@@ -399,12 +386,8 @@ func TestFieldHandler_Body(t *testing.T) {
 			},
 			verify: func(r *http.Request) {
 				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					t.Fatalf("Failed to read body: %v", err)
-				}
-				if string(body) != "Overridden" {
-					t.Errorf("Expected body 'Overridden', got '%s'", string(body))
-				}
+				assert.NoError(t, err, "Failed to read body")
+				assert.Equal(t, "Overridden", string(body), "Expected body to be 'Overridden'")
 			},
 		},
 	}
@@ -448,9 +431,7 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 			verify: func(rm *ResponseModifier) {
 				content := rm.buf.String()
 				expected := "Response: GET /api/test"
-				if content != expected {
-					t.Errorf("Expected response body '%s', got '%s'", expected, content)
-				}
+				assert.Equal(t, expected, content, "Expected response body")
 			},
 		},
 	}
@@ -490,27 +471,21 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 			name:   "set status code 200",
 			status: 200,
 			verify: func(w *httptest.ResponseRecorder) {
-				if w.Code != 200 {
-					t.Errorf("Expected status code 200, got %d", w.Code)
-				}
+				assert.Equal(t, 200, w.Code, "Expected status code 200")
 			},
 		},
 		{
 			name:   "set status code 404",
 			status: 404,
 			verify: func(w *httptest.ResponseRecorder) {
-				if w.Code != 404 {
-					t.Errorf("Expected status code 404, got %d", w.Code)
-				}
+				assert.Equal(t, 404, w.Code, "Expected status code 404")
 			},
 		},
 		{
 			name:   "set status code 500",
 			status: 500,
 			verify: func(w *httptest.ResponseRecorder) {
-				if w.Code != 500 {
-					t.Errorf("Expected status code 500, got %d", w.Code)
-				}
+				assert.Equal(t, 500, w.Code, "Expected status code 500")
 			},
 		},
 	}
@@ -616,16 +591,13 @@ func TestFieldValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			field, exists := modFields[tt.field]
-			if !exists {
-				t.Fatalf("Field %s does not exist", tt.field)
-			}
+			assert.True(t, exists, "Field %s does not exist", tt.field)
 
 			_, err := field.validate(tt.args)
-			if tt.wantError && err == nil {
-				t.Errorf("Expected error but got none")
-			}
-			if !tt.wantError && err != nil {
-				t.Errorf("Expected no error but got: %v", err)
+			if tt.wantError {
+				assert.Error(t, err, "Expected error but got none")
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
 			}
 		})
 	}
@@ -642,9 +614,7 @@ func TestAllFields(t *testing.T) {
 		FieldStatusCode,
 	}
 
-	if len(AllFields) != len(expectedFields) {
-		t.Errorf("Expected %d fields, got %d", len(expectedFields), len(AllFields))
-	}
+	require.Len(t, AllFields, len(expectedFields), "Expected %d fields", len(expectedFields))
 
 	for _, expected := range expectedFields {
 		found := false
@@ -654,23 +624,15 @@ func TestAllFields(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Errorf("Expected field %s not found in AllFields", expected)
-		}
+		assert.True(t, found, "Expected field %s not found in AllFields", expected)
 	}
 }
 
 func TestModFields(t *testing.T) {
 	for fieldName, field := range modFields {
 		// Test that each field has required components
-		if field.validate == nil {
-			t.Errorf("Field %s has nil validate function", fieldName)
-		}
-		if field.builder == nil {
-			t.Errorf("Field %s has nil builder function", fieldName)
-		}
-		if field.help.command == "" {
-			t.Errorf("Field %s has empty help command", fieldName)
-		}
+		assert.NotNil(t, field.validate, "Field %s has nil validate function", fieldName)
+		assert.NotNil(t, field.builder, "Field %s has nil builder function", fieldName)
+		assert.NotEmpty(t, field.help.command, "Field %s has empty help command", fieldName)
 	}
 }

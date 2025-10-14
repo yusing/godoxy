@@ -610,10 +610,10 @@ func TestHTTPFlow_FormConditions(t *testing.T) {
 	err := parseRules(`
 - name: process-form
   on: form username
-  do: set resp_header X-Username "{{ index .Form.username 0 }}"
+  do: set resp_header X-Username "{{ index .Request.Form.username 0 }}"
 - name: process-postform
   on: postform email
-  do: set resp_header X-Email "{{ index .PostForm.email 0 }}"
+  do: set resp_header X-Email "{{ index .Request.PostForm.email 0 }}"
 `, &rules)
 	require.NoError(t, err)
 
