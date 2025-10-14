@@ -2,7 +2,11 @@ package route
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
+	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,6 +21,7 @@ import (
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
+	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
@@ -25,6 +30,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/route/rules"
+	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/utils"
 )
@@ -42,6 +48,7 @@ type (
 		route.HTTPConfig
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
 		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
+		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
 		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck"`
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
 		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
@@ -212,7 +219,10 @@ func (r *Route) Validate() gperr.Error {
 		}
 	}
 
-	errs := gperr.NewBuilder("entry validation failed")
+	var errs gperr.Builder
+	if err := r.validateRules(); err != nil {
+		errs.Add(err)
+	}
 
 	var impl types.Route
 	var err gperr.Error
@@ -263,6 +273,39 @@ func (r *Route) Validate() gperr.Error {
 	r.Excluded = r.ShouldExclude()
 	if r.Excluded {
 		r.ExcludedReason = r.GetExcludedReason()
+	}
+	return nil
+}
+
+func (r *Route) validateRules() error {
+	if r.RuleFile != "" && len(r.Rules) > 0 {
+		return errors.New("`rule_file` and `rules` cannot be used together")
+	} else if r.RuleFile != "" {
+		src, err := url.Parse(r.RuleFile)
+		if err != nil {
+			return fmt.Errorf("failed to parse rule file url %q: %w", r.RuleFile, err)
+		}
+		switch src.Scheme {
+		case "embed": // embed://<preset_file_name>
+			rules, ok := rulepresets.GetRulePreset(src.Host)
+			if !ok {
+				return fmt.Errorf("rule preset %q not found", src.Host)
+			} else {
+				r.Rules = rules
+			}
+		case "file", "":
+			content, err := os.ReadFile(src.Path)
+			if err != nil {
+				return fmt.Errorf("failed to read rule file %q: %w", src.Path, err)
+			} else {
+				_, err = serialization.ConvertString(string(content), reflect.ValueOf(&r.Rules))
+				if err != nil {
+					return fmt.Errorf("failed to unmarshal rule file %q: %w", src.Path, err)
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported rule file scheme %q", src.Scheme)
+		}
 	}
 	return nil
 }

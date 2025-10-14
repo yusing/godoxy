@@ -3,9 +3,9 @@ package rules
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"unicode"
 
+	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -94,7 +94,9 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			}
 		case '}':
 			if inEnvVar {
-				envValue, ok := os.LookupEnv(envVar.String())
+				// NOTE: use env.LookupEnv instead of os.LookupEnv to support environment variable prefixes
+				// like ${API_ADDR} will lookup for GODOXY_API_ADDR, GOPROXY_API_ADDR and API_ADDR.
+				envValue, ok := env.LookupEnv(envVar.String())
 				if !ok {
 					fmt.Fprintf(&missingEnvVars, "%q, ", envVar.String())
 				} else {
