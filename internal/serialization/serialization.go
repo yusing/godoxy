@@ -15,6 +15,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/godoxy/internal/utils"
 	gi "github.com/yusing/gointernals"
+	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -603,7 +604,9 @@ func substituteEnv(data []byte) ([]byte, gperr.Error) {
 	envError := gperr.NewBuilder("env substitution error")
 	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
 		varName := string(match[2 : len(match)-1])
-		env, ok := os.LookupEnv(varName)
+		// NOTE: use env.LookupEnv instead of os.LookupEnv to support environment variable prefixes
+		// like ${API_ADDR} will lookup for GODOXY_API_ADDR, GOPROXY_API_ADDR and API_ADDR.
+		env, ok := env.LookupEnv(varName)
 		if !ok {
 			envError.Addf("%s is not set", varName)
 		}
