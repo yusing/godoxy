@@ -210,7 +210,7 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) 
 				return findIconSlow(ctx, r, loc, append(stack, newReq.URL.Path))
 			}
 		}
-		return FetchResultWithErrorf(c.status, "upstream error: %s", c.data)
+		return FetchResultWithErrorf(c.status, "upstream error: status %d, %s", c.status, c.data)
 	}
 	// return icon data
 	if !httputils.GetContentType(c.header).IsHTML() {
