@@ -50,6 +50,12 @@ func TestExtractExpr(t *testing.T) {
 			wantExpr: "^[A-Z]+$",
 		},
 		{
+			name:     "regex with parentheses",
+			in:       "regex(test(group))",
+			wantT:    MatcherTypeRegex,
+			wantExpr: "test(group)",
+		},
+		{
 			name:     "regex complex",
 			in:       `regex("^(_next/static|_next/image|favicon.ico).*$")`,
 			wantT:    MatcherTypeRegex,

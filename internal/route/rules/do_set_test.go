@@ -490,22 +490,27 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 			name:   "set status code 200",
 			status: 200,
 			verify: func(w *httptest.ResponseRecorder) {
-				// Note: ResponseModifier doesn't write the header immediately
-				// The status code is stored and written during FlushRelease
+				if w.Code != 200 {
+					t.Errorf("Expected status code 200, got %d", w.Code)
+				}
 			},
 		},
 		{
 			name:   "set status code 404",
 			status: 404,
 			verify: func(w *httptest.ResponseRecorder) {
-				// Status code is set in ResponseModifier
+				if w.Code != 404 {
+					t.Errorf("Expected status code 404, got %d", w.Code)
+				}
 			},
 		},
 		{
 			name:   "set status code 500",
 			status: 500,
 			verify: func(w *httptest.ResponseRecorder) {
-				// Status code is set in ResponseModifier
+				if w.Code != 500 {
+					t.Errorf("Expected status code 500, got %d", w.Code)
+				}
 			},
 		},
 	}
@@ -514,12 +519,13 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
-
+			rm := NewResponseModifier(w)
 			handler := modFields[FieldStatusCode].builder(tt.status)
-			err := handler.set.Handle(w, req)
+			err := handler.set.Handle(rm, req)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
+			rm.FlushRelease()
 
 			tt.verify(w)
 		})

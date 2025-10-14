@@ -356,7 +356,8 @@ var commands = map[string]struct {
 				return nil, err
 			}
 			// NOTE: file will stay opened forever
-			// but will be opened only once for the same path
+			// it leverages accesslog.NewFileIO so
+			// it will be opened only once for the same path
 			f, err := openFile(args[1])
 			if err != nil {
 				return nil, err
@@ -367,7 +368,7 @@ var commands = map[string]struct {
 			level, f, tmpl := args.(*onLogArgs).Unpack()
 			var logger io.Writer
 			if f == stdout || f == stderr {
-				logger = logging.NewLoggerWithLevel(level, f)
+				logger = logging.NewLoggerWithFixedLevel(level, f)
 			} else {
 				logger = f
 			}

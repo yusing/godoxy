@@ -286,7 +286,7 @@ func TestHTTPFlow_ResponseRuleWithStatusCondition(t *testing.T) {
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
 	require.Len(t, lines, 1, "only 4xx requests should be logged")
-	assert.Equal(t, lines[0], "/notfound returned 404")
+	assert.Equal(t, "/notfound returned 404", lines[0])
 }
 
 func TestHTTPFlow_ConditionalRules(t *testing.T) {
@@ -407,17 +407,17 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRules(t *testing.T) {
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(string(logContent)), "\n")
 	require.Len(t, lines, 3, "all requests should be logged")
-	assert.Equal(t, lines[0], "GET /public -> 200")
-	assert.Equal(t, lines[1], "GET /protected -> 401")
-	assert.Equal(t, lines[2], "GET /protected -> 401")
+	assert.Equal(t, "GET /public -> 200", lines[0])
+	assert.Equal(t, "GET /protected -> 401", lines[1])
+	assert.Equal(t, "GET /protected -> 401", lines[2])
 
 	errorLogContent, err := os.ReadFile(errorLogFile.Name())
 	require.NoError(t, err)
 	// Should have at least one 401 error logged
 	lines = strings.Split(strings.TrimSpace(string(errorLogContent)), "\n")
 	require.Len(t, lines, 2, "all errors should be logged")
-	assert.Equal(t, lines[0], "ERROR: GET /protected 401")
-	assert.Equal(t, lines[1], "ERROR: GET /protected 401")
+	assert.Equal(t, "ERROR: GET /protected 401", lines[0])
+	assert.Equal(t, "ERROR: GET /protected 401", lines[1])
 }
 
 func TestHTTPFlow_DefaultRule(t *testing.T) {

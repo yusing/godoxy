@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -114,14 +115,19 @@ func (h *Help) Error() gperr.Error {
 	lines.AddStrings(h.description...)
 	lines.Adds("  args:")
 
+	argKeys := make([]string, 0, len(h.args))
 	longestArg := 0
 	for arg := range h.args {
 		if len(arg) > longestArg {
 			longestArg = len(arg)
 		}
+		argKeys = append(argKeys, arg)
 	}
 
-	for arg, desc := range h.args {
+	// sort argKeys alphabetically to make output stable
+	slices.Sort(argKeys)
+	for _, arg := range argKeys {
+		desc := h.args[arg]
 		lines.Addf("    %-"+strconv.Itoa(longestArg)+"s: %s", ansi.WithANSI(arg, ansi.HighlightCyan), desc)
 	}
 	return &lines

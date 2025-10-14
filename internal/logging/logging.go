@@ -61,12 +61,15 @@ func NewLogger(out ...io.Writer) zerolog.Logger {
 	).Level(level).With().Timestamp().Logger()
 }
 
-func NewLoggerWithLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
+func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
 	levelStr := level.String()
 	writer := zerolog.ConsoleWriter{
 		Out:        zerolog.MultiLevelWriter(out...),
 		TimeFormat: timeFmt,
 		FormatMessage: func(msgI interface{}) string { // pad spaces for each line
+			if msgI == nil {
+				return ""
+			}
 			return fmtMessage(msgI.(string))
 		},
 		FormatLevel: func(_ any) string {

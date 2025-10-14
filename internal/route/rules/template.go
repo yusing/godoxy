@@ -14,17 +14,20 @@ type strTemplate string
 
 func (t strTemplate) Execute(w io.Writer, _ any) error {
 	n, err := w.Write([]byte(t))
+	if err != nil {
+		return err
+	}
 	if n != len(t) {
 		return io.ErrShortWrite
 	}
-	return err
+	return nil
 }
 
 type keyValueTemplate = Tuple[string, templateOrStr]
 
 func executeRequestTemplateString(tmpl templateOrStr, r *http.Request) (string, error) {
 	var buf bytes.Buffer
-	err := tmpl.Execute(&buf, r)
+	err := tmpl.Execute(&buf, reqResponseTemplateData{Request: r})
 	if err != nil {
 		return "", err
 	}

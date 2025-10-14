@@ -208,6 +208,16 @@ func TestOnCorrectness(t *testing.T) {
 			want: false,
 		},
 		{
+			name:    "basic_auth_negated_no_match",
+			checker: "!basic_auth user " + string(expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
+			input: &http.Request{
+				Header: http.Header{
+					"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte("user:incorrect"))}, // "user:wrong"
+				},
+			},
+			want: true,
+		},
+		{
 			name:    "route_match",
 			checker: "route example",
 			input: routes.WithRouteContext(&http.Request{}, expect.Must(route.NewFileServer(&route.Route{
@@ -349,9 +359,9 @@ func TestOnCorrectness(t *testing.T) {
 		}
 	})...)
 
-	w := httptest.NewRecorder()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
 			var on RuleOn
 			err := on.Parse(tt.checker)
 			expect.NoError(t, err)

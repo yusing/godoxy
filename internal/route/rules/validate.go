@@ -193,8 +193,18 @@ func validateMethod(args []string) (any, gperr.Error) {
 	return method, nil
 }
 
-// validateStatusRange returns Tuple[int, int] with the status range validated.
+func validateStatusCode(status string) (int, error) {
+	statusCode, err := strconv.Atoi(status)
+	if err != nil {
+		return 0, err
+	}
+	if statusCode < 100 || statusCode > 599 {
+		return 0, fmt.Errorf("status code out of range: %s", status)
+	}
+	return statusCode, nil
+}
 
+// validateStatusRange returns Tuple[int, int] with the status range validated.
 // accepted formats are:
 //   - <status>
 //   - <status>-<status>
@@ -226,8 +236,8 @@ func validateStatusRange(args []string) (any, gperr.Error) {
 		return &IntTuple{500, 599}, nil
 	}
 
-	begInt, begErr := strconv.Atoi(beg)
-	endInt, endErr := strconv.Atoi(end)
+	begInt, begErr := validateStatusCode(beg)
+	endInt, endErr := validateStatusCode(end)
 	if begErr != nil || endErr != nil {
 		return nil, ErrInvalidArguments.With(gperr.Join(begErr, endErr))
 	}
