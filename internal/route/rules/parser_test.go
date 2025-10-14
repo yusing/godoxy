@@ -49,9 +49,9 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:    "regex_escaped",
-			input:   `foo regex(\b\B\s\S\w\W\d\D\$\.)`,
+			input:   `foo regex(\b\B\s\S\w\W\d\D\$\.\(\)\{\}\|\?\"\')`,
 			subject: "foo",
-			args:    []string{`regex(\b\B\s\S\w\W\d\D\$\.)`},
+			args:    []string{`regex(\b\B\s\S\w\W\d\D\$\.\(\)\{\}\|\?"')`},
 		},
 		{
 			name:    "quote inside argument",
@@ -70,6 +70,12 @@ func TestParser(t *testing.T) {
 			input:   "foo 'glob(\"`/**/to/path`\")'",
 			subject: "foo",
 			args:    []string{"glob(\"`/**/to/path`\")"},
+		},
+		{
+			name:    "complex_regex",
+			input:   `path !regex("^(_next/static|_next/image|favicon.ico).*$")`,
+			subject: "path",
+			args:    []string{`!regex("^(_next/static|_next/image|favicon.ico).*$")`},
 		},
 		{
 			name:    "chaos",
@@ -170,6 +176,53 @@ func TestParser(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("negated", func(t *testing.T) {
+		test := `!error 403 "Forbidden"`
+		subject, args, err := parse(test)
+		expect.NoError(t, err)
+		expect.Equal(t, subject, "!error")
+		expect.Equal(t, args, []string{"403", "Forbidden"})
+	})
+}
+
+func TestFullParse(t *testing.T) {
+	input := `
+- name: login page
+  on: path /login
+  do: pass
+- name: require auth
+  on: path !regex("^(_next/static|_next/image|favicon.ico).*$")
+  do: require_auth
+- name: redirect to login
+  on: status 401 | status 403
+  do: proxy /login
+- name: proxy to backend
+  on: path glob("/api/v1/*")
+  do: proxy http://localhost:8999/
+- name: proxy to backend (old /auth)
+  on: path glob("/auth/*")
+  do: proxy http://localhost:8999/api/v1/`
+
+	var rules Rules
+	err := parseRules(input, &rules)
+	expect.NoError(t, err)
+	expect.Equal(t, len(rules), 5)
+	expect.Equal(t, rules[0].Name, "login page")
+	expect.Equal(t, rules[0].On.String(), "path /login")
+	expect.Equal(t, rules[0].Do.String(), "pass")
+	expect.Equal(t, rules[1].Name, "require auth")
+	expect.Equal(t, rules[1].On.String(), `path !regex("^(_next/static|_next/image|favicon.ico).*$")`)
+	expect.Equal(t, rules[1].Do.String(), "require_auth")
+	expect.Equal(t, rules[2].Name, "redirect to login")
+	expect.Equal(t, rules[2].On.String(), "status 401 | status 403")
+	expect.Equal(t, rules[2].Do.String(), "proxy /login")
+	expect.Equal(t, rules[3].Name, "proxy to backend")
+	expect.Equal(t, rules[3].On.String(), `path glob("/api/v1/*")`)
+	expect.Equal(t, rules[3].Do.String(), "proxy http://localhost:8999/")
+	expect.Equal(t, rules[4].Name, "proxy to backend (old /auth)")
+	expect.Equal(t, rules[4].On.String(), `path glob("/auth/*")`)
+	expect.Equal(t, rules[4].Do.String(), "proxy http://localhost:8999/api/v1/")
 }
 
 func BenchmarkParser(b *testing.B) {

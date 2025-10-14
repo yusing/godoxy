@@ -31,7 +31,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			file, err := newFileIO(cfg.Path)
+			file, err := NewFileIO(cfg.Path)
 			expect.NoError(t, err)
 			accessLogIOs[index] = file
 		}(i)

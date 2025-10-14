@@ -3,9 +3,9 @@ package rules
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"unicode"
 
+	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -33,7 +33,7 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 	brackets := 0
 
 	var envVar bytes.Buffer
-	var missingEnvVars bytes.Buffer
+	var missingEnvVars []string
 	inEnvVar := false
 	expectingBrace := false
 
@@ -70,6 +70,10 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			escaped = false
 			continue
 		}
+		if expectingBrace && r != '{' && r != '$' { // not escaped and not env var
+			buf.WriteRune('$')
+			expectingBrace = false
+		}
 		switch r {
 		case '\\':
 			escaped = true
@@ -90,9 +94,11 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			}
 		case '}':
 			if inEnvVar {
-				envValue, ok := os.LookupEnv(envVar.String())
+				// NOTE: use env.LookupEnv instead of os.LookupEnv to support environment variable prefixes
+				// like ${API_ADDR} will lookup for GODOXY_API_ADDR, GOPROXY_API_ADDR and API_ADDR.
+				envValue, ok := env.LookupEnv(envVar.String())
 				if !ok {
-					fmt.Fprintf(&missingEnvVars, "%q, ", envVar.String())
+					missingEnvVars = append(missingEnvVars, envVar.String())
 				} else {
 					buf.WriteString(envValue)
 				}
@@ -140,15 +146,21 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 		}
 	}
 
+	if expectingBrace {
+		buf.WriteRune('$')
+	}
+
 	if quote != 0 {
 		err = ErrUnterminatedQuotes
 	} else if brackets != 0 {
 		err = ErrUnterminatedBrackets
+	} else if inEnvVar {
+		err = ErrUnterminatedEnvVar
 	} else {
 		flush(false)
 	}
-	if missingEnvVars.Len() > 0 {
-		err = gperr.Join(err, ErrEnvVarNotFound.Subject(missingEnvVars.String()))
+	if len(missingEnvVars) > 0 {
+		err = gperr.Join(err, ErrEnvVarNotFound.With(gperr.Multiline().AddStrings(missingEnvVars...)))
 	}
 	return subject, args, err
 }

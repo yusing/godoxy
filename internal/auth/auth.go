@@ -58,3 +58,13 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 }
+
+func AuthOrProceed(w http.ResponseWriter, r *http.Request) (proceed bool) {
+	err := defaultAuth.CheckToken(r)
+	if err != nil {
+		defaultAuth.LoginHandler(w, r)
+		return false
+	} else {
+		return true
+	}
+}

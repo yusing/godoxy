@@ -99,8 +99,13 @@ func TestParseCommands(t *testing.T) {
 		},
 		// proxy directive tests
 		{
-			name:    "proxy_valid",
+			name:    "proxy_valid_abs",
 			input:   "proxy http://localhost:8080",
+			wantErr: nil,
+		},
+		{
+			name:    "proxy_valid_rel",
+			input:   "proxy /foo/bar",
 			wantErr: nil,
 		},
 		{

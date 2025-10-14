@@ -1,9 +1,12 @@
 package rules
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/bytedance/sonic"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -46,15 +49,16 @@ type (
 	}
 )
 
+func (rule *Rule) IsResponseRule() bool {
+	return rule.On.IsResponseChecker() || rule.Do.IsResponseHandler()
+}
+
 // BuildHandler returns a http.HandlerFunc that implements the rules.
-//
-//	if a bypass rule matches,
-//	the request is passed to the upstream and no more rules are executed.
-//
-//	if no rule matches, the default rule is executed
-//	if no rule matches and default rule is not set,
-//	the request is passed to the upstream.
-func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
+func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
+	if len(rules) == 0 {
+		return up
+	}
+
 	defaultRule := Rule{
 		Name: "default",
 		Do: Command{
@@ -63,52 +67,165 @@ func (rules Rules) BuildHandler(up http.Handler) http.HandlerFunc {
 		},
 	}
 
-	nonDefaultRules := make(Rules, 0, len(rules))
-	for _, rule := range rules {
+	var nonDefaultRules Rules
+	hasDefaultRule := false
+	for i, rule := range rules {
 		if rule.Name == "default" {
 			defaultRule = rule
+			hasDefaultRule = true
 		} else {
+			// set name to index if name is empty
+			if rule.Name == "" {
+				rule.Name = fmt.Sprintf("rule[%d]", i)
+			}
 			nonDefaultRules = append(nonDefaultRules, rule)
 		}
 	}
 
 	if len(nonDefaultRules) == 0 {
 		if defaultRule.Do.isBypass() {
-			return up.ServeHTTP
+			return up
+		}
+		if defaultRule.IsResponseRule() {
+			return func(w http.ResponseWriter, r *http.Request) {
+				rm := NewResponseModifier(w)
+				w = rm
+				up(w, r)
+				err := defaultRule.Do.exec.Handle(w, r)
+				if err != nil && !errors.Is(err, errTerminated) {
+					rm.AppendError(defaultRule, err)
+				}
+			}
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
-			cache := NewCache()
-			defer cache.Release()
-			if defaultRule.Do.exec.Handle(cache, w, r) {
-				up.ServeHTTP(w, r)
+			rm := NewResponseModifier(w)
+			w = rm
+			err := defaultRule.Do.exec.Handle(w, r)
+			if err == nil {
+				up(w, r)
+				return
+			}
+			if !errors.Is(err, errTerminated) {
+				rm.AppendError(defaultRule, err)
 			}
 		}
 	}
 
-	if len(nonDefaultRules) == 0 {
-		nonDefaultRules = rules
+	preRules := make(Rules, 0, len(nonDefaultRules))
+	postRules := make(Rules, 0, len(nonDefaultRules))
+	for _, rule := range nonDefaultRules {
+		if rule.IsResponseRule() {
+			postRules = append(postRules, rule)
+		} else {
+			preRules = append(preRules, rule)
+		}
 	}
+
+	isDefaultRulePost := hasDefaultRule && defaultRule.IsResponseRule()
+	defaultTerminates := isTerminatingHandler(defaultRule.Do.exec)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		cache := NewCache()
-		defer cache.Release()
+		rm := NewResponseModifier(w)
+		defer func() {
+			if _, err := rm.FlushRelease(); err != nil {
+				gperr.LogError("error executing rules", err)
+			}
+		}()
 
-		for _, rule := range nonDefaultRules {
-			if rule.Check(cache, r) {
-				if rule.Do.isBypass() {
-					up.ServeHTTP(w, r)
-					return
+		w = rm
+
+		shouldCallUpstream := true
+		preMatched := false
+
+		if hasDefaultRule && !isDefaultRulePost && !defaultTerminates {
+			if defaultRule.Do.isBypass() {
+				// continue to upstream
+			} else {
+				err := defaultRule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(defaultRule, err)
+					}
+					shouldCallUpstream = false
 				}
-				if !rule.Handle(cache, w, r) {
+			}
+		}
+
+		if shouldCallUpstream {
+			for _, rule := range preRules {
+				if rule.Check(w, r) {
+					preMatched = true
+					if rule.Do.isBypass() {
+						break // post rules should still execute
+					}
+					err := rule.Handle(w, r)
+					if err != nil {
+						if !errors.Is(err, errTerminated) {
+							rm.AppendError(rule, err)
+						}
+						shouldCallUpstream = false
+						break
+					}
+				}
+			}
+		}
+
+		if hasDefaultRule && !isDefaultRulePost && defaultTerminates && shouldCallUpstream && !preMatched {
+			if defaultRule.Do.isBypass() {
+				// continue to upstream
+			} else {
+				err := defaultRule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(defaultRule, err)
+						return
+					}
+					shouldCallUpstream = false
+				}
+			}
+		}
+
+		if shouldCallUpstream {
+			up(w, r)
+		}
+
+		// if no post rules, we are done here
+		if len(postRules) == 0 && !isDefaultRulePost {
+			return
+		}
+
+		for _, rule := range postRules {
+			if rule.Check(w, r) {
+				err := rule.Handle(w, r)
+				if err != nil {
+					if !errors.Is(err, errTerminated) {
+						rm.AppendError(rule, err)
+					}
 					return
 				}
 			}
 		}
 
-		// bypass or proceed
-		if defaultRule.Do.isBypass() || defaultRule.Handle(cache, w, r) {
-			up.ServeHTTP(w, r)
+		if isDefaultRulePost {
+			err := defaultRule.Handle(w, r)
+			if err != nil && !errors.Is(err, errTerminated) {
+				rm.AppendError(defaultRule, err)
+			}
 		}
+	}
+}
+
+func isTerminatingHandler(handler CommandHandler) bool {
+	switch h := handler.(type) {
+	case TerminatingCommand:
+		return true
+	case Commands:
+		if len(h) == 0 {
+			return false
+		}
+		return isTerminatingHandler(h[len(h)-1])
+	default:
+		return false
 	}
 }
 
@@ -124,11 +241,14 @@ func (rule *Rule) String() string {
 	return rule.Name
 }
 
-func (rule *Rule) Check(cached Cache, r *http.Request) bool {
-	return rule.On.checker.Check(cached, r)
+func (rule *Rule) Check(w http.ResponseWriter, r *http.Request) bool {
+	if rule.On.checker == nil {
+		return true
+	}
+	v := rule.On.checker.Check(w, r)
+	return v
 }
 
-func (rule *Rule) Handle(cached Cache, w http.ResponseWriter, r *http.Request) (proceed bool) {
-	proceed = rule.Do.exec.Handle(cached, w, r)
-	return proceed
+func (rule *Rule) Handle(w http.ResponseWriter, r *http.Request) error {
+	return rule.Do.exec.Handle(w, r)
 }

@@ -69,7 +69,7 @@ func (cfg *ConfigBase) Validate() gperr.Error {
 // If only stdout is enabled, it returns nil, nil.
 func (cfg *ConfigBase) IO() (WriterWithName, error) {
 	if cfg.Path != "" {
-		io, err := newFileIO(cfg.Path)
+		io, err := NewFileIO(cfg.Path)
 		if err != nil {
 			return nil, err
 		}

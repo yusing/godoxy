@@ -26,7 +26,10 @@ var (
 	openedFilesMu sync.Mutex
 )
 
-func newFileIO(path string) (WriterWithName, error) {
+// NewFileIO creates a new file writer with cleaned path.
+//
+// If the file is already opened, it will be returned.
+func NewFileIO(path string) (WriterWithName, error) {
 	openedFilesMu.Lock()
 	defer openedFilesMu.Unlock()
 

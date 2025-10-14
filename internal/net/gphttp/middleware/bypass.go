@@ -8,11 +8,9 @@ import (
 
 type Bypass []rules.RuleOn
 
-func (b Bypass) ShouldBypass(r *http.Request) bool {
-	cached := rules.NewCache()
-	defer cached.Release()
+func (b Bypass) ShouldBypass(w http.ResponseWriter, r *http.Request) bool {
 	for _, rule := range b {
-		if rule.Check(cached, r) {
+		if rule.Check(w, r) {
 			return true
 		}
 	}
@@ -26,14 +24,14 @@ type checkBypass struct {
 }
 
 func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNext bool) {
-	if c.modReq == nil || c.bypass.ShouldBypass(r) {
+	if c.modReq == nil || c.bypass.ShouldBypass(w, r) {
 		return true
 	}
 	return c.modReq.before(w, r)
 }
 
-func (c *checkBypass) modifyResponse(resp *http.Response) error {
-	if c.modRes == nil || c.bypass.ShouldBypass(resp.Request) {
+func (c *checkBypass) modifyResponse(w http.ResponseWriter, resp *http.Response) error {
+	if c.modRes == nil || c.bypass.ShouldBypass(w, resp.Request) {
 		return nil
 	}
 	return c.modRes.modifyResponse(resp)

@@ -1,0 +1,17 @@
+- name: login page
+  on: path /login
+  do: pass
+- name: protected
+  on: |
+    !path regex("(_next/static|_next/image|favicon.ico).*")
+    !path glob("/api/v1/auth/*")
+    !path /api/v1/version
+  do: require_auth
+- name: proxy to backend
+  on: path glob("/api/v1/*")
+  do: proxy http://${API_ADDR}/
+- name: proxy to auth api
+  on: path glob("/auth/*")
+  do: |
+    rewrite /auth /api/v1/auth
+    proxy http://${API_ADDR}/

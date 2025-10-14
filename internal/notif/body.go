@@ -20,10 +20,11 @@ type (
 )
 
 type (
-	FieldsBody  []LogField
-	ListBody    []string
-	MessageBody string
-	errorBody   struct {
+	FieldsBody       []LogField
+	ListBody         []string
+	MessageBody      string
+	MessageBodyBytes []byte
+	errorBody        struct {
 		Error error
 	}
 )
@@ -98,7 +99,15 @@ func (m MessageBody) Format(format LogFormat) ([]byte, error) {
 	case LogFormatRawJSON:
 		return sonic.Marshal(m)
 	}
-	return m.Format(LogFormatMarkdown)
+	return []byte(m), nil
+}
+
+func (m MessageBodyBytes) Format(format LogFormat) ([]byte, error) {
+	switch format {
+	case LogFormatRawJSON:
+		return sonic.Marshal(string(m))
+	}
+	return m, nil
 }
 
 func (e errorBody) Format(format LogFormat) ([]byte, error) {
