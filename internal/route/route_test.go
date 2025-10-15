@@ -113,7 +113,7 @@ func TestRouteValidate(t *testing.T) {
 	t.Run("InvalidScheme", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",
-			Scheme: "invalid",
+			Scheme: 123,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
 		}

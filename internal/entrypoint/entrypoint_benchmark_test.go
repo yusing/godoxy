@@ -13,6 +13,7 @@ import (
 	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
+	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
 )
@@ -78,7 +79,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 
 	r := &route.Route{
 		Alias:       "test",
-		Scheme:      "http",
+		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
 		Port:        route.Port{Proxy: portInt},
 		HealthCheck: &types.HealthCheckConfig{Disable: true},
@@ -119,7 +120,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 
 	r := &route.Route{
 		Alias:  "test",
-		Scheme: "http",
+		Scheme: routeTypes.SchemeHTTP,
 		Host:   "localhost",
 		Port: route.Port{
 			Proxy: 8080,

@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/client"
 	D "github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
-	T "github.com/yusing/godoxy/internal/route/types"
+	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -91,8 +91,8 @@ func TestApplyLabel(t *testing.T) {
 	b, ok := entries["b"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, "https")
-	expect.Equal(t, b.Scheme, "https")
+	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTPS)
+	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTPS)
 
 	expect.Equal(t, a.Host, "app")
 	expect.Equal(t, b.Host, "app")
@@ -152,12 +152,12 @@ func TestApplyLabelWithAlias(t *testing.T) {
 	c, ok := entries["c"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, "http")
+	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
 	expect.Equal(t, a.Port.Proxy, 3333)
 	expect.Equal(t, a.NoTLSVerify, true)
-	expect.Equal(t, b.Scheme, "http")
+	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTP)
 	expect.Equal(t, b.Port.Proxy, 1234)
-	expect.Equal(t, c.Scheme, "https")
+	expect.Equal(t, c.Scheme, routeTypes.SchemeHTTPS)
 }
 
 func TestApplyLabelWithRef(t *testing.T) {
@@ -180,11 +180,11 @@ func TestApplyLabelWithRef(t *testing.T) {
 	c, ok := entries["c"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, "http")
+	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
 	expect.Equal(t, a.Host, "localhost")
 	expect.Equal(t, a.Port.Proxy, 4444)
 	expect.Equal(t, b.Port.Proxy, 9999)
-	expect.Equal(t, c.Scheme, "https")
+	expect.Equal(t, c.Scheme, routeTypes.SchemeHTTPS)
 	expect.Equal(t, c.Port.Proxy, 1111)
 }
 
@@ -229,12 +229,12 @@ func TestDynamicAliases(t *testing.T) {
 
 	r, ok := entries["app1"]
 	expect.True(t, ok)
-	expect.Equal(t, r.Scheme, "http")
+	expect.Equal(t, r.Scheme, routeTypes.SchemeHTTP)
 	expect.Equal(t, r.Port.Proxy, 1234)
 
 	r, ok = entries["app1_backend"]
 	expect.True(t, ok)
-	expect.Equal(t, r.Scheme, "http")
+	expect.Equal(t, r.Scheme, routeTypes.SchemeHTTP)
 	expect.Equal(t, r.Port.Proxy, 5678)
 }
 
@@ -327,7 +327,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		r, ok := makeRoutes(cont)["a"]
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
-		expect.Equal(t, r.Scheme, T.Scheme("udp"))
+		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
 		expect.Equal(t, r.TargetURL().Hostname(), privIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(privPort))
@@ -337,7 +337,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		r, ok := makeRoutes(cont, testIP)["a"]
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
-		expect.Equal(t, r.Scheme, T.Scheme("udp"))
+		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
 		expect.Equal(t, r.TargetURL().Hostname(), testIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(pubPort))

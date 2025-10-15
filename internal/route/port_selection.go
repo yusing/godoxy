@@ -1,5 +1,7 @@
 package route
 
+import route "github.com/yusing/godoxy/internal/route/types"
+
 var (
 	ImageNamePortMapTCP = map[string]int{
 		"mssql":            1433,
@@ -57,25 +59,25 @@ var (
 	}
 )
 
-func getSchemePortByImageName(imageName string) (scheme string, port int, ok bool) {
+func getSchemePortByImageName(imageName string) (scheme route.Scheme, port int, ok bool) {
 	if port, ok := ImageNamePortMapHTTP[imageName]; ok {
-		return "http", port, true
+		return route.SchemeHTTP, port, true
 	}
 	if port, ok := ImageNamePortMapHTTPS[imageName]; ok {
-		return "https", port, true
+		return route.SchemeHTTPS, port, true
 	}
 	if port, ok := ImageNamePortMapTCP[imageName]; ok {
-		return "tcp", port, true
+		return route.SchemeTCP, port, true
 	}
 	return scheme, port, ok
 }
 
-func getSchemePortByAlias(alias string) (scheme string, port int, ok bool) {
+func getSchemePortByAlias(alias string) (scheme route.Scheme, port int, ok bool) {
 	if port, ok := AliasPortMapHTTP[alias]; ok {
-		return "http", port, true
+		return route.SchemeHTTP, port, true
 	}
 	if port, ok := AliasPortMapHTTPS[alias]; ok {
-		return "https", port, true
+		return route.SchemeHTTPS, port, true
 	}
 	return scheme, port, ok
 }

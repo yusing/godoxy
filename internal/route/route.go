@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,7 +41,7 @@ type (
 		_ utils.NoCopy
 
 		Alias  string       `json:"alias"`
-		Scheme route.Scheme `json:"scheme,omitempty"`
+		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
 		Root   string       `json:"root,omitempty"`
@@ -71,8 +72,8 @@ type (
 		LisURL   *nettypes.URL `json:"lurl,omitempty" swaggertype:"string" extensions:"x-nullable"`
 		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
-		Excluded       bool   `json:"excluded,omitempty" extensions:"x-nullable"`
-		ExcludedReason string `json:"excluded_reason,omitempty" extensions:"x-nullable"`
+		Excluded       bool           `json:"excluded,omitempty" extensions:"x-nullable"`
+		ExcludedReason ExcludedReason `json:"excluded_reason,omitempty" extensions:"x-nullable"`
 
 		HealthMon types.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
 		// for swagger
@@ -272,7 +273,7 @@ func (r *Route) Validate() gperr.Error {
 	r.impl = impl
 	r.Excluded = r.ShouldExclude()
 	if r.Excluded {
-		r.ExcludedReason = r.GetExcludedReason()
+		r.ExcludedReason = r.findExcludedReason()
 	}
 	return nil
 }
@@ -518,31 +519,73 @@ func (r *Route) ShouldExclude() bool {
 	return false
 }
 
-func (r *Route) GetExcludedReason() string {
-	if r.lastError != nil {
-		return string(gperr.Plain(r.lastError))
+type ExcludedReason uint8
+
+const (
+	ExcludedReasonNone ExcludedReason = iota
+	ExcludedReasonError
+	ExcludedReasonManual
+	ExcludedReasonNoPortContainer
+	ExcludedReasonNoPortSpecified
+	ExcludedReasonBlacklisted
+	ExcludedReasonBuildx
+	ExcludedReasonOld
+)
+
+func (re ExcludedReason) String() string {
+	switch re {
+	case ExcludedReasonNone:
+		return ""
+	case ExcludedReasonError:
+		return "Error"
+	case ExcludedReasonManual:
+		return "Manual exclusion"
+	case ExcludedReasonNoPortContainer:
+		return "No port exposed in container"
+	case ExcludedReasonNoPortSpecified:
+		return "No port specified"
+	case ExcludedReasonBlacklisted:
+		return "Blacklisted (backend service or database)"
+	case ExcludedReasonBuildx:
+		return "Buildx"
+	case ExcludedReasonOld:
+		return "Container renaming intermediate state"
+	default:
+		return "Unknown"
 	}
-	if r.ExcludedReason != "" {
+}
+
+func (re ExcludedReason) MarshalJSON() ([]byte, error) {
+	return strconv.AppendQuote(nil, re.String()), nil
+}
+
+// no need to unmarshal json because we don't store this
+
+func (r *Route) findExcludedReason() ExcludedReason {
+	if r.lastError != nil {
+		return ExcludedReasonError
+	}
+	if r.ExcludedReason != ExcludedReasonNone {
 		return r.ExcludedReason
 	}
 	if r.Container != nil {
 		switch {
 		case r.Container.IsExcluded:
-			return "Manual exclusion"
+			return ExcludedReasonManual
 		case r.IsZeroPort() && !r.UseIdleWatcher():
-			return "No port exposed in container"
+			return ExcludedReasonNoPortContainer
 		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
-			return "Blacklisted (backend service or database)"
+			return ExcludedReasonBlacklisted
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
-			return "Buildx"
+			return ExcludedReasonBuildx
 		}
 	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
-		return "No port specified"
+		return ExcludedReasonNoPortSpecified
 	}
 	if strings.HasSuffix(r.Alias, "-old") {
-		return "Container renaming intermediate state"
+		return ExcludedReasonOld
 	}
-	return ""
+	return ExcludedReasonNone
 }
 
 func (r *Route) UseLoadBalance() bool {
@@ -594,8 +637,8 @@ func (r *Route) Finalize() {
 	if isDocker {
 		scheme, port, ok := getSchemePortByImageName(cont.Image.Name)
 		if ok {
-			if r.Scheme == "" {
-				r.Scheme = route.Scheme(scheme)
+			if r.Scheme == route.SchemeNone {
+				r.Scheme = scheme
 			}
 			if pp == 0 {
 				pp = port
@@ -604,8 +647,8 @@ func (r *Route) Finalize() {
 	}
 
 	if scheme, port, ok := getSchemePortByAlias(r.Alias); ok {
-		if r.Scheme == "" {
-			r.Scheme = route.Scheme(scheme)
+		if r.Scheme == route.SchemeNone {
+			r.Scheme = scheme
 		}
 		if pp == 0 {
 			pp = port
@@ -620,7 +663,7 @@ func (r *Route) Finalize() {
 			} else {
 				pp = preferredPort(cont.PrivatePortMapping)
 			}
-		case r.Scheme == "https":
+		case r.Scheme == route.SchemeHTTPS:
 			pp = 443
 		default:
 			pp = 80
@@ -628,10 +671,10 @@ func (r *Route) Finalize() {
 	}
 
 	if isDocker {
-		if r.Scheme == "" {
+		if r.Scheme == route.SchemeNone {
 			for _, p := range cont.PublicPortMapping {
 				if int(p.PrivatePort) == pp && p.Type == "udp" {
-					r.Scheme = "udp"
+					r.Scheme = route.SchemeUDP
 					break
 				}
 			}
@@ -649,14 +692,14 @@ func (r *Route) Finalize() {
 		}
 	}
 
-	if r.Scheme == "" {
+	if r.Scheme == route.SchemeNone {
 		switch {
 		case lp != 0:
-			r.Scheme = "tcp"
+			r.Scheme = route.SchemeTCP
 		case pp%1000 == 443:
-			r.Scheme = "https"
+			r.Scheme = route.SchemeHTTPS
 		default: // assume its http
-			r.Scheme = "http"
+			r.Scheme = route.SchemeHTTP
 		}
 	}
 

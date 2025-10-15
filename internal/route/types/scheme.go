@@ -1,29 +1,82 @@
 package route
 
 import (
+	"strconv"
+
+	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
 )
 
-type Scheme string
+type Scheme uint8
 
 var ErrInvalidScheme = gperr.New("invalid scheme")
 
 const (
-	SchemeHTTP       Scheme = "http"
-	SchemeHTTPS      Scheme = "https"
-	SchemeTCP        Scheme = "tcp"
-	SchemeUDP        Scheme = "udp"
-	SchemeFileServer Scheme = "fileserver"
+	SchemeHTTP Scheme = 1 << iota
+	SchemeHTTPS
+	SchemeTCP
+	SchemeUDP
+	SchemeFileServer
+	SchemeNone Scheme = 0
+
+	schemeReverseProxy = SchemeHTTP | SchemeHTTPS
+	schemeStream       = SchemeTCP | SchemeUDP
+
+	schemeStrHTTP       = "http"
+	schemeStrHTTPS      = "https"
+	schemeStrTCP        = "tcp"
+	schemeStrUDP        = "udp"
+	schemeStrFileServer = "fileserver"
+	schemeStrUnknown    = "unknown"
 )
 
-func (s Scheme) Validate() gperr.Error {
+func (s Scheme) String() string {
 	switch s {
-	case SchemeHTTP, SchemeHTTPS,
-		SchemeTCP, SchemeUDP, SchemeFileServer:
-		return nil
+	case SchemeHTTP:
+		return schemeStrHTTP
+	case SchemeHTTPS:
+		return schemeStrHTTPS
+	case SchemeTCP:
+		return schemeStrTCP
+	case SchemeUDP:
+		return schemeStrUDP
+	case SchemeFileServer:
+		return schemeStrFileServer
+	default:
+		return schemeStrUnknown
 	}
-	return ErrInvalidScheme.Subject(string(s))
 }
 
-func (s Scheme) IsReverseProxy() bool { return s == SchemeHTTP || s == SchemeHTTPS }
-func (s Scheme) IsStream() bool       { return s == SchemeTCP || s == SchemeUDP }
+func (s Scheme) MarshalJSON() ([]byte, error) {
+	return strconv.AppendQuote(nil, s.String()), nil
+}
+
+func (s *Scheme) UnmarshalJSON(data []byte) error {
+	var v string
+	if err := sonic.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	return s.Parse(v)
+}
+
+// Parse implements strutils.Parser
+func (s *Scheme) Parse(v string) error {
+	switch v {
+	case schemeStrHTTP:
+		*s = SchemeHTTP
+	case schemeStrHTTPS:
+		*s = SchemeHTTPS
+	case schemeStrTCP:
+		*s = SchemeTCP
+	case schemeStrUDP:
+		*s = SchemeUDP
+	case schemeStrFileServer:
+		*s = SchemeFileServer
+	default:
+		return ErrInvalidScheme.Subject(v)
+	}
+	return nil
+}
+
+func (s Scheme) IsReverseProxy() bool { return s&schemeReverseProxy != 0 }
+func (s Scheme) IsStream() bool       { return s&schemeStream != 0 }
