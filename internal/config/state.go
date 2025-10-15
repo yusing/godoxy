@@ -55,7 +55,7 @@ func NewState() config.State {
 		entrypoint: entrypoint.NewEntrypoint(),
 		task:       task.RootTask("config", false),
 		tmpLogBuf:  tmpLogBuf,
-		tmpLog:     logging.NewLogger(tmpLogBuf),
+		tmpLog:     logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
 	}
 }
 

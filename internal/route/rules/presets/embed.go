@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/serialization"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 //go:embed *.yml
@@ -34,12 +35,12 @@ func initPresets() {
 		var rules rules.Rules
 		content, err := fs.ReadFile(file.Name())
 		if err != nil {
-			log.Error().Str("name", file.Name()).Err(err).Msg("failed to read rule preset")
+			gperr.LogError("failed to read rule preset", err)
 			continue
 		}
 		_, err = serialization.ConvertString(string(content), reflect.ValueOf(&rules))
 		if err != nil {
-			log.Error().Str("name", file.Name()).Err(err).Msg("failed to unmarshal rule preset")
+			gperr.LogError("failed to unmarshal rule preset", err)
 			continue
 		}
 		rulePresets[file.Name()] = rules

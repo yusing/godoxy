@@ -8,10 +8,18 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/common"
-	strutils "github.com/yusing/goutils/strings"
 
 	zerologlog "github.com/rs/zerolog/log"
 )
+
+func InitLogger(out ...io.Writer) {
+	logger = NewLogger(out...)
+	log.SetOutput(logger)
+	log.SetPrefix("")
+	log.SetFlags(0)
+	zerolog.TimeFieldFormat = timeFmt
+	zerologlog.Logger = logger
+}
 
 var (
 	logger  zerolog.Logger
@@ -38,54 +46,62 @@ func init() {
 }
 
 func fmtMessage(msg string) string {
-	lines := strutils.SplitRune(msg, '\n')
-	if len(lines) == 1 {
+	nLines := strings.Count(msg, "\n")
+	if nLines == 0 {
 		return msg
 	}
-	for i := 1; i < len(lines); i++ {
-		lines[i] = prefix + lines[i]
+
+	var sb strings.Builder
+	sb.Grow(len(msg) + nLines*len(prefix))
+
+	// write first line unindented
+	idx := strings.IndexByte(msg, '\n')
+	sb.WriteString(msg[:idx])
+	sb.WriteByte('\n')
+	msg = msg[idx+1:]
+
+	// write remaining lines indented
+	for line := range strings.Lines(msg) {
+		sb.WriteString(prefix)
+		sb.WriteString(line)
 	}
-	return strutils.JoinRune(lines, '\n')
+	return sb.String()
+}
+
+func multiLevelWriter(out ...io.Writer) io.Writer {
+	if len(out) == 0 {
+		return os.Stdout
+	}
+	if len(out) == 1 {
+		return out[0]
+	}
+	return io.MultiWriter(out...)
 }
 
 func NewLogger(out ...io.Writer) zerolog.Logger {
-	writer := zerolog.ConsoleWriter{
-		Out:        zerolog.MultiLevelWriter(out...),
-		TimeFormat: timeFmt,
-		FormatMessage: func(msgI interface{}) string { // pad spaces for each line
-			return fmtMessage(msgI.(string))
-		},
-	}
-	return zerolog.New(
-		writer,
-	).Level(level).With().Timestamp().Logger()
-}
-
-func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
-	levelStr := level.String()
-	writer := zerolog.ConsoleWriter{
-		Out:        zerolog.MultiLevelWriter(out...),
-		TimeFormat: timeFmt,
-		FormatMessage: func(msgI interface{}) string { // pad spaces for each line
+	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		w.Out = multiLevelWriter(out...)
+		w.TimeFormat = timeFmt
+		w.FormatMessage = func(msgI any) string { // pad spaces for each line
 			if msgI == nil {
 				return ""
 			}
 			return fmtMessage(msgI.(string))
-		},
-		FormatLevel: func(_ any) string {
-			return levelStr
-		},
-	}
-	return zerolog.New(
-		writer,
-	).Level(level).With().Timestamp().Logger()
+		}
+	})
+	return zerolog.New(writer).Level(level).With().Timestamp().Logger()
 }
 
-func InitLogger(out ...io.Writer) {
-	logger = NewLogger(out...)
-	log.SetOutput(logger)
-	log.SetPrefix("")
-	log.SetFlags(0)
-	zerolog.TimeFieldFormat = timeFmt
-	zerologlog.Logger = logger
+func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
+	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		w.Out = multiLevelWriter(out...)
+		w.TimeFormat = timeFmt
+		w.FormatMessage = func(msgI any) string { // pad spaces for each line
+			if msgI == nil {
+				return ""
+			}
+			return fmtMessage(msgI.(string))
+		}
+	})
+	return zerolog.New(writer).Level(level).With().Str("level", level.String()).Timestamp().Logger()
 }
