@@ -90,37 +90,6 @@ func ValidateWithFieldTags(s any) gperr.Error {
 	return errs.Error()
 }
 
-var validatorType = reflect.TypeFor[CustomValidator]()
-
-func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
-	if v.Kind() == reflect.Struct {
-		if v.Type().Implements(validatorType) {
-			return v.Interface().(CustomValidator).Validate()
-		}
-		if v.CanAddr() {
-			return validateWithValidator(v.Addr())
-		}
-		return nil
-	}
-	if v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return nil
-		}
-		if v.Type().Implements(validatorType) {
-			return v.Interface().(CustomValidator).Validate()
-		}
-		return validateWithValidator(v.Elem())
-	}
-	return nil
-}
-
-func validateWithValidator(v reflect.Value) gperr.Error {
-	if v.Type().Implements(validatorType) {
-		return v.Interface().(CustomValidator).Validate()
-	}
-	return nil
-}
-
 func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) {
 	dstT := dst.Type()
 	for {
@@ -529,18 +498,18 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	default:
 	}
 
+	// check if (*T).Convertor is implemented
+	if dst.Addr().Type().Implements(parserType) {
+		parser := dst.Addr().Interface().(strutils.Parser)
+		return true, gperr.Wrap(parser.Parse(src))
+	}
+
 	if gi.ReflectIsNumeric(dst) || dst.Kind() == reflect.Bool {
 		err := gi.ReflectStrToNumBool(dst, src)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
 		return true, nil
-	}
-
-	// check if (*T).Convertor is implemented
-	if dst.Addr().Type().Implements(parserType) {
-		parser := dst.Addr().Interface().(strutils.Parser)
-		return true, gperr.Wrap(parser.Parse(src))
 	}
 
 	// yaml like
