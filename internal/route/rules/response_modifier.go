@@ -13,8 +13,9 @@ import (
 )
 
 type ResponseModifier struct {
+	bufPool *synk.BytesPoolWithMemory
+
 	w          http.ResponseWriter
-	b          []byte // the bytes got from pool
 	buf        *bytes.Buffer
 	statusCode int
 	shared     Cache
@@ -28,8 +29,6 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 }
-
-var pool = synk.GetBytesPoolWithUniqueMemory()
 
 func unwrapResponseModifier(w http.ResponseWriter) *ResponseModifier {
 	for {
@@ -68,12 +67,14 @@ func GetSharedData(w http.ResponseWriter) Cache {
 //
 // It should only be called once, at the very beginning of the request.
 func NewResponseModifier(w http.ResponseWriter) *ResponseModifier {
-	b := pool.Get()
 	return &ResponseModifier{
-		w:   w,
-		buf: bytes.NewBuffer(b),
-		b:   b,
+		bufPool: synk.GetBytesPoolWithUniqueMemory(),
+		w:       w,
 	}
+}
+
+func (rm *ResponseModifier) BufPool() *synk.BytesPoolWithMemory {
+	return rm.bufPool
 }
 
 // func (rm *ResponseModifier) Unwrap() http.ResponseWriter {
@@ -85,11 +86,24 @@ func (rm *ResponseModifier) WriteHeader(code int) {
 }
 
 func (rm *ResponseModifier) ResetBody() {
+	if rm.buf == nil {
+		return
+	}
 	rm.buf.Reset()
 }
 
 func (rm *ResponseModifier) ContentLength() int {
+	if rm.buf == nil {
+		return 0
+	}
 	return rm.buf.Len()
+}
+
+func (rm *ResponseModifier) Content() []byte {
+	if rm.buf == nil {
+		return nil
+	}
+	return rm.buf.Bytes()
 }
 
 func (rm *ResponseModifier) StatusCode() int {
@@ -108,6 +122,9 @@ func (rm *ResponseModifier) Response() Response {
 }
 
 func (rm *ResponseModifier) Write(b []byte) (int, error) {
+	if rm.buf == nil {
+		rm.buf = rm.bufPool.GetBuffer()
+	}
 	return rm.buf.Write(b)
 }
 
@@ -139,29 +156,33 @@ func (rm *ResponseModifier) FlushRelease() (int, error) {
 		// 		h.Del(k)
 		// 	}
 		// }
-		h.Set("Content-Length", strconv.Itoa(rm.buf.Len()))
+		contentLength := rm.ContentLength()
+		h.Set("Content-Length", strconv.Itoa(rm.ContentLength()))
 		rm.w.WriteHeader(rm.StatusCode())
-		nn, werr := rm.w.Write(rm.buf.Bytes())
-		n += nn
-		if werr != nil {
-			rm.errs.Addf("write error: %w", werr)
-		}
 
-		// flush the response writer
-		if flusher, ok := rm.w.(http.Flusher); ok {
-			flusher.Flush()
-		} else if errFlusher, ok := rm.w.(interface{ Flush() error }); ok {
-			ferr := errFlusher.Flush()
-			if ferr != nil {
-				rm.errs.Addf("flush error: %w", ferr)
+		if contentLength > 0 {
+			nn, werr := rm.w.Write(rm.Content())
+			n += nn
+			if werr != nil {
+				rm.errs.Addf("write error: %w", werr)
+			}
+			// flush the response writer
+			if flusher, ok := rm.w.(http.Flusher); ok {
+				flusher.Flush()
+			} else if errFlusher, ok := rm.w.(interface{ Flush() error }); ok {
+				ferr := errFlusher.Flush()
+				if ferr != nil {
+					rm.errs.Addf("flush error: %w", ferr)
+				}
 			}
 		}
 	}
 
 	// release the buffer and reset the pointers
-	pool.Put(rm.b)
-	rm.b = nil
-	rm.buf = nil
+	if rm.buf != nil {
+		rm.bufPool.PutBuffer(rm.buf)
+		rm.buf = nil
+	}
 
 	// release the shared data
 	if rm.shared != nil {

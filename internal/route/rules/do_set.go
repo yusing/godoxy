@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"bytes"
 	"io"
 	"net/http"
 	"net/url"
@@ -243,15 +242,14 @@ var modFields = map[string]struct {
 						r.Body = nil
 					}
 
-					buf := pool.Get()
-					b := bytes.NewBuffer(buf)
-
+					bufPool := GetInitResponseModifier(w).BufPool()
+					b := bufPool.GetBuffer()
 					err := executeRequestTemplateTo(tmpl, b, r)
 					if err != nil {
 						return err
 					}
 					r.Body = ioutils.NewHookReadCloser(io.NopCloser(b), func() {
-						pool.Put(buf)
+						bufPool.PutBuffer(b)
 					})
 					return nil
 				}),

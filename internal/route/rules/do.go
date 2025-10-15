@@ -19,7 +19,6 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
-	"github.com/yusing/goutils/synk"
 )
 
 type (
@@ -431,10 +430,7 @@ var commands = map[string]struct {
 			to := []string{provider}
 
 			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
-				buf := bufPool.Get()
-				defer bufPool.Put(buf)
-
-				respBuf := bytes.NewBuffer(buf)
+				respBuf := bytes.NewBuffer(make([]byte, 0, titleTmpl.Len()+bodyTmpl.Len()))
 
 				err := executeReqRespTemplateTo(titleTmpl, respBuf, w, r)
 				if err != nil {
@@ -446,10 +442,11 @@ var commands = map[string]struct {
 					return err
 				}
 
+				b := respBuf.Bytes()
 				notif.Notify(&notif.LogMessage{
 					Level: level,
-					Title: string(buf[:titleLen]),
-					Body:  notif.MessageBodyBytes(buf[titleLen:]),
+					Title: string(b[:titleLen]),
+					Body:  notif.MessageBodyBytes(b[titleLen:]),
 					To:    to,
 				})
 				return nil
@@ -465,8 +462,6 @@ type reqResponseTemplateData struct {
 		Header     http.Header
 	}
 }
-
-var bufPool = synk.GetBytesPoolWithUniqueMemory()
 
 type onLogArgs = Tuple3[zerolog.Level, io.WriteCloser, templateOrStr]
 type onNotifyArgs = Tuple4[zerolog.Level, string, templateOrStr, templateOrStr]

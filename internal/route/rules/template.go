@@ -8,6 +8,7 @@ import (
 
 type templateOrStr interface {
 	Execute(w io.Writer, data any) error
+	Len() int
 }
 
 type strTemplate string
@@ -21,6 +22,10 @@ func (t strTemplate) Execute(w io.Writer, _ any) error {
 		return io.ErrShortWrite
 	}
 	return nil
+}
+
+func (t strTemplate) Len() int {
+	return len(t)
 }
 
 type keyValueTemplate = Tuple[string, templateOrStr]

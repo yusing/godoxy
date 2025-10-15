@@ -157,12 +157,12 @@ func (l *AccessLogger) Log(req *http.Request, res *http.Response) {
 	}
 
 	line := lineBufPool.Get()
-	defer lineBufPool.Put(line)
 	line = l.AppendRequestLog(line, req, res)
 	if line[len(line)-1] != '\n' {
 		line = append(line, '\n')
 	}
 	l.write(line)
+	lineBufPool.Put(line)
 }
 
 func (l *AccessLogger) LogError(req *http.Request, err error) {
@@ -171,12 +171,12 @@ func (l *AccessLogger) LogError(req *http.Request, err error) {
 
 func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
 	line := lineBufPool.Get()
-	defer lineBufPool.Put(line)
 	line = l.AppendACLLog(line, info, blocked)
 	if line[len(line)-1] != '\n' {
 		line = append(line, '\n')
 	}
 	l.write(line)
+	lineBufPool.Put(line)
 }
 
 func (l *AccessLogger) ShouldRotate() bool {

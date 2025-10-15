@@ -304,6 +304,15 @@ func isTemplate(tmplStr string) bool {
 	return strings.Contains(tmplStr, "{{")
 }
 
+type templateWithLen struct {
+	*template.Template
+	len int
+}
+
+func (t *templateWithLen) Len() int {
+	return t.len
+}
+
 func validateTemplate(tmplStr string, newline bool) (templateOrStr, gperr.Error) {
 	if newline && !strings.HasSuffix(tmplStr, "\n") {
 		tmplStr += "\n"
@@ -317,7 +326,7 @@ func validateTemplate(tmplStr string, newline bool) (templateOrStr, gperr.Error)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
-	return tmpl, nil
+	return &templateWithLen{tmpl, len(tmplStr)}, nil
 }
 
 func validateLevel(level string) (zerolog.Level, gperr.Error) {

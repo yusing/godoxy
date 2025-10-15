@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -167,14 +168,16 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	// Read each line and write it to the beginning of the file
 	writePos := int64(0)
 	buf := rotateBytePool.Get()
-	defer rotateBytePool.Put(buf)
+	defer func() {
+		rotateBytePool.Put(buf)
+	}()
 
 	// in reverse order to keep the order of the lines (from old to new)
 	for i := len(linesToKeep) - 1; i >= 0; i-- {
 		line := linesToKeep[i]
 		n := line.Size
 		if cap(buf) < int(n) {
-			buf = make([]byte, n)
+			buf = slices.Grow(buf, int(n)-cap(buf))
 		}
 		buf = buf[:n]
 
