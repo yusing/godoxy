@@ -1,6 +1,7 @@
 package period
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -68,19 +69,22 @@ func (e *Entries[T]) Get() []T {
 	return res[:]
 }
 
+type entriesJSON[T any] struct {
+	Entries  []T           `json:"entries"`
+	Interval time.Duration `json:"interval"`
+}
+
 func (e *Entries[T]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
-		"entries":  e.Get(),
-		"interval": e.interval,
+	return sonic.Marshal(entriesJSON[T]{
+		Entries:  e.Get(),
+		Interval: e.interval,
 	})
 }
 
 func (e *Entries[T]) UnmarshalJSON(data []byte) error {
-	var v struct {
-		Entries  []T           `json:"entries"`
-		Interval time.Duration `json:"interval"`
-	}
-	if err := sonic.Unmarshal(data, &v); err != nil {
+	var v entriesJSON[T]
+	v.Entries = make([]T, 0, maxEntries)
+	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
 	if len(v.Entries) == 0 {

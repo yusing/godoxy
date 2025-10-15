@@ -2,6 +2,7 @@ package period
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -72,11 +73,16 @@ func (p *Poller[T, AggregateT]) savePath() string {
 }
 
 func (p *Poller[T, AggregateT]) load() error {
-	entries, err := os.ReadFile(p.savePath())
+	content, err := os.ReadFile(p.savePath())
 	if err != nil {
 		return err
 	}
-	if err := sonic.Unmarshal(entries, &p.period); err != nil {
+
+	if len(content) == 0 {
+		return nil
+	}
+
+	if err := json.Unmarshal(content, p.period); err != nil {
 		return err
 	}
 	// Validate and fix intervals after loading to ensure data integrity.
@@ -86,11 +92,17 @@ func (p *Poller[T, AggregateT]) load() error {
 
 func (p *Poller[T, AggregateT]) save() error {
 	initDataDirOnce.Do(initDataDir)
-	entries, err := sonic.Marshal(p.period)
+	f, err := os.OpenFile(p.savePath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p.savePath(), entries, 0o644)
+	defer f.Close()
+
+	err = sonic.ConfigDefault.NewEncoder(f).Encode(p.period)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Poller[T, AggregateT]) WithResultFilter(filter FilterFunc[T]) *Poller[T, AggregateT] {
@@ -114,15 +126,15 @@ func (p *Poller[T, AggregateT]) appendErr(err error) {
 	p.errs = append(p.errs, pollErr{err: err, count: 1})
 }
 
-func (p *Poller[T, AggregateT]) gatherErrs() (string, bool) {
+func (p *Poller[T, AggregateT]) gatherErrs() (error, bool) {
 	if len(p.errs) == 0 {
-		return "", false
+		return nil, false
 	}
-	errs := gperr.NewBuilder(fmt.Sprintf("poller %s has encountered %d errors in the last %s:", p.name, len(p.errs), gatherErrsInterval))
+	var errs gperr.Builder
 	for _, e := range p.errs {
 		errs.Addf("%w: %d times", e.err, e.count)
 	}
-	return errs.String(), true
+	return errs.Error(), true
 }
 
 func (p *Poller[T, AggregateT]) clearErrs() {
@@ -164,6 +176,7 @@ func (p *Poller[T, AggregateT]) Start() {
 			if err != nil {
 				l.Err(err).Msg("failed to save metrics data")
 			}
+			l.Debug().Int("entries", p.period.Total()).Msg("poller finished and saved")
 			t.Finish(err)
 		}()
 
@@ -183,7 +196,7 @@ func (p *Poller[T, AggregateT]) Start() {
 				if tickCount%gatherErrsTicks == 0 {
 					errs, ok := p.gatherErrs()
 					if ok {
-						log.Error().Msg(errs)
+						gperr.LogError(fmt.Sprintf("poller %s has encountered %d errors in the last %s:", p.name, len(p.errs), gatherErrsInterval), errs)
 					}
 					p.clearErrs()
 				}

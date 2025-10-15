@@ -167,7 +167,7 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 			if lastUsage, ok := lastResult.DisksIO[name]; ok {
 				disk.ReadSpeed = float32(disk.ReadBytes-lastUsage.ReadBytes) / float32(interval)
 				disk.WriteSpeed = float32(disk.WriteBytes-lastUsage.WriteBytes) / float32(interval)
-				disk.Iops = diff(disk.ReadCount+disk.WriteCount, lastUsage.ReadCount+lastUsage.WriteCount) / uint64(interval) //nolint:gosec
+				disk.Iops = diff(disk.IOCount, lastUsage.IOCount) / uint64(interval) //nolint:gosec
 			}
 		}
 	}
@@ -179,12 +179,12 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 	s.Disks = make(map[string]disk.UsageStat, len(partitions))
 	errs := gperr.NewBuilder("failed to get disks info")
 	for _, partition := range partitions {
-		diskInfo, err := disk.UsageWithContext(ctx, partition.Mountpoint)
+		diskInfo, err := disk.UsageWithContext(ctx, partition.Mountpoint.Value())
 		if err != nil {
 			errs.Add(err)
 			continue
 		}
-		s.Disks[partition.Device] = diskInfo
+		s.Disks[partition.Device.Value()] = diskInfo
 	}
 
 	if errs.HasError() {
@@ -247,10 +247,10 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 		}
 	case SystemInfoAggregateModeMemoryUsagePercent:
 		for _, entry := range entries {
-			if entry.Memory.UsedPercent > 0 {
+			if percent := entry.Memory.UsedPercent(); percent > 0 {
 				aggregated.Entries = append(aggregated.Entries, map[string]any{
 					"timestamp":            entry.Timestamp,
-					"memory_usage_percent": entry.Memory.UsedPercent,
+					"memory_usage_percent": percent,
 				})
 			}
 		}
@@ -331,7 +331,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			}
 			m := make(map[string]any, len(entry.Sensors)+1)
 			for _, sensor := range entry.Sensors {
-				m[sensor.SensorKey] = sensor.Temperature
+				m[sensor.SensorKey.Value()] = sensor.Temperature
 			}
 			m["timestamp"] = entry.Timestamp
 			aggregated.Entries = append(aggregated.Entries, m)

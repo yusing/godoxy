@@ -1,56 +1,21 @@
 package routes
 
 import (
-	"math"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/types"
 )
 
 type HealthInfo struct {
+	HealthInfoWithoutDetail
+	Detail string `json:"detail"`
+} // @name HealthInfo
+
+type HealthInfoWithoutDetail struct {
 	Status  types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,napping,starting,error,unknown"`
 	Uptime  time.Duration      `json:"uptime" swaggertype:"number"`  // uptime in milliseconds
 	Latency time.Duration      `json:"latency" swaggertype:"number"` // latency in microseconds
-	Detail  string             `json:"detail"`
-}
-
-func (info *HealthInfo) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
-		"status":  info.Status.String(),
-		"latency": info.Latency.Microseconds(),
-		"uptime":  info.Uptime.Milliseconds(),
-		"detail":  info.Detail,
-	})
-}
-
-func (info *HealthInfo) UnmarshalJSON(data []byte) error {
-	var v struct {
-		Status  string `json:"status"`
-		Latency int64  `json:"latency"`
-		Uptime  int64  `json:"uptime"`
-		Detail  string `json:"detail"`
-	}
-	if err := sonic.Unmarshal(data, &v); err != nil {
-		return err
-	}
-
-	// overflow check
-	// Check if latency (in microseconds) would overflow when converted to nanoseconds
-	if v.Latency > math.MaxInt64/int64(time.Microsecond) {
-		v.Latency = 0
-	}
-	// Check if uptime (in milliseconds) would overflow when converted to nanoseconds
-	if v.Uptime > math.MaxInt64/int64(time.Millisecond) {
-		v.Uptime = 0
-	}
-
-	info.Status = types.NewHealthStatusFromString(v.Status)
-	info.Latency = time.Duration(v.Latency) * time.Microsecond
-	info.Uptime = time.Duration(v.Uptime) * time.Millisecond
-	info.Detail = v.Detail
-	return nil
-}
+} // @name HealthInfoWithoutDetail
 
 func GetHealthInfo() map[string]HealthInfo {
 	healthMap := make(map[string]HealthInfo, NumRoutes())
@@ -60,19 +25,45 @@ func GetHealthInfo() map[string]HealthInfo {
 	return healthMap
 }
 
+func GetHealthInfoWithoutDetail() map[string]HealthInfoWithoutDetail {
+	healthMap := make(map[string]HealthInfoWithoutDetail, NumRoutes())
+	for r := range Iter {
+		healthMap[r.Name()] = getHealthInfoWithoutDetail(r)
+	}
+	return healthMap
+}
+
 func getHealthInfo(r types.Route) HealthInfo {
 	mon := r.HealthMonitor()
 	if mon == nil {
 		return HealthInfo{
-			Status: types.StatusUnknown,
+			HealthInfoWithoutDetail: HealthInfoWithoutDetail{
+				Status: types.StatusUnknown,
+			},
 			Detail: "n/a",
 		}
 	}
 	return HealthInfo{
+		HealthInfoWithoutDetail: HealthInfoWithoutDetail{
+			Status:  mon.Status(),
+			Uptime:  mon.Uptime(),
+			Latency: mon.Latency(),
+		},
+		Detail: mon.Detail(),
+	}
+}
+
+func getHealthInfoWithoutDetail(r types.Route) HealthInfoWithoutDetail {
+	mon := r.HealthMonitor()
+	if mon == nil {
+		return HealthInfoWithoutDetail{
+			Status: types.StatusUnknown,
+		}
+	}
+	return HealthInfoWithoutDetail{
 		Status:  mon.Status(),
 		Uptime:  mon.Uptime(),
 		Latency: mon.Latency(),
-		Detail:  mon.Detail(),
 	}
 }
 
