@@ -7,18 +7,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	F "github.com/yusing/godoxy/internal/utils/functional"
 	"github.com/yusing/goutils/task"
 )
 
 type (
 	Dispatcher struct {
 		task        *task.Task
-		providers   F.Set[Provider]
+		providers   *xsync.Map[Provider, struct{}]
 		logCh       chan *LogMessage
-		retryMsg    F.Set[*RetryMessage]
+		retryMsg    *xsync.Map[*RetryMessage, struct{}]
 		retryTicker *time.Ticker
 	}
 	LogMessage struct {
@@ -44,9 +44,9 @@ const (
 func StartNotifDispatcher(parent task.Parent) *Dispatcher {
 	dispatcher = &Dispatcher{
 		task:        parent.Subtask("notification", true),
-		providers:   F.NewSet[Provider](),
+		providers:   xsync.NewMap[Provider, struct{}](),
 		logCh:       make(chan *LogMessage, 100),
-		retryMsg:    F.NewSet[*RetryMessage](),
+		retryMsg:    xsync.NewMap[*RetryMessage, struct{}](),
 		retryTicker: time.NewTicker(retryInterval),
 	}
 	go dispatcher.start()
@@ -66,7 +66,7 @@ func Notify(msg *LogMessage) {
 }
 
 func (disp *Dispatcher) RegisterProvider(cfg *NotificationConfig) {
-	disp.providers.Add(cfg.Provider)
+	disp.providers.Store(cfg.Provider, struct{}{})
 }
 
 func (disp *Dispatcher) start() {
@@ -115,7 +115,7 @@ func (disp *Dispatcher) dispatch(msg *LogMessage) {
 					Provider:  p,
 					NextRetry: time.Now().Add(calculateBackoffDelay(0)),
 				}
-				disp.retryMsg.Add(msg)
+				disp.retryMsg.Store(msg, struct{}{})
 				l.Debug().Err(err).EmbedObject(msg).Msg("notification failed, scheduling retry")
 			} else {
 				l.Debug().Str("provider", p.GetName()).Msg("notification sent successfully")
@@ -136,7 +136,7 @@ func (disp *Dispatcher) processRetries() {
 	for msg := range disp.retryMsg.Range {
 		if now.After(msg.NextRetry) {
 			readyMessages = append(readyMessages, msg)
-			disp.retryMsg.Remove(msg)
+			disp.retryMsg.Delete(msg)
 		}
 	}
 
@@ -176,7 +176,7 @@ func (disp *Dispatcher) retry(messages []*RetryMessage) {
 
 		// Schedule next retry with exponential backoff
 		msg.NextRetry = time.Now().Add(calculateBackoffDelay(msg.Trials))
-		disp.retryMsg.Add(msg)
+		disp.retryMsg.Store(msg, struct{}{})
 
 		log.Debug().EmbedObject(msg).Msg("notification retry failed, scheduled for later")
 	}
