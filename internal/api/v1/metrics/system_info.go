@@ -21,7 +21,7 @@ type SystemInfoRequest struct {
 	Period    period.Filter                      `query:"period"`
 } // @name SystemInfoRequest
 
-type SystemInfoAggregate period.ResponseType[systeminfo.AggregatedJSON] // @name SystemInfoAggregate
+type SystemInfoAggregate period.ResponseType[systeminfo.Aggregated] // @name SystemInfoAggregate
 
 // @x-id				"system_info"
 // @BasePath		/api/v1

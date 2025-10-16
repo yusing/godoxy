@@ -24,11 +24,7 @@ import (
 
 type (
 	Sensors    []sensors.TemperatureStat // @name Sensors
-	Aggregated struct {
-		Entries []map[string]any
-		Mode    SystemInfoAggregateMode
-	}
-	AggregatedJSON []map[string]any
+	Aggregated []map[string]any
 )
 
 type SystemInfo struct {
@@ -167,7 +163,7 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 			if lastUsage, ok := lastResult.DisksIO[name]; ok {
 				disk.ReadSpeed = float32(disk.ReadBytes-lastUsage.ReadBytes) / float32(interval)
 				disk.WriteSpeed = float32(disk.WriteBytes-lastUsage.WriteBytes) / float32(interval)
-				disk.Iops = diff(disk.IOCount, lastUsage.IOCount) / uint64(interval) //nolint:gosec
+				disk.Iops = diff(disk.ReadCount+disk.WriteCount, lastUsage.ReadCount+lastUsage.WriteCount) / uint64(interval) //nolint:gosec
 			}
 		}
 	}
@@ -222,15 +218,12 @@ func (s *SystemInfo) collectSensorsInfo(ctx context.Context) error {
 // recharts friendly.
 func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggregated) {
 	n := len(entries)
-	aggregated := Aggregated{
-		Entries: make([]map[string]any, 0, n),
-		Mode:    SystemInfoAggregateMode(query.Get("aggregate")),
-	}
-	switch aggregated.Mode {
+	aggregated := make([]map[string]any, 0, n)
+	switch SystemInfoAggregateMode(query.Get("aggregate")) {
 	case SystemInfoAggregateModeCPUAverage:
 		for _, entry := range entries {
 			if entry.CPUAverage != nil {
-				aggregated.Entries = append(aggregated.Entries, map[string]any{
+				aggregated = append(aggregated, map[string]any{
 					"timestamp":   entry.Timestamp,
 					"cpu_average": *entry.CPUAverage,
 				})
@@ -239,7 +232,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 	case SystemInfoAggregateModeMemoryUsage:
 		for _, entry := range entries {
 			if entry.Memory.Used > 0 {
-				aggregated.Entries = append(aggregated.Entries, map[string]any{
+				aggregated = append(aggregated, map[string]any{
 					"timestamp":    entry.Timestamp,
 					"memory_usage": entry.Memory.Used,
 				})
@@ -248,7 +241,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 	case SystemInfoAggregateModeMemoryUsagePercent:
 		for _, entry := range entries {
 			if percent := entry.Memory.UsedPercent(); percent > 0 {
-				aggregated.Entries = append(aggregated.Entries, map[string]any{
+				aggregated = append(aggregated, map[string]any{
 					"timestamp":            entry.Timestamp,
 					"memory_usage_percent": percent,
 				})
@@ -264,7 +257,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.ReadSpeed
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries = append(aggregated.Entries, m)
+			aggregated = append(aggregated, m)
 		}
 	case SystemInfoAggregateModeDisksWriteSpeed:
 		for _, entry := range entries {
@@ -276,7 +269,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.WriteSpeed
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries = append(aggregated.Entries, m)
+			aggregated = append(aggregated, m)
 		}
 	case SystemInfoAggregateModeDisksIOPS:
 		for _, entry := range entries {
@@ -288,7 +281,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = usage.Iops
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries = append(aggregated.Entries, m)
+			aggregated = append(aggregated, m)
 		}
 	case SystemInfoAggregateModeDiskUsage:
 		for _, entry := range entries {
@@ -300,14 +293,14 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[name] = disk.Used
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries = append(aggregated.Entries, m)
+			aggregated = append(aggregated, m)
 		}
 	case SystemInfoAggregateModeNetworkSpeed:
 		for _, entry := range entries {
 			if entry.Network.BytesSent == 0 && entry.Network.BytesRecv == 0 {
 				continue
 			}
-			aggregated.Entries = append(aggregated.Entries, map[string]any{
+			aggregated = append(aggregated, map[string]any{
 				"timestamp": entry.Timestamp,
 				"upload":    entry.Network.UploadSpeed,
 				"download":  entry.Network.DownloadSpeed,
@@ -318,7 +311,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			if entry.Network.BytesRecv > 0 || entry.Network.BytesSent > 0 {
 				continue
 			}
-			aggregated.Entries = append(aggregated.Entries, map[string]any{
+			aggregated = append(aggregated, map[string]any{
 				"timestamp": entry.Timestamp,
 				"upload":    entry.Network.BytesSent,
 				"download":  entry.Network.BytesRecv,
@@ -334,12 +327,12 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 				m[sensor.SensorKey.Value()] = sensor.Temperature
 			}
 			m["timestamp"] = entry.Timestamp
-			aggregated.Entries = append(aggregated.Entries, m)
+			aggregated = append(aggregated, m)
 		}
 	default:
-		return -1, Aggregated{}
+		return -1, nil
 	}
-	return len(aggregated.Entries), aggregated
+	return len(aggregated), aggregated
 }
 
 func diff(x, y uint64) uint64 {
