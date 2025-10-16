@@ -7,6 +7,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/gotify/server/v2/model"
 	"github.com/rs/zerolog"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -17,6 +18,16 @@ type (
 )
 
 const gotifyMsgEndpoint = "/message"
+
+func (client *GotifyClient) Validate() gperr.Error {
+	if err := client.ProviderBase.Validate(); err != nil {
+		return err
+	}
+	if client.Token == "" {
+		return gperr.New("token is required")
+	}
+	return nil
+}
 
 func (client *GotifyClient) GetURL() string {
 	return client.URL + gotifyMsgEndpoint
