@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/valyala/fasthttp"
 	"github.com/yusing/godoxy/agent/pkg/certs"
 	"github.com/yusing/goutils/version"
 )
@@ -25,10 +26,10 @@ type AgentConfig struct {
 	Version version.Version  `json:"version"`
 	Runtime ContainerRuntime `json:"runtime"`
 
-	httpClient            *http.Client
-	httpClientHealthCheck *http.Client
-	tlsConfig             tls.Config
-	l                     zerolog.Logger
+	httpClient                *http.Client
+	fasthttpClientHealthCheck *fasthttp.Client
+	tlsConfig                 tls.Config
+	l                         zerolog.Logger
 } // @name Agent
 
 const (
@@ -107,8 +108,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	cfg.httpClient = cfg.NewHTTPClient()
 	applyNormalTransportConfig(cfg.httpClient)
 
-	cfg.httpClientHealthCheck = cfg.NewHTTPClient()
-	applyHealthCheckTransportConfig(cfg.httpClientHealthCheck)
+	cfg.fasthttpClientHealthCheck = cfg.NewFastHTTPHealthCheckClient()
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -188,6 +188,25 @@ func (cfg *AgentConfig) NewHTTPClient() *http.Client {
 	}
 }
 
+func (cfg *AgentConfig) NewFastHTTPHealthCheckClient() *fasthttp.Client {
+	return &fasthttp.Client{
+		Dial: func(addr string) (net.Conn, error) {
+			if addr != AgentHost+":443" {
+				return nil, &net.AddrError{Err: "invalid address", Addr: addr}
+			}
+			return net.Dial("tcp", cfg.Addr)
+		},
+		TLSConfig:                     &cfg.tlsConfig,
+		ReadTimeout:                   5 * time.Second,
+		WriteTimeout:                  3 * time.Second,
+		DisableHeaderNamesNormalizing: true,
+		DisablePathNormalizing:        true,
+		NoDefaultUserAgentHeader:      true,
+		ReadBufferSize:                1024,
+		WriteBufferSize:               1024,
+	}
+}
+
 func (cfg *AgentConfig) Transport() *http.Transport {
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -219,14 +238,4 @@ func applyNormalTransportConfig(client *http.Client) {
 	transport.MaxIdleConnsPerHost = 100
 	transport.ReadBufferSize = 16384
 	transport.WriteBufferSize = 16384
-}
-
-func applyHealthCheckTransportConfig(client *http.Client) {
-	transport := client.Transport.(*http.Transport)
-	transport.DisableKeepAlives = true
-	transport.DisableCompression = true
-	transport.MaxIdleConns = 1
-	transport.MaxIdleConnsPerHost = 1
-	transport.ReadBufferSize = 1024
-	transport.WriteBufferSize = 1024
 }

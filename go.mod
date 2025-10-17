@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy
 
-go 1.25.2
+go 1.25.3
 
 replace github.com/yusing/godoxy/agent => ./agent
 
@@ -46,9 +46,9 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.2.0
-	github.com/yusing/godoxy/agent v0.0.0-20251011032714-d1e403e16f1c
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251011032714-d1e403e16f1c
-	github.com/yusing/goutils v0.6.1
+	github.com/yusing/godoxy/agent v0.0.0-20251015155326-44536139c144
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251015155326-44536139c144
+	github.com/yusing/goutils v0.7.0
 )
 
 require (
@@ -128,7 +128,7 @@ require (
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/api v0.252.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -139,11 +139,13 @@ require (
 require (
 	github.com/bytedance/sonic v1.14.1
 	github.com/shirou/gopsutil/v4 v4.25.9
+	github.com/valyala/fasthttp v1.67.0
 	github.com/yusing/gointernals v0.1.16
 )
 
 require (
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v11 v11.1.0 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -161,7 +163,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/linode/linodego v1.60.0 // indirect
-	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
+	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -175,6 +177,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/ulikunitz/xz v0.5.14 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.37.0 // indirect

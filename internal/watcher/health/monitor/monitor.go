@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -110,7 +109,7 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 	default:
 		ctx = context.Background()
 	}
-	return context.WithTimeoutCause(ctx, mon.config.Timeout, errors.New(cause))
+	return context.WithTimeoutCause(ctx, mon.config.Timeout, gperr.New(cause))
 }
 
 // Start implements task.TaskStarter.

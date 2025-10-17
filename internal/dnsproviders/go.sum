@@ -182,8 +182,8 @@ github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zU
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfSfmXjznFBSZNN13rSJjlIOI1fUNAtF7rmI=
 github.com/yusing/gointernals v0.1.16 h1:GrhZZdxzA+jojLEqankctJrOuAYDb7kY1C93S1pVR34=
 github.com/yusing/gointernals v0.1.16/go.mod h1:B/0FVXt4WPmgzVy3ynzkqKi+BSGaJVmwCJBRXYapo34=
-github.com/yusing/goutils v0.6.1 h1:PQmWQEBV+xkI6vnyreQ2uT1PFWTQNkZfHM7Oczuih/s=
-github.com/yusing/goutils v0.6.1/go.mod h1:3dgYe/A3+8wT88/iAHwXdL44q5bP+qVo2WAOiPBqOrg=
+github.com/yusing/goutils v0.7.0 h1:I5hd8GwZ+3WZqFPK0tWqek1Q5MY6Xg29hKZcwwQi4SY=
+github.com/yusing/goutils v0.7.0/go.mod h1:CtF/KFH4q8jkr7cvBpkaExnudE0lLu8sLe43F73Bn5Q=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 h1:q4XOmH/0opmeuJtPsbFNivyl7bCt7yRBbeEm2sC/XtQ=
@@ -237,8 +237,8 @@ google.golang.org/genproto v0.0.0-20250908214217-97024824d090 h1:ywCL7vA2n3vVHyf
 google.golang.org/genproto v0.0.0-20250908214217-97024824d090/go.mod h1:zwJI9HzbJJlw2KXy0wX+lmT2JuZoaKK9JC4ppqmxxjk=
 google.golang.org/genproto/googleapis/api v0.0.0-20250826171959-ef028d996bc1 h1:APHvLLYBhtZvsbnpkfknDZ7NyH4z5+ub/I0u8L3Oz6g=
 google.golang.org/genproto/googleapis/api v0.0.0-20250826171959-ef028d996bc1/go.mod h1:xUjFWUnWDpZ/C0Gu0qloASKFb6f8/QXiiXhSPFsD668=
-google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff h1:A90eA31Wq6HOMIQlLfzFwzqGKBTuaVztYu/g8sn+8Zc=
-google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff/go.mod h1:7i2o+ce6H/6BluujYR+kqX3GKH+dChPTQU19wjRPiGk=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f h1:1FTH6cpXFsENbPR5Bu8NQddPSaUUE6NA2XdZdDSAJK4=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f/go.mod h1:7i2o+ce6H/6BluujYR+kqX3GKH+dChPTQU19wjRPiGk=
 google.golang.org/grpc v1.76.0 h1:UnVkv1+uMLYXoIz6o7chp59WfQUYA2ex/BXQ9rHZu7A=
 google.golang.org/grpc v1.76.0/go.mod h1:Ju12QI8M6iQJtbcsV+awF5a4hfJMLi4X0JLo94ULZ6c=
 google.golang.org/protobuf v1.36.10 h1:AYd7cD/uASjIL6Q9LiTjz8JLcrh/88q5UObnmY3aOOE=

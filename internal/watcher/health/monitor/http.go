@@ -3,10 +3,10 @@ package monitor
 import (
 	"crypto/tls"
 	"errors"
-	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/valyala/fasthttp"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/version"
 )
@@ -16,65 +16,53 @@ type HTTPHealthMonitor struct {
 	method string
 }
 
-var pinger = &http.Client{
-	Transport: &http.Transport{
-		DisableKeepAlives:     true,
-		ForceAttemptHTTP2:     false,
-		TLSHandshakeTimeout:   3 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-		MaxIdleConnsPerHost: 1,
-		IdleConnTimeout:     10 * time.Second,
+var pinger = &fasthttp.Client{
+	ReadTimeout:                   5 * time.Second,
+	WriteTimeout:                  3 * time.Second,
+	MaxConnDuration:               0,
+	DisableHeaderNamesNormalizing: true,
+	DisablePathNormalizing:        true,
+	TLSConfig: &tls.Config{
+		InsecureSkipVerify: true,
 	},
-	CheckRedirect: func(r *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
+	MaxConnsPerHost:          1,
+	NoDefaultUserAgentHeader: true,
 }
 
 func NewHTTPHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *HTTPHealthMonitor {
 	mon := new(HTTPHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	if config.UseGet {
-		mon.method = http.MethodGet
+		mon.method = fasthttp.MethodGet
 	} else {
-		mon.method = http.MethodHead
+		mon.method = fasthttp.MethodHead
 	}
 	return mon
 }
 
 func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
-	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
-	defer cancel()
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		mon.method,
-		mon.url.Load().JoinPath(mon.config.Path).String(),
-		nil,
-	)
-	if err != nil {
-		return types.HealthCheckResult{}, err
-	}
-	req.Close = true
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	req.SetRequestURI(mon.url.Load().JoinPath(mon.config.Path).String())
+	req.Header.SetMethod(mon.method)
 	req.Header.Set("User-Agent", "GoDoxy/"+version.Get().String())
 	req.Header.Set("Accept", "text/plain,text/html,*/*;q=0.8")
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Pragma", "no-cache")
+	req.SetConnectionClose()
 
 	start := time.Now()
-	resp, respErr := pinger.Do(req)
-	if respErr == nil {
-		resp.Body.Close()
-	}
-
+	respErr := pinger.DoTimeout(req, resp, mon.config.Timeout)
 	lat := time.Since(start)
 
 	switch {
 	case respErr != nil:
-		// treat tls error as healthy
+		// treat TLS error as healthy
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(respErr, &tlsErr); !ok {
 			return types.HealthCheckResult{
@@ -82,10 +70,10 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 				Detail:  respErr.Error(),
 			}, nil
 		}
-	case resp.StatusCode == http.StatusServiceUnavailable:
+	case resp.StatusCode() == fasthttp.StatusServiceUnavailable:
 		return types.HealthCheckResult{
 			Latency: lat,
-			Detail:  resp.Status,
+			Detail:  fasthttp.StatusMessage(resp.StatusCode()),
 		}, nil
 	}
 

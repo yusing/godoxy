@@ -1,12 +1,12 @@
 module github.com/yusing/godoxy/internal/dnsproviders
 
-go 1.25.2
+go 1.25.3
 
 replace github.com/yusing/godoxy => ../..
 
 require (
 	github.com/go-acme/lego/v4 v4.26.0
-	github.com/yusing/godoxy v0.18.6
+	github.com/yusing/godoxy v0.19.2
 )
 
 require (
@@ -75,7 +75,7 @@ require (
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
-	github.com/yusing/goutils v0.6.1 // indirect
+	github.com/yusing/goutils v0.7.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
@@ -93,7 +93,7 @@ require (
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/api v0.252.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

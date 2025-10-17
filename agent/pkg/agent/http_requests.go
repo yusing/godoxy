@@ -2,10 +2,14 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
+	"github.com/valyala/fasthttp"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
@@ -30,15 +34,44 @@ func (cfg *AgentConfig) Forward(req *http.Request, endpoint string) (*http.Respo
 	return resp, nil
 }
 
-func (cfg *AgentConfig) DoHealthCheck(ctx context.Context, endpoint string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", APIBaseURL+endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept-Encoding", "identity")
-	req.Header.Set("Connection", "close")
+type HealthCheckResponse struct {
+	Healthy bool          `json:"healthy"`
+	Detail  string        `json:"detail"`
+	Latency time.Duration `json:"latency"`
+}
 
-	return cfg.httpClientHealthCheck.Do(req)
+func (cfg *AgentConfig) DoHealthCheck(timeout time.Duration, query string) (ret HealthCheckResponse, err error) {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	req.SetRequestURI(APIBaseURL + EndpointHealth + "?" + query)
+	req.Header.SetMethod(fasthttp.MethodGet)
+	req.Header.Set("Accept-Encoding", "identity")
+	req.SetConnectionClose()
+
+	start := time.Now()
+	err = cfg.fasthttpClientHealthCheck.DoTimeout(req, resp, timeout)
+	ret.Latency = time.Since(start)
+	if err != nil {
+		return ret, err
+	}
+
+	if status := resp.StatusCode(); status != http.StatusOK {
+		// clone body since fasthttp response will be released
+		body := resp.Body()
+		cloneBody := make([]byte, len(body))
+		copy(cloneBody, body)
+		return ret, fmt.Errorf("HTTP %d %s", status, cloneBody)
+	} else {
+		err = sonic.Unmarshal(resp.Body(), &ret)
+		if err != nil {
+			return ret, err
+		}
+	}
+	return ret, nil
 }
 
 func (cfg *AgentConfig) fetchString(ctx context.Context, endpoint string) (string, int, error) {

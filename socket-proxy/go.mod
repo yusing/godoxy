@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/socketproxy
 
-go 1.25.2
+go 1.25.3
 
 exclude github.com/yusing/goutils v0.4.2
 
@@ -8,7 +8,7 @@ replace github.com/yusing/goutils => ../goutils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/goutils v0.6.1
+	github.com/yusing/goutils v0.7.0
 	golang.org/x/net v0.46.0
 )
 
