@@ -3,7 +3,6 @@ package homepage
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
+	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
@@ -266,30 +266,26 @@ func updateIcons(m IconMap) error {
 var httpGet = httpGetImpl
 
 func MockHTTPGet(body []byte) {
-	httpGet = func(_ string) ([]byte, error) {
-		return body, nil
+	httpGet = func(_ string) ([]byte, func([]byte), error) {
+		return body, func([]byte) {}, nil
 	}
 }
 
-func httpGetImpl(url string) ([]byte, error) {
+func httpGetImpl(url string) ([]byte, func([]byte), error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return httputils.ReadAllBody(resp)
 }
 
 /*
@@ -308,13 +304,14 @@ format:
 	}
 */
 func UpdateWalkxCodeIcons(m IconMap) error {
-	body, err := httpGet(walkxcodeIcons)
+	body, release, err := httpGet(walkxcodeIcons)
 	if err != nil {
 		return err
 	}
 
 	data := make(map[string][]string)
 	err = sonic.Unmarshal(body, &data)
+	release(body)
 	if err != nil {
 		return err
 	}
@@ -379,13 +376,14 @@ func UpdateSelfhstIcons(m IconMap) error {
 		Tags      string
 	}
 
-	body, err := httpGet(selfhstIcons)
+	body, release, err := httpGet(selfhstIcons)
 	if err != nil {
 		return err
 	}
 
 	data := make([]SelfhStIcon, 0)
 	err = sonic.Unmarshal(body, &data) //nolint:musttag
+	release(body)
 	if err != nil {
 		return err
 	}

@@ -1,10 +1,8 @@
 package metrics
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -18,17 +16,13 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 	"github.com/yusing/goutils/synk"
 )
 
-var (
-	// for json marshaling (unknown size)
-	allSystemInfoBytesPool = synk.GetBytesPoolWithUniqueMemory()
-	// for storing http response body (known size)
-	allSystemInfoFixedSizePool = synk.GetBytesPool()
-)
+var bytesPool = synk.GetUnsizedBytesPool()
 
 type AllSystemInfoRequest struct {
 	Period    period.Filter                      `query:"period"`
@@ -38,6 +32,7 @@ type AllSystemInfoRequest struct {
 
 type bytesFromPool struct {
 	json.RawMessage
+	release func([]byte)
 }
 
 // @x-id				"all_system_info"
@@ -183,38 +178,26 @@ func AllSystemInfo(c *gin.Context) {
 	}
 }
 
-func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string) (json.Marshaler, error) {
+func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	path := agent.EndpointSystemInfo + "?" + query
 	resp, err := a.Do(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return bytesFromPool{}, err
 	}
 	defer resp.Body.Close()
 
 	// NOTE: buffer will be released by marshalSystemInfo once marshaling is done.
-	if resp.ContentLength >= 0 {
-		bytesBuf := allSystemInfoFixedSizePool.GetSized(int(resp.ContentLength))
-		_, err = io.ReadFull(resp.Body, bytesBuf)
-		if err != nil {
-			// prevent pool leak on error.
-			allSystemInfoFixedSizePool.Put(bytesBuf)
-			return nil, err
-		}
-		return bytesFromPool{json.RawMessage(bytesBuf)}, nil
-	}
-
-	// Fallback when content length is unknown (should not happen but just in case).
-	data, err := io.ReadAll(resp.Body)
+	bytesBuf, release, err := httputils.ReadAllBody(resp)
 	if err != nil {
-		return nil, err
+		return bytesFromPool{}, err
 	}
-	return json.RawMessage(data), nil
+	return bytesFromPool{json.RawMessage(bytesBuf), release}, nil
 }
 
-func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, query string) (json.Marshaler, error) {
+func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
 	const maxRetries = 3
 	var lastErr error
 
@@ -224,7 +207,7 @@ func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, quer
 			delay := max((1<<attempt)*time.Second, 5*time.Second)
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return bytesFromPool{}, ctx.Err()
 			case <-time.After(delay):
 			}
 		}
@@ -240,23 +223,22 @@ func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, quer
 
 		// Don't retry on context cancellation
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return bytesFromPool{}, ctx.Err()
 		}
 	}
 
-	return nil, lastErr
+	return bytesFromPool{}, lastErr
 }
 
 func marshalSystemInfo(ws *websocket.Manager, agentName string, systemInfo any) error {
-	bytesBuf := allSystemInfoBytesPool.Get()
-	defer allSystemInfoBytesPool.Put(bytesBuf)
+	buf := bytesPool.GetBuffer()
+	defer bytesPool.PutBuffer(buf)
 
 	// release the buffer retrieved from getAgentSystemInfo
 	if bufFromPool, ok := systemInfo.(bytesFromPool); ok {
-		defer allSystemInfoFixedSizePool.Put(bufFromPool.RawMessage)
+		defer bufFromPool.release(bufFromPool.RawMessage)
 	}
 
-	buf := bytes.NewBuffer(bytesBuf)
 	err := sonic.ConfigDefault.NewEncoder(buf).Encode(map[string]any{
 		agentName: systemInfo,
 	})

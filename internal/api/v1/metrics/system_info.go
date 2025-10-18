@@ -70,12 +70,16 @@ func SystemInfo(c *gin.Context) {
 		maps.Copy(c.Writer.Header(), resp.Header)
 		c.Status(resp.StatusCode)
 
-		buf := pool.Get()
-		defer pool.Put(buf)
-		io.CopyBuffer(c.Writer, resp.Body, buf)
+		pool := synk.GetSizedBytesPool()
+		buf := pool.GetSized(16384)
+		_, err = io.CopyBuffer(c.Writer, resp.Body, buf)
+		pool.Put(buf)
+
+		if err != nil {
+			c.Error(apitypes.InternalServerError(err, "failed to copy response to client"))
+			return
+		}
 	} else {
 		agent.ReverseProxy(c.Writer, c.Request, agentPkg.EndpointSystemInfo)
 	}
 }
-
-var pool = synk.GetBytesPool()

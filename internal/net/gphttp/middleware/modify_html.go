@@ -18,13 +18,13 @@ type modifyHTML struct {
 	Target    string // css selector
 	HTML      string // html to inject
 	Replace   bool   // replace the target element with the new html instead of appending it
-	bytesPool *synk.BytesPool
+	bytesPool synk.UnsizedBytesPool
 }
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
 func (m *modifyHTML) setup() {
-	m.bytesPool = synk.GetBytesPool()
+	m.bytesPool = synk.GetUnsizedBytesPool()
 }
 
 func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {

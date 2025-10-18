@@ -13,7 +13,7 @@ import (
 )
 
 type ResponseModifier struct {
-	bufPool *synk.BytesPoolWithMemory
+	bufPool synk.UnsizedBytesPool
 
 	w          http.ResponseWriter
 	buf        *bytes.Buffer
@@ -68,12 +68,12 @@ func GetSharedData(w http.ResponseWriter) Cache {
 // It should only be called once, at the very beginning of the request.
 func NewResponseModifier(w http.ResponseWriter) *ResponseModifier {
 	return &ResponseModifier{
-		bufPool: synk.GetBytesPoolWithUniqueMemory(),
+		bufPool: synk.GetUnsizedBytesPool(),
 		w:       w,
 	}
 }
 
-func (rm *ResponseModifier) BufPool() *synk.BytesPoolWithMemory {
+func (rm *ResponseModifier) BufPool() synk.UnsizedBytesPool {
 	return rm.bufPool
 }
 
@@ -144,6 +144,15 @@ func (rm *ResponseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("hijack not supported")
 }
 
+func (rm *ResponseModifier) Flush() error {
+	if flusher, ok := rm.w.(http.Flusher); ok {
+		flusher.Flush()
+	} else if errFlusher, ok := rm.w.(interface{ Flush() error }); ok {
+		return errFlusher.Flush()
+	}
+	return nil
+}
+
 // FlushRelease flushes the response modifier and releases the resources
 // it returns the number of bytes written and the aggregated error
 // if there is any error (rule errors or write error), it will be returned
@@ -166,14 +175,8 @@ func (rm *ResponseModifier) FlushRelease() (int, error) {
 			if werr != nil {
 				rm.errs.Addf("write error: %w", werr)
 			}
-			// flush the response writer
-			if flusher, ok := rm.w.(http.Flusher); ok {
-				flusher.Flush()
-			} else if errFlusher, ok := rm.w.(interface{ Flush() error }); ok {
-				ferr := errFlusher.Flush()
-				if ferr != nil {
-					rm.errs.Addf("flush error: %w", ferr)
-				}
+			if err := rm.Flush(); err != nil {
+				rm.errs.Addf("flush error: %w", err)
 			}
 		}
 	}

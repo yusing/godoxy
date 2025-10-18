@@ -11,7 +11,6 @@ import (
 	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
-	"github.com/yusing/goutils/synk"
 )
 
 type supportRotate interface {
@@ -58,8 +57,6 @@ type lineInfo struct {
 	Pos  int64 // Position from the start of the file
 	Size int64 // Size of this line
 }
-
-var rotateBytePool = synk.GetBytesPoolWithUniqueMemory()
 
 // rotateLogFile rotates the log file based on the retention policy.
 // It writes to the result and returns an error if any.
@@ -167,9 +164,9 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 
 	// Read each line and write it to the beginning of the file
 	writePos := int64(0)
-	buf := rotateBytePool.Get()
+	buf := bytesPool.Get()
 	defer func() {
-		rotateBytePool.Put(buf)
+		bytesPool.Put(buf)
 	}()
 
 	// in reverse order to keep the order of the lines (from old to new)
