@@ -1,9 +1,16 @@
 package monitor
 
 import (
+	"net/http"
+
+	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types/container"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
+	"github.com/yusing/goutils/task"
 )
 
 type DockerHealthMonitor struct {
@@ -27,6 +34,41 @@ func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias stri
 	return mon
 }
 
+func (mon *DockerHealthMonitor) Start(parent task.Parent) gperr.Error {
+	mon.client = mon.client.CloneUnique()
+	err := mon.monitor.Start(parent)
+	if err != nil {
+		return err
+	}
+	mon.client.InterceptHTTPClient(mon.interceptInspectResponse)
+	mon.monitor.task.OnFinished("close docker client", mon.client.Close)
+	return nil
+}
+
+type inspectState struct {
+	State *container.State
+}
+
+func (mon *DockerHealthMonitor) interceptInspectResponse(resp *http.Response) (intercepted bool, err error) {
+	if resp.StatusCode != http.StatusOK {
+		return false, nil
+	}
+
+	body, release, err := httputils.ReadAllBody(resp)
+	resp.Body.Close()
+	if err != nil {
+		return false, err
+	}
+
+	var state inspectState
+	err = sonic.Unmarshal(body, &state)
+	release(body)
+	if err != nil {
+		return false, err
+	}
+	return true, httputils.NewRequestInterceptedError(resp, state)
+}
+
 func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	// if docker health check failed too many times, use fallback forever
 	if mon.numDockerFailures > dockerFailuresThreshold {
@@ -36,13 +78,18 @@ func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	ctx, cancel := mon.ContextWithTimeout("docker health check timed out")
 	defer cancel()
 
-	cont, err := mon.client.ContainerInspect(ctx, mon.containerID)
-	if err != nil {
+	// the actual inspect response is intercepted and returned as RequestInterceptedError
+	_, err := mon.client.ContainerInspect(ctx, mon.containerID)
+
+	var interceptedErr *httputils.RequestInterceptedError
+	if err != nil && !httputils.AsRequestInterceptedError(err, &interceptedErr) {
 		mon.numDockerFailures++
+		log.Debug().Err(err).Str("container_id", mon.containerID).Msg("docker health check failed, using fallback")
 		return mon.fallback.CheckHealth()
 	}
 
-	status := cont.State.Status
+	state := interceptedErr.Data.(inspectState).State
+	status := state.Status
 	switch status {
 	case "dead", "exited", "paused", "restarting", "removing":
 		mon.numDockerFailures = 0
@@ -57,17 +104,17 @@ func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 			Detail:  "container is not started",
 		}, nil
 	}
-	if cont.State.Health == nil { // no health check from docker, directly use fallback starting from next check
+	if state.Health == nil { // no health check from docker, directly use fallback starting from next check
 		mon.numDockerFailures = dockerFailuresThreshold + 1
 		return mon.fallback.CheckHealth()
 	}
 
 	mon.numDockerFailures = 0
 	result := types.HealthCheckResult{
-		Healthy: cont.State.Health.Status == container.Healthy,
+		Healthy: state.Health.Status == container.Healthy,
 	}
-	if len(cont.State.Health.Log) > 0 {
-		lastLog := cont.State.Health.Log[len(cont.State.Health.Log)-1]
+	if len(state.Health.Log) > 0 {
+		lastLog := state.Health.Log[len(state.Health.Log)-1]
 		result.Detail = lastLog.Output
 		result.Latency = lastLog.End.Sub(lastLog.Start)
 	}

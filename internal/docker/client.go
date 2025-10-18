@@ -7,16 +7,20 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/common"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/task"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // TODO: implement reconnect here.
@@ -30,6 +34,8 @@ type (
 		key  string
 		addr string
 		dial func(ctx context.Context) (net.Conn, error)
+
+		unique bool
 	}
 )
 
@@ -114,16 +120,23 @@ func Clients() map[string]*SharedClient {
 // Returns:
 //   - Client: the Docker client connection.
 //   - error: an error if the connection failed.
-func NewClient(host string) (*SharedClient, error) {
+func NewClient(host string, unique ...bool) (*SharedClient, error) {
 	initClientCleanerOnce.Do(initClientCleaner)
 
-	clientMapMu.Lock()
-	defer clientMapMu.Unlock()
+	u := false
+	if len(unique) > 0 {
+		u = unique[0]
+	}
 
-	if client, ok := clientMap[host]; ok {
-		client.closedOn.Store(0)
-		client.refCount.Add(1)
-		return client, nil
+	if !u {
+		clientMapMu.Lock()
+		defer clientMapMu.Unlock()
+
+		if client, ok := clientMap[host]; ok {
+			client.closedOn.Store(0)
+			client.refCount.Add(1)
+			return client, nil
+		}
 	}
 
 	// create client
@@ -188,7 +201,9 @@ func NewClient(host string) (*SharedClient, error) {
 		addr:   addr,
 		key:    host,
 		dial:   dial,
+		unique: u,
 	}
+	c.unotel()
 	c.refCount.Store(1)
 
 	// non-agent client
@@ -201,8 +216,26 @@ func NewClient(host string) (*SharedClient, error) {
 
 	defer log.Debug().Str("host", host).Msg("docker client initialized")
 
-	clientMap[c.Key()] = c
+	if !u {
+		clientMap[c.Key()] = c
+	}
 	return c, nil
+}
+
+func (c *SharedClient) GetHTTPClient() **http.Client {
+	return (**http.Client)(unsafe.Pointer(uintptr(unsafe.Pointer(c.Client)) + clientClientOffset))
+}
+
+func (c *SharedClient) InterceptHTTPClient(intercept httputils.InterceptFunc) {
+	httpClient := *c.GetHTTPClient()
+	httpClient.Transport = httputils.NewInterceptedTransport(httpClient.Transport, intercept)
+}
+
+func (c *SharedClient) CloneUnique() *SharedClient {
+	// there will be no error here
+	// since we are using the same host from a valid client.
+	c, _ = NewClient(c.key, true)
+	return c
 }
 
 func (c *SharedClient) Key() string {
@@ -222,8 +255,41 @@ func (c *SharedClient) CheckConnection(ctx context.Context) error {
 	return nil
 }
 
-// if the client is still referenced, this is no-op.
+// for shared clients, if the client is still referenced, this is no-op.
 func (c *SharedClient) Close() {
+	if c.unique {
+		c.Client.Close()
+		return
+	}
 	c.closedOn.Store(time.Now().Unix())
 	c.refCount.Add(-1)
+}
+
+var clientClientOffset = func() uintptr {
+	field, ok := reflect.TypeFor[client.Client]().FieldByName("client")
+	if !ok {
+		panic("client.Client has no client field")
+	}
+	return field.Offset
+}()
+
+var otelRtOffset = func() uintptr {
+	field, ok := reflect.TypeFor[otelhttp.Transport]().FieldByName("rt")
+	if !ok {
+		panic("otelhttp.Transport has no rt field")
+	}
+	return field.Offset
+}()
+
+func (c *SharedClient) unotel() {
+	// we don't need and don't want otelhttp.Transport here.
+	httpClient := *c.GetHTTPClient()
+
+	otelTransport, ok := httpClient.Transport.(*otelhttp.Transport)
+	if !ok {
+		log.Debug().Str("host", c.DaemonHost()).Msgf("docker client transport is not an otelhttp.Transport: %T", httpClient.Transport)
+		return
+	}
+	transport := *(*http.RoundTripper)(unsafe.Pointer(uintptr(unsafe.Pointer(otelTransport)) + otelRtOffset))
+	httpClient.Transport = transport
 }
