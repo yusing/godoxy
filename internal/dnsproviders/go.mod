@@ -5,7 +5,7 @@ go 1.25.3
 replace github.com/yusing/godoxy => ../..
 
 require (
-	github.com/go-acme/lego/v4 v4.26.0
+	github.com/go-acme/lego/v4 v4.27.0
 	github.com/yusing/godoxy v0.19.2
 )
 
@@ -25,7 +25,7 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.1 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

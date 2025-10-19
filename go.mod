@@ -18,7 +18,7 @@ require (
 	github.com/docker/docker v28.5.1+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
-	github.com/go-acme/lego/v4 v4.26.0 // acme client
+	github.com/go-acme/lego/v4 v4.27.0 // acme client
 	github.com/go-playground/validator/v10 v10.28.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -46,8 +46,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.2.0
-	github.com/yusing/godoxy/agent v0.0.0-20251015155326-44536139c144
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251015155326-44536139c144
+	github.com/yusing/godoxy/agent v0.0.0-20251018115914-94d6b7a168ab
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251018115914-94d6b7a168ab
 	github.com/yusing/goutils v0.7.0
 )
 
@@ -66,7 +66,6 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/diskfs/go-diskfs v1.7.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect

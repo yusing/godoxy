@@ -38,7 +38,7 @@ allowlist = [
     "godaddy",
     "googledomains",
     "hetzner",
-    # "hostinger", # TODO: uncomment when v4.27.0 is released
+    "hostinger",
     "httpreq",
     "ionos",
     "linode",
