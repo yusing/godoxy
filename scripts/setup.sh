@@ -288,11 +288,11 @@ autocert:
 fi
 
 # 9. set uid and gid
-if [ "$USE_ROOTLESS_DOCKER" == "false" ]; then
+if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+	setenv "DOCKER_SOCKET" "/var/run/user/$(id -u)/docker.sock"
+else
 	setenv "GODOXY_UID" "$(id -u)"
 	setenv "GODOXY_GID" "$(id -g)"
-else
-	setenv "DOCKER_SOCKET" "/var/run/user/$(id -u)/docker.sock"
 fi
 
 # 10. proxy network (rootless docker only)
