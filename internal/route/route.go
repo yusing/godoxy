@@ -474,6 +474,9 @@ func (r *Route) HomepageItem() homepage.Item {
 }
 
 func (r *Route) DisplayName() string {
+	if r.Homepage == nil { // should only happen in tests, Validate() should initialize it
+		return r.Alias
+	}
 	return r.Homepage.Name
 }
 

@@ -100,7 +100,7 @@ func TestUserPassLoginCallbackHandler(t *testing.T) {
 		}
 		auth.PostAuthCallbackHandler(w, req)
 		if tt.wantErr {
-			expect.Equal(t, w.Code, http.StatusUnauthorized)
+			expect.Equal(t, w.Code, http.StatusBadRequest)
 		} else {
 			setCookie := expect.Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
 			expect.True(t, setCookie.Name == auth.TokenCookieName())
