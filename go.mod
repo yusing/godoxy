@@ -42,12 +42,12 @@ require (
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/quic-go/quic-go v0.55.0 // indirect; http3 support
-	github.com/samber/slog-zerolog/v2 v2.7.3 // indirect
+	github.com/samber/slog-zerolog/v2 v2.8.0 // indirect
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
-	github.com/yusing/ds v0.2.0
-	github.com/yusing/godoxy/agent v0.0.0-20251018115914-94d6b7a168ab
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251018115914-94d6b7a168ab
+	github.com/yusing/ds v0.3.1
+	github.com/yusing/godoxy/agent v0.0.0-20251025144347-1ec2872f3d4c
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251025144347-1ec2872f3d4c
 	github.com/yusing/goutils v0.7.0
 )
 
@@ -126,8 +126,8 @@ require (
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
-	google.golang.org/api v0.252.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f // indirect
+	google.golang.org/api v0.253.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -138,7 +138,7 @@ require (
 require (
 	github.com/bytedance/sonic v1.14.1
 	github.com/shirou/gopsutil/v4 v4.25.9
-	github.com/valyala/fasthttp v1.67.0
+	github.com/valyala/fasthttp v1.68.0
 	github.com/yusing/gointernals v0.1.16
 )
 
@@ -159,15 +159,15 @@ require (
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/linode/linodego v1.60.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.102.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.102.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.102.1 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.102.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
