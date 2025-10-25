@@ -16,7 +16,7 @@ services:
       API_SKIP_ORIGIN_CHECK: true
       API_JWT_TTL: 24h
       DEBUG: true
-      API_SECRET: 1234567891234567
+      API_JWT_SECRET: 1234567891234567
     labels:
       proxy.exclude: true
       proxy.#1.healthcheck.disable: true
@@ -42,6 +42,8 @@ services:
     configs:
       - source: parca
         target: /parca.yaml
+    labels:
+      proxy.#1.port: "7070"
   tinyauth:
     image: ghcr.io/steveiliop56/tinyauth:v3
     container_name: tinyauth
