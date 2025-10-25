@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/docker"
+	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/websocket"
 	"github.com/yusing/goutils/task"
 )

@@ -6,8 +6,8 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
+	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )

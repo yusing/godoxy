@@ -7,9 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/synk"
 )

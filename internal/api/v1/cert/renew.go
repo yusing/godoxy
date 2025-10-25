@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
+	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/websocket"
 )

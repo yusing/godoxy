@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/provider"
+	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
 )
 

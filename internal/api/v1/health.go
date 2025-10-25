@@ -8,6 +8,8 @@ import (
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 type HealthMap = map[string]routes.HealthInfo //	@name	HealthMap

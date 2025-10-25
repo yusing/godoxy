@@ -8,6 +8,8 @@ import (
 	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 // @x-id				"providers"
@@ -17,7 +19,7 @@ import (
 // @Tags			route,websocket
 // @Accept			json
 // @Produce		json
-// @Success		200	{array}		config.RouteProviderListResponse
+// @Success		200	{array}		statequery.RouteProviderListResponse
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/route/providers [get]

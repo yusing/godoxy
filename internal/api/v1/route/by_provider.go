@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 type RoutesByProvider map[string][]route.Route

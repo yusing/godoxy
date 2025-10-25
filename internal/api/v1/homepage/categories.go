@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/route/routes"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 // @x-id				"categories"

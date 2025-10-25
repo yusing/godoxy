@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/godoxy/internal/route/routes"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type ListRouteRequest struct {

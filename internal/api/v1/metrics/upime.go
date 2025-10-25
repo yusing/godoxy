@@ -4,6 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 type UptimeRequest struct {

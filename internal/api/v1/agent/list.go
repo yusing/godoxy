@@ -8,6 +8,8 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 // @x-id				"list"
@@ -19,7 +21,6 @@ import (
 // @Produce		json
 // @Success		200	{array}		Agent
 // @Failure		403	{object}	apitypes.ErrorResponse
-// @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/agent/list [get]
 func List(c *gin.Context) {
 	if httpheaders.IsWebsocket(c.Request.Header) {

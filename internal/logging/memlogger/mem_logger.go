@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/puzpuzpuz/xsync/v4"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
+	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/websocket"
 )
 

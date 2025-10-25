@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/route/routes"
+	apitypes "github.com/yusing/goutils/apitypes"
 
 	_ "unsafe"
 )

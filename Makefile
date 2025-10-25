@@ -3,8 +3,8 @@ export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
 
-WEBUI_DIR ?= ../godoxy-frontend
-DOCS_DIR ?= ../godoxy-wiki
+WEBUI_DIR ?= ../godoxy-webui
+DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
 LDFLAGS = -X github.com/yusing/goutils/version.version=${VERSION} -checklinkname=0
 
@@ -143,15 +143,17 @@ push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)
 
 gen-swagger:
-	swag init --parseDependency --parseInternal -g handler.go -d internal/api -o internal/api/v1/docs
+	swag init --parseDependency --parseInternal --parseFuncBody -g handler.go -d internal/api -o internal/api/v1/docs
 	python3 scripts/fix-swagger-json.py
 	# we don't need this
 	rm internal/api/v1/docs/docs.go
 
 gen-swagger-markdown: gen-swagger
+  # brew tap go-swagger/go-swagger && brew install go-swagger
 	swagger generate markdown -f internal/api/v1/docs/swagger.yaml --skip-validation --output ${DOCS_DIR}/src/API.md
 
 gen-api-types: gen-swagger
 	# --disable-throw-on-error
-	pnpx swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
+	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
 		 --responses -o ${WEBUI_DIR}/lib -n api.ts -p internal/api/v1/docs/swagger.json
+	bunx --bun prettier --config ${WEBUI_DIR}/.prettierrc --write ${WEBUI_DIR}/lib/api.ts

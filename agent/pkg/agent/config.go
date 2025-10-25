@@ -23,7 +23,7 @@ import (
 type AgentConfig struct {
 	Addr    string           `json:"addr"`
 	Name    string           `json:"name"`
-	Version version.Version  `json:"version"`
+	Version version.Version  `json:"version" swaggertype:"string"`
 	Runtime ContainerRuntime `json:"runtime"`
 
 	httpClient                *http.Client

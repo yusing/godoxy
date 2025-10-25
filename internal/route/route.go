@@ -41,7 +41,7 @@ type (
 		_ utils.NoCopy
 
 		Alias  string       `json:"alias"`
-		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string"`
+		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
 		Root   string       `json:"root,omitempty"`
@@ -73,7 +73,7 @@ type (
 		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
 		Excluded       bool           `json:"excluded,omitempty" extensions:"x-nullable"`
-		ExcludedReason ExcludedReason `json:"excluded_reason,omitempty" extensions:"x-nullable"`
+		ExcludedReason ExcludedReason `json:"excluded_reason,omitempty" swaggertype:"string" extensions:"x-nullable"`
 
 		HealthMon types.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
 		// for swagger

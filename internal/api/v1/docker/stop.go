@@ -5,8 +5,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	"github.com/yusing/godoxy/internal/docker"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type StopRequest struct {

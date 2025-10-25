@@ -10,7 +10,7 @@ import (
 type Port struct {
 	Listening int `json:"listening"`
 	Proxy     int `json:"proxy"`
-}
+} // @name Port
 
 var (
 	ErrInvalidPortSyntax = gperr.New("invalid port syntax, expect [listening_port:]target_port")

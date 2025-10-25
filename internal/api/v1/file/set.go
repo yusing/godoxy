@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type SetFileContentRequest GetFileContentRequest

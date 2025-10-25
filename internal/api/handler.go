@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	apitypes "github.com/yusing/godoxy/internal/api/types"
 	apiV1 "github.com/yusing/godoxy/internal/api/v1"
 	agentApi "github.com/yusing/godoxy/internal/api/v1/agent"
 	authApi "github.com/yusing/godoxy/internal/api/v1/auth"
@@ -20,6 +19,7 @@ import (
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
+	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
 )
 

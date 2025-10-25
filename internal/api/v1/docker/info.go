@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
+
+	_ "github.com/yusing/goutils/apitypes"
 )
 
 type containerStats struct {
