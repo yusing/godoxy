@@ -54,7 +54,7 @@ var modFields = map[string]struct {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -62,7 +62,7 @@ var modFields = map[string]struct {
 					return nil
 				}),
 				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -89,7 +89,7 @@ var modFields = map[string]struct {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -97,7 +97,7 @@ var modFields = map[string]struct {
 					return nil
 				}),
 				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -124,7 +124,7 @@ var modFields = map[string]struct {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -134,7 +134,7 @@ var modFields = map[string]struct {
 					return nil
 				}),
 				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -165,7 +165,7 @@ var modFields = map[string]struct {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -181,7 +181,7 @@ var modFields = map[string]struct {
 					return nil
 				}),
 				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := executeRequestTemplateString(tmpl, r)
+					v, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
@@ -221,7 +221,7 @@ var modFields = map[string]struct {
 				helpListItem("Request", "the request object"),
 				"",
 				"Example:",
-				helpExample(FieldBody, "HTTP STATUS: {{ .Request.Method }} {{ .Request.URL.Path }}"),
+				helpExample(FieldBody, "HTTP STATUS: $req_method $req_path"),
 			),
 			args: map[string]string{
 				"template": "the body template",
@@ -234,7 +234,7 @@ var modFields = map[string]struct {
 			return validateTemplate(args[0], true)
 		},
 		builder: func(args any) *FieldHandler {
-			tmpl := args.(templateOrStr)
+			tmpl := args.(templateString)
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 					if r.Body != nil {
@@ -244,7 +244,7 @@ var modFields = map[string]struct {
 
 					bufPool := GetInitResponseModifier(w).BufPool()
 					b := bufPool.GetBuffer()
-					err := executeRequestTemplateTo(tmpl, b, r)
+					err := tmpl.ExpandVars(w, r, b)
 					if err != nil {
 						return err
 					}
@@ -266,7 +266,7 @@ var modFields = map[string]struct {
 				helpListItem("Response", "the response object"),
 				"",
 				"Example:",
-				helpExample(FieldResponseBody, "HTTP STATUS: {{ .Request.Method }} {{ .Response.StatusCode }}"),
+				helpExample(FieldResponseBody, "HTTP STATUS: $req_method $status_code"),
 			),
 			args: map[string]string{
 				"template": "the response body template",
@@ -279,12 +279,12 @@ var modFields = map[string]struct {
 			return validateTemplate(args[0], true)
 		},
 		builder: func(args any) *FieldHandler {
-			tmpl := args.(templateOrStr)
+			tmpl := args.(templateString)
 			return &FieldHandler{
 				set: OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
 					rm := GetInitResponseModifier(w)
 					rm.ResetBody()
-					return executeReqRespTemplateTo(tmpl, rm, rm, r)
+					return tmpl.ExpandVars(w, r, rm)
 				}),
 			}
 		},

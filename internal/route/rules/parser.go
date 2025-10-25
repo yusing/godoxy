@@ -19,6 +19,12 @@ var escapedChars = map[rune]rune{
 	' ':  ' ',
 }
 
+var quoteChars = [256]bool{
+	'"':  true,
+	'\'': true,
+	'`':  true,
+}
+
 // parse expression to subject and args
 // with support for quotes, escaped chars, and env substitution, e.g.
 //
@@ -74,6 +80,19 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 			buf.WriteRune('$')
 			expectingBrace = false
 		}
+		if quoteChars[r] {
+			switch {
+			case quote == 0 && brackets == 0:
+				quote = r
+				flush(false)
+			case r == quote:
+				quote = 0
+				flush(true)
+			default:
+				buf.WriteRune(r)
+			}
+			continue
+		}
 		switch r {
 		case '\\':
 			escaped = true
@@ -104,17 +123,6 @@ func parse(v string) (subject string, args []string, err gperr.Error) {
 				}
 				inEnvVar = false
 			} else {
-				buf.WriteRune(r)
-			}
-		case '"', '\'', '`':
-			switch {
-			case quote == 0 && brackets == 0:
-				quote = r
-				flush(false)
-			case r == quote:
-				quote = 0
-				flush(true)
-			default:
 				buf.WriteRune(r)
 			}
 		case '(':

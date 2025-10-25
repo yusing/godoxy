@@ -54,7 +54,7 @@ func TestLogCommand_TemporaryFile(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-request-response
   do: |
-    log info %q '{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }} {{ index (index .Response.Header "Content-Type") 0 }}'
+    log info %q '$req_method $req_url $status_code $resp_header(Content-Type)'
 `, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -84,10 +84,10 @@ func TestLogCommand_StdoutAndStderr(t *testing.T) {
 	err := parseRules(`
 - name: log-stdout
   do: |
-    log info /dev/stdout "stdout: {{ .Request.Method }} {{ .Response.StatusCode }}"
+    log info /dev/stdout "stdout: $req_method $status_code"
 - name: log-stderr
   do: |
-    log error /dev/stderr "stderr: {{ .Request.URL.Path }} {{ .Response.StatusCode }}"
+    log error /dev/stderr "stderr: $req_path $status_code"
 `, &rules)
 	require.NoError(t, err)
 
@@ -126,13 +126,13 @@ func TestLogCommand_DifferentLogLevels(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-info
   do: |
-    log info %s "INFO: {{ .Request.Method }} {{ .Response.StatusCode }}"
+    log info %s "INFO: $req_method $status_code"
 - name: log-warn
   do: |
-    log warn %s "WARN: {{ .Request.URL.Path }} {{ .Response.StatusCode }}"
+    log warn %s "WARN: $req_path $status_code"
 - name: log-error
   do: |
-    log error %s "ERROR: {{ .Request.Method }} {{ .Request.URL.Path }} {{ .Response.StatusCode }}"
+    log error %s "ERROR: $req_method $req_path $status_code"
 `, infoFile.Name(), warnFile.Name(), errorFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -177,7 +177,7 @@ func TestLogCommand_TemplateVariables(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-with-templates
   do: |
-    log info %s 'Request: {{ .Request.Method }} {{ .Request.URL }} Host: {{ .Request.Host }} User-Agent: {{ index .Request.Header "User-Agent" 0 }} Response: {{ .Response.StatusCode }} Custom-Header: {{ index .Response.Header "X-Custom-Header" 0 }} Content-Length: {{ index .Response.Header "Content-Length" 0 }}'
+    log info %s 'Request: $req_method $req_url Host: $req_host User-Agent: $header(User-Agent) Response: $status_code Custom-Header: $resp_header(X-Custom-Header) Content-Length: $resp_header(Content-Length)'
 `, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -231,11 +231,11 @@ func TestLogCommand_ConditionalLogging(t *testing.T) {
 - name: log-success
   on: status 2xx
   do: |
-    log info %q "SUCCESS: {{ .Request.Method }} {{ .Request.URL.Path }} {{ .Response.StatusCode }}"
+    log info %q "SUCCESS: $req_method $req_path $status_code"
 - name: log-error
   on: status 4xx | status 5xx
   do: |
-    log error %q "ERROR: {{ .Request.Method }} {{ .Request.URL.Path }} {{ .Response.StatusCode }}"
+    log error %q "ERROR: $req_method $req_path $status_code"
 `, successFile.Name(), errorFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -288,7 +288,7 @@ func TestLogCommand_MultipleLogEntries(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-multiple
   do: |
-    log info %q "{{ .Request.Method }} {{ .Request.URL.Path }} {{ .Response.StatusCode }}"`, tempFile.Name()), &rules)
+    log info %q "$req_method $req_path $status_code"`, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -339,7 +339,7 @@ func TestLogCommand_FilePermissions(t *testing.T) {
 	var rules Rules
 	err = parseRules(fmt.Sprintf(`
 - on: status 2xx
-  do: log info %q "{{ .Request.Method }} {{ .Response.StatusCode }}"`, logFilePath), &rules)
+  do: log info %q "$req_method $status_code"`, logFilePath), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -374,27 +374,12 @@ func TestLogCommand_FilePermissions(t *testing.T) {
 }
 
 func TestLogCommand_InvalidTemplate(t *testing.T) {
-	upstream := mockUpstream(200, "success")
-
 	var rules Rules
 
 	// Test with invalid template syntax
 	err := parseRules(`
 - name: log-invalid
   do: |
-    log info /dev/stdout "{{ .Invalid.Field }}"`, &rules)
-	// Should not error during parsing, but template execution will fail gracefully
-	assert.NoError(t, err)
-
-	handler := rules.BuildHandler(upstream)
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-
-	// Should not panic
-	assert.NotPanics(t, func() {
-		handler.ServeHTTP(w, req)
-	})
-
-	assert.Equal(t, 200, w.Code)
+    log info /dev/stdout "$invalid_var"`, &rules)
+	assert.ErrorIs(t, err, ErrUnexpectedVar)
 }

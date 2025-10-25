@@ -28,11 +28,11 @@ func helpExample(cmd string, args ...string) string {
 		var out strings.Builder
 		pos := 0
 		for {
-			start := strings.Index(arg[pos:], "{{")
+			start := strings.IndexByte(arg[pos:], '$')
 			if start == -1 {
 				if pos < len(arg) {
-					// If no template at all (pos == 0), cyan highlight for whole-arg
-					// Otherwise, for mixed strings containing templates, leave non-template text unhighlighted
+					// If no variable at all (pos == 0), cyan highlight for whole-arg
+					// Otherwise, for mixed strings containing variables, leave non-variable text unhighlighted
 					if pos == 0 {
 						out.WriteString(ansi.WithANSI(arg[pos:], ansi.HighlightCyan))
 					} else {
@@ -43,20 +43,31 @@ func helpExample(cmd string, args ...string) string {
 			}
 			start += pos
 			if start > pos {
-				// Non-template text should not be highlighted
+				// Non-variable text should not be highlighted
 				out.WriteString(arg[pos:start])
 			}
-			end := strings.Index(arg[start+2:], "}}")
-			if end == -1 {
-				// Unmatched template start; write remainder without highlighting
-				out.WriteString(arg[start:])
-				break
+			// Parse variable name and optional function call
+			end := start + 1
+			for end < len(arg) && (arg[end] == '_' || (arg[end] >= 'a' && arg[end] <= 'z') || (arg[end] >= 'A' && arg[end] <= 'Z') || (arg[end] >= '0' && arg[end] <= '9')) {
+				end++
 			}
-			end += start + 2
-			inner := strings.TrimSpace(arg[start+2 : end])
-			parts := strings.Split(inner, ".")
-			out.WriteString(helpTemplateVar(parts...))
-			pos = end + 2
+			// Check for function call
+			if end < len(arg) && arg[end] == '(' {
+				parenCount := 1
+				end++
+				for end < len(arg) && parenCount > 0 {
+					switch arg[end] {
+					case '(':
+						parenCount++
+					case ')':
+						parenCount--
+					}
+					end++
+				}
+			}
+			varExpr := arg[start:end]
+			out.WriteString(helpVar(varExpr))
+			pos = end
 		}
 		fmt.Fprintf(&sb, ` "%s"`, out.String())
 	}
@@ -87,17 +98,29 @@ func helpFuncCall(fn string, args ...string) string {
 	return sb.String()
 }
 
-// helpTemplateVar generates a string like "{{ .Request.Method }} {{ .Request.URL.Path }}"
-func helpTemplateVar(parts ...string) string {
-	var sb strings.Builder
-	sb.WriteString(ansi.WithANSI("{{ ", ansi.HighlightWhite))
-	for i, part := range parts {
-		sb.WriteString(ansi.WithANSI(part, ansi.HighlightCyan))
-		if i < len(parts)-1 {
-			sb.WriteString(".")
-		}
+// helpVar generates a highlighted string for a variable like "$req_method" or "$header(X-Test)"
+func helpVar(varExpr string) string {
+	if !strings.HasPrefix(varExpr, "$") {
+		return varExpr
 	}
-	sb.WriteString(ansi.WithANSI(" }}", ansi.HighlightWhite))
+
+	// Check if it's a function call
+	parenIdx := strings.IndexByte(varExpr, '(')
+	if parenIdx == -1 {
+		// Simple variable like "$req_method"
+		return ansi.WithANSI(varExpr, ansi.HighlightCyan)
+	}
+
+	// Function call like "$header(X-Test)"
+	var sb strings.Builder
+	sb.WriteString(ansi.WithANSI(varExpr[:parenIdx], ansi.HighlightCyan))
+	sb.WriteString(ansi.WithANSI("(", ansi.HighlightWhite))
+
+	// Extract and highlight the arguments
+	argsStr := varExpr[parenIdx+1 : len(varExpr)-1]
+	sb.WriteString(ansi.WithANSI(argsStr, ansi.HighlightYellow))
+
+	sb.WriteString(ansi.WithANSI(")", ansi.HighlightWhite))
 	return sb.String()
 }
 

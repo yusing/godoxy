@@ -1,48 +1,52 @@
 package rules
 
 import (
-	"bytes"
 	"io"
 	"net/http"
+	"strings"
+	"unsafe"
 )
 
-type templateOrStr interface {
-	Execute(w io.Writer, data any) error
-	Len() int
+type templateString struct {
+	string
+	isTemplate bool
 }
 
-type strTemplate string
+type keyValueTemplate struct {
+	key  string
+	tmpl templateString
+}
 
-func (t strTemplate) Execute(w io.Writer, _ any) error {
-	n, err := w.Write([]byte(t))
-	if err != nil {
+func (tmpl *keyValueTemplate) Unpack() (string, templateString) {
+	return tmpl.key, tmpl.tmpl
+}
+
+func (tmpl *templateString) ExpandVars(w http.ResponseWriter, req *http.Request, dstW io.Writer) error {
+	if !tmpl.isTemplate {
+		_, err := dstW.Write(strtobNoCopy(tmpl.string))
 		return err
 	}
-	if n != len(t) {
-		return io.ErrShortWrite
+
+	return ExpandVars(GetInitResponseModifier(w), req, tmpl.string, dstW)
+}
+
+func (tmpl *templateString) ExpandVarsToString(w http.ResponseWriter, req *http.Request) (string, error) {
+	if !tmpl.isTemplate {
+		return tmpl.string, nil
 	}
-	return nil
-}
 
-func (t strTemplate) Len() int {
-	return len(t)
-}
-
-type keyValueTemplate = Tuple[string, templateOrStr]
-
-func executeRequestTemplateString(tmpl templateOrStr, r *http.Request) (string, error) {
-	var buf bytes.Buffer
-	err := tmpl.Execute(&buf, reqResponseTemplateData{Request: r})
+	var buf strings.Builder
+	err := ExpandVars(GetInitResponseModifier(w), req, tmpl.string, &buf)
 	if err != nil {
 		return "", err
 	}
 	return buf.String(), nil
 }
 
-func executeRequestTemplateTo(tmpl templateOrStr, o io.Writer, r *http.Request) error {
-	return tmpl.Execute(o, reqResponseTemplateData{Request: r})
+func (tmpl *templateString) Len() int {
+	return len(tmpl.string)
 }
 
-func executeReqRespTemplateTo(tmpl templateOrStr, o io.Writer, w http.ResponseWriter, r *http.Request) error {
-	return tmpl.Execute(o, reqResponseTemplateData{Request: r, Response: GetInitResponseModifier(w).Response()})
+func strtobNoCopy(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }

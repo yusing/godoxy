@@ -218,7 +218,7 @@ func TestHTTPFlow_PostResponseRule(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-response
   on: path /test
-  do: log info %s "{{ .Request.Method }} {{ .Response.StatusCode }}"
+  do: log info %s "$req_method $status_code"
 `, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -261,7 +261,7 @@ func TestHTTPFlow_ResponseRuleWithStatusCondition(t *testing.T) {
 	err = parseRules(fmt.Sprintf(`
 - name: log-errors
   on: status 4xx
-  do: log error %s "{{ .Request.URL }} returned {{ .Response.StatusCode }}"
+  do: log error %s "$req_url returned $status_code"
 `, tempFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -364,11 +364,11 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRules(t *testing.T) {
   do: require_basic_auth "Protected Area"
 - name: log-all-requests
   do: |
-    log info %q "{{ .Request.Method }} {{ .Request.URL }} -> {{ .Response.StatusCode }}"
+    log info %q "$req_method $req_url -> $status_code"
 - name: log-errors
   on: status 4xx
   do: |
-    log error %q "ERROR: {{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"
+    log error %q "ERROR: $req_method $req_url $status_code"
 `, logFile.Name(), errorLogFile.Name()), &rules)
 	require.NoError(t, err)
 
@@ -610,10 +610,10 @@ func TestHTTPFlow_FormConditions(t *testing.T) {
 	err := parseRules(`
 - name: process-form
   on: form username
-  do: set resp_header X-Username "{{ index .Request.Form.username 0 }}"
+  do: set resp_header X-Username "$form(username)"
 - name: process-postform
   on: postform email
-  do: set resp_header X-Email "{{ index .Request.PostForm.email 0 }}"
+  do: set resp_header X-Email "$postform(email)"
 `, &rules)
 	require.NoError(t, err)
 
@@ -923,7 +923,7 @@ func TestHTTPFlow_ResponseModifier(t *testing.T) {
 - name: modify-response
   do: |
     set resp_header X-Modified "true"
-    set resp_body "Modified: {{ .Request.Method }} {{ .Request.URL.Path }}"
+    set resp_body "Modified: $req_method $req_path"
 `, &rules)
 	require.NoError(t, err)
 

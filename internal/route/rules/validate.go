@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/rs/zerolog"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -91,11 +90,11 @@ func toKeyValueTemplate(args []string) (any, gperr.Error) {
 		return nil, ErrExpectTwoArgs
 	}
 
-	tmpl, err := validateTemplate(args[1], false)
+	isTemplate, err := validateTemplate(args[1], false)
 	if err != nil {
 		return nil, err
 	}
-	return &keyValueTemplate{args[0], tmpl}, nil
+	return &keyValueTemplate{args[0], isTemplate}, nil
 }
 
 // validateURL returns types.URL with the URL validated.
@@ -300,33 +299,20 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	return set, nil
 }
 
-func isTemplate(tmplStr string) bool {
-	return strings.Contains(tmplStr, "{{")
-}
-
-type templateWithLen struct {
-	*template.Template
-	len int
-}
-
-func (t *templateWithLen) Len() int {
-	return t.len
-}
-
-func validateTemplate(tmplStr string, newline bool) (templateOrStr, gperr.Error) {
+func validateTemplate(tmplStr string, newline bool) (templateString, gperr.Error) {
 	if newline && !strings.HasSuffix(tmplStr, "\n") {
 		tmplStr += "\n"
 	}
 
-	if !isTemplate(tmplStr) {
-		return strTemplate(tmplStr), nil
+	if !NeedExpandVars(tmplStr) {
+		return templateString{tmplStr, false}, nil
 	}
 
-	tmpl, err := template.New("template").Parse(tmplStr)
+	err := ValidateVars(tmplStr)
 	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
+		return templateString{}, gperr.Wrap(err)
 	}
-	return &templateWithLen{tmpl, len(tmplStr)}, nil
+	return templateString{tmplStr, true}, nil
 }
 
 func validateLevel(level string) (zerolog.Level, gperr.Error) {

@@ -367,7 +367,7 @@ func TestFieldHandler_Body(t *testing.T) {
 	}{
 		{
 			name:     "set body with template",
-			template: "Hello {{ .Request.Method }} {{ .Request.URL.Path }}",
+			template: "Hello $req_method $req_path",
 			setup: func(r *http.Request) {
 				r.Method = "POST"
 				r.URL.Path = "/test"
@@ -424,7 +424,7 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 	}{
 		{
 			name:     "set response body with template",
-			template: "Response: {{ .Request.Method }} {{ .Request.URL.Path }}",
+			template: "Response: $req_method $req_path",
 			setup: func(r *http.Request) {
 				r.Method = "GET"
 				r.URL.Path = "/api/test"
@@ -552,19 +552,19 @@ func TestFieldValidation(t *testing.T) {
 		{
 			name:      "body valid template",
 			field:     FieldBody,
-			args:      []string{"Hello {{ .Request.Method }}"},
+			args:      []string{"Hello $req_method"},
 			wantError: false,
 		},
 		{
 			name:      "body invalid template syntax",
 			field:     FieldBody,
-			args:      []string{"Hello {{ .InvalidField "},
+			args:      []string{"Hello $invalid_field"},
 			wantError: true,
 		},
 		{
 			name:      "response body valid template",
 			field:     FieldResponseBody,
-			args:      []string{"Response: {{ .Request.Method }}"},
+			args:      []string{"Response: $req_method"},
 			wantError: false,
 		},
 		{

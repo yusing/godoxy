@@ -334,7 +334,7 @@ var commands = map[string]struct {
 				helpListItem("Response", "the response object"),
 				"",
 				"Example:",
-				helpExample(CommandLog, "info", "/dev/stdout", "{{ .Request.Method }} {{ .Request.URL }} {{ .Response.StatusCode }}"),
+				helpExample(CommandLog, "info", "/dev/stdout", "$req_method $req_url $status_code"),
 			),
 			args: map[string]string{
 				"level":    "the log level",
@@ -372,7 +372,7 @@ var commands = map[string]struct {
 				logger = f
 			}
 			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
-				err := executeReqRespTemplateTo(tmpl, logger, w, r)
+				err := tmpl.ExpandVars(w, r, logger)
 				if err != nil {
 					return err
 				}
@@ -390,7 +390,7 @@ var commands = map[string]struct {
 				helpListItem("Response", "the response object"),
 				"",
 				"Example:",
-				helpExample(CommandNotify, "info", "ntfy", "Received request to {{ .Request.URL }}", "{{ .Request.Method }} {{ .Response.StatusCode }}"),
+				helpExample(CommandNotify, "info", "ntfy", "Received request to $req_url", "$req_method $status_code"),
 			),
 			args: map[string]string{
 				"level":    "the log level",
@@ -432,12 +432,12 @@ var commands = map[string]struct {
 			return OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
 				respBuf := bytes.NewBuffer(make([]byte, 0, titleTmpl.Len()+bodyTmpl.Len()))
 
-				err := executeReqRespTemplateTo(titleTmpl, respBuf, w, r)
+				err := titleTmpl.ExpandVars(w, r, respBuf)
 				if err != nil {
 					return err
 				}
 				titleLen := respBuf.Len()
-				err = executeReqRespTemplateTo(bodyTmpl, respBuf, w, r)
+				err = bodyTmpl.ExpandVars(w, r, respBuf)
 				if err != nil {
 					return err
 				}
@@ -455,16 +455,8 @@ var commands = map[string]struct {
 	},
 }
 
-type reqResponseTemplateData struct {
-	Request  *http.Request
-	Response struct {
-		StatusCode int
-		Header     http.Header
-	}
-}
-
-type onLogArgs = Tuple3[zerolog.Level, io.WriteCloser, templateOrStr]
-type onNotifyArgs = Tuple4[zerolog.Level, string, templateOrStr, templateOrStr]
+type onLogArgs = Tuple3[zerolog.Level, io.WriteCloser, templateString]
+type onNotifyArgs = Tuple4[zerolog.Level, string, templateString, templateString]
 
 // Parse implements strutils.Parser.
 func (cmd *Command) Parse(v string) error {

@@ -591,7 +591,7 @@ func parseOn(line string) (Checker, bool, gperr.Error) {
 
 	validArgs, err := checker.validate(args)
 	if err != nil {
-		return nil, false, err.Subject(subject).With(checker.help.Error())
+		return nil, false, err.With(checker.help.Error())
 	}
 
 	checkFunc := checker.builder(validArgs)
