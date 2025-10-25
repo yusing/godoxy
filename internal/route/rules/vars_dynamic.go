@@ -43,12 +43,22 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 		if err != nil {
 			return "", err
 		}
+		if req.Form == nil {
+			if err := req.ParseForm(); err != nil {
+				return "", err
+			}
+		}
 		return getValueByKeyAtIndex(req.Form, key, index)
 	},
 	VarPostForm: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err
+		}
+		if req.Form == nil {
+			if err := req.ParseForm(); err != nil {
+				return "", err
+			}
 		}
 		return getValueByKeyAtIndex(req.PostForm, key, index)
 	},
@@ -57,7 +67,7 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 func getValueByKeyAtIndex[Values http.Header | url.Values](values Values, key string, index int) (string, error) {
 	// NOTE: do not use Header.Get or http.CanonicalHeaderKey here, respect to user input
 	if values, ok := values[key]; ok && index < len(values) {
-		return values[index], nil
+		return stripFragment(values[index]), nil
 	}
 	// ignore unknown header or index out of range
 	return "", nil

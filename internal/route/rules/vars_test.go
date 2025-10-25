@@ -189,13 +189,29 @@ func TestExtractArgs(t *testing.T) {
 }
 
 func TestExpandVars(t *testing.T) {
-	// Create a comprehensive test request
-	testRequest := httptest.NewRequest("POST", "https://example.com:8080/api/users?param1=value1&param2=value2#fragment", nil)
-	testRequest.Header.Set("Content-Type", "application/json")
+	// Create a comprehensive test request with form data
+	formData := url.Values{}
+	formData.Set("field1", "value1")
+	formData.Set("field2", "value2")
+	formData.Add("multi", "first")
+	formData.Add("multi", "second")
+
+	postFormData := url.Values{}
+	postFormData.Set("postfield1", "postvalue1")
+	postFormData.Set("postfield2", "postvalue2")
+	postFormData.Add("postmulti", "first")
+	postFormData.Add("postmulti", "second")
+
+	testRequest := httptest.NewRequest("POST", "https://example.com:8080/api/users?param1=value1&param2=value2#fragment", strings.NewReader(postFormData.Encode()))
+	testRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	testRequest.Header.Set("User-Agent", "test-agent/1.0")
-	testRequest.Header.Set("X-Custom", "value1,value2")
+	testRequest.Header.Add("X-Custom", "value1")
+	testRequest.Header.Add("X-Custom", "value2")
 	testRequest.ContentLength = 12345
 	testRequest.RemoteAddr = "192.168.1.100:54321"
+	testRequest.Form = formData
+	// ParseForm to populate PostForm from the request body
+	testRequest.PostForm = postFormData
 
 	// Create response modifier with headers
 	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
@@ -235,7 +251,7 @@ func TestExpandVars(t *testing.T) {
 		{
 			name:  "req_uri",
 			input: "$req_uri",
-			want:  "/api/users?param1=value1&param2=value2",
+			want:  "/api/users?param1=value1&param2=value2#fragment",
 		},
 		{
 			name:  "req_host",
@@ -255,7 +271,7 @@ func TestExpandVars(t *testing.T) {
 		{
 			name:  "req_content_type",
 			input: "$req_content_type",
-			want:  "application/json",
+			want:  "application/x-www-form-urlencoded",
 		},
 		{
 			name:  "req_content_length",
@@ -349,6 +365,68 @@ func TestExpandVars(t *testing.T) {
 		{
 			name:  "arg not found",
 			input: "$arg(param3)",
+			want:  "",
+		},
+		// Function-like variables - form
+		{
+			name:  "form single parameter",
+			input: "$form(field1)",
+			want:  "value1",
+		},
+		{
+			name:  "form second parameter",
+			input: "$form(field2)",
+			want:  "value2",
+		},
+		{
+			name:  "form multi-value first",
+			input: "$form(multi, 0)",
+			want:  "first",
+		},
+		{
+			name:  "form multi-value second",
+			input: "$form(multi, 1)",
+			want:  "second",
+		},
+		{
+			name:  "form not found",
+			input: "$form(nonexistent)",
+			want:  "",
+		},
+		{
+			name:  "form index out of range",
+			input: "$form(field1, 10)",
+			want:  "",
+		},
+		// Function-like variables - postform
+		{
+			name:  "postform single parameter",
+			input: "$postform(postfield1)",
+			want:  "postvalue1",
+		},
+		{
+			name:  "postform second parameter",
+			input: "$postform(postfield2)",
+			want:  "postvalue2",
+		},
+		{
+			name:  "postform multi-value first",
+			input: "$postform(postmulti, 0)",
+			want:  "first",
+		},
+		{
+			name:  "postform multi-value second",
+			input: "$postform(postmulti, 1)",
+			want:  "second",
+		},
+		{
+			name:  "postform not found",
+			input: "$postform(nonexistent)",
+			want:  "",
+		},
+		{
+			name:  "postform index out of range",
+			input: "$postform(postfield1, 10)",
 			want:  "",
 		},
 		// Mixed variables

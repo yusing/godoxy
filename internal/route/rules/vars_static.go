@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/yusing/godoxy/internal/route/routes"
 )
@@ -57,9 +58,9 @@ var staticReqVarSubsMap = map[string]reqVarGetter{
 	},
 	VarRequestAddr:        func(req *http.Request) string { return req.Host },
 	VarRequestPath:        func(req *http.Request) string { return req.URL.Path },
-	VarRequestQuery:       func(req *http.Request) string { return req.URL.RawQuery },
+	VarRequestQuery:       func(req *http.Request) string { return stripFragment(req.URL.RawQuery) },
 	VarRequestURL:         func(req *http.Request) string { return req.URL.String() },
-	VarRequestURI:         func(req *http.Request) string { return req.URL.RequestURI() },
+	VarRequestURI:         func(req *http.Request) string { return stripFragment(req.URL.RequestURI()) },
 	VarRequestContentType: func(req *http.Request) string { return req.Header.Get("Content-Type") },
 	VarRequestContentLen:  func(req *http.Request) string { return strconv.FormatInt(req.ContentLength, 10) },
 	VarRemoteHost: func(req *http.Request) string {
@@ -89,4 +90,12 @@ var staticRespVarSubsMap = map[string]respVarGetter{
 	VarRespContentType: func(resp *ResponseModifier) string { return resp.Header().Get("Content-Type") },
 	VarRespContentLen:  func(resp *ResponseModifier) string { return strconv.Itoa(resp.ContentLength()) },
 	VarRespStatusCode:  func(resp *ResponseModifier) string { return strconv.Itoa(resp.StatusCode()) },
+}
+
+func stripFragment(s string) string {
+	idx := strings.IndexByte(s, '#')
+	if idx == -1 {
+		return s
+	}
+	return s[:idx]
 }
