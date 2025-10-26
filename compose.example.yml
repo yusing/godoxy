@@ -36,12 +36,8 @@ services:
       - all
     depends_on:
       - app
-    environment:
-      HOSTNAME: 127.0.0.1
-      PORT: ${GODOXY_FRONTEND_PORT:-3000}
     labels:
       proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
-      proxy.#1.port: ${GODOXY_FRONTEND_PORT:-3000}
       # proxy.#1.middlewares.cidr_whitelist: |
       #   status: 403
       #   message: IP not allowed
