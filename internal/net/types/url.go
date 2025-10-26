@@ -3,6 +3,7 @@ package nettypes
 import (
 	urlPkg "net/url"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/utils"
 )
 
@@ -48,7 +49,7 @@ func (u *URL) MarshalJSON() (text []byte, err error) {
 	if u == nil {
 		return []byte("null"), nil
 	}
-	return []byte("\"" + u.URL.String() + "\""), nil
+	return sonic.Marshal(u.URL.String())
 }
 
 func (u *URL) Equals(other *URL) bool {

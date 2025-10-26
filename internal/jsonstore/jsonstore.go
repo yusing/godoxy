@@ -2,7 +2,6 @@ package jsonstore
 
 import (
 	"encoding/json"
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -114,7 +113,7 @@ func (s *MapStore[VT]) Initialize() {
 }
 
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(maps.Collect(s.Range))
+	return sonic.Marshal(xsync.ToPlainMap(s.Map))
 }
 
 func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {

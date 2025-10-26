@@ -58,7 +58,7 @@ type (
 		LastSeenStr string             `json:"lastSeenStr"`
 		Detail      string             `json:"detail"`
 		URL         string             `json:"url"`
-		Extra       *HealthExtra       `json:"extra" extensions:"x-nullable"`
+		Extra       *HealthExtra       `json:"extra,omitempty" extensions:"x-nullable"`
 	} // @name HealthJSON
 
 	HealthJSONRepr struct {
