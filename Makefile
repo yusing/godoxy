@@ -6,6 +6,7 @@ export GOOS = linux
 WEBUI_DIR ?= ../godoxy-webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
+GO_TAGS = sonic
 LDFLAGS = -X github.com/yusing/goutils/version.version=${VERSION} -checklinkname=0
 
 ifeq ($(agent), 1)
@@ -28,23 +29,26 @@ endif
 ifeq ($(race), 1)
 	CGO_ENABLED = 1
 	GODOXY_DEBUG = 1
-	BUILD_FLAGS += -tags debug -race
+	GO_TAGS += debug
+	BUILD_FLAGS += -race
 else ifeq ($(debug), 1)
 	CGO_ENABLED = 1
 	GODOXY_DEBUG = 1
-	BUILD_FLAGS += -gcflags=all='-N -l' -tags debug -asan
+	GO_TAGS += debug
+	BUILD_FLAGS += -asan # FIXME: -gcflags=all='-N -l'
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 0
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
-	BUILD_FLAGS += -tags pprof
+	GO_TAGS += pprof
 	VERSION := ${VERSION}-pprof
 else
 	CGO_ENABLED = 0
 	LDFLAGS += -s -w
-	BUILD_FLAGS += -pgo=auto -tags production
+	GO_TAGS += production
+	BUILD_FLAGS += -pgo=auto
 endif
 
-BUILD_FLAGS += -ldflags='$(LDFLAGS)'
+BUILD_FLAGS += -tags '$(GO_TAGS)' -ldflags='$(LDFLAGS)'
 BIN_PATH := $(shell pwd)/bin/${NAME}
 
 export NAME
