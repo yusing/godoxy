@@ -52,13 +52,13 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 
 	// NOTE: do not put it in the defer, it will be used as resp.Body
 	content, release, err := httputils.ReadAllBody(resp)
+	resp.Body.Close()
 	if err != nil {
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to read response body")
-		resp.Body.Close()
+		release(content)
 		resp.Body = eofReader{}
 		return err
 	}
-	resp.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
 	if err != nil {
@@ -83,7 +83,11 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 		ele.First().AppendHtml(m.HTML)
 	}
 
-	buf := bytes.NewBuffer(content[:0])
+	// should not use content (from sized pool) directly for bytes.Buffer
+	buf := m.bytesPool.GetBuffer()
+	buf.Write(content)
+	release(content)
+
 	err = buildHTML(doc, buf)
 	if err != nil {
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to build html")
@@ -95,8 +99,7 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
 	resp.Body = readerWithRelease(buf.Bytes(), func(_ []byte) {
-		// release content, not buf.Bytes()
-		release(content)
+		m.bytesPool.PutBuffer(buf)
 	})
 	return nil
 }
