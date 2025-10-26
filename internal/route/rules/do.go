@@ -188,15 +188,20 @@ var commands = map[string]struct {
 			if !httputils.IsStatusCodeValid(code) {
 				return nil, ErrInvalidArguments.Subject(codeStr)
 			}
-			return &Tuple[int, string]{code, text}, nil
+			textTmpl, err := validateTemplate(text, true)
+			if err != nil {
+				return nil, ErrInvalidArguments.With(err)
+			}
+			return &Tuple[int, templateString]{code, textTmpl}, nil
 		},
 		build: func(args any) CommandHandler {
-			code, text := args.(*Tuple[int, string]).Unpack()
+			code, textTmpl := args.(*Tuple[int, templateString]).Unpack()
 			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				// error command should overwrite the response body
 				GetInitResponseModifier(w).ResetBody()
-				http.Error(w, text, code)
-				return nil
+				w.WriteHeader(code)
+				err := textTmpl.ExpandVars(w, r, w)
+				return err
 			})
 		},
 	},
