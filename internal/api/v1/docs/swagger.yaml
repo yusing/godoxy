@@ -1398,12 +1398,21 @@ definitions:
 
           This value is computed from the kernel specific values.
         type: integer
+      total:
+        description: Total amount of RAM on this system
+        type: number
       used:
         description: |-
           RAM used by programs
 
           This value is computed from the kernel specific values.
         type: integer
+      used_percent:
+        description: |-
+          Percentage of RAM used by programs
+
+          This value is computed from the kernel specific values.
+        type: number
     type: object
   net.IOCountersStat:
     properties:

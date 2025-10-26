@@ -5166,9 +5166,21 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "total": {
+          "description": "Total amount of RAM on this system",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "used": {
           "description": "RAM used by programs\n\nThis value is computed from the kernel specific values.",
           "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "used_percent": {
+          "description": "Percentage of RAM used by programs\n\nThis value is computed from the kernel specific values.",
+          "type": "number",
           "x-nullable": false,
           "x-omitempty": false
         }
