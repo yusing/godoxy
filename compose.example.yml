@@ -24,7 +24,6 @@ services:
     image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
     container_name: godoxy-frontend
     restart: unless-stopped
-    network_mode: host # do not change this
     env_file: .env
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
     read_only: true
