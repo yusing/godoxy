@@ -309,13 +309,12 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 	case SystemInfoAggregateModeNetworkTransfer:
 		for _, entry := range entries {
 			if entry.Network.BytesRecv > 0 || entry.Network.BytesSent > 0 {
-				continue
+				aggregated = append(aggregated, map[string]any{
+					"timestamp": entry.Timestamp,
+					"upload":    entry.Network.BytesSent,
+					"download":  entry.Network.BytesRecv,
+				})
 			}
-			aggregated = append(aggregated, map[string]any{
-				"timestamp": entry.Timestamp,
-				"upload":    entry.Network.BytesSent,
-				"download":  entry.Network.BytesRecv,
-			})
 		}
 	case SystemInfoAggregateModeSensorTemperature:
 		for _, entry := range entries {
