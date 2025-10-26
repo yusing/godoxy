@@ -2,10 +2,10 @@ package api
 
 import (
 	"net/http"
-	"strconv"
-	"time"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/codec/json"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	apiV1 "github.com/yusing/godoxy/internal/api/v1"
@@ -45,6 +45,9 @@ func NewHandler() *gin.Engine {
 	r := gin.New()
 	r.Use(ErrorHandler())
 	r.Use(ErrorLoggingMiddleware())
+	r.Use(NoCache())
+
+	log.Debug().Msg("gin codec json.API: " + reflect.TypeOf(json.API).Name())
 
 	r.GET("/api/v1/version", apiV1.Version)
 
@@ -69,7 +72,7 @@ func NewHandler() *gin.Engine {
 	}
 	{
 		// enable cache for favicon
-		v1.GET("/favicon", apiV1.FavIcon).Use(Cache(time.Hour * 24))
+		v1.GET("/favicon", apiV1.FavIcon)
 		v1.GET("/health", apiV1.Health)
 		v1.GET("/icons", apiV1.Icons)
 		v1.POST("/reload", apiV1.Reload)
@@ -140,32 +143,16 @@ func NewHandler() *gin.Engine {
 		}
 	}
 
-	// disable cache by default
-	r.Use(NoCache())
 	return r
 }
 
 func NoCache() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// skip cache if Cache-Control header is set or if caching is explicitly enabled
-		if !c.GetBool("cache_enabled") && c.Writer.Header().Get("Cache-Control") == "" {
+		// skip cache if Cache-Control header is set
+		if c.Writer.Header().Get("Cache-Control") == "" {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Pragma", "no-cache")
 			c.Header("Expires", "0")
-		}
-		c.Next()
-	}
-}
-
-func Cache(duration time.Duration) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Signal to NoCache middleware that caching is intended
-		c.Set("cache_enabled", true)
-		// skip cache if Cache-Control header is set
-		if c.Writer.Header().Get("Cache-Control") == "" {
-			c.Header("Cache-Control", "public, max-age="+strconv.FormatFloat(duration.Seconds(), 'f', 0, 64)+", immutable")
-			c.Header("Pragma", "public")
-			c.Header("Expires", time.Now().Add(duration).Format(time.RFC1123))
 		}
 		c.Next()
 	}
