@@ -217,6 +217,42 @@ definitions:
     - FileTypeConfig
     - FileTypeProvider
     - FileTypeMiddleware
+  FinalRequest:
+    properties:
+      body:
+        type: string
+      headers:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      host:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      query:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+    type: object
+  FinalResponse:
+    properties:
+      body:
+        type: string
+      headers:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      statusCode:
+        type: integer
+    type: object
   HTTPHeader:
     properties:
       key:
@@ -247,6 +283,44 @@ definitions:
       pool:
         additionalProperties: {}
         type: object
+    type: object
+  HealthInfo:
+    properties:
+      detail:
+        type: string
+      latency:
+        description: latency in microseconds
+        type: number
+      status:
+        enum:
+        - healthy
+        - unhealthy
+        - napping
+        - starting
+        - error
+        - unknown
+        type: string
+      uptime:
+        description: uptime in milliseconds
+        type: number
+    type: object
+  HealthInfoWithoutDetail:
+    properties:
+      latency:
+        description: latency in microseconds
+        type: number
+      status:
+        enum:
+        - healthy
+        - unhealthy
+        - napping
+        - starting
+        - error
+        - unknown
+        type: string
+      uptime:
+        description: uptime in milliseconds
+        type: number
     type: object
   HealthJSON:
     properties:
@@ -283,7 +357,7 @@ definitions:
     type: object
   HealthMap:
     additionalProperties:
-      $ref: '#/definitions/routes.HealthInfo'
+      $ref: '#/definitions/HealthInfo'
     type: object
   HomepageCategory:
     properties:
@@ -564,6 +638,55 @@ definitions:
     - MetricsPeriod1h
     - MetricsPeriod1d
     - MetricsPeriod1mo
+  MockCookie:
+    properties:
+      name:
+        type: string
+      value:
+        type: string
+    type: object
+  MockRequest:
+    properties:
+      body:
+        type: string
+      cookies:
+        items:
+          $ref: '#/definitions/MockCookie'
+        type: array
+      headers:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      host:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      query:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      remoteIP:
+        type: string
+    type: object
+  MockResponse:
+    properties:
+      body:
+        type: string
+      headers:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      statusCode:
+        type: integer
+    type: object
   NewAgentRequest:
     properties:
       container_runtime:
@@ -611,6 +734,56 @@ definitions:
       key:
         format: base64
         type: string
+    type: object
+  ParsedRule:
+    properties:
+      do:
+        type: string
+      isResponseRule:
+        type: boolean
+      name:
+        type: string
+      "on":
+        type: string
+      validationError: {}
+    type: object
+  PlaygroundRequest:
+    properties:
+      mockRequest:
+        $ref: '#/definitions/MockRequest'
+      mockResponse:
+        $ref: '#/definitions/MockResponse'
+      rules:
+        items:
+          $ref: '#/definitions/routeApi.RawRule'
+        type: array
+    required:
+    - rules
+    type: object
+  PlaygroundResponse:
+    properties:
+      executionError: {}
+      finalRequest:
+        $ref: '#/definitions/FinalRequest'
+      finalResponse:
+        $ref: '#/definitions/FinalResponse'
+      matchedRules:
+        items:
+          type: string
+        type: array
+      parsedRules:
+        items:
+          $ref: '#/definitions/ParsedRule'
+        type: array
+      upstreamCalled:
+        type: boolean
+    type: object
+  Port:
+    properties:
+      listening:
+        type: integer
+      proxy:
+        type: integer
     type: object
   ProviderStats:
     properties:
@@ -738,7 +911,7 @@ definitions:
         type: array
         x-nullable: true
       port:
-        $ref: '#/definitions/github_com_yusing_go-proxy_internal_route_types.Port'
+        $ref: '#/definitions/Port'
       provider:
         description: for backward compatibility
         type: string
@@ -749,13 +922,38 @@ definitions:
         type: integer
       root:
         type: string
+      rule_file:
+        type: string
+        x-nullable: true
       rules:
         items:
           $ref: '#/definitions/rules.Rule'
         type: array
-        uniqueItems: true
       scheme:
-        $ref: '#/definitions/route.Scheme'
+        enum:
+        - http
+        - https
+        - tcp
+        - udp
+        - fileserver
+        type: string
+      ssl_certificate:
+        description: Path to client certificate
+        type: string
+      ssl_certificate_key:
+        description: Path to client certificate key
+        type: string
+      ssl_protocols:
+        description: Allowed TLS protocols
+        items:
+          type: string
+        type: array
+      ssl_server_name:
+        description: SSL/TLS proxy options (nginx-like)
+        type: string
+      ssl_trusted_certificate:
+        description: Path to trusted CA certificates
+        type: string
     type: object
   RouteProvider:
     properties:
@@ -798,7 +996,7 @@ definitions:
     properties:
       statuses:
         additionalProperties:
-          $ref: '#/definitions/routes.HealthInfo'
+          $ref: '#/definitions/HealthInfoWithoutDetail'
         type: object
       timestamp:
         type: integer
@@ -1072,7 +1270,6 @@ definitions:
   disk.IOCountersStat:
     properties:
       iops:
-        description: godoxy
         type: integer
       name:
         description: |-
@@ -1096,14 +1293,12 @@ definitions:
       read_count:
         type: integer
       read_speed:
-        description: godoxy
         type: number
       write_bytes:
         type: integer
       write_count:
         type: integer
       write_speed:
-        description: godoxy
         type: number
     type: object
   disk.UsageStat:
@@ -1115,7 +1310,7 @@ definitions:
       path:
         type: string
       total:
-        type: integer
+        type: number
       used:
         type: integer
       used_percent:
@@ -1156,17 +1351,8 @@ definitions:
     required:
     - id
     type: object
-  github_com_yusing_go-proxy_internal_route_types.Port:
-    properties:
-      listening:
-        type: integer
-      proxy:
-        type: integer
-    type: object
   homepage.FetchResult:
     properties:
-      errMsg:
-        type: string
       icon:
         items:
           format: int32
@@ -1212,27 +1398,12 @@ definitions:
 
           This value is computed from the kernel specific values.
         type: integer
-      free:
-        description: |-
-          This is the kernel's notion of free memory; RAM chips whose bits nobody
-          cares about the value of right now. For a human consumable number,
-          Available is what you really want.
-        type: integer
-      total:
-        description: Total amount of RAM on this system
-        type: integer
       used:
         description: |-
           RAM used by programs
 
           This value is computed from the kernel specific values.
         type: integer
-      used_percent:
-        description: |-
-          Percentage of RAM used by programs
-
-          This value is computed from the kernel specific values.
-        type: number
     type: object
   net.IOCountersStat:
     properties:
@@ -1307,7 +1478,7 @@ definitions:
         type: array
         x-nullable: true
       port:
-        $ref: '#/definitions/github_com_yusing_go-proxy_internal_route_types.Port'
+        $ref: '#/definitions/Port'
       provider:
         description: for backward compatibility
         type: string
@@ -1318,53 +1489,53 @@ definitions:
         type: integer
       root:
         type: string
+      rule_file:
+        type: string
+        x-nullable: true
       rules:
         items:
           $ref: '#/definitions/rules.Rule'
         type: array
-        uniqueItems: true
       scheme:
-        $ref: '#/definitions/route.Scheme'
+        enum:
+        - http
+        - https
+        - tcp
+        - udp
+        - fileserver
+        type: string
+      ssl_certificate:
+        description: Path to client certificate
+        type: string
+      ssl_certificate_key:
+        description: Path to client certificate key
+        type: string
+      ssl_protocols:
+        description: Allowed TLS protocols
+        items:
+          type: string
+        type: array
+      ssl_server_name:
+        description: SSL/TLS proxy options (nginx-like)
+        type: string
+      ssl_trusted_certificate:
+        description: Path to trusted CA certificates
+        type: string
     type: object
-  route.Scheme:
-    enum:
-    - http
-    - https
-    - tcp
-    - udp
-    - fileserver
-    type: string
-    x-enum-varnames:
-    - SchemeHTTP
-    - SchemeHTTPS
-    - SchemeTCP
-    - SchemeUDP
-    - SchemeFileServer
+  routeApi.RawRule:
+    properties:
+      do:
+        type: string
+      name:
+        type: string
+      "on":
+        type: string
+    type: object
   routeApi.RoutesByProvider:
     additionalProperties:
       items:
         $ref: '#/definitions/route.Route'
       type: array
-    type: object
-  routes.HealthInfo:
-    properties:
-      detail:
-        type: string
-      latency:
-        description: latency in microseconds
-        type: number
-      status:
-        enum:
-        - healthy
-        - unhealthy
-        - napping
-        - starting
-        - error
-        - unknown
-        type: string
-      uptime:
-        description: uptime in milliseconds
-        type: number
     type: object
   rules.Rule:
     properties:
@@ -1492,10 +1663,6 @@ paths:
             type: array
         "403":
           description: Forbidden
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal Server Error
           schema:
             $ref: '#/definitions/ErrorResponse'
       summary: List agents
@@ -2878,6 +3045,37 @@ paths:
       - route
       - websocket
       x-id: routes
+  /route/playground:
+    post:
+      consumes:
+      - application/json
+      description: Test rules against mock request/response
+      parameters:
+      - description: Playground request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/PlaygroundRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PlaygroundResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Rule Playground
+      tags:
+      - route
+      x-id: playground
   /route/providers:
     get:
       consumes:

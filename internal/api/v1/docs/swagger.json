@@ -105,12 +105,6 @@
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
           }
         },
         "x-id": "list",
@@ -2135,6 +2129,54 @@
         "operationId": "routes"
       }
     },
+    "/route/playground": {
+      "post": {
+        "description": "Test rules against mock request/response",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route"
+        ],
+        "summary": "Rule Playground",
+        "parameters": [
+          {
+            "description": "Playground request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PlaygroundRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PlaygroundResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "playground",
+        "operationId": "playground"
+      }
+    },
     "/route/providers": {
       "get": {
         "description": "List route providers",
@@ -2726,6 +2768,83 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "FinalRequest": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "method": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "FinalResponse": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "statusCode": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "HTTPHeader": {
       "type": "object",
       "properties": {
@@ -2792,6 +2911,75 @@
         "pool": {
           "type": "object",
           "additionalProperties": {},
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthInfo": {
+      "type": "object",
+      "properties": {
+        "detail": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "latency": {
+          "description": "latency in microseconds",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "napping",
+            "starting",
+            "error",
+            "unknown"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "description": "uptime in milliseconds",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthInfoWithoutDetail": {
+      "type": "object",
+      "properties": {
+        "latency": {
+          "description": "latency in microseconds",
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "napping",
+            "starting",
+            "error",
+            "unknown"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "description": "uptime in milliseconds",
+          "type": "number",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -2882,7 +3070,7 @@
     "HealthMap": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/routes.HealthInfo"
+        "$ref": "#/definitions/HealthInfo"
       },
       "x-nullable": false,
       "x-omitempty": false
@@ -3494,6 +3682,113 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "MockCookie": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "MockRequest": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cookies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MockCookie"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "host": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "method": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "path": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "remoteIP": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "MockResponse": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "statusCode": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "NewAgentRequest": {
       "type": "object",
       "required": [
@@ -3582,6 +3877,120 @@
         "key": {
           "type": "string",
           "format": "base64",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ParsedRule": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "isResponseRule": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "on": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "validationError": {
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "PlaygroundRequest": {
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "mockRequest": {
+          "$ref": "#/definitions/MockRequest"
+        },
+        "mockResponse": {
+          "$ref": "#/definitions/MockResponse"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeApi.RawRule"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "PlaygroundResponse": {
+      "type": "object",
+      "properties": {
+        "executionError": {
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "finalRequest": {
+          "$ref": "#/definitions/FinalRequest",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "finalResponse": {
+          "$ref": "#/definitions/FinalResponse",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "matchedRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "parsedRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ParsedRule"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "upstreamCalled": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "Port": {
+      "type": "object",
+      "properties": {
+        "listening": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "proxy": {
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -3844,7 +4253,7 @@
           "x-nullable": true
         },
         "port": {
-          "$ref": "#/definitions/github_com_yusing_go-proxy_internal_route_types.Port",
+          "$ref": "#/definitions/Port",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3868,9 +4277,12 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "rule_file": {
+          "type": "string",
+          "x-nullable": true
+        },
         "rules": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
@@ -3878,7 +4290,47 @@
           "x-omitempty": false
         },
         "scheme": {
-          "$ref": "#/definitions/route.Scheme",
+          "type": "string",
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "udp",
+            "fileserver"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_certificate": {
+          "description": "Path to client certificate",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_certificate_key": {
+          "description": "Path to client certificate key",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_protocols": {
+          "description": "Allowed TLS protocols",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_server_name": {
+          "description": "SSL/TLS proxy options (nginx-like)",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_trusted_certificate": {
+          "description": "Path to trusted CA certificates",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -3975,7 +4427,7 @@
         "statuses": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/routes.HealthInfo"
+            "$ref": "#/definitions/HealthInfoWithoutDetail"
           },
           "x-nullable": false,
           "x-omitempty": false
@@ -4499,7 +4951,6 @@
       "type": "object",
       "properties": {
         "iops": {
-          "description": "godoxy",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
@@ -4522,7 +4973,6 @@
           "x-omitempty": false
         },
         "read_speed": {
-          "description": "godoxy",
           "type": "number",
           "x-nullable": false,
           "x-omitempty": false
@@ -4538,7 +4988,6 @@
           "x-omitempty": false
         },
         "write_speed": {
-          "description": "godoxy",
           "type": "number",
           "x-nullable": false,
           "x-omitempty": false
@@ -4566,7 +5015,7 @@
           "x-omitempty": false
         },
         "total": {
-          "type": "integer",
+          "type": "number",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4628,31 +5077,9 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "github_com_yusing_go-proxy_internal_route_types.Port": {
-      "type": "object",
-      "properties": {
-        "listening": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "proxy": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "homepage.FetchResult": {
       "type": "object",
       "properties": {
-        "errMsg": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "icon": {
           "type": "array",
           "items": {
@@ -4739,27 +5166,9 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "free": {
-          "description": "This is the kernel's notion of free memory; RAM chips whose bits nobody\ncares about the value of right now. For a human consumable number,\nAvailable is what you really want.",
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "total": {
-          "description": "Total amount of RAM on this system",
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "used": {
           "description": "RAM used by programs\n\nThis value is computed from the kernel specific values.",
           "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "used_percent": {
-          "description": "Percentage of RAM used by programs\n\nThis value is computed from the kernel specific values.",
-          "type": "number",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -4907,7 +5316,7 @@
           "x-nullable": true
         },
         "port": {
-          "$ref": "#/definitions/github_com_yusing_go-proxy_internal_route_types.Port",
+          "$ref": "#/definitions/Port",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4931,9 +5340,12 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "rule_file": {
+          "type": "string",
+          "x-nullable": true
+        },
         "rules": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
@@ -4941,7 +5353,47 @@
           "x-omitempty": false
         },
         "scheme": {
-          "$ref": "#/definitions/route.Scheme",
+          "type": "string",
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "udp",
+            "fileserver"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_certificate": {
+          "description": "Path to client certificate",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_certificate_key": {
+          "description": "Path to client certificate key",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_protocols": {
+          "description": "Allowed TLS protocols",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_server_name": {
+          "description": "SSL/TLS proxy options (nginx-like)",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ssl_trusted_certificate": {
+          "description": "Path to trusted CA certificates",
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -4949,22 +5401,25 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "route.Scheme": {
-      "type": "string",
-      "enum": [
-        "http",
-        "https",
-        "tcp",
-        "udp",
-        "fileserver"
-      ],
-      "x-enum-varnames": [
-        "SchemeHTTP",
-        "SchemeHTTPS",
-        "SchemeTCP",
-        "SchemeUDP",
-        "SchemeFileServer"
-      ],
+    "routeApi.RawRule": {
+      "type": "object",
+      "properties": {
+        "do": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "on": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -4974,43 +5429,6 @@
         "type": "array",
         "items": {
           "$ref": "#/definitions/route.Route"
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "routes.HealthInfo": {
-      "type": "object",
-      "properties": {
-        "detail": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "latency": {
-          "description": "latency in microseconds",
-          "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "healthy",
-            "unhealthy",
-            "napping",
-            "starting",
-            "error",
-            "unknown"
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "uptime": {
-          "description": "uptime in milliseconds",
-          "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
         }
       },
       "x-nullable": false,

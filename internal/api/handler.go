@@ -81,6 +81,7 @@ func NewHandler() *gin.Engine {
 			route.GET("/:which", routeApi.Route)
 			route.GET("/providers", routeApi.Providers)
 			route.GET("/by_provider", routeApi.ByProvider)
+			route.POST("/playground", routeApi.Playground)
 		}
 
 		file := v1.Group("/file")
