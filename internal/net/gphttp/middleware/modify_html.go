@@ -15,20 +15,15 @@ import (
 )
 
 type modifyHTML struct {
-	Target    string // css selector
-	HTML      string // html to inject
-	Replace   bool   // replace the target element with the new html instead of appending it
-	bytesPool synk.UnsizedBytesPool
+	Target  string // css selector
+	HTML    string // html to inject
+	Replace bool   // replace the target element with the new html instead of appending it
 }
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
-func (m *modifyHTML) setup() {
-	m.bytesPool = synk.GetUnsizedBytesPool()
-}
-
 func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
-	req.Header.Set("Accept-Encoding", "")
+	req.Header.Set("Accept-Encoding", "identity")
 	return true
 }
 
@@ -55,7 +50,6 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	resp.Body.Close()
 	if err != nil {
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to read response body")
-		release(content)
 		resp.Body = eofReader{}
 		return err
 	}
@@ -83,23 +77,24 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 		ele.First().AppendHtml(m.HTML)
 	}
 
-	// should not use content (from sized pool) directly for bytes.Buffer
-	buf := m.bytesPool.GetBuffer()
-	buf.Write(content)
-	release(content)
+	pool := synk.GetUnsizedBytesPool()
 
+	buf := pool.GetBuffer()
 	err = buildHTML(doc, buf)
 	if err != nil {
+		pool.PutBuffer(buf)
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to build html")
 		// invalid html, restore the original body
 		resp.Body = readerWithRelease(content, release)
 		return err
 	}
+
+	release(content)
 	resp.ContentLength = int64(buf.Len())
 	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
 	resp.Body = readerWithRelease(buf.Bytes(), func(_ []byte) {
-		m.bytesPool.PutBuffer(buf)
+		pool.PutBuffer(buf)
 	})
 	return nil
 }

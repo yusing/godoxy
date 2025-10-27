@@ -45,10 +45,6 @@ var (
 
 var fontCSSTemplate = template.Must(template.New("fontCSS").Parse(fontCSS))
 
-func (m *themed) setup() {
-	m.m.setup()
-}
-
 func (m *themed) before(w http.ResponseWriter, req *http.Request) bool {
 	return m.m.before(w, req)
 }
