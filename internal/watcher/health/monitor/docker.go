@@ -40,6 +40,10 @@ func (mon *DockerHealthMonitor) Start(parent task.Parent) gperr.Error {
 	if err != nil {
 		return err
 	}
+	// zero port
+	if mon.monitor.task == nil {
+		return nil
+	}
 	mon.client.InterceptHTTPClient(mon.interceptInspectResponse)
 	mon.monitor.task.OnFinished("close docker client", mon.client.Close)
 	return nil
