@@ -151,7 +151,11 @@ func (auth *OIDCProvider) TryRefreshToken(ctx context.Context, sessionJWT string
 	// verify the session cookie
 	claims, valid, err := auth.parseSessionJWT(sessionJWT)
 	if err != nil {
-		return nil, fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrInvalidSessionToken, err)
+		var sessionID sessionID
+		if claims != nil {
+			sessionID = claims.SessionID
+		}
+		return nil, fmt.Errorf("session: %s - %w: %w", sessionID, ErrInvalidSessionToken, err)
 	}
 	if !valid {
 		return nil, ErrInvalidSessionToken
