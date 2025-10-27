@@ -144,15 +144,6 @@ func (rm *ResponseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("hijack not supported")
 }
 
-func (rm *ResponseModifier) Flush() error {
-	if flusher, ok := rm.w.(http.Flusher); ok {
-		flusher.Flush()
-	} else if errFlusher, ok := rm.w.(interface{ Flush() error }); ok {
-		return errFlusher.Flush()
-	}
-	return nil
-}
-
 // FlushRelease flushes the response modifier and releases the resources
 // it returns the number of bytes written and the aggregated error
 // if there is any error (rule errors or write error), it will be returned
@@ -175,7 +166,7 @@ func (rm *ResponseModifier) FlushRelease() (int, error) {
 			if werr != nil {
 				rm.errs.Addf("write error: %w", werr)
 			}
-			if err := rm.Flush(); err != nil {
+			if err := http.NewResponseController(rm.w).Flush(); err != nil {
 				rm.errs.Addf("flush error: %w", err)
 			}
 		}
