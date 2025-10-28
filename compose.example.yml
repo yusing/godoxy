@@ -25,6 +25,7 @@ services:
     container_name: godoxy-frontend
     restart: unless-stopped
     env_file: .env
+    # comment out `user` for lite variant
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
     read_only: true
     tmpfs:
