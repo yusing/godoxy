@@ -30,8 +30,8 @@ func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNex
 	return c.modReq.before(w, r)
 }
 
-func (c *checkBypass) modifyResponse(w http.ResponseWriter, resp *http.Response) error {
-	if c.modRes == nil || c.bypass.ShouldBypass(w, resp.Request) {
+func (c *checkBypass) modifyResponse(resp *http.Response) error {
+	if c.modRes == nil || c.bypass.ShouldBypass(rules.ResponseAsRW(resp), resp.Request) {
 		return nil
 	}
 	return c.modRes.modifyResponse(resp)

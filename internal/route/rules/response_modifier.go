@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
 
+	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/synk"
 )
@@ -40,6 +42,29 @@ func unwrapResponseModifier(w http.ResponseWriter) *ResponseModifier {
 		default:
 			return nil
 		}
+	}
+}
+
+type responseAsRW struct {
+	resp *http.Response
+}
+
+func (r responseAsRW) WriteHeader(code int) {
+	log.Error().Msg("write header after response has been created")
+}
+
+func (r responseAsRW) Write(b []byte) (int, error) {
+	return 0, io.ErrClosedPipe
+}
+
+func (r responseAsRW) Header() http.Header {
+	return r.resp.Header
+}
+
+func ResponseAsRW(resp *http.Response) *ResponseModifier {
+	return &ResponseModifier{
+		statusCode: resp.StatusCode,
+		w:          responseAsRW{resp},
 	}
 }
 
