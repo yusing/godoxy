@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/bytedance/sonic"
@@ -50,10 +49,6 @@ func (mon *DockerHealthMonitor) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-type inspectState struct {
-	State *container.State
-}
-
 func (mon *DockerHealthMonitor) interceptInspectResponse(resp *http.Response) (intercepted bool, err error) {
 	if resp.StatusCode != http.StatusOK {
 		return false, nil
@@ -65,16 +60,13 @@ func (mon *DockerHealthMonitor) interceptInspectResponse(resp *http.Response) (i
 		return false, err
 	}
 
-	var state inspectState
+	var state container.State
 	err = sonic.Unmarshal(body, &state)
 	release(body)
 	if err != nil {
 		return false, err
 	}
 
-	if state.State == nil {
-		return false, errors.New("container state not found")
-	}
 	return true, httputils.NewRequestInterceptedError(resp, state)
 }
 
@@ -91,13 +83,20 @@ func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	_, err := mon.client.ContainerInspect(ctx, mon.containerID)
 
 	var interceptedErr *httputils.RequestInterceptedError
-	if err != nil && !httputils.AsRequestInterceptedError(err, &interceptedErr) {
+	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
 		mon.numDockerFailures++
 		log.Debug().Err(err).Str("container_id", mon.containerID).Msg("docker health check failed, using fallback")
 		return mon.fallback.CheckHealth()
 	}
 
-	state := interceptedErr.Data.(inspectState).State
+	if interceptedErr == nil || interceptedErr.Data == nil { // should not happen
+		log.Debug().Msgf("intercepted error is nil or data is nil, container_id: %s", mon.containerID)
+		mon.numDockerFailures++
+		log.Debug().Err(err).Str("container_id", mon.containerID).Msg("docker health check failed, using fallback")
+		return mon.fallback.CheckHealth()
+	}
+
+	state := interceptedErr.Data.(container.State)
 	status := state.Status
 	switch status {
 	case "dead", "exited", "paused", "restarting", "removing":
