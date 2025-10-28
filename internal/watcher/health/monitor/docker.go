@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/bytedance/sonic"
@@ -69,6 +70,10 @@ func (mon *DockerHealthMonitor) interceptInspectResponse(resp *http.Response) (i
 	release(body)
 	if err != nil {
 		return false, err
+	}
+
+	if state.State == nil {
+		return false, errors.New("container state not found")
 	}
 	return true, httputils.NewRequestInterceptedError(resp, state)
 }
