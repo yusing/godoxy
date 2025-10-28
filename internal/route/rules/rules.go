@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/bytedance/sonic"
-	gperr "github.com/yusing/goutils/errs"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -89,6 +89,11 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		if defaultRule.IsResponseRule() {
 			return func(w http.ResponseWriter, r *http.Request) {
 				rm := NewResponseModifier(w)
+				defer func() {
+					if _, err := rm.FlushRelease(); err != nil {
+						logError(err, r)
+					}
+				}()
 				w = rm
 				up(w, r)
 				err := defaultRule.Do.exec.Handle(w, r)
@@ -99,6 +104,11 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
 			rm := NewResponseModifier(w)
+			defer func() {
+				if _, err := rm.FlushRelease(); err != nil {
+					logError(err, r)
+				}
+			}()
 			w = rm
 			err := defaultRule.Do.exec.Handle(w, r)
 			if err == nil {
@@ -128,7 +138,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		rm := NewResponseModifier(w)
 		defer func() {
 			if _, err := rm.FlushRelease(); err != nil {
-				gperr.LogError("error executing rules", err)
+				logError(err, r)
 			}
 		}()
 
@@ -251,4 +261,8 @@ func (rule *Rule) Check(w http.ResponseWriter, r *http.Request) bool {
 
 func (rule *Rule) Handle(w http.ResponseWriter, r *http.Request) error {
 	return rule.Do.exec.Handle(w, r)
+}
+
+func logError(err error, r *http.Request) {
+	log.Err(err).Str("method", r.Method).Str("url", r.Host+r.URL.Path).Msg("error executing rules")
 }

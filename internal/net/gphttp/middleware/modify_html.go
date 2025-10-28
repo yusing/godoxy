@@ -45,13 +45,25 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 		return nil
 	}
 
+	// Skip modification for streaming/chunked responses to avoid blocking reads
+	// Unknown content length or any transfer encoding indicates streaming.
+	if resp.ContentLength < 0 || len(resp.TransferEncoding) > 0 {
+		return nil
+	}
+
 	// NOTE: do not put it in the defer, it will be used as resp.Body
 	content, release, err := httputils.ReadAllBody(resp)
 	resp.Body.Close()
 	if err != nil {
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to read response body")
+		// Fail open: do not abort the response. Return an empty body safely.
+		resp.ContentLength = 0
+		resp.Header.Set("Content-Length", "0")
+		resp.Header.Del("Transfer-Encoding")
+		resp.Header.Del("Trailer")
+		resp.Header.Del("Content-Encoding")
 		resp.Body = eofReader{}
-		return err
+		return nil
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
@@ -92,6 +104,9 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 	release(content)
 	resp.ContentLength = int64(buf.Len())
 	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
+	resp.Header.Del("Transfer-Encoding")
+	resp.Header.Del("Trailer")
+	resp.Header.Del("Content-Encoding")
 	resp.Header.Set("Content-Type", "text/html; charset=utf-8")
 	resp.Body = readerWithRelease(buf.Bytes(), func(_ []byte) {
 		pool.PutBuffer(buf)

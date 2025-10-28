@@ -158,6 +158,8 @@ func (rm *ResponseModifier) FlushRelease() (int, error) {
 		// }
 		contentLength := rm.ContentLength()
 		h.Set("Content-Length", strconv.Itoa(rm.ContentLength()))
+		h.Del("Transfer-Encoding")
+		h.Del("Trailer")
 		rm.w.WriteHeader(rm.StatusCode())
 
 		if contentLength > 0 {
