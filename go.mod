@@ -46,8 +46,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.3.1
-	github.com/yusing/godoxy/agent v0.0.0-20251025144347-1ec2872f3d4c
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251025144347-1ec2872f3d4c
+	github.com/yusing/godoxy/agent v0.0.0-20251028124446-1797a222cd18
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251028124446-1797a222cd18
 	github.com/yusing/goutils v0.7.0
 )
 
@@ -136,7 +136,7 @@ require (
 )
 
 require (
-	github.com/bytedance/sonic v1.14.1
+	github.com/bytedance/sonic v1.14.2
 	github.com/shirou/gopsutil/v4 v4.25.9
 	github.com/valyala/fasthttp v1.68.0
 	github.com/yusing/gointernals v0.1.16
@@ -146,7 +146,7 @@ require (
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v11 v11.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -174,7 +174,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vultr/govultr/v3 v3.24.0 // indirect
