@@ -9,9 +9,6 @@ on:
       image_name:
         required: true
         type: string
-      old_image_name:
-        required: false
-        type: string
       target:
         required: true
         type: string
@@ -156,17 +153,6 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ inputs.image_name }}@sha256:%s ' *)
 
-      - name: Old image name
-        if: inputs.old_image_name != ''
-        run: |
-          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ inputs.old_image_name }}:${{ steps.meta.outputs.version }}\
-            ${{ env.REGISTRY }}/${{ inputs.image_name }}:${{ steps.meta.outputs.version }}
-
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ inputs.image_name }}:${{ steps.meta.outputs.version }}
-
-      - name: Inspect image (old)
-        if: inputs.old_image_name != ''
-        run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ inputs.old_image_name }}:${{ steps.meta.outputs.version }}
