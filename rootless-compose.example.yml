@@ -35,12 +35,9 @@ services:
     depends_on:
       - app
     environment:
-      HOSTNAME: 0.0.0.0
-      PORT: 3000
       GODOXY_API_ADDR: app:8888
     labels:
       proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
-      proxy.#1.port: 3000
     networks:
       - godoxy
   app:
