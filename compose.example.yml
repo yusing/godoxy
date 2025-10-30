@@ -22,6 +22,8 @@ services:
       - ${SOCKET_PROXY_LISTEN_ADDR:-127.0.0.1:2375}:2375
   frontend:
     image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
+    # lite variant
+    # image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}-lite
     container_name: godoxy-frontend
     restart: unless-stopped
     env_file: .env
@@ -74,10 +76,9 @@ services:
       - ./error_pages:/app/error_pages:ro
       - ./data:/app/data
 
-      # To use autocert, certs will be stored in "./certs".
-      # You can also use a docker volume to store it
+      # This path stores certs obtained from autocert and agent TLS client certs
       - ./certs:/app/certs
 
-      # remove "./certs:/app/certs" and uncomment below to use existing certificate
+      # mount existing certificate
       # - /path/to/certs/cert.crt:/app/certs/cert.crt
       # - /path/to/certs/priv.key:/app/certs/priv.key

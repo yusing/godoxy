@@ -4,6 +4,8 @@
 
 # autocert:
 #   provider: local
+#   cert_path: /path/to/cert.crt # default: /app/certs/cert.crt
+#   key_path: /path/to/priv.key # default: /app/certs/priv.key
 
 # 2. cloudflare
 # autocert:
