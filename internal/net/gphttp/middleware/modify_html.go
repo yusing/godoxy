@@ -47,9 +47,10 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 
 	// Skip modification for streaming/chunked responses to avoid blocking reads
 	// Unknown content length or any transfer encoding indicates streaming.
-	if resp.ContentLength < 0 || len(resp.TransferEncoding) > 0 {
-		return nil
-	}
+	// if resp.ContentLength < 0 || len(resp.TransferEncoding) > 0 {
+	// 	log.Debug().Str("url", fullURL(resp.Request)).Strs("transfer-encoding", resp.TransferEncoding).Msg("skipping modification for streaming/chunked response")
+	// 	return nil
+	// }
 
 	// NOTE: do not put it in the defer, it will be used as resp.Body
 	content, release, err := httputils.ReadAllBody(resp)
