@@ -67,6 +67,21 @@ healthcheck:
 	}, labels)
 }
 
+func TestWildcardWithRefAliases(t *testing.T) {
+	labels := map[string]string{
+		"proxy.#1.host": "localhost",
+		"proxy.#1.port": "5555",
+		"proxy.*.middlewares.request.hide_headers": "X-Header1,X-Header2",
+	}
+	docker.ExpandWildcard(labels, "a.example.com", "b.example.com")
+	require.Equal(t, map[string]string{
+		"proxy.#1.host": "localhost",
+		"proxy.#1.port": "5555",
+		"proxy.#1.middlewares.request.hide_headers": "X-Header1,X-Header2",
+		"proxy.#2.middlewares.request.hide_headers": "X-Header1,X-Header2",
+	}, labels)
+}
+
 func BenchmarkParseLabels(b *testing.B) {
 	for b.Loop() {
 		_, _ = docker.ParseLabels(map[string]string{

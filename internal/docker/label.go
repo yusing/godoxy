@@ -87,8 +87,8 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 			wildcardLabels[parts[2]] = value
 			continue
 		}
-		// explicit alias label – remember the alias
-		if _, ok := aliasSet[alias]; !ok {
+		// explicit alias label – remember the alias (but not reference aliases like #1, #2)
+		if _, ok := aliasSet[alias]; !ok && !strings.HasPrefix(alias, "#") {
 			aliasSet[alias] = len(aliasSet)
 		}
 	}
@@ -100,10 +100,9 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 	// expand collected wildcard labels for every alias
 	for suffix, v := range wildcardLabels {
 		for alias, i := range aliasSet {
-			// for FQDN aliases, use numeric index instead of the alias name
-			if strings.Contains(alias, ".") {
-				alias = fmt.Sprintf("#%d", i+1)
-			}
+			// use numeric index instead of the alias name
+			alias = fmt.Sprintf("#%d", i+1)
+
 			key := fmt.Sprintf("%s.%s.%s", NSProxy, alias, suffix)
 			if suffix == "" { // this should not happen (root wildcard handled earlier) but keep safe
 				key = fmt.Sprintf("%s.%s", NSProxy, alias)
