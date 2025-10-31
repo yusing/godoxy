@@ -51,6 +51,10 @@ func ProceedNext(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	if defaultAuth == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
 	err := defaultAuth.CheckToken(r)
 	if err != nil {
 		defaultAuth.LoginHandler(w, r)
@@ -60,6 +64,10 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthOrProceed(w http.ResponseWriter, r *http.Request) (proceed bool) {
+	if defaultAuth == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return false
+	}
 	err := defaultAuth.CheckToken(r)
 	if err != nil {
 		defaultAuth.LoginHandler(w, r)
