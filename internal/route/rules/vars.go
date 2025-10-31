@@ -52,10 +52,7 @@ func ValidateVars(s string) error {
 
 func ExpandVars(w *ResponseModifier, req *http.Request, src string, dstW io.Writer) error {
 	dst := ioutils.NewBufferedWriter(dstW, 1024)
-	defer func() {
-		dst.Flush()
-		dst.Release()
-	}()
+	defer dst.Close()
 
 	for i := 0; i < len(src); i++ {
 		ch := src[i]

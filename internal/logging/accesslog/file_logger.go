@@ -29,12 +29,19 @@ var (
 // NewFileIO creates a new file writer with cleaned path.
 //
 // If the file is already opened, it will be returned.
-func NewFileIO(path string) (WriterWithName, error) {
+func NewFileIO(path string) (Writer, error) {
 	openedFilesMu.Lock()
 	defer openedFilesMu.Unlock()
 
 	var file *File
-	path = filepath.Clean(path)
+	var err error
+
+	// make it absolute path, so that we can use it as key of `openedFiles` and shared lock
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("access log path error: %w", err)
+	}
+
 	if opened, ok := openedFiles[path]; ok {
 		opened.refCount.Add()
 		return opened, nil
@@ -54,8 +61,13 @@ func NewFileIO(path string) (WriterWithName, error) {
 	return file, nil
 }
 
+// Name returns the absolute path of the file.
 func (f *File) Name() string {
-	return f.f.Name()
+	return f.path
+}
+
+func (f *File) ShouldBeBuffered() bool {
+	return true
 }
 
 func (f *File) Write(p []byte) (n int, err error) {

@@ -32,7 +32,7 @@ type (
 	}
 	AnyConfig interface {
 		ToConfig() *Config
-		IO() (WriterWithName, error)
+		IO() (Writer, error)
 	}
 
 	Format  string
@@ -66,8 +66,7 @@ func (cfg *ConfigBase) Validate() gperr.Error {
 }
 
 // IO returns a writer for the config.
-// If only stdout is enabled, it returns nil, nil.
-func (cfg *ConfigBase) IO() (WriterWithName, error) {
+func (cfg *ConfigBase) IO() (Writer, error) {
 	if cfg.Path != "" {
 		io, err := NewFileIO(cfg.Path)
 		if err != nil {
@@ -75,7 +74,7 @@ func (cfg *ConfigBase) IO() (WriterWithName, error) {
 		}
 		return io, nil
 	}
-	return nil, nil
+	return NewStdout(), nil
 }
 
 func (cfg *ACLLoggerConfig) ToConfig() *Config {

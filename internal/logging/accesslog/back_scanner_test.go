@@ -61,7 +61,7 @@ func TestBackScanner(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock file
-			mockFile := NewMockFile()
+			mockFile := NewMockFile(false)
 			_, err := mockFile.Write([]byte(tt.input))
 			if err != nil {
 				t.Fatalf("failed to write to mock file: %v", err)
@@ -103,7 +103,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 
 	for _, chunkSize := range chunkSizes {
 		t.Run(fmt.Sprintf("chunk_size_%d", chunkSize), func(t *testing.T) {
-			mockFile := NewMockFile()
+			mockFile := NewMockFile(false)
 			_, err := mockFile.Write([]byte(input))
 			if err != nil {
 				t.Fatalf("failed to write to mock file: %v", err)
@@ -197,7 +197,7 @@ func TestReset(t *testing.T) {
 
 // 100000 log entries.
 func BenchmarkBackScanner(b *testing.B) {
-	mockFile := NewMockFile()
+	mockFile := NewMockFile(false)
 	line := logEntry()
 	for range 100000 {
 		_, _ = mockFile.Write(line)

@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
@@ -23,11 +24,9 @@ type (
 		task *task.Task
 		cfg  *Config
 
-		rawWriter     io.Writer
-		closer        io.Closer
-		supportRotate supportRotate
-		writer        *ioutils.BufferedWriter
-		writeLock     sync.Mutex
+		writer        BufferedWriter
+		supportRotate SupportRotate
+		writeLock     *sync.Mutex
 		closed        bool
 
 		writeCount int64
@@ -41,8 +40,9 @@ type (
 		ACLFormatter
 	}
 
-	WriterWithName interface {
+	Writer interface {
 		io.WriteCloser
+		ShouldBeBuffered() bool
 		Name() string // file name or path
 	}
 
@@ -61,6 +61,8 @@ type (
 		AppendACLLog(line []byte, info *maxmind.IPInfo, blocked bool) []byte
 	}
 )
+
+var writerLocks = xsync.NewMap[string, *sync.Mutex]()
 
 const (
 	InitialBufferSize = 4 * kilobyte
@@ -87,10 +89,10 @@ func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
 }
 
 func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) *AccessLogger {
-	return NewAccessLoggerWithIO(parent, NewMockFile(), cfg)
+	return NewAccessLoggerWithIO(parent, NewMockFile(true), cfg)
 }
 
-func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg AnyConfig) *AccessLogger {
+func NewAccessLoggerWithIO(parent task.Parent, writer Writer, anyCfg AnyConfig) *AccessLogger {
 	cfg := anyCfg.ToConfig()
 	if cfg.RotateInterval == 0 {
 		cfg.RotateInterval = defaultRotateInterval
@@ -99,20 +101,21 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 	l := &AccessLogger{
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
-		rawWriter:      writer,
 		bufSize:        InitialBufferSize,
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
 		logger:         log.With().Str("file", writer.Name()).Logger(),
 	}
 
-	if writer != nil {
+	l.writeLock, _ = writerLocks.LoadOrStore(writer.Name(), &sync.Mutex{})
+
+	if writer.ShouldBeBuffered() {
 		l.writer = ioutils.NewBufferedWriter(writer, InitialBufferSize)
-		if supportRotate, ok := writer.(SupportRotate); ok {
-			l.supportRotate = supportRotate
-		}
-		if closer, ok := writer.(io.Closer); ok {
-			l.closer = closer
-		}
+	} else {
+		l.writer = NewUnbufferedWriter(writer)
+	}
+
+	if supportRotate, ok := writer.(SupportRotate); ok {
+		l.supportRotate = supportRotate
 	}
 
 	if cfg.req != nil {
@@ -131,9 +134,7 @@ func NewAccessLoggerWithIO(parent task.Parent, writer WriterWithName, anyCfg Any
 		l.ACLFormatter = ACLLogFormatter{}
 	}
 
-	if l.writer != nil {
-		go l.start()
-	} // otherwise stdout only
+	go l.start()
 	return l
 }
 
@@ -188,7 +189,7 @@ func (l *AccessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 		return false, nil
 	}
 
-	l.writer.Flush()
+	l.Flush()
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 
@@ -247,12 +248,9 @@ func (l *AccessLogger) Close() error {
 	if l.closed {
 		return nil
 	}
-	if l.closer != nil {
-		l.closer.Close()
-	}
-	l.writer.Release()
+	l.writer.Flush()
 	l.closed = true
-	return nil
+	return l.writer.Close()
 }
 
 func (l *AccessLogger) Flush() {
@@ -261,29 +259,22 @@ func (l *AccessLogger) Flush() {
 	if l.closed {
 		return
 	}
-	if err := l.writer.Flush(); err != nil {
-		l.handleErr(err)
-	}
+	l.writer.Flush()
 }
 
 func (l *AccessLogger) write(data []byte) {
-	if l.writer != nil {
-		l.writeLock.Lock()
-		defer l.writeLock.Unlock()
-		if l.closed {
-			return
-		}
-		n, err := l.writer.Write(data)
-		if err != nil {
-			l.handleErr(err)
-		} else if n < len(data) {
-			l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
-		}
-		atomic.AddInt64(&l.writeCount, int64(n))
+	l.writeLock.Lock()
+	defer l.writeLock.Unlock()
+	if l.closed {
+		return
 	}
-	if l.cfg.Stdout {
-		log.Logger.Write(data) // write to stdout immediately
+	n, err := l.writer.Write(data)
+	if err != nil {
+		l.handleErr(err)
+	} else if n < len(data) {
+		l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
 	}
+	atomic.AddInt64(&l.writeCount, int64(n))
 }
 
 func (l *AccessLogger) adjustBuffer() {

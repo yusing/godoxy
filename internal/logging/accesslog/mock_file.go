@@ -7,24 +7,25 @@ import (
 	"github.com/spf13/afero"
 )
 
-type noLock struct{}
-
-func (noLock) Lock()   {}
-func (noLock) Unlock() {}
-
 type MockFile struct {
 	afero.File
-	noLock
+
+	buffered bool
 }
 
 var _ SupportRotate = (*MockFile)(nil)
 
-func NewMockFile() *MockFile {
+func NewMockFile(buffered bool) *MockFile {
 	f, _ := afero.TempFile(afero.NewMemMapFs(), "", "")
 	f.Seek(0, io.SeekEnd)
 	return &MockFile{
-		File: f,
+		File:     f,
+		buffered: buffered,
 	}
+}
+
+func (m *MockFile) ShouldBeBuffered() bool {
+	return m.buffered
 }
 
 func (m *MockFile) Len() int64 {
@@ -59,4 +60,8 @@ func (m *MockFile) Size() (int64, error) {
 func (m *MockFile) MustSize() int64 {
 	size, _ := m.Size()
 	return size
+}
+
+func (m *MockFile) Close() error {
+	return nil
 }
