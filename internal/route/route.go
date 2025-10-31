@@ -82,18 +82,38 @@ type (
 		impl types.Route
 		task *task.Task
 
-		isValidated bool
-		lastError   gperr.Error
-		provider    types.RouteProvider
+		// ensure err is read after validation or start
+		valErr   lockedError
+		startErr lockedError
+
+		provider types.RouteProvider
 
 		agent *agent.AgentConfig
 
-		started chan struct{}
-		once    sync.Once
+		started      chan struct{}
+		onceStart    sync.Once
+		onceValidate sync.Once
 	}
 	Routes map[string]*Route
 	Port   = route.Port
 )
+
+type lockedError struct {
+	err  gperr.Error
+	lock sync.Mutex
+}
+
+func (le *lockedError) Get() gperr.Error {
+	le.lock.Lock()
+	defer le.lock.Unlock()
+	return le.err
+}
+
+func (le *lockedError) Set(err gperr.Error) {
+	le.lock.Lock()
+	defer le.lock.Unlock()
+	le.err = err
+}
 
 const DefaultHost = "localhost"
 
@@ -103,11 +123,13 @@ func (r Routes) Contains(alias string) bool {
 }
 
 func (r *Route) Validate() gperr.Error {
-	if r.isValidated {
-		return r.lastError
-	}
-	r.isValidated = true
+	r.onceValidate.Do(func() {
+		r.valErr.Set(r.validate())
+	})
+	return r.valErr.Get()
+}
 
+func (r *Route) validate() gperr.Error {
 	if r.Agent != "" {
 		if r.Container != nil {
 			return gperr.Errorf("specifying agent is not allowed for docker container routes")
@@ -250,7 +272,6 @@ func (r *Route) Validate() gperr.Error {
 	}
 
 	if errs.HasError() {
-		r.lastError = errs.Error()
 		return errs.Error()
 	}
 
@@ -266,7 +287,6 @@ func (r *Route) Validate() gperr.Error {
 	}
 
 	if err != nil {
-		r.lastError = err
 		return err
 	}
 
@@ -320,13 +340,10 @@ func (r *Route) Task() *task.Task {
 }
 
 func (r *Route) Start(parent task.Parent) gperr.Error {
-	if r.lastError != nil {
-		return r.lastError
-	}
-	r.once.Do(func() {
-		r.lastError = r.start(parent)
+	r.onceStart.Do(func() {
+		r.startErr.Set(r.start(parent))
 	})
-	return r.lastError
+	return r.startErr.Get()
 }
 
 func (r *Route) start(parent task.Parent) gperr.Error {
@@ -496,7 +513,7 @@ func (r *Route) IsZeroPort() bool {
 }
 
 func (r *Route) ShouldExclude() bool {
-	if r.lastError != nil {
+	if r.valErr.Get() != nil {
 		return true
 	}
 	if r.Excluded {
@@ -565,7 +582,7 @@ func (re ExcludedReason) MarshalJSON() ([]byte, error) {
 // no need to unmarshal json because we don't store this
 
 func (r *Route) findExcludedReason() ExcludedReason {
-	if r.lastError != nil {
+	if r.valErr.Get() != nil {
 		return ExcludedReasonError
 	}
 	if r.ExcludedReason != ExcludedReasonNone {
