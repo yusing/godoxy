@@ -41,11 +41,16 @@ func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
 	} else {
 		vt := v.Type()
 		if vt.PkgPath() != "" { // not a builtin type
+			// prioritize pointer method
+			if v.CanAddr() {
+				vAddr := v.Addr()
+				if vAddr.Type().Implements(validatorType) {
+					return vAddr.Interface().(CustomValidator).Validate()
+				}
+			}
+			// fallback to value method
 			if vt.Implements(validatorType) {
 				return v.Interface().(CustomValidator).Validate()
-			}
-			if v.CanAddr() {
-				return validateWithValidator(v.Addr())
 			}
 		}
 	}
