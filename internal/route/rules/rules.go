@@ -6,7 +6,11 @@ import (
 	"net/http"
 
 	"github.com/bytedance/sonic"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+
+	_ "unsafe"
 )
 
 type (
@@ -263,6 +267,30 @@ func (rule *Rule) Handle(w http.ResponseWriter, r *http.Request) error {
 	return rule.Do.exec.Handle(w, r)
 }
 
+//go:linkname errStreamClosed golang.org/x/net/http2.errStreamClosed
+var errStreamClosed error
+
 func logError(err error, r *http.Request) {
+	if errors.Is(err, errStreamClosed) {
+		return
+	}
+	var h2Err http2.StreamError
+	if errors.As(err, &h2Err) {
+		// ignore these errors
+		switch h2Err.Code {
+		case http2.ErrCodeStreamClosed:
+			return
+		}
+	}
+	var h3Err *http3.Error
+	if errors.As(err, &h3Err) {
+		// ignore these errors
+		switch h3Err.ErrorCode {
+		case
+			http3.ErrCodeNoError,
+			http3.ErrCodeRequestCanceled:
+			return
+		}
+	}
 	log.Err(err).Str("method", r.Method).Str("url", r.Host+r.URL.Path).Msg("error executing rules")
 }
