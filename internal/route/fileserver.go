@@ -86,6 +86,10 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
+	if len(s.Rules) > 0 {
+		s.handler = s.Rules.BuildHandler(s.handler.ServeHTTP)
+	}
+
 	if s.UseHealthCheck() {
 		s.HealthMon = monitor.NewFileServerHealthMonitor(s.HealthCheck, s.Root)
 		if err := s.HealthMon.Start(s.task); err != nil {
