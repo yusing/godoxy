@@ -10,7 +10,7 @@ var (
 	TimeNow           = DefaultTimeNow
 	shouldCallTimeNow atomic.Bool
 	timeNowTicker     = time.NewTicker(shouldCallTimeNowInterval)
-	lastTimeNow       = time.Now()
+	lastTimeNow       = atomic.NewTime(time.Now())
 )
 
 const shouldCallTimeNowInterval = 100 * time.Millisecond
@@ -26,11 +26,13 @@ func MockTimeNow(t time.Time) {
 //
 // Returned value may have +-100ms error.
 func DefaultTimeNow() time.Time {
-	if shouldCallTimeNow.Load() {
-		lastTimeNow = time.Now()
-		shouldCallTimeNow.Store(false)
+	swapped := shouldCallTimeNow.CompareAndSwap(false, true)
+	if swapped { // first call
+		now := time.Now()
+		lastTimeNow.Store(now)
+		return now
 	}
-	return lastTimeNow
+	return lastTimeNow.Load()
 }
 
 func init() {

@@ -5,16 +5,18 @@ import (
 	"time"
 )
 
+var sink time.Time
+
 func BenchmarkTimeNow(b *testing.B) {
 	b.Run("default", func(b *testing.B) {
 		for b.Loop() {
-			time.Now()
+			sink = time.Now()
 		}
 	})
 
 	b.Run("reduced_call", func(b *testing.B) {
 		for b.Loop() {
-			DefaultTimeNow()
+			sink = DefaultTimeNow()
 		}
 	})
 }
