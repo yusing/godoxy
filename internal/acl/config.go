@@ -55,7 +55,7 @@ type config struct {
 
 	logAllowed bool
 	// will be nil if Log is nil
-	logger *accesslog.AccessLogger
+	logger accesslog.AccessLogger
 
 	// will never tick if Notify.To is empty
 	notifyTicker  *time.Ticker

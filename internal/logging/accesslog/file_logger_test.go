@@ -55,7 +55,7 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 
 			loggerCount := runtime.GOMAXPROCS(0)
 			logCountPerLogger := 10
-			loggers := make([]*AccessLogger, loggerCount)
+			loggers := make([]AccessLogger, loggerCount)
 
 			for i := range loggerCount {
 				loggers[i] = NewAccessLoggerWithIO(parent, file, cfg)
@@ -83,7 +83,7 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	}
 }
 
-func concurrentLog(logger *AccessLogger, req *http.Request, resp *http.Response, n int) {
+func concurrentLog(logger AccessLogger, req *http.Request, resp *http.Response, n int) {
 	var wg sync.WaitGroup
 	for range n {
 		wg.Go(func() {

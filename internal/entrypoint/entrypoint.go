@@ -19,7 +19,7 @@ import (
 type Entrypoint struct {
 	middleware      *middleware.Middleware
 	notFoundHandler http.Handler
-	accessLogger    *accesslog.AccessLogger
+	accessLogger    accesslog.AccessLogger
 	findRouteFunc   func(host string) types.HTTPRoute
 }
 

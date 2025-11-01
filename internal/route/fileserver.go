@@ -20,7 +20,7 @@ type (
 
 		middleware   *middleware.Middleware
 		handler      http.Handler
-		accessLogger *accesslog.AccessLogger
+		accessLogger accesslog.AccessLogger
 	}
 )
 

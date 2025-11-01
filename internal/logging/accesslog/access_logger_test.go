@@ -58,7 +58,7 @@ func fmtLog(cfg *RequestLoggerConfig) (ts string, line string) {
 	t := time.Now()
 	logger := NewMockAccessLogger(testTask, cfg)
 	utils.MockTimeNow(t)
-	buf = logger.AppendRequestLog(buf, req, resp)
+	buf = logger.(RequestFormatter).AppendRequestLog(buf, req, resp)
 	return t.Format(LogTimeFormat), string(buf)
 }
 

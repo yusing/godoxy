@@ -149,7 +149,7 @@ func logEntry() []byte {
 	res := httptest.NewRecorder()
 	// server the request
 	srv.Config.Handler.ServeHTTP(res, req)
-	b := accesslog.AppendRequestLog(nil, req, res.Result())
+	b := accesslog.(RequestFormatter).AppendRequestLog(nil, req, res.Result())
 	if b[len(b)-1] != '\n' {
 		b = append(b, '\n')
 	}

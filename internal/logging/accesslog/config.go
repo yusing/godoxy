@@ -32,7 +32,7 @@ type (
 	}
 	AnyConfig interface {
 		ToConfig() *Config
-		IO() (Writer, error)
+		Writers() ([]Writer, error)
 	}
 
 	Format  string
@@ -65,16 +65,20 @@ func (cfg *ConfigBase) Validate() gperr.Error {
 	return nil
 }
 
-// IO returns a writer for the config.
-func (cfg *ConfigBase) IO() (Writer, error) {
+// Writers returns a list of writers for the config.
+func (cfg *ConfigBase) Writers() ([]Writer, error) {
+	writers := make([]Writer, 0, 2)
 	if cfg.Path != "" {
 		io, err := NewFileIO(cfg.Path)
 		if err != nil {
 			return nil, err
 		}
-		return io, nil
+		writers = append(writers, io)
 	}
-	return NewStdout(), nil
+	if cfg.Stdout {
+		writers = append(writers, NewStdout())
+	}
+	return writers, nil
 }
 
 func (cfg *ACLLoggerConfig) ToConfig() *Config {

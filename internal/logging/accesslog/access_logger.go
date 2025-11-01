@@ -20,7 +20,18 @@ import (
 )
 
 type (
-	AccessLogger struct {
+	AccessLogger interface {
+		Log(req *http.Request, res *http.Response)
+		LogError(req *http.Request, err error)
+		LogACL(info *maxmind.IPInfo, blocked bool)
+
+		Config() *Config
+
+		Flush()
+		Close() error
+	}
+
+	accessLogger struct {
 		task *task.Task
 		cfg  *Config
 
@@ -52,6 +63,10 @@ type (
 		Name() string
 	}
 
+	AccessLogRotater interface {
+		Rotate(result *RotateResult) (rotated bool, err error)
+	}
+
 	RequestFormatter interface {
 		// AppendRequestLog appends a log line to line with or without a trailing newline
 		AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte
@@ -80,25 +95,26 @@ const (
 
 var bytesPool = synk.GetUnsizedBytesPool()
 
-func NewAccessLogger(parent task.Parent, cfg AnyConfig) (*AccessLogger, error) {
-	io, err := cfg.IO()
+func NewAccessLogger(parent task.Parent, cfg AnyConfig) (AccessLogger, error) {
+	writers, err := cfg.Writers()
 	if err != nil {
 		return nil, err
 	}
-	return NewAccessLoggerWithIO(parent, io, cfg), nil
+
+	return NewMultiAccessLogger(parent, cfg, writers), nil
 }
 
-func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) *AccessLogger {
+func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) AccessLogger {
 	return NewAccessLoggerWithIO(parent, NewMockFile(true), cfg)
 }
 
-func NewAccessLoggerWithIO(parent task.Parent, writer Writer, anyCfg AnyConfig) *AccessLogger {
+func NewAccessLoggerWithIO(parent task.Parent, writer Writer, anyCfg AnyConfig) AccessLogger {
 	cfg := anyCfg.ToConfig()
 	if cfg.RotateInterval == 0 {
 		cfg.RotateInterval = defaultRotateInterval
 	}
 
-	l := &AccessLogger{
+	l := &accessLogger{
 		task:           parent.Subtask("accesslog."+writer.Name(), true),
 		cfg:            cfg,
 		bufSize:        InitialBufferSize,
@@ -138,11 +154,11 @@ func NewAccessLoggerWithIO(parent task.Parent, writer Writer, anyCfg AnyConfig) 
 	return l
 }
 
-func (l *AccessLogger) Config() *Config {
+func (l *accessLogger) Config() *Config {
 	return l.cfg
 }
 
-func (l *AccessLogger) shouldLog(req *http.Request, res *http.Response) bool {
+func (l *accessLogger) shouldLog(req *http.Request, res *http.Response) bool {
 	if !l.cfg.req.Filters.StatusCodes.CheckKeep(req, res) ||
 		!l.cfg.req.Filters.Method.CheckKeep(req, res) ||
 		!l.cfg.req.Filters.Headers.CheckKeep(req, res) ||
@@ -152,7 +168,7 @@ func (l *AccessLogger) shouldLog(req *http.Request, res *http.Response) bool {
 	return true
 }
 
-func (l *AccessLogger) Log(req *http.Request, res *http.Response) {
+func (l *accessLogger) Log(req *http.Request, res *http.Response) {
 	if !l.shouldLog(req, res) {
 		return
 	}
@@ -166,11 +182,11 @@ func (l *AccessLogger) Log(req *http.Request, res *http.Response) {
 	bytesPool.Put(line)
 }
 
-func (l *AccessLogger) LogError(req *http.Request, err error) {
+func (l *accessLogger) LogError(req *http.Request, err error) {
 	l.Log(req, &http.Response{StatusCode: http.StatusInternalServerError, Status: err.Error()})
 }
 
-func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
+func (l *accessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
 	line := bytesPool.Get()
 	line = l.AppendACLLog(line, info, blocked)
 	if line[len(line)-1] != '\n' {
@@ -180,11 +196,11 @@ func (l *AccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
 	bytesPool.Put(line)
 }
 
-func (l *AccessLogger) ShouldRotate() bool {
+func (l *accessLogger) ShouldRotate() bool {
 	return l.supportRotate != nil && l.cfg.Retention.IsValid()
 }
 
-func (l *AccessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
+func (l *accessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 	if !l.ShouldRotate() {
 		return false, nil
 	}
@@ -197,7 +213,7 @@ func (l *AccessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 	return
 }
 
-func (l *AccessLogger) handleErr(err error) {
+func (l *accessLogger) handleErr(err error) {
 	if l.errRateLimiter.Allow() {
 		gperr.LogError("failed to write access log", err, &l.logger)
 	} else {
@@ -206,7 +222,7 @@ func (l *AccessLogger) handleErr(err error) {
 	}
 }
 
-func (l *AccessLogger) start() {
+func (l *accessLogger) start() {
 	defer func() {
 		l.Flush()
 		l.Close()
@@ -242,7 +258,7 @@ func (l *AccessLogger) start() {
 	}
 }
 
-func (l *AccessLogger) Close() error {
+func (l *accessLogger) Close() error {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -253,7 +269,7 @@ func (l *AccessLogger) Close() error {
 	return l.writer.Close()
 }
 
-func (l *AccessLogger) Flush() {
+func (l *accessLogger) Flush() {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -262,7 +278,7 @@ func (l *AccessLogger) Flush() {
 	l.writer.Flush()
 }
 
-func (l *AccessLogger) write(data []byte) {
+func (l *accessLogger) write(data []byte) {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -277,7 +293,7 @@ func (l *AccessLogger) write(data []byte) {
 	atomic.AddInt64(&l.writeCount, int64(n))
 }
 
-func (l *AccessLogger) adjustBuffer() {
+func (l *accessLogger) adjustBuffer() {
 	wps := int(atomic.SwapInt64(&l.writeCount, 0)) / int(bufferAdjustInterval.Seconds())
 	origBufSize := l.bufSize
 	newBufSize := origBufSize

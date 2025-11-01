@@ -77,7 +77,7 @@ func TestRotateKeepLast(t *testing.T) {
 			logger.Config().Retention = retention
 
 			var result RotateResult
-			rotated, err := logger.Rotate(&result)
+			rotated, err := logger.(AccessLogRotater).Rotate(&result)
 			expect.NoError(t, err)
 			expect.Equal(t, rotated, true)
 			expect.Equal(t, file.NumLines(), int(retention.Last))
@@ -107,7 +107,7 @@ func TestRotateKeepLast(t *testing.T) {
 
 			utils.MockTimeNow(testTime)
 			var result RotateResult
-			rotated, err := logger.Rotate(&result)
+			rotated, err := logger.(AccessLogRotater).Rotate(&result)
 			expect.NoError(t, err)
 			expect.Equal(t, rotated, true)
 			expect.Equal(t, file.NumLines(), int(retention.Days))
@@ -153,7 +153,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 
 			utils.MockTimeNow(testTime)
 			var result RotateResult
-			rotated, err := logger.Rotate(&result)
+			rotated, err := logger.(AccessLogRotater).Rotate(&result)
 			expect.NoError(t, err)
 
 			// file should be untouched as 100KB > 10 lines * bytes per line
@@ -185,7 +185,7 @@ func TestRotateKeepFileSize(t *testing.T) {
 
 		utils.MockTimeNow(testTime)
 		var result RotateResult
-		rotated, err := logger.Rotate(&result)
+		rotated, err := logger.(AccessLogRotater).Rotate(&result)
 		expect.NoError(t, err)
 		expect.Equal(t, rotated, true)
 		expect.Equal(t, result.NumBytesKeep, int64(retention.KeepSize))
@@ -221,7 +221,7 @@ func TestRotateSkipInvalidTime(t *testing.T) {
 			logger.Config().Retention = retention
 
 			var result RotateResult
-			rotated, err := logger.Rotate(&result)
+			rotated, err := logger.(AccessLogRotater).Rotate(&result)
 			expect.NoError(t, err)
 			expect.Equal(t, rotated, true)
 			// should read one invalid line after every valid line
@@ -260,7 +260,7 @@ func BenchmarkRotate(b *testing.B) {
 				_, _ = file.Write(content)
 				b.StartTimer()
 				var result RotateResult
-				_, _ = logger.Rotate(&result)
+				_, _ = logger.(AccessLogRotater).Rotate(&result)
 			}
 		})
 	}
@@ -297,7 +297,7 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 				_, _ = file.Write(content)
 				b.StartTimer()
 				var result RotateResult
-				_, _ = logger.Rotate(&result)
+				_, _ = logger.(AccessLogRotater).Rotate(&result)
 			}
 		})
 	}
