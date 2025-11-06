@@ -3,6 +3,7 @@ package monitor
 import (
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/yusing/godoxy/internal/types"
@@ -33,6 +34,16 @@ func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	start := time.Now()
 	conn, err := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
 	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "connection refused") ||
+			strings.Contains(errMsg, "connection reset by peer") ||
+			strings.Contains(errMsg, "connection closed") {
+			return types.HealthCheckResult{
+				Latency: time.Since(start),
+				Healthy: false,
+				Detail:  err.Error(),
+			}, nil
+		}
 		return types.HealthCheckResult{}, err
 	}
 	defer conn.Close()
