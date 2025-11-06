@@ -121,6 +121,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 	// init entries map for all aliases
 	for _, a := range container.Aliases {
 		routes[a] = &route.Route{
+			Alias: a,
 			Metadata: route.Metadata{
 				Container: container,
 			},
@@ -134,7 +135,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 
 	for alias, entryMapAny := range m {
 		if len(alias) == 0 {
-			errs.Add(gperr.New("empty alias"))
+			errs.Adds("empty alias")
 			continue
 		}
 
@@ -172,6 +173,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 		r, ok := routes[alias]
 		if !ok {
 			r = &route.Route{
+				Alias: alias,
 				Metadata: route.Metadata{
 					Container: container,
 				},
