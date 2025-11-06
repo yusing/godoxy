@@ -14,6 +14,12 @@ type (
 		name       string
 		disableLog atomic.Bool
 	}
+	// Preferable allows an object to express deterministic replacement preference
+	// when multiple objects with the same key are added to the pool.
+	// If new.PreferOver(old) returns true, the new object replaces the old one.
+	Preferable interface {
+		PreferOver(other any) bool
+	}
 	Object interface {
 		Key() string
 		Name() string
@@ -37,12 +43,18 @@ func (p *Pool[T]) Name() string {
 }
 
 func (p *Pool[T]) Add(obj T) {
-	p.checkExists(obj.Key())
-	p.m.Store(obj.Key(), obj)
-	p.logAction("added", obj)
+	p.AddKey(obj.Key(), obj)
 }
 
 func (p *Pool[T]) AddKey(key string, obj T) {
+	if cur, exists := p.m.Load(key); exists {
+		if newPref, ok := any(obj).(Preferable); ok {
+			if !newPref.PreferOver(cur) {
+				// keep existing
+				return
+			}
+		}
+	}
 	p.checkExists(key)
 	p.m.Store(key, obj)
 	p.logAction("added", obj)

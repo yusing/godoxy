@@ -497,6 +497,45 @@ func (r *Route) DisplayName() string {
 	return r.Homepage.Name
 }
 
+// PreferOver implements pool.Preferable to resolve duplicate route keys deterministically.
+// Preference policy:
+// - Prefer routes with rules over routes without rules.
+// - If rules tie, prefer non-docker routes (explicit config) over docker-discovered routes.
+// - Otherwise, prefer the new route to preserve existing semantics.
+func (r *Route) PreferOver(other any) bool {
+	// Try to get the underlying *Route of the other value
+	var or *Route
+	switch v := other.(type) {
+	case *Route:
+		or = v
+	case *ReveseProxyRoute:
+		or = v.Route
+	case *FileServer:
+		or = v.Route
+	case *StreamRoute:
+		or = v.Route
+	default:
+		// Unknown type, allow replacement
+		return true
+	}
+
+	// Prefer routes that have rules
+	if len(r.Rules) > 0 && len(or.Rules) == 0 {
+		return true
+	}
+	if len(r.Rules) == 0 && len(or.Rules) > 0 {
+		return false
+	}
+
+	// Prefer explicit (non-docker) over docker auto-discovered
+	if (r.Container == nil) != (or.Container == nil) {
+		return r.Container == nil
+	}
+
+	// Default: allow replacement
+	return true
+}
+
 func (r *Route) ContainerInfo() *types.Container {
 	return r.Container
 }
