@@ -47,6 +47,10 @@ func isFaviconPath(path string) bool {
 	return path == "/favicon.ico"
 }
 
+func isLoadingPageCSSPath(path string) bool {
+	return path == "/style.css"
+}
+
 func (w *Watcher) redirectToStartEndpoint(rw http.ResponseWriter, r *http.Request) {
 	uri := "/"
 	if w.cfg.StartEndpoint != "" {
@@ -93,6 +97,13 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		rw.Header().Set("Content-Type", result.ContentType())
 		rw.WriteHeader(result.StatusCode)
 		rw.Write(result.Icon)
+		return false
+	}
+
+	if isLoadingPageCSSPath(r.URL.Path) {
+		rw.Header().Set("Content-Type", "text/css")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write(cssBytes)
 		return false
 	}
 

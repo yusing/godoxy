@@ -3,7 +3,7 @@ package idlewatcher
 import (
 	"bytes"
 	_ "embed"
-	"text/template"
+	"html/template"
 
 	"github.com/yusing/goutils/http/httpheaders"
 )
@@ -17,6 +17,9 @@ type templateData struct {
 //go:embed html/loading_page.html
 var loadingPage []byte
 var loadingPageTmpl = template.Must(template.New("loading_page").Parse(string(loadingPage)))
+
+//go:embed html/style.css
+var cssBytes []byte
 
 func (w *Watcher) makeLoadingPageBody() []byte {
 	msg := w.cfg.ContainerName() + " is starting..."
