@@ -186,6 +186,10 @@ func (mon *monitor) Finish(reason any) {
 
 // UpdateURL implements HealthChecker.
 func (mon *monitor) UpdateURL(url *url.URL) {
+	if url == nil {
+		log.Warn().Msg("attempting to update health monitor URL with nil")
+		return
+	}
 	mon.url.Store(url)
 }
 

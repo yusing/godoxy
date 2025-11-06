@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types/container"
@@ -47,6 +48,13 @@ func (mon *DockerHealthMonitor) Start(parent task.Parent) gperr.Error {
 	mon.client.InterceptHTTPClient(mon.interceptInspectResponse)
 	mon.monitor.task.OnFinished("close docker client", mon.client.Close)
 	return nil
+}
+
+func (mon *DockerHealthMonitor) UpdateURL(url *url.URL) {
+	mon.monitor.UpdateURL(url)
+	if mon.fallback != nil {
+		mon.fallback.UpdateURL(url)
+	}
 }
 
 func (mon *DockerHealthMonitor) interceptInspectResponse(resp *http.Response) (intercepted bool, err error) {

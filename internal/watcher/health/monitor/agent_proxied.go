@@ -5,12 +5,13 @@ import (
 
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/synk"
 )
 
 type (
 	AgentProxiedMonitor struct {
 		agent *agentPkg.AgentConfig
-		query string
+		query synk.Value[string]
 		*monitor
 	}
 	AgentCheckHealthTarget struct {
@@ -47,18 +48,24 @@ func (target *AgentCheckHealthTarget) displayURL() *url.URL {
 func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
 	mon := &AgentProxiedMonitor{
 		agent: agent,
-		query: target.buildQuery(),
 	}
 	mon.monitor = newMonitor(target.displayURL(), config, mon.CheckHealth)
+	mon.query.Store(target.buildQuery())
 	return mon
 }
 
 func (mon *AgentProxiedMonitor) CheckHealth() (types.HealthCheckResult, error) {
-	resp, err := mon.agent.DoHealthCheck(mon.config.Timeout, mon.query)
+	resp, err := mon.agent.DoHealthCheck(mon.config.Timeout, mon.query.Load())
 	result := types.HealthCheckResult{
 		Healthy: resp.Healthy,
 		Detail:  resp.Detail,
 		Latency: resp.Latency,
 	}
 	return result, err
+}
+
+func (mon *AgentProxiedMonitor) UpdateURL(url *url.URL) {
+	mon.monitor.UpdateURL(url)
+	newTarget := AgentTargetFromURL(url)
+	mon.query.Store(newTarget.buildQuery())
 }
