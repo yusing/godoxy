@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy
 
-go 1.25.3
+go 1.25.4
 
 replace github.com/yusing/godoxy/agent => ./agent
 
@@ -15,10 +15,10 @@ replace github.com/yusing/goutils => ./goutils
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
 	github.com/coreos/go-oidc/v3 v3.16.0 // oidc authentication
-	github.com/docker/docker v28.5.1+incompatible // docker daemon
+	github.com/docker/docker v28.5.2+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
-	github.com/go-acme/lego/v4 v4.27.0 // acme client
+	github.com/go-acme/lego/v4 v4.28.0 // acme client
 	github.com/go-playground/validator/v10 v10.28.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -36,18 +36,18 @@ require (
 )
 
 require (
-	github.com/docker/cli v28.5.1+incompatible
+	github.com/docker/cli v28.5.2+incompatible
 	github.com/goccy/go-yaml v1.18.0 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/luthermonson/go-proxmox v0.2.3
 	github.com/oschwald/maxminddb-golang v1.13.1
-	github.com/quic-go/quic-go v0.55.0 // indirect; http3 support
+	github.com/quic-go/quic-go v0.55.0 // http3 support
 	github.com/samber/slog-zerolog/v2 v2.8.0 // indirect
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/ds v0.3.1
-	github.com/yusing/godoxy/agent v0.0.0-20251028124446-1797a222cd18
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251028124446-1797a222cd18
+	github.com/yusing/godoxy/agent v0.0.0-20251101040722-306cb7a20ef4
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251101040722-306cb7a20ef4
 	github.com/yusing/goutils v0.7.0
 )
 
@@ -61,7 +61,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns v1.2.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns v1.3.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.9.0 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.5.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
@@ -72,9 +72,9 @@ require (
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/docker/go-connections v0.6.0
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/ebitengine/purego v0.9.0 // indirect
+	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
@@ -126,8 +126,8 @@ require (
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
-	google.golang.org/api v0.253.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/api v0.255.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251103181224-f26f9409b101 // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -137,7 +137,7 @@ require (
 
 require (
 	github.com/bytedance/sonic v1.14.2
-	github.com/shirou/gopsutil/v4 v4.25.9
+	github.com/shirou/gopsutil/v4 v4.25.10
 	github.com/valyala/fasthttp v1.68.0
 	github.com/yusing/gointernals v0.1.16
 )
@@ -166,8 +166,8 @@ require (
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.102.1 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.102.1 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.104.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.104.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
