@@ -20,9 +20,12 @@ import (
 // TODO: support weighted mode.
 type (
 	impl interface {
-		ServeHTTP(srvs types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request)
 		OnAddServer(srv types.LoadBalancerServer)
 		OnRemoveServer(srv types.LoadBalancerServer)
+		ChooseServer(srvs types.LoadBalancerServers, r *http.Request) types.LoadBalancerServer
+	}
+	customServeHTTP interface {
+		ServeHTTP(srvs types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request)
 	}
 
 	LoadBalancer struct {
@@ -235,7 +238,33 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			gperr.LogWarn("failed to wake some servers", err, &lb.l)
 		}
 	}
-	lb.impl.ServeHTTP(srvs, rw, r)
+
+	// Check for idlewatcher requests or sticky sessions
+	if lb.Sticky || isIdlewatcherRequest(r) {
+		if selectedServer := getStickyServer(r, srvs); selectedServer != nil {
+			selectedServer.ServeHTTP(rw, r)
+			return
+		}
+		// No sticky session, choose a server and set cookie
+		selectedServer := lb.impl.ChooseServer(srvs, r)
+		if selectedServer != nil {
+			setStickyCookie(rw, r, selectedServer, lb.StickyMaxAge)
+			selectedServer.ServeHTTP(rw, r)
+			return
+		}
+	}
+
+	if customServeHTTP, ok := lb.impl.(customServeHTTP); ok {
+		customServeHTTP.ServeHTTP(srvs, rw, r)
+		return
+	}
+
+	selectedServer := lb.ChooseServer(srvs, r)
+	if selectedServer == nil {
+		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	selectedServer.ServeHTTP(rw, r)
 }
 
 // MarshalJSON implements health.HealthMonitor.
@@ -323,4 +352,23 @@ func (lb *LoadBalancer) availServers() []types.LoadBalancerServer {
 		}
 	}
 	return avail
+}
+
+// isIdlewatcherRequest checks if this is an idlewatcher-related request
+func isIdlewatcherRequest(r *http.Request) bool {
+	// Check for explicit idlewatcher paths
+	if r.URL.Path == idlewatcher.WakeEventsPath ||
+		r.URL.Path == idlewatcher.FavIconPath ||
+		r.URL.Path == idlewatcher.LoadingPageCSSPath ||
+		r.URL.Path == idlewatcher.LoadingPageJSPath {
+		return true
+	}
+
+	// Check if this is a page refresh after idlewatcher wake up
+	// by looking for the sticky session cookie
+	if _, err := r.Cookie("godoxy_lb_sticky"); err == nil {
+		return true
+	}
+
+	return false
 }

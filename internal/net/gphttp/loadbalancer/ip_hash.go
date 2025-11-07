@@ -1,11 +1,11 @@
 package loadbalancer
 
 import (
-	"hash/fnv"
 	"net"
 	"net/http"
 	"sync"
 
+	"github.com/bytedance/gopkg/util/xxhash3"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -18,6 +18,9 @@ type ipHash struct {
 	pool   types.LoadBalancerServers
 	mu     sync.Mutex
 }
+
+var _ impl = (*ipHash)(nil)
+var _ customServeHTTP = (*ipHash)(nil)
 
 func (lb *LoadBalancer) newIPHash() impl {
 	impl := &ipHash{LoadBalancer: lb}
@@ -62,31 +65,27 @@ func (impl *ipHash) OnRemoveServer(srv types.LoadBalancerServer) {
 }
 
 func (impl *ipHash) ServeHTTP(_ types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request) {
-	if impl.realIP != nil {
-		impl.realIP.ModifyRequest(impl.serveHTTP, rw, r)
-	} else {
-		impl.serveHTTP(rw, r)
-	}
-}
-
-func (impl *ipHash) serveHTTP(rw http.ResponseWriter, r *http.Request) {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		http.Error(rw, "Internal error", http.StatusInternalServerError)
-		impl.l.Err(err).Msg("invalid remote address " + r.RemoteAddr)
-		return
-	}
-	idx := hashIP(ip) % uint32(len(impl.pool))
-
-	srv := impl.pool[idx]
+	srv := impl.ChooseServer(impl.pool, r)
 	if srv == nil || srv.Status().Bad() {
 		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
+		return
 	}
-	srv.ServeHTTP(rw, r)
+
+	if impl.realIP != nil {
+		impl.realIP.ModifyRequest(srv.ServeHTTP, rw, r)
+	} else {
+		srv.ServeHTTP(rw, r)
+	}
 }
 
-func hashIP(ip string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(ip))
-	return h.Sum32()
+func (impl *ipHash) ChooseServer(_ types.LoadBalancerServers, r *http.Request) types.LoadBalancerServer {
+	if len(impl.pool) == 0 {
+		return nil
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+	return impl.pool[xxhash3.HashString(ip)%uint64(len(impl.pool))]
 }

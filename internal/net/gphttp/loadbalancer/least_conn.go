@@ -13,6 +13,9 @@ type leastConn struct {
 	nConn *xsync.Map[types.LoadBalancerServer, *atomic.Int64]
 }
 
+var _ impl = (*leastConn)(nil)
+var _ customServeHTTP = (*leastConn)(nil)
+
 func (lb *LoadBalancer) newLeastConn() impl {
 	return &leastConn{
 		LoadBalancer: lb,
@@ -29,18 +32,39 @@ func (impl *leastConn) OnRemoveServer(srv types.LoadBalancerServer) {
 }
 
 func (impl *leastConn) ServeHTTP(srvs types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request) {
-	srv := srvs[0]
+	srv := impl.ChooseServer(srvs, r)
+	if srv == nil {
+		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
 	minConn, ok := impl.nConn.Load(srv)
 	if !ok {
 		impl.l.Error().Msgf("[BUG] server %s not found", srv.Name())
 		http.Error(rw, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	minConn.Add(1)
+	srv.ServeHTTP(rw, r)
+	minConn.Add(-1)
+}
+
+func (impl *leastConn) ChooseServer(srvs types.LoadBalancerServers, r *http.Request) types.LoadBalancerServer {
+	if len(srvs) == 0 {
+		return nil
+	}
+
+	srv := srvs[0]
+	minConn, ok := impl.nConn.Load(srv)
+	if !ok {
+		return nil
 	}
 
 	for i := 1; i < len(srvs); i++ {
 		nConn, ok := impl.nConn.Load(srvs[i])
 		if !ok {
-			impl.l.Error().Msgf("[BUG] server %s not found", srv.Name())
-			http.Error(rw, "Internal error", http.StatusInternalServerError)
+			continue
 		}
 		if nConn.Load() < minConn.Load() {
 			minConn = nConn
@@ -48,7 +72,5 @@ func (impl *leastConn) ServeHTTP(srvs types.LoadBalancerServers, rw http.Respons
 		}
 	}
 
-	minConn.Add(1)
-	srv.ServeHTTP(rw, r)
-	minConn.Add(-1)
+	return srv
 }

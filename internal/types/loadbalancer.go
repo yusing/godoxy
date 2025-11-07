@@ -2,6 +2,7 @@ package types
 
 import (
 	"net/http"
+	"time"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	strutils "github.com/yusing/goutils/strings"
@@ -9,10 +10,12 @@ import (
 
 type (
 	LoadBalancerConfig struct {
-		Link    string           `json:"link"`
-		Mode    LoadBalancerMode `json:"mode"`
-		Weight  int              `json:"weight"`
-		Options map[string]any   `json:"options,omitempty"`
+		Link         string           `json:"link"`
+		Mode         LoadBalancerMode `json:"mode"`
+		Weight       int              `json:"weight"`
+		Sticky       bool             `json:"sticky"`
+		StickyMaxAge time.Duration    `json:"sticky_max_age"`
+		Options      map[string]any   `json:"options,omitempty"`
 	} // @name LoadBalancerConfig
 	LoadBalancerMode   string // @name LoadBalancerMode
 	LoadBalancerServer interface {
@@ -34,6 +37,8 @@ const (
 	LoadbalanceModeLeastConn  LoadBalancerMode = "leastconn"
 	LoadbalanceModeIPHash     LoadBalancerMode = "iphash"
 )
+
+const StickyMaxAgeDefault = 1 * time.Hour
 
 func (mode *LoadBalancerMode) ValidateUpdate() bool {
 	switch strutils.ToLowerNoSnake(string(*mode)) {
