@@ -19,7 +19,7 @@ var RedirectHTTP = NewMiddleware[redirectHTTP]()
 
 // before implements RequestModifier.
 func (m *redirectHTTP) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		return true
 	}
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -199,7 +200,7 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "" {
 		r.URL.Path = OIDCAuthInitPath
 	}
-	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+	if r.TLS == nil && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		r.URL.Scheme = "https"
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return

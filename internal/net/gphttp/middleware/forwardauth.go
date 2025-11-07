@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/yusing/godoxy/internal/route/routes"
@@ -71,7 +72,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 	}
 
 	proto := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		proto = "https"
 	}
 
