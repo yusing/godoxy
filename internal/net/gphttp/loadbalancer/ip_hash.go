@@ -3,6 +3,7 @@ package loadbalancer
 import (
 	"net"
 	"net/http"
+	"slices"
 	"sync"
 
 	"github.com/bytedance/gopkg/util/xxhash3"
@@ -39,16 +40,6 @@ func (impl *ipHash) OnAddServer(srv types.LoadBalancerServer) {
 	impl.mu.Lock()
 	defer impl.mu.Unlock()
 
-	for i, s := range impl.pool {
-		if s == srv {
-			return
-		}
-		if s == nil {
-			impl.pool[i] = srv
-			return
-		}
-	}
-
 	impl.pool = append(impl.pool, srv)
 }
 
@@ -58,27 +49,33 @@ func (impl *ipHash) OnRemoveServer(srv types.LoadBalancerServer) {
 
 	for i, s := range impl.pool {
 		if s == srv {
-			impl.pool[i] = nil
+			impl.pool = slices.Delete(impl.pool, i, 1)
 			return
 		}
 	}
 }
 
 func (impl *ipHash) ServeHTTP(_ types.LoadBalancerServers, rw http.ResponseWriter, r *http.Request) {
+	if impl.realIP != nil {
+		// resolve real client IP
+		if proceed := impl.realIP.TryModifyRequest(rw, r); !proceed {
+			return
+		}
+	}
+
 	srv := impl.ChooseServer(impl.pool, r)
 	if srv == nil || srv.Status().Bad() {
 		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
-	if impl.realIP != nil {
-		impl.realIP.ModifyRequest(srv.ServeHTTP, rw, r)
-	} else {
-		srv.ServeHTTP(rw, r)
-	}
+	srv.ServeHTTP(rw, r)
 }
 
 func (impl *ipHash) ChooseServer(_ types.LoadBalancerServers, r *http.Request) types.LoadBalancerServer {
+	impl.mu.Lock()
+	defer impl.mu.Unlock()
+
 	if len(impl.pool) == 0 {
 		return nil
 	}

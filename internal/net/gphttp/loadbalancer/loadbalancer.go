@@ -364,11 +364,5 @@ func isIdlewatcherRequest(r *http.Request) bool {
 		return true
 	}
 
-	// Check if this is a page refresh after idlewatcher wake up
-	// by looking for the sticky session cookie
-	if _, err := r.Cookie("godoxy_lb_sticky"); err == nil {
-		return true
-	}
-
 	return false
 }

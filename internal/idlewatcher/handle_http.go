@@ -15,8 +15,6 @@ import (
 	_ "unsafe"
 )
 
-// FIXME: html and js ccannot be separte
-
 type ForceCacheControl struct {
 	expires string
 	http.ResponseWriter
@@ -179,6 +177,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	if !acceptHTML {
 		serveStaticContent(rw, http.StatusOK, "text/plain", []byte("Container woken"))
+		return false
 	}
 
 	// Send a loading response to the client

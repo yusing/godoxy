@@ -262,10 +262,14 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		p, err = provider.NewProxmoxProvider(cfg.Proxmox.Node, cfg.Proxmox.VMID)
 		kind = "proxmox"
 	}
+	targetURL := r.TargetURL()
+	if targetURL != nil {
+		return nil, errors.New("target URL is not set")
+	}
 	w.l = log.With().
 		Str("kind", kind).
 		Str("container", cfg.ContainerName()).
-		Str("url", r.TargetURL().String()).
+		Str("url", targetURL.String()).
 		Logger()
 
 	if cfg.IdleTimeout != neverTick {
@@ -312,7 +316,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		watcherMap[key] = w
 
 		go func() {
-			cause := w.watchUntilDestroy(p)
+			cause := w.watchUntilDestroy()
 
 			watcherMapMu.Lock()
 			delete(watcherMap, key)
@@ -414,8 +418,8 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 
 	errs := errgroup.Group{}
 	for _, dep := range w.dependsOn {
-		if w.wakeInProgress() {
-			w.l.Debug().Str("dependency", dep.cfg.ContainerName()).Msg("dependency already starting, ignoring duplicate start event")
+		if dep.wakeInProgress() {
+			w.l.Debug().Str("dep", dep.cfg.ContainerName()).Msg("dependency already starting, ignoring duplicate start event")
 			continue
 		}
 		errs.Go(func() error {
@@ -558,7 +562,11 @@ func (w *Watcher) expires() time.Time {
 //
 // it exits only if the context is canceled, the container is destroyed,
 // errors occurred on docker client, or route provider died (mainly caused by config reload).
-func (w *Watcher) watchUntilDestroy(p idlewatcher.Provider) (returnCause error) {
+func (w *Watcher) watchUntilDestroy() (returnCause error) {
+	p := w.provider.Load()
+	if p == nil {
+		return gperr.Errorf("provider not set")
+	}
 	defer p.Close()
 	eventCh, errCh := p.Watch(w.Task().Context())
 

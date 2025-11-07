@@ -55,6 +55,7 @@ func (w *Watcher) clearEventHistory() {
 }
 
 func (w *Watcher) sendEvent(eventType WakeEventType, message string, err error) {
+	// NOTE: events will be cleared on stop/pause
 	event := w.newWakeEvent(eventType, message, err)
 
 	w.l.Debug().Str("event", string(eventType)).Str("message", message).Err(err).Msg("sending event")

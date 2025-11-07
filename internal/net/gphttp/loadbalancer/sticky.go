@@ -3,6 +3,7 @@ package loadbalancer
 import (
 	"encoding/hex"
 	"net/http"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -46,5 +47,5 @@ func setStickyCookie(rw http.ResponseWriter, r *http.Request, srv types.LoadBala
 }
 
 func isSecure(r *http.Request) bool {
-	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }

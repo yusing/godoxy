@@ -38,6 +38,12 @@ func (w *Watcher) writeLoadingPage(rw http.ResponseWriter) error {
 	data.LoadingPageCSSPath = idlewatcher.LoadingPageCSSPath
 	data.LoadingPageJSPath = idlewatcher.LoadingPageJSPath
 	data.WakeEventsPath = idlewatcher.WakeEventsPath
+
+	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+	rw.Header().Set("Cache-Control", "no-cache")
+	rw.Header().Add("Cache-Control", "no-store")
+	rw.Header().Add("Cache-Control", "must-revalidate")
+	rw.Header().Add("Connection", "close")
 	err := loadingPageTmpl.Execute(rw, data)
 	return err
 }

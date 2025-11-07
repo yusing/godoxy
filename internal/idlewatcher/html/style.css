@@ -42,6 +42,13 @@ body {
   min-height: 400px;
 }
 
+@media (max-width: 768px) {
+  .container {
+    min-width: auto;
+    max-width: 90%;
+  }
+}
+
 /* Spinner Styles */
 .loading-dots {
   display: flex;
@@ -81,7 +88,6 @@ body {
   color: #f8f9fa;
   max-width: 100%;
   letter-spacing: 0.3px;
-  white-space: nowrap;
 }
 
 /* Console Styles */

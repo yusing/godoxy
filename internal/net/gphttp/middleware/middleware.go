@@ -170,6 +170,13 @@ func (m *Middleware) ModifyRequest(next http.HandlerFunc, w http.ResponseWriter,
 	next(w, r)
 }
 
+func (m *Middleware) TryModifyRequest(w http.ResponseWriter, r *http.Request) (proceed bool) {
+	if exec, ok := m.impl.(RequestModifier); ok {
+		return exec.before(w, r)
+	}
+	return true
+}
+
 func (m *Middleware) ModifyResponse(resp *http.Response) error {
 	if exec, ok := m.impl.(ResponseModifier); ok {
 		return exec.modifyResponse(resp)

@@ -4,6 +4,11 @@ window.onload = async function () {
   const consoleEl = document.getElementById("console");
   const loadingDotsEl = document.getElementById("loading-dots");
 
+  if (!consoleEl || !loadingDotsEl) {
+    console.error("Required DOM elements not found");
+    return;
+  }
+
   function formatTimestamp(timestamp) {
     const date = new Date(timestamp);
     return date.toLocaleTimeString("en-US", {
@@ -34,11 +39,40 @@ window.onload = async function () {
     consoleEl.scrollTop = consoleEl.scrollHeight;
   }
 
+  if (typeof wakeEventsPath === "undefined" || !wakeEventsPath) {
+    addConsoleLine(
+      "error",
+      "Configuration error: wakeEventsPath not defined",
+      new Date().toISOString()
+    );
+    loadingDotsEl.style.display = "none";
+    return;
+  }
+
+  if (typeof EventSource === "undefined") {
+    addConsoleLine(
+      "error",
+      "Browser does not support Server-Sent Events",
+      new Date().toISOString()
+    );
+    loadingDotsEl.style.display = "none";
+    return;
+  }
+
   // Connect to SSE endpoint
   const eventSource = new EventSource(wakeEventsPath);
 
   eventSource.onmessage = function (event) {
-    const data = JSON.parse(event.data);
+    try {
+      const data = JSON.parse(event.data);
+    } catch (error) {
+      addConsoleLine(
+        "error",
+        "Invalid event data: " + event.data,
+        new Date().toISOString()
+      );
+      return;
+    }
 
     if (data.type === "ready") {
       ready = true;

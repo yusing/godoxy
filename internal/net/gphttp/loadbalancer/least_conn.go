@@ -46,8 +46,8 @@ func (impl *leastConn) ServeHTTP(srvs types.LoadBalancerServers, rw http.Respons
 	}
 
 	minConn.Add(1)
+	defer minConn.Add(-1)
 	srv.ServeHTTP(rw, r)
-	minConn.Add(-1)
 }
 
 func (impl *leastConn) ChooseServer(srvs types.LoadBalancerServers, r *http.Request) types.LoadBalancerServer {
@@ -55,18 +55,15 @@ func (impl *leastConn) ChooseServer(srvs types.LoadBalancerServers, r *http.Requ
 		return nil
 	}
 
-	srv := srvs[0]
-	minConn, ok := impl.nConn.Load(srv)
-	if !ok {
-		return nil
-	}
+	var srv types.LoadBalancerServer
+	var minConn *atomic.Int64
 
-	for i := 1; i < len(srvs); i++ {
+	for i := range srvs {
 		nConn, ok := impl.nConn.Load(srvs[i])
 		if !ok {
 			continue
 		}
-		if nConn.Load() < minConn.Load() {
+		if minConn == nil || nConn.Load() < minConn.Load() {
 			minConn = nConn
 			srv = srvs[i]
 		}

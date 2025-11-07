@@ -21,9 +21,6 @@ func (lb *roundRobin) ChooseServer(srvs types.LoadBalancerServers, r *http.Reque
 	if len(srvs) == 0 {
 		return nil
 	}
-	index := lb.index.Add(1) % uint32(len(srvs))
-	if lb.index.Load() >= 2*uint32(len(srvs)) {
-		lb.index.Store(0)
-	}
+	index := (lb.index.Add(1) - 1) % uint32(len(srvs))
 	return srvs[index]
 }
