@@ -60,11 +60,8 @@ func (cfg *AgentConfig) DoHealthCheck(timeout time.Duration, query string) (ret 
 	}
 
 	if status := resp.StatusCode(); status != http.StatusOK {
-		// clone body since fasthttp response will be released
-		body := resp.Body()
-		cloneBody := make([]byte, len(body))
-		copy(cloneBody, body)
-		return ret, fmt.Errorf("HTTP %d %s", status, cloneBody)
+		ret.Detail = fmt.Sprintf("HTTP %d %s", status, resp.Body())
+		return ret, nil
 	} else {
 		err = sonic.Unmarshal(resp.Body(), &ret)
 		if err != nil {
