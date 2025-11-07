@@ -310,6 +310,21 @@ func (r *Route) validate() gperr.Error {
 }
 
 func (r *Route) validateRules() error {
+	// FIXME: hardcoded here as a workaround
+	// there's already a label "proxy.#1.rule_file=embed://webui.yml"
+	// but it's not working as expected sometimes.
+	// TODO: investigate why it's not working and fix it.
+	if cont := r.ContainerInfo(); cont != nil {
+		if cont.Image.Name == "godoxy-frontend" {
+			rules, ok := rulepresets.GetRulePreset("webui.yml")
+			if !ok {
+				return errors.New("rule preset `webui.yml` not found")
+			}
+			r.Rules = rules
+		}
+		return nil
+	}
+
 	if r.RuleFile != "" && len(r.Rules) > 0 {
 		return errors.New("`rule_file` and `rules` cannot be used together")
 	} else if r.RuleFile != "" {
