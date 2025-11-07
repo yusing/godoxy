@@ -136,6 +136,7 @@ require (
 )
 
 require (
+	github.com/bytedance/gopkg v0.1.3
 	github.com/bytedance/sonic v1.14.2
 	github.com/shirou/gopsutil/v4 v4.25.10
 	github.com/valyala/fasthttp v1.68.0
@@ -145,7 +146,6 @@ require (
 require (
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v11 v11.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
