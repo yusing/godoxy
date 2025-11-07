@@ -63,8 +63,9 @@ window.onload = async function () {
   const eventSource = new EventSource(wakeEventsPath);
 
   eventSource.onmessage = function (event) {
+    let data;
     try {
-      const data = JSON.parse(event.data);
+      data = JSON.parse(event.data);
     } catch (error) {
       addConsoleLine(
         "error",
