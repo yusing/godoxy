@@ -263,7 +263,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		kind = "proxmox"
 	}
 	targetURL := r.TargetURL()
-	if targetURL != nil {
+	if targetURL == nil {
 		return nil, errors.New("target URL is not set")
 	}
 	w.l = log.With().
