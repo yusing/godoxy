@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/ds/ordered"
@@ -23,6 +24,7 @@ import (
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 	"golang.org/x/sync/errgroup"
@@ -53,7 +55,7 @@ type (
 
 		cfg *types.IdlewatcherConfig
 
-		provider idlewatcher.Provider
+		provider synk.Value[idlewatcher.Provider]
 
 		state     synk.Value[*containerState]
 		lastReset synk.Value[time.Time]
@@ -63,6 +65,12 @@ type (
 		readyNotifyCh chan struct{} // notifies when container becomes ready
 		task          *task.Task
 
+		// SSE event broadcasting, HTTP routes only
+		eventChs       *xsync.Map[chan *WakeEvent, struct{}]
+		eventHistory   []WakeEvent  // Global event history buffer
+		eventHistoryMu sync.RWMutex // Mutex for event history
+
+		// FIXME: missing dependencies
 		dependsOn []*dependency
 	}
 
@@ -76,6 +84,8 @@ type (
 )
 
 const ContextKey = "idlewatcher.watcher"
+
+var _ idlewatcher.Waker = (*Watcher)(nil)
 
 var (
 	watcherMap   = make(map[string]*Watcher)
@@ -115,11 +125,16 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 		cfg = w.cfg
 		w.resetIdleTimer()
+		// Update health monitor URL with current route info on reload
+		if targetURL := r.TargetURL(); targetURL != nil {
+			w.hc.UpdateURL(&targetURL.URL)
+		}
 	} else {
 		w = &Watcher{
 			idleTicker:    time.NewTicker(cfg.IdleTimeout),
 			healthTicker:  time.NewTicker(idleWakerCheckInterval),
 			readyNotifyCh: make(chan struct{}, 1), // buffered to avoid blocking
+			eventChs:      xsync.NewMap[chan *WakeEvent, struct{}](),
 			cfg:           cfg,
 			routeHelper: routeHelper{
 				hc: monitor.NewMonitor(r),
@@ -223,8 +238,8 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		})
 	}
 
-	if w.provider != nil { // it's a reload, close the old provider
-		w.provider.Close()
+	if pOld := w.provider.Load(); pOld != nil { // it's a reload, close the old provider
+		pOld.Close()
 	}
 
 	if depErrors.HasError() {
@@ -250,16 +265,17 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 	w.l = log.With().
 		Str("kind", kind).
 		Str("container", cfg.ContainerName()).
+		Str("url", r.TargetURL().String()).
 		Logger()
 
 	if cfg.IdleTimeout != neverTick {
-		w.l = w.l.With().Stringer("idle_timeout", cfg.IdleTimeout).Logger()
+		w.l = w.l.With().Str("idle_timeout", strutils.FormatDuration(cfg.IdleTimeout)).Logger()
 	}
 
 	if err != nil {
 		return nil, err
 	}
-	w.provider = p
+	w.provider.Store(p)
 
 	switch r := r.(type) {
 	case types.ReverseProxyRoute:
@@ -267,22 +283,22 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 	case types.StreamRoute:
 		w.stream = r.Stream()
 	default:
-		w.provider.Close()
+		p.Close()
 		return nil, w.newWatcherError(gperr.Errorf("unexpected route type: %T", r))
 	}
 	w.route = r
 
 	ctx, cancel := context.WithTimeout(parent.Context(), reqTimeout)
 	defer cancel()
-	status, err := w.provider.ContainerStatus(ctx)
+	status, err := p.ContainerStatus(ctx)
 	if err != nil {
-		w.provider.Close()
+		p.Close()
 		return nil, w.newWatcherError(err)
 	}
 	w.state.Store(&containerState{status: status})
 
 	// when more providers are added, we need to add a new case here.
-	switch p := w.provider.(type) { //nolint:gocritic
+	switch p := p.(type) { //nolint:gocritic
 	case *provider.ProxmoxProvider:
 		shutdownTimeout := max(time.Second, cfg.StopTimeout-idleWakerCheckTimeout)
 		err = p.LXCSetShutdownTimeout(ctx, cfg.Proxmox.VMID, shutdownTimeout)
@@ -296,22 +312,23 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		watcherMap[key] = w
 
 		go func() {
-			cause := w.watchUntilDestroy()
+			cause := w.watchUntilDestroy(p)
 
 			watcherMapMu.Lock()
 			delete(watcherMap, key)
 			watcherMapMu.Unlock()
 
-			if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) || errors.Is(cause, config.ErrConfigChanged) {
+			if errors.Is(cause, causeReload) {
+				// no log
+			} else if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) || errors.Is(cause, config.ErrConfigChanged) {
 				w.l.Info().Msg("idlewatcher stopped")
-			} else if !errors.Is(cause, causeReload) {
+			} else {
 				gperr.LogError("idlewatcher stopped unexpectedly", cause, &w.l)
 			}
 
 			w.idleTicker.Stop()
 			w.healthTicker.Stop()
 			close(w.readyNotifyCh)
-			w.provider.Close()
 			w.task.Finish(cause)
 		}()
 	}
@@ -353,19 +370,41 @@ func (w *Watcher) Key() string {
 func (w *Watcher) Wake(ctx context.Context) error {
 	// wake dependencies first.
 	if err := w.wakeDependencies(ctx); err != nil {
+		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
 		return w.newWatcherError(err)
+	}
+
+	if w.wakeInProgress() {
+		w.l.Debug().Msg("already starting, ignoring duplicate start event")
+		return nil
 	}
 
 	// wake itself.
 	// use container name instead of Key() here as the container id will change on restart (docker).
-	_, err, _ := singleFlight.Do(w.cfg.ContainerName(), func() (any, error) {
-		return nil, w.wakeIfStopped(ctx)
+	containerName := w.cfg.ContainerName()
+	_, err, _ := singleFlight.Do(containerName, func() (any, error) {
+		err := w.wakeIfStopped(ctx)
+		if err != nil {
+			w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
+		} else {
+			w.sendEvent(WakeEventContainerWoke, containerName+" started successfully", nil)
+			w.sendEvent(WakeEventWaitingReady, "Waiting for "+containerName+" to be ready...", nil)
+		}
+		return nil, err
 	})
 	if err != nil {
 		return w.newWatcherError(err)
 	}
 
 	return nil
+}
+
+func (w *Watcher) wakeInProgress() bool {
+	state := w.state.Load()
+	if state == nil {
+		return false
+	}
+	return !state.startedAt.IsZero()
 }
 
 func (w *Watcher) wakeDependencies(ctx context.Context) error {
@@ -375,10 +414,16 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 
 	errs := errgroup.Group{}
 	for _, dep := range w.dependsOn {
+		if w.wakeInProgress() {
+			w.l.Debug().Str("dependency", dep.cfg.ContainerName()).Msg("dependency already starting, ignoring duplicate start event")
+			continue
+		}
 		errs.Go(func() error {
+			w.sendEvent(WakeEventWakingDep, "Waking dependency: "+dep.cfg.ContainerName(), nil)
 			if err := dep.Wake(ctx); err != nil {
 				return err
 			}
+			w.sendEvent(WakeEventDepReady, "Dependency woke: "+dep.cfg.ContainerName(), nil)
 			if dep.waitHealthy {
 				// initial health check before starting the ticker
 				if h, err := dep.hc.CheckHealth(); err != nil {
@@ -417,13 +462,17 @@ func (w *Watcher) wakeIfStopped(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, w.cfg.WakeTimeout)
 	defer cancel()
+	p := w.provider.Load()
+	if p == nil {
+		return gperr.Errorf("provider not set")
+	}
 	switch state.status {
 	case idlewatcher.ContainerStatusStopped:
-		w.l.Info().Msg("starting container")
-		return w.provider.ContainerStart(ctx)
+		w.sendEvent(WakeEventStarting, w.cfg.ContainerName()+" is starting...", nil)
+		return p.ContainerStart(ctx)
 	case idlewatcher.ContainerStatusPaused:
-		w.l.Info().Msg("unpausing container")
-		return w.provider.ContainerUnpause(ctx)
+		w.sendEvent(WakeEventStarting, w.cfg.ContainerName()+" is unpausing...", nil)
+		return p.ContainerUnpause(ctx)
 	default:
 		return gperr.Errorf("unexpected container status: %s", state.status)
 	}
@@ -458,13 +507,17 @@ func (w *Watcher) stopByMethod() error {
 
 	// stop itself first.
 	var err error
+	p := w.provider.Load()
+	if p == nil {
+		return gperr.New("provider not set")
+	}
 	switch cfg.StopMethod {
 	case types.ContainerStopMethodPause:
-		err = w.provider.ContainerPause(ctx)
+		err = p.ContainerPause(ctx)
 	case types.ContainerStopMethodStop:
-		err = w.provider.ContainerStop(ctx, cfg.StopSignal, int(math.Ceil(cfg.StopTimeout.Seconds())))
+		err = p.ContainerStop(ctx, cfg.StopSignal, int(math.Ceil(cfg.StopTimeout.Seconds())))
 	case types.ContainerStopMethodKill:
-		err = w.provider.ContainerKill(ctx, cfg.StopSignal)
+		err = p.ContainerKill(ctx, cfg.StopSignal)
 	default:
 		err = w.newWatcherError(gperr.Errorf("unexpected stop method: %q", cfg.StopMethod))
 	}
@@ -505,8 +558,9 @@ func (w *Watcher) expires() time.Time {
 //
 // it exits only if the context is canceled, the container is destroyed,
 // errors occurred on docker client, or route provider died (mainly caused by config reload).
-func (w *Watcher) watchUntilDestroy() (returnCause error) {
-	eventCh, errCh := w.provider.Watch(w.Task().Context())
+func (w *Watcher) watchUntilDestroy(p idlewatcher.Provider) (returnCause error) {
+	defer p.Close()
+	eventCh, errCh := p.Watch(w.Task().Context())
 
 	for {
 		select {

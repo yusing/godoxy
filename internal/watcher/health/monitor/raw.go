@@ -33,13 +33,14 @@ func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	url := mon.url.Load()
 	start := time.Now()
 	conn, err := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
+	lat := time.Since(start)
 	if err != nil {
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "connection refused") ||
 			strings.Contains(errMsg, "connection reset by peer") ||
 			strings.Contains(errMsg, "connection closed") {
 			return types.HealthCheckResult{
-				Latency: time.Since(start),
+				Latency: lat,
 				Healthy: false,
 				Detail:  err.Error(),
 			}, nil
@@ -48,7 +49,7 @@ func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	}
 	defer conn.Close()
 	return types.HealthCheckResult{
-		Latency: time.Since(start),
+		Latency: lat,
 		Healthy: true,
 	}, nil
 }

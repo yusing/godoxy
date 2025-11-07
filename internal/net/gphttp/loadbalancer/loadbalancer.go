@@ -8,11 +8,12 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/utils/pool"
 	gperr "github.com/yusing/goutils/errs"
-	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/task"
+	"golang.org/x/sync/errgroup"
 )
 
 // TODO: stats of each server.
@@ -218,14 +219,20 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if r.Header.Get(httpheaders.HeaderGoDoxyCheckRedirect) != "" {
+	if r.URL.Path == idlewatcher.WakeEventsPath {
+		var errs errgroup.Group
 		// wake all servers
 		for _, srv := range srvs {
-			if err := srv.TryWake(); err != nil {
-				lb.l.Warn().Err(err).
-					Str("server", srv.Name()).
-					Msg("failed to wake server")
-			}
+			errs.Go(func() error {
+				err := srv.TryWake()
+				if err != nil {
+					return fmt.Errorf("failed to wake server %q: %w", srv.Name(), err)
+				}
+				return nil
+			})
+		}
+		if err := errs.Wait(); err != nil {
+			gperr.LogWarn("failed to wake some servers", err, &lb.l)
 		}
 	}
 	lb.impl.ServeHTTP(srvs, rw, r)

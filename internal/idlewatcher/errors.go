@@ -50,7 +50,7 @@ func (w *Watcher) newDepError(action string, dep *dependency, err error) error {
 	if dErr, ok := err.(*depError); ok { //nolint:errorlint
 		return dErr
 	}
-	return w.newWatcherError(&depError{action: action, dep: dep, err: convertError(err)})
+	return &depError{action: action, dep: dep, err: convertError(err)}
 }
 
 func convertError(err error) error {

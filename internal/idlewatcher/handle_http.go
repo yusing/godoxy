@@ -2,16 +2,20 @@ package idlewatcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/yusing/godoxy/internal/homepage"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
-	"github.com/yusing/goutils/http/httpheaders"
 
 	_ "unsafe"
 )
+
+// FIXME: html and js ccannot be separte
 
 type ForceCacheControl struct {
 	expires string
@@ -43,20 +47,58 @@ func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func isFaviconPath(path string) bool {
-	return path == "/favicon.ico"
-}
+func (w *Watcher) handleWakeEventsSSE(rw http.ResponseWriter, r *http.Request) {
+	// Create a dedicated channel for this SSE connection and register it
+	eventCh := make(chan *WakeEvent, 10)
+	w.eventChs.Store(eventCh, struct{}{})
+	// Clean up when done
+	defer func() {
+		w.eventChs.Delete(eventCh)
+		close(eventCh)
+	}()
 
-func isLoadingPageCSSPath(path string) bool {
-	return path == "/style.css"
-}
+	// Set SSE headers
+	rw.Header().Set("Content-Type", "text/event-stream")
+	rw.Header().Set("Cache-Control", "no-cache")
+	rw.Header().Set("Connection", "keep-alive")
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
+	rw.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
 
-func (w *Watcher) redirectToStartEndpoint(rw http.ResponseWriter, r *http.Request) {
-	uri := "/"
-	if w.cfg.StartEndpoint != "" {
-		uri = w.cfg.StartEndpoint
+	controller := http.NewResponseController(rw)
+	ctx := r.Context()
+
+	// Send historical events first
+	w.eventHistoryMu.RLock()
+	historicalEvents := make([]WakeEvent, len(w.eventHistory))
+	copy(historicalEvents, w.eventHistory)
+	w.eventHistoryMu.RUnlock()
+
+	for _, event := range historicalEvents {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			err := errors.Join(event.WriteSSE(rw), controller.Flush())
+			if err != nil {
+				gperr.LogError("Failed to write SSE event", err, &w.l)
+				return
+			}
+		}
 	}
-	http.Redirect(rw, r, uri, http.StatusTemporaryRedirect)
+
+	// Listen for new events and send them to client
+	for {
+		select {
+		case event := <-eventCh:
+			err := errors.Join(event.WriteSSE(rw), controller.Flush())
+			if err != nil {
+				gperr.LogError("Failed to write SSE event", err, &w.l)
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (w *Watcher) getFavIcon(ctx context.Context) (result homepage.FetchResult, err error) {
@@ -78,33 +120,43 @@ func (w *Watcher) getFavIcon(ctx context.Context) (result homepage.FetchResult, 
 	return result, err
 }
 
+func serveStaticContent(rw http.ResponseWriter, status int, contentType string, content []byte) {
+	rw.Header().Set("Content-Type", contentType)
+	rw.Header().Set("Content-Length", strconv.Itoa(len(content)))
+	rw.WriteHeader(status)
+	rw.Write(content)
+}
+
 func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldNext bool) {
 	w.resetIdleTimer()
 
-	// pass through if container is already ready
-	if w.ready() {
-		return true
-	}
-
-	// handle favicon request
-	if isFaviconPath(r.URL.Path) {
+	// handle static files
+	switch r.URL.Path {
+	case idlewatcher.FavIconPath:
 		result, err := w.getFavIcon(r.Context())
 		if err != nil {
 			rw.WriteHeader(result.StatusCode)
 			fmt.Fprint(rw, err)
 			return false
 		}
-		rw.Header().Set("Content-Type", result.ContentType())
-		rw.WriteHeader(result.StatusCode)
-		rw.Write(result.Icon)
+		serveStaticContent(rw, result.StatusCode, result.ContentType(), result.Icon)
+		return false
+	case idlewatcher.LoadingPageCSSPath:
+		serveStaticContent(rw, http.StatusOK, "text/css", cssBytes)
+		return false
+	case idlewatcher.LoadingPageJSPath:
+		serveStaticContent(rw, http.StatusOK, "application/javascript", jsBytes)
+		return false
+	case idlewatcher.WakeEventsPath:
+		w.handleWakeEventsSSE(rw, r)
 		return false
 	}
 
-	if isLoadingPageCSSPath(r.URL.Path) {
-		rw.Header().Set("Content-Type", "text/css")
-		rw.WriteHeader(http.StatusOK)
-		rw.Write(cssBytes)
-		return false
+	// Allow request to proceed if the container is already ready.
+	// This check occurs after serving static files because a container can become ready quickly;
+	// otherwise, requests for assets may get a 404, leaving the user stuck on the loading screen.
+	if w.ready() {
+		return true
 	}
 
 	// Check if start endpoint is configured and request path matches
@@ -116,54 +168,25 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	accept := httputils.GetAccept(r.Header)
 	acceptHTML := (r.Method == http.MethodGet && accept.AcceptHTML() || r.RequestURI == "/" && accept.IsEmpty())
 
-	isCheckRedirect := r.Header.Get(httpheaders.HeaderGoDoxyCheckRedirect) != ""
-	if !isCheckRedirect && acceptHTML {
-		// Send a loading response to the client
-		body := w.makeLoadingPageBody()
-		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-		rw.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		rw.Header().Set("Cache-Control", "no-cache")
-		rw.Header().Add("Cache-Control", "no-store")
-		rw.Header().Add("Cache-Control", "must-revalidate")
-		rw.Header().Add("Connection", "close")
-		if _, err := rw.Write(body); err != nil {
+	err := w.Wake(r.Context())
+	if err != nil {
+		gperr.LogError("Failed to wake container", err, &w.l)
+		if !acceptHTML {
+			http.Error(rw, "Failed to wake container", http.StatusInternalServerError)
 			return false
 		}
-		return false
 	}
 
-	ctx := r.Context()
-	if w.canceled(ctx) {
-		w.redirectToStartEndpoint(rw, r)
-		return false
+	if !acceptHTML {
+		serveStaticContent(rw, http.StatusOK, "text/plain", []byte("Container woken"))
 	}
 
-	w.l.Trace().Msg("signal received")
-	err := w.Wake(ctx)
-	if err != nil {
-		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
-		httputils.LogError(r).Msg(fmt.Sprintf("failed to wake: %v", err))
-		return false
-	}
-
-	// Wait for route to be started
-	if !w.waitStarted(ctx) {
-		return false
-	}
-
-	// Wait for container to become ready
-	if !w.waitForReady(ctx) {
-		if w.canceled(ctx) {
-			w.redirectToStartEndpoint(rw, r)
-		}
-		return false
-	}
-
-	if isCheckRedirect {
-		w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, redirecting")
-		rw.WriteHeader(http.StatusOK)
-		return false
-	}
-	w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
-	return true
+	// Send a loading response to the client
+	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+	rw.Header().Set("Cache-Control", "no-cache")
+	rw.Header().Add("Cache-Control", "no-store")
+	rw.Header().Add("Cache-Control", "must-revalidate")
+	rw.Header().Add("Connection", "close")
+	_ = w.writeLoadingPage(rw)
+	return false
 }

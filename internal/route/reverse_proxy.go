@@ -153,6 +153,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 }
 
 func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// req.Header.Set("Accept-Encoding", "identity")
 	r.handler.ServeHTTP(w, req)
 }
 

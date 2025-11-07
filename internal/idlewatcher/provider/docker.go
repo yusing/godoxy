@@ -60,11 +60,11 @@ func (p *DockerProvider) ContainerStatus(ctx context.Context) (idlewatcher.Conta
 		return idlewatcher.ContainerStatusError, err
 	}
 	switch status.State.Status {
-	case "running":
+	case container.StateRunning:
 		return idlewatcher.ContainerStatusRunning, nil
-	case "exited", "dead", "restarting":
+	case container.StateExited, container.StateDead, container.StateRestarting:
 		return idlewatcher.ContainerStatusStopped, nil
-	case "paused":
+	case container.StatePaused:
 		return idlewatcher.ContainerStatusPaused, nil
 	}
 	return idlewatcher.ContainerStatusError, idlewatcher.ErrUnexpectedContainerStatus.Subject(status.State.Status)

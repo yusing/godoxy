@@ -1,37 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{.Title}}</title>
-    <link rel="stylesheet" href="/style.css" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="{{.LoadingPageCSSPath}}" />
+    <link rel="icon" href="{{.FavIconPath}}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
+    <script>
+      const wakeEventsPath = "{{.WakeEventsPath}}";
+    </script>
+    <script src="{{.LoadingPageJSPath}}" defer></script>
     <div class="container">
       <!-- icon handled by waker_http -->
-      <img class="logo" src="/favicon.ico" />
+      <img class="logo" src="{{.FavIconPath}}" />
       <div id="loading-dots" class="loading-dots">
         <div class="dot"></div>
         <div class="dot"></div>
         <div class="dot"></div>
       </div>
-      <div id="message" class="message">{{.Message}}</div>
+      <div id="console" class="console" />
     </div>
-    <script>
-      window.onload = async function () {
-        let resp = await fetch(window.location.href, {
-          headers: {
-            "{{.CheckRedirectHeader}}": "1",
-          },
-        });
-        if (resp.ok) {
-          window.location.href = resp.url;
-        } else {
-          document.getElementById("message").innerText = await resp.text();
-          document.getElementById("loading-dots").remove();
-        }
-      };
-    </script>
   </body>
 </html>

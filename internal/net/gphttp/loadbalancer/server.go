@@ -1,6 +1,7 @@
 package loadbalancer
 
 import (
+	"context"
 	"net/http"
 
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
@@ -66,7 +67,7 @@ func (srv *server) String() string {
 func (srv *server) TryWake() error {
 	waker, ok := srv.Handler.(idlewatcher.Waker)
 	if ok {
-		return waker.Wake()
+		return waker.Wake(context.Background())
 	}
 	return nil
 }

@@ -1,17 +1,21 @@
 package idlewatcher
 
 import (
-	"bytes"
 	_ "embed"
 	"html/template"
+	"net/http"
 
-	"github.com/yusing/goutils/http/httpheaders"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 )
 
 type templateData struct {
-	CheckRedirectHeader string
-	Title               string
-	Message             string
+	Title   string
+	Message string
+
+	FavIconPath        string
+	LoadingPageCSSPath string
+	LoadingPageJSPath  string
+	WakeEventsPath     string
 }
 
 //go:embed html/loading_page.html
@@ -21,18 +25,19 @@ var loadingPageTmpl = template.Must(template.New("loading_page").Parse(string(lo
 //go:embed html/style.css
 var cssBytes []byte
 
-func (w *Watcher) makeLoadingPageBody() []byte {
+//go:embed html/loading.js
+var jsBytes []byte
+
+func (w *Watcher) writeLoadingPage(rw http.ResponseWriter) error {
 	msg := w.cfg.ContainerName() + " is starting..."
 
 	data := new(templateData)
-	data.CheckRedirectHeader = httpheaders.HeaderGoDoxyCheckRedirect
 	data.Title = w.cfg.ContainerName()
 	data.Message = msg
-
-	buf := bytes.NewBuffer(make([]byte, len(loadingPage)+len(data.Title)+len(data.Message)+len(httpheaders.HeaderGoDoxyCheckRedirect)))
-	err := loadingPageTmpl.Execute(buf, data)
-	if err != nil { // should never happen in production
-		panic(err)
-	}
-	return buf.Bytes()
+	data.FavIconPath = idlewatcher.FavIconPath
+	data.LoadingPageCSSPath = idlewatcher.LoadingPageCSSPath
+	data.LoadingPageJSPath = idlewatcher.LoadingPageJSPath
+	data.WakeEventsPath = idlewatcher.WakeEventsPath
+	err := loadingPageTmpl.Execute(rw, data)
+	return err
 }

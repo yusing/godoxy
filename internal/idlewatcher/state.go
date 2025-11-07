@@ -24,6 +24,8 @@ func (w *Watcher) setReady() {
 		status: idlewatcher.ContainerStatusRunning,
 		ready:  true,
 	})
+	// Send ready event via SSE
+	w.sendEvent(WakeEventReady, w.cfg.ContainerName()+" is ready!", nil)
 	// Notify waiting handlers that container is ready
 	select {
 	case w.readyNotifyCh <- struct{}{}:
@@ -42,6 +44,7 @@ func (w *Watcher) setStarting() {
 }
 
 func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
+	w.clearEventHistory() // Clear events on stop/pause
 	w.state.Store(&containerState{
 		status:      status,
 		ready:       false,
@@ -51,6 +54,7 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 }
 
 func (w *Watcher) setError(err error) {
+	w.sendEvent(WakeEventError, "Container error", err)
 	w.state.Store(&containerState{
 		status:      idlewatcher.ContainerStatusError,
 		ready:       false,
@@ -74,5 +78,14 @@ func (w *Watcher) waitForReady(ctx context.Context) bool {
 		return w.ready() // double-check in case of race condition
 	case <-ctx.Done():
 		return false
+	}
+}
+
+func (w *Watcher) waitStarted(reqCtx context.Context) bool {
+	select {
+	case <-reqCtx.Done():
+		return false
+	case <-w.route.Started():
+		return true
 	}
 }

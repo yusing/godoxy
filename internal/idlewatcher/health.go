@@ -154,9 +154,12 @@ func (w *Watcher) checkUpdateState() (ready bool, err error) {
 	// log every 3 seconds
 	const everyN = int(3 * time.Second / idleWakerCheckInterval)
 	if newHealthTries%everyN == 0 {
+		url := w.hc.URL()
 		w.l.Debug().
 			Int("health_tries", newHealthTries).
 			Dur("elapsed", time.Since(state.startedAt)).
+			Str("url", url.String()).
+			Str("detail", res.Detail).
 			Msg("health check failed, still starting")
 	}
 

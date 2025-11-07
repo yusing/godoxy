@@ -10,8 +10,8 @@
   padding: 0;
 }
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: #f8f9fa;
@@ -21,7 +21,6 @@ body {
   align-items: center;
   height: 100vh;
   margin: 0;
-  gap: 32px;
   background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
 }
 
@@ -29,15 +28,18 @@ body {
 .container {
   display: flex;
   flex-direction: column;
+  gap: 32px;
   align-items: center;
   justify-content: center;
-  padding: 48px;
+  padding: 32px;
   border-radius: 16px;
-  background-color: rgba(30, 30, 30, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px);
+  background-color: rgba(30, 30, 30, 0.9);
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
   max-width: 90%;
   transition: all 0.3s ease;
+  min-width: 600px;
+  min-height: 400px;
 }
 
 /* Spinner Styles */
@@ -46,8 +48,6 @@ body {
   justify-content: center;
   align-items: center;
   gap: 8px;
-  padding-top: 20px;
-  padding-bottom: 6px;
 }
 .dot {
   width: var(--dot-size);
@@ -75,13 +75,110 @@ body {
 
 /* Message Styles */
 .message {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
-  text-align: center;
+  text-align: left;
   color: #f8f9fa;
-  max-width: 500px;
+  max-width: 100%;
   letter-spacing: 0.3px;
   white-space: nowrap;
+}
+
+/* Console Styles */
+.console {
+  font-family: "Fira Code", "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 14px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+  color: #e0e0e0;
+  overflow-y: auto;
+  max-height: 300px;
+  min-height: 200px;
+  width: 100%;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.console-line {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.console-line:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.console-timestamp {
+  color: #66d9ef;
+  margin-right: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.console-message {
+  flex: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.console-line.starting .console-message {
+  color: #f9f871;
+}
+
+.console-line.waking_dep .console-message {
+  color: #66d9ef;
+}
+
+.console-line.dep_ready .console-message {
+  color: #a6e22e;
+}
+
+.console-line.container_woke .console-message {
+  color: #a6e22e;
+}
+
+.console-line.waiting_ready .console-message {
+  color: #fd971f;
+}
+
+.console-line.ready .console-message {
+  color: #a6e22e;
+  font-weight: bold;
+}
+
+.console-line.error .console-message {
+  color: #f92672;
+  font-weight: bold;
+}
+
+/* Loading dots in console */
+.console-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.console-loading-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #66d9ef;
+  border-radius: 50%;
+  animation: bounce 1.3s infinite ease-in-out;
+}
+
+.console-loading-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.console-loading-dot:nth-child(2) {
+  animation-delay: -0.16s;
 }
 
 /* Logo */
