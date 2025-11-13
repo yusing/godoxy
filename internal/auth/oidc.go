@@ -31,6 +31,8 @@ type (
 		endSessionURL *url.URL
 		allowedUsers  []string
 		allowedGroups []string
+
+		onUnknownPathHandler http.HandlerFunc
 	}
 
 	IDTokenClaims struct {
@@ -64,8 +66,9 @@ func (auth *OIDCProvider) getAppScopedCookieName(baseName string) string {
 
 const (
 	OIDCAuthInitPath = "/"
-	OIDCPostAuthPath = "/auth/callback"
-	OIDCLogoutPath   = "/auth/logout"
+	OIDCAuthBasePath = "/auth"
+	OIDCPostAuthPath = OIDCAuthBasePath + "/callback"
+	OIDCLogoutPath   = OIDCAuthBasePath + "/logout"
 )
 
 var (
@@ -177,6 +180,10 @@ func (auth *OIDCProvider) SetScopes(scopes []string) {
 	auth.oauthConfig.Scopes = scopes
 }
 
+func (auth *OIDCProvider) SetOnUnknownPathHandler(handler http.HandlerFunc) {
+	auth.onUnknownPathHandler = handler
+}
+
 // optRedirectPostAuth returns an oauth2 option that sets the "redirect_uri"
 // parameter of the authorization URL to the post auth path of the current
 // request host.
@@ -213,6 +220,10 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	case OIDCLogoutPath:
 		auth.LogoutHandler(w, r)
 	default:
+		if auth.onUnknownPathHandler != nil {
+			auth.onUnknownPathHandler(w, r)
+			return
+		}
 		http.Redirect(w, r, OIDCAuthInitPath, http.StatusFound)
 	}
 }

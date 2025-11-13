@@ -74,6 +74,11 @@ func (amw *oidcMiddleware) initSlow() error {
 	}
 	// If no custom credentials, authProvider remains the global one
 
+	// Always trigger login on unknown paths.
+	// This prevents falling back to the default login page, which applies bypass rules.
+	// Without this, redirecting to the global login page could circumvent the intended route restrictions.
+	authProvider.SetOnUnknownPathHandler(authProvider.LoginHandler)
+
 	// Apply per-route user/group restrictions (these always override global)
 	if len(amw.AllowedUsers) > 0 {
 		authProvider.SetAllowedUsers(amw.AllowedUsers)
