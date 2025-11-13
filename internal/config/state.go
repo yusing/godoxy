@@ -409,5 +409,6 @@ func (state *state) printRoutesByProvider(lenLongestName int) {
 
 func (state *state) printState() {
 	state.tmpLog.Info().Msg("active config:")
-	yaml.NewEncoder(state.tmpLog).Encode(state.Config)
+	yamlRepr, _ := yaml.Marshal(state.Config)
+	state.tmpLog.Info().Msgf("%s", yamlRepr) // prevent copying when casting to string
 }
