@@ -3,7 +3,6 @@ package route
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/common"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
@@ -137,7 +136,7 @@ func TestRouteValidate(t *testing.T) {
 }
 
 func TestPreferredPort(t *testing.T) {
-	ports := map[int]container.Port{
+	ports := types.PortMapping{
 		22:   {PrivatePort: 22},
 		1000: {PrivatePort: 1000},
 		3000: {PrivatePort: 80},

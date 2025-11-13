@@ -4,8 +4,9 @@ import (
 	"context"
 	"sort"
 
-	dockerSystem "github.com/docker/docker/api/types/system"
 	"github.com/gin-gonic/gin"
+	dockerSystem "github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 
@@ -64,13 +65,13 @@ func GetDockerInfo(ctx context.Context, dockerClients DockerClients) ([]dockerIn
 
 	i := 0
 	for name, dockerClient := range dockerClients {
-		info, err := dockerClient.Info(ctx)
+		info, err := dockerClient.Info(ctx, client.InfoOptions{})
 		if err != nil {
 			errs.Add(err)
 			continue
 		}
-		info.Name = name
-		dockerInfos[i] = toDockerInfo(info)
+		info.Info.Name = name
+		dockerInfos[i] = toDockerInfo(info.Info)
 		i++
 	}
 

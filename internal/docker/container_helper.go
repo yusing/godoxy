@@ -3,7 +3,7 @@ package docker
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/internal/types"
 	strutils "github.com/yusing/goutils/strings"

@@ -3,15 +3,15 @@ package dockerapi
 import (
 	"net/http"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
+	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type StopRequest struct {
 	ID string `json:"id" binding:"required"`
-	container.StopOptions
+	client.ContainerStopOptions
 }
 
 // @x-id				"stop"
@@ -48,7 +48,7 @@ func Stop(c *gin.Context) {
 
 	defer client.Close()
 
-	err = client.ContainerStop(c.Request.Context(), req.ID, req.StopOptions)
+	_, err = client.ContainerStop(c.Request.Context(), req.ID, req.ContainerStopOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to stop container"))
 		return

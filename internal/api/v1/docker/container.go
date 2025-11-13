@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
@@ -34,30 +35,30 @@ func GetContainer(c *gin.Context) {
 		return
 	}
 
-	client, err := docker.NewClient(dockerHost)
+	dockerClient, err := docker.NewClient(dockerHost)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to create docker client"))
 		return
 	}
 
-	defer client.Close()
+	defer dockerClient.Close()
 
-	cont, err := client.ContainerInspect(c.Request.Context(), id)
+	cont, err := dockerClient.ContainerInspect(c.Request.Context(), id, client.ContainerInspectOptions{})
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to inspect container"))
 		return
 	}
 
 	var state ContainerState
-	if cont.State != nil {
-		state = cont.State.Status
+	if cont.Container.State != nil {
+		state = cont.Container.State.Status
 	}
 
 	c.JSON(http.StatusOK, &Container{
 		Server: dockerHost,
-		Name:   cont.Name,
-		ID:     cont.ID,
-		Image:  cont.Image,
+		Name:   cont.Container.Name,
+		ID:     cont.Container.ID,
+		Image:  cont.Container.Image,
 		State:  state,
 	})
 }

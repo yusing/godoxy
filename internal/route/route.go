@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/docker"
@@ -878,7 +877,7 @@ var preferredPortOrder = []int{
 	8443,
 }
 
-func preferredPort(portMapping map[int]container.Port) (res int) {
+func preferredPort(portMapping types.PortMapping) (res int) {
 	for _, port := range preferredPortOrder {
 		if _, ok := portMapping[port]; ok {
 			return port

@@ -4,9 +4,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
+
+type RestartRequest struct {
+	ID string `json:"id" binding:"required"`
+	client.ContainerRestartOptions
+}
 
 // @x-id				"restart"
 // @BasePath		/api/v1
@@ -14,7 +20,7 @@ import (
 // @Description	Restart container by container id
 // @Tags			docker
 // @Produce		json
-// @Param			request	body		StopRequest	true	"Request"
+// @Param			request	body	RestartRequest	true	"Request"
 // @Success		200	{object}  apitypes.SuccessResponse
 // @Failure		400	{object}	apitypes.ErrorResponse "Invalid request"
 // @Failure		403	{object}	apitypes.ErrorResponse
@@ -22,7 +28,7 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/docker/restart [post]
 func Restart(c *gin.Context) {
-	var req StopRequest
+	var req RestartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -42,7 +48,7 @@ func Restart(c *gin.Context) {
 
 	defer client.Close()
 
-	err = client.ContainerRestart(c.Request.Context(), req.ID, req.StopOptions)
+	_, err = client.ContainerRestart(c.Request.Context(), req.ID, req.ContainerRestartOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to restart container"))
 		return

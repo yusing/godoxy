@@ -3,8 +3,8 @@ package provider
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/goccy/go-yaml"
+	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
 	expect "github.com/yusing/goutils/testing"
 
@@ -25,7 +25,7 @@ func TestParseDockerLabels(t *testing.T) {
 			Names:  []string{"container"},
 			Labels: labels,
 			State:  "running",
-			Ports: []container.Port{
+			Ports: []container.PortSummary{
 				{Type: "tcp", PrivatePort: 1234, PublicPort: 1234},
 			},
 		}, "/var/run/docker.sock"),

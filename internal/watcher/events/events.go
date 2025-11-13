@@ -3,7 +3,7 @@ package events
 import (
 	"fmt"
 
-	dockerEvents "github.com/docker/docker/api/types/events"
+	dockerEvents "github.com/moby/moby/api/types/events"
 )
 
 type (

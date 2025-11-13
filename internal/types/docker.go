@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/bytedance/sonic"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/utils"
@@ -12,7 +12,7 @@ import (
 type (
 	LabelMap = map[string]any
 
-	PortMapping = map[int]container.Port
+	PortMapping = map[int]container.PortSummary
 	Container   struct {
 		_ utils.NoCopy
 

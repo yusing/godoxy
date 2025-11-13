@@ -3,11 +3,11 @@ package docker
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
-var listOptions = container.ListOptions{
+var listOptions = client.ContainerListOptions{
 	// created|restarting|running|removing|paused|exited|dead
 	// Filters: filters.NewArgs(
 	// 	filters.Arg("status", "created"),
@@ -30,7 +30,7 @@ func ListContainers(ctx context.Context, clientHost string) ([]container.Summary
 	if err != nil {
 		return nil, err
 	}
-	return containers, nil
+	return containers.Items, nil
 }
 
 func IsErrConnectionFailed(err error) bool {
