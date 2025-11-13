@@ -8,6 +8,7 @@
     !path glob("/auth/*")
     !path regex("[A-Za-z0-9_-]+\.(svg|png|jpg|jpeg|gif|ico|webp|woff2?|eot|ttf|otf|txt)(\?.+)?")
     !path /api/v1/version
+    !path /manifest.json
   do: require_auth
 - name: proxy to backend
   on: path glob("/api/v1/*")
