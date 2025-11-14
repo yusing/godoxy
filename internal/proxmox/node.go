@@ -19,6 +19,9 @@ type Node struct {
 var Nodes = pool.New[*Node]("proxmox_nodes")
 
 func AvailableNodeNames() string {
+	if Nodes.Size() == 0 {
+		return ""
+	}
 	var sb strings.Builder
 	for _, node := range Nodes.Iter {
 		sb.WriteString(node.name)
