@@ -7,6 +7,20 @@ path = "internal/api/v1/docs/swagger.json"
 with open(path, "r") as f:
     data = json.load(f)
 
+if isinstance(data["definitions"]["netip.Addr"], dict):
+    # MarshalText()
+    data["definitions"]["netip.Addr"] = {
+        "anyOf": [{
+            "type": "string",
+            "format": "ipv4"
+        }, {
+            "type": "string",
+            "format": "ipv6"
+        }],
+        "x-nullable": False,
+        "x-omitempty": False
+    }
+
 def set_non_nullable(data):
     if not isinstance(data, dict):
         return

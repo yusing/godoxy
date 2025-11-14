@@ -5261,7 +5261,16 @@
       "x-omitempty": false
     },
     "netip.Addr": {
-      "type": "object",
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "ipv4"
+        },
+        {
+          "type": "string",
+          "format": "ipv6"
+        }
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
