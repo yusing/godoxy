@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
@@ -76,7 +75,7 @@ func NewMiddleware[ImplType any]() *Middleware {
 		panic("MiddlewareFinalizer and MiddlewareFinalizerWithError are mutually exclusive")
 	}
 	return &Middleware{
-		name:      strings.ToLower(reflect.TypeFor[ImplType]().Name()),
+		name:      reflect.TypeFor[ImplType]().Name(),
 		construct: func() any { return new(ImplType) },
 	}
 }
@@ -123,7 +122,7 @@ func (m *Middleware) finalize() error {
 func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, gperr.Error) {
 	if m.construct == nil { // likely a middleware from compose
 		if len(optsRaw) != 0 {
-			return nil, gperr.New("additional options not allowed for middleware ").Subject(m.name)
+			return nil, gperr.New("additional options not allowed for middleware").Subject(m.name)
 		}
 		return m, nil
 	}

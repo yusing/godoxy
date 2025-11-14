@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/route/rules"
 )
@@ -13,6 +14,7 @@ type Bypass []rules.RuleOn
 func (b Bypass) ShouldBypass(w http.ResponseWriter, r *http.Request) bool {
 	for _, rule := range b {
 		if rule.Check(w, r) {
+			log.Debug().Str("rule_matched", rule.String()).Str("url", r.Host+r.URL.Path).Msg("bypassing request")
 			return true
 		}
 	}
@@ -20,6 +22,8 @@ func (b Bypass) ShouldBypass(w http.ResponseWriter, r *http.Request) bool {
 }
 
 type checkBypass struct {
+	name string
+
 	bypass Bypass
 	modReq RequestModifier
 	modRes ResponseModifier
@@ -41,6 +45,7 @@ func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNex
 	if c.modReq == nil || (!c.isEnforced(r) && c.bypass.ShouldBypass(w, r)) {
 		return true
 	}
+	log.Debug().Str("middleware", c.name).Str("url", r.Host+r.URL.Path).Msg("modifying request")
 	return c.modReq.before(w, r)
 }
 
@@ -48,6 +53,7 @@ func (c *checkBypass) modifyResponse(resp *http.Response) error {
 	if c.modRes == nil || (!c.isEnforced(resp.Request) && c.bypass.ShouldBypass(rules.ResponseAsRW(resp), resp.Request)) {
 		return nil
 	}
+	log.Debug().Str("middleware", c.name).Str("url", resp.Request.Host+resp.Request.URL.Path).Msg("modifying response")
 	return c.modRes.modifyResponse(resp)
 }
 
@@ -56,6 +62,7 @@ func (m *Middleware) withCheckBypass() any {
 		modReq, _ := m.impl.(RequestModifier)
 		modRes, _ := m.impl.(ResponseModifier)
 		return &checkBypass{
+			name:                 m.Name(),
 			bypass:               m.Bypass,
 			enforcedPathPrefixes: getEnforcedPathPrefixes(modReq, modRes),
 			modReq:               modReq,

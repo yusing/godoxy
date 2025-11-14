@@ -122,24 +122,24 @@ func (r Routes) Contains(alias string) bool {
 }
 
 func (r *Route) Validate() gperr.Error {
-	pcs := make([]uintptr, 1)
-	runtime.Callers(2, pcs)
-	f := runtime.FuncForPC(pcs[0])
-	fname := f.Name()
+	// pcs := make([]uintptr, 1)
+	// runtime.Callers(2, pcs)
+	// f := runtime.FuncForPC(pcs[0])
+	// fname := f.Name()
 	r.onceValidate.Do(func() {
-		filename, line := f.FileLine(pcs[0])
-		if strings.HasPrefix(r.Alias, "godoxy") {
-			log.Debug().Str("route", r.Alias).Str("caller", fname).Str("file", filename).Int("line", line).Msg("validating route")
-		}
+		// filename, line := f.FileLine(pcs[0])
+		// if strings.HasPrefix(r.Alias, "godoxy") {
+		// 	log.Debug().Str("route", r.Alias).Str("caller", fname).Str("file", filename).Int("line", line).Msg("validating route")
+		// }
 		r.valErr.Set(r.validate())
 	})
 	return r.valErr.Get()
 }
 
 func (r *Route) validate() gperr.Error {
-	if strings.HasPrefix(r.Alias, "godoxy") {
-		log.Debug().Any("route", r).Msg("validating route")
-	}
+	// if strings.HasPrefix(r.Alias, "godoxy") {
+	// 	log.Debug().Any("route", r).Msg("validating route")
+	// }
 	if r.Agent != "" {
 		if r.Container != nil {
 			return gperr.Errorf("specifying agent is not allowed for docker container routes")
