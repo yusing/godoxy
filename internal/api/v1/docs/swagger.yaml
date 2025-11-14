@@ -555,6 +555,10 @@ definitions:
       options:
         additionalProperties: {}
         type: object
+      sticky:
+        type: boolean
+      sticky_max_age:
+        $ref: '#/definitions/time.Duration'
       weight:
         type: integer
     type: object
@@ -881,7 +885,10 @@ definitions:
         - $ref: '#/definitions/HealthJSON'
         description: for swagger
       healthcheck:
-        $ref: '#/definitions/HealthCheckConfig'
+        allOf:
+        - $ref: '#/definitions/HealthCheckConfig'
+        description: null on load-balancer routes
+        x-nullable: true
       homepage:
         $ref: '#/definitions/HomepageItemConfig'
       host:
@@ -1248,11 +1255,12 @@ definitions:
     - StateRemoving
     - StateExited
     - StateDead
-  container.Port:
+  container.PortSummary:
     properties:
       IP:
+        allOf:
+        - $ref: '#/definitions/netip.Addr'
         description: Host IP address that the container's port is mapped to
-        type: string
       PrivatePort:
         description: |-
           Port on the container
@@ -1265,6 +1273,7 @@ definitions:
         description: |-
           type
           Required: true
+          Enum: ["tcp","udp","sctp"]
         type: string
     type: object
   disk.IOCountersStat:
@@ -1316,6 +1325,30 @@ definitions:
       used_percent:
         type: number
     type: object
+  dockerapi.RestartRequest:
+    properties:
+      id:
+        type: string
+      signal:
+        description: |-
+          Signal (optional) is the signal to send to the container to (gracefully)
+          stop it before forcibly terminating the container with SIGKILL after the
+          timeout expires. If no value is set, the default (SIGTERM) is used.
+        type: string
+      timeout:
+        description: |-
+          Timeout (optional) is the timeout (in seconds) to wait for the container
+          to stop gracefully before forcibly terminating it with SIGKILL.
+
+          - Use nil to use the default timeout (10 seconds).
+          - Use '-1' to wait indefinitely.
+          - Use '0' to not wait for the container to exit gracefully, and
+            immediately proceeds to forcibly terminating the container.
+          - Other positive values are used as timeout (in seconds).
+        type: integer
+    required:
+    - id
+    type: object
   dockerapi.StartRequest:
     properties:
       checkpointDir:
@@ -1335,7 +1368,7 @@ definitions:
         description: |-
           Signal (optional) is the signal to send to the container to (gracefully)
           stop it before forcibly terminating the container with SIGKILL after the
-          timeout expires. If not value is set, the default (SIGTERM) is used.
+          timeout expires. If no value is set, the default (SIGTERM) is used.
         type: string
       timeout:
         description: |-
@@ -1429,6 +1462,8 @@ definitions:
         description: godoxy
         type: number
     type: object
+  netip.Addr:
+    type: object
   route.Route:
     properties:
       access_log:
@@ -1457,7 +1492,10 @@ definitions:
         - $ref: '#/definitions/HealthJSON'
         description: for swagger
       healthcheck:
-        $ref: '#/definitions/HealthCheckConfig'
+        allOf:
+        - $ref: '#/definitions/HealthCheckConfig'
+        description: null on load-balancer routes
+        x-nullable: true
       homepage:
         $ref: '#/definitions/HomepageItemConfig'
       host:
@@ -1592,7 +1630,7 @@ definitions:
     type: object
   types.PortMapping:
     additionalProperties:
-      $ref: '#/definitions/container.Port'
+      $ref: '#/definitions/container.PortSummary'
     type: object
   widgets.Config:
     properties:
@@ -2008,7 +2046,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dockerapi.StopRequest'
+          $ref: '#/definitions/dockerapi.RestartRequest'
       produces:
       - application/json
       responses:

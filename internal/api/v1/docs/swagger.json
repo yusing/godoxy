@@ -618,7 +618,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/dockerapi.StopRequest"
+              "$ref": "#/definitions/dockerapi.RestartRequest"
             }
           }
         ],
@@ -3515,6 +3515,16 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "sticky": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sticky_max_age": {
+          "$ref": "#/definitions/time.Duration",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "weight": {
           "type": "integer",
           "x-nullable": false,
@@ -4198,9 +4208,13 @@
           "x-omitempty": false
         },
         "healthcheck": {
-          "$ref": "#/definitions/HealthCheckConfig",
-          "x-nullable": false,
-          "x-omitempty": false
+          "description": "null on load-balancer routes",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthCheckConfig"
+            }
+          ],
+          "x-nullable": true
         },
         "homepage": {
           "$ref": "#/definitions/HomepageItemConfig",
@@ -4916,12 +4930,16 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "container.Port": {
+    "container.PortSummary": {
       "type": "object",
       "properties": {
         "IP": {
           "description": "Host IP address that the container's port is mapped to",
-          "type": "string",
+          "allOf": [
+            {
+              "$ref": "#/definitions/netip.Addr"
+            }
+          ],
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4938,7 +4956,7 @@
           "x-omitempty": false
         },
         "Type": {
-          "description": "type\nRequired: true",
+          "description": "type\nRequired: true\nEnum: [\"tcp\",\"udp\",\"sctp\"]",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
@@ -5033,6 +5051,29 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "dockerapi.RestartRequest": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "signal": {
+          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If no value is set, the default (SIGTERM) is used.",
+          "type": "string"
+        },
+        "timeout": {
+          "description": "Timeout (optional) is the timeout (in seconds) to wait for the container\nto stop gracefully before forcibly terminating it with SIGKILL.\n\n- Use nil to use the default timeout (10 seconds).\n- Use '-1' to wait indefinitely.\n- Use '0' to not wait for the container to exit gracefully, and\n  immediately proceeds to forcibly terminating the container.\n- Other positive values are used as timeout (in seconds).",
+          "type": "integer"
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "dockerapi.StartRequest": {
       "type": "object",
       "required": [
@@ -5066,7 +5107,7 @@
           "x-omitempty": false
         },
         "signal": {
-          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If not value is set, the default (SIGTERM) is used.",
+          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If no value is set, the default (SIGTERM) is used.",
           "type": "string"
         },
         "timeout": {
@@ -5219,6 +5260,11 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "netip.Addr": {
+      "type": "object",
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "route.Route": {
       "type": "object",
       "properties": {
@@ -5273,9 +5319,13 @@
           "x-omitempty": false
         },
         "healthcheck": {
-          "$ref": "#/definitions/HealthCheckConfig",
-          "x-nullable": false,
-          "x-omitempty": false
+          "description": "null on load-balancer routes",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HealthCheckConfig"
+            }
+          ],
+          "x-nullable": true
         },
         "homepage": {
           "$ref": "#/definitions/HomepageItemConfig",
@@ -5530,7 +5580,7 @@
     "types.PortMapping": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/container.Port"
+        "$ref": "#/definitions/container.PortSummary"
       },
       "x-nullable": false,
       "x-omitempty": false

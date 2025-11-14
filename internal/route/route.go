@@ -49,7 +49,7 @@ type (
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
 		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
 		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
-		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck"`
+		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck,omitempty" extensions:"x-nullable"` // null on load-balancer routes
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
 		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
 		Homepage     *homepage.ItemConfig           `json:"homepage"`
