@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/bytedance/sonic"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
@@ -241,14 +240,6 @@ func isTerminatingHandler(handler CommandHandler) bool {
 	default:
 		return false
 	}
-}
-
-func (rules Rules) MarshalJSON() ([]byte, error) {
-	names := make([]string, len(rules))
-	for i, rule := range rules {
-		names[i] = rule.Name
-	}
-	return sonic.Marshal(names)
 }
 
 func (rule *Rule) String() string {
