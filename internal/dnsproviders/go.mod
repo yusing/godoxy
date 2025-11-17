@@ -6,7 +6,7 @@ replace github.com/yusing/godoxy => ../..
 
 require (
 	github.com/go-acme/lego/v4 v4.28.1
-	github.com/yusing/godoxy v0.20.7
+	github.com/yusing/godoxy v0.20.8
 )
 
 require (

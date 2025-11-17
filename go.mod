@@ -13,7 +13,7 @@ replace github.com/shirou/gopsutil/v4 => ./internal/gopsutil
 replace github.com/yusing/goutils => ./goutils
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.3 // parsing HTML for extract fav icon
+	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon
 	github.com/coreos/go-oidc/v3 v3.16.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
@@ -37,7 +37,7 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.14.2 // fast json parsing
-	github.com/docker/cli v29.0.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.0.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.18.0 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.2.3 // proxmox API client
@@ -50,8 +50,8 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251113071320-219eedf3c595
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251113071320-219eedf3c595
+	github.com/yusing/godoxy/agent v0.0.0-20251114142829-a291a49a0e42
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251114142829-a291a49a0e42
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
 )
