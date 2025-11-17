@@ -193,7 +193,7 @@ func (rm *ResponseModifier) FlushRelease() (int, error) {
 			if werr != nil {
 				rm.errs.Addf("write error: %w", werr)
 			}
-			if err := http.NewResponseController(rm.w).Flush(); err != nil {
+			if err := http.NewResponseController(rm.w).Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
 				rm.errs.Addf("flush error: %w", err)
 			}
 		}
