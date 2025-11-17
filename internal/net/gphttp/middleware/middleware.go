@@ -9,9 +9,9 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
-	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -184,17 +184,42 @@ func (m *Middleware) ModifyResponse(resp *http.Response) error {
 }
 
 func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
-	if exec, ok := m.impl.(ResponseModifier); ok {
-		w = httputils.NewModifyResponseWriter(w, r, func(resp *http.Response) error {
-			return exec.modifyResponse(resp)
-		})
-	}
 	if exec, ok := m.impl.(RequestModifier); ok {
 		if proceed := exec.before(w, r); !proceed {
 			return
 		}
 	}
-	next(w, r)
+
+	if exec, ok := m.impl.(ResponseModifier); ok {
+		rm := rules.NewResponseModifier(w)
+		defer rm.FlushRelease()
+		next(rm, r)
+
+		currentBody := rm.BodyReader()
+		currentResp := &http.Response{
+			StatusCode:    rm.StatusCode(),
+			Header:        rm.Header(),
+			ContentLength: int64(rm.ContentLength()),
+			Body:          currentBody,
+			Request:       r,
+		}
+		if err := exec.modifyResponse(currentResp); err != nil {
+			log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
+		}
+
+		// override the response status code
+		rm.WriteHeader(currentResp.StatusCode)
+
+		// overriding the response header is not necessary
+		// modifyResponse is supposed to write to Header directly instead of assigning a new header map)
+
+		// override the content length and body if changed
+		if currentResp.Body != currentBody {
+			rm.SetBody(currentResp.Body)
+		}
+	} else {
+		next(w, r)
+	}
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {

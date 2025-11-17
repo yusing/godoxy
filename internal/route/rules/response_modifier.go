@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -110,11 +111,35 @@ func (rm *ResponseModifier) WriteHeader(code int) {
 	rm.statusCode = code
 }
 
+// BodyReader returns a reader for the response body.
+// Every call to this function will return a new reader that starts from the beginning of the buffer.
+func (rm *ResponseModifier) BodyReader() io.ReadCloser {
+	if rm.buf == nil {
+		return io.NopCloser(bytes.NewReader(nil))
+	}
+	return io.NopCloser(bytes.NewReader(rm.buf.Bytes()))
+}
+
 func (rm *ResponseModifier) ResetBody() {
 	if rm.buf == nil {
 		return
 	}
 	rm.buf.Reset()
+}
+
+func (rm *ResponseModifier) SetBody(r io.ReadCloser) error {
+	if rm.buf == nil {
+		rm.buf = rm.bufPool.GetBuffer()
+	} else {
+		rm.buf.Reset()
+	}
+
+	_, err := io.Copy(rm.buf, r)
+	if err != nil {
+		return fmt.Errorf("failed to copy body: %w", err)
+	}
+	r.Close()
+	return nil
 }
 
 func (rm *ResponseModifier) ContentLength() int {
