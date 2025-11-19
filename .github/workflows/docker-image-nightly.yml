@@ -8,6 +8,7 @@ on:
       - "**" # matches every branch
       - "!dependabot/*"
       - "!main" # excludes main
+      - "!compat" # excludes compat branch
 
 jobs:
   build-nightly:

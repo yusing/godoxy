@@ -1,0 +1,20 @@
+name: Docker Image CI (compat)
+
+on:
+  push:
+    branches:
+      - compat
+
+jobs:
+  build-compat:
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      image_name: ${{ github.repository_owner }}/godoxy
+      tag: latest-compat
+      target: main
+  build-compat-agent:
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      image_name: ${{ github.repository_owner }}/godoxy-agent
+      tag: latest-compat
+      target: agent
