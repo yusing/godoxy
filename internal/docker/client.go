@@ -110,7 +110,7 @@ func Clients() map[string]*SharedClient {
 	return clients
 }
 
-var versionArg = client.WithAPIVersionNegotiation()
+var versionArg = client.WithVersion("v1.51.0")
 
 // NewClient creates a new Docker client connection to the specified host.
 //
