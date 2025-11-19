@@ -5,8 +5,7 @@ import (
 	"net/url"
 
 	"github.com/bytedance/sonic"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/api/types/container"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
@@ -89,7 +88,7 @@ func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	defer cancel()
 
 	// the actual inspect response is intercepted and returned as RequestInterceptedError
-	_, err := mon.client.ContainerInspect(ctx, mon.containerID, client.ContainerInspectOptions{})
+	_, err := mon.client.ContainerInspect(ctx, mon.containerID)
 
 	var interceptedErr *httputils.RequestInterceptedError
 	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
@@ -112,7 +111,7 @@ func (mon *DockerHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 		mon.numDockerFailures = 0
 		return types.HealthCheckResult{
 			Healthy: false,
-			Detail:  "container is " + string(status),
+			Detail:  "container is " + status,
 		}, nil
 	case "created":
 		mon.numDockerFailures = 0

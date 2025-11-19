@@ -11,9 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
@@ -93,24 +92,24 @@ func IsBlacklisted(c *types.Container) bool {
 }
 
 func UpdatePorts(c *types.Container) error {
-	dockerClient, err := NewClient(c.DockerHost)
+	client, err := NewClient(c.DockerHost)
 	if err != nil {
 		return err
 	}
-	defer dockerClient.Close()
+	defer client.Close()
 
-	inspect, err := dockerClient.ContainerInspect(context.Background(), c.ContainerID, client.ContainerInspectOptions{})
+	inspect, err := client.ContainerInspect(context.Background(), c.ContainerID)
 	if err != nil {
 		return err
 	}
 
-	for port := range inspect.Container.Config.ExposedPorts {
-		proto, portStr := nat.SplitProtoPort(port.String())
+	for port := range inspect.Config.ExposedPorts {
+		proto, portStr := nat.SplitProtoPort(string(port))
 		portInt, _ := nat.ParsePort(portStr)
 		if portInt == 0 {
 			continue
 		}
-		c.PublicPortMapping[portInt] = container.PortSummary{
+		c.PublicPortMapping[portInt] = container.Port{
 			PublicPort:  uint16(portInt), //nolint:gosec
 			PrivatePort: uint16(portInt), //nolint:gosec
 			Type:        proto,
@@ -208,8 +207,8 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 	}
 	if c.Network != "" {
 		v, ok := helper.NetworkSettings.Networks[c.Network]
-		if ok && v.IPAddress.IsValid() {
-			c.PrivateHostname = v.IPAddress.String()
+		if ok {
+			c.PrivateHostname = v.IPAddress
 			return
 		}
 		// try {project_name}_{network_name}
@@ -217,9 +216,9 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 			oldNetwork, newNetwork := c.Network, fmt.Sprintf("%s_%s", proj, c.Network)
 			if newNetwork != oldNetwork {
 				v, ok = helper.NetworkSettings.Networks[newNetwork]
-				if ok && v.IPAddress.IsValid() {
+				if ok {
 					c.Network = newNetwork // update network to the new one
-					c.PrivateHostname = v.IPAddress.String()
+					c.PrivateHostname = v.IPAddress
 					return
 				}
 			}
@@ -230,9 +229,9 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 	}
 	// fallback to first network if no network is specified
 	for k, v := range helper.NetworkSettings.Networks {
-		if v.IPAddress.IsValid() {
+		if v.IPAddress != "" {
 			c.Network = k // update network to the first network
-			c.PrivateHostname = v.IPAddress.String()
+			c.PrivateHostname = v.IPAddress
 			return
 		}
 	}

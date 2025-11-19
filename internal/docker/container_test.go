@@ -3,7 +3,7 @@ package docker
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	expect "github.com/yusing/goutils/testing"
 )
 

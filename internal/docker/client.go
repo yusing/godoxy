@@ -14,7 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/cli/cli/connhelper"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/common"
@@ -110,8 +110,6 @@ func Clients() map[string]*SharedClient {
 	return clients
 }
 
-var versionArg = client.WithVersion("v1.51.0")
-
 // NewClient creates a new Docker client connection to the specified host.
 //
 // Returns existing client if available.
@@ -154,7 +152,7 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 		opt = []client.Opt{
 			client.WithHost(agent.DockerHost),
 			client.WithHTTPClient(cfg.NewHTTPClient()),
-			versionArg,
+			client.WithAPIVersionNegotiation(),
 		}
 		addr = "tcp://" + cfg.Addr
 		dial = cfg.DialContext
@@ -165,7 +163,7 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 		case common.DockerHostFromEnv:
 			opt = []client.Opt{
 				client.WithHostFromEnv(),
-				versionArg,
+				client.WithAPIVersionNegotiation(),
 			}
 		default:
 			helper, err := connhelper.GetConnectionHelper(host)
@@ -181,19 +179,19 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 				opt = []client.Opt{
 					client.WithHTTPClient(httpClient),
 					client.WithHost(helper.Host),
-					versionArg,
+					client.WithAPIVersionNegotiation(),
 					client.WithDialContext(helper.Dialer),
 				}
 			} else {
 				opt = []client.Opt{
 					client.WithHost(host),
-					versionArg,
+					client.WithAPIVersionNegotiation(),
 				}
 			}
 		}
 	}
 
-	client, err := client.New(opt...)
+	client, err := client.NewClientWithOpts(opt...)
 	if err != nil {
 		return nil, err
 	}

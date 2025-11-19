@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -70,7 +70,7 @@ func Logs(c *gin.Context) {
 	}
 	defer dockerClient.Close()
 
-	opts := client.ContainerLogsOptions{
+	opts := container.LogsOptions{
 		ShowStdout: queryParams.Stdout,
 		ShowStderr: queryParams.Stderr,
 		Since:      queryParams.Since,

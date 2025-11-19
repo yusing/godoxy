@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 
-	dockerEvents "github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/client"
+	dockerEvents "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/watcher/events"
@@ -15,42 +16,23 @@ import (
 
 type (
 	DockerWatcher     string
-	DockerListOptions = client.EventsListOptions
-	DockerFilters     = client.Filters
+	DockerListOptions = dockerEvents.ListOptions
 )
-
-type DockerFilter struct {
-	Term   string
-	Values []string
-}
-
-func NewDockerFilter(term string, values ...string) DockerFilter {
-	return DockerFilter{
-		Term:   term,
-		Values: values,
-	}
-}
-
-func NewDockerFilters(filters ...DockerFilter) client.Filters {
-	f := make(client.Filters, len(filters))
-	for _, filter := range filters {
-		f.Add(filter.Term, filter.Values...)
-	}
-	return f
-}
 
 // https://docs.docker.com/reference/api/engine/version/v1.47/#tag/System/operation/SystemPingHead
 var (
-	DockerFilterContainer = NewDockerFilter("type", string(dockerEvents.ContainerEventType))
-	DockerFilterStart     = NewDockerFilter("event", string(dockerEvents.ActionStart))
-	DockerFilterStop      = NewDockerFilter("event", string(dockerEvents.ActionStop))
-	DockerFilterDie       = NewDockerFilter("event", string(dockerEvents.ActionDie))
-	DockerFilterDestroy   = NewDockerFilter("event", string(dockerEvents.ActionDestroy))
-	DockerFilterKill      = NewDockerFilter("event", string(dockerEvents.ActionKill))
-	DockerFilterPause     = NewDockerFilter("event", string(dockerEvents.ActionPause))
-	DockerFilterUnpause   = NewDockerFilter("event", string(dockerEvents.ActionUnPause))
+	DockerFilterContainer = filters.Arg("type", string(dockerEvents.ContainerEventType))
+	DockerFilterStart     = filters.Arg("event", string(dockerEvents.ActionStart))
+	DockerFilterStop      = filters.Arg("event", string(dockerEvents.ActionStop))
+	DockerFilterDie       = filters.Arg("event", string(dockerEvents.ActionDie))
+	DockerFilterDestroy   = filters.Arg("event", string(dockerEvents.ActionDestroy))
+	DockerFilterKill      = filters.Arg("event", string(dockerEvents.ActionKill))
+	DockerFilterPause     = filters.Arg("event", string(dockerEvents.ActionPause))
+	DockerFilterUnpause   = filters.Arg("event", string(dockerEvents.ActionUnPause))
 
-	optionsDefault = DockerListOptions{Filters: NewDockerFilters(
+	NewDockerFilter = filters.NewArgs
+
+	optionsDefault = DockerListOptions{Filters: NewDockerFilter(
 		DockerFilterContainer,
 		DockerFilterStart,
 		// DockerFilterStop,
@@ -69,8 +51,8 @@ var (
 	}
 )
 
-func DockerFilterContainerNameID(nameOrID string) DockerFilter {
-	return NewDockerFilter("container", nameOrID)
+func DockerFilterContainerNameID(nameOrID string) filters.KeyValuePair {
+	return filters.Arg("container", nameOrID)
 }
 
 func NewDockerWatcher(host string) DockerWatcher {
@@ -98,15 +80,15 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 			client.Close()
 		}()
 
-		chs := client.Events(ctx, options)
+		cEventCh, cErrCh := client.Events(ctx, options)
 		defer log.Debug().Str("host", client.Address()).Msg("docker watcher closed")
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case msg := <-chs.Messages:
+			case msg := <-cEventCh:
 				w.handleEvent(msg, eventCh)
-			case err := <-chs.Err:
+			case err := <-cErrCh:
 				if err == nil {
 					continue
 				}
@@ -135,7 +117,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 				// connection successful, trigger reload (reload routes)
 				eventCh <- reloadTrigger
 				// reopen event channel
-				chs = client.Events(ctx, options)
+				cEventCh, cErrCh = client.Events(ctx, options)
 			}
 		}
 	}()

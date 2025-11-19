@@ -3,15 +3,15 @@ package dockerapi
 import (
 	"net/http"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type StartRequest struct {
 	ID string `json:"id" binding:"required"`
-	client.ContainerStartOptions
+	container.StartOptions
 }
 
 // @x-id				"start"
@@ -48,7 +48,7 @@ func Start(c *gin.Context) {
 
 	defer client.Close()
 
-	_, err = client.ContainerStart(c.Request.Context(), req.ID, req.ContainerStartOptions)
+	err = client.ContainerStart(c.Request.Context(), req.ID, req.StartOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to start container"))
 		return
