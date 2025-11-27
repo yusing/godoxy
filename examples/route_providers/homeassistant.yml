@@ -1,0 +1,8 @@
+hass:
+  host: 192.168.1.10    # ip address of Homeassistant Server
+  port: 8123            # port
+  homepage:
+    name: hass
+    description: Home Assistant - Home Automation
+    icon: @selfhst/home-assistant.svg
+    category: Automation
