@@ -1,0 +1,168 @@
+services:
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:latest
+    container_name: wg-easy
+
+    # -------------------------------------------------------
+    # Networking:
+    # - WireGuard tunnel uses UDP 51820 → EXPOSED (required)
+    # - Web UI is TCP 51821 but ONLY proxied through GoDoxy
+    #
+    # IMPORTANT:
+    #   Do NOT use network_mode: host for VPNs unless needed.
+    #   This keeps UI isolated and prevents leaking ports.
+    # -------------------------------------------------------
+    ports:
+      - "51820:51820/udp"   # Required for WireGuard
+      # WebUI NOT exposed directly — handled by GoDoxy only
+      # - "51821:51821/tcp"  # ❌ REMOVE (GoDoxy handles proxying)
+
+    environment:
+      - LANG=en
+      - WG_HOST=vpn.mydomain.com
+      - PASSWORD_HASH=${HASHED_PASS}
+      # Optional:
+      # - WG_PORT=51820
+      # - PORT=51821       (UI internal port, do not expose)
+      # - WG_CONFIG_PORT=92820
+
+      - UI_TRAFFIC_STATS=true
+      - UI_CHART_TYPE=2
+      - WG_ENABLE_ONE_TIME_LINKS=true
+      - UI_ENABLE_SORT_CLIENTS=true
+      - WG_DEFAULT_ADDRESS=192.168.33.x
+      - WG_DEFAULT_DNS=1.1.1.1
+
+    volumes:
+      - ./etc_wireguard:/etc/wireguard
+
+    restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+
+    mem_limit: 1024m
+    cpus: "2.0"
+
+    security_opt:
+      - no-new-privileges:true   # Hardening
+
+    # -------------------------------------------------------
+    # GoDoxy Integration
+    # -------------------------------------------------------
+    labels:
+      # Enable reverse proxy for Web UI ONLY
+      proxy.enable: true
+
+      # The aliases/domains you want to access the dashboard on
+      proxy.aliases: |
+        vpn
+        wireguard
+        wgeasy
+
+      # Internal WebUI port
+      proxy.port: "51821"
+
+      # SSL termination via GoDoxy
+      proxy.ssl: true
+
+      # Homepage metadata
+      proxy.homepage: |
+        name: WG Easy VPN
+        description: Fast Easy VPN Server
+        category: Utilities
+        icon: "@selfhst/wireguard.svg"
+
+      # =====================================================
+      # OPTIONAL: PASSWORD-PROTECT WEB UI
+      # -----------------------------------------------------
+      # This protects the UI BEFORE reaching WG-Easy's own login
+      #
+      #proxy.auth.enable: true
+      #proxy.auth.username: "admin"
+      #proxy.auth.password: "CHANGEME"
+      #
+      # =====================================================
+
+
+      # =====================================================
+      # OPTIONAL: CUSTOM MIDDLEWARES
+      # =====================================================
+
+      # ---------------------------
+      # 1) IP Whitelist (OPTIONAL)
+      # ---------------------------
+      # Only allow access to the UI from a specific subnet(s):
+      #
+      #proxy.middleware.ipwhitelist: |
+      #  allow:
+      #    - 192.168.1.0/24
+      #    - 10.0.0.0/8
+      #  deny:
+      #    - 0.0.0.0/0
+
+      # ---------------------------
+      # 2) Security Headers (OPTIONAL HARDENING)
+      # ---------------------------
+      # Helps with Cloudflare Zero-Trust, browser hardening, etc.
+      #
+      #proxy.middleware.securityheaders: |
+      #  X-Frame-Options: DENY
+      #  X-Content-Type-Options: nosniff
+      #  Referrer-Policy: no-referrer
+      #  Permissions-Policy: accelerometer=()
+      #  CF-Access-Client-ID: ${CF_ID}
+      #  CF-Access-Client-Secret: ${CF_SECRET}
+
+      # ---------------------------
+      # 3) Rate Limiting (OPTIONAL HARDENING)
+      # ---------------------------
+      # Protects the login page against brute force attacks
+      #
+      #proxy.middleware.ratelimit: |
+      #  average: 30
+      #  burst: 15
+
+      # ---------------------------
+      # 4) Audit Logging (OPTIONAL LOGGING)
+      # ---------------------------
+      # Every UI access logs to stdout (GoDoxy → Loki optional)
+      #
+      #proxy.middleware.auditlog: |
+      #  enabled: true
+      #  format: "$remote_addr accessed WG-Easy UI"
+
+      # ---------------------------
+      # 5) Geo/IP Restriction (OPTIONAL GEO-LOC HARDENING)
+      # ---------------------------
+      # Requires GoDoxy GeoIP plugin (if installed)
+      #
+      #proxy.middleware.geoipblock: |
+      #  allow:
+      #    - US
+      #    - CA
+      #  deny:
+      #    - CN
+      #    - RU
+      #    - KP
+
+      # =====================================================
+
+
+    # Healthcheck for UI (OPTIONAL)
+    healthcheck:
+      test: ["CMD-SHELL", "wget --timeout=5 -nv -t1 --spider http://127.0.0.1:51821 || exit 1"]
+      interval: 10m
+      timeout: 10s
+      start_period: 60s
+
+networks:
+  default:
+    external: true
+    name: SHARED
+
