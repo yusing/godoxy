@@ -64,28 +64,17 @@ services:
         wgeasy
 
       # Internal WebUI port
-      proxy.*.port: "51821"
+      proxy.#*.port: "51821"
 
       # SSL termination via GoDoxy
-      proxy.*.scheme: https
+      proxy.#*.scheme: https
 
       # Homepage metadata
-      proxy.*.homepage: |
+      proxy.#*.homepage: |
         name: WG Easy VPN
         description: Fast Easy VPN Server
         category: Utilities
         icon: "@selfhst/wireguard.svg"
-
-      # =====================================================
-      # OPTIONAL: PASSWORD-PROTECT WEB UI
-      # -----------------------------------------------------
-      # This protects the UI BEFORE reaching WG-Easy's own login
-      #
-      #proxy.*.auth.enable: true
-      #proxy.*.auth.username: "admin"
-      #proxy.*.auth.password: "CHANGEME"
-      #
-      # =====================================================
 
 
       # =====================================================
@@ -97,7 +86,7 @@ services:
       # ---------------------------
       # Only allow access to the UI from a specific subnet(s):
       #
-      #proxy.*.middleware.ipwhitelist: |
+      #proxy.#*.middleware.ipwhitelist: |
       #  allow:
       #    - 192.168.1.0/24
       #    - 10.0.0.0/8
@@ -107,7 +96,7 @@ services:
       # ---------------------------
       # Helps with Cloudflare Zero-Trust, browser hardening, etc.
       #
-      #proxy.*.middleware.securityheaders: |
+      #proxy.#*.middleware.securityheaders: |
       #  X-Frame-Options: DENY
       #  X-Content-Type-Options: nosniff
       #  Referrer-Policy: no-referrer
@@ -120,7 +109,7 @@ services:
       # ---------------------------
       # Protects the login page against brute force attacks
       #
-      #proxy.*.middleware.ratelimit: |
+      #proxy.#*.middleware.ratelimit: |
       #  average: 30
       #  burst: 15
       #  period: 5s
@@ -130,7 +119,7 @@ services:
       # ---------------------------
       # Every UI access logs to stdout (GoDoxy → Loki optional)
       #
-      #proxy.*.middleware.auditlog: |
+      #proxy.#*.middleware.auditlog: |
       #  enabled: true
       #  format: "$remote_addr accessed WG-Easy UI"
 
@@ -139,7 +128,7 @@ services:
       # ---------------------------
       # Requires GoDoxy GeoIP plugin (if installed)
       #
-      #proxy.*.middleware.geoipblock: |
+      #proxy.#*.middleware.geoipblock: |
       #  allow:
       #    - US
       #    - CA
