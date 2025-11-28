@@ -17,25 +17,19 @@ services:
       #   https://adguard.yourdomain
       #   https://dns.yourdomain
       #   https://adguardhome.yourdomain
-      proxy.aliases: |
-        adguard
-        dns
-        adguardhome
+      proxy.aliases: adguard,dns,adguardhome
       # -------------------------------------------------------
       # Homepage Dashboard Metadata (shown in Homepage UI)
       # -------------------------------------------------------
-      proxy.*.homepage: |
+      proxy.#*.homepage: |
         name: AdGuard Home
         description: DNS + DHCP Server
         category: Networking
         icon: "@selfhst/adguard-home.svg"
-
-
       # =======================================================
       # OPTIONAL: PASSWORD-PROTECT THE ADGUARD WEB UI
       # =======================================================
       # → IF YOU WANT TO LOCK THE DASHBOARD BEHIND A LOGIN
-      #   - Uncomment these 3 lines
       #   - Replace username/password with your values
       #
       # Explanation:
@@ -44,10 +38,16 @@ services:
       #   given a login popup BEFORE reaching AdGuard’s UI.
       #
       #   NOTE: This is SEPARATE from AdGuard’s internal login.
-      #
-      proxy.*.auth.enable: true
-      proxy.*.auth.username: "admin"
-      proxy.*.auth.password: "CHANGEME"
+      #   For basic_auth conditions, the password must be bcrypt hashed. Generate the hash using:
+      #    htpasswd -nbB '' your-password | cut -c 2-
+      #   make suer to escape any $ by writing $ twice ($$) to make it a literal $
+
+      proxy.#*.rules: |
+        - name: default
+          do: require_basic_auth "Restricted Area"
+        - name: authenticated users
+          on: basic_auth admin1 "$$2y$$05$$x1WyUkhoPPKlbttLe9JC7uLTr60iRnubg08l7KvhJk.5xJxgRTmi2" | basic_auth admin2 "$$2y$$05$$x1WyUkhoPPKlbttLe9JC7uLTr60iRnubg08l7KvhJk.5xJxgRTmi2"
+          do: pass
 
       # =======================================================
       # OPTIONAL: CUSTOM MIDDLEWARES
@@ -88,10 +88,10 @@ services:
       # ---------------------------
       #   Prevent brute-force attempts / UI abuse:
       #
-      proxy.*.middleware.ratelimit: |
-        average: 10
-        burst: 20
-        period: 1s
+      #proxy.#*.middleware.ratelimit: |
+      #  average: 40
+      #  burst: 30
+      #  period: 1s
       #
       # Enable one or all depending on what you need.
       # =======================================================
