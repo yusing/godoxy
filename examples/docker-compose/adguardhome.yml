@@ -12,8 +12,6 @@ services:
       # -------------------------------------------------------
       # GoDoxy Reverse Proxy Configuration
       # -------------------------------------------------------
-      proxy.enable: true
-
       # Aliases -> URLs GoDoxy will expose for this service
       # Examples:
       #   https://adguard.yourdomain
@@ -23,17 +21,10 @@ services:
         adguard
         dns
         adguardhome
-
-      # Web UI port (AdGuard’s dashboard runs on port 3000)
-      proxy.port: "3000"
-
-      # Enable TLS termination (GoDoxy handles SSL)
-      proxy.ssl: true
-
       # -------------------------------------------------------
       # Homepage Dashboard Metadata (shown in Homepage UI)
       # -------------------------------------------------------
-      proxy.homepage: |
+      proxy.*.homepage: |
         name: AdGuard Home
         description: DNS + DHCP Server
         category: Networking
@@ -54,9 +45,9 @@ services:
       #
       #   NOTE: This is SEPARATE from AdGuard’s internal login.
       #
-      #proxy.auth.enable: true
-      #proxy.auth.username: "admin"
-      #proxy.auth.password: "CHANGEME"
+      proxy.*.auth.enable: true
+      proxy.*.auth.username: "admin"
+      proxy.*.auth.password: "CHANGEME"
 
       # =======================================================
       # OPTIONAL: CUSTOM MIDDLEWARES
@@ -82,13 +73,11 @@ services:
       #  allow:
       #    - 192.168.1.0/24
       #    - 192.168.10.0/24
-      #  deny:
-      #    - 0.0.0.0/0
       #
       # ---------------------------
       # Example 2: Add Secure Headers
       # ---------------------------
-      #proxy.middleware.securityheaders: |
+      #proxy.*.middleware.securityheaders: |
       #  X-Frame-Options: DENY
       #  X-Content-Type-Options: nosniff
       #  Referrer-Policy: no-referrer
@@ -99,9 +88,10 @@ services:
       # ---------------------------
       #   Prevent brute-force attempts / UI abuse:
       #
-      #proxy.middleware.ratelimit: |
-      #  average: 50
-      #  burst: 25
+      proxy.*.middleware.ratelimit: |
+        average: 10
+        burst: 20
+        period: 1s
       #
       # Enable one or all depending on what you need.
       # =======================================================
