@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/utils/pool"
+	"github.com/yusing/goutils/pool"
 )
 
 type route interface {

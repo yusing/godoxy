@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
-	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/goutils/mockable"
 )
 
 type (
@@ -67,7 +67,7 @@ func (f *CommonFormatter) AppendRequestLog(line []byte, req *http.Request, res *
 	line = append(line, clientIP(req)...)
 	line = append(line, " - - ["...)
 
-	line = utils.TimeNow().AppendFormat(line, LogTimeFormat)
+	line = mockable.TimeNow().AppendFormat(line, LogTimeFormat)
 	line = append(line, `] "`...)
 
 	line = append(line, req.Method...)
@@ -103,7 +103,7 @@ func (f *JSONFormatter) AppendRequestLog(line []byte, req *http.Request, res *ht
 	writer := bytes.NewBuffer(line)
 	logger := zerolog.New(writer)
 	event := logger.Info().
-		Str("time", utils.TimeNow().Format(LogTimeFormat)).
+		Str("time", mockable.TimeNow().Format(LogTimeFormat)).
 		Str("ip", clientIP(req)).
 		Str("method", req.Method).
 		Str("scheme", scheme(req)).
@@ -136,7 +136,7 @@ func (f ACLLogFormatter) AppendACLLog(line []byte, info *maxmind.IPInfo, blocked
 	writer := bytes.NewBuffer(line)
 	logger := zerolog.New(writer)
 	event := logger.Info().
-		Str("time", utils.TimeNow().Format(LogTimeFormat)).
+		Str("time", mockable.TimeNow().Format(LogTimeFormat)).
 		Str("ip", info.Str)
 	if blocked {
 		event.Str("action", "block")

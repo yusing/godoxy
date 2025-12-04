@@ -5,7 +5,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -14,8 +13,6 @@ type (
 
 	PortMapping = map[int]container.PortSummary
 	Container   struct {
-		_ utils.NoCopy
-
 		DockerHost    string          `json:"docker_host"`
 		Image         *ContainerImage `json:"image"`
 		ContainerName string          `json:"container_name"`

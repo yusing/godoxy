@@ -9,10 +9,10 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/utils"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/fs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -46,7 +46,7 @@ func GetErrorPageByStatus(statusCode int) (content []byte, ok bool) {
 }
 
 func loadContent() {
-	files, err := utils.ListFiles(errPagesBasePath, 0)
+	files, err := fs.ListFiles(errPagesBasePath, 0)
 	if err != nil {
 		log.Err(err).Msg("failed to list error page resources")
 		return

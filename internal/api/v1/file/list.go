@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/utils"
 	apitypes "github.com/yusing/goutils/apitypes"
+	"github.com/yusing/goutils/fs"
 )
 
 type ListFilesResponse struct {
@@ -35,7 +35,7 @@ func List(c *gin.Context) {
 	}
 
 	// config/
-	files, err := utils.ListFiles(common.ConfigBasePath, 0, true)
+	files, err := fs.ListFiles(common.ConfigBasePath, 0, true)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to list files"))
 		return
@@ -48,7 +48,7 @@ func List(c *gin.Context) {
 	}
 
 	// config/middlewares/
-	mids, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0, true)
+	mids, err := fs.ListFiles(common.MiddlewareComposeBasePath, 0, true)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to list files"))
 		return

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	. "github.com/yusing/godoxy/internal/logging/accesslog"
-	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/goutils/mockable"
 	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -57,7 +57,7 @@ func fmtLog(cfg *RequestLoggerConfig) (ts string, line string) {
 
 	t := time.Now()
 	logger := NewMockAccessLogger(testTask, cfg)
-	utils.MockTimeNow(t)
+	mockable.MockTimeNow(t)
 	buf = logger.(RequestFormatter).AppendRequestLog(buf, req, resp)
 	return t.Format(LogTimeFormat), string(buf)
 }
