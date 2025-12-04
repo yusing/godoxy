@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -188,6 +189,11 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		if proceed := exec.before(w, r); !proceed {
 			return
 		}
+	}
+
+	if httpheaders.IsWebsocket(r.Header) || r.Header.Get("Accept") == "text/event-stream" {
+		next(w, r)
+		return
 	}
 
 	if exec, ok := m.impl.(ResponseModifier); ok {
