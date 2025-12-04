@@ -19,7 +19,9 @@ COPY go.mod go.sum ./
 # remove godoxy stuff from go.mod first
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
-  sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && go mod download -x
+  sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && \
+  sed -i '/^module github\.com\/yusing\/goutils/!{/github\.com\/yusing\/goutils/d}' go.mod && \
+  go mod download -x
 
 # Stage 2: builder
 FROM deps AS builder
