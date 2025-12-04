@@ -224,10 +224,13 @@ func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
 		p.lockDeleteRoute(r.Alias)
 		return err.Subject(r.Alias)
 	}
+
 	p.lockAddRoute(r)
-	r.Task().OnCancel("remove_route_from_provider", func() {
-		p.lockDeleteRoute(r.Alias)
-	})
+	if !r.ShouldExclude() {
+		r.Task().OnCancel("remove_route_from_provider", func() {
+			p.lockDeleteRoute(r.Alias)
+		})
+	}
 	return nil
 }
 

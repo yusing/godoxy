@@ -137,10 +137,6 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	if r.ShouldExclude() {
-		return nil
-	}
-
 	if r.UseLoadBalance() {
 		r.addToLoadBalancer(parent)
 	} else {
