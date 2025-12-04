@@ -394,6 +394,8 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 		if err := r.impl.Start(parent); err != nil {
 			return err
 		}
+	} else { // required by idlewatcher
+		r.task = parent.Subtask("excluded."+r.Name(), false)
 	}
 	return nil
 }
