@@ -7,8 +7,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
+	fsutils "github.com/yusing/goutils/fs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -52,7 +52,7 @@ func Get(name string) (*Middleware, Error) {
 	if !ok {
 		return nil, ErrUnknownMiddleware.
 			Subject(name).
-			With(gperr.DoYouMean(utils.NearestField(name, allMiddlewares)))
+			With(gperr.DoYouMeanField(name, allMiddlewares))
 	}
 	return middleware, nil
 }
@@ -63,7 +63,7 @@ func All() map[string]*Middleware {
 
 func LoadComposeFiles() {
 	errs := gperr.NewBuilder("middleware compile errors")
-	middlewareDefs, err := utils.ListFiles(common.MiddlewareComposeBasePath, 0)
+	middlewareDefs, err := fsutils.ListFiles(common.MiddlewareComposeBasePath, 0)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return

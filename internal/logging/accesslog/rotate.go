@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/mockable"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -81,14 +81,14 @@ func rotateLogFile(file supportRotate, config *Retention, result *RotateResult) 
 
 func rotateLogFileByPolicy(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
 	var shouldStop func() bool
-	t := utils.TimeNow()
+	t := mockable.TimeNow()
 
 	switch {
 	case config.Last > 0:
 		shouldStop = func() bool { return result.NumLinesKeep-result.NumLinesInvalid == int(config.Last) }
 		// not needed to parse time for last N lines
 	case config.Days > 0:
-		cutoff := utils.TimeNow().AddDate(0, 0, -int(config.Days)+1)
+		cutoff := mockable.TimeNow().AddDate(0, 0, -int(config.Days)+1)
 		shouldStop = func() bool { return t.Before(cutoff) }
 	default:
 		return false, nil // should not happen

@@ -15,7 +15,6 @@ import (
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -96,7 +95,7 @@ func (cfg *Config) Validate() gperr.Error {
 			if cfg.Provider != ProviderCustom {
 				b.Add(ErrUnknownProvider.
 					Subject(cfg.Provider).
-					With(gperr.DoYouMean(utils.NearestField(cfg.Provider, Providers))))
+					With(gperr.DoYouMeanField(cfg.Provider, Providers)))
 			}
 		} else {
 			provider, err := providerConstructor(cfg.Options)

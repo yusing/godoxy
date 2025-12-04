@@ -10,8 +10,8 @@ import (
 	"github.com/rs/zerolog/log"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils/pool"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 	"golang.org/x/sync/errgroup"
 )

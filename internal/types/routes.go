@@ -7,9 +7,9 @@ import (
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
-	"github.com/yusing/godoxy/internal/utils/pool"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 )
 

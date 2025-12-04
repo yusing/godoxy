@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
@@ -82,7 +81,7 @@ var ActiveConfig atomic.Pointer[Config]
 const cacheTTL = 1 * time.Minute
 
 func (c *checkCache) Expired() bool {
-	return c.created.Add(cacheTTL).Before(utils.TimeNow())
+	return c.created.Add(cacheTTL).Before(time.Now())
 }
 
 // TODO: add stats
@@ -180,7 +179,7 @@ func (c *Config) cacheRecord(info *maxmind.IPInfo, allow bool) {
 	c.ipCache.Store(info.Str, &checkCache{
 		IPInfo:  info,
 		allow:   allow,
-		created: utils.TimeNow(),
+		created: time.Now(),
 	})
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
-	"github.com/yusing/godoxy/internal/utils"
 	gi "github.com/yusing/gointernals"
 	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
@@ -300,7 +299,7 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 					errs.Add(err.Subject(k))
 				}
 			} else {
-				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMean(utils.NearestField(k, info.fieldNames))))
+				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMeanField(k, info.fieldNames)))
 			}
 		}
 		if info.hasValidateTag && checkValidateTag {

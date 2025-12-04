@@ -4,11 +4,9 @@ import (
 	urlPkg "net/url"
 
 	"github.com/bytedance/sonic"
-	"github.com/yusing/godoxy/internal/utils"
 )
 
 type URL struct {
-	_ utils.NoCopy
 	urlPkg.URL
 }
 

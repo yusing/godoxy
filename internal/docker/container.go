@@ -16,7 +16,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/utils"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -223,7 +222,7 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 				}
 			}
 		}
-		nearest := gperr.DoYouMean(utils.NearestField(c.Network, helper.NetworkSettings.Networks))
+		nearest := gperr.DoYouMeanField(c.Network, helper.NetworkSettings.Networks)
 		addError(c, fmt.Errorf("network %q not found, %w", c.Network, nearest))
 		return
 	}

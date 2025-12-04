@@ -8,7 +8,6 @@ import (
 	_ "embed"
 
 	"github.com/yusing/godoxy/internal/jsonstore"
-	"github.com/yusing/godoxy/internal/utils"
 )
 
 type CaptchaSession struct {
@@ -22,7 +21,7 @@ var CaptchaSessions = jsonstore.Store[*CaptchaSession]("captcha_sessions")
 func newCaptchaSession(p Provider) *CaptchaSession {
 	buf := make([]byte, 32)
 	_, _ = rand.Read(buf)
-	now := utils.TimeNow()
+	now := time.Now()
 	return &CaptchaSession{
 		ID:     hex.EncodeToString(buf),
 		Expiry: now.Add(p.SessionExpiry()),
@@ -30,5 +29,5 @@ func newCaptchaSession(p Provider) *CaptchaSession {
 }
 
 func (s *CaptchaSession) expired() bool {
-	return utils.TimeNow().After(s.Expiry)
+	return time.Now().After(s.Expiry)
 }
