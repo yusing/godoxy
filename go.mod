@@ -14,10 +14,10 @@ replace github.com/yusing/goutils => ./goutils
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon
-	github.com/coreos/go-oidc/v3 v3.16.0 // oidc authentication
+	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
-	github.com/go-acme/lego/v4 v4.28.1 // acme client
+	github.com/go-acme/lego/v4 v4.29.0 // acme client
 	github.com/go-playground/validator/v10 v10.28.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -27,7 +27,7 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
-	golang.org/x/crypto v0.44.0 // encrypting password with bcrypt
+	golang.org/x/crypto v0.45.0 // encrypting password with bcrypt
 	golang.org/x/net v0.47.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.33.0 // oauth2 authentication
 	golang.org/x/sync v0.18.0
@@ -37,21 +37,21 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.14.2 // fast json parsing
-	github.com/docker/cli v29.0.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
-	github.com/goccy/go-yaml v1.18.0 // yaml parsing for different config files
+	github.com/docker/cli v29.1.2+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/goccy/go-yaml v1.19.0 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.2.3 // proxmox API client
 	github.com/moby/moby/api v1.52.0 // docker API
-	github.com/moby/moby/client v0.1.0 // docker client
+	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
-	github.com/quic-go/quic-go v0.56.0 // http3 support
-	github.com/shirou/gopsutil/v4 v4.25.10 // system information
+	github.com/quic-go/quic-go v0.57.1 // http3 support
+	github.com/shirou/gopsutil/v4 v4.25.11 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251114142829-a291a49a0e42
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251114142829-a291a49a0e42
+	github.com/yusing/godoxy/agent v0.0.0-20251123034604-fac3d67a5116
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251123034604-fac3d67a5116
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
 )
@@ -112,7 +112,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/quic-go/qpack v0.5.1 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/samber/slog-common v0.19.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.0 // indirect
@@ -131,9 +131,9 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
-	google.golang.org/api v0.256.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251111163417-95abcf5c77ba // indirect
-	google.golang.org/grpc v1.76.0 // indirect
+	google.golang.org/api v0.257.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -152,15 +152,15 @@ require (
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
-	github.com/go-resty/resty/v2 v2.16.5 // indirect
+	github.com/go-resty/resty/v2 v2.17.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/linode/linodego v1.61.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.104.1 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.104.1 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.105.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
@@ -170,7 +170,7 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vultr/govultr/v3 v3.24.0 // indirect
+	github.com/vultr/govultr/v3 v3.25.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	google.golang.org/genproto v0.0.0-20251111163417-95abcf5c77ba // indirect
