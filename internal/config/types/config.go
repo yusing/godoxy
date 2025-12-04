@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -25,7 +26,11 @@ type (
 		Providers       Providers         `json:"providers"`
 		MatchDomains    []string          `json:"match_domains" validate:"domain_name"`
 		Homepage        homepage.Config   `json:"homepage"`
+		Defaults        Defaults          `json:"defaults"`
 		TimeoutShutdown int               `json:"timeout_shutdown" validate:"gte=0"`
+	}
+	Defaults struct {
+		HealthCheck types.HealthCheckConfig `json:"healthcheck"`
 	}
 	Providers struct {
 		Files        []string                    `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`

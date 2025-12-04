@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/common"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/types"
@@ -24,7 +24,7 @@ type (
 	HealthCheckFunc func() (result types.HealthCheckResult, err error)
 	monitor         struct {
 		service string
-		config  *types.HealthCheckConfig
+		config  types.HealthCheckConfig
 		url     synk.Value[*url.URL]
 
 		status     synk.Value[types.HealthStatus]
@@ -73,6 +73,7 @@ func NewMonitor(r types.Route) types.HealthMonCheck {
 	return mon
 }
 
+func newMonitor(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	cfg.ApplyDefaults(config.DefaultConfig().Defaults.HealthCheck)
 	mon := &monitor{
 		config:      cfg,
@@ -196,7 +197,7 @@ func (mon *monitor) URL() *url.URL {
 
 // Config implements HealthChecker.
 func (mon *monitor) Config() *types.HealthCheckConfig {
-	return mon.config
+	return &mon.config
 }
 
 // Status implements HealthMonitor.
@@ -237,7 +238,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
 	return (&types.HealthJSONRepr{
 		Name:     mon.service,
-		Config:   mon.config,
+		Config:   &mon.config,
 		Status:   mon.status.Load(),
 		Started:  mon.startTime,
 		Uptime:   mon.Uptime(),

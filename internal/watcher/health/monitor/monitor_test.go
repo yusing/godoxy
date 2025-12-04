@@ -28,7 +28,7 @@ func (t *testNotificationTracker) getStats() (up, down int, last string) {
 }
 
 // Create test monitor with mock health checker - returns both monitor and tracker
-func createTestMonitor(config *types.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
+func createTestMonitor(config types.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
 	testURL, _ := url.Parse("http://localhost:8080")
 
 	mon := newMonitor(testURL, config, checkFunc)
@@ -56,7 +56,7 @@ func createTestMonitor(config *types.HealthCheckConfig, checkFunc HealthCheckFun
 }
 
 func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  -1, // Immediate notification
@@ -91,7 +91,7 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 }
 
 func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 50 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
@@ -130,7 +130,7 @@ func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
 }
 
 func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  3, // Notify after 3 consecutive failures
@@ -179,7 +179,7 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 }
 
 func TestNotification_ConsecutiveFailureReset(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
@@ -240,7 +240,7 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 }
 
 func TestNotification_ContextCancellation(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  1,
@@ -279,7 +279,7 @@ func TestNotification_ContextCancellation(t *testing.T) {
 }
 
 func TestImmediateUpNotification(t *testing.T) {
-	config := &types.HealthCheckConfig{
+	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // NotifyAfter should not affect up notifications

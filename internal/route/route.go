@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/homepage"
 	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
@@ -49,7 +50,7 @@ type (
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
 		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
 		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
-		HealthCheck  *types.HealthCheckConfig       `json:"healthcheck,omitempty" extensions:"x-nullable"` // null on load-balancer routes
+		HealthCheck  types.HealthCheckConfig        `json:"healthcheck,omitempty" extensions:"x-nullable"` // null on load-balancer routes
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
 		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
 		Homepage     *homepage.ItemConfig           `json:"homepage"`
@@ -497,7 +498,7 @@ func (r *Route) IdlewatcherConfig() *types.IdlewatcherConfig {
 	return r.Idlewatcher
 }
 
-func (r *Route) HealthCheckConfig() *types.HealthCheckConfig {
+func (r *Route) HealthCheckConfig() types.HealthCheckConfig {
 	return r.HealthCheck
 }
 
@@ -771,17 +772,7 @@ func (r *Route) Finalize() {
 	}
 
 	r.Port.Listening, r.Port.Proxy = lp, pp
-
-	if r.HealthCheck == nil {
-		r.HealthCheck = types.DefaultHealthConfig()
-	}
-
-	if r.HealthCheck.Interval == 0 {
-		r.HealthCheck.Interval = common.HealthCheckIntervalDefault
-	}
-	if r.HealthCheck.Timeout == 0 {
-		r.HealthCheck.Timeout = common.HealthCheckTimeoutDefault
-	}
+	r.HealthCheck.ApplyDefaults(config.ActiveConfig.Load().Defaults.HealthCheck)
 }
 
 func (r *Route) FinalizeHomepageConfig() {
@@ -794,7 +785,6 @@ func (r *Route) FinalizeHomepageConfig() {
 	if r.Homepage == nil {
 		r.Homepage = &homepage.ItemConfig{
 			Show: true,
-			Name: r.Alias,
 		}
 	}
 

@@ -82,7 +82,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
 		Port:        route.Port{Proxy: portInt},
-		HealthCheck: &types.HealthCheckConfig{Disable: true},
+		HealthCheck: types.HealthCheckConfig{Disable: true},
 	}
 
 	err = r.Validate()
@@ -125,7 +125,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 		Port: route.Port{
 			Proxy: 8080,
 		},
-		HealthCheck: &types.HealthCheckConfig{
+		HealthCheck: types.HealthCheckConfig{
 			Disable: true,
 		},
 	}

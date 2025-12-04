@@ -29,7 +29,7 @@ type (
 		Started() <-chan struct{}
 
 		IdlewatcherConfig() *IdlewatcherConfig
-		HealthCheckConfig() *HealthCheckConfig
+		HealthCheckConfig() HealthCheckConfig
 		LoadBalanceConfig() *LoadBalancerConfig
 		HomepageItem() homepage.Item
 		DisplayName() string

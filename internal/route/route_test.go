@@ -2,6 +2,7 @@ package route
 
 import (
 	"testing"
+	"time"
 
 	"github.com/yusing/godoxy/internal/common"
 	route "github.com/yusing/godoxy/internal/route/types"
@@ -40,7 +41,7 @@ func TestRouteValidate(t *testing.T) {
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
-			HealthCheck: &types.HealthCheckConfig{
+			HealthCheck: types.HealthCheckConfig{
 				Disable: true,
 			},
 			LoadBalance: &types.LoadBalancerConfig{
@@ -178,4 +179,15 @@ func TestRouteAgent(t *testing.T) {
 	err := r.Validate()
 	expect.NoError(t, err, "Validate should not return error for valid route with agent")
 	expect.NotNil(t, r.GetAgent(), "GetAgent should return agent")
+}
+
+func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
+	hc := types.HealthCheckConfig{}
+	hc.ApplyDefaults(types.HealthCheckConfig{
+		Interval: 15 * time.Second,
+		Timeout:  10 * time.Second,
+	})
+
+	expect.Equal(t, hc.Interval, 15*time.Second)
+	expect.Equal(t, hc.Timeout, 10*time.Second)
 }

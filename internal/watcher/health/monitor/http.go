@@ -29,7 +29,7 @@ var pinger = &fasthttp.Client{
 	NoDefaultUserAgentHeader: true,
 }
 
-func NewHTTPHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *HTTPHealthMonitor {
+func NewHTTPHealthMonitor(url *url.URL, config types.HealthCheckConfig) *HTTPHealthMonitor {
 	mon := new(HTTPHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	if config.UseGet {

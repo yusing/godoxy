@@ -26,7 +26,7 @@ type DockerHealthMonitor struct {
 
 const dockerFailuresThreshold = 3
 
-func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias string, config *types.HealthCheckConfig, fallback types.HealthChecker) *DockerHealthMonitor {
+func NewDockerHealthMonitor(client *docker.SharedClient, containerID, alias string, config types.HealthCheckConfig, fallback types.HealthChecker) *DockerHealthMonitor {
 	mon := new(DockerHealthMonitor)
 	mon.client = client
 	mon.containerID = containerID

@@ -45,7 +45,7 @@ func (target *AgentCheckHealthTarget) displayURL() *url.URL {
 	}
 }
 
-func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config *types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
+func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
 	mon := &AgentProxiedMonitor{
 		agent: agent,
 	}
