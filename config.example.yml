@@ -88,6 +88,12 @@ entrypoint:
   #     - name: default
   #       do: proxy http://other-proxy:8080
 
+defaults:
+  healthcheck:
+    interval: 5s
+    timeout: 15s
+    retries: 3
+
 providers:
   # include files are standalone yaml files under `config/` directory
   #
