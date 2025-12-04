@@ -1,12 +1,12 @@
 module github.com/yusing/godoxy/internal/dnsproviders
 
-go 1.25.4
+go 1.25.5
 
 replace github.com/yusing/godoxy => ../..
 
 require (
 	github.com/go-acme/lego/v4 v4.29.0
-	github.com/yusing/godoxy v0.20.10
+	github.com/yusing/godoxy v0.20.11
 )
 
 require (

@@ -1,16 +1,17 @@
 module github.com/yusing/godoxy
 
-go 1.25.4
+go 1.25.5
 
-replace github.com/yusing/godoxy/agent => ./agent
-
-replace github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsproviders
-
-replace github.com/coreos/go-oidc/v3 => ./internal/go-oidc
-
-replace github.com/shirou/gopsutil/v4 => ./internal/gopsutil
-
-replace github.com/yusing/goutils => ./goutils
+replace (
+	github.com/coreos/go-oidc/v3 => ./internal/go-oidc
+	github.com/shirou/gopsutil/v4 => ./internal/gopsutil
+	github.com/yusing/godoxy/agent => ./agent
+	github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsproviders
+	github.com/yusing/goutils => ./goutils
+	github.com/yusing/goutils/http/reverseproxy => ./goutils/http/reverseproxy
+	github.com/yusing/goutils/http/websocket => ./goutils/http/websocket
+	github.com/yusing/goutils/server => ./goutils/server
+)
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon
@@ -50,10 +51,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251123034604-fac3d67a5116
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251123034604-fac3d67a5116
+	github.com/yusing/godoxy/agent v0.0.0-20251204100826-e3fe126a5c12
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251204100826-e3fe126a5c12
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-00010101000000-000000000000
+	github.com/yusing/goutils/http/websocket v0.0.0-00010101000000-000000000000
+	github.com/yusing/goutils/server v0.0.0-20250927113415-dd977d2edaeb
 )
 
 require (
