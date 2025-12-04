@@ -12,7 +12,7 @@ type FileServerHealthMonitor struct {
 	path string
 }
 
-func NewFileServerHealthMonitor(config *types.HealthCheckConfig, path string) *FileServerHealthMonitor {
+func NewFileServerHealthMonitor(config types.HealthCheckConfig, path string) *FileServerHealthMonitor {
 	mon := &FileServerHealthMonitor{path: path}
 	mon.monitor = newMonitor(nil, config, mon.CheckHealth)
 	return mon

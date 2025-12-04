@@ -17,7 +17,7 @@ type (
 	}
 )
 
-func NewRawHealthMonitor(url *url.URL, config *types.HealthCheckConfig) *RawHealthMonitor {
+func NewRawHealthMonitor(url *url.URL, config types.HealthCheckConfig) *RawHealthMonitor {
 	mon := new(RawHealthMonitor)
 	mon.monitor = newMonitor(url, config, mon.CheckHealth)
 	mon.dialer = &net.Dialer{
