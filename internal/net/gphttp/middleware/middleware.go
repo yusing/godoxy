@@ -210,8 +210,8 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		// override the response status code
 		rm.WriteHeader(currentResp.StatusCode)
 
-		// overriding the response header is not necessary
-		// modifyResponse is supposed to write to Header directly instead of assigning a new header map)
+		// overriding the response header
+		maps.Copy(rm.Header(), currentResp.Header)
 
 		// override the content length and body if changed
 		if currentResp.Body != currentBody {
