@@ -251,7 +251,7 @@ func TestExpandVars(t *testing.T) {
 		{
 			name:  "req_uri",
 			input: "$req_uri",
-			want:  "/api/users?param1=value1&param2=value2#fragment",
+			want:  "/api/users?param1=value1&param2=value2",
 		},
 		{
 			name:  "req_host",

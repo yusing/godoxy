@@ -201,6 +201,7 @@ func TestBypassResponse(t *testing.T) {
 					StatusCode: test.statusCode,
 					Body:       io.NopCloser(strings.NewReader("test")),
 					Header:     make(http.Header),
+					Request:    httptest.NewRequest("GET", "http://example.com", nil),
 				}
 				mErr := mr.ModifyResponse(resp)
 				expect.NoError(t, mErr)
