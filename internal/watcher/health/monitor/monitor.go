@@ -51,8 +51,10 @@ func NewMonitor(r types.Route) types.HealthMonCheck {
 		mon = NewAgentProxiedMonitor(r.GetAgent(), r.HealthCheckConfig(), AgentTargetFromURL(&r.TargetURL().URL))
 	} else {
 		switch r := r.(type) {
-		case types.HTTPRoute:
+		case types.ReverseProxyRoute:
 			mon = NewHTTPHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
+		case types.FileServerRoute:
+			mon = NewFileServerHealthMonitor(r.HealthCheckConfig(), r.RootPath())
 		case types.StreamRoute:
 			mon = NewRawHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
 		default:
@@ -71,15 +73,9 @@ func NewMonitor(r types.Route) types.HealthMonCheck {
 	return mon
 }
 
-func newMonitor(u *url.URL, config *types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
-	if config.Retries == 0 {
-		if config.Interval == 0 {
-			config.Interval = common.HealthCheckIntervalDefault
-		}
-		config.Retries = int64(common.HealthCheckDownNotifyDelayDefault / config.Interval)
-	}
+	cfg.ApplyDefaults(config.DefaultConfig().Defaults.HealthCheck)
 	mon := &monitor{
-		config:      config,
+		config:      cfg,
 		checkHealth: healthCheckFunc,
 		startTime:   time.Now(),
 		notifyFunc:  notif.Notify,

@@ -378,7 +378,8 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 	defer close(r.started)
 
 	// skip checking for excluded routes
-	if !r.ShouldExclude() {
+	excluded := r.ShouldExclude()
+	if !excluded {
 		if err := checkExists(r); err != nil {
 			return err
 		}
@@ -388,8 +389,10 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 		docker.SetDockerHostByContainerID(cont.ContainerID, cont.DockerHost)
 	}
 
-	if err := r.impl.Start(parent); err != nil {
-		return err
+	if !excluded {
+		if err := r.impl.Start(parent); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -577,30 +580,10 @@ func (r *Route) IsZeroPort() bool {
 }
 
 func (r *Route) ShouldExclude() bool {
-	if r.valErr.Get() != nil {
+	if r.ExcludedReason != ExcludedReasonNone {
 		return true
 	}
-	if r.Excluded {
-		return true
-	}
-	if r.Container != nil {
-		switch {
-		case r.Container.IsExcluded:
-			return true
-		case r.IsZeroPort() && !r.UseIdleWatcher():
-			return true
-		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
-			return true
-		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
-			return true
-		}
-	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
-		return true
-	}
-	if strings.HasSuffix(r.Alias, "-old") {
-		return true
-	}
-	return false
+	return r.findExcludedReason() != ExcludedReasonNone
 }
 
 type ExcludedReason uint8

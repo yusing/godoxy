@@ -24,6 +24,8 @@ type (
 	}
 )
 
+var _ types.FileServerRoute = (*FileServer)(nil)
+
 func handler(root string) http.Handler {
 	return http.FileServer(http.Dir(root))
 }
@@ -91,14 +93,10 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	}
 
 	if s.UseHealthCheck() {
-		s.HealthMon = monitor.NewFileServerHealthMonitor(s.HealthCheck, s.Root)
+		s.HealthMon = monitor.NewMonitor(s)
 		if err := s.HealthMon.Start(s.task); err != nil {
 			return err
 		}
-	}
-
-	if s.ShouldExclude() {
-		return nil
 	}
 
 	routes.HTTP.Add(s)
@@ -106,6 +104,10 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		routes.HTTP.Del(s)
 	})
 	return nil
+}
+
+func (s *FileServer) RootPath() string {
+	return s.Root
 }
 
 // ServeHTTP implements http.Handler.

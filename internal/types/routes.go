@@ -52,6 +52,10 @@ type (
 		HTTPRoute
 		ReverseProxy() *reverseproxy.ReverseProxy
 	}
+	FileServerRoute interface {
+		HTTPRoute
+		RootPath() string
+	}
 	StreamRoute interface {
 		Route
 		nettypes.Stream

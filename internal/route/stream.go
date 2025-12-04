@@ -69,10 +69,6 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	if r.ShouldExclude() {
-		return nil
-	}
-
 	r.ListenAndServe(r.task.Context(), nil, nil)
 	r.l = r.l.With().Stringer("rurl", r.ProxyURL).Stringer("laddr", r.LocalAddr()).Logger()
 	r.l.Info().Msg("stream started")
