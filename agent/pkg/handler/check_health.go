@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,8 +12,6 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 )
-
-var defaultHealthConfig = types.DefaultHealthConfig()
 
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -49,7 +48,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			Scheme: scheme,
 			Host:   host,
 			Path:   path,
-		}, defaultHealthConfig).CheckHealth()
+		}, healthCheckConfigFromRequest(r)).CheckHealth()
 	case "tcp", "udp":
 		host := query.Get("host")
 		if host == "" {
@@ -68,7 +67,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 		result, err = monitor.NewRawHealthMonitor(&url.URL{
 			Scheme: scheme,
 			Host:   host,
-		}, defaultHealthConfig).CheckHealth()
+		}, healthCheckConfigFromRequest(r)).CheckHealth()
 	}
 
 	if err != nil {
@@ -79,4 +78,14 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	sonic.ConfigDefault.NewEncoder(w).Encode(result)
+}
+
+func healthCheckConfigFromRequest(r *http.Request) types.HealthCheckConfig {
+	// we only need timeout and base context because it's one shot request
+	return types.HealthCheckConfig{
+		Timeout: types.HealthCheckTimeoutDefault,
+		BaseContext: func() context.Context {
+			return r.Context()
+		},
+	}
 }
