@@ -40,6 +40,10 @@ func (eofReader) Close() error             { return nil }
 
 // modifyResponse implements ResponseModifier.
 func (m *modifyHTML) modifyResponse(resp *http.Response) error {
+	// Skip HEAD requests - no body to modify
+	if resp.Request.Method == http.MethodHead {
+		return nil
+	}
 	// including text/html and application/xhtml+xml
 	if !httputils.GetContentType(resp.Header).IsHTML() {
 		return nil
