@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -11,6 +12,16 @@ import (
 )
 
 var ErrInvalidLabel = gperr.New("invalid label")
+
+const nsProxyDot = NSProxy + "."
+
+var refPrefixes = func() []string {
+	prefixes := make([]string, 100)
+	for i := range prefixes {
+		prefixes[i] = nsProxyDot + "#" + strconv.Itoa(i+1) + "."
+	}
+	return prefixes
+}()
 
 func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, gperr.Error) {
 	nestedMap := make(types.LabelMap)
@@ -57,57 +68,83 @@ func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, g
 }
 
 func ExpandWildcard(labels map[string]string, aliases ...string) {
-	// collect all explicit aliases first
-	aliasSet := make(map[string]int, len(labels))
-	// wildcardLabels holds mapping suffix -> value derived from wildcard label definitions
-	wildcardLabels := make(map[string]string)
-
+	aliasSet := make(map[string]int, len(aliases))
 	for i, alias := range aliases {
 		aliasSet[alias] = i
 	}
 
-	// iterate over a copy of the keys to safely mutate the map while ranging
+	wildcardLabels := make(map[string]string)
+
+	// First pass: collect wildcards and discover aliases
 	for lbl, value := range labels {
-		parts := strings.SplitN(lbl, ".", 3)
-		if len(parts) < 2 || parts[0] != NSProxy {
+		if !strings.HasPrefix(lbl, nsProxyDot) {
 			continue
 		}
-		alias := parts[1]
-		if alias == WildcardAlias { // "*"
-			// remove wildcard label from original map – it should not remain afterwards
+		// lbl is "proxy.X..." where X is alias or wildcard
+		rest := lbl[len(nsProxyDot):] // "X..." or "X.suffix"
+		dotIdx := strings.IndexByte(rest, '.')
+		var alias, suffix string
+		if dotIdx == -1 {
+			alias = rest
+		} else {
+			alias = rest[:dotIdx]
+			suffix = rest[dotIdx+1:]
+		}
+
+		if alias == WildcardAlias {
 			delete(labels, lbl)
-
-			// value looks like YAML (multiline)
-			if strings.Count(value, "\n") > 1 {
+			if suffix == "" || strings.Count(value, "\n") > 1 {
 				expandYamlWildcard(value, wildcardLabels)
-				continue
+			} else {
+				wildcardLabels[suffix] = value
 			}
-
-			// normal wildcard label with suffix – store directly
-			wildcardLabels[parts[2]] = value
 			continue
 		}
-		// explicit alias label – remember the alias (but not reference aliases like #1, #2)
-		if _, ok := aliasSet[alias]; !ok && !strings.HasPrefix(alias, "#") {
+
+		if suffix == "" || alias[0] == '#' {
+			continue
+		}
+
+		if _, known := aliasSet[alias]; !known {
 			aliasSet[alias] = len(aliasSet)
 		}
 	}
 
 	if len(aliasSet) == 0 || len(wildcardLabels) == 0 {
-		return // nothing to expand
+		return
 	}
 
-	// expand collected wildcard labels for every alias
-	for suffix, v := range wildcardLabels {
-		for alias, i := range aliasSet {
-			// use numeric index instead of the alias name
-			alias = fmt.Sprintf("#%d", i+1)
+	// Second pass: convert explicit labels to #N format
+	for lbl, value := range labels {
+		if !strings.HasPrefix(lbl, nsProxyDot) {
+			continue
+		}
+		rest := lbl[len(nsProxyDot):]
+		dotIdx := strings.IndexByte(rest, '.')
+		if dotIdx == -1 {
+			continue
+		}
+		alias := rest[:dotIdx]
+		if alias[0] == '#' {
+			continue
+		}
+		suffix := rest[dotIdx+1:]
 
-			key := fmt.Sprintf("%s.%s.%s", NSProxy, alias, suffix)
-			if suffix == "" { // this should not happen (root wildcard handled earlier) but keep safe
-				key = fmt.Sprintf("%s.%s", NSProxy, alias)
-			}
-			labels[key] = v
+		idx, known := aliasSet[alias]
+		if !known {
+			continue
+		}
+
+		delete(labels, lbl)
+		if _, overridden := wildcardLabels[suffix]; !overridden {
+			labels[refPrefixes[idx]+suffix] = value
+		}
+	}
+
+	// Expand wildcards for all aliases
+	for suffix, value := range wildcardLabels {
+		for _, idx := range aliasSet {
+			labels[refPrefixes[idx]+suffix] = value
 		}
 	}
 }
@@ -139,12 +176,46 @@ func flattenMap(prefix string, src map[string]any, dest map[string]string) {
 		case map[string]any:
 			flattenMap(key, vv, dest)
 		case map[any]any:
-			// convert to map[string]any by stringifying keys
-			tmp := make(map[string]any, len(vv))
-			for kk, vvv := range vv {
-				tmp[fmt.Sprintf("%v", kk)] = vvv
-			}
-			flattenMap(key, tmp, dest)
+			flattenMapAny(key, vv, dest)
+		case string:
+			dest[key] = vv
+		case int:
+			dest[key] = strconv.Itoa(vv)
+		case bool:
+			dest[key] = strconv.FormatBool(vv)
+		case float64:
+			dest[key] = strconv.FormatFloat(vv, 'f', -1, 64)
+		default:
+			dest[key] = fmt.Sprint(v)
+		}
+	}
+}
+
+func flattenMapAny(prefix string, src map[any]any, dest map[string]string) {
+	for k, v := range src {
+		var key string
+		switch kk := k.(type) {
+		case string:
+			key = kk
+		default:
+			key = fmt.Sprint(k)
+		}
+		if prefix != "" {
+			key = prefix + "." + key
+		}
+		switch vv := v.(type) {
+		case map[string]any:
+			flattenMap(key, vv, dest)
+		case map[any]any:
+			flattenMapAny(key, vv, dest)
+		case string:
+			dest[key] = vv
+		case int:
+			dest[key] = strconv.Itoa(vv)
+		case bool:
+			dest[key] = strconv.FormatBool(vv)
+		case float64:
+			dest[key] = strconv.FormatFloat(vv, 'f', -1, 64)
 		default:
 			dest[key] = fmt.Sprint(v)
 		}
