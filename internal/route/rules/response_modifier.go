@@ -23,7 +23,7 @@ type ResponseModifier struct {
 	statusCode int
 	shared     Cache
 
-	origContentLength int64 // from http.Response in ResponseAsRW
+	origContentLength int64 // from http.Response in ResponseAsRW, -1 if not set
 	bodyModified      bool
 
 	hijacked bool
@@ -98,8 +98,9 @@ func GetSharedData(w http.ResponseWriter) Cache {
 // It should only be called once, at the very beginning of the request.
 func NewResponseModifier(w http.ResponseWriter) *ResponseModifier {
 	return &ResponseModifier{
-		bufPool: synk.GetUnsizedBytesPool(),
-		w:       w,
+		bufPool:           synk.GetUnsizedBytesPool(),
+		w:                 w,
+		origContentLength: -1,
 	}
 }
 
@@ -153,7 +154,7 @@ func (rm *ResponseModifier) SetBody(r io.ReadCloser) error {
 
 func (rm *ResponseModifier) ContentLength() int {
 	if !rm.bodyModified {
-		if rm.origContentLength > 0 {
+		if rm.origContentLength >= 0 {
 			return int(rm.origContentLength)
 		}
 		contentLength, _ := strconv.Atoi(rm.ContentLengthStr())
@@ -164,7 +165,7 @@ func (rm *ResponseModifier) ContentLength() int {
 
 func (rm *ResponseModifier) ContentLengthStr() string {
 	if !rm.bodyModified {
-		if rm.origContentLength > 0 {
+		if rm.origContentLength >= 0 {
 			return strconv.FormatInt(rm.origContentLength, 10)
 		}
 		return rm.w.Header().Get("Content-Length")
