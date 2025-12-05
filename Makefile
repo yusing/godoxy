@@ -80,6 +80,7 @@ test:
 docker-build-test:
 	docker build -t godoxy .
 	docker build --build-arg=MAKE_ARGS=agent=1 -t godoxy-agent .
+	docker build --build-arg=MAKE_ARGS=socket-proxy=1 -t godoxy-socket-proxy .
 
 go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
@@ -110,7 +111,7 @@ mod-tidy:
 
 build:
 	mkdir -p $(shell dirname ${BIN_PATH})
-	cd ${PWD} && go build ${BUILD_FLAGS} -o ${BIN_PATH} ./cmd
+	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ./cmd
 	${POST_BUILD}
 
 run:
