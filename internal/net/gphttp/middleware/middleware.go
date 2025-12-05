@@ -9,9 +9,9 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
@@ -197,7 +197,7 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	}
 
 	if exec, ok := m.impl.(ResponseModifier); ok {
-		rm := rules.NewResponseModifier(w)
+		rm := httputils.NewResponseModifier(w)
 		defer rm.FlushRelease()
 		next(rm, r)
 

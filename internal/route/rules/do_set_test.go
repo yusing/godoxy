@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	httputils "github.com/yusing/goutils/http"
 )
 
 func TestFieldHandler_Header(t *testing.T) {
@@ -420,7 +421,7 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 		name     string
 		template string
 		setup    func(*http.Request)
-		verify   func(*ResponseModifier)
+		verify   func(*httputils.ResponseModifier)
 	}{
 		{
 			name:     "set response body with template",
@@ -429,8 +430,8 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 				r.Method = "GET"
 				r.URL.Path = "/api/test"
 			},
-			verify: func(rm *ResponseModifier) {
-				content := rm.buf.String()
+			verify: func(rm *httputils.ResponseModifier) {
+				content := string(rm.Content())
 				expected := "Response: GET /api/test"
 				assert.Equal(t, expected, content, "Expected response body")
 			},
@@ -444,7 +445,7 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// Create ResponseModifier wrapper
-			rm := NewResponseModifier(w)
+			rm := httputils.NewResponseModifier(w)
 
 			tmpl, tErr := validateTemplate(tt.template, false)
 			if tErr != nil {
@@ -495,7 +496,7 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
-			rm := NewResponseModifier(w)
+			rm := httputils.NewResponseModifier(w)
 			var cmd Command
 			err := cmd.Parse(fmt.Sprintf("set %s %d", FieldStatusCode, tt.status))
 			if err != nil {

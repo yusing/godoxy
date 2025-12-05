@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/logging"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -50,6 +49,14 @@ const (
 	CommandPassAlt          = "bypass"
 )
 
+type AuthHandler func(w http.ResponseWriter, r *http.Request) (proceed bool)
+
+var authHandler AuthHandler
+
+func InitAuthHandler(handler AuthHandler) {
+	authHandler = handler
+}
+
 var commands = map[string]struct {
 	help              Help
 	validate          ValidateFunc
@@ -70,7 +77,7 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-				if !auth.AuthOrProceed(w, r) {
+				if !authHandler(w, r) {
 					return errTerminated
 				}
 				return nil
@@ -198,7 +205,7 @@ var commands = map[string]struct {
 			code, textTmpl := args.(*Tuple[int, templateString]).Unpack()
 			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				// error command should overwrite the response body
-				GetInitResponseModifier(w).ResetBody()
+				httputils.GetInitResponseModifier(w).ResetBody()
 				w.WriteHeader(code)
 				err := textTmpl.ExpandVars(w, r, w)
 				return err

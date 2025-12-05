@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/yusing/godoxy/internal/route/routes"
+	httputils "github.com/yusing/goutils/http"
 )
 
 const (
@@ -87,9 +88,9 @@ var staticReqVarSubsMap = map[string]reqVarGetter{
 }
 
 var staticRespVarSubsMap = map[string]respVarGetter{
-	VarRespContentType: func(resp *ResponseModifier) string { return resp.Header().Get("Content-Type") },
-	VarRespContentLen:  func(resp *ResponseModifier) string { return resp.ContentLengthStr() },
-	VarRespStatusCode:  func(resp *ResponseModifier) string { return strconv.Itoa(resp.StatusCode()) },
+	VarRespContentType: func(resp *httputils.ResponseModifier) string { return resp.Header().Get("Content-Type") },
+	VarRespContentLen:  func(resp *httputils.ResponseModifier) string { return resp.ContentLengthStr() },
+	VarRespStatusCode:  func(resp *httputils.ResponseModifier) string { return strconv.Itoa(resp.StatusCode()) },
 }
 
 func stripFragment(s string) string {

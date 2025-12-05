@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/route/rules"
 	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type RawRule struct {
@@ -348,7 +349,7 @@ func checkMatchedRules(rulesList rules.Rules, w http.ResponseWriter, r *http.Req
 	var matched []string
 
 	// Create a ResponseModifier to properly check rules
-	rm := rules.NewResponseModifier(w)
+	rm := httputils.NewResponseModifier(w)
 
 	for _, rule := range rulesList {
 		// Check if rule matches

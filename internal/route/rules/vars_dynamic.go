@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	httputils "github.com/yusing/goutils/http"
 )
 
 var (
@@ -14,31 +16,31 @@ var (
 	VarPostForm       = "postform"
 )
 
-type dynamicVarGetter func(args []string, w *ResponseModifier, req *http.Request) (string, error)
+type dynamicVarGetter func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error)
 
 var dynamicVarSubsMap = map[string]dynamicVarGetter{
-	VarHeader: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
+	VarHeader: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err
 		}
 		return getValueByKeyAtIndex(req.Header, key, index)
 	},
-	VarResponseHeader: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
+	VarResponseHeader: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err
 		}
 		return getValueByKeyAtIndex(w.Header(), key, index)
 	},
-	VarQuery: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
+	VarQuery: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err
 		}
-		return getValueByKeyAtIndex(GetSharedData(w).GetQueries(req), key, index)
+		return getValueByKeyAtIndex(httputils.GetSharedData(w).GetQueries(req), key, index)
 	},
-	VarForm: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
+	VarForm: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err
@@ -50,7 +52,7 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 		}
 		return getValueByKeyAtIndex(req.Form, key, index)
 	},
-	VarPostForm: func(args []string, w *ResponseModifier, req *http.Request) (string, error) {
+	VarPostForm: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
 		key, index, err := getKeyAndIndex(args)
 		if err != nil {
 			return "", err

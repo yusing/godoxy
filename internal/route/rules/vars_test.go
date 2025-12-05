@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	httputils "github.com/yusing/goutils/http"
 )
 
 func TestExtractArgs(t *testing.T) {
@@ -214,7 +215,7 @@ func TestExpandVars(t *testing.T) {
 	testRequest.PostForm = postFormData
 
 	// Create response modifier with headers
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 	testResponseModifier.Header().Set("Content-Type", "text/html")
 	testResponseModifier.Header().Set("X-Custom-Resp", "resp-value")
 	testResponseModifier.WriteHeader(200)
@@ -483,7 +484,7 @@ func TestExpandVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out strings.Builder
-			err := ExpandVars(testResponseModifier, testRequest, tt.input, &out)
+			err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest, tt.input, &out)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -501,11 +502,11 @@ func TestExpandVars_Integration(t *testing.T) {
 		testRequest.Header.Set("User-Agent", "curl/7.68.0")
 		testRequest.RemoteAddr = "10.0.0.1:54321"
 
-		testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+		testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 		testResponseModifier.WriteHeader(200)
 
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest,
+		err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest,
 			"$req_method $req_url $status_code User-Agent=$header(User-Agent)",
 			&out)
 
@@ -516,7 +517,7 @@ func TestExpandVars_Integration(t *testing.T) {
 	t.Run("with query parameters", func(t *testing.T) {
 		testRequest := httptest.NewRequest("GET", "http://example.com/search?q=test&page=1", nil)
 
-		testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+		testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 		var out strings.Builder
 		err := ExpandVars(testResponseModifier, testRequest,
@@ -530,13 +531,13 @@ func TestExpandVars_Integration(t *testing.T) {
 	t.Run("response headers", func(t *testing.T) {
 		testRequest := httptest.NewRequest("GET", "/", nil)
 
-		testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+		testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 		testResponseModifier.Header().Set("Cache-Control", "no-cache")
 		testResponseModifier.Header().Set("X-Rate-Limit", "100")
 		testResponseModifier.WriteHeader(200)
 
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest,
+		err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest,
 			"Status: $status_code, Cache: $resp_header(Cache-Control), Limit: $resp_header(X-Rate-Limit)",
 			&out)
 
@@ -569,7 +570,7 @@ func TestExpandVars_RequestSchemes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+			testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 			var out strings.Builder
 			err := ExpandVars(testResponseModifier, tt.request, "$req_scheme", &out)
 			require.NoError(t, err)
@@ -582,7 +583,7 @@ func TestExpandVars_UpstreamVariables(t *testing.T) {
 	// Upstream variables require context from routes package
 	testRequest := httptest.NewRequest("GET", "/", nil)
 
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 	// Test that upstream variables don't cause errors even when not set
 	upstreamVars := []string{
@@ -609,7 +610,7 @@ func TestExpandVars_NoHostPort(t *testing.T) {
 	testRequest := httptest.NewRequest("GET", "/", nil)
 	testRequest.Host = "example.com" // No port
 
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 	t.Run("req_host without port", func(t *testing.T) {
 		var out strings.Builder
@@ -631,7 +632,7 @@ func TestExpandVars_NoRemotePort(t *testing.T) {
 	testRequest := httptest.NewRequest("GET", "/", nil)
 	testRequest.RemoteAddr = "192.168.1.1" // No port
 
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 	t.Run("remote_host without port", func(t *testing.T) {
 		var out strings.Builder
@@ -650,7 +651,7 @@ func TestExpandVars_NoRemotePort(t *testing.T) {
 
 func TestExpandVars_WhitespaceHandling(t *testing.T) {
 	testRequest := httptest.NewRequest("GET", "/test", nil)
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 	var out strings.Builder
 	err := ExpandVars(testResponseModifier, testRequest, "$req_method $req_path", &out)

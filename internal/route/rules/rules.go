@@ -7,6 +7,7 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
+	httputils "github.com/yusing/goutils/http"
 	"golang.org/x/net/http2"
 
 	_ "unsafe"
@@ -91,7 +92,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		}
 		if defaultRule.IsResponseRule() {
 			return func(w http.ResponseWriter, r *http.Request) {
-				rm := NewResponseModifier(w)
+				rm := httputils.NewResponseModifier(w)
 				defer func() {
 					if _, err := rm.FlushRelease(); err != nil {
 						logError(err, r)
@@ -101,12 +102,12 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				up(w, r)
 				err := defaultRule.Do.exec.Handle(w, r)
 				if err != nil && !errors.Is(err, errTerminated) {
-					rm.AppendError(defaultRule, err)
+					appendRuleError(rm, &defaultRule, err)
 				}
 			}
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
-			rm := NewResponseModifier(w)
+			rm := httputils.NewResponseModifier(w)
 			defer func() {
 				if _, err := rm.FlushRelease(); err != nil {
 					logError(err, r)
@@ -119,7 +120,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			if !errors.Is(err, errTerminated) {
-				rm.AppendError(defaultRule, err)
+				appendRuleError(rm, &defaultRule, err)
 			}
 		}
 	}
@@ -138,7 +139,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 	defaultTerminates := isTerminatingHandler(defaultRule.Do.exec)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		rm := NewResponseModifier(w)
+		rm := httputils.NewResponseModifier(w)
 		defer func() {
 			if _, err := rm.FlushRelease(); err != nil {
 				logError(err, r)
@@ -157,7 +158,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				err := defaultRule.Handle(w, r)
 				if err != nil {
 					if !errors.Is(err, errTerminated) {
-						rm.AppendError(defaultRule, err)
+						appendRuleError(rm, &defaultRule, err)
 					}
 					shouldCallUpstream = false
 				}
@@ -174,7 +175,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 					err := rule.Handle(w, r)
 					if err != nil {
 						if !errors.Is(err, errTerminated) {
-							rm.AppendError(rule, err)
+							appendRuleError(rm, &rule, err)
 						}
 						shouldCallUpstream = false
 						break
@@ -190,7 +191,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				err := defaultRule.Handle(w, r)
 				if err != nil {
 					if !errors.Is(err, errTerminated) {
-						rm.AppendError(defaultRule, err)
+						appendRuleError(rm, &defaultRule, err)
 						return
 					}
 					shouldCallUpstream = false
@@ -212,7 +213,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				err := rule.Handle(w, r)
 				if err != nil {
 					if !errors.Is(err, errTerminated) {
-						rm.AppendError(rule, err)
+						appendRuleError(rm, &rule, err)
 					}
 					return
 				}
@@ -222,10 +223,14 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		if isDefaultRulePost {
 			err := defaultRule.Handle(w, r)
 			if err != nil && !errors.Is(err, errTerminated) {
-				rm.AppendError(defaultRule, err)
+				appendRuleError(rm, &defaultRule, err)
 			}
 		}
 	}
+}
+
+func appendRuleError(rm *httputils.ResponseModifier, rule *Rule, err error) {
+	rm.AppendError("rule: %s, error: %w", rule.Name, err)
 }
 
 func isTerminatingHandler(handler CommandHandler) bool {
