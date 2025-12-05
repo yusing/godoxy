@@ -16,16 +16,17 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type Config struct {
-	Email       string         `json:"email,omitempty"`
-	Domains     []string       `json:"domains,omitempty"`
-	CertPath    string         `json:"cert_path,omitempty"`
-	KeyPath     string         `json:"key_path,omitempty"`
-	ACMEKeyPath string         `json:"acme_key_path,omitempty"`
-	Provider    string         `json:"provider,omitempty"`
-	Options     map[string]any `json:"options,omitempty"`
+	Email       string                       `json:"email,omitempty"`
+	Domains     []string                     `json:"domains,omitempty"`
+	CertPath    string                       `json:"cert_path,omitempty"`
+	KeyPath     string                       `json:"key_path,omitempty"`
+	ACMEKeyPath string                       `json:"acme_key_path,omitempty"`
+	Provider    string                       `json:"provider,omitempty"`
+	Options     map[string]strutils.Redacted `json:"options,omitempty"`
 
 	Resolvers []string `json:"resolvers,omitempty"`
 
