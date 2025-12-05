@@ -8,6 +8,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type RuleOn struct {
@@ -95,11 +96,11 @@ var checkers = map[string]struct {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
 				return func(w http.ResponseWriter, r *http.Request) bool {
-					return len(GetInitResponseModifier(w).Header()[k]) > 0
+					return len(httputils.GetInitResponseModifier(w).Header()[k]) > 0
 				}
 			}
 			return func(w http.ResponseWriter, r *http.Request) bool {
-				return slices.ContainsFunc(GetInitResponseModifier(w).Header()[k], matcher)
+				return slices.ContainsFunc(httputils.GetInitResponseModifier(w).Header()[k], matcher)
 			}
 		},
 	},
@@ -122,11 +123,11 @@ var checkers = map[string]struct {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
 				return func(w http.ResponseWriter, r *http.Request) bool {
-					return len(GetSharedData(w).GetQueries(r)[k]) > 0
+					return len(httputils.GetSharedData(w).GetQueries(r)[k]) > 0
 				}
 			}
 			return func(w http.ResponseWriter, r *http.Request) bool {
-				return slices.ContainsFunc(GetSharedData(w).GetQueries(r)[k], matcher)
+				return slices.ContainsFunc(httputils.GetSharedData(w).GetQueries(r)[k], matcher)
 			}
 		},
 	},
@@ -149,7 +150,7 @@ var checkers = map[string]struct {
 			k, matcher := args.(*MapValueMatcher).Unpack()
 			if matcher == nil {
 				return func(w http.ResponseWriter, r *http.Request) bool {
-					cookies := GetSharedData(w).GetCookies(r)
+					cookies := httputils.GetSharedData(w).GetCookies(r)
 					for _, cookie := range cookies {
 						if cookie.Name == k {
 							return true
@@ -159,7 +160,7 @@ var checkers = map[string]struct {
 				}
 			}
 			return func(w http.ResponseWriter, r *http.Request) bool {
-				cookies := GetSharedData(w).GetCookies(r)
+				cookies := httputils.GetSharedData(w).GetCookies(r)
 				for _, cookie := range cookies {
 					if cookie.Name == k {
 						if matcher(cookie.Value) {
@@ -302,7 +303,7 @@ var checkers = map[string]struct {
 			if ones, bits := ipnet.Mask.Size(); ones == bits {
 				wantIP := ipnet.IP
 				return func(w http.ResponseWriter, r *http.Request) bool {
-					ip := GetSharedData(w).GetRemoteIP(r)
+					ip := httputils.GetSharedData(w).GetRemoteIP(r)
 					if ip == nil {
 						return false
 					}
@@ -310,7 +311,7 @@ var checkers = map[string]struct {
 				}
 			}
 			return func(w http.ResponseWriter, r *http.Request) bool {
-				ip := GetSharedData(w).GetRemoteIP(r)
+				ip := httputils.GetSharedData(w).GetRemoteIP(r)
 				if ip == nil {
 					return false
 				}
@@ -330,7 +331,7 @@ var checkers = map[string]struct {
 		builder: func(args any) CheckFunc {
 			cred := args.(*HashedCrendentials)
 			return func(w http.ResponseWriter, r *http.Request) bool {
-				return cred.Match(GetSharedData(w).GetBasicAuth(r))
+				return cred.Match(httputils.GetSharedData(w).GetBasicAuth(r))
 			}
 		},
 	},
@@ -378,11 +379,11 @@ var checkers = map[string]struct {
 			beg, end := args.(*IntTuple).Unpack()
 			if beg == end {
 				return func(w http.ResponseWriter, _ *http.Request) bool {
-					return GetInitResponseModifier(w).StatusCode() == beg
+					return httputils.GetInitResponseModifier(w).StatusCode() == beg
 				}
 			}
 			return func(w http.ResponseWriter, _ *http.Request) bool {
-				statusCode := GetInitResponseModifier(w).StatusCode()
+				statusCode := httputils.GetInitResponseModifier(w).StatusCode()
 				return statusCode >= beg && statusCode <= end
 			}
 		},

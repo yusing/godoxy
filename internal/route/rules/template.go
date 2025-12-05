@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"unsafe"
+
+	httputils "github.com/yusing/goutils/http"
 )
 
 type templateString struct {
@@ -27,7 +29,7 @@ func (tmpl *templateString) ExpandVars(w http.ResponseWriter, req *http.Request,
 		return err
 	}
 
-	return ExpandVars(GetInitResponseModifier(w), req, tmpl.string, dstW)
+	return ExpandVars(httputils.GetInitResponseModifier(w), req, tmpl.string, dstW)
 }
 
 func (tmpl *templateString) ExpandVarsToString(w http.ResponseWriter, req *http.Request) (string, error) {
@@ -36,7 +38,7 @@ func (tmpl *templateString) ExpandVarsToString(w http.ResponseWriter, req *http.
 	}
 
 	var buf strings.Builder
-	err := ExpandVars(GetInitResponseModifier(w), req, tmpl.string, &buf)
+	err := ExpandVars(httputils.GetInitResponseModifier(w), req, tmpl.string, &buf)
 	if err != nil {
 		return "", err
 	}

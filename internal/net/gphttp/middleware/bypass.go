@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/route/rules"
+	httputils "github.com/yusing/goutils/http"
 )
 
 type Bypass []rules.RuleOn
@@ -50,7 +51,7 @@ func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNex
 }
 
 func (c *checkBypass) modifyResponse(resp *http.Response) error {
-	if c.modRes == nil || (!c.isEnforced(resp.Request) && c.bypass.ShouldBypass(rules.ResponseAsRW(resp), resp.Request)) {
+	if c.modRes == nil || (!c.isEnforced(resp.Request) && c.bypass.ShouldBypass(httputils.ResponseAsRW(resp), resp.Request)) {
 		return nil
 	}
 	log.Debug().Str("middleware", c.name).Str("url", resp.Request.Host+resp.Request.URL.Path).Msg("modifying response")

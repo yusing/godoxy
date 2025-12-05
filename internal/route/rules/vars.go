@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 )
 
@@ -15,7 +16,7 @@ import (
 
 type (
 	reqVarGetter  func(*http.Request) string
-	respVarGetter func(*ResponseModifier) string
+	respVarGetter func(*httputils.ResponseModifier) string
 )
 
 var reVar = regexp.MustCompile(`\$[\w_]+`)
@@ -36,7 +37,7 @@ func NeedExpandVars(s string) bool {
 }
 
 var (
-	voidResponseModifier = NewResponseModifier(httptest.NewRecorder())
+	voidResponseModifier = httputils.NewResponseModifier(httptest.NewRecorder())
 	dummyRequest         = http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/"},
@@ -50,7 +51,7 @@ func ValidateVars(s string) error {
 	return ExpandVars(voidResponseModifier, &dummyRequest, s, io.Discard)
 }
 
-func ExpandVars(w *ResponseModifier, req *http.Request, src string, dstW io.Writer) error {
+func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, dstW io.Writer) error {
 	dst := ioutils.NewBufferedWriter(dstW, 1024)
 	defer dst.Close()
 

@@ -5,10 +5,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	httputils "github.com/yusing/goutils/http"
 )
 
 func BenchmarkExpandVars(b *testing.B) {
-	testResponseModifier := NewResponseModifier(httptest.NewRecorder())
+	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 	testResponseModifier.WriteHeader(200)
 	testResponseModifier.Write([]byte("Hello, world!"))
 	testRequest := httptest.NewRequest("GET", "/", nil)

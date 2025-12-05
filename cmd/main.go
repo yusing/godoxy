@@ -16,6 +16,7 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	"github.com/yusing/godoxy/internal/route/rules"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
@@ -58,9 +59,12 @@ func main() {
 	}
 
 	config.StartProxyServers()
+
 	if err := auth.Initialize(); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize authentication")
 	}
+	rules.InitAuthHandler(auth.AuthOrProceed)
+
 	// API Handler needs to start after auth is initialized.
 	server.StartServer(task.RootTask("api_server", false), server.Options{
 		Name:     "api",

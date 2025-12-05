@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 )
 
@@ -128,7 +129,7 @@ var modFields = map[string]struct {
 					if err != nil {
 						return err
 					}
-					GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
 						queries.Set(k, v)
 					})
 					return nil
@@ -138,13 +139,13 @@ var modFields = map[string]struct {
 					if err != nil {
 						return err
 					}
-					GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
 						queries.Add(k, v)
 					})
 					return nil
 				}),
 				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
 						queries.Del(k)
 					})
 					return nil
@@ -169,7 +170,7 @@ var modFields = map[string]struct {
 					if err != nil {
 						return err
 					}
-					GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						for i, c := range cookies {
 							if c.Name == k {
 								cookies[i].Value = v
@@ -185,13 +186,13 @@ var modFields = map[string]struct {
 					if err != nil {
 						return err
 					}
-					GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						return append(cookies, &http.Cookie{Name: k, Value: v})
 					})
 					return nil
 				}),
 				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						index := -1
 						for i, c := range cookies {
 							if c.Name == k {
@@ -242,7 +243,7 @@ var modFields = map[string]struct {
 						r.Body = nil
 					}
 
-					bufPool := GetInitResponseModifier(w).BufPool()
+					bufPool := httputils.GetInitResponseModifier(w).BufPool()
 					b := bufPool.GetBuffer()
 					err := tmpl.ExpandVars(w, r, b)
 					if err != nil {
@@ -282,7 +283,7 @@ var modFields = map[string]struct {
 			tmpl := args.(templateString)
 			return &FieldHandler{
 				set: OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
-					rm := GetInitResponseModifier(w)
+					rm := httputils.GetInitResponseModifier(w)
 					rm.ResetBody()
 					return tmpl.ExpandVars(w, r, rm)
 				}),
@@ -317,7 +318,7 @@ var modFields = map[string]struct {
 			status := args.(int)
 			return &FieldHandler{
 				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					GetInitResponseModifier(w).WriteHeader(status)
+					httputils.GetInitResponseModifier(w).WriteHeader(status)
 					return nil
 				}),
 			}
