@@ -41,8 +41,6 @@ github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5Qvfr
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
 github.com/djherbis/times v1.6.0 h1:w2ctJ92J8fBvWPxugmXIv7Nz7Q3iDMKNx9v5ocVH20c=
 github.com/djherbis/times v1.6.0/go.mod h1:gOHeRAz2h+VJNZ5Gmc/o7iD9k4wW7NMVqieYCY99oc0=
-github.com/docker/cli v29.0.1+incompatible h1:EnvMEAR9Ro5xQEKbMitlabj5vCDY0vwcDyY/Lsow7FQ=
-github.com/docker/cli v29.0.1+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/cli v29.1.2+incompatible h1:s4QI7drXpIo78OM+CwuthPsO5kCf8cpNsck5PsLVTH8=
 github.com/docker/cli v29.1.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/docker v28.5.2+incompatible h1:DBX0Y0zAjZbSrm1uzOkdr1onVghKaftjlSWt4AFexzM=
@@ -234,8 +232,6 @@ github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3i
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusing/ds v0.3.1 h1:mCqTgTQD8RhiBpcysvii5kZ7ZBmqcknVsFubNALGLbY=
 github.com/yusing/ds v0.3.1/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
-github.com/yusing/godoxy/internal/utils v0.0.0-20250927032450-e2aeef3a863f h1:bz9ckGmZ+xkp2tdQ3/9p6iBZokBTzIEm/41dzcsj0/E=
-github.com/yusing/godoxy/internal/utils v0.0.0-20250927032450-e2aeef3a863f/go.mod h1:3WnzaKMKs9Pg5g7n4p7V8yKAGPZEYNzBYm9B8c48FiA=
 github.com/yusing/gointernals v0.1.16 h1:GrhZZdxzA+jojLEqankctJrOuAYDb7kY1C93S1pVR34=
 github.com/yusing/gointernals v0.1.16/go.mod h1:B/0FVXt4WPmgzVy3ynzkqKi+BSGaJVmwCJBRXYapo34=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=

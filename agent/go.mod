@@ -106,7 +106,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.3.1 // indirect
-	github.com/yusing/godoxy/internal/utils v0.0.0-20250927032450-e2aeef3a863f // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20251205075502-c81cc802441b // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
