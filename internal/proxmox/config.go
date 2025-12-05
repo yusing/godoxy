@@ -11,13 +11,14 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/yusing/godoxy/internal/net/gphttp"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type Config struct {
 	URL string `json:"url" validate:"required,url"`
 
-	TokenID string `json:"token_id" validate:"required"`
-	Secret  string `json:"secret" validate:"required"`
+	TokenID string            `json:"token_id" validate:"required"`
+	Secret  strutils.Redacted `json:"secret" validate:"required"`
 
 	NoTLSVerify bool `json:"no_tls_verify" yaml:"no_tls_verify,omitempty"`
 
@@ -48,7 +49,7 @@ func (c *Config) Init() gperr.Error {
 	}
 
 	opts := []proxmox.Option{
-		proxmox.WithAPIToken(c.TokenID, c.Secret),
+		proxmox.WithAPIToken(c.TokenID, c.Secret.String()),
 		proxmox.WithHTTPClient(&http.Client{
 			Transport: tr,
 		}),

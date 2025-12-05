@@ -4,14 +4,15 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
 	DatabaseType string
 	Config       struct {
-		AccountID  string       `json:"account_id" validate:"required"`
-		LicenseKey string       `json:"license_key" validate:"required"`
-		Database   DatabaseType `json:"database" validate:"omitempty,oneof=geolite geoip2"`
+		AccountID  string            `json:"account_id" validate:"required"`
+		LicenseKey strutils.Redacted `json:"license_key" validate:"required"`
+		Database   DatabaseType      `json:"database" validate:"omitempty,oneof=geolite geoip2"`
 	}
 )
 

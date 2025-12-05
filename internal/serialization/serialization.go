@@ -21,6 +21,22 @@ import (
 
 type SerializedObject = map[string]any
 
+// ToSerializedObject converts a map[string]VT to a SerializedObject.
+func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
+	so := make(SerializedObject, len(m))
+	for k, v := range m {
+		so[k] = v
+	}
+	return so
+}
+
+func init() {
+	strutils.SetJSONMarshaler(sonic.Marshal)
+	strutils.SetJSONUnmarshaler(sonic.Unmarshal)
+	strutils.SetYAMLMarshaler(yaml.Marshal)
+	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
+}
+
 type MapUnmarshaller interface {
 	UnmarshalMap(m map[string]any) gperr.Error
 }

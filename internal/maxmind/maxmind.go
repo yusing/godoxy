@@ -178,7 +178,7 @@ func (cfg *MaxMind) doReq(method string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(cfg.AccountID, cfg.LicenseKey)
+	req.SetBasicAuth(cfg.AccountID, cfg.LicenseKey.String())
 	resp, err := doReq(req)
 	if err != nil {
 		return nil, err
