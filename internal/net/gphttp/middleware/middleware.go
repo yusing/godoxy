@@ -197,10 +197,16 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	}
 
 	if exec, ok := m.impl.(ResponseModifier); ok {
-		rm := httputils.NewResponseModifier(w)
-		defer rm.FlushRelease()
-		next(rm, r)
+		lrm := httputils.NewLazyResponseModifier(w, needsBuffering)
+		defer lrm.FlushRelease()
+		next(lrm, r)
 
+		// Skip modification if response wasn't buffered (non-HTML content)
+		if !lrm.IsBuffered() {
+			return
+		}
+
+		rm := lrm.ResponseModifier()
 		currentBody := rm.BodyReader()
 		currentResp := &http.Response{
 			StatusCode:    rm.StatusCode(),
@@ -226,6 +232,12 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	} else {
 		next(w, r)
 	}
+}
+
+// needsBuffering determines if a response should be buffered for modification.
+// Only HTML responses need buffering; streaming content (video, audio, etc.) should pass through.
+func needsBuffering(header http.Header) bool {
+	return httputils.GetContentType(header).IsHTML()
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {
