@@ -7,11 +7,8 @@ on:
     paths:
       - "socket-proxy/**"
     tags-ignore:
-      - '**'
+      - "**"
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
