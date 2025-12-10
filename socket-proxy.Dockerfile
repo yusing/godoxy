@@ -1,5 +1,5 @@
 # Stage 1: deps
-FROM golang:1.24.3-alpine AS deps
+FROM golang:1.25.5-alpine AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
@@ -12,7 +12,8 @@ WORKDIR /src
 
 COPY socket-proxy/go.mod socket-proxy/go.sum ./
 
-RUN go mod download -x
+RUN sed -i '/^module github\.com\/yusing\/goutils/!{/github\.com\/yusing\/goutils/d}' go.mod && \
+    go mod download -x
 
 # Stage 2: builder
 FROM deps AS builder
@@ -21,6 +22,7 @@ WORKDIR /src
 
 COPY Makefile ./
 COPY socket-proxy ./socket-proxy
+COPY goutils ./goutils
 
 ARG VERSION
 ENV VERSION=${VERSION}
