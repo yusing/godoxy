@@ -28,10 +28,10 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
-	golang.org/x/crypto v0.45.0 // encrypting password with bcrypt
-	golang.org/x/net v0.47.0 // HTTP header utilities
-	golang.org/x/oauth2 v0.33.0 // oauth2 authentication
-	golang.org/x/sync v0.18.0
+	golang.org/x/crypto v0.46.0 // encrypting password with bcrypt
+	golang.org/x/net v0.48.0 // HTTP header utilities
+	golang.org/x/oauth2 v0.34.0 // oauth2 authentication
+	golang.org/x/sync v0.19.0
 	golang.org/x/time v0.14.0 // time utilities
 )
 
@@ -51,13 +51,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251204100826-e3fe126a5c12
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251204100826-e3fe126a5c12
+	github.com/yusing/godoxy/agent v0.0.0-20251210092313-fdd37b777a09
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251210092313-fdd37b777a09
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils/http/websocket v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils/server v0.0.0-20250927113415-dd977d2edaeb
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251210092226-e7258c13e982
+	github.com/yusing/goutils/http/websocket v0.0.0-20251210092226-e7258c13e982
+	github.com/yusing/goutils/server v0.0.0-20251210092226-e7258c13e982
 )
 
 require (
@@ -125,16 +125,16 @@ require (
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
-	go.opentelemetry.io/otel v1.38.0 // indirect
-	go.opentelemetry.io/otel/metric v1.38.0 // indirect
-	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
+	go.opentelemetry.io/otel v1.39.0 // indirect
+	go.opentelemetry.io/otel/metric v1.39.0 // indirect
+	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
-	golang.org/x/mod v0.30.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.39.0 // indirect
+	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/api v0.257.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
@@ -149,6 +149,7 @@ require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
@@ -161,10 +162,10 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/linode/linodego v1.61.0 // indirect
+	github.com/linode/linodego v1.62.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.105.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.1 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.105.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
