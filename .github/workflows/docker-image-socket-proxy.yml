@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "socket-proxy/**"
+      - "socket-proxy.Dockerfile"
+      - ".github/workflows/docker-image-socket-proxy.yml"
     tags-ignore:
       - "**"
   workflow_dispatch:
