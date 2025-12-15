@@ -84,6 +84,12 @@ func (u *IconURL) HasIcon() bool {
 }
 
 func (u *IconURL) WithVariant(variant IconVariant) *IconURL {
+	switch u.IconSource {
+	case IconSourceWalkXCode, IconSourceSelfhSt:
+	default:
+		return u // no variant for absolute/relative icons
+	}
+
 	var extra *IconExtra
 	if u.Extra != nil {
 		extra = &IconExtra{
