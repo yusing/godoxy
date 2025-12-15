@@ -81,9 +81,14 @@ func GetFavIconFromAlias(ctx context.Context, alias string, variant homepage.Ico
 	if hp.Icon != nil {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
 			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
+		} else if variant != homepage.IconVariantNone {
+			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(variant))
+			if err != nil {
+				// fallback to no variant
+				result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(homepage.IconVariantNone))
+			}
 		} else {
-			icon := hp.Icon.WithVariant(variant)
-			result, err = homepage.FetchFavIconFromURL(ctx, icon)
+			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
