@@ -2881,7 +2881,7 @@
           "x-omitempty": false
         },
         "retries": {
-          "description": "<0: immediate, >=0: threshold",
+          "description": "<0: immediate, 0: default, >0: threshold",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
