@@ -150,9 +150,13 @@ type contextValue struct {
 	uri string
 }
 
-func FindIcon(ctx context.Context, r route, uri string) (FetchResult, error) {
+func FindIcon(ctx context.Context, r route, uri string, variant IconVariant) (FetchResult, error) {
 	for _, ref := range r.References() {
-		result, err := fetchIcon(ctx, sanitizeName(ref))
+		ref = sanitizeName(ref)
+		if variant != IconVariantNone {
+			ref += "-" + string(variant)
+		}
+		result, err := fetchIcon(ctx, ref)
 		if err == nil {
 			return result, err
 		}

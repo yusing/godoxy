@@ -47,7 +47,11 @@ func FavIcon(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, apitypes.Error("invalid url", err))
 			return
 		}
-		fetchResult, err := homepage.FetchFavIconFromURL(c.Request.Context(), &iconURL)
+		icon := &iconURL
+		if request.Variant != homepage.IconVariantNone {
+			icon = icon.WithVariant(request.Variant)
+		}
+		fetchResult, err := homepage.FetchFavIconFromURL(c.Request.Context(), icon)
 		if err != nil {
 			homepage.GinFetchError(c, fetchResult.StatusCode, err)
 			return
@@ -80,7 +84,7 @@ func GetFavIconFromAlias(ctx context.Context, alias string, variant homepage.Ico
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
+			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL, variant)
 		} else if variant != homepage.IconVariantNone {
 			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(variant))
 			if err != nil {
@@ -92,7 +96,7 @@ func GetFavIconFromAlias(ctx context.Context, alias string, variant homepage.Ico
 		}
 	} else {
 		// try extract from "link[rel=icon]"
-		result, err = homepage.FindIcon(ctx, r, "/")
+		result, err = homepage.FindIcon(ctx, r, "/", variant)
 	}
 	if result.StatusCode == 0 {
 		result.StatusCode = http.StatusOK

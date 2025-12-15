@@ -104,13 +104,13 @@ func (w *Watcher) getFavIcon(ctx context.Context) (result homepage.FetchResult, 
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
+			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL, homepage.IconVariantNone)
 		} else {
 			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
-		result, err = homepage.FindIcon(ctx, r, "/")
+		result, err = homepage.FindIcon(ctx, r, "/", homepage.IconVariantNone)
 	}
 	if result.StatusCode == 0 {
 		result.StatusCode = http.StatusOK
