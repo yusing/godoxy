@@ -96,13 +96,11 @@ func (u *IconURL) WithVariant(variant IconVariant) *IconURL {
 			Key:      u.Extra.Key,
 			Ref:      u.Extra.Ref,
 			FileType: u.Extra.FileType,
+			IsLight:  variant == IconVariantLight,
+			IsDark:   variant == IconVariantDark,
 		}
-		switch variant {
-		case IconVariantLight:
-			extra.IsLight = true
-		case IconVariantDark:
-			extra.IsDark = true
-		}
+		extra.Ref = strings.TrimSuffix(extra.Ref, "-light")
+		extra.Ref = strings.TrimSuffix(extra.Ref, "-dark")
 	}
 	return &IconURL{
 		IconSource: u.IconSource,
