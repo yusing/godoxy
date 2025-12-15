@@ -269,7 +269,7 @@ definitions:
       path:
         type: string
       retries:
-        description: '<0: immediate, >=0: threshold'
+        description: '<0: immediate, 0: default, >0: threshold'
         type: integer
       timeout:
         type: integer
