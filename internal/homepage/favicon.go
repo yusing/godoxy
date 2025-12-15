@@ -145,6 +145,11 @@ func fetchIcon(ctx context.Context, filename string) (FetchResult, error) {
 	return FetchResultWithErrorf(http.StatusNotFound, "no icon found")
 }
 
+type contextValue struct {
+	r   httpRoute
+	uri string
+}
+
 func FindIcon(ctx context.Context, r route, uri string) (FetchResult, error) {
 	for _, ref := range r.References() {
 		result, err := fetchIcon(ctx, sanitizeName(ref))
@@ -154,14 +159,14 @@ func FindIcon(ctx context.Context, r route, uri string) (FetchResult, error) {
 	}
 	if r, ok := r.(httpRoute); ok {
 		// fallback to parse html
-		return findIconSlowCached(context.WithValue(ctx, "route", r), uri)
+		return findIconSlowCached(context.WithValue(ctx, "route", contextValue{r: r, uri: uri}), r.Key())
 	}
 	return FetchResultWithErrorf(http.StatusNotFound, "no icon found")
 }
 
 var findIconSlowCached = cache.NewKeyFunc(func(ctx context.Context, key string) (FetchResult, error) {
-	r := ctx.Value("route").(httpRoute)
-	return findIconSlow(ctx, r, key, nil)
+	v := ctx.Value("route").(contextValue)
+	return findIconSlow(ctx, v.r, v.uri, nil)
 }).WithMaxEntries(200).Build() // no retries, no ttl
 
 func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) (FetchResult, error) {
