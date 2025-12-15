@@ -23,7 +23,8 @@ type (
 		IsDark   bool    `json:"is_dark"`
 	}
 
-	IconSource string
+	IconSource  string
+	IconVariant string
 )
 
 const (
@@ -31,6 +32,12 @@ const (
 	IconSourceRelative  IconSource = "@target"
 	IconSourceWalkXCode IconSource = "@walkxcode"
 	IconSourceSelfhSt   IconSource = "@selfhst"
+)
+
+const (
+	IconVariantNone  IconVariant = ""
+	IconVariantLight IconVariant = "light"
+	IconVariantDark  IconVariant = "dark"
 )
 
 var ErrInvalidIconURL = gperr.New("invalid icon url")
@@ -74,6 +81,28 @@ func NewWalkXCodeIconURL(name, format string) *IconURL {
 // otherwise returns true.
 func (u *IconURL) HasIcon() bool {
 	return HasIcon(u)
+}
+
+func (u *IconURL) WithVariant(variant IconVariant) *IconURL {
+	var extra *IconExtra
+	if u.Extra != nil {
+		extra = &IconExtra{
+			Key:      u.Extra.Key,
+			Ref:      u.Extra.Ref,
+			FileType: u.Extra.FileType,
+		}
+		switch variant {
+		case IconVariantLight:
+			extra.IsLight = true
+		case IconVariantDark:
+			extra.IsDark = true
+		}
+	}
+	return &IconURL{
+		IconSource: u.IconSource,
+		FullURL:    u.FullURL,
+		Extra:      extra,
+	}
 }
 
 // Parse implements strutils.Parser.
