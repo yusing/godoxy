@@ -10,16 +10,22 @@ const walkxcodeIcons = `{
 	"png": [
 		"app1.png",
 		"app1-light.png",
-		"app2.png"
+		"app2.png",
+		"karakeep.png",
+		"karakeep-dark.png"
 	],
 	"svg": [
 		"app1.svg",
-		"app1-light.svg"
+		"app1-light.svg",
+		"karakeep.svg",
+		"karakeep-dark.svg"
 	],
 	"webp": [
 		"app1.webp",
 		"app1-light.webp",
-		"app2.webp"
+		"app2.webp",
+		"karakeep.webp",
+		"karakeep-dark.webp"
 	]
 }`
 
@@ -98,8 +104,8 @@ func TestListWalkxCodeIcons(t *testing.T) {
 	if err := UpdateWalkxCodeIcons(m); err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 2 {
-		t.Fatalf("expect 2 icons, got %d", len(m))
+	if len(m) != 3 {
+		t.Fatalf("expect 3 icons, got %d", len(m))
 	}
 	test := []testCases{
 		{
@@ -116,6 +122,15 @@ func TestListWalkxCodeIcons(t *testing.T) {
 			IconMeta: IconMeta{
 				PNG:  true,
 				WebP: true,
+			},
+		},
+		{
+			Key: NewIconKey(IconSourceWalkXCode, "karakeep"),
+			IconMeta: IconMeta{
+				SVG:  true,
+				PNG:  true,
+				WebP: true,
+				Dark: true,
 			},
 		},
 	}

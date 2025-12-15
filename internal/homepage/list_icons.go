@@ -219,8 +219,7 @@ func HasIcon(icon *IconURL) bool {
 	if common.IsTest {
 		return true
 	}
-	key := NewIconKey(icon.IconSource, icon.Extra.Ref)
-	meta, ok := ListAvailableIcons()[key]
+	meta, ok := ListAvailableIcons()[icon.Extra.Key]
 	if !ok {
 		return false
 	}
@@ -332,6 +331,10 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 			if isLight {
 				f = strings.TrimSuffix(f, "-light")
 			}
+			isDark := strings.HasSuffix(f, "-dark")
+			if isDark {
+				f = strings.TrimSuffix(f, "-dark")
+			}
 			key := NewIconKey(IconSourceWalkXCode, f)
 			icon, ok := m[key]
 			if !ok {
@@ -341,6 +344,9 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 			setExt(icon)
 			if isLight {
 				icon.Light = true
+			}
+			if isDark {
+				icon.Dark = true
 			}
 		}
 	}
