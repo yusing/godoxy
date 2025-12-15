@@ -13,8 +13,9 @@ import (
 )
 
 type GetFavIconRequest struct {
-	URL   string `form:"url" binding:"required_without=Alias"`
-	Alias string `form:"alias" binding:"required_without=URL"`
+	URL     string               `form:"url" binding:"required_without=Alias"`
+	Alias   string               `form:"alias" binding:"required_without=URL"`
+	Variant homepage.IconVariant `form:"variant" binding:"omitempty,oneof=light dark"`
 } //	@name	GetFavIconRequest
 
 // @x-id				"favicon"
@@ -56,7 +57,7 @@ func FavIcon(c *gin.Context) {
 	}
 
 	// try with alias
-	result, err := GetFavIconFromAlias(c.Request.Context(), request.Alias)
+	result, err := GetFavIconFromAlias(c.Request.Context(), request.Alias, request.Variant)
 	if err != nil {
 		homepage.GinFetchError(c, result.StatusCode, err)
 		return
@@ -65,7 +66,7 @@ func FavIcon(c *gin.Context) {
 }
 
 //go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
-func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResult, error) {
+func GetFavIconFromAlias(ctx context.Context, alias string, variant homepage.IconVariant) (homepage.FetchResult, error) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)
 	if !ok {
@@ -81,7 +82,8 @@ func GetFavIconFromAlias(ctx context.Context, alias string) (homepage.FetchResul
 		if hp.Icon.IconSource == homepage.IconSourceRelative {
 			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL)
 		} else {
-			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
+			icon := hp.Icon.WithVariant(variant)
+			result, err = homepage.FetchFavIconFromURL(ctx, icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
