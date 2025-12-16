@@ -36,6 +36,9 @@ func (hc *HealthCheckConfig) ApplyDefaults(defaults HealthCheckConfig) {
 		}
 	}
 	if hc.Retries == 0 {
-		hc.Retries = int64(HealthCheckDownNotifyDelayDefault / hc.Interval)
+		hc.Retries = defaults.Retries
+		if hc.Retries == 0 {
+			hc.Retries = max(1, int64(HealthCheckDownNotifyDelayDefault/hc.Interval))
+		}
 	}
 }

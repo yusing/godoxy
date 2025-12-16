@@ -33,7 +33,10 @@ type State interface {
 	FlushTmpLog()
 }
 
-// could be nil
+// could be nil before first call on Load
 var ActiveState synk.Value[State]
+
+// nil-safe while loading config, nil otherwise
+var WorkingState synk.Value[State]
 
 var ErrConfigChanged = errors.New("config changed")

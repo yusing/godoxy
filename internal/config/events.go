@@ -52,11 +52,16 @@ func logNotifyWarn(action string, err error) {
 	})
 }
 
+var nilState *state
+
 func Load() error {
 	if HasState() {
 		panic(errors.New("config already loaded"))
 	}
 	state := NewState()
+	config.WorkingState.Store(state)
+	defer config.WorkingState.Store(nilState)
+
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
 	initErr := state.InitFromFile(common.ConfigPath)
@@ -82,6 +87,9 @@ func Reload() gperr.Error {
 	defer reloadMu.Unlock()
 
 	newState := NewState()
+	config.WorkingState.Store(newState)
+	defer config.WorkingState.Store(nilState)
+
 	err := newState.InitFromFile(common.ConfigPath)
 	if err != nil {
 		newState.Task().FinishAndWait(err)
