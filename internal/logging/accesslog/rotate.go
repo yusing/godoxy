@@ -3,12 +3,11 @@ package accesslog
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
-	"slices"
 	"time"
 
 	"github.com/rs/zerolog"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/mockable"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -164,30 +163,13 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 
 	// Read each line and write it to the beginning of the file
 	writePos := int64(0)
-	buf := bytesPool.Get()
-	defer func() {
-		bytesPool.Put(buf)
-	}()
-
 	// in reverse order to keep the order of the lines (from old to new)
 	for i := len(linesToKeep) - 1; i >= 0; i-- {
 		line := linesToKeep[i]
 		n := line.Size
-		if cap(buf) < int(n) {
-			buf = slices.Grow(buf, int(n)-cap(buf))
-		}
-		buf = buf[:n]
 
-		// Read the line from its original position
-		if _, err := file.ReadAt(buf, line.Pos); err != nil {
+		if err := fileContentMove(file, line.Pos, writePos, int(n)); err != nil {
 			return false, err
-		}
-
-		// Write it to the new position
-		if _, err := file.WriteAt(buf, writePos); err != nil {
-			return false, err
-		} else if n < line.Size {
-			return false, gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, line.Size, n)
 		}
 		writePos += n
 	}
@@ -197,6 +179,34 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	}
 
 	return true, nil
+}
+
+// fileContentMove moves the content of the file from the source position to the destination position.
+//
+// this is only used for moving from the back to the front of the file.
+func fileContentMove(file supportRotate, srcPos, dstPos int64, size int) error {
+	buf := sizedPool.GetSized(size)
+	defer sizedPool.Put(buf)
+
+	// Read the line from its original position
+	nRead, err := file.ReadAt(buf, srcPos)
+	if err != nil {
+		return err
+	}
+	if nRead != size {
+		return fmt.Errorf("%w, reading %d bytes, only %d read", io.ErrShortBuffer, size, nRead)
+	}
+
+	// Write it to the new position
+	nWritten, err := file.WriteAt(buf, dstPos)
+	if err != nil {
+		return err
+	}
+	if nWritten != size {
+		return fmt.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, size, nWritten)
+	}
+
+	return nil
 }
 
 // rotateLogFileBySize rotates the log file by size.
