@@ -775,7 +775,7 @@ func (r *Route) Finalize() {
 	}
 
 	r.Port.Listening, r.Port.Proxy = lp, pp
-	r.HealthCheck.ApplyDefaults(config.ActiveConfig.Load().Defaults.HealthCheck)
+	r.HealthCheck.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
 }
 
 func (r *Route) FinalizeHomepageConfig() {
