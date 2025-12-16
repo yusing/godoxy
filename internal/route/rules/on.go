@@ -31,6 +31,7 @@ const (
 	OnCookie    = "cookie"
 	OnForm      = "form"
 	OnPostForm  = "postform"
+	OnProto     = "proto"
 	OnMethod    = "method"
 	OnHost      = "host"
 	OnPath      = "path"
@@ -223,6 +224,41 @@ var checkers = map[string]struct {
 			}
 			return func(w http.ResponseWriter, r *http.Request) bool {
 				return matcher(r.PostFormValue(k))
+			}
+		},
+	},
+	OnProto: {
+		help: Help{
+			command: OnProto,
+			args: map[string]string{
+				"proto": "the http protocol (http, https, h3)",
+			},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 1 {
+				return nil, ErrExpectOneArg
+			}
+			proto := args[0]
+			if proto != "http" && proto != "https" && proto != "h3" {
+				return nil, ErrInvalidArguments.Withf("proto: %q", proto)
+			}
+			return proto, nil
+		},
+		builder: func(args any) CheckFunc {
+			proto := args.(string)
+			switch proto {
+			case "http":
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					return r.TLS == nil
+				}
+			case "https":
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					return r.TLS != nil
+				}
+			default: // h3
+				return func(w http.ResponseWriter, r *http.Request) bool {
+					return r.TLS != nil && r.ProtoMajor == 3
+				}
 			}
 		},
 	},

@@ -1,6 +1,7 @@
 package rules_test
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -65,6 +66,30 @@ func genCorrectnessTestCases(field string, genRequest func(k, v string) *http.Re
 
 func TestOnCorrectness(t *testing.T) {
 	tests := []testCorrectness{
+		{
+			name:    "proto_match_http",
+			checker: "proto http",
+			input:   &http.Request{TLS: nil},
+			want:    true,
+		},
+		{
+			name:    "proto_match_https",
+			checker: "proto https",
+			input:   &http.Request{TLS: &tls.ConnectionState{}},
+			want:    true,
+		},
+		{
+			name:    "proto_match_h3",
+			checker: "proto h3",
+			input:   &http.Request{TLS: &tls.ConnectionState{}, ProtoMajor: 3},
+			want:    true,
+		},
+		{
+			name:    "proto_no_match_h3",
+			checker: "proto h3",
+			input:   &http.Request{TLS: &tls.ConnectionState{}, ProtoMajor: 2},
+			want:    false,
+		},
 		{
 			name:    "method_match",
 			checker: "method GET",
