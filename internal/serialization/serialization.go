@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
@@ -175,12 +176,10 @@ var getTypeInfo func(t reflect.Type) typeInfo
 func init() {
 	m := xsync.NewMap[reflect.Type, typeInfo](xsync.WithGrowOnly(), xsync.WithPresize(100))
 	getTypeInfo = func(t reflect.Type) typeInfo {
-		if v, ok := m.Load(t); ok {
-			return v
-		}
-		v := initTypeKeyFieldIndexesMap(t)
-		m.Store(t, v)
-		return v
+		ti, _ := m.LoadOrCompute(t, func() (typeInfo, bool) {
+			return initTypeKeyFieldIndexesMap(t), false
+		})
+		return ti
 	}
 }
 
@@ -537,16 +536,8 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 			return true, nil
 		}
 
-		// Check for multiline without allocating
-		isMultiline := false
-		for i := range srcLen {
-			if src[i] == '\n' {
-				isMultiline = true
-				break
-			}
-		}
-
 		// one liner is comma separated list
+		isMultiline := strings.ContainsRune(src, '\n')
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
 			gi.ReflectInitSlice(dst, len(values), len(values))
@@ -557,21 +548,19 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 					errs.Add(err.Subjectf("[%d]", i))
 				}
 			}
-			if errs.HasError() {
-				return true, errs.Error()
-			}
-			return true, nil
+			err := errs.Error()
+			return true, err
 		}
 
 		sl := []any{}
-		err := yaml.Unmarshal([]byte(src), &sl)
+		err := yaml.Unmarshal(unsafe.Slice(unsafe.StringData(src), len(src)), &sl)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
 		tmp = sl
 	case reflect.Map, reflect.Struct:
 		rawMap := SerializedObject{}
-		err := yaml.Unmarshal([]byte(src), &rawMap)
+		err := yaml.Unmarshal(unsafe.Slice(unsafe.StringData(src), len(src)), &rawMap)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
