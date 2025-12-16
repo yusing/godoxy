@@ -94,6 +94,7 @@ const (
 )
 
 var bytesPool = synk.GetUnsizedBytesPool()
+var sizedPool = synk.GetSizedBytesPool()
 
 func NewAccessLogger(parent task.Parent, cfg AnyConfig) (AccessLogger, error) {
 	writers, err := cfg.Writers()
