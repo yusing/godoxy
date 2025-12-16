@@ -46,7 +46,8 @@ type (
 var ActiveConfig atomic.Pointer[Config]
 
 func init() {
-	ActiveConfig.Store(DefaultConfig())
+	cfg := DefaultConfig()
+	ActiveConfig.Store(&cfg)
 }
 
 func Validate(data []byte) gperr.Error {
@@ -54,8 +55,8 @@ func Validate(data []byte) gperr.Error {
 	return serialization.UnmarshalValidateYAML(data, &model)
 }
 
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() Config {
+	return Config{
 		TimeoutShutdown: 3,
 		Homepage: homepage.Config{
 			UseDefaultCategories: true,
@@ -66,7 +67,6 @@ func DefaultConfig() *Config {
 var matchDomainsRegex = regexp.MustCompile(`^[^\.]?([\w\d\-_]\.?)+[^\.]?$`)
 
 func init() {
-	serialization.RegisterDefaultValueFactory(DefaultConfig)
 	serialization.MustRegisterValidation("domain_name", func(fl validator.FieldLevel) bool {
 		domains := fl.Field().Interface().([]string)
 		for _, domain := range domains {

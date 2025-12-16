@@ -93,7 +93,7 @@ func Value() *config.Config {
 func (state *state) InitFromFile(filename string) error {
 	data, err := os.ReadFile(common.ConfigPath)
 	if err != nil {
-		state.Config = *config.DefaultConfig()
+		state.Config = config.DefaultConfig()
 		return err
 	}
 	return state.Init(data)
