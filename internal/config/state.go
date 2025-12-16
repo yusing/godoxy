@@ -70,7 +70,6 @@ func SetState(state config.State) {
 	defer stateMu.Unlock()
 
 	cfg := state.Value()
-	config.ActiveConfig.Store(cfg)
 	config.ActiveState.Store(state)
 	acl.ActiveConfig.Store(cfg.ACL)
 	entrypoint.ActiveConfig.Store(&cfg.Entrypoint)
@@ -87,7 +86,7 @@ func HasState() bool {
 }
 
 func Value() *config.Config {
-	return config.ActiveConfig.Load()
+	return config.ActiveState.Load().Value()
 }
 
 func (state *state) InitFromFile(filename string) error {

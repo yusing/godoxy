@@ -2,7 +2,6 @@ package config
 
 import (
 	"regexp"
-	"sync/atomic"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -41,14 +40,6 @@ type (
 		MaxMind      *maxmind.Config             `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
 )
-
-// nil-safe
-var ActiveConfig atomic.Pointer[Config]
-
-func init() {
-	cfg := DefaultConfig()
-	ActiveConfig.Store(&cfg)
-}
 
 func Validate(data []byte) gperr.Error {
 	var model Config
