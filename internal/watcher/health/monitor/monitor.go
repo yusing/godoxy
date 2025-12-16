@@ -74,15 +74,7 @@ func NewMonitor(r types.Route) types.HealthMonCheck {
 }
 
 func newMonitor(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
-	state := config.WorkingState.Load()
-	if state == nil {
-		state = config.ActiveState.Load()
-	}
-	if state != nil {
-		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
-	} else {
-		cfg.ApplyDefaults(types.HealthCheckConfig{}) // use config defaults
-	}
+	cfg.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
 	mon := &monitor{
 		config:      cfg,
 		checkHealth: healthCheckFunc,
