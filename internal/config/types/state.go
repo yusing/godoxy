@@ -36,7 +36,7 @@ type State interface {
 // could be nil before first call on Load
 var ActiveState synk.Value[State]
 
-// nil-safe while loading config, nil otherwise
+// working state while loading config, same as ActiveState after successful load
 var WorkingState synk.Value[State]
 
 var ErrConfigChanged = errors.New("config changed")

@@ -52,15 +52,12 @@ func logNotifyWarn(action string, err error) {
 	})
 }
 
-var nilState *state
-
 func Load() error {
 	if HasState() {
 		panic(errors.New("config already loaded"))
 	}
 	state := NewState()
 	config.WorkingState.Store(state)
-	defer config.WorkingState.Store(nilState)
 
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
@@ -88,11 +85,11 @@ func Reload() gperr.Error {
 
 	newState := NewState()
 	config.WorkingState.Store(newState)
-	defer config.WorkingState.Store(nilState)
 
 	err := newState.InitFromFile(common.ConfigPath)
 	if err != nil {
 		newState.Task().FinishAndWait(err)
+		config.WorkingState.Store(GetState())
 		logNotifyError("reload", err)
 		return gperr.New(ansi.Warning("using last config")).With(err)
 	}
@@ -106,7 +103,6 @@ func Reload() gperr.Error {
 	SetState(newState)
 
 	if err := newState.StartProviders(); err != nil {
-		gperr.LogWarn("start providers error", err)
 		logNotifyError("start providers", err)
 		return nil // continue
 	}
@@ -121,7 +117,7 @@ func WatchChanges() {
 		configEventFlushInterval,
 		OnConfigChange,
 		func(err gperr.Error) {
-			gperr.LogError("config reload error", err)
+			logNotifyError("config reload", err)
 		},
 	)
 	eventQueue.Start(cfgWatcher.Events(t.Context()))
