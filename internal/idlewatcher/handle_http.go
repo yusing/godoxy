@@ -176,7 +176,14 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	}
 
 	if !acceptHTML {
-		serveStaticContent(rw, http.StatusOK, "text/plain", []byte("Container woken"))
+		// send a continue response to prevent client wait-header timeout
+		rw.WriteHeader(http.StatusContinue)
+		ready := w.waitForReady(r.Context())
+		if !ready {
+			serveStaticContent(rw, http.StatusInternalServerError, "text/plain", []byte("Timeout waiting for container to become ready"))
+		} else {
+			http.Redirect(rw, r, r.URL.Path, http.StatusSeeOther)
+		}
 		return false
 	}
 
