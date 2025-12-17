@@ -40,6 +40,8 @@ func NewHTTPHealthMonitor(url *url.URL, config types.HealthCheckConfig) *HTTPHea
 	return mon
 }
 
+var userAgent = "GoDoxy/" + version.Get().String()
+
 func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
@@ -49,7 +51,7 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 
 	req.SetRequestURI(mon.url.Load().JoinPath(mon.config.Path).String())
 	req.Header.SetMethod(mon.method)
-	req.Header.Set("User-Agent", "GoDoxy/"+version.Get().String())
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "text/plain,text/html,*/*;q=0.8")
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Cache-Control", "no-cache")
