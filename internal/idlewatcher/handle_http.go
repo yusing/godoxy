@@ -181,10 +181,9 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		ready := w.waitForReady(r.Context())
 		if !ready {
 			serveStaticContent(rw, http.StatusInternalServerError, "text/plain", []byte("Timeout waiting for container to become ready"))
-		} else {
-			http.Redirect(rw, r, r.URL.Path, http.StatusSeeOther)
+			return false
 		}
-		return false
+		return true
 	}
 
 	// Send a loading response to the client
