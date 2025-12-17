@@ -17,3 +17,15 @@ const (
 	LabelNoLoadingPage = NSProxy + ".no_loading_page" // No loading page when using idlewatcher
 	LabelNetwork       = NSProxy + ".network"
 )
+
+// key: label, value: key in IdlewatcherConfig
+var idlewatcherLabels = map[string]string{
+	LabelIdleTimeout:   "idle_timeout",
+	LabelWakeTimeout:   "wake_timeout",
+	LabelStopMethod:    "stop_method",
+	LabelStopTimeout:   "stop_timeout",
+	LabelStopSignal:    "stop_signal",
+	LabelStartEndpoint: "start_endpoint",
+	LabelDependsOn:     "depends_on",
+	LabelNoLoadingPage: "no_loading_page",
+}

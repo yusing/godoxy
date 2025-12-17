@@ -238,23 +238,25 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 }
 
 func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
-	cfg := map[string]any{
-		"idle_timeout":    helper.getDeleteLabel(LabelIdleTimeout),
-		"wake_timeout":    helper.getDeleteLabel(LabelWakeTimeout),
-		"stop_method":     helper.getDeleteLabel(LabelStopMethod),
-		"stop_timeout":    helper.getDeleteLabel(LabelStopTimeout),
-		"stop_signal":     helper.getDeleteLabel(LabelStopSignal),
-		"start_endpoint":  helper.getDeleteLabel(LabelStartEndpoint),
-		"depends_on":      Dependencies(c),
-		"no_loading_page": helper.getDeleteLabel(LabelNoLoadingPage),
+	hasIdleTimeout := false
+	cfg := make(map[string]any, len(idlewatcherLabels))
+	for lbl, key := range idlewatcherLabels {
+		if value := helper.getDeleteLabel(lbl); value != "" {
+			cfg[key] = value
+		}
+		switch lbl {
+		case LabelIdleTimeout:
+			hasIdleTimeout = true
+		case LabelDependsOn:
+			cfg[key] = Dependencies(c)
+		}
 	}
 
 	// ensure it's deleted from labels
 	helper.getDeleteLabel(LabelDependsOn)
 
 	// set only if idlewatcher is enabled
-	idleTimeout := cfg["idle_timeout"]
-	if idleTimeout != "" {
+	if hasIdleTimeout {
 		idwCfg := new(types.IdlewatcherConfig)
 		idwCfg.Docker = &types.DockerConfig{
 			DockerHost:    c.DockerHost,
