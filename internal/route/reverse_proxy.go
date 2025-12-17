@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
+	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
@@ -59,6 +60,28 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 
 	service := base.Name()
 	rp := reverseproxy.NewReverseProxy(service, &proxyURL.URL, trans)
+
+	scheme := base.Scheme
+	retried := false
+	retryLock := sync.Mutex{}
+	rp.OnSchemeMisMatch = func() (retry bool) { // switch scheme and retry
+		retryLock.Lock()
+		defer retryLock.Unlock()
+
+		if retried {
+			return false
+		}
+
+		retried = true
+
+		if scheme == route.SchemeHTTP {
+			rp.TargetURL.Scheme = "https"
+		} else {
+			rp.TargetURL.Scheme = "http"
+		}
+		rp.Info().Msgf("scheme mismatch detected, retrying with %s", rp.TargetURL.Scheme)
+		return true
+	}
 
 	if len(base.Middlewares) > 0 {
 		err := middleware.PatchReverseProxy(rp, base.Middlewares)
