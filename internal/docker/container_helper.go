@@ -31,6 +31,9 @@ func (c containerHelper) getAliases() []string {
 }
 
 func (c containerHelper) getName() string {
+	if len(c.Names) == 0 { // Why did it happen? Every container must have a name.
+		return ""
+	}
 	return strings.TrimPrefix(c.Names[0], "/")
 }
 
