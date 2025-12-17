@@ -239,13 +239,14 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 
 func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 	cfg := map[string]any{
-		"idle_timeout":   helper.getDeleteLabel(LabelIdleTimeout),
-		"wake_timeout":   helper.getDeleteLabel(LabelWakeTimeout),
-		"stop_method":    helper.getDeleteLabel(LabelStopMethod),
-		"stop_timeout":   helper.getDeleteLabel(LabelStopTimeout),
-		"stop_signal":    helper.getDeleteLabel(LabelStopSignal),
-		"start_endpoint": helper.getDeleteLabel(LabelStartEndpoint),
-		"depends_on":     Dependencies(c),
+		"idle_timeout":    helper.getDeleteLabel(LabelIdleTimeout),
+		"wake_timeout":    helper.getDeleteLabel(LabelWakeTimeout),
+		"stop_method":     helper.getDeleteLabel(LabelStopMethod),
+		"stop_timeout":    helper.getDeleteLabel(LabelStopTimeout),
+		"stop_signal":     helper.getDeleteLabel(LabelStopSignal),
+		"start_endpoint":  helper.getDeleteLabel(LabelStartEndpoint),
+		"depends_on":      Dependencies(c),
+		"no_loading_page": helper.getDeleteLabel(LabelNoLoadingPage),
 	}
 
 	// ensure it's deleted from labels

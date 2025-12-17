@@ -30,6 +30,7 @@ type (
 
 		StartEndpoint string   `json:"start_endpoint,omitempty"` // Optional path that must be hit to start container
 		DependsOn     []string `json:"depends_on,omitempty"`
+		NoLoadingPage bool     `json:"no_loading_page,omitempty"`
 
 		valErr gperr.Error
 	} // @name IdlewatcherConfig

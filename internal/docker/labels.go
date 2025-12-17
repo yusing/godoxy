@@ -14,5 +14,6 @@ const (
 	LabelStopSignal    = NSProxy + ".stop_signal"
 	LabelStartEndpoint = NSProxy + ".start_endpoint"
 	LabelDependsOn     = NSProxy + ".depends_on"
+	LabelNoLoadingPage = NSProxy + ".no_loading_page" // No loading page when using idlewatcher
 	LabelNetwork       = NSProxy + ".network"
 )
