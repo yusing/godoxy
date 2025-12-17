@@ -60,8 +60,7 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 	respErr := pinger.DoTimeout(req, resp, mon.config.Timeout)
 	lat := time.Since(start)
 
-	switch {
-	case respErr != nil:
+	if respErr != nil {
 		// treat TLS error as healthy
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(respErr, &tlsErr); !ok {
@@ -70,7 +69,9 @@ func (mon *HTTPHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 				Detail:  respErr.Error(),
 			}, nil
 		}
-	case resp.StatusCode() == fasthttp.StatusServiceUnavailable:
+	}
+
+	if status := resp.StatusCode(); status >= 500 && status < 600 {
 		return types.HealthCheckResult{
 			Latency: lat,
 			Detail:  fasthttp.StatusMessage(resp.StatusCode()),
