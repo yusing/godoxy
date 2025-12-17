@@ -332,6 +332,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 
 			w.idleTicker.Stop()
 			w.healthTicker.Stop()
+			w.setReady()
 			close(w.readyNotifyCh)
 			w.task.Finish(cause)
 		}()

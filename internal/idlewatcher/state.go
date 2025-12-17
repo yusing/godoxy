@@ -75,7 +75,7 @@ func (w *Watcher) waitForReady(ctx context.Context) bool {
 	// Wait for ready notification or context cancellation
 	select {
 	case <-w.readyNotifyCh:
-		return w.ready() // double-check in case of race condition
+		return true
 	case <-ctx.Done():
 		return false
 	}
