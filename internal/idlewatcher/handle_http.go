@@ -175,7 +175,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		}
 	}
 
-	if !acceptHTML {
+	if !acceptHTML || w.cfg.NoLoadingPage {
 		// send a continue response to prevent client wait-header timeout
 		rw.WriteHeader(http.StatusContinue)
 		ready := w.waitForReady(r.Context())
