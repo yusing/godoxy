@@ -1,0 +1,39 @@
+name: Cherry-pick into Compat
+
+on:
+  push:
+    tags:
+      - v*
+    paths:
+      - ".github/workflows/merge-main-into-compat.yml"
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Cherry-pick commits from last tag
+        run: |
+          git fetch origin compat
+          git checkout compat
+          CURRENT_TAG=${{ github.ref_name }}
+          PREV_TAG=$(git describe --tags --abbrev=0 $CURRENT_TAG^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found. Cherry-picking all commits up to $CURRENT_TAG"
+            git rev-list --reverse --no-merges $CURRENT_TAG | xargs -r git cherry-pick
+          else
+            echo "Cherry-picking commits from $PREV_TAG to $CURRENT_TAG"
+            git rev-list --reverse --no-merges $PREV_TAG..$CURRENT_TAG | xargs -r git cherry-pick
+          fi
+      - name: Push compat
+        run: |
+          git push origin compat
