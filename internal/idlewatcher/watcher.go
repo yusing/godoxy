@@ -200,7 +200,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 			depCfg = new(types.IdlewatcherConfig)
 			depCfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 			depCfg.IdleTimeout = neverTick // disable auto sleep for dependencies
-		} else if depCfg.IdleTimeout > 0 {
+		} else if depCfg.IdleTimeout > 0 && depCfg.IdleTimeout != neverTick {
 			depErrors.Addf("dependency %q has positive idle timeout %s", dep, depCfg.IdleTimeout)
 			continue
 		}
