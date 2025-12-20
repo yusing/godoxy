@@ -2,6 +2,7 @@ package route
 
 import (
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 
@@ -27,8 +28,25 @@ type (
 
 var _ types.FileServerRoute = (*FileServer)(nil)
 
-func handler(root string) http.Handler {
-	return http.FileServer(http.Dir(root))
+func handler(root string, spa bool, index string) http.Handler {
+	if !spa {
+		return http.FileServer(http.Dir(root))
+	}
+	indexPath := filepath.Join(root, index)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		urlPath := path.Clean(r.URL.Path)
+		if urlPath == "/" {
+			http.ServeFile(w, r, indexPath)
+			return
+		}
+		fullPath := filepath.Join(root, filepath.FromSlash(urlPath))
+		stat, err := os.Stat(fullPath)
+		if err == nil && !stat.IsDir() {
+			http.ServeFile(w, r, fullPath)
+			return
+		}
+		http.ServeFile(w, r, indexPath)
+	})
 }
 
 func NewFileServer(base *Route) (*FileServer, gperr.Error) {
@@ -39,7 +57,12 @@ func NewFileServer(base *Route) (*FileServer, gperr.Error) {
 		return nil, gperr.New("`root` must be an absolute path")
 	}
 
-	s.handler = handler(s.Root)
+	if s.Index == "" {
+		s.Index = "/index.html"
+	} else if s.Index[0] != '/' {
+		s.Index = "/" + s.Index
+	}
+	s.handler = handler(s.Root, s.SPA, s.Index)
 
 	if len(s.Middlewares) > 0 {
 		mid, err := middleware.BuildMiddlewareFromMap(s.Alias, s.Middlewares)

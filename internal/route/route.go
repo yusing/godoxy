@@ -44,7 +44,10 @@ type (
 		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
-		Root   string       `json:"root,omitempty"`
+
+		Root  string `json:"root,omitempty"`
+		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
+		Index string `json:"index,omitempty"` // Index file to serve for single-page app mode
 
 		route.HTTPConfig
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
