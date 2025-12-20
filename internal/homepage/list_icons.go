@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
 	httputils "github.com/yusing/goutils/http"
+	"github.com/yusing/goutils/intern"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
@@ -402,7 +403,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 		}
 		icon := &IconMeta{
 			DisplayName: item.Name,
-			Tag:         tag,
+			Tag:         intern.Make(tag).Value(),
 			SVG:         item.SVG == "Yes",
 			PNG:         item.PNG == "Yes",
 			WebP:        item.WebP == "Yes",
