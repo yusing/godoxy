@@ -110,8 +110,6 @@ func Clients() map[string]*SharedClient {
 	return clients
 }
 
-var versionArg = client.WithAPIVersionNegotiation()
-
 // NewClient creates a new Docker client connection to the specified host.
 //
 // Returns existing client if available.
@@ -154,7 +152,6 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 		opt = []client.Opt{
 			client.WithHost(agent.DockerHost),
 			client.WithHTTPClient(cfg.NewHTTPClient()),
-			versionArg,
 		}
 		addr = "tcp://" + cfg.Addr
 		dial = cfg.DialContext
@@ -165,7 +162,6 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 		case common.DockerHostFromEnv:
 			opt = []client.Opt{
 				client.WithHostFromEnv(),
-				versionArg,
 			}
 		default:
 			helper, err := connhelper.GetConnectionHelper(host)
@@ -181,13 +177,11 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 				opt = []client.Opt{
 					client.WithHTTPClient(httpClient),
 					client.WithHost(helper.Host),
-					versionArg,
 					client.WithDialContext(helper.Dialer),
 				}
 			} else {
 				opt = []client.Opt{
 					client.WithHost(host),
-					versionArg,
 				}
 			}
 		}
