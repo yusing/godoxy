@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -36,7 +37,7 @@ func TestContainerExplicit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, "")
+			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, types.DockerProviderConfig{})
 			expect.Equal(t, c.IsExplicit, tt.isExplicit)
 		})
 	}
@@ -73,7 +74,7 @@ func TestContainerHostNetworkMode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := FromDocker(tt.container, "")
+			c := FromDocker(tt.container, types.DockerProviderConfig{})
 			expect.Equal(t, c.IsHostNetworkMode, tt.isHostNetworkMode)
 		})
 	}

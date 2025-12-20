@@ -9,12 +9,15 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
-	DockerWatcher     string
+	DockerWatcher struct {
+		cfg types.DockerProviderConfig
+	}
 	DockerListOptions = client.EventsListOptions
 	DockerFilters     = client.Filters
 )
@@ -73,8 +76,10 @@ func DockerFilterContainerNameID(nameOrID string) DockerFilter {
 	return NewDockerFilter("container", nameOrID)
 }
 
-func NewDockerWatcher(host string) DockerWatcher {
-	return DockerWatcher(host)
+func NewDockerWatcher(dockerCfg types.DockerProviderConfig) DockerWatcher {
+	return DockerWatcher{
+		cfg: dockerCfg,
+	}
 }
 
 func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan gperr.Error) {
@@ -86,7 +91,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 	errCh := make(chan gperr.Error)
 
 	go func() {
-		client, err := docker.NewClient(string(w))
+		client, err := docker.NewClient(w.cfg)
 		if err != nil {
 			errCh <- gperr.Wrap(err, "docker watcher: failed to initialize client")
 			return

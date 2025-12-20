@@ -29,13 +29,13 @@ func GetContainer(c *gin.Context) {
 		return
 	}
 
-	dockerHost, ok := docker.GetDockerHostByContainerID(id)
+	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("container not found"))
 		return
 	}
 
-	dockerClient, err := docker.NewClient(dockerHost)
+	dockerClient, err := docker.NewClient(dockerCfg)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to create docker client"))
 		return
@@ -55,7 +55,7 @@ func GetContainer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, &Container{
-		Server: dockerHost,
+		Server: dockerCfg.URL,
 		Name:   cont.Container.Name,
 		ID:     cont.Container.ID,
 		Image:  cont.Container.Image,

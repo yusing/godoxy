@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/task"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -27,6 +28,8 @@ import (
 type (
 	SharedClient struct {
 		*client.Client
+
+		cfg types.DockerProviderConfig
 
 		refCount atomic.Int32
 		closedOn atomic.Int64
@@ -120,13 +123,15 @@ func Clients() map[string]*SharedClient {
 // Returns:
 //   - Client: the Docker client connection.
 //   - error: an error if the connection failed.
-func NewClient(host string, unique ...bool) (*SharedClient, error) {
+func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, error) {
 	initClientCleanerOnce.Do(initClientCleaner)
 
 	u := false
 	if len(unique) > 0 {
 		u = unique[0]
 	}
+
+	host := cfg.URL
 
 	if !u {
 		clientMapMu.Lock()
@@ -187,6 +192,10 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 		}
 	}
 
+	if cfg.TLS != nil {
+		opt = append(opt, client.WithTLSClientConfig(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile))
+	}
+
 	client, err := client.New(opt...)
 	if err != nil {
 		return nil, err
@@ -194,6 +203,7 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 
 	c := &SharedClient{
 		Client: client,
+		cfg:    cfg,
 		addr:   addr,
 		key:    host,
 		dial:   dial,
@@ -230,7 +240,7 @@ func (c *SharedClient) InterceptHTTPClient(intercept httputils.InterceptFunc) {
 func (c *SharedClient) CloneUnique() *SharedClient {
 	// there will be no error here
 	// since we are using the same host from a valid client.
-	c, _ = NewClient(c.key, true)
+	c, _ = NewClient(c.cfg, true)
 	return c
 }
 

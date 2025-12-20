@@ -34,13 +34,13 @@ func Start(c *gin.Context) {
 		return
 	}
 
-	dockerHost, ok := docker.GetDockerHostByContainerID(req.ID)
+	dockerCfg, ok := docker.GetDockerCfgByContainerID(req.ID)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("container not found"))
 		return
 	}
 
-	client, err := docker.NewClient(dockerHost)
+	client, err := docker.NewClient(dockerCfg)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to create docker client"))
 		return

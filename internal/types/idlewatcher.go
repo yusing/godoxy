@@ -38,9 +38,9 @@ type (
 	ContainerSignal     string // @name ContainerSignal
 
 	DockerConfig struct {
-		DockerHost    string `json:"docker_host" validate:"required"`
-		ContainerID   string `json:"container_id" validate:"required"`
-		ContainerName string `json:"container_name" validate:"required"`
+		DockerCfg     DockerProviderConfig `json:"docker_cfg" validate:"required"`
+		ContainerID   string               `json:"container_id" validate:"required"`
+		ContainerName string               `json:"container_name" validate:"required"`
 	} // @name DockerConfig
 	ProxmoxConfig struct {
 		Node string `json:"node" validate:"required"`
