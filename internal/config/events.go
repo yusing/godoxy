@@ -90,8 +90,7 @@ func Reload() gperr.Error {
 	if err != nil {
 		newState.Task().FinishAndWait(err)
 		config.WorkingState.Store(GetState())
-		logNotifyError("reload", err)
-		return gperr.New(ansi.Warning("using last config")).With(err)
+		return gperr.Wrap(err, ansi.Warning("using last config"))
 	}
 
 	// flush temporary log
@@ -117,7 +116,7 @@ func WatchChanges() {
 		configEventFlushInterval,
 		OnConfigChange,
 		func(err gperr.Error) {
-			logNotifyError("config reload", err)
+			logNotifyError("reload", err)
 		},
 	)
 	eventQueue.Start(cfgWatcher.Events(t.Context()))
