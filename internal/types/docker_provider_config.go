@@ -27,26 +27,23 @@ func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(cfg.URL)
 }
 
-func (cfg *DockerProviderConfig) UnmarshalJSON(data []byte) error {
-	// either a string or a map
-	var v any
-	if err := json.Unmarshal(data, &v); err != nil {
+func (cfg *DockerProviderConfig) Parse(value string) error {
+	cfg.URL = value
+	return nil
+}
+
+func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) gperr.Error {
+	var tmp DockerProviderConfigDetailed
+	var err = serialization.MapUnmarshalValidate(m, &tmp)
+	if err != nil {
 		return err
 	}
-	switch v := v.(type) {
-	case string:
-		cfg.URL = v
-	case map[string]any:
-		var tmp DockerProviderConfigDetailed
-		var err error = serialization.MapUnmarshalValidate(v, &tmp)
-		if err != nil {
-			return err
-		}
 
-		cfg.URL = fmt.Sprintf("%s://%s", tmp.Protocol, net.JoinHostPort(tmp.Host, strconv.Itoa(tmp.Port)))
-		cfg.TLS = tmp.TLS
+	cfg.URL = fmt.Sprintf("%s://%s", tmp.Protocol, net.JoinHostPort(tmp.Host, strconv.Itoa(tmp.Port)))
+	cfg.TLS = tmp.TLS
+	if cfg.TLS != nil {
 		if err := checkFilesOk(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
-			return err
+			return gperr.Wrap(err)
 		}
 	}
 	return nil

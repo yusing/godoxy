@@ -68,7 +68,7 @@ func init() {
 		return true
 	})
 	serialization.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
-		m := fl.Field().Interface().(map[string]string)
+		m := fl.Field().Interface().(map[string]types.DockerProviderConfig)
 		for k := range m {
 			if k == "" {
 				return false
