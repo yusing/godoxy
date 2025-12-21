@@ -171,13 +171,7 @@ func NewClient(host string, unique ...bool) (*SharedClient, error) {
 				log.Panic().Err(err).Msg("failed to get connection helper")
 			}
 			if helper != nil {
-				httpClient := &http.Client{
-					Transport: &http.Transport{
-						DialContext: helper.Dialer,
-					},
-				}
 				opt = []client.Opt{
-					client.WithHTTPClient(httpClient),
 					client.WithHost(helper.Host),
 					client.WithAPIVersionNegotiation(),
 					client.WithDialContext(helper.Dialer),
