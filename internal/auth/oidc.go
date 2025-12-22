@@ -32,6 +32,8 @@ type (
 		allowedUsers  []string
 		allowedGroups []string
 
+		rateLimit *rate.Limiter
+
 		onUnknownPathHandler http.HandlerFunc
 	}
 
@@ -123,6 +125,7 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 		endSessionURL: endSessionURL,
 		allowedUsers:  allowedUsers,
 		allowedGroups: allowedGroups,
+		rateLimit:     rate.NewLimiter(rate.Every(common.OIDCRateLimitPeriod), common.OIDCRateLimit),
 	}, nil
 }
 
@@ -165,6 +168,7 @@ func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clien
 		endSessionURL: baseProvider.endSessionURL,
 		allowedUsers:  baseProvider.allowedUsers,
 		allowedGroups: baseProvider.allowedGroups,
+		rateLimit:     baseProvider.rateLimit,
 	}, nil
 }
 
@@ -228,9 +232,12 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var rateLimit = rate.NewLimiter(rate.Every(time.Second), 1)
-
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if !httputils.GetAccept(r.Header).AcceptHTML() {
+		http.Error(w, "authentication is required", http.StatusForbidden)
+		return
+	}
+
 	// check for session token
 	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
 	if err == nil { // session token exists
@@ -250,8 +257,8 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !rateLimit.Allow() {
-		http.Error(w, "auth rate limit exceeded", http.StatusTooManyRequests)
+	if !auth.rateLimit.Allow() {
+		WriteBlockPage(w, http.StatusTooManyRequests, "auth rate limit exceeded", "Try again", OIDCAuthInitPath)
 		return
 	}
 
@@ -318,34 +325,39 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	// verify state
 	state, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthState))
 	if err != nil {
-		http.Error(w, "missing state cookie", http.StatusBadRequest)
+		auth.clearCookie(w, r)
+		WriteBlockPage(w, http.StatusBadRequest, "missing state cookie", "Back to Login", OIDCAuthInitPath)
 		return
 	}
 	if r.URL.Query().Get("state") != state.Value {
-		http.Error(w, "invalid oauth state", http.StatusBadRequest)
+		auth.clearCookie(w, r)
+		WriteBlockPage(w, http.StatusBadRequest, "invalid oauth state", "Back to Login", OIDCAuthInitPath)
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	oauth2Token, err := auth.oauthConfig.Exchange(r.Context(), code, optRedirectPostAuth(r))
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		httputils.LogError(r).Msg(fmt.Sprintf("failed to exchange token: %v", err))
+		auth.clearCookie(w, r)
+		WriteBlockPage(w, http.StatusInternalServerError, "failed to exchange token", "Try again", OIDCAuthInitPath)
+		httputils.LogError(r).Msgf("failed to exchange token: %v", err)
 		return
 	}
 
 	idTokenJWT, idToken, err := auth.getIDToken(r.Context(), oauth2Token)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		httputils.LogError(r).Msg(fmt.Sprintf("failed to get ID token: %v", err))
+		auth.clearCookie(w, r)
+		WriteBlockPage(w, http.StatusInternalServerError, "failed to get ID token", "Try again", OIDCAuthInitPath)
+		httputils.LogError(r).Msgf("failed to get ID token: %v", err)
 		return
 	}
 
 	if oauth2Token.RefreshToken != "" {
 		claims, err := parseClaims(idToken)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			httputils.LogError(r).Msg(fmt.Sprintf("failed to parse claims: %v", err))
+			auth.clearCookie(w, r)
+			WriteBlockPage(w, http.StatusInternalServerError, "failed to parse claims", "Try again", OIDCAuthInitPath)
+			httputils.LogError(r).Msgf("failed to parse claims: %v", err)
 			return
 		}
 		session := newSession(claims.Username, claims.Groups)

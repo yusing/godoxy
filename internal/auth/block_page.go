@@ -12,11 +12,12 @@ var blockPageHTML string
 
 var blockPageTemplate = template.Must(template.New("block_page").Parse(blockPageHTML))
 
-func WriteBlockPage(w http.ResponseWriter, status int, error string, logoutURL string) {
+func WriteBlockPage(w http.ResponseWriter, status int, errorMessage, actionText, actionURL string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	blockPageTemplate.Execute(w, map[string]string{
 		"StatusText": http.StatusText(status),
-		"Error":      error,
-		"LogoutURL":  logoutURL,
+		"Error":      errorMessage,
+		"ActionURL":  actionURL,
+		"ActionText": actionText,
 	})
 }
