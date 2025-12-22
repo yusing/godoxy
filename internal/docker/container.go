@@ -241,9 +241,11 @@ func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 	hasIdleTimeout := false
 	cfg := make(map[string]any, len(idlewatcherLabels))
 	for lbl, key := range idlewatcherLabels {
-		if value := helper.getDeleteLabel(lbl); value != "" {
-			cfg[key] = value
+		value := helper.getDeleteLabel(lbl)
+		if value == "" {
+			continue
 		}
+		cfg[key] = value
 		switch lbl {
 		case LabelIdleTimeout:
 			hasIdleTimeout = true
@@ -251,9 +253,6 @@ func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 			cfg[key] = Dependencies(c)
 		}
 	}
-
-	// ensure it's deleted from labels
-	helper.getDeleteLabel(LabelDependsOn)
 
 	// set only if idlewatcher is enabled
 	if hasIdleTimeout {
