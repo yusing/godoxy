@@ -19,7 +19,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
 	github.com/go-acme/lego/v4 v4.30.1 // acme client
-	github.com/go-playground/validator/v10 v10.29.0 // validator
+	github.com/go-playground/validator/v10 v10.30.0 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.7.3 // reference the Message struct for json response
@@ -39,25 +39,25 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.14.2 // fast json parsing
 	github.com/docker/cli v29.1.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
-	github.com/goccy/go-yaml v1.19.0 // yaml parsing for different config files
+	github.com/goccy/go-yaml v1.19.1 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0 // jwt authentication
-	github.com/luthermonson/go-proxmox v0.2.3 // proxmox API client
+	github.com/luthermonson/go-proxmox v0.2.4 // proxmox API client
 	github.com/moby/moby/api v1.52.0 // docker API
 	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
-	github.com/quic-go/quic-go v0.57.1 // http3 support
+	github.com/quic-go/quic-go v0.58.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.25.11 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251217034652-88d7255c7adc
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251217034652-88d7255c7adc
+	github.com/yusing/godoxy/agent v0.0.0-20251222024341-f67480d085fc
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251222024341-f67480d085fc
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251216064709-6c698b1d55d0
-	github.com/yusing/goutils/http/websocket v0.0.0-20251216064709-6c698b1d55d0
-	github.com/yusing/goutils/server v0.0.0-20251216064709-6c698b1d55d0
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251217162119-cb0f79b51ce2
+	github.com/yusing/goutils/http/websocket v0.0.0-20251217162119-cb0f79b51ce2
+	github.com/yusing/goutils/server v0.0.0-20251217162119-cb0f79b51ce2
 )
 
 require (
@@ -93,7 +93,7 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
-	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -120,7 +120,7 @@ require (
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/samber/slog-common v0.19.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.0 // indirect
-	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.35 // indirect
+	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
@@ -135,7 +135,7 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/api v0.257.0 // indirect
+	google.golang.org/api v0.258.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
@@ -175,9 +175,7 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vultr/govultr/v3 v3.26.0 // indirect
+	github.com/vultr/govultr/v3 v3.26.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.23.0 // indirect
-	google.golang.org/genproto v0.0.0-20251111163417-95abcf5c77ba // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251111163417-95abcf5c77ba // indirect
 )
