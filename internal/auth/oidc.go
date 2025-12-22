@@ -32,6 +32,8 @@ type (
 		allowedUsers  []string
 		allowedGroups []string
 
+		rateLimit *rate.Limiter
+
 		onUnknownPathHandler http.HandlerFunc
 	}
 
@@ -123,6 +125,7 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 		endSessionURL: endSessionURL,
 		allowedUsers:  allowedUsers,
 		allowedGroups: allowedGroups,
+		rateLimit:     rate.NewLimiter(rate.Every(common.OIDCRateLimitPeriod), common.OIDCRateLimit),
 	}, nil
 }
 
@@ -165,6 +168,7 @@ func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clien
 		endSessionURL: baseProvider.endSessionURL,
 		allowedUsers:  baseProvider.allowedUsers,
 		allowedGroups: baseProvider.allowedGroups,
+		rateLimit:     baseProvider.rateLimit,
 	}, nil
 }
 
@@ -228,8 +232,6 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var rateLimit = rate.NewLimiter(rate.Every(time.Second), 1)
-
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if !httputils.GetAccept(r.Header).AcceptHTML() {
 		http.Error(w, "authentication is required", http.StatusForbidden)
@@ -255,7 +257,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !rateLimit.Allow() {
+	if !auth.rateLimit.Allow() {
 		WriteBlockPage(w, http.StatusTooManyRequests, "auth rate limit exceeded", "Try again", OIDCAuthInitPath)
 		return
 	}

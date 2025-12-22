@@ -39,12 +39,14 @@ var (
 	DebugDisableAuth = env.GetEnvBool("DEBUG_DISABLE_AUTH", false)
 
 	// OIDC Configuration.
-	OIDCIssuerURL     = env.GetEnvString("OIDC_ISSUER_URL", "")
-	OIDCClientID      = env.GetEnvString("OIDC_CLIENT_ID", "")
-	OIDCClientSecret  = env.GetEnvString("OIDC_CLIENT_SECRET", "")
-	OIDCScopes        = env.GetEnvCommaSep("OIDC_SCOPES", "openid, profile, email, groups")
-	OIDCAllowedUsers  = env.GetEnvCommaSep("OIDC_ALLOWED_USERS", "")
-	OIDCAllowedGroups = env.GetEnvCommaSep("OIDC_ALLOWED_GROUPS", "")
+	OIDCIssuerURL       = env.GetEnvString("OIDC_ISSUER_URL", "")
+	OIDCClientID        = env.GetEnvString("OIDC_CLIENT_ID", "")
+	OIDCClientSecret    = env.GetEnvString("OIDC_CLIENT_SECRET", "")
+	OIDCScopes          = env.GetEnvCommaSep("OIDC_SCOPES", "openid, profile, email, groups")
+	OIDCAllowedUsers    = env.GetEnvCommaSep("OIDC_ALLOWED_USERS", "")
+	OIDCAllowedGroups   = env.GetEnvCommaSep("OIDC_ALLOWED_GROUPS", "")
+	OIDCRateLimit       = env.GetEnvInt("OIDC_RATE_LIMIT", 10)
+	OIDCRateLimitPeriod = env.GetEnvDuation("OIDC_RATE_LIMIT_PERIOD", time.Second)
 
 	// metrics configuration
 	MetricsDisableCPU     = env.GetEnvBool("METRICS_DISABLE_CPU", false)
