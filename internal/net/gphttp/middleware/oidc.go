@@ -117,7 +117,7 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 	case errors.Is(err, auth.ErrMissingOAuthToken):
 		amw.auth.HandleAuth(w, r)
 	default:
-		auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), auth.OIDCLogoutPath)
+		auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), "Logout", auth.OIDCLogoutPath)
 	}
 	return false
 }
