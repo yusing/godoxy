@@ -5,10 +5,227 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Access Denied</title>
+    <meta name="color-scheme" content="dark" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg0: #070a12;
+        --bg1: #0b1020;
+        --card: rgba(255, 255, 255, 0.055);
+        --card2: rgba(255, 255, 255, 0.05);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --border: rgba(255, 255, 255, 0.12);
+        --borderSoft: rgba(255, 255, 255, 0.08);
+        --borderStrong: rgba(255, 255, 255, 0.14);
+        --borderHover: rgba(255, 255, 255, 0.22);
+        --shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+        --shadowCard: 0 22px 60px rgba(0, 0, 0, 0.58);
+        --shadowButton: 0 12px 28px rgba(0, 0, 0, 0.35);
+        --insetHighlight: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        --ring: rgba(120, 160, 210, 0.42);
+        --accent0: #7aa3c8;
+        --accent1: #9a8bc7;
+        --btn: rgba(255, 255, 255, 0.06);
+        --btnHover: rgba(255, 255, 255, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+        color: var(--text);
+        background-color: var(--bg1);
+        background-image: none;
+      }
+
+      .wrap {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 28px 16px;
+      }
+
+      .card {
+        width: min(720px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadowCard), var(--insetHighlight);
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 18px 12px;
+        border-bottom: 1px solid var(--borderSoft);
+        background: var(--card2);
+      }
+
+      .badge {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--borderStrong);
+        background: var(--card2);
+      }
+
+      .badge svg {
+        opacity: 0.95;
+      }
+
+      .badge .bang {
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+        transform: translateY(-1px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.25;
+        letter-spacing: 0.2px;
+      }
+
+      .sub {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .content {
+        padding: 18px;
+      }
+
+      .error {
+        margin: 0;
+        padding: 14px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.25);
+        color: rgba(255, 255, 255, 0.8);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          Liberation Mono, Courier New, monospace;
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
+        text-transform: capitalize;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 14px;
+      }
+
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 14px;
+        text-decoration: none;
+        color: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--borderStrong);
+        background: var(--btn);
+        transition: transform 120ms ease, border-color 120ms ease,
+          background 120ms ease, box-shadow 120ms ease;
+        box-shadow: var(--shadowButton);
+      }
+
+      a.button:hover {
+        transform: translateY(-1px);
+        border-color: var(--borderHover);
+        background: var(--btnHover);
+      }
+
+      a.button:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 3px var(--ring), var(--shadowButton);
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .hint kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          Liberation Mono, Courier New, monospace;
+        font-size: 11px;
+        padding: 2px 4px;
+        border-radius: 6px;
+        border: 1px solid var(--borderStrong);
+        background: var(--btn);
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      kbd {
+        font-weight: 500;
+      }
+
+      .kbd-container {
+        display: inline-flex;
+        gap: 2px;
+        align-items: center;
+      }
+    </style>
   </head>
   <body>
-    <h1>{{.StatusText}}</h1>
-    <p>{{.Error}}</p>
-    <a href="{{.ActionURL}}">{{.ActionText}}</a>
+    <div class="wrap">
+      <main class="card" role="main" aria-labelledby="title">
+        <header class="topbar">
+          <div class="badge" aria-hidden="true">
+            <span class="bang">!</span>
+          </div>
+          <div>
+            <h1 id="title">{{.StatusText}}</h1>
+            <p class="sub">
+              You don’t have permission to access this resource.
+            </p>
+          </div>
+        </header>
+
+        <section class="content">
+          <pre class="error">{{.Error}}</pre>
+          <div class="actions">
+            <a class="button" href="{{.ActionURL}}">
+              <span>{{.ActionText}}</span>
+              <span aria-hidden="true">→</span>
+            </a>
+            <div class="hint">
+              If you just signed in, try refreshing the page.
+              <span aria-hidden="true"> </span>
+              <div class="kbd-container">
+                <kbd>Ctrl</kbd>
+                <span>+</span>
+                <kbd>R</kbd>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   </body>
 </html>
