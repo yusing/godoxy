@@ -35,7 +35,7 @@ else ifeq ($(debug), 1)
 	CGO_ENABLED = 1
 	GODOXY_DEBUG = 1
 	GO_TAGS += debug
-	BUILD_FLAGS += -asan # FIXME: -gcflags=all='-N -l'
+	# FIXME: BUILD_FLAGS += -asan -gcflags=all='-N -l'
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 0
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
@@ -142,7 +142,7 @@ ci-test:
 	act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$$(gh auth token)"
 
 cloc:
-	cloc --include-lang=Go --not-match-f '_test.go$$' .
+	scc -w -i go --not-match '_test.go$'
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)

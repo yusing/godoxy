@@ -72,6 +72,8 @@ func main() {
 		Handler:  api.NewHandler(),
 	})
 
+	listenDebugServer()
+
 	uptime.Poller.Start()
 	config.WatchChanges()
 
