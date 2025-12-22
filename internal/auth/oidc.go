@@ -231,6 +231,11 @@ func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
 var rateLimit = rate.NewLimiter(rate.Every(time.Second), 1)
 
 func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if !httputils.GetAccept(r.Header).AcceptHTML() {
+		http.Error(w, "authentication is required", http.StatusForbidden)
+		return
+	}
+
 	// check for session token
 	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
 	if err == nil { // session token exists
