@@ -11,7 +11,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
-	"github.com/yusing/goutils/num"
+	"github.com/yusing/goutils/intern"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -22,32 +22,26 @@ var (
 		Timestamp:  123456,
 		CPUAverage: &cpuAvg,
 		Memory: mem.VirtualMemoryStat{
-			Total:       16000000000,
-			Available:   8000000000,
-			Used:        8000000000,
-			UsedPercent: 50.0,
+			Available: 8000000000,
+			Used:      8000000000,
 		},
 		Disks: map[string]disk.UsageStat{
 			"sda": {
-				Path:        "/",
-				Fstype:      "ext4",
-				Total:       500000000000,
-				Free:        250000000000,
-				Used:        250000000000,
-				UsedPercent: 50.0,
+				Path:   intern.Make("/"),
+				Fstype: intern.Make("ext4"),
+				Free:   250000000000,
+				Used:   250000000000,
 			},
 			"nvme0n1": {
-				Path:        "/",
-				Fstype:      "zfs",
-				Total:       500000000000,
-				Free:        250000000000,
-				Used:        250000000000,
-				UsedPercent: 50.0,
+				Path:   intern.Make("/"),
+				Fstype: intern.Make("zfs"),
+				Free:   250000000000,
+				Used:   250000000000,
 			},
 		},
 		DisksIO: map[string]*disk.IOCountersStat{
 			"media": {
-				Name:       "media",
+				Name:       intern.Make("media"),
 				ReadBytes:  1000000,
 				WriteBytes: 2000000,
 				IOCountersStatExtra: disk.IOCountersStatExtra{
@@ -57,7 +51,7 @@ var (
 				},
 			},
 			"nvme0n1": {
-				Name:       "nvme0n1",
+				Name:       intern.Make("nvme0n1"),
 				ReadBytes:  1000000,
 				WriteBytes: 2000000,
 				IOCountersStatExtra: disk.IOCountersStatExtra{
@@ -75,16 +69,12 @@ var (
 		},
 		Sensors: []sensors.TemperatureStat{
 			{
-				SensorKey:   "cpu_temp",
-				Temperature: num.NewPercentage(30.0),
-				High:        num.NewPercentage(40.0),
-				Critical:    num.NewPercentage(50.0),
+				SensorKey:   intern.Make("cpu_temp"),
+				Temperature: 30.0,
 			},
 			{
-				SensorKey:   "gpu_temp",
-				Temperature: num.NewPercentage(40.0),
-				High:        num.NewPercentage(50.0),
-				Critical:    num.NewPercentage(60.0),
+				SensorKey:   intern.Make("gpu_temp"),
+				Temperature: 40.0,
 			},
 		},
 	}
@@ -141,10 +131,10 @@ func TestSerialize(t *testing.T) {
 			expect.NoError(t, err)
 			var v []map[string]any
 			expect.NoError(t, json.Unmarshal(s, &v))
-			expect.Equal(t, len(v), len(result.Entries))
+			expect.Equal(t, len(v), len(result))
 			for i, m := range v {
 				for k, v := range m {
-					vv := reflect.ValueOf(result.Entries[i][k])
+					vv := reflect.ValueOf(result[i][k])
 					expect.Equal(t, reflect.ValueOf(v).Interface(), vv.Interface())
 				}
 			}
