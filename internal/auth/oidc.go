@@ -68,9 +68,9 @@ func (auth *OIDCProvider) getAppScopedCookieName(baseName string) string {
 
 const (
 	OIDCAuthInitPath = "/"
-	OIDCAuthBasePath = "/auth"
-	OIDCPostAuthPath = OIDCAuthBasePath + "/callback"
-	OIDCLogoutPath   = OIDCAuthBasePath + "/logout"
+	OIDCAuthBasePath = "/auth/"
+	OIDCPostAuthPath = OIDCAuthBasePath + "callback"
+	OIDCLogoutPath   = OIDCAuthBasePath + "logout"
 )
 
 var (
