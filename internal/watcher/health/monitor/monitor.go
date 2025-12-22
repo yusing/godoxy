@@ -33,8 +33,6 @@ type (
 		checkHealth HealthCheckFunc
 		startTime   time.Time
 
-		isZeroPort bool
-
 		notifyFunc           notif.NotifyFunc
 		numConsecFailures    atomic.Int64
 		downNotificationSent atomic.Bool
@@ -91,13 +89,6 @@ func newMonitor(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthC
 	mon.url.Store(u)
 	mon.status.Store(types.StatusHealthy)
 	mon.lastResult.Store(types.HealthCheckResult{Healthy: true, Detail: "started"})
-
-	port := u.Port()
-	mon.isZeroPort = port == "" || port == "0"
-	if mon.isZeroPort {
-		mon.status.Store(types.StatusUnknown)
-		mon.lastResult.Store(types.HealthCheckResult{Healthy: false, Detail: "no port detected"})
-	}
 	return mon
 }
 
@@ -117,10 +108,6 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 func (mon *monitor) Start(parent task.Parent) gperr.Error {
 	if mon.config.Interval <= 0 {
 		return ErrNegativeInterval
-	}
-
-	if mon.isZeroPort {
-		return nil
 	}
 
 	mon.service = parent.Name()
