@@ -57,8 +57,8 @@ definitions:
         type: string
       container_name:
         type: string
-      docker_host:
-        type: string
+      docker_cfg:
+        $ref: '#/definitions/DockerProviderConfig'
       errors:
         type: string
       idlewatcher_config:
@@ -192,12 +192,30 @@ definitions:
         type: string
       container_name:
         type: string
-      docker_host:
-        type: string
+      docker_cfg:
+        $ref: '#/definitions/DockerProviderConfig'
     required:
     - container_id
     - container_name
-    - docker_host
+    - docker_cfg
+    type: object
+  DockerProviderConfig:
+    properties:
+      tls:
+        $ref: '#/definitions/DockerTLSConfig'
+      url:
+        type: string
+    type: object
+  DockerTLSConfig:
+    properties:
+      ca_file:
+        type: string
+      cert_file:
+        type: string
+      key_file:
+        type: string
+    required:
+    - ca_file
     type: object
   ErrorResponse:
     properties:
@@ -517,6 +535,8 @@ definitions:
         description: "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative:
           idle watcher as a dependency.\tIdleTimeout time.Duration `json:\"idle_timeout\"
           json_ext:\"duration\"`"
+      no_loading_page:
+        type: boolean
       proxmox:
         $ref: '#/definitions/ProxmoxConfig'
       start_endpoint:
@@ -897,6 +917,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/IdlewatcherConfig'
         x-nullable: true
+      index:
+        description: Index file to serve for single-page app mode
+        type: string
       load_balance:
         allOf:
         - $ref: '#/definitions/LoadBalancerConfig'
@@ -944,6 +967,9 @@ definitions:
         - udp
         - fileserver
         type: string
+      spa:
+        description: 'Single-page app mode: serves index for non-existent paths'
+        type: boolean
       ssl_certificate:
         description: Path to client certificate
         type: string
@@ -1504,6 +1530,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/IdlewatcherConfig'
         x-nullable: true
+      index:
+        description: Index file to serve for single-page app mode
+        type: string
       load_balance:
         allOf:
         - $ref: '#/definitions/LoadBalancerConfig'
@@ -1551,6 +1580,9 @@ definitions:
         - udp
         - fileserver
         type: string
+      spa:
+        description: 'Single-page app mode: serves index for non-existent paths'
+        type: boolean
       ssl_certificate:
         description: Path to client certificate
         type: string
