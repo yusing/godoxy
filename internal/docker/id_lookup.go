@@ -2,18 +2,19 @@ package docker
 
 import (
 	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/yusing/godoxy/internal/types"
 )
 
-var idDockerHostMap = xsync.NewMap[string, string](xsync.WithPresize(100))
+var idDockerCfgMap = xsync.NewMap[string, types.DockerProviderConfig](xsync.WithPresize(100))
 
-func GetDockerHostByContainerID(id string) (string, bool) {
-	return idDockerHostMap.Load(id)
+func GetDockerCfgByContainerID(id string) (types.DockerProviderConfig, bool) {
+	return idDockerCfgMap.Load(id)
 }
 
-func SetDockerHostByContainerID(id, host string) {
-	idDockerHostMap.Store(id, host)
+func SetDockerCfgByContainerID(id string, cfg types.DockerProviderConfig) {
+	idDockerCfgMap.Store(id, cfg)
 }
 
-func DeleteDockerHostByContainerID(id string) {
-	idDockerHostMap.Delete(id)
+func DeleteDockerCfgByContainerID(id string) {
+	idDockerCfgMap.Delete(id)
 }

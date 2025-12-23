@@ -19,14 +19,14 @@ type DockerProvider struct {
 
 var startOptions = container.StartOptions{}
 
-func NewDockerProvider(dockerHost, containerID string) (idlewatcher.Provider, error) {
-	client, err := docker.NewClient(dockerHost)
+func NewDockerProvider(dockerCfg types.DockerProviderConfig, containerID string) (idlewatcher.Provider, error) {
+	client, err := docker.NewClient(dockerCfg)
 	if err != nil {
 		return nil, err
 	}
 	return &DockerProvider{
 		client:      client,
-		watcher:     watcher.NewDockerWatcher(dockerHost),
+		watcher:     watcher.NewDockerWatcher(dockerCfg),
 		containerID: containerID,
 	}, nil
 }

@@ -57,13 +57,13 @@ func Logs(c *gin.Context) {
 	}
 
 	// TODO: implement levels
-	dockerHost, ok := docker.GetDockerHostByContainerID(id)
+	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error(fmt.Sprintf("container %s not found", id)))
 		return
 	}
 
-	dockerClient, err := docker.NewClient(dockerHost)
+	dockerClient, err := docker.NewClient(dockerCfg)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get docker client"))
 		return
@@ -105,7 +105,7 @@ func Logs(c *gin.Context) {
 			return
 		}
 		log.Err(err).
-			Str("server", dockerHost).
+			Str("server", dockerCfg.URL).
 			Str("container", id).
 			Msg("failed to de-multiplex logs")
 	}

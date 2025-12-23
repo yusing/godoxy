@@ -318,9 +318,9 @@ func (state *state) loadRouteProviders() error {
 		})
 	}
 
-	for name, dockerHost := range providers.Docker {
+	for name, dockerCfg := range providers.Docker {
 		providersProducer.Go(func() {
-			providersCh <- route.NewDockerProvider(name, dockerHost)
+			providersCh <- route.NewDockerProvider(name, dockerCfg)
 		})
 	}
 

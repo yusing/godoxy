@@ -209,7 +209,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 			depCont := depRoute.ContainerInfo()
 			if depCont != nil {
 				depCfg.Docker = &types.DockerConfig{
-					DockerHost:    depCont.DockerHost,
+					DockerCfg:     depCont.DockerCfg,
 					ContainerID:   depCont.ContainerID,
 					ContainerName: depCont.ContainerName,
 				}
@@ -256,7 +256,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 	var kind string
 	switch {
 	case cfg.Docker != nil:
-		p, err = provider.NewDockerProvider(cfg.Docker.DockerHost, cfg.Docker.ContainerID)
+		p, err = provider.NewDockerProvider(cfg.Docker.DockerCfg, cfg.Docker.ContainerID)
 		kind = "docker"
 	default:
 		p, err = provider.NewProxmoxProvider(cfg.Proxmox.Node, cfg.Proxmox.VMID)

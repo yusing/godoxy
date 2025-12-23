@@ -32,12 +32,12 @@ type (
 		HealthCheck types.HealthCheckConfig `json:"healthcheck"`
 	}
 	Providers struct {
-		Files        []string                    `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
-		Docker       map[string]string           `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
-		Agents       []*agent.AgentConfig        `json:"agents" yaml:"agents,omitempty"`
-		Notification []*notif.NotificationConfig `json:"notification" yaml:"notification,omitempty"`
-		Proxmox      []proxmox.Config            `json:"proxmox" yaml:"proxmox,omitempty"`
-		MaxMind      *maxmind.Config             `json:"maxmind" yaml:"maxmind,omitempty"`
+		Files        []string                              `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
+		Docker       map[string]types.DockerProviderConfig `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys"`
+		Agents       []*agent.AgentConfig                  `json:"agents" yaml:"agents,omitempty"`
+		Notification []*notif.NotificationConfig           `json:"notification" yaml:"notification,omitempty"`
+		Proxmox      []proxmox.Config                      `json:"proxmox" yaml:"proxmox,omitempty"`
+		MaxMind      *maxmind.Config                       `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
 )
 
@@ -68,7 +68,7 @@ func init() {
 		return true
 	})
 	serialization.MustRegisterValidation("non_empty_docker_keys", func(fl validator.FieldLevel) bool {
-		m := fl.Field().Interface().(map[string]string)
+		m := fl.Field().Interface().(map[string]types.DockerProviderConfig)
 		for k := range m {
 			if k == "" {
 				return false

@@ -10,6 +10,7 @@ import (
 	D "github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -30,7 +31,7 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 	}
 	cont.ID = "test"
 	p.name = "test"
-	routes := expect.Must(p.routesFromContainerLabels(D.FromDocker(cont, host)))
+	routes := expect.Must(p.routesFromContainerLabels(D.FromDocker(cont, types.DockerProviderConfig{URL: host})))
 	for _, r := range routes {
 		r.Finalize()
 	}
@@ -38,7 +39,7 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 }
 
 func TestExplicitOnly(t *testing.T) {
-	p := NewDockerProvider("a!", "")
+	p := NewDockerProvider("a!", types.DockerProviderConfig{})
 	expect.True(t, p.IsExplicitOnly())
 }
 
@@ -198,7 +199,7 @@ func TestApplyLabelWithRefIndexError(t *testing.T) {
 			"proxy.*.port":    "4444",
 			"proxy.#4.scheme": "https",
 		},
-	}, "")
+	}, types.DockerProviderConfig{})
 	var p DockerProvider
 	_, err := p.routesFromContainerLabels(c)
 	expect.ErrorIs(t, ErrAliasRefIndexOutOfRange, err)
@@ -210,7 +211,7 @@ func TestApplyLabelWithRefIndexError(t *testing.T) {
 			D.LabelAliases:  "a,b",
 			"proxy.#0.host": "localhost",
 		},
-	}, "")
+	}, types.DockerProviderConfig{})
 	_, err = p.routesFromContainerLabels(c)
 	expect.ErrorIs(t, ErrAliasRefIndexOutOfRange, err)
 }
