@@ -17,10 +17,10 @@ type DockerProviderConfig struct {
 } // @name DockerProviderConfig
 
 type DockerProviderConfigDetailed struct {
-	Host     string     `json:"host,omitempty"`
-	Port     int        `json:"port,omitempty"`
-	Protocol string     `json:"protocol,omitempty"`
-	TLS      *TLSConfig `json:"tls"`
+	Scheme string     `json:"scheme,omitempty"`
+	Host   string     `json:"host,omitempty"`
+	Port   int        `json:"port,omitempty"`
+	TLS    *TLSConfig `json:"tls"`
 }
 
 func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
@@ -39,7 +39,7 @@ func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) gperr.Error {
 		return err
 	}
 
-	cfg.URL = fmt.Sprintf("%s://%s", tmp.Protocol, net.JoinHostPort(tmp.Host, strconv.Itoa(tmp.Port)))
+	cfg.URL = fmt.Sprintf("%s://%s", tmp.Scheme, net.JoinHostPort(tmp.Host, strconv.Itoa(tmp.Port)))
 	cfg.TLS = tmp.TLS
 	if cfg.TLS != nil {
 		if err := checkFilesOk(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
