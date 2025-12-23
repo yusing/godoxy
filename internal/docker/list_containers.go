@@ -5,6 +5,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 var listOptions = client.ContainerListOptions{
@@ -19,8 +20,8 @@ var listOptions = client.ContainerListOptions{
 	All: true,
 }
 
-func ListContainers(ctx context.Context, clientHost string) ([]container.Summary, error) {
-	dockerClient, err := NewClient(clientHost)
+func ListContainers(ctx context.Context, dockerCfg types.DockerProviderConfig) ([]container.Summary, error) {
+	dockerClient, err := NewClient(dockerCfg)
 	if err != nil {
 		return nil, err
 	}

@@ -69,13 +69,13 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 	return p, err
 }
 
-func NewDockerProvider(name string, dockerHost string) *Provider {
-	if dockerHost == common.DockerHostFromEnv {
-		dockerHost = env.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
+func NewDockerProvider(name string, dockerCfg types.DockerProviderConfig) *Provider {
+	if dockerCfg.URL == common.DockerHostFromEnv {
+		dockerCfg.URL = env.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
 	}
 
 	p := newProvider(provider.ProviderTypeDocker)
-	p.ProviderImpl = DockerProviderImpl(name, dockerHost)
+	p.ProviderImpl = DockerProviderImpl(name, dockerCfg)
 	p.watcher = p.NewWatcher()
 	return p
 }
@@ -84,7 +84,9 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	p := newProvider(provider.ProviderTypeAgent)
 	agent := &AgentProvider{
 		AgentConfig: cfg,
-		docker:      DockerProviderImpl(cfg.Name, cfg.FakeDockerHost()),
+		docker: DockerProviderImpl(cfg.Name, types.DockerProviderConfig{
+			URL: cfg.FakeDockerHost(),
+		}),
 	}
 	p.ProviderImpl = agent
 	p.watcher = p.NewWatcher()
