@@ -18,8 +18,9 @@ import (
 )
 
 type DockerProvider struct {
-	name, dockerHost string
-	l                zerolog.Logger
+	name      string
+	dockerCfg types.DockerProviderConfig
+	l         zerolog.Logger
 }
 
 const (
@@ -29,10 +30,10 @@ const (
 
 var ErrAliasRefIndexOutOfRange = gperr.New("index out of range")
 
-func DockerProviderImpl(name, dockerHost string) ProviderImpl {
+func DockerProviderImpl(name string, dockerCfg types.DockerProviderConfig) ProviderImpl {
 	return &DockerProvider{
 		name,
-		dockerHost,
+		dockerCfg,
 		log.With().Str("type", "docker").Str("name", name).Logger(),
 	}
 }
@@ -54,14 +55,14 @@ func (p *DockerProvider) Logger() *zerolog.Logger {
 }
 
 func (p *DockerProvider) NewWatcher() watcher.Watcher {
-	return watcher.NewDockerWatcher(p.dockerHost)
+	return watcher.NewDockerWatcher(p.dockerCfg)
 }
 
 func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	containers, err := docker.ListContainers(ctx, p.dockerHost)
+	containers, err := docker.ListContainers(ctx, p.dockerCfg)
 	if err != nil {
 		return nil, gperr.Wrap(err)
 	}
@@ -70,7 +71,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 	routes := make(route.Routes)
 
 	for _, c := range containers {
-		container := docker.FromDocker(&c, p.dockerHost)
+		container := docker.FromDocker(&c, p.dockerCfg)
 
 		if container.Errors != nil {
 			errs.Add(container.Errors)

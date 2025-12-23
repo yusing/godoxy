@@ -6,6 +6,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 
 	_ "embed"
@@ -28,7 +29,7 @@ func TestParseDockerLabels(t *testing.T) {
 			Ports: []container.PortSummary{
 				{Type: "tcp", PrivatePort: 1234, PublicPort: 1234},
 			},
-		}, "/var/run/docker.sock"),
+		}, types.DockerProviderConfig{URL: "unix:///var/run/docker.sock"}),
 	)
 	expect.NoError(t, err)
 	expect.True(t, routes.Contains("app"))

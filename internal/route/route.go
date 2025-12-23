@@ -390,7 +390,7 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 	}
 
 	if cont := r.ContainerInfo(); cont != nil {
-		docker.SetDockerHostByContainerID(cont.ContainerID, cont.DockerHost)
+		docker.SetDockerCfgByContainerID(cont.ContainerID, cont.DockerCfg)
 	}
 
 	if !excluded {
@@ -405,7 +405,7 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 
 func (r *Route) Finish(reason any) {
 	if cont := r.ContainerInfo(); cont != nil {
-		docker.DeleteDockerHostByContainerID(cont.ContainerID)
+		docker.DeleteDockerCfgByContainerID(cont.ContainerID)
 	}
 	r.FinishAndWait(reason)
 }

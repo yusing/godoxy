@@ -13,10 +13,10 @@ type (
 
 	PortMapping = map[int]container.PortSummary
 	Container   struct {
-		DockerHost    string          `json:"docker_host"`
-		Image         *ContainerImage `json:"image"`
-		ContainerName string          `json:"container_name"`
-		ContainerID   string          `json:"container_id"`
+		DockerCfg     DockerProviderConfig `json:"docker_cfg"`
+		Image         *ContainerImage      `json:"image"`
+		ContainerName string               `json:"container_name"`
+		ContainerID   string               `json:"container_id"`
 
 		State container.ContainerState `json:"state"`
 

@@ -29,7 +29,7 @@ var (
 	ErrNoNetwork       = errors.New("no network found")
 )
 
-func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) {
+func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res *types.Container) {
 	actualLabels := maps.Clone(c.Labels)
 
 	_, isExplicit := c.Labels[LabelAliases]
@@ -47,7 +47,7 @@ func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) 
 
 	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
 	res = &types.Container{
-		DockerHost:    dockerHost,
+		DockerCfg:     dockerCfg,
 		Image:         helper.parseImage(),
 		ContainerName: helper.getName(),
 		ContainerID:   c.ID,
@@ -69,11 +69,11 @@ func FromDocker(c *container.Summary, dockerHost string) (res *types.Container) 
 		State:             c.State,
 	}
 
-	if agent.IsDockerHostAgent(dockerHost) {
+	if agent.IsDockerHostAgent(dockerCfg.URL) {
 		var ok bool
-		res.Agent, ok = agent.GetAgent(dockerHost)
+		res.Agent, ok = agent.GetAgent(dockerCfg.URL)
 		if !ok {
-			addError(res, fmt.Errorf("agent %q not found", dockerHost))
+			addError(res, fmt.Errorf("agent %q not found", dockerCfg.URL))
 		}
 	}
 
@@ -92,7 +92,7 @@ func IsBlacklisted(c *types.Container) bool {
 }
 
 func UpdatePorts(c *types.Container) error {
-	dockerClient, err := NewClient(c.DockerHost)
+	dockerClient, err := NewClient(c.DockerCfg)
 	if err != nil {
 		return err
 	}
@@ -163,14 +163,14 @@ func isDatabase(c *types.Container) bool {
 }
 
 func isLocal(c *types.Container) bool {
-	if strings.HasPrefix(c.DockerHost, "unix://") {
+	if strings.HasPrefix(c.DockerCfg.URL, "unix://") {
 		return true
 	}
 	// treat it as local if the docker host is the same as the environment variable
-	if c.DockerHost == EnvDockerHost {
+	if c.DockerCfg.URL == EnvDockerHost {
 		return true
 	}
-	url, err := url.Parse(c.DockerHost)
+	url, err := url.Parse(c.DockerCfg.URL)
 	if err != nil {
 		return false
 	}
@@ -190,7 +190,7 @@ func setPublicHostname(c *types.Container) {
 		c.PublicHostname = "127.0.0.1"
 		return
 	}
-	url, err := url.Parse(c.DockerHost)
+	url, err := url.Parse(c.DockerCfg.URL)
 	if err != nil {
 		c.PublicHostname = "127.0.0.1"
 		return
@@ -258,7 +258,7 @@ func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 	if hasIdleTimeout {
 		idwCfg := new(types.IdlewatcherConfig)
 		idwCfg.Docker = &types.DockerConfig{
-			DockerHost:    c.DockerHost,
+			DockerCfg:     c.DockerCfg,
 			ContainerID:   c.ContainerID,
 			ContainerName: c.ContainerName,
 		}
