@@ -98,13 +98,29 @@ func TestDockerProviderConfigValidation(t *testing.T) {
             cert_file: /etc/ssl/cert.crt
             key_file: /etc/ssl/key.crt
         `, wantErr: false},
-		{name: "invalid tls (missing cert file and key file)", yamlStr: `
+		{name: "valid tls (only ca file)", yamlStr: `
         test:
           scheme: tls
           host: localhost
           port: 2375
           tls:
             ca_file: /etc/ssl/ca.crt
+        `, wantErr: false},
+		{name: "invalid tls (missing cert file)", yamlStr: `
+        test:
+          scheme: tls
+          host: localhost
+          port: 2375
+          tls:
+            key_file: /etc/ssl/key.crt
+        `, wantErr: true},
+		{name: "invalid tls (missing key file)", yamlStr: `
+        test:
+          scheme: tls
+          host: localhost
+          port: 2375
+          tls:
+            cert_file: /etc/ssl/cert.crt
         `, wantErr: true},
 	}
 

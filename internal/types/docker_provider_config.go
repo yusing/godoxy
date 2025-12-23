@@ -27,8 +27,8 @@ type DockerProviderConfigDetailed struct {
 
 type DockerTLSConfig struct {
 	CAFile   string `json:"ca_file,omitempty" validate:"required"`
-	CertFile string `json:"cert_file,omitempty" validate:"required"`
-	KeyFile  string `json:"key_file,omitempty" validate:"required"`
+	CertFile string `json:"cert_file,omitempty" validate:"required_with=KeyFile"`
+	KeyFile  string `json:"key_file,omitempty" validate:"required_with=CertFile"`
 } // @name DockerTLSConfig
 
 func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
