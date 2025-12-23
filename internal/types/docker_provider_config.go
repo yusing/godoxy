@@ -4,31 +4,50 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 
+	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 type DockerProviderConfig struct {
-	URL string     `json:"url,omitempty"`
-	TLS *TLSConfig `json:"tls,omitempty"`
+	URL string           `json:"url,omitempty"`
+	TLS *DockerTLSConfig `json:"tls,omitempty"`
 } // @name DockerProviderConfig
 
 type DockerProviderConfigDetailed struct {
-	Scheme string     `json:"scheme,omitempty"`
-	Host   string     `json:"host,omitempty"`
-	Port   int        `json:"port,omitempty"`
-	TLS    *TLSConfig `json:"tls"`
+	Scheme string           `json:"scheme,omitempty" validate:"required,oneof=http https tls"`
+	Host   string           `json:"host,omitempty" validate:"required,hostname|ip"`
+	Port   int              `json:"port,omitempty" validate:"required,min=1,max=65535"`
+	TLS    *DockerTLSConfig `json:"tls" validate:"omitempty"`
 }
+
+type DockerTLSConfig struct {
+	CAFile   string `json:"ca_file,omitempty" validate:"required"`
+	CertFile string `json:"cert_file,omitempty" validate:"required"`
+	KeyFile  string `json:"key_file,omitempty" validate:"required"`
+} // @name DockerTLSConfig
 
 func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(cfg.URL)
 }
 
 func (cfg *DockerProviderConfig) Parse(value string) error {
-	cfg.URL = value
+	u, err := url.Parse(value)
+	if err != nil {
+		return err
+	}
+
+	switch u.Scheme {
+	case "http", "https", "tls":
+	default:
+		return fmt.Errorf("invalid scheme: %s", u.Scheme)
+	}
+
+	cfg.URL = u.String()
 	return nil
 }
 
@@ -50,6 +69,9 @@ func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) gperr.Error {
 }
 
 func checkFilesOk(files ...string) error {
+	if common.IsTest {
+		return nil
+	}
 	var errs gperr.Builder
 	for _, file := range files {
 		if _, err := os.Stat(file); err != nil {

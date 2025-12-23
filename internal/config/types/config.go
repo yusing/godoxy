@@ -33,7 +33,7 @@ type (
 	}
 	Providers struct {
 		Files        []string                              `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`
-		Docker       map[string]types.DockerProviderConfig `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys,dive,unix_addr|url"`
+		Docker       map[string]types.DockerProviderConfig `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys"`
 		Agents       []*agent.AgentConfig                  `json:"agents" yaml:"agents,omitempty"`
 		Notification []*notif.NotificationConfig           `json:"notification" yaml:"notification,omitempty"`
 		Proxmox      []proxmox.Config                      `json:"proxmox" yaml:"proxmox,omitempty"`
