@@ -8,17 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/moby/client"
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
 	"github.com/yusing/godoxy/internal/types"
 	W "github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
-	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
@@ -70,10 +67,6 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 }
 
 func NewDockerProvider(name string, dockerCfg types.DockerProviderConfig) *Provider {
-	if dockerCfg.URL == common.DockerHostFromEnv {
-		dockerCfg.URL = env.GetEnvString("DOCKER_HOST", client.DefaultDockerHost)
-	}
-
 	p := newProvider(provider.ProviderTypeDocker)
 	p.ProviderImpl = DockerProviderImpl(name, dockerCfg)
 	p.watcher = p.NewWatcher()

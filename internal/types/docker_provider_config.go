@@ -10,6 +10,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -36,6 +37,11 @@ func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
 }
 
 func (cfg *DockerProviderConfig) Parse(value string) error {
+	if value == common.DockerHostFromEnv {
+		cfg.URL = env.GetEnvString("DOCKER_HOST", "unix:///var/run/docker.sock")
+		return nil
+	}
+
 	u, err := url.Parse(value)
 	if err != nil {
 		return err
