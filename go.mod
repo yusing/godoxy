@@ -19,7 +19,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
 	github.com/go-acme/lego/v4 v4.30.1 // acme client
-	github.com/go-playground/validator/v10 v10.30.0 // validator
+	github.com/go-playground/validator/v10 v10.30.1 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.7.3 // reference the Message struct for json response
@@ -51,8 +51,8 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251222024341-f67480d085fc
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251222024341-f67480d085fc
+	github.com/yusing/godoxy/agent v0.0.0-20251230135310-5087800fd763
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251230043958-dba8441e8a5d
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
 	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251217162119-cb0f79b51ce2
@@ -136,8 +136,8 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/api v0.258.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
-	google.golang.org/grpc v1.77.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
+	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -159,7 +159,7 @@ require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
 	github.com/go-resty/resty/v2 v2.17.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/linode/linodego v1.63.0 // indirect
