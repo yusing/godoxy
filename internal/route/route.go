@@ -406,7 +406,7 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 			routes.Excluded.Del(r.impl)
 		})
 		if r.UseHealthCheck() {
-			r.HealthMon = monitor.NewMonitor(r)
+			r.HealthMon = monitor.NewMonitor(r.impl)
 			err := r.HealthMon.Start(r.task)
 			return err
 		}
