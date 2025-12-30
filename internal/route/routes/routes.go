@@ -8,9 +8,11 @@ import (
 var (
 	HTTP   = pool.New[types.HTTPRoute]("http_routes")
 	Stream = pool.New[types.StreamRoute]("stream_routes")
+
+	Excluded = pool.New[types.Route]("excluded_routes")
 )
 
-func Iter(yield func(r types.Route) bool) {
+func IterActive(yield func(r types.Route) bool) {
 	for _, r := range HTTP.Iter {
 		if !yield(r) {
 			break
@@ -23,26 +25,36 @@ func Iter(yield func(r types.Route) bool) {
 	}
 }
 
-func IterKV(yield func(alias string, r types.Route) bool) {
-	for k, r := range HTTP.Iter {
-		if !yield(k, r) {
+func IterAll(yield func(r types.Route) bool) {
+	for _, r := range HTTP.Iter {
+		if !yield(r) {
 			break
 		}
 	}
-	for k, r := range Stream.Iter {
-		if !yield(k, r) {
+	for _, r := range Stream.Iter {
+		if !yield(r) {
+			break
+		}
+	}
+	for _, r := range Excluded.Iter {
+		if !yield(r) {
 			break
 		}
 	}
 }
 
-func NumRoutes() int {
+func NumActiveRoutes() int {
 	return HTTP.Size() + Stream.Size()
+}
+
+func NumAllRoutes() int {
+	return HTTP.Size() + Stream.Size() + Excluded.Size()
 }
 
 func Clear() {
 	HTTP.Clear()
 	Stream.Clear()
+	Excluded.Clear()
 }
 
 func GetHTTPRouteOrExact(alias, host string) (types.HTTPRoute, bool) {
@@ -54,6 +66,9 @@ func GetHTTPRouteOrExact(alias, host string) (types.HTTPRoute, bool) {
 	return HTTP.Get(host)
 }
 
+// Get returns the route with the given alias.
+//
+// It does not return excluded routes.
 func Get(alias string) (types.Route, bool) {
 	if r, ok := HTTP.Get(alias); ok {
 		return r, true
