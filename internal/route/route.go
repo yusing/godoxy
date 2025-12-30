@@ -24,12 +24,14 @@ import (
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	route "github.com/yusing/godoxy/internal/route/types"
@@ -397,8 +399,17 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 		if err := r.impl.Start(parent); err != nil {
 			return err
 		}
-	} else { // required by idlewatcher
-		r.task = parent.Subtask("excluded."+r.Name(), false)
+	} else {
+		r.task = parent.Subtask("excluded."+r.Name(), true)
+		routes.Excluded.Add(r.impl)
+		r.task.OnCancel("remove_route_from_excluded", func() {
+			routes.Excluded.Del(r.impl)
+		})
+		if r.UseHealthCheck() {
+			r.HealthMon = monitor.NewMonitor(r)
+			err := r.HealthMon.Start(r.task)
+			return err
+		}
 	}
 	return nil
 }

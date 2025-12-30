@@ -148,6 +148,7 @@ push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)
 
 gen-swagger:
+  # go install github.com/swaggo/swag/cmd/swag@latest
 	swag init --parseDependency --parseInternal --parseFuncBody -g handler.go -d internal/api -o internal/api/v1/docs
 	python3 scripts/fix-swagger-json.py
 	# we don't need this

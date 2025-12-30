@@ -2458,8 +2458,8 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "docker_host": {
-          "type": "string",
+        "docker_cfg": {
+          "$ref": "#/definitions/DockerProviderConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -2715,7 +2715,7 @@
       "required": [
         "container_id",
         "container_name",
-        "docker_host"
+        "docker_cfg"
       ],
       "properties": {
         "container_id": {
@@ -2728,10 +2728,48 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "docker_host": {
+        "docker_cfg": {
+          "$ref": "#/definitions/DockerProviderConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "DockerProviderConfig": {
+      "type": "object",
+      "properties": {
+        "tls": {
+          "$ref": "#/definitions/DockerTLSConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "url": {
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "DockerTLSConfig": {
+      "type": "object",
+      "required": [
+        "ca_file"
+      ],
+      "properties": {
+        "ca_file": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cert_file": {
+          "type": "string"
+        },
+        "key_file": {
+          "type": "string"
         }
       },
       "x-nullable": false,
@@ -3427,6 +3465,11 @@
               "$ref": "#/definitions/time.Duration"
             }
           ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "no_loading_page": {
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4234,6 +4277,12 @@
           ],
           "x-nullable": true
         },
+        "index": {
+          "description": "Index file to serve for single-page app mode",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "load_balance": {
           "allOf": [
             {
@@ -4312,6 +4361,12 @@
             "udp",
             "fileserver"
           ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "spa": {
+          "description": "Single-page app mode: serves index for non-existent paths",
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -5354,6 +5409,12 @@
           ],
           "x-nullable": true
         },
+        "index": {
+          "description": "Index file to serve for single-page app mode",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "load_balance": {
           "allOf": [
             {
@@ -5432,6 +5493,12 @@
             "udp",
             "fileserver"
           ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "spa": {
+          "description": "Single-page app mode: serves index for non-existent paths",
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },

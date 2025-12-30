@@ -40,3 +40,4 @@ tsconfig.tsbuildinfo
 
 !agent.compose.yml
 !agent/pkg/**
+dev-data/

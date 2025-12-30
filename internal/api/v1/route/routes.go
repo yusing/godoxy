@@ -34,12 +34,12 @@ func Routes(c *gin.Context) {
 
 	provider := c.Query("provider")
 	if provider == "" {
-		c.JSON(http.StatusOK, slices.Collect(routes.Iter))
+		c.JSON(http.StatusOK, slices.Collect(routes.IterAll))
 		return
 	}
 
-	rts := make([]types.Route, 0, routes.NumRoutes())
-	for r := range routes.Iter {
+	rts := make([]types.Route, 0, routes.NumAllRoutes())
+	for r := range routes.IterAll {
 		if r.ProviderName() == provider {
 			rts = append(rts, r)
 		}
@@ -51,14 +51,14 @@ func RoutesWS(c *gin.Context) {
 	provider := c.Query("provider")
 	if provider == "" {
 		websocket.PeriodicWrite(c, 3*time.Second, func() (any, error) {
-			return slices.Collect(routes.Iter), nil
+			return slices.Collect(routes.IterAll), nil
 		})
 		return
 	}
 
 	websocket.PeriodicWrite(c, 3*time.Second, func() (any, error) {
-		rts := make([]types.Route, 0, routes.NumRoutes())
-		for r := range routes.Iter {
+		rts := make([]types.Route, 0, routes.NumAllRoutes())
+		for r := range routes.IterAll {
 			if r.ProviderName() == provider {
 				rts = append(rts, r)
 			}

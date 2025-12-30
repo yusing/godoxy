@@ -2,7 +2,6 @@ package docker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -17,7 +16,6 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
-	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/task"
@@ -118,7 +116,7 @@ func Clients() map[string]*SharedClient {
 // Returns existing client if available.
 //
 // Parameters:
-//   - host: the host to connect to (either a URL or common.DockerHostFromEnv).
+//   - host: the host to connect to (either a URL or client.DefaultDockerHost).
 //
 // Returns:
 //   - Client: the Docker client connection.
@@ -161,27 +159,18 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 		addr = "tcp://" + cfg.Addr
 		dial = cfg.DialContext
 	} else {
-		switch host {
-		case "":
-			return nil, errors.New("empty docker host")
-		case common.DockerHostFromEnv:
+		helper, err := connhelper.GetConnectionHelper(host)
+		if err != nil {
+			log.Panic().Err(err).Msg("failed to get connection helper")
+		}
+		if helper != nil {
 			opt = []client.Opt{
-				client.WithHostFromEnv(),
+				client.WithHost(helper.Host),
+				client.WithDialContext(helper.Dialer),
 			}
-		default:
-			helper, err := connhelper.GetConnectionHelper(host)
-			if err != nil {
-				log.Panic().Err(err).Msg("failed to get connection helper")
-			}
-			if helper != nil {
-				opt = []client.Opt{
-					client.WithHost(helper.Host),
-					client.WithDialContext(helper.Dialer),
-				}
-			} else {
-				opt = []client.Opt{
-					client.WithHost(host),
-				}
+		} else {
+			opt = []client.Opt{
+				client.WithHost(host),
 			}
 		}
 	}
