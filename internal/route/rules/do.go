@@ -15,6 +15,7 @@ import (
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -38,6 +39,7 @@ const (
 	CommandServe            = "serve"
 	CommandProxy            = "proxy"
 	CommandRedirect         = "redirect"
+	CommandRoute            = "route"
 	CommandError            = "error"
 	CommandRequireBasicAuth = "require_basic_auth"
 	CommandSet              = "set"
@@ -167,6 +169,42 @@ var commands = map[string]struct {
 			target := args.(*nettypes.URL).String()
 			return TerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
 				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				return nil
+			})
+		},
+	},
+	CommandRoute: {
+		help: Help{
+			command: CommandRoute,
+			description: makeLines(
+				"Route the request to another route, e.g.:",
+				helpExample(CommandRoute, "route1"),
+			),
+			args: map[string]string{
+				"route": "the route to route to",
+			},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 1 {
+				return nil, ErrExpectOneArg
+			}
+			return args[0], nil
+		},
+		build: func(args any) CommandHandler {
+			route := args.(string)
+			return TerminatingCommand(func(w http.ResponseWriter, req *http.Request) error {
+				r, ok := routes.HTTP.Get(route)
+				if !ok {
+					excluded, has := routes.Excluded.Get(route)
+					if has {
+						r, ok = excluded.(types.HTTPRoute)
+					}
+				}
+				if ok {
+					r.ServeHTTP(w, req)
+				} else {
+					http.Error(w, fmt.Sprintf("Route %q not found", route), http.StatusNotFound)
+				}
 				return nil
 			})
 		},
