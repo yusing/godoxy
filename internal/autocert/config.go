@@ -24,6 +24,7 @@ type Config struct {
 	Domains     []string                     `json:"domains,omitempty"`
 	CertPath    string                       `json:"cert_path,omitempty"`
 	KeyPath     string                       `json:"key_path,omitempty"`
+	Extra       []Config                     `json:"extra,omitempty"`
 	ACMEKeyPath string                       `json:"acme_key_path,omitempty"`
 	Provider    string                       `json:"provider,omitempty"`
 	Options     map[string]strutils.Redacted `json:"options,omitempty"`
@@ -48,6 +49,9 @@ var (
 	ErrMissingEmail    = gperr.New("missing field 'email'")
 	ErrMissingProvider = gperr.New("missing field 'provider'")
 	ErrMissingCADirURL = gperr.New("missing field 'ca_dir_url'")
+	ErrMissingCertPath = gperr.New("missing field 'cert_path'")
+	ErrMissingKeyPath  = gperr.New("missing field 'key_path'")
+	ErrDuplicatedPath  = gperr.New("duplicated path")
 	ErrInvalidDomain   = gperr.New("invalid domain")
 	ErrUnknownProvider = gperr.New("unknown provider")
 )
@@ -68,10 +72,36 @@ func (cfg *Config) Validate() gperr.Error {
 
 	if cfg.Provider == "" {
 		cfg.Provider = ProviderLocal
-		return nil
 	}
 
 	b := gperr.NewBuilder("autocert errors")
+	if len(cfg.Extra) > 0 {
+		seenCertPaths := make(map[string]int, len(cfg.Extra))
+		seenKeyPaths := make(map[string]int, len(cfg.Extra))
+		for i := range cfg.Extra {
+			if cfg.Extra[i].CertPath == "" {
+				b.Add(ErrMissingCertPath.Subjectf("extra[%d].cert_path", i))
+			}
+			if cfg.Extra[i].KeyPath == "" {
+				b.Add(ErrMissingKeyPath.Subjectf("extra[%d].key_path", i))
+			}
+			if cfg.Extra[i].CertPath != "" {
+				if first, ok := seenCertPaths[cfg.Extra[i].CertPath]; ok {
+					b.Add(ErrDuplicatedPath.Subjectf("extra[%d].cert_path", i).Withf("first: %d", first))
+				} else {
+					seenCertPaths[cfg.Extra[i].CertPath] = i
+				}
+			}
+			if cfg.Extra[i].KeyPath != "" {
+				if first, ok := seenKeyPaths[cfg.Extra[i].KeyPath]; ok {
+					b.Add(ErrDuplicatedPath.Subjectf("extra[%d].key_path", i).Withf("first: %d", first))
+				} else {
+					seenKeyPaths[cfg.Extra[i].KeyPath] = i
+				}
+			}
+		}
+	}
+
 	if cfg.Provider == ProviderCustom && cfg.CADirURL == "" {
 		b.Add(ErrMissingCADirURL)
 	}

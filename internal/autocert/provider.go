@@ -1,6 +1,7 @@
 package autocert
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -33,9 +34,14 @@ type (
 		client      *lego.Client
 		lastFailure time.Time
 
+		lastFailureFile string
+
 		legoCert     *certificate.Resource
 		tlsCert      *tls.Certificate
 		certExpiries CertExpiries
+
+		extraProviders []*Provider
+		sniMatcher     sniMatcher
 	}
 
 	CertExpiries map[string]time.Time
@@ -55,15 +61,22 @@ var ActiveProvider atomic.Pointer[Provider]
 
 func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) *Provider {
 	return &Provider{
-		cfg:     cfg,
-		user:    user,
-		legoCfg: legoCfg,
+		cfg:             cfg,
+		user:            user,
+		legoCfg:         legoCfg,
+		lastFailureFile: lastFailureFileFor(cfg.CertPath, cfg.KeyPath),
 	}
 }
 
-func (p *Provider) GetCert(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if p.tlsCert == nil {
 		return nil, ErrGetCertFailure
+	}
+	if hello == nil || hello.ServerName == "" {
+		return p.tlsCert, nil
+	}
+	if prov := p.sniMatcher.match(hello.ServerName); prov != nil && prov.tlsCert != nil {
+		return prov.tlsCert, nil
 	}
 	return p.tlsCert, nil
 }
@@ -90,7 +103,7 @@ func (p *Provider) GetLastFailure() (time.Time, error) {
 	}
 
 	if p.lastFailure.IsZero() {
-		data, err := os.ReadFile(LastFailureFile)
+		data, err := os.ReadFile(p.lastFailureFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return time.Time{}, err
@@ -108,7 +121,7 @@ func (p *Provider) UpdateLastFailure() error {
 	}
 	t := time.Now()
 	p.lastFailure = t
-	return os.WriteFile(LastFailureFile, t.AppendFormat(nil, time.RFC3339), 0o600)
+	return os.WriteFile(p.lastFailureFile, t.AppendFormat(nil, time.RFC3339), 0o600)
 }
 
 func (p *Provider) ClearLastFailure() error {
@@ -116,10 +129,26 @@ func (p *Provider) ClearLastFailure() error {
 		return nil
 	}
 	p.lastFailure = time.Time{}
-	return os.Remove(LastFailureFile)
+	return os.Remove(p.lastFailureFile)
 }
 
 func (p *Provider) ObtainCert() error {
+	if len(p.extraProviders) > 0 {
+		errs := gperr.NewGroup("autocert errors")
+		errs.Go(p.obtainCertSelf)
+		for _, ep := range p.extraProviders {
+			errs.Go(ep.obtainCertSelf)
+		}
+		if err := errs.Wait().Error(); err != nil {
+			return err
+		}
+		p.rebuildSNIMatcher()
+		return nil
+	}
+	return p.obtainCertSelf()
+}
+
+func (p *Provider) obtainCertSelf() error {
 	if p.cfg.Provider == ProviderLocal {
 		return nil
 	}
@@ -239,7 +268,7 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 		timer := time.NewTimer(time.Until(renewalTime))
 		defer timer.Stop()
 
-		task := parent.Subtask("cert-renew-scheduler", true)
+		task := parent.Subtask("cert-renew-scheduler:"+path.Base(p.cfg.CertPath), true)
 		defer task.Finish(nil)
 
 		for {
@@ -282,6 +311,9 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 			}
 		}
 	}()
+	for _, ep := range p.extraProviders {
+		ep.ScheduleRenewal(parent)
+	}
 }
 
 func (p *Provider) initClient() error {
@@ -391,7 +423,7 @@ func (p *Provider) renewIfNeeded() error {
 		return nil
 	}
 
-	return p.ObtainCert()
+	return p.obtainCertSelf()
 }
 
 func getCertExpiries(cert *tls.Certificate) (CertExpiries, error) {
@@ -410,4 +442,21 @@ func getCertExpiries(cert *tls.Certificate) (CertExpiries, error) {
 		}
 	}
 	return r, nil
+}
+
+func lastFailureFileFor(certPath, keyPath string) string {
+	if certPath == "" && keyPath == "" {
+		return LastFailureFile
+	}
+	dir := path.Dir(certPath)
+	sum := sha256.Sum256([]byte(certPath + "|" + keyPath))
+	return path.Join(dir, fmt.Sprintf(".last_failure-%x", sum[:6]))
+}
+
+func (p *Provider) rebuildSNIMatcher() {
+	p.sniMatcher = sniMatcher{}
+	p.sniMatcher.addProvider(p)
+	for _, ep := range p.extraProviders {
+		p.sniMatcher.addProvider(ep)
+	}
 }
