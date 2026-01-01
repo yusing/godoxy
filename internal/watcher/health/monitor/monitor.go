@@ -295,7 +295,7 @@ func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *types.Health
 }
 
 func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *types.HealthCheckResult) {
-	logger.Warn().Msg("service went down")
+	logger.Warn().Str("detail", result.Detail).Msg("service went down")
 	extras := mon.buildNotificationExtras(result)
 	extras.Add("Last Seen", strutils.FormatLastSeen(GetLastSeen(mon.service)))
 	mon.notifyFunc(&notif.LogMessage{
