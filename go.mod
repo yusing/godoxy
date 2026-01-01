@@ -13,6 +13,8 @@ replace (
 	github.com/yusing/goutils/server => ./goutils/server
 )
 
+exclude github.com/luthermonson/go-proxmox v0.3.0
+
 require (
 	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon
 	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
@@ -42,7 +44,7 @@ require (
 	github.com/docker/cli v29.1.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.1 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/luthermonson/go-proxmox v0.3.0
+	github.com/luthermonson/go-proxmox v0.2.4
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/quic-go/quic-go v0.58.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.25.12 // system information
