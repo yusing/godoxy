@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -268,7 +268,7 @@ func (p *Provider) ScheduleRenewal(parent task.Parent) {
 		timer := time.NewTimer(time.Until(renewalTime))
 		defer timer.Stop()
 
-		task := parent.Subtask("cert-renew-scheduler:"+path.Base(p.cfg.CertPath), true)
+		task := parent.Subtask("cert-renew-scheduler:"+filepath.Base(p.cfg.CertPath), true)
 		defer task.Finish(nil)
 
 		for {
@@ -366,10 +366,10 @@ func (p *Provider) saveCert(cert *certificate.Resource) error {
 	}
 	/* This should have been done in setup
 	but double check is always a good choice.*/
-	_, err := os.Stat(path.Dir(p.cfg.CertPath))
+	_, err := os.Stat(filepath.Dir(p.cfg.CertPath))
 	if err != nil {
 		if os.IsNotExist(err) {
-			if err = os.MkdirAll(path.Dir(p.cfg.CertPath), 0o755); err != nil {
+			if err = os.MkdirAll(filepath.Dir(p.cfg.CertPath), 0o755); err != nil {
 				return err
 			}
 		} else {
@@ -448,9 +448,9 @@ func lastFailureFileFor(certPath, keyPath string) string {
 	if certPath == "" && keyPath == "" {
 		return LastFailureFile
 	}
-	dir := path.Dir(certPath)
+	dir := filepath.Dir(certPath)
 	sum := sha256.Sum256([]byte(certPath + "|" + keyPath))
-	return path.Join(dir, fmt.Sprintf(".last_failure-%x", sum[:6]))
+	return filepath.Join(dir, fmt.Sprintf(".last_failure-%x", sum[:6]))
 }
 
 func (p *Provider) rebuildSNIMatcher() {
