@@ -7,6 +7,7 @@ import (
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
 	"github.com/yusing/godoxy/internal/serialization"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
@@ -146,13 +147,13 @@ func (c *Category) sortByClicks() {
 			return 1
 		}
 		// fallback to alphabetical
-		return strings.Compare(a.Name, b.Name)
+		return strings.Compare(strutils.Title(a.Name), strutils.Title(b.Name))
 	})
 }
 
 func (c *Category) sortByAlphabetical() {
 	slices.SortStableFunc(c.Items, func(a, b *Item) int {
-		return strings.Compare(a.Name, b.Name)
+		return strings.Compare(strutils.Title(a.Name), strutils.Title(b.Name))
 	})
 }
 
