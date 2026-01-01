@@ -4357,6 +4357,7 @@
           "enum": [
             "http",
             "https",
+            "h2c",
             "tcp",
             "udp",
             "fileserver"
@@ -5494,6 +5495,7 @@
           "enum": [
             "http",
             "https",
+            "h2c",
             "tcp",
             "udp",
             "fileserver"
