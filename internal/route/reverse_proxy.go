@@ -64,23 +64,25 @@ func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
 	scheme := base.Scheme
 	retried := false
 	retryLock := sync.Mutex{}
-	rp.OnSchemeMisMatch = func() (retry bool) { // switch scheme and retry
-		retryLock.Lock()
-		defer retryLock.Unlock()
+	if scheme == route.SchemeHTTP || scheme == route.SchemeHTTPS {
+		rp.OnSchemeMisMatch = func() (retry bool) { // switch scheme and retry
+			retryLock.Lock()
+			defer retryLock.Unlock()
 
-		if retried {
-			return false
+			if retried {
+				return false
+			}
+
+			retried = true
+
+			if scheme == route.SchemeHTTP {
+				rp.TargetURL.Scheme = "https"
+			} else {
+				rp.TargetURL.Scheme = "http"
+			}
+			rp.Info().Msgf("scheme mismatch detected, retrying with %s", rp.TargetURL.Scheme)
+			return true
 		}
-
-		retried = true
-
-		if scheme == route.SchemeHTTP {
-			rp.TargetURL.Scheme = "https"
-		} else {
-			rp.TargetURL.Scheme = "http"
-		}
-		rp.Info().Msgf("scheme mismatch detected, retrying with %s", rp.TargetURL.Scheme)
-		return true
 	}
 
 	if len(base.Middlewares) > 0 {
