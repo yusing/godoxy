@@ -128,3 +128,47 @@ func TestFindRouteByDomainsExactMatch(t *testing.T) {
 
 	run(t, tests, testsNoMatch)
 }
+
+func TestFindRouteWithPort(t *testing.T) {
+	t.Run("AnyDomain", func(t *testing.T) {
+		addRoute("app1")
+		addRoute("app2.com")
+
+		tests := []string{
+			"app1:8080",
+			"app1.domain.com:8080",
+			"app2.com:8080",
+		}
+		testsNoMatch := []string{
+			"app11",
+			"app2.co",
+			"app2.co:8080",
+		}
+		run(t, tests, testsNoMatch)
+	})
+
+	t.Run("ByDomains", func(t *testing.T) {
+		ep.SetFindRouteDomains([]string{
+			".domain.com",
+		})
+		addRoute("app1")
+		addRoute("app2")
+		addRoute("app3.domain.com")
+
+		tests := []string{
+			"app1.domain.com:8080",
+			"app2:8080", // exact match fallback
+			"app3.domain.com:8080",
+		}
+		testsNoMatch := []string{
+			"app11",
+			"app1.domain.co",
+			"app1.domain.co:8080",
+			"app2.co",
+			"app2.co:8080",
+			"app3.domain.co",
+			"app3.domain.co:8080",
+		}
+		run(t, tests, testsNoMatch)
+	})
+}

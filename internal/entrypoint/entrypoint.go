@@ -146,11 +146,18 @@ func findRouteAnyDomain(host string) types.HTTPRoute {
 	if r, ok := routes.HTTP.Get(host); ok {
 		return r
 	}
+	// try striping the trailing :port from the host
+	if before, _, ok := strings.Cut(host, ":"); ok {
+		if r, ok := routes.HTTP.Get(before); ok {
+			return r
+		}
+	}
 	return nil
 }
 
 func findRouteByDomains(domains []string) func(host string) types.HTTPRoute {
 	return func(host string) types.HTTPRoute {
+		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok {
 				if r, ok := routes.HTTP.Get(target); ok {

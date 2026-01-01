@@ -33,6 +33,7 @@ type (
 		Idle          float32            `json:"idle"`
 		AvgLatency    float32            `json:"avg_latency"`
 		IsDocker      bool               `json:"is_docker"`
+		IsExcluded    bool               `json:"is_excluded"`
 		CurrentStatus types.HealthStatus `json:"current_status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
 		Statuses      []Status           `json:"statuses"`
 	} // @name RouteUptimeAggregate
@@ -156,6 +157,7 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 			CurrentStatus: status,
 			Statuses:      statuses,
 			IsDocker:      r != nil && r.IsDocker(),
+			IsExcluded:    r == nil || r.ShouldExclude(),
 		}
 	}
 	return result
