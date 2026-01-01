@@ -4555,6 +4555,11 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "is_excluded": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "statuses": {
           "type": "array",
           "items": {
