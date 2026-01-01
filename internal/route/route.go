@@ -43,7 +43,7 @@ type (
 		_ utils.NoCopy
 
 		Alias  string       `json:"alias"`
-		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,tcp,udp,fileserver"`
+		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
 
