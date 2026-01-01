@@ -14,16 +14,18 @@ var ErrInvalidScheme = gperr.New("invalid scheme")
 const (
 	SchemeHTTP Scheme = 1 << iota
 	SchemeHTTPS
+	SchemeH2C
 	SchemeTCP
 	SchemeUDP
 	SchemeFileServer
 	SchemeNone Scheme = 0
 
-	schemeReverseProxy = SchemeHTTP | SchemeHTTPS
+	schemeReverseProxy = SchemeHTTP | SchemeHTTPS | SchemeH2C
 	schemeStream       = SchemeTCP | SchemeUDP
 
 	schemeStrHTTP       = "http"
 	schemeStrHTTPS      = "https"
+	schemeStrH2C        = "h2c"
 	schemeStrTCP        = "tcp"
 	schemeStrUDP        = "udp"
 	schemeStrFileServer = "fileserver"
@@ -36,6 +38,8 @@ func (s Scheme) String() string {
 		return schemeStrHTTP
 	case SchemeHTTPS:
 		return schemeStrHTTPS
+	case SchemeH2C:
+		return schemeStrH2C
 	case SchemeTCP:
 		return schemeStrTCP
 	case SchemeUDP:
@@ -66,6 +70,8 @@ func (s *Scheme) Parse(v string) error {
 		*s = SchemeHTTP
 	case schemeStrHTTPS:
 		*s = SchemeHTTPS
+	case schemeStrH2C:
+		*s = SchemeH2C
 	case schemeStrTCP:
 		*s = SchemeTCP
 	case schemeStrUDP:

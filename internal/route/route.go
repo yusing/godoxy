@@ -271,7 +271,7 @@ func (r *Route) validate() gperr.Error {
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
-	case route.SchemeHTTP, route.SchemeHTTPS:
+	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
@@ -294,7 +294,7 @@ func (r *Route) validate() gperr.Error {
 	switch r.Scheme {
 	case route.SchemeFileServer:
 		impl, err = NewFileServer(r)
-	case route.SchemeHTTP, route.SchemeHTTPS:
+	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
 		impl, err = NewReverseProxyRoute(r)
 	case route.SchemeTCP, route.SchemeUDP:
 		impl, err = NewStreamRoute(r)
