@@ -17,6 +17,8 @@ type HealthInfoWithoutDetail struct {
 	Latency time.Duration      `json:"latency" swaggertype:"number"` // latency in microseconds
 } // @name HealthInfoWithoutDetail
 
+type HealthMap = map[string]types.HealthStatusString //	@name	HealthMap
+
 // GetHealthInfo returns a map of route name to health info.
 //
 // The health info is for all routes, including excluded routes.
@@ -35,6 +37,14 @@ func GetHealthInfoWithoutDetail() map[string]HealthInfoWithoutDetail {
 	healthMap := make(map[string]HealthInfoWithoutDetail, NumAllRoutes())
 	for r := range IterAll {
 		healthMap[r.Name()] = getHealthInfoWithoutDetail(r)
+	}
+	return healthMap
+}
+
+func GetHealthInfoSimple() map[string]types.HealthStatus {
+	healthMap := make(map[string]types.HealthStatus, NumAllRoutes())
+	for r := range IterAll {
+		healthMap[r.Name()] = getHealthInfoSimple(r)
 	}
 	return healthMap
 }
@@ -71,6 +81,14 @@ func getHealthInfoWithoutDetail(r types.Route) HealthInfoWithoutDetail {
 		Uptime:  mon.Uptime(),
 		Latency: mon.Latency(),
 	}
+}
+
+func getHealthInfoSimple(r types.Route) types.HealthStatus {
+	mon := r.HealthMonitor()
+	if mon == nil {
+		return types.StatusUnknown
+	}
+	return mon.Status()
 }
 
 // ByProvider returns a map of provider name to routes.

@@ -296,7 +296,7 @@ func (state *state) initProxmox() error {
 
 	errs := gperr.NewBuilder()
 	for _, cfg := range proxmoxCfg {
-		if err := cfg.Init(); err != nil {
+		if err := cfg.Init(state.task.Context()); err != nil {
 			errs.Add(err.Subject(cfg.URL))
 		}
 	}

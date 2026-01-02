@@ -2956,43 +2956,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "HealthInfo": {
-      "type": "object",
-      "properties": {
-        "detail": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "latency": {
-          "description": "latency in microseconds",
-          "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "healthy",
-            "unhealthy",
-            "napping",
-            "starting",
-            "error",
-            "unknown"
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "uptime": {
-          "description": "uptime in milliseconds",
-          "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "HealthInfoWithoutDetail": {
       "type": "object",
       "properties": {
@@ -3047,22 +3010,14 @@
           "x-nullable": true
         },
         "lastSeen": {
+          "description": "unix timestamp in seconds",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "lastSeenStr": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "latency": {
-          "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "latencyStr": {
-          "type": "string",
+          "description": "latency in milliseconds",
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3072,27 +3027,19 @@
           "x-omitempty": false
         },
         "started": {
+          "description": "unix timestamp in seconds",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "startedStr": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "status": {
-          "type": "string",
+          "$ref": "#/definitions/HealthStatusString",
           "x-nullable": false,
           "x-omitempty": false
         },
         "uptime": {
+          "description": "uptime in seconds",
           "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "uptimeStr": {
-          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3108,8 +3055,29 @@
     "HealthMap": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/HealthInfo"
+        "$ref": "#/definitions/HealthStatusString"
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HealthStatusString": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "healthy",
+        "napping",
+        "starting",
+        "unhealthy",
+        "error"
+      ],
+      "x-enum-varnames": [
+        "StatusUnknownStr",
+        "StatusHealthyStr",
+        "StatusNappingStr",
+        "StatusStartingStr",
+        "StatusUnhealthyStr",
+        "StatusErrorStr"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
