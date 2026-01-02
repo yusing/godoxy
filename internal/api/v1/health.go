@@ -12,8 +12,6 @@ import (
 	_ "github.com/yusing/goutils/apitypes"
 )
 
-type HealthMap = map[string]routes.HealthInfo //	@name	HealthMap
-
 // @x-id				"health"
 // @BasePath		/api/v1
 // @Summary		Get routes health info
@@ -21,16 +19,16 @@ type HealthMap = map[string]routes.HealthInfo //	@name	HealthMap
 // @Tags			v1,websocket
 // @Accept			json
 // @Produce		json
-// @Success		200	{object}	HealthMap "Health info by route name"
+// @Success		200	{object}	routes.HealthMap "Health info by route name"
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/health [get]
 func Health(c *gin.Context) {
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 1*time.Second, func() (any, error) {
-			return routes.GetHealthInfo(), nil
+			return routes.GetHealthInfoSimple(), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, routes.GetHealthInfo())
+		c.JSON(http.StatusOK, routes.GetHealthInfoSimple())
 	}
 }
