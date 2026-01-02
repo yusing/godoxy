@@ -1,3 +1,8 @@
+x-benchmark: &benchmark
+  restart: no
+  labels:
+    proxy.exclude: true
+    proxy.#1.healthcheck.disable: true
 services:
   app:
     image: godoxy-dev
@@ -90,7 +95,148 @@ services:
     labels:
       proxy.#1.scheme: h2c
       proxy.#1.port: 80
+  whoami:
+    <<: *benchmark
+    image: traefik/whoami:latest
+    container_name: whoami
+  godoxy:
+    <<: *benchmark
+    build: .
+    container_name: godoxy-benchmark
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+    ports:
+      - 8080:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    configs:
+      - source: godoxy_config
+        target: /app/config/config.yml
+      - source: godoxy_provider
+        target: /app/config/providers.yml
+  traefik:
+    <<: *benchmark
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - --api.insecure=true
+      - --entrypoints.web.address=:8081
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --log.level=ERROR
+    ports:
+      - 8081:8081
+    configs:
+      - source: traefik_config
+        target: /etc/traefik/dynamic/routes.yml
+  caddy:
+    <<: *benchmark
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - 8082:80
+    configs:
+      - source: caddy_config
+        target: /etc/caddy/Caddyfile
+    tmpfs:
+      - /data
+      - /config
+  nginx:
+    <<: *benchmark
+    image: nginx:latest
+    container_name: nginx
+    command: nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
+    ports:
+      - 8083:80
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/nginx.conf
+
 configs:
+  godoxy_config:
+    content: |
+      providers:
+        include:
+          - providers.yml
+  godoxy_provider:
+    content: |
+      whoami:
+        host: whoami
+  traefik_config:
+    content: |
+      http:
+        routers:
+          whoami:
+            rule: "Host(`whoami.domain.com`)"
+            entryPoints:
+              - web
+            service: whoami
+        services:
+          whoami:
+            loadBalancer:
+              servers:
+                - url: "http://whoami:80"
+  caddy_config:
+    content: |
+      {
+        admin off
+        auto_https off
+        default_bind 0.0.0.0
+
+        servers {
+          protocols h2c h1
+        }
+      }
+
+      http://whoami.domain.com:80 {
+        reverse_proxy whoami:80
+      }
+  nginx_config:
+    content: |
+      worker_processes auto;
+      worker_rlimit_nofile 65535;
+      error_log /dev/null;
+      pid /var/run/nginx.pid;
+
+      events {
+        worker_connections 10240;
+        multi_accept on;
+        use epoll;
+      }
+
+      http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        access_log off;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        keepalive_requests 10000;
+        
+        upstream backend {
+          server whoami:80;
+          keepalive 128;
+        }
+
+        server {
+          listen 80;
+          server_name whoami.domain.com;
+          http2 on;
+          
+          location / {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+        }
+      }
   parca:
     content: |
       object_storage:
