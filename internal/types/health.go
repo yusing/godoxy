@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 )
 
 type (
-	HealthStatus uint8
+	HealthStatus       uint8  // @name	HealthStatus
+	HealthStatusString string // @name	HealthStatusString
 
 	HealthCheckResult struct {
 		Healthy bool          `json:"healthy"`
@@ -45,20 +45,16 @@ type (
 		HealthChecker
 	}
 	HealthJSON struct {
-		Name        string             `json:"name"`
-		Config      *HealthCheckConfig `json:"config"`
-		Started     int64              `json:"started"`
-		StartedStr  string             `json:"startedStr"`
-		Status      string             `json:"status"`
-		Uptime      float64            `json:"uptime"`
-		UptimeStr   string             `json:"uptimeStr"`
-		Latency     float64            `json:"latency"`
-		LatencyStr  string             `json:"latencyStr"`
-		LastSeen    int64              `json:"lastSeen"`
-		LastSeenStr string             `json:"lastSeenStr"`
-		Detail      string             `json:"detail"`
-		URL         string             `json:"url"`
-		Extra       *HealthExtra       `json:"extra,omitempty" extensions:"x-nullable"`
+		Name     string             `json:"name"`
+		Config   *HealthCheckConfig `json:"config"`
+		Started  int64              `json:"started"` // unix timestamp in seconds
+		Status   HealthStatusString `json:"status"`
+		Uptime   float64            `json:"uptime"`   // uptime in seconds
+		Latency  int64              `json:"latency"`  // latency in milliseconds
+		LastSeen int64              `json:"lastSeen"` // unix timestamp in seconds
+		Detail   string             `json:"detail"`
+		URL      string             `json:"url"`
+		Extra    *HealthExtra       `json:"extra,omitempty" extensions:"x-nullable"`
 	} // @name HealthJSON
 
 	HealthJSONRepr struct {
@@ -88,12 +84,12 @@ const (
 	StatusUnhealthy
 	StatusError
 
-	StatusUnknownStr   = "unknown"
-	StatusHealthyStr   = "healthy"
-	StatusNappingStr   = "napping"
-	StatusStartingStr  = "starting"
-	StatusUnhealthyStr = "unhealthy"
-	StatusErrorStr     = "error"
+	StatusUnknownStr   HealthStatusString = "unknown"
+	StatusHealthyStr   HealthStatusString = "healthy"
+	StatusNappingStr   HealthStatusString = "napping"
+	StatusStartingStr  HealthStatusString = "starting"
+	StatusUnhealthyStr HealthStatusString = "unhealthy"
+	StatusErrorStr     HealthStatusString = "error"
 
 	NumStatuses int = iota - 1
 
@@ -102,15 +98,15 @@ const (
 )
 
 var (
-	StatusHealthyStr2   = strconv.Itoa(int(StatusHealthy))
-	StatusNappingStr2   = strconv.Itoa(int(StatusNapping))
-	StatusStartingStr2  = strconv.Itoa(int(StatusStarting))
-	StatusUnhealthyStr2 = strconv.Itoa(int(StatusUnhealthy))
-	StatusErrorStr2     = strconv.Itoa(int(StatusError))
+	StatusHealthyStr2   HealthStatusString = HealthStatusString(strconv.Itoa(int(StatusHealthy)))
+	StatusNappingStr2   HealthStatusString = HealthStatusString(strconv.Itoa(int(StatusNapping)))
+	StatusStartingStr2  HealthStatusString = HealthStatusString(strconv.Itoa(int(StatusStarting)))
+	StatusUnhealthyStr2 HealthStatusString = HealthStatusString(strconv.Itoa(int(StatusUnhealthy)))
+	StatusErrorStr2     HealthStatusString = HealthStatusString(strconv.Itoa(int(StatusError)))
 )
 
 func NewHealthStatusFromString(s string) HealthStatus {
-	switch s {
+	switch HealthStatusString(s) {
 	case StatusHealthyStr, StatusHealthyStr2:
 		return StatusHealthy
 	case StatusUnhealthyStr, StatusUnhealthyStr2:
@@ -126,7 +122,7 @@ func NewHealthStatusFromString(s string) HealthStatus {
 	}
 }
 
-func (s HealthStatus) String() string {
+func (s HealthStatus) StatusString() HealthStatusString {
 	switch s {
 	case StatusHealthy:
 		return StatusHealthyStr
@@ -141,6 +137,11 @@ func (s HealthStatus) String() string {
 	default:
 		return StatusUnknownStr
 	}
+}
+
+// String implements fmt.Stringer.
+func (s HealthStatus) String() string {
+	return string(s.StatusString())
 }
 
 func (s HealthStatus) Good() bool {
@@ -178,19 +179,15 @@ func (jsonRepr *HealthJSONRepr) MarshalJSON() ([]byte, error) {
 		url = ""
 	}
 	return sonic.Marshal(HealthJSON{
-		Name:        jsonRepr.Name,
-		Config:      jsonRepr.Config,
-		Started:     jsonRepr.Started.Unix(),
-		StartedStr:  strutils.FormatTime(jsonRepr.Started),
-		Status:      jsonRepr.Status.String(),
-		Uptime:      jsonRepr.Uptime.Seconds(),
-		UptimeStr:   strutils.FormatDuration(jsonRepr.Uptime),
-		Latency:     jsonRepr.Latency.Seconds(),
-		LatencyStr:  strconv.Itoa(int(jsonRepr.Latency.Milliseconds())) + " ms",
-		LastSeen:    jsonRepr.LastSeen.Unix(),
-		LastSeenStr: strutils.FormatLastSeen(jsonRepr.LastSeen),
-		Detail:      jsonRepr.Detail,
-		URL:         url,
-		Extra:       jsonRepr.Extra,
+		Name:     jsonRepr.Name,
+		Config:   jsonRepr.Config,
+		Started:  jsonRepr.Started.Unix(),
+		Status:   HealthStatusString(jsonRepr.Status.String()),
+		Uptime:   jsonRepr.Uptime.Seconds(),
+		Latency:  jsonRepr.Latency.Milliseconds(),
+		LastSeen: jsonRepr.LastSeen.Unix(),
+		Detail:   jsonRepr.Detail,
+		URL:      url,
+		Extra:    jsonRepr.Extra,
 	})
 }

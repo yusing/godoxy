@@ -302,26 +302,6 @@ definitions:
         additionalProperties: {}
         type: object
     type: object
-  HealthInfo:
-    properties:
-      detail:
-        type: string
-      latency:
-        description: latency in microseconds
-        type: number
-      status:
-        enum:
-        - healthy
-        - unhealthy
-        - napping
-        - starting
-        - error
-        - unknown
-        type: string
-      uptime:
-        description: uptime in milliseconds
-        type: number
-    type: object
   HealthInfoWithoutDetail:
     properties:
       latency:
@@ -351,32 +331,44 @@ definitions:
         - $ref: '#/definitions/HealthExtra'
         x-nullable: true
       lastSeen:
+        description: unix timestamp in seconds
         type: integer
-      lastSeenStr:
-        type: string
       latency:
-        type: number
-      latencyStr:
-        type: string
+        description: latency in milliseconds
+        type: integer
       name:
         type: string
       started:
+        description: unix timestamp in seconds
         type: integer
-      startedStr:
-        type: string
       status:
-        type: string
+        $ref: '#/definitions/HealthStatusString'
       uptime:
+        description: uptime in seconds
         type: number
-      uptimeStr:
-        type: string
       url:
         type: string
     type: object
   HealthMap:
     additionalProperties:
-      $ref: '#/definitions/HealthInfo'
+      $ref: '#/definitions/HealthStatusString'
     type: object
+  HealthStatusString:
+    enum:
+    - unknown
+    - healthy
+    - napping
+    - starting
+    - unhealthy
+    - error
+    type: string
+    x-enum-varnames:
+    - StatusUnknownStr
+    - StatusHealthyStr
+    - StatusNappingStr
+    - StatusStartingStr
+    - StatusUnhealthyStr
+    - StatusErrorStr
   HomepageCategory:
     properties:
       items:
