@@ -124,7 +124,11 @@ dev-build: build
 	docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 
 benchmark:
-	@docker compose -f dev.compose.yml up -d --force-recreate whoami godoxy traefik caddy nginx
+	@if [ -z "$(TARGET)" ]; then \
+		docker compose -f dev.compose.yml up -d --force-recreate whoami godoxy traefik caddy nginx; \
+	else \
+		docker compose -f dev.compose.yml up -d --force-recreate whoami $(TARGET); \
+	fi
 	sleep 1
 	@./scripts/benchmark.sh
 

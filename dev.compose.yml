@@ -184,11 +184,11 @@ configs:
         default_bind 0.0.0.0
 
         servers {
-          protocols h2c h1
+          protocols h1 h2c
         }
       }
 
-      http://whoami.domain.com:80 {
+      http://whoami.domain.com {
         reverse_proxy whoami:80
       }
   nginx_config:
@@ -219,6 +219,14 @@ configs:
         upstream backend {
           server whoami:80;
           keepalive 128;
+        }
+
+        server {
+          listen 80 default_server;
+          server_name _;
+          http2 on;
+
+          return 404;
         }
 
         server {
