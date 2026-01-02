@@ -3,12 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -62,11 +60,6 @@ func Load() error {
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
 	initErr := state.InitFromFile(common.ConfigPath)
-	if errors.Is(initErr, fs.ErrNotExist) {
-		// log only
-		log.Warn().Msg("config file not found, using default config")
-		initErr = nil
-	}
 	err := errors.Join(initErr, state.StartProviders())
 	if err != nil {
 		logNotifyError("init", err)
