@@ -156,7 +156,7 @@ configs:
           - providers.yml
   godoxy_provider:
     content: |
-      whoami:
+      whoami.domain.com:
         host: whoami
   traefik_config:
     content: |
