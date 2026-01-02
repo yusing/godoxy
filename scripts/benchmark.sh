@@ -6,9 +6,10 @@ set -e
 
 # Configuration
 HOST="whoami.domain.com"
-DURATION="10s"
-THREADS=4
-CONNECTIONS=100
+DURATION="${DURATION:-10s}"
+THREADS="${THREADS:-4}"
+CONNECTIONS="${CONNECTIONS:-100}"
+TARGET="${TARGET:-}"
 
 # Color functions for output
 red() { echo -e "\033[0;31m$*\033[0m"; }
@@ -46,6 +47,9 @@ echo "Target: $HOST"
 echo "Duration: $DURATION"
 echo "Threads: $THREADS"
 echo "Connections: $CONNECTIONS"
+if [ -n "$TARGET" ]; then
+    echo "Filter: $TARGET"
+fi
 echo ""
 
 # Define services to test
@@ -103,7 +107,9 @@ echo ""
 
 # Run connection tests for all services
 for name in "${!services[@]}"; do
-    test_connection "$name" "${services[$name]}"
+    if [ -z "$TARGET" ] || [ "${name,,}" = "${TARGET,,}" ]; then
+        test_connection "$name" "${services[$name]}"
+    fi
 done
 
 echo ""
@@ -152,7 +158,7 @@ run_benchmark() {
     h2load -t"$THREADS" -c"$CONNECTIONS" --duration="$h2_duration" \
         -H "Host: $HOST" \
         -H ":authority: $HOST" \
-        "$url" | grep -vE "^(starting benchmark...|spawning thread #|progress: |Warm-up )"
+        "$url" | grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients|Process Request Failure)"
 
     echo ""
     green "✓ $name benchmark completed"
@@ -162,7 +168,9 @@ run_benchmark() {
 
 # Run benchmarks for each service
 for name in "${!services[@]}"; do
-    run_benchmark "$name" "${services[$name]}"
+    if [ -z "$TARGET" ] || [ "${name,,}" = "${TARGET,,}" ]; then
+        run_benchmark "$name" "${services[$name]}"
+    fi
 done
 
 blue "========================================"
