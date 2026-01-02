@@ -103,12 +103,8 @@ services:
     <<: *benchmark
     build: .
     container_name: godoxy-benchmark
-    environment:
-      DOCKER_HOST: unix:///var/run/docker.sock
     ports:
       - 8080:80
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     configs:
       - source: godoxy_config
         target: /app/config/config.yml
