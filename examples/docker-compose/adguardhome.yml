@@ -1,0 +1,125 @@
+services:
+  adguard:
+    image: adguard/adguardhome:edge
+    container_name: adguard
+    network_mode: "host"
+
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+    labels:
+      # -------------------------------------------------------
+      # GoDoxy Reverse Proxy Configuration
+      # -------------------------------------------------------
+      # Aliases -> URLs GoDoxy will expose for this service
+      # Examples:
+      #   https://adguard.yourdomain
+      #   https://dns.yourdomain
+      #   https://adguardhome.yourdomain
+      proxy.aliases: adguard,dns,adguardhome
+      # -------------------------------------------------------
+      # Homepage Dashboard Metadata (shown in Homepage UI)
+      # -------------------------------------------------------
+      proxy.#*.homepage: |
+        name: AdGuard Home
+        description: DNS + DHCP Server
+        category: Networking
+        icon: "@selfhst/adguard-home.svg"
+      # =======================================================
+      # OPTIONAL: PASSWORD-PROTECT THE ADGUARD WEB UI
+      # =======================================================
+      # → IF YOU WANT TO LOCK THE DASHBOARD BEHIND A LOGIN
+      #   - Replace username/password with your values
+      #
+      # Explanation:
+      #   This adds GoDoxy’s built-in basic auth middleware.
+      #   Anyone accessing https://adguard.<domain> will be
+      #   given a login popup BEFORE reaching AdGuard’s UI.
+      #
+      #   NOTE: This is SEPARATE from AdGuard’s internal login.
+      #   For basic_auth conditions, the password must be bcrypt hashed. Generate the hash using:
+      #    htpasswd -nbB '' your-password | cut -c 2-
+      #   make suer to escape any $ by writing $ twice ($$) to make it a literal $
+
+      proxy.#*.rules: |
+        - name: default
+          do: require_basic_auth "Restricted Area"
+        - name: authenticated users
+          on: basic_auth admin1 "$$2y$$05$$x1WyUkhoPPKlbttLe9JC7uLTr60iRnubg08l7KvhJk.5xJxgRTmi2" | basic_auth admin2 "$$2y$$05$$x1WyUkhoPPKlbttLe9JC7uLTr60iRnubg08l7KvhJk.5xJxgRTmi2"
+          do: pass
+
+      # =======================================================
+      # OPTIONAL: CUSTOM MIDDLEWARES
+      # =======================================================
+      # Middlewares allow you to:
+      #   - rewrite URLs
+      #   - add headers
+      #   - restrict access by IP
+      #   - enforce security headers
+      #   - throttle requests
+      #
+      # Syntax:
+      #   proxy.middleware.<name>: "<config>"
+      #
+      # You can apply multiple; GoDoxy chains them automatically.
+      #
+      # ---------------------------
+      # Example 1: IP Whitelist
+      # ---------------------------
+      #   Only allow specific LAN subnets to load the UI:
+      #
+      #proxy.middleware.ipwhitelist: |
+      #  allow:
+      #    - 192.168.1.0/24
+      #    - 192.168.10.0/24
+      #
+      # ---------------------------
+      # Example 2: Add Secure Headers
+      # ---------------------------
+      #proxy.*.middleware.securityheaders: |
+      #  X-Frame-Options: DENY
+      #  X-Content-Type-Options: nosniff
+      #  Referrer-Policy: no-referrer
+      #  Permissions-Policy: accelerometer=()
+      #
+      # ---------------------------
+      # Example 3: Rate Limiting
+      # ---------------------------
+      #   Prevent brute-force attempts / UI abuse:
+      #
+      #proxy.#*.middleware.ratelimit: |
+      #  average: 40
+      #  burst: 30
+      #  period: 1s
+      #
+      # Enable one or all depending on what you need.
+      # =======================================================
+
+    # Host mode → ports are unnecessary (and ignored)
+    # ports:
+    #   - 53:53/udp
+    #   - 53:53/tcp
+    #   - 67:67/udp
+    #   - 68:68/tcp
+    #   - 68:68/udp
+    #   - 3000:3000/tcp
+
+    volumes:
+      - ./workdir:/opt/adguardhome/work
+      - ./confdir:/opt/adguardhome/conf
+      - ./adguard_hostsfile.txt:/etc/hosts:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+    # Healthcheck to ensure WebUI is up before marking healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --timeout=5 -nv -t1 --spider http://127.0.0.1:3000 || exit 1"]
+      interval: 10m
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+    restart: unless-stopped
+    mem_limit: 2048m
+    cpus: "3.0"
