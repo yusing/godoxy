@@ -97,9 +97,12 @@ func (ep *Entrypoint) FindRoute(s string) types.HTTPRoute {
 
 func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if ep.accessLogger != nil {
-		rec := accesslog.NewResponseRecorder(w)
+		rec := accesslog.GetResponseRecorder(w)
 		w = rec
-		defer ep.accessLogger.Log(r, rec.Response())
+		defer func() {
+			ep.accessLogger.Log(r, rec.Response())
+			accesslog.PutResponseRecorder(rec)
+		}()
 	}
 
 	route := ep.findRouteFunc(r.Host)
