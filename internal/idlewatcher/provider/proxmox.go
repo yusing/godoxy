@@ -25,14 +25,14 @@ const proxmoxStateCheckInterval = 1 * time.Second
 
 var ErrNodeNotFound = gperr.New("node not found in pool")
 
-func NewProxmoxProvider(nodeName string, vmid int) (idlewatcher.Provider, error) {
+func NewProxmoxProvider(ctx context.Context, nodeName string, vmid int) (idlewatcher.Provider, error) {
 	node, ok := proxmox.Nodes.Get(nodeName)
 	if !ok {
 		return nil, ErrNodeNotFound.Subject(nodeName).
 			Withf("available nodes: %s", proxmox.AvailableNodeNames())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	lxcName, err := node.LXCName(ctx, vmid)

@@ -90,14 +90,14 @@ func IsBlacklisted(c *types.Container) bool {
 	return IsBlacklistedImage(c.Image) || isDatabase(c)
 }
 
-func UpdatePorts(c *types.Container) error {
+func UpdatePorts(ctx context.Context, c *types.Container) error {
 	dockerClient, err := NewClient(c.DockerCfg)
 	if err != nil {
 		return err
 	}
 	defer dockerClient.Close()
 
-	inspect, err := dockerClient.ContainerInspect(context.Background(), c.ContainerID)
+	inspect, err := dockerClient.ContainerInspect(ctx, c.ContainerID)
 	if err != nil {
 		return err
 	}

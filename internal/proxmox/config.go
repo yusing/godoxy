@@ -32,7 +32,7 @@ func (c *Config) Client() *Client {
 	return c.client
 }
 
-func (c *Config) Init() gperr.Error {
+func (c *Config) Init(ctx context.Context) gperr.Error {
 	var tr *http.Transport
 	if c.NoTLSVerify {
 		// user specified
@@ -56,7 +56,7 @@ func (c *Config) Init() gperr.Error {
 	}
 	c.client = NewClient(c.URL, opts...)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	if err := c.client.UpdateClusterInfo(ctx); err != nil {
