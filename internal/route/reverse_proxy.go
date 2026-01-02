@@ -6,6 +6,7 @@ import (
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
@@ -166,8 +167,14 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.addToLoadBalancer(parent)
 	} else {
 		routes.HTTP.Add(r)
-		r.task.OnCancel("remove_route_from_http", func() {
+		if state := config.WorkingState.Load(); state != nil {
+			state.Entrypoint().ShortLinkMatcher().AddRoute(r.Alias)
+		}
+		r.task.OnCancel("remove_route", func() {
 			routes.HTTP.Del(r)
+			if state := config.WorkingState.Load(); state != nil {
+				state.Entrypoint().ShortLinkMatcher().DelRoute(r.Alias)
+			}
 		})
 	}
 	return nil
@@ -208,8 +215,14 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		}
 		linked.SetHealthMonitor(lb)
 		routes.HTTP.AddKey(cfg.Link, linked)
+		if state := config.WorkingState.Load(); state != nil {
+			state.Entrypoint().ShortLinkMatcher().AddRoute(cfg.Link)
+		}
 		r.task.OnFinished("remove_loadbalancer_route", func() {
 			routes.HTTP.DelKey(cfg.Link)
+			if state := config.WorkingState.Load(); state != nil {
+				state.Entrypoint().ShortLinkMatcher().DelRoute(cfg.Link)
+			}
 		})
 		lbLock.Unlock()
 	}

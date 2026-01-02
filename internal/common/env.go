@@ -13,6 +13,8 @@ var (
 	IsDebug = env.GetEnvBool("DEBUG", IsTest)
 	IsTrace = env.GetEnvBool("TRACE", false) && IsDebug
 
+	ShortLinkPrefix = env.GetEnvString("SHORTLINK_PREFIX", "go")
+
 	ProxyHTTPAddr,
 	ProxyHTTPHost,
 	ProxyHTTPPort,
