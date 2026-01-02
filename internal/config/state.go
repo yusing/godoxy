@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io/fs"
 	"iter"
 	"net/http"
 	"os"
@@ -19,7 +21,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
-	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
@@ -92,10 +93,13 @@ func Value() *config.Config {
 }
 
 func (state *state) InitFromFile(filename string) error {
-	data, err := os.ReadFile(common.ConfigPath)
+	data, err := os.ReadFile(filename)
 	if err != nil {
-		state.Config = config.DefaultConfig()
-		return err
+		if errors.Is(err, fs.ErrNotExist) {
+			state.Config = config.DefaultConfig()
+		} else {
+			return err
+		}
 	}
 	return state.Init(data)
 }
