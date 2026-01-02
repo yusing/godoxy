@@ -963,6 +963,7 @@ definitions:
         enum:
         - http
         - https
+        - h2c
         - tcp
         - udp
         - fileserver
@@ -1578,6 +1579,7 @@ definitions:
         enum:
         - http
         - https
+        - h2c
         - tcp
         - udp
         - fileserver

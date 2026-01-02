@@ -32,6 +32,9 @@ func setup() {
 }
 
 func GetStaticFile(filename string) ([]byte, bool) {
+	if common.IsTest {
+		return nil, false
+	}
 	setupOnce.Do(setup)
 	return fileContentMap.Load(filename)
 }

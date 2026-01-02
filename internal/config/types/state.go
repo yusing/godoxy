@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net/http"
 
+	"github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/synk"
@@ -22,6 +23,7 @@ type State interface {
 	Value() *Config
 
 	EntrypointHandler() http.Handler
+	Entrypoint() *entrypoint.Entrypoint
 	AutoCertProvider() server.CertProvider
 
 	LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool)

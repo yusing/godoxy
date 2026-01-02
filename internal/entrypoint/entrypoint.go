@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/common"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
@@ -21,6 +22,7 @@ type Entrypoint struct {
 	notFoundHandler http.Handler
 	accessLogger    accesslog.AccessLogger
 	findRouteFunc   func(host string) types.HTTPRoute
+	shortLinkTree   *ShortLinkMatcher
 }
 
 // nil-safe
@@ -34,7 +36,12 @@ func init() {
 func NewEntrypoint() Entrypoint {
 	return Entrypoint{
 		findRouteFunc: findRouteAnyDomain,
+		shortLinkTree: newShortLinkTree(),
 	}
+}
+
+func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
+	return ep.shortLinkTree
 }
 
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
@@ -104,11 +111,29 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			route.ServeHTTP(w, r)
 		}
+	case ep.tryHandleShortLink(w, r):
+		return
 	case ep.notFoundHandler != nil:
 		ep.notFoundHandler.ServeHTTP(w, r)
 	default:
 		ep.serveNotFound(w, r)
 	}
+}
+
+func (ep *Entrypoint) tryHandleShortLink(w http.ResponseWriter, r *http.Request) (handled bool) {
+	host := r.Host
+	if before, _, ok := strings.Cut(host, ":"); ok {
+		host = before
+	}
+	if strings.EqualFold(host, common.ShortLinkPrefix) {
+		if ep.middleware != nil {
+			ep.middleware.ServeHTTP(ep.shortLinkTree.ServeHTTP, w, r)
+		} else {
+			ep.shortLinkTree.ServeHTTP(w, r)
+		}
+		return true
+	}
+	return false
 }
 
 func (ep *Entrypoint) serveNotFound(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,8 @@ package config
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"iter"
 	"net/http"
@@ -134,6 +136,10 @@ func (state *state) EntrypointHandler() http.Handler {
 	return &state.entrypoint
 }
 
+func (state *state) Entrypoint() *entrypoint.Entrypoint {
+	return &state.entrypoint
+}
+
 // AutoCertProvider returns the autocert provider.
 //
 // If the autocert provider is not configured, it returns nil.
@@ -191,16 +197,50 @@ func (state *state) initAccessLogger() error {
 }
 
 func (state *state) initEntrypoint() error {
-	epCfg := state.Entrypoint
+	epCfg := state.Config.Entrypoint
 	matchDomains := state.MatchDomains
 
 	state.entrypoint.SetFindRouteDomains(matchDomains)
 	state.entrypoint.SetNotFoundRules(epCfg.Rules.NotFound)
 
+	if len(matchDomains) > 0 {
+		state.entrypoint.ShortLinkMatcher().SetDefaultDomainSuffix(matchDomains[0])
+	}
+
+	if state.autocertProvider != nil {
+		if domain := getAutoCertDefaultDomain(state.autocertProvider); domain != "" {
+			state.entrypoint.ShortLinkMatcher().SetDefaultDomainSuffix("." + domain)
+		}
+	}
+
 	errs := gperr.NewBuilder("entrypoint error")
 	errs.Add(state.entrypoint.SetMiddlewares(epCfg.Middlewares))
 	errs.Add(state.entrypoint.SetAccessLogger(state.task, epCfg.AccessLog))
 	return errs.Error()
+}
+
+func getAutoCertDefaultDomain(p *autocert.Provider) string {
+	if p == nil {
+		return ""
+	}
+	cert, err := tls.LoadX509KeyPair(p.GetCertPath(), p.GetKeyPath())
+	if err != nil || len(cert.Certificate) == 0 {
+		return ""
+	}
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return ""
+	}
+
+	domain := x509Cert.Subject.CommonName
+	if domain == "" && len(x509Cert.DNSNames) > 0 {
+		domain = x509Cert.DNSNames[0]
+	}
+	domain = strings.TrimSpace(domain)
+	if after, ok := strings.CutPrefix(domain, "*."); ok {
+		domain = after
+	}
+	return strings.ToLower(domain)
 }
 
 func (state *state) initMaxMind() error {

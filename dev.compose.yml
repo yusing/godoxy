@@ -54,6 +54,42 @@ services:
       - USERS=user:$$2a$$10$$UdLYoJ5lgPsC0RKqYH/jMua7zIn0g9kPqWmhYayJYLaZQ/FTmH2/u # user:password
     labels:
       proxy.tinyauth.port: "3000"
+  jotty: # issue #182
+    image: ghcr.io/fccview/jotty:latest
+    container_name: jotty
+    user: "1000:1000"
+    tmpfs:
+      - /app/data:rw,uid=1000,gid=1000
+      - /app/config:rw,uid=1000,gid=1000
+      - /app/.next/cache:rw,uid=1000,gid=1000
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    labels:
+      proxy.aliases: "jotty.my.app"
+  postgres-test:
+    image: postgres:18-alpine
+    container_name: postgres-test
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  h2c_test_server:
+    build:
+      context: cmd/h2c_test_server
+      dockerfile: Dockerfile
+    container_name: h2c_test
+    restart: unless-stopped
+    labels:
+      proxy.#1.scheme: h2c
+      proxy.#1.port: 80
 configs:
   parca:
     content: |
