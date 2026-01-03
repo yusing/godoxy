@@ -16,7 +16,7 @@ func NewTransport() *http.Transport {
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           DefaultDialer.DialContext,
 		ForceAttemptHTTP2:     true,
-		MaxIdleConnsPerHost:   100,
+		MaxIdleConnsPerHost:   1000,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
