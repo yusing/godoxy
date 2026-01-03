@@ -38,7 +38,12 @@ func TestDockerProviderConfigValidation(t *testing.T) {
 		yamlStr string
 		wantErr bool
 	}{
-		{name: "valid url", yamlStr: "test: http://localhost:2375", wantErr: false},
+		{name: "valid url (http)", yamlStr: "test: http://localhost:2375", wantErr: false},
+		{name: "valid url (https)", yamlStr: "test: https://localhost:2375", wantErr: false},
+		{name: "valid url (tcp)", yamlStr: "test: tcp://localhost:2375", wantErr: false},
+		{name: "valid url (tls)", yamlStr: "test: tls://localhost:2375", wantErr: false},
+		{name: "valid url (unix)", yamlStr: "test: unix:///var/run/docker.sock", wantErr: false},
+		{name: "valid url (ssh)", yamlStr: "test: ssh://localhost:2375", wantErr: false},
 		{name: "invalid url", yamlStr: "test: ftp://localhost/2375", wantErr: true},
 		{name: "valid scheme", yamlStr: `
         test:
