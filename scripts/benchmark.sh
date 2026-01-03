@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-HOST="whoami.domain.com"
+HOST="bench.domain.com"
 DURATION="${DURATION:-10s}"
 THREADS="${THREADS:-4}"
 CONNECTIONS="${CONNECTIONS:-100}"
@@ -54,10 +54,10 @@ echo ""
 
 # Define services to test
 declare -A services=(
-    ["GoDoxy"]="http://127.0.0.1:8080/bench"
-    ["Traefik"]="http://127.0.0.1:8081/bench"
-    ["Caddy"]="http://127.0.0.1:8082/bench"
-    ["Nginx"]="http://127.0.0.1:8083/bench"
+    ["GoDoxy"]="http://127.0.0.1:8080"
+    ["Traefik"]="http://127.0.0.1:8081"
+    ["Caddy"]="http://127.0.0.1:8082"
+    ["Nginx"]="http://127.0.0.1:8083"
 )
 
 # Array to store connection errors
@@ -81,13 +81,13 @@ test_connection() {
     local status2=$(echo "$res2" | tail -n 1)
 
     local failed=false
-    if [ "$status1" != "200" ] || [ "$body1" != "1" ]; then
-        red "✗ $name failed HTTP/1.1 connection test (Status: $status1, Body: $body1)"
+    if [ "$status1" != "200" ] || [ ${#body1} -ne 4096 ]; then
+        red "✗ $name failed HTTP/1.1 connection test (Status: $status1, Body length: ${#body1})"
         failed=true
     fi
 
-    if [ "$status2" != "200" ] || [ "$body2" != "1" ]; then
-        red "✗ $name failed HTTP/2 connection test (Status: $status2, Body: $body2)"
+    if [ "$status2" != "200" ] || [ ${#body2} -ne 4096 ]; then
+        red "✗ $name failed HTTP/2 connection test (Status: $status2, Body length: ${#body2})"
         failed=true
     fi
 
