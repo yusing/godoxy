@@ -19,7 +19,7 @@ func main() {
 		Handler: h2c.NewHandler(handler, &http2.Server{}),
 	}
 
-	log.Println("H2C server listening on :8080")
+	log.Println("H2C server listening on :80")
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("ListenAndServe: %v", err)
 	}
