@@ -30,7 +30,7 @@ func (r *RouteContext) Value(key any) any {
 func WithRouteContext(r *http.Request, route types.HTTPRoute) *http.Request {
 	// we don't want to copy the request object every fucking requests
 	// return r.WithContext(context.WithValue(r.Context(), routeContextKey, route))
-	ctxFieldPtr := (*context.Context)(unsafe.Pointer(uintptr(unsafe.Pointer(r)) + ctxFieldOffset))
+	ctxFieldPtr := (*context.Context)(unsafe.Add(unsafe.Pointer(r), ctxFieldOffset))
 	*ctxFieldPtr = &RouteContext{
 		Context: r.Context(),
 		Route:   route,
