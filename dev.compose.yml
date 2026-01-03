@@ -95,10 +95,12 @@ services:
     labels:
       proxy.#1.scheme: h2c
       proxy.#1.port: 80
-  whoami:
+  bench: # returns 4096 bytes of random data
     <<: *benchmark
-    image: traefik/whoami:latest
-    container_name: whoami
+    build:
+      context: cmd/bench_server
+      dockerfile: Dockerfile
+    container_name: bench
   godoxy:
     <<: *benchmark
     build: .
@@ -156,22 +158,22 @@ configs:
           - providers.yml
   godoxy_provider:
     content: |
-      whoami.domain.com:
-        host: whoami
+      bench.domain.com:
+        host: bench
   traefik_config:
     content: |
       http:
         routers:
-          whoami:
-            rule: "Host(`whoami.domain.com`)"
+          bench:
+            rule: "Host(`bench.domain.com`)"
             entryPoints:
               - web
-            service: whoami
+            service: bench
         services:
-          whoami:
+          bench:
             loadBalancer:
               servers:
-                - url: "http://whoami:80"
+                - url: "http://bench:80"
   caddy_config:
     content: |
       {
@@ -184,8 +186,8 @@ configs:
         }
       }
 
-      http://whoami.domain.com {
-        reverse_proxy whoami:80
+      http://bench.domain.com {
+        reverse_proxy bench:80
       }
   nginx_config:
     content: |
@@ -213,7 +215,7 @@ configs:
         keepalive_requests 10000;
         
         upstream backend {
-          server whoami:80;
+          server bench:80;
           keepalive 128;
         }
 
@@ -227,7 +229,7 @@ configs:
 
         server {
           listen 80;
-          server_name whoami.domain.com;
+          server_name bench.domain.com;
           http2 on;
           
           location / {
