@@ -20,7 +20,7 @@ type DockerProviderConfig struct {
 } // @name DockerProviderConfig
 
 type DockerProviderConfigDetailed struct {
-	Scheme string           `json:"scheme,omitempty" validate:"required,oneof=http https tcp tls"`
+	Scheme string           `json:"scheme,omitempty" validate:"required,oneof=http https tcp tls unix ssh"`
 	Host   string           `json:"host,omitempty" validate:"required,hostname|ip"`
 	Port   int              `json:"port,omitempty" validate:"required,min=1,max=65535"`
 	TLS    *DockerTLSConfig `json:"tls" validate:"omitempty"`
@@ -49,11 +49,13 @@ func (cfg *DockerProviderConfig) Parse(value string) error {
 
 	switch u.Scheme {
 	case "http", "https", "tcp", "tls":
+		cfg.URL = u.String()
+	case "unix", "ssh":
+		cfg.URL = value
 	default:
 		return fmt.Errorf("invalid scheme: %s", u.Scheme)
 	}
 
-	cfg.URL = u.String()
 	return nil
 }
 
