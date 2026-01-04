@@ -83,6 +83,8 @@ func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, erro
 		lastFailureFile: lastFailureFileFor(cfg.CertPath, cfg.KeyPath),
 		forceRenewalCh:  make(chan struct{}, 1),
 	}
+	p.forceRenewalDoneCh.Store(emptyForceRenewalDoneCh)
+
 	if cfg.idx == 0 {
 		p.logger = log.With().Str("provider", "main").Logger()
 	} else {
@@ -360,7 +362,7 @@ func (p *Provider) ShouldRenewOn() time.Time {
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
 	doneCh := make(chan struct{})
-	if swapped := p.forceRenewalDoneCh.CompareAndSwap(nil, doneCh); !swapped { // already in progress
+	if swapped := p.forceRenewalDoneCh.CompareAndSwap(emptyForceRenewalDoneCh, doneCh); !swapped { // already in progress
 		close(doneCh)
 		return false
 	}
