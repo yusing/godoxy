@@ -1,7 +1,7 @@
 package dnsproviders
 
 type (
-	DummyConfig   struct{}
+	DummyConfig   map[string]any
 	DummyProvider struct{}
 )
 

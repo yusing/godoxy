@@ -272,6 +272,7 @@ func (state *state) initAutoCert() error {
 	autocertCfg := state.AutoCert
 	if autocertCfg == nil {
 		autocertCfg = new(autocert.Config)
+		_ = autocertCfg.Validate()
 	}
 
 	user, legoCfg, err := autocertCfg.GetLegoConfig()
@@ -279,12 +280,19 @@ func (state *state) initAutoCert() error {
 		return err
 	}
 
-	state.autocertProvider = autocert.NewProvider(autocertCfg, user, legoCfg)
-	if err := state.autocertProvider.Setup(); err != nil {
-		return fmt.Errorf("autocert error: %w", err)
-	} else {
-		state.autocertProvider.ScheduleRenewal(state.task)
+	p, err := autocert.NewProvider(autocertCfg, user, legoCfg)
+	if err != nil {
+		return err
 	}
+
+	if err := p.ObtainCertIfNotExistsAll(); err != nil {
+		return err
+	}
+
+	p.ScheduleRenewalAll(state.task)
+	p.PrintCertExpiriesAll()
+
+	state.autocertProvider = p
 	return nil
 }
 
