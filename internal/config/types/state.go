@@ -6,7 +6,6 @@ import (
 	"iter"
 	"net/http"
 
-	"github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/synk"
@@ -23,7 +22,7 @@ type State interface {
 	Value() *Config
 
 	EntrypointHandler() http.Handler
-	Entrypoint() *entrypoint.Entrypoint
+	ShortLinkMatcher() ShortLinkMatcher
 	AutoCertProvider() server.CertProvider
 
 	LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool)
@@ -33,6 +32,12 @@ type State interface {
 	StartProviders() error
 
 	FlushTmpLog()
+}
+
+type ShortLinkMatcher interface {
+	AddRoute(alias string)
+	DelRoute(alias string)
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 // could be nil before first call on Load
