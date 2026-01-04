@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 )
 
 type ResponseRecorder struct {
@@ -13,14 +14,30 @@ type ResponseRecorder struct {
 	resp http.Response
 }
 
-func NewResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
-	return &ResponseRecorder{
-		w: w,
-		resp: http.Response{
-			StatusCode: http.StatusOK,
-			Header:     w.Header(),
-		},
+var recorderPool = sync.Pool{
+	New: func() any {
+		return &ResponseRecorder{}
+	},
+}
+
+func GetResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
+	r := recorderPool.Get().(*ResponseRecorder)
+	r.w = w
+	r.resp = http.Response{
+		StatusCode: http.StatusOK,
+		Header:     w.Header(),
 	}
+	return r
+}
+
+func PutResponseRecorder(r *ResponseRecorder) {
+	r.w = nil
+	r.resp = http.Response{}
+	recorderPool.Put(r)
+}
+
+func NewResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
+	return GetResponseRecorder(w)
 }
 
 func (w *ResponseRecorder) Unwrap() http.ResponseWriter {

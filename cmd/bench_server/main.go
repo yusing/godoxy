@@ -4,22 +4,30 @@ import (
 	"log"
 	"net/http"
 
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"math/rand/v2"
 )
+
+var printables = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+var random = make([]byte, 4096)
+
+func init() {
+	for i := range random {
+		random[i] = printables[rand.IntN(len(printables))]
+	}
+}
 
 func main() {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		w.Write(random)
 	})
 
 	server := &http.Server{
 		Addr:    ":80",
-		Handler: h2c.NewHandler(handler, &http2.Server{}),
+		Handler: handler,
 	}
 
-	log.Println("H2C server listening on :80")
+	log.Println("Bench server listening on :80")
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("ListenAndServe: %v", err)
 	}

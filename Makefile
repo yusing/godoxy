@@ -123,6 +123,15 @@ dev:
 dev-build: build
 	docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 
+benchmark:
+	@if [ -z "$(TARGET)" ]; then \
+		docker compose -f dev.compose.yml up -d --force-recreate godoxy traefik caddy nginx; \
+	else \
+		docker compose -f dev.compose.yml up -d --force-recreate $(TARGET); \
+	fi
+	sleep 1
+	@./scripts/benchmark.sh
+
 dev-run: build
 	cd dev-data && ${BIN_PATH}
 
@@ -142,7 +151,7 @@ ci-test:
 	act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$$(gh auth token)"
 
 cloc:
-	scc -w -i go --not-match '_test.go$'
+	scc -w -i go --not-match '_test.go$$'
 
 push-github:
 	git push origin $(shell git rev-parse --abbrev-ref HEAD)

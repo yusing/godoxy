@@ -1,3 +1,8 @@
+x-benchmark: &benchmark
+  restart: no
+  labels:
+    proxy.exclude: true
+    proxy.#1.healthcheck.disable: true
 services:
   app:
     image: godoxy-dev
@@ -90,7 +95,154 @@ services:
     labels:
       proxy.#1.scheme: h2c
       proxy.#1.port: 80
+  bench: # returns 4096 bytes of random data
+    <<: *benchmark
+    build:
+      context: cmd/bench_server
+      dockerfile: Dockerfile
+    container_name: bench
+  godoxy:
+    <<: *benchmark
+    build: .
+    container_name: godoxy-benchmark
+    ports:
+      - 8080:80
+    configs:
+      - source: godoxy_config
+        target: /app/config/config.yml
+      - source: godoxy_provider
+        target: /app/config/providers.yml
+  traefik:
+    <<: *benchmark
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - --api.insecure=true
+      - --entrypoints.web.address=:8081
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --log.level=ERROR
+    ports:
+      - 8081:8081
+    configs:
+      - source: traefik_config
+        target: /etc/traefik/dynamic/routes.yml
+  caddy:
+    <<: *benchmark
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - 8082:80
+    configs:
+      - source: caddy_config
+        target: /etc/caddy/Caddyfile
+    tmpfs:
+      - /data
+      - /config
+  nginx:
+    <<: *benchmark
+    image: nginx:latest
+    container_name: nginx
+    command: nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
+    ports:
+      - 8083:80
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/nginx.conf
+
 configs:
+  godoxy_config:
+    content: |
+      providers:
+        include:
+          - providers.yml
+  godoxy_provider:
+    content: |
+      bench.domain.com:
+        host: bench
+  traefik_config:
+    content: |
+      http:
+        routers:
+          bench:
+            rule: "Host(`bench.domain.com`)"
+            entryPoints:
+              - web
+            service: bench
+        services:
+          bench:
+            loadBalancer:
+              servers:
+                - url: "http://bench:80"
+  caddy_config:
+    content: |
+      {
+        admin off
+        auto_https off
+        default_bind 0.0.0.0
+
+        servers {
+          protocols h1 h2c
+        }
+      }
+
+      http://bench.domain.com {
+        reverse_proxy bench:80
+      }
+  nginx_config:
+    content: |
+      worker_processes auto;
+      worker_rlimit_nofile 65535;
+      error_log /dev/null;
+      pid /var/run/nginx.pid;
+
+      events {
+        worker_connections 10240;
+        multi_accept on;
+        use epoll;
+      }
+
+      http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        access_log off;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        keepalive_requests 10000;
+        
+        upstream backend {
+          server bench:80;
+          keepalive 128;
+        }
+
+        server {
+          listen 80 default_server;
+          server_name _;
+          http2 on;
+
+          return 404;
+        }
+
+        server {
+          listen 80;
+          server_name bench.domain.com;
+          http2 on;
+          
+          location / {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+        }
+      }
   parca:
     content: |
       object_storage:
