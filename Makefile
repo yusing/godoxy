@@ -75,7 +75,7 @@ endif
 .PHONY: debug
 
 test:
-	go test -v -race ./internal/...
+	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 docker-build-test:
 	docker build -t godoxy .
