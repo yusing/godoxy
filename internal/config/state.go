@@ -140,8 +140,8 @@ func (state *state) EntrypointHandler() http.Handler {
 	return &state.entrypoint
 }
 
-func (state *state) Entrypoint() *entrypoint.Entrypoint {
-	return &state.entrypoint
+func (state *state) ShortLinkMatcher() config.ShortLinkMatcher {
+	return state.entrypoint.ShortLinkMatcher()
 }
 
 // AutoCertProvider returns the autocert provider.

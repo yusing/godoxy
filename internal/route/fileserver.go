@@ -126,12 +126,12 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 
 	routes.HTTP.Add(s)
 	if state := config.WorkingState.Load(); state != nil {
-		state.Entrypoint().ShortLinkMatcher().AddRoute(s.Alias)
+		state.ShortLinkMatcher().AddRoute(s.Alias)
 	}
 	s.task.OnFinished("remove_route_from_http", func() {
 		routes.HTTP.Del(s)
 		if state := config.WorkingState.Load(); state != nil {
-			state.Entrypoint().ShortLinkMatcher().DelRoute(s.Alias)
+			state.ShortLinkMatcher().DelRoute(s.Alias)
 		}
 	})
 	return nil
