@@ -270,7 +270,7 @@ func TestLogCommand_ConditionalLogging(t *testing.T) {
 	errorContent, err := os.ReadFile(errorFile.Name())
 	require.NoError(t, err)
 	errorLines := strings.Split(strings.TrimSpace(string(errorContent)), "\n")
-	assert.Len(t, errorLines, 2)
+	require.Len(t, errorLines, 2)
 	assert.Equal(t, "ERROR: GET /notfound 404", errorLines[0])
 	assert.Equal(t, "ERROR: POST /error 500", errorLines[1])
 }
@@ -368,7 +368,7 @@ func TestLogCommand_FilePermissions(t *testing.T) {
 	logContent := strings.TrimSpace(string(content))
 	lines := strings.Split(logContent, "\n")
 
-	assert.Len(t, lines, 2)
+	require.Len(t, lines, 2)
 	assert.Equal(t, "GET 200", lines[0])
 	assert.Equal(t, "POST 200", lines[1])
 }

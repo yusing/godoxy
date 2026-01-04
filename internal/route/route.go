@@ -788,6 +788,15 @@ func (r *Route) Finalize() {
 	}
 
 	r.Port.Listening, r.Port.Proxy = lp, pp
+
+	workingState := config.WorkingState.Load()
+	if workingState == nil {
+		if common.IsTest { // in tests, working state might be nil
+			return
+		}
+		panic("bug: working state is nil")
+	}
+
 	r.HealthCheck.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
 }
 
