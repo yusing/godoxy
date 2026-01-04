@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/godoxy/internal/common"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
 
 	expect "github.com/yusing/goutils/testing"
 )
@@ -42,6 +43,7 @@ func setupMockOIDC(t *testing.T) {
 		}),
 		allowedUsers:  []string{"test-user"},
 		allowedGroups: []string{"test-group1", "test-group2"},
+		rateLimit:     rate.NewLimiter(rate.Every(common.OIDCRateLimitPeriod), common.OIDCRateLimit),
 	}
 }
 

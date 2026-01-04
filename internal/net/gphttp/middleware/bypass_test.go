@@ -106,7 +106,7 @@ func TestReverseProxyBypass(t *testing.T) {
 	rp := reverseproxy.NewReverseProxy("test", url, fakeRoundTripper{})
 	err = PatchReverseProxy(rp, map[string]OptionsRaw{
 		"response": {
-			"bypass": "path glob(/test/*) | path /api",
+			"bypass": []string{"path glob(/test/*)", "path /api"},
 			"set_headers": map[string]string{
 				"Test-Header": "test-value",
 			},
