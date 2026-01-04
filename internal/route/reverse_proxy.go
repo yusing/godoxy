@@ -168,12 +168,12 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	} else {
 		routes.HTTP.Add(r)
 		if state := config.WorkingState.Load(); state != nil {
-			state.Entrypoint().ShortLinkMatcher().AddRoute(r.Alias)
+			state.ShortLinkMatcher().AddRoute(r.Alias)
 		}
 		r.task.OnCancel("remove_route", func() {
 			routes.HTTP.Del(r)
 			if state := config.WorkingState.Load(); state != nil {
-				state.Entrypoint().ShortLinkMatcher().DelRoute(r.Alias)
+				state.ShortLinkMatcher().DelRoute(r.Alias)
 			}
 		})
 	}
@@ -216,12 +216,12 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 		linked.SetHealthMonitor(lb)
 		routes.HTTP.AddKey(cfg.Link, linked)
 		if state := config.WorkingState.Load(); state != nil {
-			state.Entrypoint().ShortLinkMatcher().AddRoute(cfg.Link)
+			state.ShortLinkMatcher().AddRoute(cfg.Link)
 		}
 		r.task.OnFinished("remove_loadbalancer_route", func() {
 			routes.HTTP.DelKey(cfg.Link)
 			if state := config.WorkingState.Load(); state != nil {
-				state.Entrypoint().ShortLinkMatcher().DelRoute(cfg.Link)
+				state.ShortLinkMatcher().DelRoute(cfg.Link)
 			}
 		})
 		lbLock.Unlock()
