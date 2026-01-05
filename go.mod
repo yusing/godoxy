@@ -22,7 +22,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
-	github.com/gotify/server/v2 v2.7.3 // reference the Message struct for json response
+	github.com/gotify/server/v2 v2.8.0 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
 	github.com/pires/go-proxyproto v0.8.1 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
@@ -41,23 +41,23 @@ require (
 	github.com/docker/cli v29.1.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.1 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0 // jwt authentication
-	github.com/luthermonson/go-proxmox v0.2.4 // proxmox API client
+	github.com/luthermonson/go-proxmox v0.3.1 // proxmox API client
 	github.com/moby/moby/api v1.52.0 // docker API
 	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.58.0 // http3 support
-	github.com/shirou/gopsutil/v4 v4.25.11 // system information
+	github.com/shirou/gopsutil/v4 v4.25.12 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.68.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20251230135310-5087800fd763
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20251230043958-dba8441e8a5d
+	github.com/yusing/godoxy/agent v0.0.0-20260104140148-1c2515cb298d
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260104140148-1c2515cb298d
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251217162119-cb0f79b51ce2
-	github.com/yusing/goutils/http/websocket v0.0.0-20251217162119-cb0f79b51ce2
-	github.com/yusing/goutils/server v0.0.0-20251217162119-cb0f79b51ce2
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64
+	github.com/yusing/goutils/http/websocket v0.0.0-20260103043911-785deb23bd64
+	github.com/yusing/goutils/server v0.0.0-20260103043911-785deb23bd64
 )
 
 require (

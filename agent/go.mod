@@ -25,8 +25,8 @@ require (
 	github.com/yusing/godoxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251217162119-cb0f79b51ce2
-	github.com/yusing/goutils/server v0.0.0-20251217162119-cb0f79b51ce2
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64
+	github.com/yusing/goutils/server v0.0.0-20260103043911-785deb23bd64
 )
 
 require (
@@ -65,7 +65,7 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.1 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/gotify/server/v2 v2.7.3 // indirect
+	github.com/gotify/server/v2 v2.8.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
@@ -73,7 +73,7 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
-	github.com/luthermonson/go-proxmox v0.2.4 // indirect
+	github.com/luthermonson/go-proxmox v0.3.1 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -95,7 +95,7 @@ require (
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/samber/slog-common v0.19.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.25.11 // indirect
+	github.com/shirou/gopsutil/v4 v4.25.12 // indirect
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
@@ -106,7 +106,7 @@ require (
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.3.1 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
-	github.com/yusing/goutils/http/websocket v0.0.0-20251217162119-cb0f79b51ce2 // indirect
+	github.com/yusing/goutils/http/websocket v0.0.0-20260103043911-785deb23bd64 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
