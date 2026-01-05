@@ -14,7 +14,7 @@ replace (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon
+	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
@@ -31,7 +31,7 @@ require (
 	golang.org/x/crypto v0.46.0 // encrypting password with bcrypt
 	golang.org/x/net v0.48.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.34.0 // oauth2 authentication
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.19.0 // errgroup and singleflight for concurrent operations
 	golang.org/x/time v0.14.0 // time utilities
 )
 
