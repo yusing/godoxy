@@ -302,13 +302,16 @@ func (state *state) initProxmox() error {
 		return nil
 	}
 
-	errs := gperr.NewBuilder()
+	var errs gperr.Group
 	for _, cfg := range proxmoxCfg {
-		if err := cfg.Init(state.task.Context()); err != nil {
-			errs.Add(err.Subject(cfg.URL))
-		}
+		errs.Go(func() error {
+			if err := cfg.Init(state.task.Context()); err != nil {
+				return err.Subject(cfg.URL)
+			}
+			return nil
+		})
 	}
-	return errs.Error()
+	return errs.Wait().Error()
 }
 
 func (state *state) storeProvider(p types.RouteProvider) {
@@ -326,8 +329,8 @@ func (state *state) loadRouteProviders() error {
 	}()
 
 	providers := &state.Providers
-	errs := gperr.NewBuilderWithConcurrency("route provider errors")
-	results := gperr.NewBuilder("loaded route providers")
+	errs := gperr.NewGroup("route provider errors")
+	results := gperr.NewGroup("loaded route providers")
 
 	agent.RemoveAllAgents()
 
@@ -388,8 +391,6 @@ func (state *state) loadRouteProviders() error {
 		}
 	}
 
-	results.EnableConcurrency()
-
 	// load routes concurrently
 	var providersLoader sync.WaitGroup
 	for _, p := range state.providers.Range {
@@ -402,10 +403,10 @@ func (state *state) loadRouteProviders() error {
 	}
 	providersLoader.Wait()
 
-	state.tmpLog.Info().Msg(results.String())
+	state.tmpLog.Info().Msg(results.Wait().String())
 	state.printRoutesByProvider(lenLongestName)
 	state.printState()
-	return errs.Error()
+	return errs.Wait().Error()
 }
 
 func (state *state) printRoutesByProvider(lenLongestName int) {

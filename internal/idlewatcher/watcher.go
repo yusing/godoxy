@@ -143,7 +143,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 	}
 
-	depErrors := gperr.NewBuilder()
+	var depErrors gperr.Builder
 	for i, dep := range cfg.DependsOn {
 		depSegments := strings.Split(dep, ":")
 		dep = depSegments[0]

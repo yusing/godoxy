@@ -76,7 +76,8 @@ func (c *IdlewatcherConfig) Validate() gperr.Error {
 		c.valErr = nil
 		return nil
 	}
-	errs := gperr.NewBuilder()
+
+	var errs gperr.Builder
 	errs.AddRange(
 		c.validateProvider(),
 		c.validateTimeouts(),

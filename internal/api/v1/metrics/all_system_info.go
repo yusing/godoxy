@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -103,54 +102,52 @@ func AllSystemInfo(c *gin.Context) {
 
 	// processing function for one round.
 	doRound := func() (bool, error) {
-		var roundWg sync.WaitGroup
 		var numErrs atomic.Int32
 
 		totalAgents := int32(1) // myself
 
-		errs := gperr.NewBuilderWithConcurrency()
+		var errs gperr.Group
 		// get system info for me and all agents in parallel.
-		roundWg.Go(func() {
+		errs.Go(func() error {
 			data, err := systeminfo.Poller.GetRespData(req.Period, query)
 			if err != nil {
-				errs.Add(gperr.Wrap(err, "Main server"))
 				numErrs.Add(1)
-				return
+				return gperr.PrependSubject("Main server", err)
 			}
 			select {
 			case <-manager.Done():
-				return
+				return nil
 			case dataCh <- SystemInfoData{
 				AgentName:  "GoDoxy",
 				SystemInfo: data,
 			}:
 			}
+			return nil
 		})
 
 		for _, a := range agent.IterAgents() {
 			totalAgents++
-			agentShallowCopy := *a
 
-			roundWg.Go(func() {
-				data, err := getAgentSystemInfoWithRetry(manager.Context(), &agentShallowCopy, queryEncoded)
+			errs.Go(func() error {
+				data, err := getAgentSystemInfoWithRetry(manager.Context(), a, queryEncoded)
 				if err != nil {
-					errs.Add(gperr.Wrap(err, "Agent "+agentShallowCopy.Name))
 					numErrs.Add(1)
-					return
+					return gperr.PrependSubject("Agent "+a.Name, err)
 				}
 				select {
 				case <-manager.Done():
-					return
+					return nil
 				case dataCh <- SystemInfoData{
-					AgentName:  agentShallowCopy.Name,
+					AgentName:  a.Name,
 					SystemInfo: data,
 				}:
 				}
+				return nil
 			})
 		}
 
-		roundWg.Wait()
-		return numErrs.Load() == totalAgents, errs.Error()
+		err := errs.Wait().Error()
+		return numErrs.Load() == totalAgents, err
 	}
 
 	// write system info immediately once.
