@@ -30,7 +30,7 @@ func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	return &StreamRoute{
 		Route: base,
 		l: log.With().
-			Str("type", string(base.Scheme)).
+			Stringer("type", base.Scheme).
 			Str("name", base.Name()).
 			Logger(),
 	}, nil
