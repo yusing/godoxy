@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"net"
 	"time"
+
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
 )
 
 type TCPClient struct {
@@ -40,6 +42,7 @@ func NewTCPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		Certificates: []tls.Certificate{*clientCert},
 		RootCAs:      caCertPool,
 		MinVersion:   tls.VersionTLS12,
+		ServerName:   common.CertsDNSName,
 	}
 
 	// Establish TLS connection

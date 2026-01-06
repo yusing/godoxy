@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pion/dtls/v3"
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
 )
 
 type UDPClient struct {
@@ -43,6 +44,7 @@ func NewUDPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		RootCAs:              caCertPool,
 		InsecureSkipVerify:   false,
 		ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
+		ServerName:           common.CertsDNSName,
 	}
 
 	raddr, err := net.ResolveUDPAddr("udp", serverAddr)

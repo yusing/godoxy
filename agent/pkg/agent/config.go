@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/valyala/fasthttp"
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
 	agentstream "github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/certs"
 	gperr "github.com/yusing/goutils/errs"
@@ -64,7 +65,7 @@ const (
 	EndpointLogs       = "/logs"
 	EndpointSystemInfo = "/system_info"
 
-	AgentHost = CertsDNSName
+	AgentHost = common.CertsDNSName
 
 	APIEndpointBase = "/godoxy/agent"
 	APIBaseURL      = "https://" + AgentHost + APIEndpointBase
@@ -133,7 +134,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	cfg.tlsConfig = tls.Config{
 		Certificates: []tls.Certificate{clientCert},
 		RootCAs:      caCertPool,
-		ServerName:   CertsDNSName,
+		ServerName:   common.CertsDNSName,
 	}
 
 	// create transport and http client
