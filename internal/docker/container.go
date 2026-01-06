@@ -175,11 +175,14 @@ func isLocal(c *types.Container) bool {
 		return false
 	}
 	hostname := url.Hostname()
+	if hostname == "localhost" {
+		return true
+	}
 	ip := net.ParseIP(hostname)
 	if ip != nil {
 		return ip.IsLoopback() || ip.IsUnspecified()
 	}
-	return hostname == "localhost"
+	return false
 }
 
 func setPublicHostname(c *types.Container) {
