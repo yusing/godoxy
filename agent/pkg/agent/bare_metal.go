@@ -8,6 +8,7 @@ import (
 var (
 	installScript = `AGENT_NAME="{{.Name}}" \
 	AGENT_PORT="{{.Port}}" \
+	AGENT_STREAM_PORT="{{.StreamPort}}" \
 	AGENT_CA_CERT="{{.CACert}}" \
 	AGENT_SSL_CERT="{{.SSLCert}}" \
 	{{ if eq .ContainerRuntime "nerdctl" -}}

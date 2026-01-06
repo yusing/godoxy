@@ -1,15 +1,18 @@
 package main
 
 import (
+	"net"
 	"os"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/server"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
+	gperr "github.com/yusing/goutils/errs"
 	httpServer "github.com/yusing/goutils/server"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
@@ -62,6 +65,16 @@ Tips:
 	}
 
 	server.StartAgentServer(t, opts)
+
+	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{Port: env.AgentStreamPort})
+	if err != nil {
+		gperr.LogFatal("failed to listen on port", err)
+	}
+	tcpServer := stream.NewTCPServer(t.Context(), tcpListener, caCert.Leaf, srvCert)
+	go tcpServer.Start()
+
+	udpServer := stream.NewUDPServer(t.Context(), &net.UDPAddr{Port: env.AgentStreamPort}, caCert.Leaf, srvCert)
+	go udpServer.Start()
 
 	if socketproxy.ListenAddr != "" {
 		runtime := strutils.Title(string(env.Runtime))

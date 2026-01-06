@@ -110,9 +110,9 @@ func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 
 	switch rurl.Scheme {
 	case "tcp":
-		return stream.NewTCPTCPStream(laddr, rurl.Host)
+		return stream.NewTCPTCPStream(laddr, rurl.Host, r.GetAgent())
 	case "udp":
-		return stream.NewUDPUDPStream(laddr, rurl.Host)
+		return stream.NewUDPUDPStream(laddr, rurl.Host, r.GetAgent())
 	}
 	return nil, fmt.Errorf("unknown scheme: %s", rurl.Scheme)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
+	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -17,6 +18,7 @@ type TCPTCPStream struct {
 	listener net.Listener
 	laddr    *net.TCPAddr
 	dst      *net.TCPAddr
+	agent    *agent.AgentConfig
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -24,7 +26,7 @@ type TCPTCPStream struct {
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
+func NewTCPTCPStream(listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
 	dst, err := net.ResolveTCPAddr("tcp", dstAddr)
 	if err != nil {
 		return nil, err
@@ -33,7 +35,7 @@ func NewTCPTCPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{laddr: laddr, dst: dst}, nil
+	return &TCPTCPStream{laddr: laddr, dst: dst, agent: agentCfg}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
@@ -126,7 +128,15 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	dstConn, err := net.DialTCP("tcp", nil, s.dst)
+	var (
+		dstConn net.Conn
+		err     error
+	)
+	if s.agent != nil {
+		dstConn, err = s.agent.NewTCPClient(s.dst.String())
+	} else {
+		dstConn, err = net.DialTCP("tcp", nil, s.dst)
+	}
 	if err != nil {
 		if !s.closed.Load() {
 			logErr(s, err, "failed to dial destination")
@@ -140,7 +150,7 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 	}
 
 	src := conn
-	dst := net.Conn(dstConn)
+	dst := dstConn
 	if s.onRead != nil {
 		src = &wrapperConn{
 			Conn:   conn,

@@ -4,38 +4,61 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/valyala/fasthttp"
+	agentstream "github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/certs"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/version"
 )
 
 type AgentConfig struct {
-	Addr    string           `json:"addr"`
-	Name    string           `json:"name"`
-	Version version.Version  `json:"version" swaggertype:"string"`
-	Runtime ContainerRuntime `json:"runtime"`
+	AgentInfo
+
+	Addr string `json:"addr"`
 
 	httpClient                *http.Client
 	fasthttpClientHealthCheck *fasthttp.Client
 	tlsConfig                 tls.Config
-	l                         zerolog.Logger
+
+	// for stream
+	caCert               *x509.Certificate
+	clientCert           *tls.Certificate
+	isTCPStreamSupported bool
+	isUDPStreamSupported bool
+	streamServerAddr     string
+
+	l zerolog.Logger
 } // @name Agent
 
+type AgentInfo struct {
+	Version    version.Version  `json:"version" swaggertype:"string"`
+	Name       string           `json:"name"`
+	Runtime    ContainerRuntime `json:"runtime"`
+	StreamPort int              `json:"stream_port"`
+}
+
+// Deprecated. Replaced by EndpointInfo
 const (
-	EndpointVersion    = "/version"
-	EndpointName       = "/name"
-	EndpointRuntime    = "/runtime"
+	EndpointVersion = "/version"
+	EndpointName    = "/name"
+	EndpointRuntime = "/runtime"
+)
+
+const (
+	EndpointInfo       = "/info"
 	EndpointProxyHTTP  = "/proxy/http"
 	EndpointHealth     = "/health"
 	EndpointLogs       = "/logs"
@@ -90,12 +113,21 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	if err != nil {
 		return err
 	}
+	cfg.clientCert = &clientCert
 
 	// create tls config
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(ca)
 	if !ok {
 		return errors.New("invalid ca certificate")
+	}
+	// Keep the CA leaf for stream client dialing.
+	if block, _ := pem.Decode(ca); block == nil || block.Type != "CERTIFICATE" {
+		return errors.New("invalid ca certificate")
+	} else if cert, err := x509.ParseCertificate(block.Bytes); err != nil {
+		return err
+	} else {
+		cfg.caCert = cert
 	}
 
 	cfg.tlsConfig = tls.Config{
@@ -113,47 +145,96 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// get agent name
-	name, _, err := cfg.fetchString(ctx, EndpointName)
+	status, err := cfg.fetchJSON(ctx, EndpointInfo, &cfg.AgentInfo)
 	if err != nil {
 		return err
 	}
 
-	cfg.Name = name
+	var streamUnsupportedErrs gperr.Builder
+
+	if status == http.StatusOK {
+		if cfg.StreamPort <= 0 {
+			return fmt.Errorf("invalid agent stream port: %d", cfg.StreamPort)
+		}
+		host, _, err := net.SplitHostPort(cfg.Addr)
+		if err != nil {
+			return err
+		}
+		cfg.streamServerAddr = net.JoinHostPort(host, strconv.Itoa(cfg.StreamPort))
+
+		// test stream server connection
+		const fakeAddress = "localhost:8080" // it won't be used, just for testing
+		// test TCP stream support
+		conn, err := agentstream.NewTCPClient(cfg.streamServerAddr, fakeAddress, cfg.caCert, cfg.clientCert)
+		if err != nil {
+			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
+		} else {
+			conn.Close()
+			cfg.isTCPStreamSupported = true
+		}
+
+		// test UDP stream support
+		conn, err = agentstream.NewUDPClient(cfg.streamServerAddr, fakeAddress, cfg.caCert, cfg.clientCert)
+		if err != nil {
+			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
+		} else {
+			conn.Close()
+			cfg.isUDPStreamSupported = true
+		}
+	} else {
+		// old agent does not support EndpointInfo
+		// fallback with old logic
+		cfg.isTCPStreamSupported = false
+		cfg.isUDPStreamSupported = false
+		streamUnsupportedErrs.Adds("agent version is too old, does not support stream tunneling")
+
+		// get agent name
+		name, _, err := cfg.fetchString(ctx, EndpointName)
+		if err != nil {
+			return err
+		}
+
+		cfg.Name = name
+
+		// check agent version
+		agentVersion, _, err := cfg.fetchString(ctx, EndpointVersion)
+		if err != nil {
+			return err
+		}
+
+		cfg.Version = version.Parse(agentVersion)
+
+		// check agent runtime
+		runtime, status, err := cfg.fetchString(ctx, EndpointRuntime)
+		if err != nil {
+			return err
+		}
+
+		switch status {
+		case http.StatusOK:
+			switch runtime {
+			case "docker":
+				cfg.Runtime = ContainerRuntimeDocker
+			// case "nerdctl":
+			// 	cfg.Runtime = ContainerRuntimeNerdctl
+			case "podman":
+				cfg.Runtime = ContainerRuntimePodman
+			default:
+				return fmt.Errorf("invalid agent runtime: %s", runtime)
+			}
+		case http.StatusNotFound:
+			// backward compatibility, old agent does not have runtime endpoint
+			cfg.Runtime = ContainerRuntimeDocker
+		default:
+			return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtime)
+		}
+	}
 
 	cfg.l = log.With().Str("agent", cfg.Name).Logger()
 
-	// check agent version
-	agentVersion, _, err := cfg.fetchString(ctx, EndpointVersion)
-	if err != nil {
-		return err
+	if err := streamUnsupportedErrs.Error(); err != nil {
+		gperr.LogWarn("agent has limited/no stream tunneling support, TCP and UDP routes via agent will not work", err, &cfg.l)
 	}
-
-	// check agent runtime
-	runtime, status, err := cfg.fetchString(ctx, EndpointRuntime)
-	if err != nil {
-		return err
-	}
-	switch status {
-	case http.StatusOK:
-		switch runtime {
-		case "docker":
-			cfg.Runtime = ContainerRuntimeDocker
-		// case "nerdctl":
-		// 	cfg.Runtime = ContainerRuntimeNerdctl
-		case "podman":
-			cfg.Runtime = ContainerRuntimePodman
-		default:
-			return fmt.Errorf("invalid agent runtime: %s", runtime)
-		}
-	case http.StatusNotFound:
-		// backward compatibility, old agent does not have runtime endpoint
-		cfg.Runtime = ContainerRuntimeDocker
-	default:
-		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtime)
-	}
-
-	cfg.Version = version.Parse(agentVersion)
 
 	if serverVersion.IsNewerThanMajor(cfg.Version) {
 		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.Name, serverVersion, cfg.Version)
@@ -161,6 +242,53 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 
 	log.Info().Msgf("agent %q initialized", cfg.Name)
 	return nil
+}
+
+func (cfg *AgentConfig) getStreamServerAddr() (string, error) {
+	if cfg.streamServerAddr == "" {
+		return "", errors.New("agent stream server address is not initialized")
+	}
+	return cfg.streamServerAddr, nil
+}
+
+// NewTCPClient creates a new TCP client for the agent.
+//
+// It returns an error if
+//   - the agent is not initialized
+//   - the agent does not support TCP stream tunneling
+//   - the agent stream server address is not initialized
+func (cfg *AgentConfig) NewTCPClient(targetAddress string) (net.Conn, error) {
+	if cfg.caCert == nil || cfg.clientCert == nil {
+		return nil, errors.New("agent is not initialized")
+	}
+	if !cfg.isTCPStreamSupported {
+		return nil, errors.New("agent does not support TCP stream tunneling")
+	}
+	serverAddr, err := cfg.getStreamServerAddr()
+	if err != nil {
+		return nil, err
+	}
+	return agentstream.NewTCPClient(serverAddr, targetAddress, cfg.caCert, cfg.clientCert)
+}
+
+// NewUDPClient creates a new UDP client for the agent.
+//
+// It returns an error if
+//   - the agent is not initialized
+//   - the agent does not support UDP stream tunneling
+//   - the agent stream server address is not initialized
+func (cfg *AgentConfig) NewUDPClient(targetAddress string) (net.Conn, error) {
+	if cfg.caCert == nil || cfg.clientCert == nil {
+		return nil, errors.New("agent is not initialized")
+	}
+	if !cfg.isUDPStreamSupported {
+		return nil, errors.New("agent does not support UDP stream tunneling")
+	}
+	serverAddr, err := cfg.getStreamServerAddr()
+	if err != nil {
+		return nil, err
+	}
+	return agentstream.NewUDPClient(serverAddr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
 func (cfg *AgentConfig) Start(ctx context.Context) error {

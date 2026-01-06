@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
@@ -22,6 +23,7 @@ type UDPUDPStream struct {
 
 	laddr *net.UDPAddr
 	dst   *net.UDPAddr
+	agent *agent.AgentConfig
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -35,7 +37,7 @@ type UDPUDPStream struct {
 
 type udpUDPConn struct {
 	srcAddr  *net.UDPAddr
-	dstConn  *net.UDPConn
+	dstConn  net.Conn
 	listener net.PacketConn
 	lastUsed atomic.Time
 	closed   atomic.Bool
@@ -51,7 +53,7 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
+func NewUDPUDPStream(listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
 	dst, err := net.ResolveUDPAddr("udp", dstAddr)
 	if err != nil {
 		return nil, err
@@ -63,6 +65,7 @@ func NewUDPUDPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
 	return &UDPUDPStream{
 		laddr: laddr,
 		dst:   dst,
+		agent: agentCfg,
 		conns: make(map[string]*udpUDPConn),
 	}, nil
 }
@@ -189,8 +192,16 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 		}
 	}
 
-	// Create UDP connection to destination
-	dstConn, err := net.DialUDP("udp", nil, s.dst)
+	// Create connection to destination (direct UDP or via agent stream tunnel)
+	var (
+		dstConn net.Conn
+		err     error
+	)
+	if s.agent != nil {
+		dstConn, err = s.agent.NewUDPClient(s.dst.String())
+	} else {
+		dstConn, err = net.DialUDP("udp", nil, s.dst)
+	}
 	if err != nil {
 		logErr(s, err, "failed to dial dst")
 		return nil, false
@@ -205,7 +216,7 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 
 	// Send initial data before starting response handler
 	if !conn.forwardToDestination(initialData) {
-		dstConn.Close()
+		_ = dstConn.Close()
 		return nil, false
 	}
 
@@ -328,6 +339,6 @@ func (conn *udpUDPConn) Close() {
 
 	conn.closed.Store(true)
 
-	conn.dstConn.Close()
+	_ = conn.dstConn.Close()
 	conn.dstConn = nil
 }

@@ -87,6 +87,34 @@ func (cfg *AgentConfig) fetchString(ctx context.Context, endpoint string) (strin
 	return ret, resp.StatusCode, nil
 }
 
+// fetchJSON fetches a JSON response from the agent and unmarshals it into the provided struct
+//
+// It will return the status code of the response, and error if any.
+// If the status code is not http.StatusOK, out will be unchanged but error will still be nil.
+func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any) (int, error) {
+	resp, err := cfg.Do(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return 0, err
+	}
+
+	defer release(data)
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, nil
+	}
+
+	err = sonic.Unmarshal(data, out)
+	if err != nil {
+		return 0, err
+	}
+	return resp.StatusCode, nil
+}
+
 func (cfg *AgentConfig) Websocket(ctx context.Context, endpoint string) (*websocket.Conn, *http.Response, error) {
 	transport := cfg.Transport()
 	dialer := websocket.Dialer{

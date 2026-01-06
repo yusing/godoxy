@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -44,14 +44,14 @@ func NewAgentHandler() http.Handler {
 	}
 
 	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
-	mux.HandleEndpoint("GET", agent.EndpointVersion, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, version.Get())
-	})
-	mux.HandleEndpoint("GET", agent.EndpointName, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, env.AgentName)
-	})
-	mux.HandleEndpoint("GET", agent.EndpointRuntime, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, env.Runtime)
+	mux.HandleFunc(agent.EndpointInfo, func(w http.ResponseWriter, r *http.Request) {
+		agentInfo := agent.AgentInfo{
+			Version:    version.Get(),
+			Name:       env.AgentName,
+			Runtime:    env.Runtime,
+			StreamPort: env.AgentStreamPort,
+		}
+		sonic.ConfigDefault.NewEncoder(w).Encode(agentInfo)
 	})
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
 	mux.HandleEndpoint("GET", agent.EndpointSystemInfo, metricsHandler.ServeHTTP)
