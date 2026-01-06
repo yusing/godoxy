@@ -97,8 +97,7 @@ func (p *Provider) MarshalText() ([]byte, error) {
 
 // Start implements task.TaskStarter.
 func (p *Provider) Start(parent task.Parent) gperr.Error {
-	errs := gperr.NewBuilder("routes error")
-	errs.EnableConcurrency()
+	errs := gperr.NewGroup("routes error")
 
 	t := parent.Subtask("provider."+p.String(), false)
 
@@ -108,15 +107,13 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 		routeSlice = append(routeSlice, r)
 	}
 
-	var wg sync.WaitGroup
 	for _, r := range routeSlice {
-		wg.Add(1)
-		go func(r *route.Route) {
-			defer wg.Done()
-			errs.Add(p.startRoute(t, r))
-		}(r)
+		errs.Go(func() error {
+			return p.startRoute(t, r)
+		})
 	}
-	wg.Wait()
+
+	err := errs.Wait().Error()
 
 	eventQueue := events.NewEventQueue(
 		t.Subtask("event_queue", false),
@@ -133,7 +130,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 	)
 	eventQueue.Start(p.watcher.Events(t.Context()))
 
-	if err := errs.Error(); err != nil {
+	if err != nil {
 		return err.Subject(p.String())
 	}
 	return nil

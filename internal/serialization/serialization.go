@@ -86,7 +86,7 @@ func initPtr(dst reflect.Value) {
 }
 
 func ValidateWithFieldTags(s any) gperr.Error {
-	errs := gperr.NewBuilder()
+	var errs gperr.Builder
 	err := validate.Struct(s)
 	var valErrs validator.ValidationErrors
 	if errors.As(err, &valErrs) {
@@ -302,7 +302,7 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 	// convert target fields to lower no-snake
 	// then check if the field of data is in the target
 
-	errs := gperr.NewBuilder()
+	var errs gperr.Builder
 
 	switch dstV.Kind() {
 	case reflect.Struct, reflect.Interface:
@@ -457,7 +457,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		if dstT.Kind() != reflect.Slice {
 			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
 		}
-		sliceErrs := gperr.NewBuilder()
+		var sliceErrs gperr.Builder
 		i := 0
 		gi.ReflectInitSlice(dst, srcLen, srcLen)
 		for j, v := range src.Seq2() {
@@ -541,7 +541,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		if !isMultiline && src[0] != '-' {
 			values := strutils.CommaSeperatedList(src)
 			gi.ReflectInitSlice(dst, len(values), len(values))
-			errs := gperr.NewBuilder()
+			var errs gperr.Builder
 			for i, v := range values {
 				_, err := ConvertString(v, dst.Index(i))
 				if err != nil {

@@ -13,7 +13,6 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
-	"golang.org/x/sync/errgroup"
 )
 
 // TODO: stats of each server.
@@ -223,7 +222,7 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == idlewatcher.WakeEventsPath {
-		var errs errgroup.Group
+		var errs gperr.Group
 		// wake all servers
 		for _, srv := range srvs {
 			errs.Go(func() error {
@@ -234,7 +233,7 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				return nil
 			})
 		}
-		if err := errs.Wait(); err != nil {
+		if err := errs.Wait().Error(); err != nil {
 			gperr.LogWarn("failed to wake some servers", err, &lb.l)
 		}
 	}

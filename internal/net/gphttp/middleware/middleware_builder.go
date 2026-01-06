@@ -43,8 +43,8 @@ func BuildMiddlewaresFromYAML(source string, data []byte, eb *gperr.Builder) map
 func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gperr.Error) {
 	middlewares := make([]*Middleware, 0, len(middlewaresMap))
 
-	errs := gperr.NewBuilder()
-	invalidOpts := gperr.NewBuilder()
+	var errs gperr.Builder
+	var invalidOpts gperr.Builder
 
 	for name, opts := range middlewaresMap {
 		m, err := Get(name)
@@ -55,7 +55,7 @@ func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gp
 
 		m, err = m.New(opts)
 		if err != nil {
-			invalidOpts.Add(err.Subject("middlewares." + name))
+			invalidOpts.AddSubjectf(err, "middlewares.%s", name)
 			continue
 		}
 		middlewares = append(middlewares, m)
@@ -78,23 +78,23 @@ func BuildMiddlewareFromMap(name string, middlewaresMap map[string]OptionsRaw) (
 
 // TODO: check conflict or duplicates.
 func BuildMiddlewareFromChainRaw(name string, defs []map[string]any) (*Middleware, gperr.Error) {
-	chainErr := gperr.NewBuilder("")
+	var chainErr gperr.Builder
 	chain := make([]*Middleware, 0, len(defs))
 	for i, def := range defs {
 		if def["use"] == nil || def["use"] == "" {
-			chainErr.Add(ErrMissingMiddlewareUse.Subjectf("%s[%d]", name, i))
+			chainErr.AddSubjectf(ErrMissingMiddlewareUse, "%s[%d]", name, i)
 			continue
 		}
 		baseName := def["use"].(string)
 		base, err := Get(baseName)
 		if err != nil {
-			chainErr.Add(err.Subjectf("%s[%d]", name, i))
+			chainErr.AddSubjectf(err, "%s[%d]", name, i)
 			continue
 		}
 		delete(def, "use")
 		m, err := base.New(def)
 		if err != nil {
-			chainErr.Add(err.Subjectf("%s[%d]", name, i))
+			chainErr.AddSubjectf(err, "%s[%d]", name, i)
 			continue
 		}
 		m.name = fmt.Sprintf("%s[%d]", name, i)
