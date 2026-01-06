@@ -72,9 +72,11 @@ Tips:
 	}
 	tcpServer := stream.NewTCPServer(t.Context(), tcpListener, caCert.Leaf, srvCert)
 	go tcpServer.Start()
+	log.Info().Int("port", env.AgentStreamPort).Msg("TCP stream server started")
 
 	udpServer := stream.NewUDPServer(t.Context(), &net.UDPAddr{Port: env.AgentStreamPort}, caCert.Leaf, srvCert)
 	go udpServer.Start()
+	log.Info().Int("port", env.AgentStreamPort).Msg("UDP stream server started")
 
 	if socketproxy.ListenAddr != "" {
 		runtime := strutils.Title(string(env.Runtime))
