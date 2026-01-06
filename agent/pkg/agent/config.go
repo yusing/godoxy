@@ -47,7 +47,7 @@ type AgentInfo struct {
 	Version    version.Version  `json:"version" swaggertype:"string"`
 	Name       string           `json:"name"`
 	Runtime    ContainerRuntime `json:"runtime"`
-	StreamPort int              `json:"stream_port"`
+	StreamPort int              `json:"stream_port,omitempty"`
 }
 
 // Deprecated. Replaced by EndpointInfo
