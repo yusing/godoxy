@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -30,7 +31,7 @@ func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	return &StreamRoute{
 		Route: base,
 		l: log.With().
-			Str("type", string(base.Scheme)).
+			Str("type", base.LisURL.Scheme).
 			Str("name", base.Name()).
 			Logger(),
 	}, nil
@@ -99,7 +100,9 @@ func (r *StreamRoute) LocalAddr() net.Addr {
 
 func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 	lurl, rurl := r.LisURL, r.ProxyURL
-	if lurl != nil && lurl.Scheme != rurl.Scheme {
+	// lurl scheme is either tcp4/tcp6 -> tcp, udp4/udp6 -> udp
+	// rurl scheme does not have the trailing 4/6
+	if strings.TrimRight(lurl.Scheme, "46") != rurl.Scheme {
 		return nil, fmt.Errorf("incoherent scheme is not yet supported: %s != %s", lurl.Scheme, rurl.Scheme)
 	}
 
@@ -110,9 +113,9 @@ func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 
 	switch rurl.Scheme {
 	case "tcp":
-		return stream.NewTCPTCPStream(laddr, rurl.Host)
+		return stream.NewTCPTCPStream(r.LisURL.Scheme, laddr, rurl.Host)
 	case "udp":
-		return stream.NewUDPUDPStream(laddr, rurl.Host)
+		return stream.NewUDPUDPStream(r.LisURL.Scheme, laddr, rurl.Host)
 	}
 	return nil, fmt.Errorf("unknown scheme: %s", rurl.Scheme)
 }
