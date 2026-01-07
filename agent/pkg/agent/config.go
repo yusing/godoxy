@@ -36,9 +36,8 @@ type AgentConfig struct {
 	tlsConfig                 tls.Config
 
 	// for stream
-	caCert           *x509.Certificate
-	clientCert       *tls.Certificate
-	streamServerAddr string
+	caCert     *x509.Certificate
+	clientCert *tls.Certificate
 
 	l zerolog.Logger
 } // @name Agent
@@ -152,12 +151,10 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	var streamUnsupportedErrs gperr.Builder
 
 	if status == http.StatusOK {
-		cfg.streamServerAddr = cfg.Addr
-
 		// test stream server connection
 		const fakeAddress = "localhost:8080" // it won't be used, just for testing
 		// test TCP stream support
-		conn, err := agentstream.NewTCPClient(cfg.streamServerAddr, fakeAddress, cfg.caCert, cfg.clientCert)
+		conn, err := agentstream.NewTCPClient(cfg.Addr, fakeAddress, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
 		} else {
@@ -166,7 +163,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		}
 
 		// test UDP stream support
-		conn, err = agentstream.NewUDPClient(cfg.streamServerAddr, fakeAddress, cfg.caCert, cfg.clientCert)
+		conn, err = agentstream.NewUDPClient(cfg.Addr, fakeAddress, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
 		} else {
@@ -236,13 +233,6 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	return nil
 }
 
-func (cfg *AgentConfig) getStreamServerAddr() (string, error) {
-	if cfg.streamServerAddr == "" {
-		return "", errors.New("agent stream server address is not initialized")
-	}
-	return cfg.streamServerAddr, nil
-}
-
 // NewTCPClient creates a new TCP client for the agent.
 //
 // It returns an error if
@@ -256,11 +246,7 @@ func (cfg *AgentConfig) NewTCPClient(targetAddress string) (net.Conn, error) {
 	if !cfg.IsTCPStreamSupported {
 		return nil, errors.New("agent does not support TCP stream tunneling")
 	}
-	serverAddr, err := cfg.getStreamServerAddr()
-	if err != nil {
-		return nil, err
-	}
-	return agentstream.NewTCPClient(serverAddr, targetAddress, cfg.caCert, cfg.clientCert)
+	return agentstream.NewTCPClient(cfg.Addr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
 // NewUDPClient creates a new UDP client for the agent.
@@ -276,11 +262,7 @@ func (cfg *AgentConfig) NewUDPClient(targetAddress string) (net.Conn, error) {
 	if !cfg.IsUDPStreamSupported {
 		return nil, errors.New("agent does not support UDP stream tunneling")
 	}
-	serverAddr, err := cfg.getStreamServerAddr()
-	if err != nil {
-		return nil, err
-	}
-	return agentstream.NewUDPClient(serverAddr, targetAddress, cfg.caCert, cfg.clientCert)
+	return agentstream.NewUDPClient(cfg.Addr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
 func (cfg *AgentConfig) Start(ctx context.Context) error {
