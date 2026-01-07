@@ -7,12 +7,9 @@ import (
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/types"
-	U "github.com/yusing/godoxy/internal/utils"
 )
 
 type server struct {
-	_ U.NoCopy
-
 	name   string
 	url    *nettypes.URL
 	weight int

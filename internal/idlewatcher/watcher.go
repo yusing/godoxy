@@ -19,7 +19,6 @@ import (
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
-	U "github.com/yusing/godoxy/internal/utils"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
@@ -48,7 +47,6 @@ type (
 	}
 
 	Watcher struct {
-		_ U.NoCopy
 		routeHelper
 
 		l zerolog.Logger
