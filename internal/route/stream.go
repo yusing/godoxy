@@ -28,13 +28,7 @@ type StreamRoute struct {
 
 func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
-	return &StreamRoute{
-		Route: base,
-		l: log.With().
-			Str("type", base.LisURL.Scheme).
-			Str("name", base.Name()).
-			Logger(),
-	}, nil
+	return &StreamRoute{Route: base}, nil
 }
 
 func (r *StreamRoute) Stream() nettypes.Stream {
@@ -43,6 +37,10 @@ func (r *StreamRoute) Stream() nettypes.Stream {
 
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
+	if r.LisURL == nil {
+		return gperr.Errorf("listen URL is not set")
+	}
+
 	stream, err := r.initStream()
 	if err != nil {
 		return gperr.Wrap(err)
@@ -71,7 +69,11 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	r.ListenAndServe(r.task.Context(), nil, nil)
-	r.l = r.l.With().Stringer("rurl", r.ProxyURL).Stringer("laddr", r.LocalAddr()).Logger()
+	r.l = log.With().
+		Str("type", r.LisURL.Scheme).
+		Str("name", r.Name()).
+		Stringer("rurl", r.ProxyURL).
+		Stringer("laddr", r.LocalAddr()).Logger()
 	r.l.Info().Msg("stream started")
 
 	r.task.OnCancel("close_stream", func() {
