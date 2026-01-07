@@ -192,9 +192,9 @@ Tips:
 	{
 		subtask := t.Subtask("agent-tls-mux", true)
 		t.OnCancel("stop_mux", func() {
-			_ = tcpListener.Close()
 			_ = httpLn.Close()
 			_ = streamLn.Close()
+			_ = tcpListener.Close()
 		})
 		go func() {
 			defer subtask.Finish(subtask.FinishCause())

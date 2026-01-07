@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net"
 	"time"
@@ -119,8 +120,11 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 			return
 		default:
 			n, err := clientConn.Read(buf)
-			if err != nil {
+			if err != nil && !errors.Is(err, io.EOF) {
 				s.logger(clientConn).Err(err).Msg("failed to read from client")
+				return
+			}
+			if n == 0 {
 				return
 			}
 			if _, err := dstConn.Write(buf[:n]); err != nil {
