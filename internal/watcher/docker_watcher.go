@@ -177,7 +177,7 @@ func checkConnection(ctx context.Context, client *docker.SharedClient) bool {
 	defer cancel()
 	err := client.CheckConnection(ctx)
 	if err != nil {
-		log.Debug().Err(err).Msg("docker watcher: connection failed")
+		log.Debug().Err(err).Str("host", client.Address()).Msg("docker watcher: connection failed")
 		return false
 	}
 	return true
