@@ -15,7 +15,7 @@ const (
 	portSize     = 5
 	checksumSize = 4 // crc32 checksum
 
-	headerSize = 288
+	headerSize = versionSize + 1 + hostSize + 1 + portSize + checksumSize
 )
 
 var version = [versionSize]byte{'0', '.', '1', '.', '0', 0, 0, 0}
@@ -25,15 +25,13 @@ var ErrInvalidHeader = errors.New("invalid header")
 type StreamRequestHeader struct {
 	Version [versionSize]byte
 
-	HostLength uint8
+	HostLength byte
 	Host       [hostSize]byte
 
-	PortLength uint8
+	PortLength byte
 	Port       [portSize]byte
 
 	Checksum [checksumSize]byte
-
-	_ [14]byte // padding to make the header size match the size of the struct
 }
 
 func init() {
@@ -51,9 +49,9 @@ func NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error) {
 	}
 	header := &StreamRequestHeader{}
 	copy(header.Version[:], version[:])
-	header.HostLength = uint8(len(host))
+	header.HostLength = byte(len(host))
 	copy(header.Host[:], host)
-	header.PortLength = uint8(len(port))
+	header.PortLength = byte(len(port))
 	copy(header.Port[:], port)
 	header.updateChecksum()
 	return header, nil

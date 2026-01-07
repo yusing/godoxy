@@ -12,9 +12,8 @@ The on-wire header is a fixed-size binary blob:
 - `PortLength` (1 byte)
 - `Port` (5 bytes, NUL padded)
 - `Checksum` (4 bytes, big-endian CRC32)
-- `Padding` (14 bytes)
 
-Total: `headerSize = 8 + 1 + 255 + 1 + 5 + 4 + 14 = 288` bytes.
+Total: `headerSize = 8 + 1 + 255 + 1 + 5 + 4 = 273` bytes.
 
 Checksum is `crc32.ChecksumIEEE(header[0:headerSize-4])`.
 
