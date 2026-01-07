@@ -2353,6 +2353,11 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "stream_port": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "version": {
           "type": "string",
           "x-nullable": false,
@@ -3850,6 +3855,11 @@
           "minimum": 1,
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "stream_port": {
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 1
         },
         "type": {
           "type": "string",
