@@ -5,11 +5,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"io"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,51 +16,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
 	"github.com/yusing/godoxy/agent/pkg/agent/stream"
 )
-
-var errListenerClosed = errors.New("listener closed")
-
-type connQueueListener struct {
-	addr      net.Addr
-	conns     chan net.Conn
-	closed    chan struct{}
-	closeOnce sync.Once
-}
-
-func newConnQueueListener(addr net.Addr, buffer int) *connQueueListener {
-	return &connQueueListener{
-		addr:   addr,
-		conns:  make(chan net.Conn, buffer),
-		closed: make(chan struct{}),
-	}
-}
-
-func (l *connQueueListener) push(conn net.Conn) error {
-	select {
-	case <-l.closed:
-		_ = conn.Close()
-		return errListenerClosed
-	case l.conns <- conn:
-		return nil
-	}
-}
-
-func (l *connQueueListener) Accept() (net.Conn, error) {
-	conn, ok := <-l.conns
-	if !ok {
-		return nil, errListenerClosed
-	}
-	return conn, nil
-}
-
-func (l *connQueueListener) Close() error {
-	l.closeOnce.Do(func() {
-		close(l.closed)
-		close(l.conns)
-	})
-	return nil
-}
-
-func (l *connQueueListener) Addr() net.Addr { return l.addr }
 
 func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
 	caPEM, srvPEM, clientPEM, err := agent.NewAgent()
@@ -91,48 +44,31 @@ func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
 		NextProtos:   []string{"http/1.1", stream.StreamALPN},
 	}
 
-	httpLn := newConnQueueListener(baseLn.Addr(), 16)
-	streamLn := newConnQueueListener(baseLn.Addr(), 16)
-	defer httpLn.Close()
-	defer streamLn.Close()
-
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+
+	streamSrv := stream.NewTCPServerHandler(ctx)
+	defer func() { _ = streamSrv.Close() }()
+
+	tlsLn := tls.NewListener(baseLn, serverTLS)
+	defer func() { _ = tlsLn.Close() }()
 
 	// HTTP server
 	httpSrv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("ok"))
-	})}
-	go func() { _ = httpSrv.Serve(httpLn) }()
-	defer func() { _ = httpSrv.Shutdown(context.Background()) }()
+	}),
+		TLSNextProto: map[string]func(*http.Server, *tls.Conn, http.Handler){
+			stream.StreamALPN: func(_ *http.Server, conn *tls.Conn, _ http.Handler) {
+				streamSrv.ServeConn(conn)
+			},
+		},
+	}
+	go func() { _ = httpSrv.Serve(tlsLn) }()
+	defer func() { _ = httpSrv.Close() }()
 
-	// Stream server
+	// Stream destination
 	dstAddr, closeDst := startTCPEcho(t)
 	defer closeDst()
-
-	tcpStreamSrv := stream.NewTCPServerFromListener(ctx, streamLn)
-	go func() { _ = tcpStreamSrv.Start() }()
-	defer func() { _ = tcpStreamSrv.Close() }()
-
-	// Mux loop
-	go func() {
-		for {
-			conn, err := baseLn.Accept()
-			if err != nil {
-				return
-			}
-			tlsConn := tls.Server(conn, serverTLS)
-			if err := tlsConn.HandshakeContext(ctx); err != nil {
-				_ = tlsConn.Close()
-				continue
-			}
-			if tlsConn.ConnectionState().NegotiatedProtocol == stream.StreamALPN {
-				_ = streamLn.push(tlsConn)
-			} else {
-				_ = httpLn.push(tlsConn)
-			}
-		}
-	}()
 
 	// HTTP client over the same port
 	clientTLS := &tls.Config{

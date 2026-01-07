@@ -16,6 +16,17 @@ type TCPServer struct {
 	connMgr  *ConnectionManager[net.Conn]
 }
 
+// NewTCPServerHandler creates a TCP stream server that can serve already-accepted
+// connections (e.g. handed off by an ALPN multiplexer).
+//
+// This variant does not require a listener. Use TCPServer.ServeConn to handle
+// each incoming stream connection.
+func NewTCPServerHandler(ctx context.Context) *TCPServer {
+	s := &TCPServer{ctx: ctx}
+	s.connMgr = NewConnectionManager(s.createDestConnection)
+	return s
+}
+
 // NewTCPServerFromListener creates a TCP stream server from an already-prepared
 // listener.
 //
@@ -48,6 +59,9 @@ func NewTCPServer(ctx context.Context, listener *net.TCPListener, caCert *x509.C
 }
 
 func (s *TCPServer) Start() error {
+	if s.listener == nil {
+		return net.ErrClosed
+	}
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -62,12 +76,28 @@ func (s *TCPServer) Start() error {
 	}
 }
 
+// ServeConn serves a single stream connection.
+//
+// The provided connection is expected to be already secured (TLS/mTLS) and to
+// speak the stream protocol (i.e. the client will send the stream header first).
+//
+// This method blocks until the stream finishes.
+func (s *TCPServer) ServeConn(conn net.Conn) {
+	s.handle(conn)
+}
+
 func (s *TCPServer) Addr() net.Addr {
+	if s.listener == nil {
+		return nil
+	}
 	return s.listener.Addr()
 }
 
 func (s *TCPServer) Close() error {
 	s.connMgr.CloseAllConnections()
+	if s.listener == nil {
+		return nil
+	}
 	return s.listener.Close()
 }
 

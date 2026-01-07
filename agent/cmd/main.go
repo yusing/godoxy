@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -24,53 +23,6 @@ import (
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
 )
-
-var errListenerClosed = errors.New("listener closed")
-
-type connQueueListener struct {
-	addr      net.Addr
-	conns     chan net.Conn
-	closed    chan struct{}
-	closeOnce sync.Once
-}
-
-func newConnQueueListener(addr net.Addr, buffer int) *connQueueListener {
-	return &connQueueListener{
-		addr:   addr,
-		conns:  make(chan net.Conn, buffer),
-		closed: make(chan struct{}),
-	}
-}
-
-func (l *connQueueListener) push(conn net.Conn) error {
-	select {
-	case <-l.closed:
-		_ = conn.Close()
-		return errListenerClosed
-	case l.conns <- conn:
-		return nil
-	}
-}
-
-func (l *connQueueListener) Accept() (net.Conn, error) {
-	conn, ok := <-l.conns
-	if !ok {
-		return nil, errListenerClosed
-	}
-	return conn, nil
-}
-
-func (l *connQueueListener) Close() error {
-	l.closeOnce.Do(func() {
-		close(l.closed)
-		close(l.conns)
-	})
-	return nil
-}
-
-func (l *connQueueListener) Addr() net.Addr {
-	return l.addr
-}
 
 func main() {
 	writer := zerolog.ConsoleWriter{
@@ -113,7 +65,7 @@ Tips:
 	t := task.RootTask("agent", false)
 
 	// One TCP listener on AGENT_PORT, then multiplex by TLS ALPN:
-	// - Stream ALPN: route to TCP stream tunnel handler
+	// - Stream ALPN: route to TCP stream tunnel handler (via http.Server.TLSNextProto)
 	// - Otherwise: route to HTTPS API handler
 	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{Port: env.AgentPort})
 	if err != nil {
@@ -136,44 +88,43 @@ Tips:
 		muxTLSConfig.ClientAuth = tls.NoClientCert
 	}
 
-	httpLn := newConnQueueListener(tcpListener.Addr(), 128)
-	streamLn := newConnQueueListener(tcpListener.Addr(), 128)
+	// TLS listener feeds the HTTP server. ALPN stream connections are intercepted
+	// using http.Server.TLSNextProto.
+	tlsLn := tls.NewListener(tcpListener, muxTLSConfig)
+
+	streamSrv := stream.NewTCPServerHandler(t.Context())
 
 	httpSrv := &http.Server{
 		Handler: handler.NewAgentHandler(),
 		BaseContext: func(net.Listener) context.Context {
 			return t.Context()
 		},
+		TLSNextProto: map[string]func(*http.Server, *tls.Conn, http.Handler){
+			// When a client negotiates StreamALPN, net/http will call this hook instead
+			// of treating the connection as HTTP.
+			stream.StreamALPN: func(_ *http.Server, conn *tls.Conn, _ http.Handler) {
+				// ServeConn blocks until the tunnel finishes.
+				streamSrv.ServeConn(conn)
+			},
+		},
 	}
 	{
 		subtask := t.Subtask("agent-http", true)
 		t.OnCancel("stop_http", func() {
-			_ = httpSrv.Shutdown(context.Background())
-			_ = httpLn.Close()
+			_ = streamSrv.Close()
+			_ = httpSrv.Close()
+			_ = tlsLn.Close()
 		})
 		go func() {
-			err := httpSrv.Serve(httpLn)
+			err := httpSrv.Serve(tlsLn)
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Error().Err(err).Msg("agent HTTP server stopped with error")
 			}
 			subtask.Finish(err)
 		}()
-		log.Info().Int("port", env.AgentPort).Msg("HTTPS API server started")
+		log.Info().Int("port", env.AgentPort).Msg("HTTPS API server started (ALPN mux enabled)")
 	}
-
-	{
-		tcpServer := stream.NewTCPServerFromListener(t.Context(), streamLn)
-		subtask := t.Subtask("agent-stream-tcp", true)
-		t.OnCancel("stop_stream_tcp", func() {
-			_ = tcpServer.Close()
-			_ = streamLn.Close()
-		})
-		go func() {
-			err := tcpServer.Start()
-			subtask.Finish(err)
-		}()
-		log.Info().Int("port", env.AgentPort).Msg("TCP stream server started")
-	}
+	log.Info().Int("port", env.AgentPort).Msg("TCP stream handler started (via TLSNextProto)")
 
 	{
 		udpServer := stream.NewUDPServer(t.Context(), &net.UDPAddr{Port: env.AgentPort}, caCert.Leaf, srvCert)
@@ -186,50 +137,6 @@ Tips:
 			subtask.Finish(err)
 		}()
 		log.Info().Int("port", env.AgentPort).Msg("UDP stream server started")
-	}
-
-	// Accept raw TCP connections, terminate TLS once, and dispatch by ALPN.
-	{
-		subtask := t.Subtask("agent-tls-mux", true)
-		t.OnCancel("stop_mux", func() {
-			_ = httpLn.Close()
-			_ = streamLn.Close()
-			_ = tcpListener.Close()
-		})
-		go func() {
-			defer subtask.Finish(subtask.FinishCause())
-			for {
-				select {
-				case <-t.Context().Done():
-					return
-				default:
-				}
-
-				conn, err := tcpListener.Accept()
-				if err != nil {
-					if t.Context().Err() != nil {
-						return
-					}
-					log.Error().Err(err).Msg("failed to accept connection")
-					continue
-				}
-
-				tlsConn := tls.Server(conn, muxTLSConfig)
-				if err := tlsConn.HandshakeContext(t.Context()); err != nil {
-					_ = tlsConn.Close()
-					log.Debug().Err(err).Msg("TLS handshake failed")
-					continue
-				}
-
-				alpn := tlsConn.ConnectionState().NegotiatedProtocol
-				switch alpn {
-				case stream.StreamALPN:
-					_ = streamLn.push(tlsConn)
-				default:
-					_ = httpLn.push(tlsConn)
-				}
-			}
-		}()
 	}
 
 	if socketproxy.ListenAddr != "" {
