@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -170,8 +171,25 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 				client.WithDialContext(helper.Dialer),
 			}
 		} else {
+			// connhelper.GetConnectionHelper already parsed the host without error
+			url, _ := url.Parse(host)
 			opt = []client.Opt{
 				client.WithHost(host),
+			}
+			switch url.Scheme {
+			case "", "tls", "http", "https":
+				if (url.Scheme == "https" || url.Scheme == "tls") && cfg.TLS == nil {
+					return nil, fmt.Errorf("TLS config is not set when using %s:// host", url.Scheme)
+				}
+
+				dial = func(ctx context.Context) (net.Conn, error) {
+					var dialer net.Dialer
+					return dialer.DialContext(ctx, "tcp", url.Host)
+				}
+
+				opt = append(opt, client.WithDialContext(func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return dial(ctx)
+				}))
 			}
 		}
 	}
@@ -213,7 +231,7 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 }
 
 func (c *SharedClient) GetHTTPClient() **http.Client {
-	return (**http.Client)(unsafe.Pointer(uintptr(unsafe.Pointer(c.Client)) + clientClientOffset))
+	return (**http.Client)(unsafe.Add(unsafe.Pointer(c.Client), clientClientOffset))
 }
 
 func (c *SharedClient) InterceptHTTPClient(intercept httputils.InterceptFunc) {
@@ -280,6 +298,6 @@ func (c *SharedClient) unotel() {
 		log.Debug().Str("host", c.DaemonHost()).Msgf("docker client transport is not an otelhttp.Transport: %T", httpClient.Transport)
 		return
 	}
-	transport := *(*http.RoundTripper)(unsafe.Pointer(uintptr(unsafe.Pointer(otelTransport)) + otelRtOffset))
+	transport := *(*http.RoundTripper)(unsafe.Add(unsafe.Pointer(otelTransport), otelRtOffset))
 	httpClient.Transport = transport
 }
