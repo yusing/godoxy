@@ -36,13 +36,10 @@ import (
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	route "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/utils"
 )
 
 type (
 	Route struct {
-		_ utils.NoCopy
-
 		Alias  string       `json:"alias"`
 		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
