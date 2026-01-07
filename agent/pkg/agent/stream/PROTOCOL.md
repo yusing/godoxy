@@ -7,15 +7,18 @@ This package implements a small header-based handshake that allows an authentica
 The on-wire header is a fixed-size binary blob:
 
 - `Version` (8 bytes)
+- `HostLength` (1 byte)
 - `Host` (255 bytes, NUL padded)
+- `PortLength` (1 byte)
 - `Port` (5 bytes, NUL padded)
 - `Checksum` (4 bytes, big-endian CRC32)
+- `Padding` (14 bytes)
 
-Total: `headerSize = 8 + 255 + 5 + 4 = 272` bytes.
+Total: `headerSize = 8 + 1 + 255 + 1 + 5 + 4 + 14 = 288` bytes.
 
 Checksum is `crc32.ChecksumIEEE(header[0:headerSize-4])`.
 
-See [`StreamRequestHeader`](payload.go:26).
+See [`StreamRequestHeader`](header.go:10).
 
 ## TCP behavior
 

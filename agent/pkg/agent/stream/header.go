@@ -1,12 +1,11 @@
 package stream
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"io"
+	"reflect"
 	"unsafe"
 )
 
@@ -16,7 +15,7 @@ const (
 	portSize     = 5
 	checksumSize = 4 // crc32 checksum
 
-	headerSize = versionSize + hostSize + portSize + checksumSize
+	headerSize = 288
 )
 
 var version = [versionSize]byte{'0', '.', '1', '.', '0', 0, 0, 0}
@@ -24,15 +23,23 @@ var version = [versionSize]byte{'0', '.', '1', '.', '0', 0, 0, 0}
 var ErrInvalidHeader = errors.New("invalid header")
 
 type StreamRequestHeader struct {
-	Version  [versionSize]byte
-	Host     [hostSize]byte
-	Port     [portSize]byte
+	Version [versionSize]byte
+
+	HostLength uint8
+	Host       [hostSize]byte
+
+	PortLength uint8
+	Port       [portSize]byte
+
 	Checksum [checksumSize]byte
+
+	_ [14]byte // padding to make the header size match the size of the struct
 }
 
-type StreamRequestPayload struct {
-	StreamRequestHeader
-	Data []byte
+func init() {
+	if headerSize != reflect.TypeFor[StreamRequestHeader]().Size() {
+		panic("headerSize does not match the size of StreamRequestHeader")
+	}
 }
 
 func NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error) {
@@ -44,7 +51,9 @@ func NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error) {
 	}
 	header := &StreamRequestHeader{}
 	copy(header.Version[:], version[:])
+	header.HostLength = uint8(len(host))
 	copy(header.Host[:], host)
+	header.PortLength = uint8(len(port))
 	copy(header.Port[:], port)
 	header.updateChecksum()
 	return header, nil
@@ -54,37 +63,18 @@ func ToHeader(buf [headerSize]byte) *StreamRequestHeader {
 	return (*StreamRequestHeader)(unsafe.Pointer(&buf[0]))
 }
 
-// WriteTo implements the io.WriterTo interface.
-func (p *StreamRequestPayload) WriteTo(w io.Writer) (n int64, err error) {
-	n1, err := w.Write(p.StreamRequestHeader.Bytes())
-	if err != nil {
-		return
-	}
-	if len(p.Data) == 0 {
-		return int64(n1), nil
-	}
-
-	n2, err := w.Write(p.Data)
-	if err != nil {
-		return
-	}
-	return int64(n1) + int64(n2), nil
-}
-
 func (h *StreamRequestHeader) GetHostPort() (string, string) {
-	hostEnd := bytes.IndexByte(h.Host[:], 0)
-	portEnd := bytes.IndexByte(h.Port[:], 0)
-	if hostEnd == -1 {
-		hostEnd = hostSize
-	}
-	if portEnd == -1 {
-		portEnd = portSize
-	}
-	return string(h.Host[:hostEnd]), string(h.Port[:portEnd])
+	return string(h.Host[:h.HostLength]), string(h.Port[:h.PortLength])
 }
 
 func (h *StreamRequestHeader) Validate() bool {
 	if h.Version != version {
+		return false
+	}
+	if h.HostLength > hostSize {
+		return false
+	}
+	if h.PortLength > portSize {
 		return false
 	}
 	return h.validateChecksum()
@@ -101,9 +91,9 @@ func (h *StreamRequestHeader) validateChecksum() bool {
 }
 
 func (h *StreamRequestHeader) BytesWithoutChecksum() []byte {
-	return unsafe.Slice((*byte)(unsafe.Pointer(h)), headerSize-checksumSize)
+	return (*[headerSize - checksumSize]byte)(unsafe.Pointer(h))[:]
 }
 
 func (h *StreamRequestHeader) Bytes() []byte {
-	return unsafe.Slice((*byte)(unsafe.Pointer(h)), headerSize)
+	return (*[headerSize]byte)(unsafe.Pointer(h))[:]
 }
