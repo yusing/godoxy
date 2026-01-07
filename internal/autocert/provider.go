@@ -55,10 +55,20 @@ type (
 	}
 
 	CertExpiries map[string]time.Time
-	RenewMode    uint8
+
+	CertInfo struct {
+		Subject        string   `json:"subject"`
+		Issuer         string   `json:"issuer"`
+		NotBefore      int64    `json:"not_before"`
+		NotAfter       int64    `json:"not_after"`
+		DNSNames       []string `json:"dns_names"`
+		EmailAddresses []string `json:"email_addresses"`
+	} // @name CertInfo
+
+	RenewMode uint8
 )
 
-var ErrNoCertificate = errors.New("no certificate found")
+var ErrNoCertificates = errors.New("no certificates found")
 
 const (
 	// renew failed for whatever reason, 1 hour cooldown
@@ -98,7 +108,7 @@ func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, erro
 
 func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if p.tlsCert == nil {
-		return nil, ErrNoCertificate
+		return nil, ErrNoCertificates
 	}
 	if hello == nil || hello.ServerName == "" {
 		return p.tlsCert, nil
@@ -107,6 +117,29 @@ func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error)
 		return prov.tlsCert, nil
 	}
 	return p.tlsCert, nil
+}
+
+func (p *Provider) GetCertInfos() ([]CertInfo, error) {
+	allProviders := p.allProviders()
+	certInfos := make([]CertInfo, 0, len(allProviders))
+	for _, provider := range allProviders {
+		if provider.tlsCert == nil {
+			continue
+		}
+		certInfos = append(certInfos, CertInfo{
+			Subject:        provider.tlsCert.Leaf.Subject.CommonName,
+			Issuer:         provider.tlsCert.Leaf.Issuer.CommonName,
+			NotBefore:      provider.tlsCert.Leaf.NotBefore.Unix(),
+			NotAfter:       provider.tlsCert.Leaf.NotAfter.Unix(),
+			DNSNames:       provider.tlsCert.Leaf.DNSNames,
+			EmailAddresses: provider.tlsCert.Leaf.EmailAddresses,
+		})
+	}
+
+	if len(certInfos) == 0 {
+		return nil, ErrNoCertificates
+	}
+	return certInfos, nil
 }
 
 func (p *Provider) GetName() string {
