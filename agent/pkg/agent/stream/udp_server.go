@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/pion/dtls/v3"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type UDPServer struct {
@@ -76,25 +78,32 @@ func (s *UDPServer) Close() error {
 	return nil
 }
 
+func (s *UDPServer) logger(clientConn net.Conn) *zerolog.Logger {
+	l := log.With().Str("protocol", "udp").
+		Str("addr", s.laddr.String()).
+		Str("remote", clientConn.RemoteAddr().String()).Logger()
+	return &l
+}
+
 func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 	defer clientConn.Close()
 
 	// Read the stream header once as a handshake.
 	var headerBuf [headerSize]byte
 	if _, err := io.ReadFull(clientConn, headerBuf[:]); err != nil {
-		// TODO: log error
+		s.logger(clientConn).Err(err).Msg("failed to read stream header")
 		return
 	}
 	header := ToHeader(headerBuf)
 	if !header.Validate() {
-		// TODO: log error
+		s.logger(clientConn).Error().Bytes("header", headerBuf[:]).Msg("invalid stream header received")
 		return
 	}
 
 	host, port := header.GetHostPort()
 	dstConn, err := s.connMgr.GetOrCreateDestConnection(clientConn, host, port)
 	if err != nil {
-		// TODO: log error
+		s.logger(clientConn).Err(err).Msg("failed to get or create destination connection")
 		return
 	}
 	defer s.connMgr.DeleteDestConnection(clientConn)
@@ -111,11 +120,11 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 		default:
 			n, err := clientConn.Read(buf)
 			if err != nil {
-				// TODO: log error
+				s.logger(clientConn).Err(err).Msg("failed to read from client")
 				return
 			}
 			if _, err := dstConn.Write(buf[:n]); err != nil {
-				// TODO: log error
+				s.logger(clientConn).Err(err).Msgf("failed to write %d bytes to destination", n)
 				return
 			}
 		}
@@ -152,11 +161,11 @@ func (s *UDPServer) forwardFromDestination(dstConn *net.UDPConn, clientConn net.
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					return
 				}
-				// TODO: log error
+				s.logger(dstConn).Err(err).Msg("failed to read from destination")
 				return
 			}
 			if _, err := clientConn.Write(buffer[:n]); err != nil {
-				// TODO: log error
+				s.logger(dstConn).Err(err).Msgf("failed to write %d bytes to client", n)
 				return
 			}
 		}
