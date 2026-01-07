@@ -46,10 +46,9 @@ func NewAgentHandler() http.Handler {
 	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
 	mux.HandleFunc(agent.EndpointInfo, func(w http.ResponseWriter, r *http.Request) {
 		agentInfo := agent.AgentInfo{
-			Version:    version.Get(),
-			Name:       env.AgentName,
-			Runtime:    env.Runtime,
-			StreamPort: env.AgentStreamPort,
+			Version: version.Get(),
+			Name:    env.AgentName,
+			Runtime: env.Runtime,
 		}
 		sonic.ConfigDefault.NewEncoder(w).Encode(agentInfo)
 	})

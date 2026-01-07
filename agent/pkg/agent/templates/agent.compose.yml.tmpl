@@ -6,8 +6,7 @@ services:
     {{ if eq .ContainerRuntime "podman" -}}
     ports:
       - "{{.Port}}:{{.Port}}/tcp"
-      - "{{.StreamPort}}:{{.StreamPort}}/tcp"
-      - "{{.StreamPort}}:{{.StreamPort}}/udp"
+      - "{{.Port}}:{{.Port}}/udp"
     {{ else -}}
     network_mode: host # do not change this
     {{ end -}}
@@ -24,7 +23,6 @@ services:
       {{ end -}}
       AGENT_NAME: "{{.Name}}"
       AGENT_PORT: "{{.Port}}"
-      AGENT_STREAM_PORT: "{{.StreamPort}}"
       AGENT_CA_CERT: "{{.CACert}}"
       AGENT_SSL_CERT: "{{.SSLCert}}"
       # use agent as a docker socket proxy: [host]:port

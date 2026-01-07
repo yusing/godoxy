@@ -16,6 +16,21 @@ type TCPServer struct {
 	connMgr  *ConnectionManager[net.Conn]
 }
 
+// NewTCPServerFromListener creates a TCP stream server from an already-prepared
+// listener.
+//
+// The listener is expected to yield connections that are already secured (e.g.
+// a TLS/mTLS listener, or pre-handshaked *tls.Conn). This is used when the agent
+// multiplexes HTTPS and stream-tunnel traffic on the same port.
+func NewTCPServerFromListener(ctx context.Context, listener net.Listener) *TCPServer {
+	s := &TCPServer{
+		ctx:      ctx,
+		listener: listener,
+	}
+	s.connMgr = NewConnectionManager(s.createDestConnection)
+	return s
+}
+
 func NewTCPServer(ctx context.Context, listener *net.TCPListener, caCert *x509.Certificate, serverCert *tls.Certificate) *TCPServer {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
@@ -25,15 +40,11 @@ func NewTCPServer(ctx context.Context, listener *net.TCPListener, caCert *x509.C
 		ClientCAs:    caCertPool,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		MinVersion:   tls.VersionTLS12,
+		NextProtos:   []string{StreamALPN},
 	}
 
 	tcpListener := tls.NewListener(listener, tlsConfig)
-	s := &TCPServer{
-		ctx:      ctx,
-		listener: tcpListener,
-	}
-	s.connMgr = NewConnectionManager(s.createDestConnection)
-	return s
+	return NewTCPServerFromListener(ctx, tcpListener)
 }
 
 func (s *TCPServer) Start() error {

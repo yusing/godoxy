@@ -13,6 +13,13 @@ const (
 	readDeadline = 10 * time.Second
 )
 
+// StreamALPN is the TLS ALPN protocol id used to multiplex the TCP stream tunnel
+// and the HTTPS API on the same TCP port.
+//
+// When a client negotiates this ALPN, the agent will route the connection to the
+// stream tunnel handler instead of the HTTP handler.
+const StreamALPN = "godoxy-agent-stream/1"
+
 var sizedPool = synk.GetSizedBytesPool()
 
 type CreateConnFunc[Conn net.Conn] func(host, port string) (Conn, error)

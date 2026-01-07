@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,27 +27,26 @@ import (
 type AgentConfig struct {
 	AgentInfo
 
-	Addr string `json:"addr"`
+	Addr                 string `json:"addr"`
+	IsTCPStreamSupported bool   `json:"supports_tcp_stream"`
+	IsUDPStreamSupported bool   `json:"supports_udp_stream"`
 
 	httpClient                *http.Client
 	fasthttpClientHealthCheck *fasthttp.Client
 	tlsConfig                 tls.Config
 
 	// for stream
-	caCert               *x509.Certificate
-	clientCert           *tls.Certificate
-	isTCPStreamSupported bool
-	isUDPStreamSupported bool
-	streamServerAddr     string
+	caCert           *x509.Certificate
+	clientCert       *tls.Certificate
+	streamServerAddr string
 
 	l zerolog.Logger
 } // @name Agent
 
 type AgentInfo struct {
-	Version    version.Version  `json:"version" swaggertype:"string"`
-	Name       string           `json:"name"`
-	Runtime    ContainerRuntime `json:"runtime"`
-	StreamPort int              `json:"stream_port,omitempty"`
+	Version version.Version  `json:"version" swaggertype:"string"`
+	Name    string           `json:"name"`
+	Runtime ContainerRuntime `json:"runtime"`
 }
 
 // Deprecated. Replaced by EndpointInfo
@@ -154,14 +152,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	var streamUnsupportedErrs gperr.Builder
 
 	if status == http.StatusOK {
-		if cfg.StreamPort <= 0 {
-			return fmt.Errorf("invalid agent stream port: %d", cfg.StreamPort)
-		}
-		host, _, err := net.SplitHostPort(cfg.Addr)
-		if err != nil {
-			return err
-		}
-		cfg.streamServerAddr = net.JoinHostPort(host, strconv.Itoa(cfg.StreamPort))
+		cfg.streamServerAddr = cfg.Addr
 
 		// test stream server connection
 		const fakeAddress = "localhost:8080" // it won't be used, just for testing
@@ -171,7 +162,7 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
 		} else {
 			conn.Close()
-			cfg.isTCPStreamSupported = true
+			cfg.IsTCPStreamSupported = true
 		}
 
 		// test UDP stream support
@@ -180,13 +171,13 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
 		} else {
 			conn.Close()
-			cfg.isUDPStreamSupported = true
+			cfg.IsUDPStreamSupported = true
 		}
 	} else {
 		// old agent does not support EndpointInfo
 		// fallback with old logic
-		cfg.isTCPStreamSupported = false
-		cfg.isUDPStreamSupported = false
+		cfg.IsTCPStreamSupported = false
+		cfg.IsUDPStreamSupported = false
 		streamUnsupportedErrs.Adds("agent version is too old, does not support stream tunneling")
 
 		// get agent name
@@ -262,7 +253,7 @@ func (cfg *AgentConfig) NewTCPClient(targetAddress string) (net.Conn, error) {
 	if cfg.caCert == nil || cfg.clientCert == nil {
 		return nil, errors.New("agent is not initialized")
 	}
-	if !cfg.isTCPStreamSupported {
+	if !cfg.IsTCPStreamSupported {
 		return nil, errors.New("agent does not support TCP stream tunneling")
 	}
 	serverAddr, err := cfg.getStreamServerAddr()
@@ -282,7 +273,7 @@ func (cfg *AgentConfig) NewUDPClient(targetAddress string) (net.Conn, error) {
 	if cfg.caCert == nil || cfg.clientCert == nil {
 		return nil, errors.New("agent is not initialized")
 	}
-	if !cfg.isUDPStreamSupported {
+	if !cfg.IsUDPStreamSupported {
 		return nil, errors.New("agent does not support UDP stream tunneling")
 	}
 	serverAddr, err := cfg.getStreamServerAddr()

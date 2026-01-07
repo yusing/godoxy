@@ -42,6 +42,7 @@ func NewTCPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		Certificates: []tls.Certificate{*clientCert},
 		RootCAs:      caCertPool,
 		MinVersion:   tls.VersionTLS12,
+		NextProtos:   []string{StreamALPN},
 		ServerName:   common.CertsDNSName,
 	}
 
@@ -91,4 +92,15 @@ func (c *TCPClient) SetWriteDeadline(t time.Time) error {
 
 func (c *TCPClient) Close() error {
 	return c.conn.Close()
+}
+
+// ConnectionState exposes the underlying TLS connection state when the client is
+// backed by *tls.Conn.
+//
+// This is primarily used by tests and diagnostics.
+func (c *TCPClient) ConnectionState() tls.ConnectionState {
+	if tc, ok := c.conn.(*tls.Conn); ok {
+		return tc.ConnectionState()
+	}
+	return tls.ConnectionState{}
 }

@@ -16,7 +16,6 @@ type NewAgentRequest struct {
 	Name             string                 `json:"name" binding:"required"`
 	Host             string                 `json:"host" binding:"required"`
 	Port             int                    `json:"port" binding:"required,min=1,max=65535"`
-	StreamPort       int                    `json:"stream_port" binding:"omitempty,min=1,max=65535"`
 	Type             string                 `json:"type" binding:"required,oneof=docker system"`
 	Nightly          bool                   `json:"nightly" binding:"omitempty"`
 	ContainerRuntime agent.ContainerRuntime `json:"container_runtime" binding:"omitempty,oneof=docker podman" default:"docker"`
@@ -69,18 +68,9 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	if request.StreamPort <= 0 {
-		request.StreamPort = request.Port + 1
-		if request.StreamPort > 65535 {
-			c.JSON(http.StatusBadRequest, apitypes.Error("stream port is out of range"))
-			return
-		}
-	}
-
 	var cfg agent.Generator = &agent.AgentEnvConfig{
 		Name:             request.Name,
 		Port:             request.Port,
-		StreamPort:       request.StreamPort,
 		CACert:           ca.String(),
 		SSLCert:          srv.String(),
 		ContainerRuntime: request.ContainerRuntime,

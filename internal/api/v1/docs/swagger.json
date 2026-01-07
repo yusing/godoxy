@@ -2356,8 +2356,13 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "stream_port": {
-          "type": "integer",
+        "supports_tcp_stream": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "supports_udp_stream": {
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3858,11 +3863,6 @@
           "minimum": 1,
           "x-nullable": false,
           "x-omitempty": false
-        },
-        "stream_port": {
-          "type": "integer",
-          "maximum": 65535,
-          "minimum": 1
         },
         "type": {
           "type": "string",

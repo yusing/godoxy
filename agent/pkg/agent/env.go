@@ -5,7 +5,6 @@ type (
 	AgentEnvConfig   struct {
 		Name             string
 		Port             int
-		StreamPort       int
 		CACert           string
 		SSLCert          string
 		ContainerRuntime ContainerRuntime

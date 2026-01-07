@@ -8,8 +8,10 @@ definitions:
         type: string
       runtime:
         $ref: '#/definitions/agent.ContainerRuntime'
-      stream_port:
-        type: integer
+      supports_tcp_stream:
+        type: boolean
+      supports_udp_stream:
+        type: boolean
       version:
         type: string
     type: object
@@ -721,10 +723,6 @@ definitions:
       nightly:
         type: boolean
       port:
-        maximum: 65535
-        minimum: 1
-        type: integer
-      stream_port:
         maximum: 65535
         minimum: 1
         type: integer

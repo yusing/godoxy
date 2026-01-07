@@ -101,6 +101,11 @@ func TestTCPServer_FullFlow(t *testing.T) {
 	require.NoError(t, err, "create tcp client")
 	defer client.Close()
 
+	// Ensure ALPN is negotiated as expected (required for multiplexing).
+	withState, ok := client.(interface{ ConnectionState() tls.ConnectionState })
+	require.True(t, ok, "tcp client should expose TLS connection state")
+	require.Equal(t, stream.StreamALPN, withState.ConnectionState().NegotiatedProtocol)
+
 	_ = client.SetDeadline(time.Now().Add(2 * time.Second))
 	msg := []byte("ping over tcp")
 	_, err = client.Write(msg)
