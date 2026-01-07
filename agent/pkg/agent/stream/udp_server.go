@@ -120,15 +120,20 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 			return
 		default:
 			n, err := clientConn.Read(buf)
-			if err != nil && !errors.Is(err, io.EOF) {
+			// Per net.Conn contract, Read may return (n > 0, err == io.EOF).
+			// Always forward any bytes we got before acting on the error.
+			if n > 0 {
+				if _, werr := dstConn.Write(buf[:n]); werr != nil {
+					s.logger(clientConn).Err(werr).Msgf("failed to write %d bytes to destination", n)
+					return
+				}
+			}
+			if err != nil {
+				// Expected shutdown paths.
+				if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+					return
+				}
 				s.logger(clientConn).Err(err).Msg("failed to read from client")
-				return
-			}
-			if n == 0 {
-				return
-			}
-			if _, err := dstConn.Write(buf[:n]); err != nil {
-				s.logger(clientConn).Err(err).Msgf("failed to write %d bytes to destination", n)
 				return
 			}
 		}
@@ -162,6 +167,12 @@ func (s *UDPServer) forwardFromDestination(dstConn *net.UDPConn, clientConn net.
 			_ = dstConn.SetReadDeadline(time.Now().Add(readDeadline))
 			n, err := dstConn.Read(buffer)
 			if err != nil {
+				// The destination socket can be closed when the client disconnects (e.g. during
+				// the stream support probe in AgentConfig.StartWithCerts). Treat that as a
+				// normal exit and avoid noisy logs.
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					return
 				}
