@@ -885,6 +885,10 @@ definitions:
         type: string
       alias:
         type: string
+      bind:
+        description: for TCP and UDP routes, bind address to listen on
+        type: string
+        x-nullable: true
       container:
         allOf:
         - $ref: '#/definitions/Container'
@@ -1501,6 +1505,10 @@ definitions:
         type: string
       alias:
         type: string
+      bind:
+        description: for TCP and UDP routes, bind address to listen on
+        type: string
+        x-nullable: true
       container:
         allOf:
         - $ref: '#/definitions/Container'

@@ -15,6 +15,7 @@ import (
 )
 
 type TCPTCPStream struct {
+	network  string
 	listener net.Listener
 	laddr    *net.TCPAddr
 	dst      *net.TCPAddr
@@ -26,21 +27,21 @@ type TCPTCPStream struct {
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
-	dst, err := net.ResolveTCPAddr("tcp", dstAddr)
+func NewTCPTCPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
+	dst, err := net.ResolveTCPAddr(network, dstAddr)
 	if err != nil {
 		return nil, err
 	}
-	laddr, err := net.ResolveTCPAddr("tcp", listenAddr)
+	laddr, err := net.ResolveTCPAddr(network, listenAddr)
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{laddr: laddr, dst: dst, agent: agentCfg}, nil
+	return &TCPTCPStream{network: network, laddr: laddr, dst: dst, agent: agentCfg}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
 	var err error
-	s.listener, err = net.ListenTCP("tcp", s.laddr)
+	s.listener, err = net.ListenTCP(s.network, s.laddr)
 	if err != nil {
 		logErr(s, err, "failed to listen")
 		return

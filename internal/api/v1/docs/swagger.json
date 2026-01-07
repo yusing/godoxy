@@ -4199,6 +4199,11 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "bind": {
+          "description": "for TCP and UDP routes, bind address to listen on",
+          "type": "string",
+          "x-nullable": true
+        },
         "container": {
           "description": "Docker only",
           "allOf": [
@@ -5336,6 +5341,11 @@
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "bind": {
+          "description": "for TCP and UDP routes, bind address to listen on",
+          "type": "string",
+          "x-nullable": true
         },
         "container": {
           "description": "Docker only",

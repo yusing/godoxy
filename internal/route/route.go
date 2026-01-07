@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"reflect"
@@ -46,6 +47,9 @@ type (
 		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
+
+		// for TCP and UDP routes, bind address to listen on
+		Bind string `json:"bind,omitempty" validate:"omitempty,ip_addr" extensions:"x-nullable"`
 
 		Root  string `json:"root,omitempty"`
 		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
@@ -278,7 +282,28 @@ func (r *Route) validate() gperr.Error {
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
 		if !r.ShouldExclude() {
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+			if r.Bind == "" {
+				r.Bind = "0.0.0.0"
+			}
+			bindIP := net.ParseIP(r.Bind)
+			if bindIP == nil {
+				return gperr.Errorf("invalid bind address %s", r.Bind)
+			}
+			var scheme string
+			if bindIP.To4() == nil { // IPv6
+				if r.Scheme == route.SchemeTCP {
+					scheme = "tcp6"
+				} else {
+					scheme = "udp6"
+				}
+			} else {
+				if r.Scheme == route.SchemeTCP {
+					scheme = "tcp4"
+				} else {
+					scheme = "udp4"
+				}
+			}
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", scheme, r.Bind, r.Port.Listening))
 		}
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}

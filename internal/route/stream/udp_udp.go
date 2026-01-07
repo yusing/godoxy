@@ -18,7 +18,7 @@ import (
 )
 
 type UDPUDPStream struct {
-	name     string
+	network  string
 	listener net.PacketConn
 
 	laddr *net.UDPAddr
@@ -53,30 +53,31 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
-	dst, err := net.ResolveUDPAddr("udp", dstAddr)
+func NewUDPUDPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
+	dst, err := net.ResolveUDPAddr(network, dstAddr)
 	if err != nil {
 		return nil, err
 	}
-	laddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	laddr, err := net.ResolveUDPAddr(network, listenAddr)
 	if err != nil {
 		return nil, err
 	}
 	return &UDPUDPStream{
-		laddr: laddr,
-		dst:   dst,
-		agent: agentCfg,
-		conns: make(map[string]*udpUDPConn),
+		network: network,
+		laddr:   laddr,
+		dst:     dst,
+		agent:   agentCfg,
+		conns:   make(map[string]*udpUDPConn),
 	}, nil
 }
 
 func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
-	var err error
-	s.listener, err = net.ListenUDP("udp", s.laddr)
+	l, err := net.ListenUDP(s.network, s.laddr)
 	if err != nil {
 		logErr(s, err, "failed to listen")
 		return
 	}
+	s.listener = l
 	if acl := acl.ActiveConfig.Load(); acl != nil {
 		s.listener = acl.WrapUDP(s.listener)
 	}
@@ -117,9 +118,6 @@ func (s *UDPUDPStream) LocalAddr() net.Addr {
 
 func (s *UDPUDPStream) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("protocol", "udp-udp")
-	if s.name != "" {
-		e.Str("name", s.name)
-	}
 	if s.dst != nil {
 		e.Str("dst", s.dst.String())
 	}
