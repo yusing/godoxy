@@ -328,23 +328,26 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/CertInfo"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CertInfo"
+              }
             }
           },
           "403": {
-            "description": "Forbidden",
+            "description": "Unauthorized",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "No certificates found or autocert is not enabled",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "500": {
-            "description": "Internal Server Error",
+            "description": "Internal server error",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
