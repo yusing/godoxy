@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	ioutils "github.com/yusing/goutils/io"
 )
 
 type TCPServer struct {
 	ctx      context.Context
 	listener net.Listener
-	connMgr  *ConnectionManager[net.Conn]
 }
 
 // NewTCPServerHandler creates a TCP stream server that can serve already-accepted
@@ -23,7 +25,6 @@ type TCPServer struct {
 // each incoming stream connection.
 func NewTCPServerHandler(ctx context.Context) *TCPServer {
 	s := &TCPServer{ctx: ctx}
-	s.connMgr = NewConnectionManager(s.createDestConnection)
 	return s
 }
 
@@ -38,7 +39,6 @@ func NewTCPServerFromListener(ctx context.Context, listener net.Listener) *TCPSe
 		ctx:      ctx,
 		listener: listener,
 	}
-	s.connMgr = NewConnectionManager(s.createDestConnection)
 	return s
 }
 
@@ -62,17 +62,18 @@ func (s *TCPServer) Start() error {
 	if s.listener == nil {
 		return net.ErrClosed
 	}
+	context.AfterFunc(s.ctx, func() {
+		_ = s.listener.Close()
+	})
 	for {
-		select {
-		case <-s.ctx.Done():
-			return s.ctx.Err()
-		default:
-			conn, err := s.listener.Accept()
-			if err != nil {
-				return err
+		conn, err := s.listener.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) && s.ctx.Err() != nil {
+				return s.ctx.Err()
 			}
-			go s.handle(conn)
+			return err
 		}
+		go s.handle(conn)
 	}
 }
 
@@ -94,23 +95,48 @@ func (s *TCPServer) Addr() net.Addr {
 }
 
 func (s *TCPServer) Close() error {
-	s.connMgr.CloseAllConnections()
 	if s.listener == nil {
 		return nil
 	}
 	return s.listener.Close()
 }
 
+func (s *TCPServer) logger(clientConn net.Conn) *zerolog.Logger {
+	ev := log.With().Str("protocol", "tcp").
+		Str("remote", clientConn.RemoteAddr().String())
+	if s.listener != nil {
+		ev = ev.Str("addr", s.listener.Addr().String())
+	}
+	l := ev.Logger()
+	return &l
+}
+
+func (s *TCPServer) loggerWithDst(dstConn net.Conn, clientConn net.Conn) *zerolog.Logger {
+	ev := log.With().Str("protocol", "tcp").
+		Str("remote", clientConn.RemoteAddr().String()).
+		Str("dst", dstConn.RemoteAddr().String())
+	if s.listener != nil {
+		ev = ev.Str("addr", s.listener.Addr().String())
+	}
+	l := ev.Logger()
+	return &l
+}
+
 func (s *TCPServer) handle(conn net.Conn) {
 	defer conn.Close()
 	dst, err := s.redirect(conn)
 	if err != nil {
-		// TODO: log error
+		s.logger(conn).Err(err).Msg("failed to redirect connection")
 		return
 	}
-	defer s.connMgr.DeleteDestConnection(conn)
+
+	defer dst.Close()
 	pipe := ioutils.NewBidirectionalPipe(s.ctx, conn, dst)
-	pipe.Start()
+	err = pipe.Start()
+	if err != nil {
+		s.loggerWithDst(dst, conn).Err(err).Msg("failed to start bidirectional pipe")
+		return
+	}
 }
 
 func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
@@ -127,7 +153,7 @@ func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
 
 	// get destination connection
 	host, port := header.GetHostPort()
-	return s.connMgr.GetOrCreateDestConnection(conn, host, port)
+	return s.createDestConnection(host, port)
 }
 
 func (s *TCPServer) createDestConnection(host, port string) (net.Conn, error) {

@@ -21,7 +21,6 @@ type UDPServer struct {
 	listener net.Listener
 
 	dtlsConfig *dtls.Config
-	connMgr    *ConnectionManager[*net.UDPConn]
 }
 
 func NewUDPServer(ctx context.Context, network string, laddr *net.UDPAddr, caCert *x509.Certificate, serverCert *tls.Certificate) *UDPServer {
@@ -42,7 +41,6 @@ func NewUDPServer(ctx context.Context, network string, laddr *net.UDPAddr, caCer
 		laddr:      laddr,
 		dtlsConfig: dtlsConfig,
 	}
-	s.connMgr = NewConnectionManager(s.createDestConnection)
 	return s
 }
 
@@ -78,7 +76,6 @@ func (s *UDPServer) Addr() net.Addr {
 }
 
 func (s *UDPServer) Close() error {
-	s.connMgr.CloseAllConnections()
 	if s.listener != nil {
 		return s.listener.Close()
 	}
@@ -116,12 +113,12 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 	}
 
 	host, port := header.GetHostPort()
-	dstConn, err := s.connMgr.GetOrCreateDestConnection(clientConn, host, port)
+	dstConn, err := s.createDestConnection(host, port)
 	if err != nil {
 		s.logger(clientConn).Err(err).Msg("failed to get or create destination connection")
 		return
 	}
-	defer s.connMgr.DeleteDestConnection(clientConn)
+	defer dstConn.Close()
 
 	go s.forwardFromDestination(dstConn, clientConn)
 
@@ -188,7 +185,7 @@ func (s *UDPServer) forwardFromDestination(dstConn *net.UDPConn, clientConn net.
 					return
 				}
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-					return
+					continue
 				}
 				s.loggerWithDst(clientConn, dstConn).Err(err).Msg("failed to read from destination")
 				return
