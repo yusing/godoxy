@@ -172,3 +172,7 @@ gen-api-types: gen-swagger
 	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
 		 --responses -o ${WEBUI_DIR}/lib -n api.ts -p internal/api/v1/docs/swagger.json
 	bunx --bun prettier --config ${WEBUI_DIR}/.prettierrc --write ${WEBUI_DIR}/lib/api.ts
+
+.PHONY: update-wiki
+update-wiki:
+	DOCS_DIR=${DOCS_DIR} bun --bun scripts/update-wiki/main.ts
