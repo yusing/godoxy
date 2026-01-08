@@ -34,6 +34,22 @@ func NewTCPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		return nil, err
 	}
 
+	return newTCPClientWIthHeader(serverAddr, header, caCert, clientCert)
+}
+
+func TCPHealthCheck(serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
+	header := NewStreamHealthCheckHeader()
+
+	conn, err := newTCPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	if err != nil {
+		return err
+	}
+
+	conn.Close()
+	return nil
+}
+
+func newTCPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
 	// Setup TLS configuration
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)

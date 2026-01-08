@@ -84,14 +84,14 @@ func (s *UDPServer) Close() error {
 
 func (s *UDPServer) logger(clientConn net.Conn) *zerolog.Logger {
 	l := log.With().Str("protocol", "udp").
-		Str("addr", s.laddr.String()).
+		Str("addr", s.Addr().String()).
 		Str("remote", clientConn.RemoteAddr().String()).Logger()
 	return &l
 }
 
 func (s *UDPServer) loggerWithDst(clientConn net.Conn, dstConn *net.UDPConn) *zerolog.Logger {
 	l := log.With().Str("protocol", "udp").
-		Str("addr", s.laddr.String()).
+		Str("addr", s.Addr().String()).
 		Str("remote", clientConn.RemoteAddr().String()).
 		Str("dst", dstConn.RemoteAddr().String()).Logger()
 	return &l
@@ -109,6 +109,12 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 	header := ToHeader(headerBuf)
 	if !header.Validate() {
 		s.logger(clientConn).Error().Bytes("header", headerBuf[:]).Msg("invalid stream header received")
+		return
+	}
+
+	// Health check probe: close connection
+	if header.ShouldCloseImmediately() {
+		s.logger(clientConn).Info().Msg("Health check received")
 		return
 	}
 

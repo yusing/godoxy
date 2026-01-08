@@ -150,20 +150,18 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 		// test stream server connection
 		const fakeAddress = "localhost:8080" // it won't be used, just for testing
 		// test TCP stream support
-		conn, err := agentstream.NewTCPClient(cfg.Addr, fakeAddress, cfg.caCert, cfg.clientCert)
+		err := agentstream.TCPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
 		} else {
-			conn.Close()
 			cfg.IsTCPStreamSupported = true
 		}
 
 		// test UDP stream support
-		conn, err = agentstream.NewUDPClient(cfg.Addr, fakeAddress, cfg.caCert, cfg.clientCert)
+		err = agentstream.UDPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
 		} else {
-			conn.Close()
 			cfg.IsUDPStreamSupported = true
 		}
 	} else {

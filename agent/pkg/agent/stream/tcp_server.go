@@ -126,6 +126,11 @@ func (s *TCPServer) handle(conn net.Conn) {
 	defer conn.Close()
 	dst, err := s.redirect(conn)
 	if err != nil {
+		// Health check probe: close connection
+		if errors.Is(err, ErrCloseImmediately) {
+			s.logger(conn).Info().Msg("Health check received")
+			return
+		}
 		s.logger(conn).Err(err).Msg("failed to redirect connection")
 		return
 	}
@@ -149,6 +154,11 @@ func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
 	header := ToHeader(headerBuf)
 	if !header.Validate() {
 		return nil, ErrInvalidHeader
+	}
+
+	// Health check: close immediately if FlagCloseImmediately is set
+	if header.ShouldCloseImmediately() {
+		return nil, ErrCloseImmediately
 	}
 
 	// get destination connection

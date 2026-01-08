@@ -28,13 +28,24 @@ The on-wire header is a fixed-size binary blob:
 - `Host` (255 bytes, NUL padded)
 - `PortLength` (1 byte)
 - `Port` (5 bytes, NUL padded)
+- `Flag` (1 byte, protocol flags)
 - `Checksum` (4 bytes, big-endian CRC32)
 
-Total: `headerSize = 8 + 1 + 255 + 1 + 5 + 4 = 274` bytes.
+Total: `headerSize = 8 + 1 + 255 + 1 + 5 + 1 + 4 = 275` bytes.
 
 Checksum is `crc32.ChecksumIEEE(header[0:headerSize-4])`.
 
-See [`StreamRequestHeader`](header.go:25).
+### Flags
+
+The `Flag` field is a bitmask of protocol flags defined by `FlagType`:
+
+| Flag                   | Value | Purpose                                                                |
+| ---------------------- | ----- | ---------------------------------------------------------------------- |
+| `FlagCloseImmediately` | `1`   | Health check probe - server closes immediately after validating header |
+
+See [`FlagType`](header.go:26) and [`FlagCloseImmediately`](header.go:28).
+
+See [`StreamRequestHeader`](header.go:30).
 
 ## File Structure
 
@@ -49,12 +60,13 @@ See [`StreamRequestHeader`](header.go:25).
 
 ## Constants
 
-| Constant       | Value                     | Purpose                                           |
-| -------------- | ------------------------- | ------------------------------------------------- |
-| `StreamALPN`   | `"godoxy-agent-stream/1"` | TLS ALPN protocol for stream multiplexing.        |
-| `headerSize`   | `274` bytes               | Total size of the stream request header.          |
-| `dialTimeout`  | `10s`                     | Timeout for establishing destination connections. |
-| `readDeadline` | `10s`                     | Read timeout for UDP destination sockets.         |
+| Constant               | Value                     | Purpose                                                 |
+| ---------------------- | ------------------------- | ------------------------------------------------------- |
+| `StreamALPN`           | `"godoxy-agent-stream/1"` | TLS ALPN protocol for stream multiplexing.              |
+| `headerSize`           | `275` bytes               | Total size of the stream request header.                |
+| `dialTimeout`          | `10s`                     | Timeout for establishing destination connections.       |
+| `readDeadline`         | `10s`                     | Read timeout for UDP destination sockets.               |
+| `FlagCloseImmediately` | `1`                       | Flag for health check probe - server closes immediately |
 
 See [`common.go`](common.go:11).
 
@@ -73,6 +85,7 @@ type StreamRequestHeader struct {
     Host        [255]byte // NUL-padded host name
     PortLength  byte     // Actual port string length (0-5)
     Port        [5]byte  // NUL-padded port string
+    Flag        FlagType // Protocol flags (e.g., FlagCloseImmediately)
     Checksum    [4]byte  // CRC32 checksum of header without checksum
 }
 ```
@@ -80,8 +93,10 @@ type StreamRequestHeader struct {
 **Methods:**
 
 - `NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error)` - Creates a header for the given host and port. Returns error if host exceeds 255 bytes or port exceeds 5 bytes.
+- `NewStreamHealthCheckHeader() *StreamRequestHeader` - Creates a header with `FlagCloseImmediately` set for health check probes.
 - `Validate() bool` - Validates the version and checksum.
 - `GetHostPort() (string, string)` - Extracts the host and port from the header.
+- `ShouldCloseImmediately() bool` - Returns true if `FlagCloseImmediately` is set.
 
 ### TCP Functions
 
@@ -94,6 +109,28 @@ type StreamRequestHeader struct {
 
 - [`NewUDPClient()`](udp_client.go:27) - Creates a DTLS client connection and sends the stream header.
 - [`NewUDPServer()`](udp_server.go:26) - Creates a DTLS server listening on the given UDP address.
+
+## Health Check Probes
+
+The protocol supports health check probes using the `FlagCloseImmediately` flag. When a client sends a header with this flag set, the server validates the header and immediately closes the connection without establishing a destination tunnel.
+
+This is useful for:
+
+- Connectivity testing between agent and server
+- Verifying TLS/DTLS handshake and mTLS authentication
+- Monitoring stream protocol availability
+
+**Usage:**
+
+```go
+header := stream.NewStreamHealthCheckHeader()
+// Send header over TLS/DTLS connection
+// Server will validate and close immediately
+```
+
+Both TCP and UDP servers silently handle health check probes without logging errors.
+
+See [`NewStreamHealthCheckHeader()`](header.go:66) and [`FlagCloseImmediately`](header.go:28).
 
 ## TCP behavior
 
@@ -130,9 +167,10 @@ Both `TCPServer` and `UDPServer` create a dedicated destination connection per i
 
 ## Error Handling
 
-| Error              | Description                                     |
-| ------------------ | ----------------------------------------------- |
-| `ErrInvalidHeader` | Header validation failed (version or checksum). |
+| Error                 | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `ErrInvalidHeader`    | Header validation failed (version or checksum). |
+| `ErrCloseImmediately` | Health check probe - server closed immediately. |
 
 Errors from connection creation are propagated to the caller.
 

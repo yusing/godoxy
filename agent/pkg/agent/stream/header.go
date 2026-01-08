@@ -13,14 +13,20 @@ const (
 	versionSize  = 8
 	hostSize     = 255
 	portSize     = 5
+	flagSize     = 1
 	checksumSize = 4 // crc32 checksum
 
-	headerSize = versionSize + 1 + hostSize + 1 + portSize + checksumSize
+	headerSize = versionSize + 1 + hostSize + 1 + portSize + flagSize + checksumSize
 )
 
 var version = [versionSize]byte{'0', '.', '1', '.', '0', 0, 0, 0}
 
 var ErrInvalidHeader = errors.New("invalid header")
+var ErrCloseImmediately = errors.New("close immediately")
+
+type FlagType uint8
+
+const FlagCloseImmediately FlagType = 1 << iota
 
 type StreamRequestHeader struct {
 	Version [versionSize]byte
@@ -31,6 +37,7 @@ type StreamRequestHeader struct {
 	PortLength byte
 	Port       [portSize]byte
 
+	Flag     FlagType
 	Checksum [checksumSize]byte
 }
 
@@ -57,6 +64,14 @@ func NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error) {
 	return header, nil
 }
 
+func NewStreamHealthCheckHeader() *StreamRequestHeader {
+	header := &StreamRequestHeader{}
+	copy(header.Version[:], version[:])
+	header.Flag |= FlagCloseImmediately
+	header.updateChecksum()
+	return header
+}
+
 func ToHeader(buf [headerSize]byte) *StreamRequestHeader {
 	return (*StreamRequestHeader)(unsafe.Pointer(&buf[0]))
 }
@@ -76,6 +91,10 @@ func (h *StreamRequestHeader) Validate() bool {
 		return false
 	}
 	return h.validateChecksum()
+}
+
+func (h *StreamRequestHeader) ShouldCloseImmediately() bool {
+	return h.Flag&FlagCloseImmediately != 0
 }
 
 func (h *StreamRequestHeader) updateChecksum() {

@@ -35,6 +35,10 @@ func NewUDPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		return nil, err
 	}
 
+	return newUDPClientWIthHeader(serverAddr, header, caCert, clientCert)
+}
+
+func newUDPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
 	// Setup DTLS configuration
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
@@ -67,6 +71,18 @@ func NewUDPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 	return &UDPClient{
 		conn: conn,
 	}, nil
+}
+
+func UDPHealthCheck(serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
+	header := NewStreamHealthCheckHeader()
+
+	conn, err := newUDPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	if err != nil {
+		return err
+	}
+
+	conn.Close()
+	return nil
 }
 
 func (c *UDPClient) Read(p []byte) (n int, err error) {
