@@ -51,9 +51,17 @@ func (s *UDPServer) Start() error {
 	}
 	s.listener = listener
 
+	context.AfterFunc(s.ctx, func() {
+		_ = s.listener.Close()
+	})
+
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
+			// Expected error when context cancelled
+			if errors.Is(err, net.ErrClosed) && s.ctx.Err() != nil {
+				return s.ctx.Err()
+			}
 			return err
 		}
 		go s.handleDTLSConnection(conn)
