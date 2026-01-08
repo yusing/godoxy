@@ -106,6 +106,11 @@ func processHealthResponse(lat time.Duration, err error, getStatusCode func() in
 				Detail:  err.Error(),
 			}, nil
 		}
+		return types.HealthCheckResult{
+			Latency: lat,
+			Healthy: true,
+			Detail:  tlsErr.Error(),
+		}, nil
 	}
 
 	statusCode := getStatusCode()
