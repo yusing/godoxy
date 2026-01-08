@@ -98,7 +98,7 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 
 	var mon monitor
 	mon.init(displayURL, config, func(u *url.URL) (result Result, err error) {
-		result, err = healthcheck.Docker(mon.Context(), state, containerId, config.Timeout)
+		result, err = healthcheck.Docker(mon.Context(), state, config.Timeout)
 		if err != nil {
 			if isFirstFailure {
 				isFirstFailure = false
