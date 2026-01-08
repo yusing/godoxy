@@ -21,7 +21,7 @@ import (
 )
 
 type (
-	HealthCheckFunc func() (result types.HealthCheckResult, err error)
+	HealthCheckFunc func(url *url.URL) (result types.HealthCheckResult, err error)
 	monitor         struct {
 		service string
 		config  types.HealthCheckConfig
@@ -44,52 +44,56 @@ type (
 var ErrNegativeInterval = gperr.New("negative interval")
 
 func NewMonitor(r types.Route) types.HealthMonCheck {
+	target := &r.TargetURL().URL
+
 	var mon types.HealthMonCheck
 	if r.IsAgent() {
-		mon = NewAgentProxiedMonitor(r.GetAgent(), r.HealthCheckConfig(), AgentTargetFromURL(&r.TargetURL().URL))
+		mon = NewAgentProxiedMonitor(r.HealthCheckConfig(), r.GetAgent(), target)
 	} else {
 		switch r := r.(type) {
 		case types.ReverseProxyRoute:
-			mon = NewHTTPHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
+			mon = NewHTTPHealthMonitor(r.HealthCheckConfig(), target)
 		case types.FileServerRoute:
 			mon = NewFileServerHealthMonitor(r.HealthCheckConfig(), r.RootPath())
 		case types.StreamRoute:
-			mon = NewRawHealthMonitor(&r.TargetURL().URL, r.HealthCheckConfig())
+			mon = NewStreamHealthMonitor(r.HealthCheckConfig(), target)
 		default:
 			log.Panic().Msgf("unexpected route type: %T", r)
 		}
 	}
 	if r.IsDocker() {
 		cont := r.ContainerInfo()
-		client, err := docker.NewClient(cont.DockerCfg)
+		client, err := docker.NewClient(cont.DockerCfg, true)
 		if err != nil {
 			return mon
 		}
 		r.Task().OnCancel("close_docker_client", client.Close)
-		return NewDockerHealthMonitor(client, cont.ContainerID, r.Name(), r.HealthCheckConfig(), mon)
+
+		fallback := mon
+		return NewDockerHealthMonitor(r.HealthCheckConfig(), client, cont.ContainerID, fallback)
 	}
 	return mon
 }
 
-func newMonitor(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	if state := config.WorkingState.Load(); state != nil {
 		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
 	} else {
 		cfg.ApplyDefaults(types.HealthCheckConfig{}) // use defaults from constants
 	}
-	mon := &monitor{
-		config:      cfg,
-		checkHealth: healthCheckFunc,
-		startTime:   time.Now(),
-		notifyFunc:  notif.Notify,
-	}
-	if u == nil {
-		u = &url.URL{}
-	}
-	mon.url.Store(u)
+	mon.config = cfg
+	mon.checkHealth = healthCheckFunc
+	mon.startTime = time.Now()
+	mon.notifyFunc = notif.Notify
 	mon.status.Store(types.StatusHealthy)
 	mon.lastResult.Store(types.HealthCheckResult{Healthy: true, Detail: "started"})
-	return mon
+
+	if u == nil {
+		mon.url.Store(&url.URL{})
+	} else {
+		mon.url.Store(u)
+	}
+	return nil
 }
 
 func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cancel context.CancelFunc) {
@@ -102,6 +106,10 @@ func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cance
 		ctx = context.Background()
 	}
 	return context.WithTimeoutCause(ctx, mon.config.Timeout, gperr.New(cause))
+}
+
+func (mon *monitor) CheckHealth() (types.HealthCheckResult, error) {
+	return mon.checkHealth(mon.url.Load())
 }
 
 // Start implements task.TaskStarter.
@@ -242,7 +250,7 @@ func (mon *monitor) MarshalJSON() ([]byte, error) {
 
 func (mon *monitor) checkUpdateHealth() error {
 	logger := log.With().Str("name", mon.Name()).Logger()
-	result, err := mon.checkHealth()
+	result, err := mon.checkHealth(mon.url.Load())
 
 	var lastStatus types.HealthStatus
 	switch {
