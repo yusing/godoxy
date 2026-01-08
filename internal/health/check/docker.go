@@ -35,7 +35,7 @@ func NewDockerHealthcheckState(client *docker.SharedClient, containerId string) 
 	}
 }
 
-func Docker(ctx context.Context, state *DockerHealthcheckState, containerId string, timeout time.Duration) (types.HealthCheckResult, error) {
+func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Duration) (types.HealthCheckResult, error) {
 	if state.numDockerFailures > dockerFailuresThreshold {
 		return types.HealthCheckResult{}, ErrDockerHealthCheckFailedTooManyTimes
 	}
@@ -44,7 +44,7 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, containerId stri
 	defer cancel()
 
 	// the actual inspect response is intercepted and returned as RequestInterceptedError
-	_, err := state.client.ContainerInspect(ctx, containerId, client.ContainerInspectOptions{})
+	_, err := state.client.ContainerInspect(ctx, state.containerId, client.ContainerInspectOptions{})
 
 	var interceptedErr *httputils.RequestInterceptedError
 	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
