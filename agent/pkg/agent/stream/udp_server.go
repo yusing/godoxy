@@ -92,6 +92,14 @@ func (s *UDPServer) logger(clientConn net.Conn) *zerolog.Logger {
 	return &l
 }
 
+func (s *UDPServer) loggerWithDst(clientConn net.Conn, dstConn *net.UDPConn) *zerolog.Logger {
+	l := log.With().Str("protocol", "udp").
+		Str("addr", s.laddr.String()).
+		Str("remote", clientConn.RemoteAddr().String()).
+		Str("dst", dstConn.RemoteAddr().String()).Logger()
+	return &l
+}
+
 func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 	defer clientConn.Close()
 
@@ -182,11 +190,11 @@ func (s *UDPServer) forwardFromDestination(dstConn *net.UDPConn, clientConn net.
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					return
 				}
-				s.logger(dstConn).Err(err).Msg("failed to read from destination")
+				s.loggerWithDst(clientConn, dstConn).Err(err).Msg("failed to read from destination")
 				return
 			}
 			if _, err := clientConn.Write(buffer[:n]); err != nil {
-				s.logger(dstConn).Err(err).Msgf("failed to write %d bytes to client", n)
+				s.loggerWithDst(clientConn, dstConn).Err(err).Msgf("failed to write %d bytes to client", n)
 				return
 			}
 		}
