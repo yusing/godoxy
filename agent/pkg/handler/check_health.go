@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	healthcheck "github.com/yusing/godoxy/internal/health/check"
 	"github.com/yusing/godoxy/internal/types"
-	healthcheck "github.com/yusing/godoxy/internal/watcher/health/check"
 )
 
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
