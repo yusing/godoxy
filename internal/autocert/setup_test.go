@@ -50,16 +50,16 @@ extra:
 	require.Equal(t, "certs/extra.crt", merged0.CertPath)
 	require.Equal(t, "certs/extra.key", merged0.KeyPath)
 	// Inherited fields from main config:
-	require.Equal(t, "test@example.com", merged0.Email)                             // inherited
-	require.Equal(t, "custom", merged0.Provider)                                    // inherited
-	require.Equal(t, []string{"example.com"}, merged0.Domains)                      // inherited
+	require.Equal(t, "test@example.com", merged0.Email)                                   // inherited
+	require.Equal(t, "custom", merged0.Provider)                                          // inherited
+	require.Equal(t, []string{"example.com"}, merged0.Domains)                            // inherited
 	require.Equal(t, "https://ca.example.com:9000/acme/acme/directory", merged0.CADirURL) // inherited
-	require.Equal(t, map[string]strutils.Redacted{"key": "value"}, merged0.Options) // inherited
-	require.Equal(t, []string{"8.8.8.8"}, merged0.Resolvers)                        // inherited
-	require.Equal(t, []string{"ca.crt"}, merged0.CACerts)                           // inherited
-	require.Equal(t, "eabKid", merged0.EABKid)                                      // inherited
-	require.Equal(t, "eabHmac", merged0.EABHmac)                                    // inherited
-	require.Equal(t, cfg.HTTPClient, merged0.HTTPClient)                            // inherited
+	require.Equal(t, map[string]strutils.Redacted{"key": "value"}, merged0.Options)       // inherited
+	require.Equal(t, []string{"8.8.8.8"}, merged0.Resolvers)                              // inherited
+	require.Equal(t, []string{"ca.crt"}, merged0.CACerts)                                 // inherited
+	require.Equal(t, "eabKid", merged0.EABKid)                                            // inherited
+	require.Equal(t, "eabHmac", merged0.EABHmac)                                          // inherited
+	require.Equal(t, cfg.HTTPClient, merged0.HTTPClient)                                  // inherited
 	require.Nil(t, merged0.Extra)
 
 	// Test: extra[1] overrides some fields, and inherits others.

@@ -9,8 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/docker"
+	healthcheck "github.com/yusing/godoxy/internal/health/check"
 	"github.com/yusing/godoxy/internal/types"
-	healthcheck "github.com/yusing/godoxy/internal/watcher/health/check"
 )
 
 type Result = types.HealthCheckResult
