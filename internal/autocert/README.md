@@ -10,12 +10,12 @@ This package provides complete SSL certificate lifecycle management:
 
 - ACME account registration and management
 - Certificate issuance via DNS-01 challenge
-- Automatic renewal scheduling (30 days before expiry)
+- Automatic renewal scheduling (1 month before expiry)
 - SNI-based certificate selection for multi-domain setups
 
 ### Primary Consumers
 
-- `internal/net/gphttp/` - TLS handshake certificate provider
+- `goutils/server` - TLS handshake certificate provider
 - `internal/api/v1/cert/` - REST API for certificate management
 - Configuration loading via `internal/config/`
 
