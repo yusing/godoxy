@@ -136,7 +136,7 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 	if s.agent != nil {
 		dstConn, err = s.agent.NewTCPClient(s.dst.String())
 	} else {
-		dstConn, err = net.DialTCP("tcp", nil, s.dst)
+		dstConn, err = net.DialTCP(s.dst.Network(), nil, s.dst)
 	}
 	if err != nil {
 		if !s.closed.Load() {

@@ -198,7 +198,7 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 	if s.agent != nil {
 		dstConn, err = s.agent.NewUDPClient(s.dst.String())
 	} else {
-		dstConn, err = net.DialUDP("udp", nil, s.dst)
+		dstConn, err = net.DialUDP(s.dst.Network(), nil, s.dst)
 	}
 	if err != nil {
 		logErr(s, err, "failed to dial dst")

@@ -269,9 +269,9 @@ func (r *Route) validate() gperr.Error {
 
 	switch r.Scheme {
 	case route.SchemeFileServer:
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
@@ -286,22 +286,30 @@ func (r *Route) validate() gperr.Error {
 			if bindIP == nil {
 				return gperr.Errorf("invalid bind address %s", r.Bind)
 			}
-			var scheme string
-			if bindIP.To4() == nil { // IPv6
-				if r.Scheme == route.SchemeTCP {
-					scheme = "tcp6"
-				} else {
-					scheme = "udp6"
-				}
-			} else {
-				if r.Scheme == route.SchemeTCP {
-					scheme = "tcp4"
-				} else {
-					scheme = "udp4"
-				}
+			remoteIP := net.ParseIP(r.Host)
+			if remoteIP == nil {
+				return gperr.Errorf("invalid remote address %s", r.Host)
 			}
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", scheme, r.Bind, r.Port.Listening))
+			toNetwork := func(ip net.IP, scheme route.Scheme) string {
+				if ip.To4() == nil {
+					if scheme == route.SchemeTCP {
+						return "tcp6"
+					}
+					return "udp6"
+				}
+				if scheme == route.SchemeTCP {
+					return "tcp4"
+				}
+				return "udp4"
+			}
+			lScheme := toNetwork(bindIP, r.Scheme)
+			rScheme := toNetwork(remoteIP, r.Scheme)
+
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", lScheme, r.Bind, r.Port.Listening))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", rScheme, r.Host, r.Port.Proxy))
 		}
+
+		// should exclude, we don't care the scheme here.
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
