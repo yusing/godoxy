@@ -31,7 +31,8 @@ func (t *testNotificationTracker) getStats() (up, down int, last string) {
 func createTestMonitor(config types.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
 	testURL, _ := url.Parse("http://localhost:8080")
 
-	mon := newMonitor(testURL, config, checkFunc)
+	var mon monitor
+	mon.init(testURL, config, checkFunc)
 
 	// Override notification functions to track calls instead of actually notifying
 	tracker := &testNotificationTracker{}
@@ -52,7 +53,7 @@ func createTestMonitor(config types.HealthCheckConfig, checkFunc HealthCheckFunc
 		}
 	}
 
-	return mon, tracker
+	return &mon, tracker
 }
 
 func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
@@ -62,17 +63,17 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 		Retries:  -1, // Immediate notification
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start with healthy service
-	result, err := mon.checkHealth()
+	result, err := mon.checkHealth(nil)
 	require.NoError(t, err)
 	require.True(t, result.Healthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -97,7 +98,7 @@ func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	})
 
@@ -105,7 +106,7 @@ func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
 	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -136,7 +137,7 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 		Retries:  3, // Notify after 3 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	})
 
@@ -144,7 +145,7 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -162,7 +163,7 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 	require.Equal(t, 0, up)
 
 	// Service recovers before third failure
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	}
 
@@ -185,7 +186,7 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	})
 
@@ -193,7 +194,7 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	mon.status.Store(types.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -202,7 +203,7 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.NoError(t, err)
 
 	// Recover briefly
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	}
 
@@ -215,7 +216,7 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.Equal(t, 1, up)
 
 	// Go down again - consecutive counter should start from 0
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -246,7 +247,7 @@ func TestNotification_ContextCancellation(t *testing.T) {
 		Retries:  1,
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true}, nil
 	})
 
@@ -256,7 +257,7 @@ func TestNotification_ContextCancellation(t *testing.T) {
 
 	// Start healthy, then go unhealthy
 	mon.status.Store(types.StatusHealthy)
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	}
 
@@ -285,7 +286,7 @@ func TestImmediateUpNotification(t *testing.T) {
 		Retries:  2, // NotifyAfter should not affect up notifications
 	}
 
-	mon, tracker := createTestMonitor(config, func() (types.HealthCheckResult, error) {
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: false}, nil
 	})
 
@@ -293,7 +294,7 @@ func TestImmediateUpNotification(t *testing.T) {
 	mon.status.Store(types.StatusUnhealthy)
 
 	// Set to healthy
-	mon.checkHealth = func() (types.HealthCheckResult, error) {
+	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
 		return types.HealthCheckResult{Healthy: true, Latency: 50 * time.Millisecond}, nil
 	}
 

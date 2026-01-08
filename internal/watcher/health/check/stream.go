@@ -1,6 +1,7 @@
-package monitor
+package healthcheck
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -10,30 +11,17 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 )
 
-type (
-	RawHealthMonitor struct {
-		*monitor
-		dialer *net.Dialer
-	}
-)
-
-func NewRawHealthMonitor(url *url.URL, config types.HealthCheckConfig) *RawHealthMonitor {
-	mon := new(RawHealthMonitor)
-	mon.monitor = newMonitor(url, config, mon.CheckHealth)
-	mon.dialer = &net.Dialer{
-		Timeout:       config.Timeout,
+func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (types.HealthCheckResult, error) {
+	dialer := net.Dialer{
+		Timeout:       timeout,
 		FallbackDelay: -1,
 	}
-	return mon
-}
 
-func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
-	ctx, cancel := mon.ContextWithTimeout("ping request timed out")
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	url := mon.url.Load()
 	start := time.Now()
-	conn, err := mon.dialer.DialContext(ctx, url.Scheme, url.Host)
+	conn, err := dialer.DialContext(ctx, url.Scheme, url.Host)
 	lat := time.Since(start)
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) ||
@@ -49,6 +37,7 @@ func (mon *RawHealthMonitor) CheckHealth() (types.HealthCheckResult, error) {
 		}
 		return types.HealthCheckResult{}, err
 	}
+
 	defer conn.Close()
 	return types.HealthCheckResult{
 		Latency: lat,

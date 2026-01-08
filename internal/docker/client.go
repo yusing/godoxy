@@ -250,7 +250,7 @@ func (c *SharedClient) Key() string {
 	return c.key
 }
 
-func (c *SharedClient) Address() string {
+func (c *SharedClient) DaemonHost() string {
 	return c.addr
 }
 
