@@ -50,6 +50,7 @@ func NewAgentHandler() http.Handler {
 			Name:    env.AgentName,
 			Runtime: env.Runtime,
 		}
+		w.Header().Set("Content-Type", "application/json")
 		sonic.ConfigDefault.NewEncoder(w).Encode(agentInfo)
 	})
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
