@@ -18,14 +18,11 @@ require (
 	github.com/bytedance/sonic v1.14.2
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
-	github.com/valyala/fasthttp v1.68.0
 	github.com/yusing/godoxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64
 	github.com/yusing/goutils/server v0.0.0-20260103043911-785deb23bd64
 )
 
@@ -90,6 +87,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.58.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
@@ -103,9 +101,11 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.68.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.3.1 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64 // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20260103043911-785deb23bd64 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

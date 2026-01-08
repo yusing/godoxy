@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -79,7 +80,7 @@ func AllSystemInfo(c *gin.Context) {
 	}
 
 	// leave 5 extra slots for buffering in case new agents are added.
-	dataCh := make(chan SystemInfoData, 1+agent.NumAgents()+5)
+	dataCh := make(chan SystemInfoData, 1+agentpool.Num()+5)
 	defer close(dataCh)
 
 	ticker := time.NewTicker(req.Interval)
@@ -125,7 +126,7 @@ func AllSystemInfo(c *gin.Context) {
 			return nil
 		})
 
-		for _, a := range agent.IterAgents() {
+		for _, a := range agentpool.Iter() {
 			totalAgents++
 
 			errs.Go(func() error {
@@ -175,7 +176,7 @@ func AllSystemInfo(c *gin.Context) {
 	}
 }
 
-func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
+func getAgentSystemInfo(ctx context.Context, a *agentpool.Agent, query string) (bytesFromPool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -194,7 +195,7 @@ func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string)
 	return bytesFromPool{json.RawMessage(bytesBuf), release}, nil
 }
 
-func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
+func getAgentSystemInfoWithRetry(ctx context.Context, a *agentpool.Agent, query string) (bytesFromPool, error) {
 	const maxRetries = 3
 	var lastErr error
 

@@ -18,8 +18,8 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/autocert"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
@@ -332,7 +332,7 @@ func (state *state) loadRouteProviders() error {
 	errs := gperr.NewGroup("route provider errors")
 	results := gperr.NewGroup("loaded route providers")
 
-	agent.RemoveAllAgents()
+	agentpool.RemoveAll()
 
 	numProviders := len(providers.Agents) + len(providers.Files) + len(providers.Docker)
 	providersCh := make(chan types.RouteProvider, numProviders)
@@ -352,11 +352,11 @@ func (state *state) loadRouteProviders() error {
 	var providersProducer sync.WaitGroup
 	for _, a := range providers.Agents {
 		providersProducer.Go(func() {
-			if err := a.Start(state.task.Context()); err != nil {
+			if err := a.Init(state.task.Context()); err != nil {
 				errs.Add(gperr.PrependSubject(a.String(), err))
 				return
 			}
-			agent.AddAgent(a)
+			agentpool.Add(a)
 			p := route.NewAgentProvider(a)
 			providersCh <- p
 		})
