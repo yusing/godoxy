@@ -33,11 +33,11 @@ type AgentConfig struct {
 	IsTCPStreamSupported bool   `json:"supports_tcp_stream"`
 	IsUDPStreamSupported bool   `json:"supports_udp_stream"`
 
-	tlsConfig tls.Config
-
 	// for stream
 	caCert     *x509.Certificate
 	clientCert *tls.Certificate
+
+	tlsConfig tls.Config
 
 	l zerolog.Logger
 } // @name Agent
@@ -228,6 +228,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 	return nil
 }
 
+// Init initializes the agent config with the given context.
 func (cfg *AgentConfig) Init(ctx context.Context) error {
 	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
 	if !ok {

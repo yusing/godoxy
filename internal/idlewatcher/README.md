@@ -1,378 +1,293 @@
 # Idlewatcher
 
-Idlewatcher manages container lifecycle based on idle timeout. When a container is idle for a configured duration, it can be automatically stopped, paused, or killed. When a request comes in, the container is woken up automatically.
+Manages container lifecycle based on idle timeout, automatically stopping/pausing containers and waking them on request.
 
-Idlewatcher also serves a small loading page (HTML + JS + CSS) and an SSE endpoint under [`internal/idlewatcher/types/paths.go`](internal/idlewatcher/types/paths.go:1) (prefixed with `/$godoxy/`) to provide wake events to browsers.
+## Overview
 
-## Architecture Overview
+The `internal/idlewatcher` package implements idle-based container lifecycle management for GoDoxy. When a container is idle for a configured duration, it can be automatically stopped, paused, or killed. When a request arrives, the container is woken up automatically.
 
-```mermaid
-graph TB
-    subgraph Request Flow
-        HTTP[HTTP Request] -->|Intercept| W[Watcher]
-        Stream[Stream Request] -->|Intercept| W
-    end
+### Primary Consumers
 
-    subgraph Wake Process
-        W -->|Wake| Wake[Wake Container]
-        Wake -->|Check Status| State[Container State]
-        Wake -->|Wait Ready| Health[Health Check]
-        Wake -->|Events| SSE[SSE Events]
-    end
+- **Route layer**: Routes with idlewatcher config integrate with this package to manage container lifecycle
+- **HTTP handlers**: Serve loading pages and SSE events during wake-up
+- **Stream handlers**: Handle stream connections with idle detection
 
-    subgraph Idle Management
-        Timer[Idle Timer] -->|Timeout| Stop[Stop Container]
-        State -->|Running| Timer
-        State -->|Stopped| Timer
-    end
+### Non-goals
 
-    subgraph Providers
-        Docker[DockerProvider] --> DockerAPI[Docker API]
-        Proxmox[ProxmoxProvider] --> ProxmoxAPI[Proxmox API]
-    end
+- Does not implement container runtime operations directly (delegates to providers)
+- Does not manage container dependencies beyond wake ordering
+- Does not provide health checking (delegates to `internal/health/monitor`)
 
-    W -->|Uses| Providers
+### Stability
+
+Internal package with stable public API. Changes to exported types require backward compatibility.
+
+## Public API
+
+### Exported Types
+
+```go
+// Watcher manages lifecycle of a single container
+type Watcher struct {
+    // Embedded route helper for proxy/stream/health
+    routeHelper
+
+    cfg *types.IdlewatcherConfig
+
+    // Thread-safe state containers
+    provider    synk.Value[idlewatcher.Provider]
+    state       synk.Value[*containerState]
+    lastReset   synk.Value[time.Time]
+
+    // Timers and channels
+    idleTicker   *time.Ticker
+    healthTicker *time.Ticker
+    readyNotifyCh chan struct{}
+
+    // SSE event broadcasting (HTTP routes only)
+    eventChs       *xsync.Map[chan *WakeEvent, struct{}]
+    eventHistory   []WakeEvent
+}
 ```
 
-## Directory Structure
-
-```
-idlewatcher/
-├── debug.go               # Debug utilities for watcher inspection
-├── errors.go              # Error types and conversion
-├── events.go              # Wake event types and broadcasting
-├── handle_http.go         # HTTP request handling and loading page
-├── handle_http_debug.go   # Debug HTTP handler (!production builds)
-├── handle_stream.go       # Stream connection handling
-├── health.go              # Health monitor implementation + readiness tracking
-├── loading_page.go        # Loading page HTML/CSS/JS templates
-├── state.go               # Container state management
-├── watcher.go             # Core Watcher implementation
-├── provider/              # Container provider implementations
-│   ├── docker.go          # Docker container management
-│   └── proxmox.go         # Proxmox LXC management
-├── types/
-│   ├── container_status.go # ContainerStatus enum
-│   ├── paths.go            # Loading page + SSE paths
-│   ├── provider.go         # Provider interface definition
-│   └── waker.go            # Waker interface (http + stream + health)
-└── html/
-    ├── loading_page.html  # Loading page template
-    ├── style.css          # Loading page styles
-    └── loading.js         # Loading page JavaScript
+```go
+// WakeEvent is broadcast via SSE during wake-up
+type WakeEvent struct {
+    Type      WakeEventType
+    Message   string
+    Timestamp time.Time
+    Error     string
+}
 ```
 
-## Core Components
+### Exported Functions/Methods
 
-### Watcher
+```go
+// NewWatcher creates or reuses a watcher for the given route and config
+func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig) (*Watcher, error)
 
-The main component that manages a single container's lifecycle:
+// Wake wakes the container, blocking until ready
+func (w *Watcher) Wake(ctx context.Context) error
+
+// Start begins the idle watcher loop
+func (w *Watcher) Start(parent task.Parent) gperr.Error
+
+// ServeHTTP serves the loading page and SSE events
+func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request)
+
+// ListenAndServe handles stream connections with idle detection
+func (w *Watcher) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc)
+
+// Key returns the unique key for this watcher
+func (w *Watcher) Key() string
+```
+
+### Package-level Variables
+
+```go
+var (
+    // watcherMap is a global registry keyed by config.Key()
+    watcherMap map[string]*Watcher
+    watcherMapMu sync.RWMutex
+
+    // singleFlight prevents duplicate wake calls for the same container
+    singleFlight singleflight.Group
+)
+```
+
+## Architecture
+
+### Core Components
 
 ```mermaid
 classDiagram
     class Watcher {
-        +string Key() string
-        +Wake(ctx context.Context) error
-        +Start(parent task.Parent) gperr.Error
-        +ServeHTTP(rw ResponseWriter, r *Request)
-        +ListenAndServe(ctx context.Context, predial, onRead HookFunc)
-        -idleTicker: *time.Ticker
-        -healthTicker: *time.Ticker
-        -state: synk.Value~*containerState~
-        -provider: synk.Value~Provider~
-        -readyNotifyCh: chan struct{}
-        -eventChs: *xsync.Map~chan *WakeEvent, struct{}~
-        -eventHistory: []WakeEvent
-        -dependsOn: []*dependency
+        +Wake(ctx) error
+        +Start(parent) gperr.Error
+        +ServeHTTP(ResponseWriter, *Request)
+        +ListenAndServe(ctx, preDial, onRead)
+        +Key() string
     }
 
     class containerState {
-        +status: ContainerStatus
-        +ready: bool
-        +err: error
-        +startedAt: time.Time
-        +healthTries: int
+        status ContainerStatus
+        ready bool
+        err error
+        startedAt time.Time
+        healthTries int
     }
 
-    class dependency {
-        +*Watcher
-        +waitHealthy: bool
+    class idlewatcher.Provider {
+        <<interface>>
+        +ContainerPause(ctx) error
+        +ContainerStart(ctx) error
+        +ContainerStop(ctx, signal, timeout) error
+        +ContainerStatus(ctx) (ContainerStatus, error)
+        +Watch(ctx) (eventCh, errCh)
     }
 
     Watcher --> containerState : manages
-    Watcher --> dependency : depends on
+    Watcher --> idlewatcher.Provider : uses
 ```
 
-Package-level helpers:
-
-- `watcherMap` is a global registry of watchers keyed by [`types.IdlewatcherConfig.Key()`](internal/types/idlewatcher.go:60), guarded by `watcherMapMu`.
-- `singleFlight` is a global `singleflight.Group` keyed by container name to prevent duplicate wake calls.
-
-### Provider Interface
-
-Abstraction for different container backends:
+### Component Interactions
 
 ```mermaid
-classDiagram
-    class Provider {
-        <<interface>>
-        +ContainerPause(ctx) error
-        +ContainerUnpause(ctx) error
-        +ContainerStart(ctx) error
-        +ContainerStop(ctx, signal, timeout) error
-        +ContainerKill(ctx, signal) error
-        +ContainerStatus(ctx) (ContainerStatus, error)
-        +Watch(ctx) (eventCh, errCh)
-        +Close()
-    }
-
-    class DockerProvider {
-        +client: *docker.SharedClient
-        +watcher: watcher.DockerWatcher
-        +containerID: string
-    }
-
-    class ProxmoxProvider {
-        +*proxmox.Node
-        +vmid: int
-        +lxcName: string
-        +running: bool
-    }
-
-    Provider <|-- DockerProvider
-    Provider <|-- ProxmoxProvider
+flowchart TD
+    A[HTTP Request] --> B{Container Ready?}
+    B -->|Yes| C[Proxy Request]
+    B -->|No| D[Wake Container]
+    D --> E[SingleFlight Check]
+    E --> F[Wake Dependencies]
+    F --> G[Start Container]
+    G --> H[Health Check]
+    H -->|Pass| I[Notify Ready]
+    I --> J[SSE Event]
+    J --> K[Loading Page]
+    K --> L[Retry Request]
 ```
 
-### Container Status
+### State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Napping: status=stopped|paused
+    [*] --> Napping: Container stopped/paused
 
-    Napping --> Starting: provider start/unpause event
-    Starting --> Ready: health check passes
-    Starting --> Error: health check error / startup timeout
-
-    Ready --> Napping: idle timeout (pause/stop/kill)
-    Ready --> Error: health check error
-
-    Error --> Napping: provider stop/pause event
-    Error --> Starting: provider start/unpause event
-```
-
-Implementation notes:
-
-- `Starting` is represented by `containerState{status: running, ready: false, startedAt: non-zero}`.
-- `Ready` is represented by `containerState{status: running, ready: true}`.
-- `Error` is represented by `containerState{status: error, err: non-nil}`.
-- State is updated primarily from provider events in [`(*Watcher).watchUntilDestroy()`](internal/idlewatcher/watcher.go:553) and health checks in [`(*Watcher).checkUpdateState()`](internal/idlewatcher/health.go:104).
-
-## Lifecycle Flow
-
-### Wake Flow (HTTP)
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant W as Watcher
-    participant P as Provider
-    participant SSE as SSE (/\$godoxy/wake-events)
-
-    C->>W: HTTP Request
-    W->>W: resetIdleTimer()
-    Note over W: Handles /favicon.ico and /\$godoxy/* assets first
-
-    alt Container already ready
-        W->>C: Reverse-proxy upstream (same request)
-    else
-        W->>W: Wake() (singleflight + deps)
-
-        alt Non-HTML request OR NoLoadingPage=true
-            W->>C: 100 Continue
-            W->>W: waitForReady() (readyNotifyCh)
-            W->>C: Reverse-proxy upstream (same request)
-        else HTML + loading page
-            W->>C: Serve loading page (HTML)
-            C->>SSE: Connect (EventSource)
-            Note over SSE: Streams history + live wake events
-            C->>W: Retry original request when WakeEventReady
-        end
-    end
-```
-
-### Stream Wake Flow
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant W as Watcher
-
-    C->>W: Connect to stream
-    W->>W: preDial hook
-    W->>W: wakeFromStream()
-    alt Container ready
-        W->>W: Pass through
-    else
-        W->>W: Wake() (singleflight + deps)
-        W->>W: waitStarted() (wait for route to be started)
-        W->>W: waitForReady() (readyNotifyCh)
-        W->>C: Stream connected
-    end
-```
-
-### Idle Timeout Flow
-
-```mermaid
-sequenceDiagram
-    participant Client as Client
-    participant T as Idle Timer
-    participant W as Watcher
-    participant P as Provider
-    participant D as Dependencies
-
-    loop Every request
-        Client->>W: HTTP/Stream
-        W->>W: resetIdleTimer()
-    end
-
-    T->>W: Timeout
-    W->>W: stopByMethod()
-    alt stop method = pause
-        W->>P: ContainerPause()
-    else stop method = stop
-        W->>P: ContainerStop(signal, timeout)
-    else kill method = kill
-        W->>P: ContainerKill(signal)
-    end
-    P-->>W: Result
-    W->>D: Stop dependencies
-    D-->>W: Done
-```
-
-## Dependency Management
-
-Watchers can depend on other containers being started first:
-
-```mermaid
-graph LR
-    A[App] -->|depends on| B[Database]
-    A -->|depends on| C[Redis]
-    B -->|depends on| D[Cache]
-```
-
-```mermaid
-sequenceDiagram
-    participant A as App Watcher
-    participant B as DB Watcher
-    participant P as Provider
-
-    A->>B: Wake()
-    Note over B: SingleFlight prevents<br/>duplicate wake
-    B->>P: ContainerStart()
-    P-->>B: Started
-    B->>B: Wait healthy
-    B-->>A: Ready
-    A->>P: ContainerStart()
-    P-->>A: Started
-```
-
-## Event System
-
-Wake events are broadcast via Server-Sent Events (SSE):
-
-```mermaid
-classDiagram
-    class WakeEvent {
-        +Type: WakeEventType
-        +Message: string
-        +Timestamp: time.Time
-        +Error: string
-        +WriteSSE(w io.Writer) error
-    }
-
-    class WakeEventType {
-        <<enumeration>>
-        WakeEventStarting
-        WakeEventWakingDep
-        WakeEventDepReady
-        WakeEventContainerWoke
-        WakeEventWaitingReady
-        WakeEventReady
-        WakeEventError
-    }
-
-    WakeEvent --> WakeEventType
-```
-
-Notes:
-
-- The SSE endpoint is [`idlewatcher.WakeEventsPath`](internal/idlewatcher/types/paths.go:3).
-- Each SSE subscriber gets a dedicated buffered channel; the watcher also keeps an in-memory `eventHistory` that is sent to new subscribers first.
-- `eventHistory` is cleared when the container transitions to napping (stop/pause).
-
-## State Machine
-
-```mermaid
-stateDiagram-v2
-    Napping --> Starting: provider start/unpause event
+    Napping --> Starting: Wake() called
     Starting --> Ready: Health check passes
-    Starting --> Error: Health check fails / startup timeout
-    Error --> Napping: provider stop/pause event
-    Error --> Starting: provider start/unpause event
+    Starting --> Error: Health check fails / timeout
+
     Ready --> Napping: Idle timeout
     Ready --> Napping: Manual stop
 
-    note right of Napping
-        Container is stopped or paused
-        Idle timer stopped
-    end note
-
-    note right of Starting
-        Container is running but not ready
-        Health checking active
-        Events broadcasted
-    end note
-
-    note right of Ready
-        Container healthy
-        Idle timer running
-    end note
+    Error --> Starting: Retry wake
+    Error --> Napping: Container stopped externally
 ```
 
-## Key Files
+## Configuration Surface
 
-| File                  | Purpose                                               |
-| --------------------- | ----------------------------------------------------- |
-| `watcher.go`          | Core Watcher implementation with lifecycle management |
-| `handle_http.go`      | HTTP interception and loading page serving            |
-| `handle_stream.go`    | Stream connection wake handling                       |
-| `provider/docker.go`  | Docker container operations                           |
-| `provider/proxmox.go` | Proxmox LXC container operations                      |
-| `state.go`            | Container state transitions                           |
-| `events.go`           | Event broadcasting via SSE                            |
-| `health.go`           | Health monitor implementation + readiness tracking    |
+Configuration is defined in `types.IdlewatcherConfig`:
 
-## Configuration
+```go
+type IdlewatcherConfig struct {
+    IdlewatcherConfigBase
+    Docker  *types.DockerProviderConfig  // Exactly one required
+    Proxmox *types.ProxmoxProviderConfig // Exactly one required
+}
 
-See [`types.IdlewatcherConfig`](internal/types/idlewatcher.go:27) for configuration options:
+type IdlewatcherConfigBase struct {
+    IdleTimeout  time.Duration          // Duration before container is stopped
+    StopMethod   types.ContainerMethod  // pause, stop, or kill
+    StopSignal   types.ContainerSignal  // Signal to send
+    StopTimeout  int                    // Timeout in seconds
+    WakeTimeout  time.Duration          // Max time to wait for wake
+    DependsOn    []string               // Container dependencies
+    StartEndpoint string                // Optional path restriction
+    NoLoadingPage bool                  // Skip loading page
+}
+```
 
-- `IdleTimeout`: Duration before container is put to sleep
-- `StopMethod`: pause, stop, or kill
-- `StopSignal`: Signal to send when stopping
-- `StopTimeout`: Timeout for stop operation
-- `WakeTimeout`: Timeout for wake operation
-- `DependsOn`: List of dependent containers
-- `StartEndpoint`: Optional HTTP path restriction for wake requests
-- `NoLoadingPage`: Skip loading page, wait directly
+### Docker Labels
 
-Provider config (exactly one must be set):
+```yaml
+labels:
+  proxy.idle_timeout: 5m
+  proxy.idle_stop_method: stop
+  proxy.idle_depends_on: database:redis
+```
 
-- `Docker`: container id/name + docker connection info
-- `Proxmox`: `node` + `vmid`
+### Path Constants
 
-## Thread Safety
+```go
+const (
+    LoadingPagePath = "/$godoxy/loading"
+    WakeEventsPath  = "/$godoxy/wake-events"
+)
+```
 
-- Uses `synk.Value` for atomic state updates
-- Uses `xsync.Map` for SSE subscriber management
-- Uses `sync.RWMutex` for watcher map (`watcherMapMu`) and SSE event history (`eventHistoryMu`)
-- Uses `singleflight.Group` to prevent duplicate wake calls
+## Dependency and Integration Map
+
+| Dependency                       | Purpose                     |
+| -------------------------------- | --------------------------- |
+| `internal/health/monitor`        | Health checking during wake |
+| `internal/route/routes`          | Route registry lookup       |
+| `internal/docker`                | Docker client connection    |
+| `internal/proxmox`               | Proxmox LXC management      |
+| `internal/watcher/events`        | Container event watching    |
+| `pkg/gperr`                      | Error handling              |
+| `xsync/v4`                       | Concurrent maps             |
+| `golang.org/x/sync/singleflight` | Duplicate wake suppression  |
+
+## Observability
+
+### Logs
+
+- **INFO**: Wake start, container started, ready notification
+- **DEBUG**: State transitions, health check details
+- **ERROR**: Wake failures, health check errors
+
+Log context includes: `alias`, `key`, `provider`, `method`
+
+### Metrics
+
+No metrics exposed directly; health check metrics available via `internal/health/monitor`.
+
+## Security Considerations
+
+- Loading page and SSE endpoints are mounted under `/$godoxy/` path
+- No authentication on loading page; assumes internal network trust
+- SSE event history may contain container names (visible to connected clients)
+
+## Failure Modes and Recovery
+
+| Failure                       | Behavior                                           | Recovery                       |
+| ----------------------------- | -------------------------------------------------- | ------------------------------ |
+| Wake timeout                  | Returns error, container remains in current state  | Retry wake with longer timeout |
+| Health check fails repeatedly | Container marked as error, retries on next request | External fix required          |
+| Provider connection lost      | SSE disconnects, next request retries wake         | Reconnect on next request      |
+| Dependencies fail to start    | Wake fails with dependency error                   | Fix dependency container       |
+
+## Usage Examples
+
+### Basic HTTP Route with Idlewatcher
+
+```go
+route := &route.Route{
+    Alias: "myapp",
+    Idlewatcher: &types.IdlewatcherConfig{
+        IdlewatcherConfigBase: types.IdlewatcherConfigBase{
+            IdleTimeout: 5 * time.Minute,
+            StopMethod:  types.ContainerMethodStop,
+            StopTimeout: 30,
+        },
+        Docker: &types.DockerProviderConfig{
+            ContainerID: "abc123",
+        },
+    },
+}
+
+w, err := idlewatcher.NewWatcher(parent, route, route.Idlewatcher)
+if err != nil {
+    return err
+}
+return w.Start(parent)
+```
+
+### Watching Wake Events
+
+```go
+// Events are automatically served at /$godoxy/wake-events
+// Client connects via EventSource:
+
+const eventSource = new EventSource("/$godoxy/wake-events");
+eventSource.onmessage = (e) => {
+    const event = JSON.parse(e.data);
+    console.log(`Wake event: ${event.type}`, event.message);
+};
+```
+
+## Testing Notes
+
+- Unit tests cover state machine transitions
+- Integration tests with Docker daemon for provider operations
+- Mock provider for testing wake flow without real containers

@@ -1,62 +1,42 @@
 # Serialization Package
 
-A Go package for flexible, type-safe serialization/deserialization with validation support. It provides robust handling of YAML/JSON input, environment variable substitution, and field-level validation with case-insensitive matching.
+Flexible, type-safe serialization/deserialization with validation support for GoDoxy configuration.
 
-## Architecture Overview
+## Overview
 
-```mermaid
----
-config:
-    theme: redux-dark-color
----
-flowchart TB
-    subgraph Input Processing
-        YAML[YAML Bytes] --> EnvSub[Env Substitution]
-        EnvSub --> YAMLParse[YAML Parse]
-        YAMLParse --> Map[map<string,any>]
-    end
+### Purpose
 
-    subgraph Type Inspection
-        Map --> TypeInfo[Type Info Cache]
-        TypeInfo -.-> FieldLookup[Field Lookup]
-    end
+This package provides robust YAML/JSON serialization with:
 
-    subgraph Conversion
-        FieldLookup --> Convert[Convert Function]
-        Convert --> StringConvert[String Conversion]
-        Convert --> NumericConvert[Numeric Conversion]
-        Convert --> MapConvert[Map/Struct Conversion]
-        Convert --> SliceConvert[Slice Conversion]
-    end
+- Case-insensitive field matching using FNV-1a hashing
+- Environment variable substitution (`${VAR}` syntax)
+- Field-level validation with go-playground/validator tags
+- Custom type conversion with alias support
 
-    subgraph Validation
-        Convert --> Validate[ValidateWithFieldTags]
-        Convert --> CustomValidate[Custom Validator]
-        CustomValidate --> CustomValidator[CustomValidator Interface]
-    end
+### Primary Consumers
 
-    subgraph Output
-        Validate --> Result[Typed Struct/Map]
-    end
-```
+- `internal/config/` - Configuration file loading
+- `internal/autocert/` - ACME provider configuration
+- `internal/route/` - Route configuration
 
-## File Structure
+### Non-goals
 
-| File                    | Purpose                                           |
-| ----------------------- | ------------------------------------------------- |
-| `serialization.go`      | Core serialization/deserialization logic          |
-| `validation.go`         | Field tag validation and custom validator support |
-| `time.go`               | Duration unit extensions (d, w, M)                |
-| `serialization_test.go` | Core functionality tests                          |
-| `validation_*_test.go`  | Validation-specific tests                         |
+- Binary serialization (MsgPack, etc.)
+- Schema evolution/migration
+- Partial deserialization (unknown fields error)
 
-## Core Types
+### Stability
+
+Internal package with stable public APIs. Exported functions are production-ready.
+
+## Public API
+
+### Core Types
 
 ```go
+// Intermediate representation during deserialization
 type SerializedObject = map[string]any
 ```
-
-The `SerializedObject` is the intermediate representation used throughout deserialization.
 
 ### Interfaces
 
@@ -72,91 +52,13 @@ type CustomValidator interface {
 }
 ```
 
-## Key Features
-
-### 1. Case-Insensitive Field Matching
-
-Fields are matched using FNV-1a hash with case-insensitive comparison:
+### Deserialization Functions
 
 ```go
-type Config struct {
-    AuthToken string `json:"auth_token"`
-}
-
-// Matches: "auth_token", "AUTH_TOKEN", "AuthToken", "Auth_Token"
-```
-
-### 2. Field Tags
-
-```go
-type Config struct {
-    Name    string `json:"name"`           // JSON/deserialize field name
-    Port    int    `validate:"required"`   // Validation tag
-    Secret  string `json:"-"`              // Exclude from deserialization
-    Token   string `aliases:"key,api_key"` // Aliases for matching
-}
-```
-
-| Tag           | Purpose                                      |
-| ------------- | -------------------------------------------- |
-| `json`        | Field name for serialization; `-` to exclude |
-| `deserialize` | Explicit deserialize name; `-` to exclude    |
-| `validate`    | go-playground/validator tags                 |
-| `aliases`     | Comma-separated alternative field names      |
-
-### 3. Environment Variable Substitution
-
-Supports `${VAR}` syntax with prefix-aware lookup:
-
-```yaml
-autocert:
-  auth_token: ${CLOUDFLARE_AUTH_TOKEN}
-```
-
-Prefix resolution order: `GODOXY_VAR`, `GOPROXY_VAR`, `VAR`
-
-### 4. String Conversions
-
-Converts strings to various types:
-
-```go
-// Duration: "1h30m", "2d" (d=day, w=week, M=month)
-ConvertString("2d", reflect.ValueOf(&duration))
-
-// Numeric: "123", "0xFF"
-ConvertString("123", reflect.ValueOf(&intVal))
-
-// Slice: "a,b,c" or YAML list format
-ConvertString("a,b,c", reflect.ValueOf(&slice))
-
-// Map/Struct: YAML format
-ConvertString("key: value", reflect.ValueOf(&mapVal))
-```
-
-### 5. Custom Convertor Pattern
-
-Types can implement a `Parse` method for custom string conversion:
-
-```go
-type Duration struct {
-    Value int
-    Unit  string
-}
-
-func (d *Duration) Parse(v string) error {
-    // custom parsing logic
-}
-```
-
-## Main Functions
-
-### Deserialization
-
-```go
-// YAML with validation
+// YAML with full validation
 func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error
 
-// YAML with interceptor
+// YAML with interceptor for preprocessing
 func UnmarshalValidateYAMLIntercept[T any](
     data []byte,
     target *T,
@@ -170,17 +72,17 @@ func MapUnmarshalValidate(src SerializedObject, dst any) gperr.Error
 func UnmarshalValidateYAMLXSync[V any](data []byte) (*xsync.Map[string, V], gperr.Error)
 ```
 
-### Conversion
+### Conversion Functions
 
 ```go
 // Convert any value to target reflect.Value
 func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error
 
-// String to target type
+// String to target type conversion
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error)
 ```
 
-### Validation
+### Validation Functions
 
 ```go
 // Validate using struct tags
@@ -191,49 +93,24 @@ func MustRegisterValidation(tag string, fn validator.Func)
 
 // Validate using CustomValidator interface
 func ValidateWithCustomValidator(v reflect.Value) gperr.Error
+
+// Get underlying validator
+func Validator() *validator.Validate
 ```
 
-### Default Values
+### Utility Functions
 
 ```go
-// Register factory for default values
+// Register default value factory
 func RegisterDefaultValueFactory[T any](factory func() *T)
+
+// Convert map to SerializedObject
+func ToSerializedObject[VT any](m map[string]VT) SerializedObject
 ```
 
-## Usage Example
+## Architecture
 
-```go
-package main
-
-import (
-    "os"
-    "github.com/yusing/godoxy/internal/serialization"
-)
-
-type ServerConfig struct {
-    Host        string `json:"host" validate:"required,hostname_port"`
-    Port        int    `json:"port" validate:"required,min=1,max=65535"`
-    MaxConns    int    `json:"max_conns"`
-    TLSEnabled  bool   `json:"tls_enabled"`
-}
-
-func main() {
-    yamlData := []byte(`
-host: localhost
-port: 8080
-max_conns: 100
-tls_enabled: true
-`)
-
-    var config ServerConfig
-    if err := serialization.UnmarshalValidateYAML(yamlData, &config); err != nil {
-        panic(err)
-    }
-    // config is now populated and validated
-}
-```
-
-## Deserialization Flow
+### Data Flow
 
 ```mermaid
 sequenceDiagram
@@ -265,39 +142,180 @@ sequenceDiagram
     U-->>C: Result
 ```
 
-## Error Handling
+### Component Interactions
 
-Errors use `gperr` (goutils error package) with structured error subjects:
+```mermaid
+flowchart TB
+    subgraph Input Processing
+        YAML[YAML Bytes] --> EnvSub[Env Substitution]
+        EnvSub --> YAMLParse[YAML Parse]
+        YAMLParse --> Map[map<string,any>]
+    end
+
+    subgraph Type Inspection
+        Map --> TypeInfo[Type Info Cache]
+        TypeInfo -.-> FieldLookup[Field Lookup]
+    end
+
+    subgraph Conversion
+        FieldLookup --> Convert[Convert Function]
+        Convert --> StringConvert[String Conversion]
+        Convert --> NumericConvert[Numeric Conversion]
+        Convert --> MapConvert[Map/Struct Conversion]
+        Convert --> SliceConvert[Slice Conversion]
+    end
+
+    subgraph Validation
+        Convert --> Validate[ValidateWithFieldTags]
+        Convert --> CustomValidate[Custom Validator]
+        CustomValidate --> CustomValidator[CustomValidator Interface]
+    end
+```
+
+### Field Tag Reference
+
+| Tag           | Purpose                            | Example                     |
+| ------------- | ---------------------------------- | --------------------------- |
+| `json`        | Field name for serialization       | `json:"auth_token"`         |
+| `deserialize` | Exclude field from deserialization | `deserialize:"-"`           |
+| `validate`    | go-playground/validator tags       | `validate:"required,email"` |
+| `aliases`     | Alternative field names            | `aliases:"key,api_key"`     |
+
+## Configuration Surface
+
+### Supported Field Types
+
+- Primitives (string, int, bool, float)
+- Pointers to primitives
+- Slices of primitives
+- Maps with string keys
+- Nested structs
+- Time.Duration (with extended units: `d`, `w`, `M`)
+
+### Environment Variable Substitution
+
+```yaml
+autocert:
+  auth_token: ${CLOUDFLARE_AUTH_TOKEN}
+  # Lookup order: GODOXY_VAR, GOPROXY_VAR, VAR
+```
+
+### String Conversion Formats
+
+| Type       | Format Examples             |
+| ---------- | --------------------------- |
+| Duration   | `1h30m`, `2d`, `1w`, `3M`   |
+| Numeric    | `123`, `0xFF`, `-42`        |
+| Slice      | `a,b,c` or YAML list format |
+| Map/Struct | YAML key: value format      |
+
+## Dependency and Integration Map
+
+### External Dependencies
+
+- `github.com/goccy/go-yaml` - YAML parsing
+- `github.com/go-playground/validator/v10` - Validation
+- `github.com/puzpuzpuz/xsync/v4` - Type cache
+- `github.com/bytedance/sonic` - JSON operations
+
+### Internal Dependencies
+
+- `github.com/yusing/goutils/errs` - Error handling
+
+## Observability
+
+### Errors
+
+All errors use `gperr` with structured subjects:
 
 ```go
-// Unknown field
 ErrUnknownField.Subject("field_name").With(gperr.DoYouMeanField("field_name", ["fieldName"]))
-
-// Validation error
 ErrValidationError.Subject("Namespace").Withf("required")
-
-// Unsupported conversion
 ErrUnsupportedConversion.Subjectf("string to int")
 ```
 
-## Performance Optimizations
+## Performance Characteristics
 
-1. **Type Info Caching**: Uses `xsync.Map` to cache field metadata per type
-2. **Hash-based Lookup**: FNV-1a hash for O(1) field matching
-3. **Lazy Pointer Init**: Pointers initialized only when first set
-4. **Presized Collections**: Initial capacity hints for maps/slices
+| Operation        | Complexity | Notes                            |
+| ---------------- | ---------- | -------------------------------- |
+| Type info lookup | O(1)       | Cached in xsync.Map              |
+| Field matching   | O(1)       | FNV-1a hash lookup               |
+| Conversion       | O(n)       | n = number of fields             |
+| Validation       | O(n)       | n = number of validatable fields |
 
-## Testing
+## Failure Modes and Recovery
 
-```bash
-go test ./internal/serialization/... -v
+| Failure Mode       | Result                 | Recovery                 |
+| ------------------ | ---------------------- | ------------------------ |
+| Unknown field      | Error with suggestions | Fix config field name    |
+| Validation failure | Structured error       | Fix field value          |
+| Type mismatch      | Error                  | Check field type         |
+| Missing env var    | Error                  | Set environment variable |
+| Invalid YAML       | Error                  | Fix YAML syntax          |
+
+## Usage Examples
+
+### Basic Struct Deserialization
+
+```go
+type ServerConfig struct {
+    Host        string `json:"host" validate:"required,hostname_port"`
+    Port        int    `json:"port" validate:"required,min=1,max=65535"`
+    MaxConns    int    `json:"max_conns"`
+    TLSEnabled  bool   `json:"tls_enabled"`
+}
+
+yamlData := []byte(`
+host: localhost
+port: 8080
+max_conns: 100
+tls_enabled: true
+`)
+
+var config ServerConfig
+if err := serialization.UnmarshalValidateYAML(yamlData, &config); err != nil {
+    panic(err)
+}
 ```
 
-Test categories:
+### Custom Validator
 
-- Basic deserialization
-- Anonymous struct handling
-- Pointer primitives
-- String conversions
-- Environment substitution
-- Custom validators
+```go
+type Config struct {
+    URL string `json:"url" validate:"required"`
+}
+
+func (c *Config) Validate() gperr.Error {
+    if !strings.HasPrefix(c.URL, "https://") {
+        return gperr.New("url must use https").Subject("url")
+    }
+    return nil
+}
+```
+
+### Custom Type with Parse Method
+
+```go
+type Duration struct {
+    Value int
+    Unit  string
+}
+
+func (d *Duration) Parse(v string) error {
+    // custom parsing logic
+    return nil
+}
+```
+
+## Testing Notes
+
+- `serialization_test.go` - Core functionality tests
+- `validation_*_test.go` - Tag validation tests
+- Golden files for complex configurations
+- Tests cover:
+  - Case-insensitive field matching
+  - Anonymous struct handling
+  - Pointer primitives
+  - String conversions
+  - Environment substitution
+  - Custom validators
