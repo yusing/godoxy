@@ -51,16 +51,11 @@ func (s *UDPServer) Start() error {
 	s.listener = listener
 
 	for {
-		select {
-		case <-s.ctx.Done():
-			return s.ctx.Err()
-		default:
-			conn, err := s.listener.Accept()
-			if err != nil {
-				return err
-			}
-			go s.handleDTLSConnection(conn)
+		conn, err := s.listener.Accept()
+		if err != nil {
+			return err
 		}
+		go s.handleDTLSConnection(conn)
 	}
 }
 
