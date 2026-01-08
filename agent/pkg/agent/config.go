@@ -133,6 +133,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 		Certificates: []tls.Certificate{clientCert},
 		RootCAs:      caCertPool,
 		ServerName:   common.CertsDNSName,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
