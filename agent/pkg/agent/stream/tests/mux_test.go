@@ -12,21 +12,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
 	"github.com/yusing/godoxy/agent/pkg/agent/stream"
 )
 
 func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
-	caPEM, srvPEM, clientPEM, err := agent.NewAgent()
-	require.NoError(t, err, "generate agent certs")
-
-	caCert, err := caPEM.ToTLSCert()
-	require.NoError(t, err, "parse CA cert")
-	srvCert, err := srvPEM.ToTLSCert()
-	require.NoError(t, err, "parse server cert")
-	clientCert, err := clientPEM.ToTLSCert()
-	require.NoError(t, err, "parse client cert")
+	certs := genTestCerts(t)
 
 	baseLn, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 	require.NoError(t, err, "listen tcp")
@@ -34,10 +25,10 @@ func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
 	baseAddr := baseLn.Addr().String()
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(caCert.Leaf)
+	caCertPool.AddCert(certs.CaCert)
 
 	serverTLS := &tls.Config{
-		Certificates: []tls.Certificate{*srvCert},
+		Certificates: []tls.Certificate{*certs.SrvCert},
 		ClientCAs:    caCertPool,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		MinVersion:   tls.VersionTLS12,
@@ -72,7 +63,7 @@ func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
 
 	// HTTP client over the same port
 	clientTLS := &tls.Config{
-		Certificates: []tls.Certificate{*clientCert},
+		Certificates: []tls.Certificate{*certs.ClientCert},
 		RootCAs:      caCertPool,
 		MinVersion:   tls.VersionTLS12,
 		NextProtos:   []string{"http/1.1"},
@@ -90,8 +81,7 @@ func TestTLSALPNMux_HTTPAndStreamShareOnePort(t *testing.T) {
 	require.Contains(t, statusLine, "200", "expected 200")
 
 	// Stream client over the same port
-	client, err := stream.NewTCPClient(baseAddr, dstAddr, caCert.Leaf, clientCert)
-	require.NoError(t, err, "create stream tcp client")
+	client := NewTCPClient(t, baseAddr, dstAddr, certs)
 	defer client.Close()
 	_ = client.SetDeadline(time.Now().Add(2 * time.Second))
 	msg := []byte("ping over mux")
