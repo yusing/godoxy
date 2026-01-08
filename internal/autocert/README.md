@@ -71,10 +71,10 @@ flowchart TD
     T --> V[Update SNI Matcher]
     V --> G
 
-    style E fill:#90EE90
-    style I fill:#FFD700
-    style N fill:#90EE90
-    style U fill:#FFA07A
+    style E fill:#22553F,color:#fff
+    style I fill:#8B8000,color:#fff
+    style N fill:#22553F,color:#fff
+    style U fill:#84261A,color:#fff
 ```
 
 ## SNI Matching Flow
@@ -97,9 +97,9 @@ flowchart LR
         F -->|No| G[Return default cert]
     end
 
-    style C fill:#90EE90
-    style E fill:#87CEEB
-    style F fill:#FFD700
+    style C fill:#27632A,color:#fff
+    style E fill:#18597A,color:#fff
+    style F fill:#836C03,color:#fff
 ```
 
 ### Suffix Tree Structure
@@ -280,7 +280,7 @@ autocert:
   email: admin@example.com
   domains:
     - example.com
-    - "*.example.com"
+    - '*.example.com'
   options:
     CF_API_TOKEN: your-api-token
     CF_ZONE_API_TOKEN: your-zone-token
@@ -334,13 +334,13 @@ autocert:
   email: admin@example.com
   domains:
     - example.com
-    - "*.example.com"
+    - '*.example.com'
   cert_path: certs/example.com.crt
   key_path: certs/example.com.key
   extra:
     - domains:
         - api.example.com
-        - "*.api.example.com"
+        - '*.api.example.com'
       cert_path: certs/api.example.com.crt
       key_path: certs/api.example.com.key
       provider: cloudflare
@@ -358,8 +358,8 @@ flowchart TD
     C --> D[Build SNI Matcher]
     D --> E[Register in SNI Tree]
 
-    style B fill:#87CEEB
-    style C fill:#FFD700
+    style B fill:#1a2639,color:#fff
+    style C fill:#423300,color:#fff
 ```
 
 ## Renewal Scheduling
@@ -406,10 +406,10 @@ flowchart TD
 
     N --> D
 
-    style F fill:#FFD700
-    style J fill:#FFD700
-    style K fill:#90EE90
-    style M fill:#FFA07A
+    style F fill:#423300,color:#fff
+    style J fill:#423300,color:#fff
+    style K fill:#174014,color:#fff
+    style M fill:#432829,color:#fff
 ```
 
 **Notifications:** Renewal success/failure triggers system notifications with provider name.
@@ -530,7 +530,7 @@ autocert:
   email: admin@example.com
   domains:
     - example.com
-    - "*.example.com"
+    - '*.example.com'
   options:
     CF_API_TOKEN: ${CF_API_TOKEN}
   resolvers:
