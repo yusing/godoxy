@@ -17,13 +17,6 @@ graph TD
 
     TSS -->|Redirect| DST1[Destination TCP]
     USS -->|Forward UDP| DST2[Destination UDP]
-
-    subgraph Connection Management
-        CM[ConnectionManager]
-    end
-
-    TSS -.-> CM
-    USS -.-> CM
 ```
 
 ## Header
@@ -75,7 +68,7 @@ Represents the on-wire protocol header used to negotiate a stream tunnel.
 
 ```go
 type StreamRequestHeader struct {
-    Version     [8]byte  // Fixed to "0.1.0.0"
+    Version     [8]byte  // Fixed to "0.1.0" with NUL padding
     HostLength  byte     // Actual host name length (0-255)
     Host        [255]byte // NUL-padded host name
     PortLength  byte     // Actual port string length (0-5)
@@ -89,24 +82,6 @@ type StreamRequestHeader struct {
 - `NewStreamRequestHeader(host, port string) (*StreamRequestHeader, error)` - Creates a header for the given host and port. Returns error if host exceeds 255 bytes or port exceeds 5 bytes.
 - `Validate() bool` - Validates the version and checksum.
 - `GetHostPort() (string, string)` - Extracts the host and port from the header.
-
-#### `ConnectionManager[Conn net.Conn]`
-
-Manages destination connections for stream tunnels. Each client connection gets a unique destination connection cached by client remote address.
-
-```go
-type ConnectionManager[Conn net.Conn] struct {
-    m                *xsync.Map[string, Conn]
-    createConnection CreateConnFunc[Conn]
-}
-```
-
-**Methods:**
-
-- `NewConnectionManager[Conn net.Conn](createConnection CreateConnFunc[Conn]) *ConnectionManager[Conn]` - Creates a new manager with the given connection factory.
-- `GetOrCreateDestConnection(clientConn net.Conn, host, port string) (Conn, error)` - Gets or creates a destination connection. The key is `clientConn.RemoteAddr().String()`.
-- `DeleteDestConnection(clientConn net.Conn)` - Closes and removes the destination connection for the client.
-- `CloseAllConnections()` - Closes all cached connections and clears the cache.
 
 ### TCP Functions
 
@@ -141,26 +116,17 @@ See [`NewTCPClient()`](tcp_client.go:26) and [`(*TCPServer).redirect()`](tcp_ser
 Responses do **not** include a header.
 
 The UDP server uses a bidirectional forwarding model:
+
 - One goroutine forwards from client to destination
 - Another goroutine forwards from destination to client
+
+The destination reader uses `readDeadline` to periodically wake up and check for context cancellation. Timeouts do not terminate the session.
 
 See [`NewUDPClient()`](udp_client.go:27) and [`(*UDPServer).handleDTLSConnection()`](udp_server.go:89).
 
 ## Connection Management
 
-The [`ConnectionManager`](common.go:26) handles destination connection pooling:
-
-- Each client connection gets a unique destination connection.
-- Connections are created on-demand and cached by client remote address.
-- Connections are closed when the client disconnects.
-
-```go
-// Get or create a destination connection for the given host:port
-conn, err := connMgr.GetOrCreateDestConnection(clientConn, host, port)
-
-// Clean up when client disconnects
-connMgr.DeleteDestConnection(clientConn)
-```
+Both `TCPServer` and `UDPServer` create a dedicated destination connection per incoming stream session and close it when the session ends (no destination connection reuse).
 
 ## Error Handling
 
