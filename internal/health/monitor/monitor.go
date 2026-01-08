@@ -42,7 +42,7 @@ type (
 
 var ErrNegativeInterval = gperr.New("negative interval")
 
-func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
+func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
 	if state := config.WorkingState.Load(); state != nil {
 		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
 	} else {
@@ -60,7 +60,6 @@ func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFun
 	} else {
 		mon.url.Store(u)
 	}
-	return nil
 }
 
 func (mon *monitor) Context() context.Context {
