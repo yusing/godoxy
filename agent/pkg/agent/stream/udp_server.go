@@ -32,6 +32,7 @@ func NewUDPServer(ctx context.Context, laddr *net.UDPAddr, caCert *x509.Certific
 		ClientCAs:            caCertPool,
 		ClientAuth:           dtls.RequireAndVerifyClientCert,
 		ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
+		CipherSuites:         dTLSCipherSuites,
 	}
 
 	s := &UDPServer{

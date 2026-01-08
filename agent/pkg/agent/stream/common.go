@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/pion/dtls/v3"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/goutils/synk"
 )
@@ -19,6 +20,8 @@ const (
 // When a client negotiates this ALPN, the agent will route the connection to the
 // stream tunnel handler instead of the HTTP handler.
 const StreamALPN = "godoxy-agent-stream/1"
+
+var dTLSCipherSuites = []dtls.CipherSuiteID{dtls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
 
 var sizedPool = synk.GetSizedBytesPool()
 

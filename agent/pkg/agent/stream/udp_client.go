@@ -45,6 +45,7 @@ func NewUDPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		InsecureSkipVerify:   false,
 		ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
 		ServerName:           common.CertsDNSName,
+		CipherSuites:         dTLSCipherSuites,
 	}
 
 	raddr, err := net.ResolveUDPAddr("udp", serverAddr)
