@@ -16,6 +16,7 @@ import (
 
 type UDPServer struct {
 	ctx      context.Context
+	network  string
 	laddr    *net.UDPAddr
 	listener net.Listener
 
@@ -23,7 +24,7 @@ type UDPServer struct {
 	connMgr    *ConnectionManager[*net.UDPConn]
 }
 
-func NewUDPServer(ctx context.Context, laddr *net.UDPAddr, caCert *x509.Certificate, serverCert *tls.Certificate) *UDPServer {
+func NewUDPServer(ctx context.Context, network string, laddr *net.UDPAddr, caCert *x509.Certificate, serverCert *tls.Certificate) *UDPServer {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
 
@@ -37,6 +38,7 @@ func NewUDPServer(ctx context.Context, laddr *net.UDPAddr, caCert *x509.Certific
 
 	s := &UDPServer{
 		ctx:        ctx,
+		network:    network,
 		laddr:      laddr,
 		dtlsConfig: dtlsConfig,
 	}
@@ -45,7 +47,7 @@ func NewUDPServer(ctx context.Context, laddr *net.UDPAddr, caCert *x509.Certific
 }
 
 func (s *UDPServer) Start() error {
-	listener, err := dtls.Listen("udp", s.laddr, s.dtlsConfig)
+	listener, err := dtls.Listen(s.network, s.laddr, s.dtlsConfig)
 	if err != nil {
 		return err
 	}

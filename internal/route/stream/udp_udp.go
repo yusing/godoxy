@@ -18,8 +18,10 @@ import (
 )
 
 type UDPUDPStream struct {
-	network  string
 	listener net.PacketConn
+
+	network    string
+	dstNetwork string
 
 	laddr *net.UDPAddr
 	dst   *net.UDPAddr
@@ -53,8 +55,8 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(network, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
-	dst, err := net.ResolveUDPAddr(network, dstAddr)
+func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
+	dst, err := net.ResolveUDPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +65,12 @@ func NewUDPUDPStream(network, listenAddr, dstAddr string, agent *agentpool.Agent
 		return nil, err
 	}
 	return &UDPUDPStream{
-		network: network,
-		laddr:   laddr,
-		dst:     dst,
-		agent:   agent,
-		conns:   make(map[string]*udpUDPConn),
+		network:    network,
+		dstNetwork: dstNetwork,
+		laddr:      laddr,
+		dst:        dst,
+		agent:      agent,
+		conns:      make(map[string]*udpUDPConn),
 	}, nil
 }
 
@@ -117,7 +120,7 @@ func (s *UDPUDPStream) LocalAddr() net.Addr {
 }
 
 func (s *UDPUDPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "udp-udp")
+	e.Str("protocol", s.network+"->"+s.dstNetwork)
 	if s.dst != nil {
 		e.Str("dst", s.dst.String())
 	}

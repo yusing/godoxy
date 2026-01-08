@@ -24,6 +24,8 @@ import (
 	"github.com/yusing/goutils/version"
 )
 
+// TODO: support IPv6
+
 func main() {
 	writer := zerolog.ConsoleWriter{
 		Out:        os.Stderr,
@@ -127,7 +129,7 @@ Tips:
 	log.Info().Int("port", env.AgentPort).Msg("TCP stream handler started (via TLSNextProto)")
 
 	{
-		udpServer := stream.NewUDPServer(t.Context(), &net.UDPAddr{Port: env.AgentPort}, caCert.Leaf, srvCert)
+		udpServer := stream.NewUDPServer(t.Context(), "udp", &net.UDPAddr{Port: env.AgentPort}, caCert.Leaf, srvCert)
 		subtask := t.Subtask("agent-stream-udp", true)
 		t.OnCancel("stop_stream_udp", func() {
 			_ = udpServer.Close()

@@ -103,7 +103,9 @@ func (r *StreamRoute) LocalAddr() net.Addr {
 func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 	lurl, rurl := r.LisURL, r.ProxyURL
 	// tcp4/tcp6 -> tcp, udp4/udp6 -> udp
-	if strings.TrimRight(lurl.Scheme, "46") != strings.TrimRight(rurl.Scheme, "46") {
+	lScheme := strings.TrimRight(lurl.Scheme, "46")
+	rScheme := strings.TrimRight(rurl.Scheme, "46")
+	if lScheme != rScheme {
 		return nil, fmt.Errorf("incoherent scheme is not yet supported: %s != %s", lurl.Scheme, rurl.Scheme)
 	}
 
@@ -112,11 +114,11 @@ func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 		laddr = lurl.Host
 	}
 
-	switch rurl.Scheme {
+	switch rScheme {
 	case "tcp":
-		return stream.NewTCPTCPStream(r.LisURL.Scheme, laddr, rurl.Host, r.GetAgent())
+		return stream.NewTCPTCPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
 	case "udp":
-		return stream.NewUDPUDPStream(r.LisURL.Scheme, laddr, rurl.Host, r.GetAgent())
+		return stream.NewUDPUDPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
 	}
 	return nil, fmt.Errorf("unknown scheme: %s", rurl.Scheme)
 }
