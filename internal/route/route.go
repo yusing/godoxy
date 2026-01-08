@@ -278,7 +278,10 @@ func (r *Route) validate() gperr.Error {
 		}
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
-		if !r.ShouldExclude() {
+		if r.ShouldExclude() {
+			// should exclude, we don't care the scheme here.
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		} else {
 			if r.Bind == "" {
 				r.Bind = "0.0.0.0"
 			}
@@ -308,9 +311,6 @@ func (r *Route) validate() gperr.Error {
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", lScheme, r.Bind, r.Port.Listening))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", rScheme, r.Host, r.Port.Proxy))
 		}
-
-		// should exclude, we don't care the scheme here.
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
