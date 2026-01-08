@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -70,7 +71,7 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 
 	if agent.IsDockerHostAgent(dockerCfg.URL) {
 		var ok bool
-		res.Agent, ok = agent.GetAgent(dockerCfg.URL)
+		res.Agent, ok = agentpool.Get(dockerCfg.URL)
 		if !ok {
 			addError(res, fmt.Errorf("agent %q not found", dockerCfg.URL))
 		}

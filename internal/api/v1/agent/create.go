@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
@@ -50,7 +51,7 @@ func Create(c *gin.Context) {
 	}
 
 	hostport := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
-	if _, ok := agent.GetAgent(hostport); ok {
+	if _, ok := agentpool.Get(hostport); ok {
 		c.JSON(http.StatusConflict, apitypes.Error("agent already exists"))
 		return
 	}

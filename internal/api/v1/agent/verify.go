@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/certs"
+	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/route/provider"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -79,21 +80,28 @@ func Verify(c *gin.Context) {
 	c.JSON(http.StatusOK, apitypes.Success(fmt.Sprintf("Added %d routes", nRoutesAdded)))
 }
 
-func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
-	cfgState := config.ActiveState.Load()
-	for _, a := range cfgState.Value().Providers.Agents {
-		if a.Addr == host {
-			return 0, gperr.New("agent already exists")
-		}
-	}
+var errAgentAlreadyExists = gperr.New("agent already exists")
 
+func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
 
-	err := agentCfg.StartWithCerts(cfgState.Context(), ca.Cert, client.Cert, client.Key)
+	// check if agent host exists in the config
+	cfgState := config.ActiveState.Load()
+	for _, a := range cfgState.Value().Providers.Agents {
+		if a.Addr == host {
+			return 0, errAgentAlreadyExists
+		}
+	}
+	// check if agent host exists in the agent pool
+	if agentpool.Has(&agentCfg) {
+		return 0, errAgentAlreadyExists
+	}
+
+	err := agentCfg.InitWithCerts(cfgState.Context(), ca.Cert, client.Cert, client.Key)
 	if err != nil {
-		return 0, gperr.Wrap(err, "failed to start agent")
+		return 0, gperr.Wrap(err, "failed to initialize agent config")
 	}
 
 	provider := provider.NewAgentProvider(&agentCfg)
@@ -102,11 +110,14 @@ func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, contain
 	}
 
 	// agent must be added before loading routes
-	agent.AddAgent(&agentCfg)
+	added := agentpool.Add(&agentCfg)
+	if !added {
+		return 0, errAgentAlreadyExists
+	}
 	err = provider.LoadRoutes()
 	if err != nil {
 		cfgState.DeleteProvider(provider.String())
-		agent.RemoveAgent(&agentCfg)
+		agentpool.Remove(&agentCfg)
 		return 0, gperr.Wrap(err, "failed to load routes")
 	}
 
