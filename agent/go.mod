@@ -20,7 +20,6 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/dtls/v3 v3.0.9
 	github.com/pion/transport/v3 v3.1.1
-	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/godoxy v0.0.0-00010101000000-000000000000
@@ -79,6 +78,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.58.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
