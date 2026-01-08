@@ -1,14 +1,128 @@
-# Health Check
+# Health Check Package
 
-This package provides low-level health check implementations for different protocols and services in GoDoxy.
+Low-level health check implementations for different protocols and services in GoDoxy.
 
-## Health Check Types
+## Overview
 
-### Docker Health Check
+### Purpose
 
-Checks the health status of Docker containers using the Docker API.
+This package provides health check implementations for various protocols:
 
-**Flow:**
+- **HTTP/HTTPS** - Standard HTTP health checks with fasthttp
+- **H2C** - HTTP/2 cleartext health checks
+- **Docker** - Container health status via Docker API
+- **FileServer** - Directory accessibility checks
+- **Stream** - Generic network connection checks
+
+### Primary Consumers
+
+- `internal/health/monitor/` - Route health monitoring
+- `internal/metrics/uptime/` - Uptime poller integration
+
+### Non-goals
+
+- Complex health check logic (response body validation, etc.)
+- Authentication/authorization in health checks
+- Multi-step health checks (login then check)
+
+### Stability
+
+Internal package. Public functions are stable but may be extended with new parameters.
+
+## Public API
+
+### HTTP Health Check (`http.go`)
+
+```go
+func HTTP(
+    url *url.URL,
+    method string,
+    path string,
+    timeout time.Duration,
+) (types.HealthCheckResult, error)
+```
+
+### H2C Health Check (`http.go`)
+
+```go
+func H2C(
+    ctx context.Context,
+    url *url.URL,
+    method string,
+    path string,
+    timeout time.Duration,
+) (types.HealthCheckResult, error)
+```
+
+### Docker Health Check (`docker.go`)
+
+```go
+func Docker(
+    ctx context.Context,
+    containerID string,
+) (types.HealthCheckResult, error)
+```
+
+### FileServer Health Check (`fileserver.go`)
+
+```go
+func FileServer(
+    url *url.URL,
+) (types.HealthCheckResult, error)
+```
+
+### Stream Health Check (`stream.go`)
+
+```go
+func Stream(
+    url *url.URL,
+) (types.HealthCheckResult, error)
+```
+
+### Common Types (`internal/types/`)
+
+```go
+type HealthCheckResult struct {
+    Healthy  bool
+    Latency  time.Duration
+    Detail   string
+}
+
+type HealthStatus int
+
+const (
+    StatusHealthy   HealthStatus = 0
+    StatusUnhealthy HealthStatus = 1
+    StatusError     HealthStatus = 2
+)
+```
+
+## Architecture
+
+### HTTP Health Check Flow
+
+```mermaid
+flowchart TD
+    A[HTTP Health Check] --> B[Create FastHTTP Request]
+    B --> C[Set Headers and Method]
+    C --> D[Execute Request with Timeout]
+    D --> E{Request Successful?}
+
+    E -->|no| F{Error Type}
+    F -->|TLS Error| G[Healthy: TLS Error Ignored]
+    F -->|Other Error| H[Unhealthy: Error Details]
+
+    E -->|yes| I{Status Code}
+    I -->|5xx| J[Unhealthy: Server Error]
+    I -->|Other| K[Healthy]
+
+    G --> L[Return Result with Latency]
+    H --> L
+    J --> L
+    K --> L
+```
+
+### Docker Health Check Flow
 
 ```mermaid
 flowchart TD
@@ -36,53 +150,7 @@ flowchart TD
     P --> Q
 ```
 
-**Key Features:**
-
-- Intercepts Docker API responses to extract container state
-- Tracks failure count with configurable threshold (3 failures)
-- Supports containers with and without health check configurations
-- Returns detailed error information from Docker health check logs
-
-### HTTP Health Check
-
-Performs HTTP/HTTPS health checks using fasthttp for optimal performance.
-
-**Flow:**
-
-```mermaid
-flowchart TD
-    A[HTTP Health Check] --> B[Create FastHTTP Request]
-    B --> C[Set Headers and Method]
-    C --> D[Execute Request with Timeout]
-    D --> E{Request Successful?}
-
-    E -->|no| F{Error Type}
-    F -->|TLS Error| G[Healthy: TLS Error Ignored]
-    F -->|Other Error| H[Unhealthy: Error Details]
-
-    E -->|yes| I{Status Code}
-    I -->|5xx| J[Unhealthy: Server Error]
-    I -->|Other| K[Healthy]
-
-    G --> L[Return Result with Latency]
-    H --> L
-    J --> L
-    K --> L
-```
-
-**Key Features:**
-
-- Uses fasthttp for high-performance HTTP requests
-- Supports both GET and HEAD methods
-- Configurable timeout and path
-- Handles TLS certificate verification errors gracefully
-- Returns latency measurements
-
-### H2C Health Check
-
-Performs HTTP/2 cleartext (h2c) health checks for services that support HTTP/2 without TLS.
-
-**Flow:**
+### H2C Health Check Flow
 
 ```mermaid
 flowchart TD
@@ -104,18 +172,7 @@ flowchart TD
     L --> M
 ```
 
-**Key Features:**
-
-- Uses HTTP/2 transport with cleartext support
-- Supports both GET and HEAD methods
-- Configurable timeout and path
-- Returns latency measurements
-
-### FileServer Health Check
-
-Checks if a file server root directory exists and is accessible.
-
-**Flow:**
+### FileServer Health Check Flow
 
 ```mermaid
 flowchart TD
@@ -132,18 +189,7 @@ flowchart TD
     G --> I[Return Error]
 ```
 
-**Key Features:**
-
-- Simple directory existence check
-- Measures latency of filesystem operation
-- Distinguishes between "not found" and other errors
-- Returns detailed error information
-
-### Stream Health Check
-
-Checks stream endpoint connectivity by attempting to establish a network connection.
-
-**Flow:**
+### Stream Health Check Flow
 
 ```mermaid
 flowchart TD
@@ -164,35 +210,144 @@ flowchart TD
     K --> L
 ```
 
-**Key Features:**
+## Configuration Surface
 
-- Generic network connection check
-- Supports any stream protocol (TCP, UDP, etc.)
-- Handles common connection errors gracefully
-- Measures connection establishment latency
-- Automatically closes connections
+No explicit configuration per health check. Parameters are passed directly:
 
-## Common Features
+| Check Type | Parameters                          |
+| ---------- | ----------------------------------- |
+| HTTP       | URL, Method, Path, Timeout          |
+| H2C        | Context, URL, Method, Path, Timeout |
+| Docker     | Context, ContainerID                |
+| FileServer | URL (path component used)           |
+| Stream     | URL (scheme, host, port used)       |
 
-### Error Handling
+### HTTP Headers
 
-All health checks implement consistent error handling:
+All HTTP/H2C checks set:
 
-- **Temporary Errors**: Network timeouts, connection failures
-- **Permanent Errors**: Invalid configurations, missing resources
-- **Graceful Degradation**: Returns health status even when errors occur
+- `User-Agent: GoDoxy/<version>`
+- `Accept: text/plain,text/html,*/*;q=0.8`
+- `Accept-Encoding: identity`
+- `Cache-Control: no-cache`
+- `Pragma: no-cache`
 
-### Performance Monitoring
+## Dependency and Integration Map
 
-- **Latency Measurement**: All checks measure execution time
-- **Timeout Support**: Configurable timeouts prevent hanging
-- **Resource Cleanup**: Proper cleanup of connections and resources
+### External Dependencies
 
-### Integration
+- `github.com/valyala/fasthttp` - High-performance HTTP client
+- `golang.org/x/net/http2` - HTTP/2 transport
+- Docker socket (for Docker health check)
 
-These health checks are used by the monitor package to implement route-specific health monitoring:
+### Internal Dependencies
 
-- HTTP/HTTPS routes use HTTP health checks
-- File server routes use FileServer health checks
-- Stream routes use Stream health checks
-- Docker containers use Docker health checks with fallbacks
+- `internal/types/` - Health check result types
+- `goutils/version/` - User-Agent version
+
+## Observability
+
+### Logs
+
+No direct logging in health check implementations. Errors are returned as part of `HealthCheckResult.Detail`.
+
+### Metrics
+
+- Check latency (returned in result)
+- Success/failure rates (tracked by caller)
+
+## Security Considerations
+
+- TLS certificate verification skipped (`InsecureSkipVerify: true`)
+- Docker socket access required for Docker health check
+- No authentication in health check requests
+- User-Agent identifies GoDoxy for server-side filtering
+
+## Failure Modes and Recovery
+
+### HTTP/H2C
+
+| Failure Mode          | Result    | Notes                           |
+| --------------------- | --------- | ------------------------------- |
+| Connection timeout    | Unhealthy | Detail: timeout message         |
+| TLS certificate error | Healthy   | Handled gracefully              |
+| 5xx response          | Unhealthy | Detail: status text             |
+| 4xx response          | Healthy   | Client error considered healthy |
+
+### Docker
+
+| Failure Mode               | Result    | Notes                          |
+| -------------------------- | --------- | ------------------------------ |
+| API call failure           | Error     | Throws error to caller         |
+| Container not running      | Unhealthy | State: "Not Started"           |
+| Container dead/exited      | Unhealthy | State logged                   |
+| No health check configured | Error     | Requires health check in image |
+
+### FileServer
+
+| Failure Mode      | Result    | Notes                    |
+| ----------------- | --------- | ------------------------ |
+| Path not found    | Unhealthy | Detail: "path not found" |
+| Permission denied | Error     | Returned to caller       |
+| Other OS error    | Error     | Returned to caller       |
+
+### Stream
+
+| Failure Mode           | Result    | Notes                 |
+| ---------------------- | --------- | --------------------- |
+| Connection refused     | Unhealthy | Detail: error message |
+| Network unreachable    | Unhealthy | Detail: error message |
+| DNS resolution failure | Unhealthy | Detail: error message |
+| Context deadline       | Unhealthy | Detail: timeout       |
+
+## Usage Examples
+
+### HTTP Health Check
+
+```go
+url, _ := url.Parse("http://localhost:8080/health")
+result, err := healthcheck.HTTP(url, "GET", "/health", 10*time.Second)
+if err != nil {
+    fmt.Printf("Error: %v\n", err)
+}
+fmt.Printf("Healthy: %v, Latency: %v, Detail: %s\n",
+    result.Healthy, result.Latency, result.Detail)
+```
+
+### H2C Health Check
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+url, _ := url.Parse("h2c://localhost:8080")
+result, err := healthcheck.H2C(ctx, url, "GET", "/health", 10*time.Second)
+```
+
+### Docker Health Check
+
+```go
+ctx := context.Background()
+result, err := healthcheck.Docker(ctx, "abc123def456")
+```
+
+### FileServer Health Check
+
+```go
+url, _ := url.Parse("file:///var/www/html")
+result, err := healthcheck.FileServer(url)
+```
+
+### Stream Health Check
+
+```go
+url, _ := url.Parse("tcp://localhost:5432")
+result, err := healthcheck.Stream(url)
+```
+
+## Testing Notes
+
+- Unit tests for each health check type
+- Mock Docker server for Docker health check tests
+- Integration tests require running services
+- Timeout handling tests
