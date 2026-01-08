@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/task"
@@ -149,16 +150,16 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 	var dial func(ctx context.Context) (net.Conn, error)
 
 	if agent.IsDockerHostAgent(host) {
-		cfg, ok := agent.GetAgent(host)
+		a, ok := agentpool.Get(host)
 		if !ok {
 			panic(fmt.Errorf("agent %q not found", host))
 		}
 		opt = []client.Opt{
 			client.WithHost(agent.DockerHost),
-			client.WithHTTPClient(cfg.NewHTTPClient()),
+			client.WithHTTPClient(a.HTTPClient()),
 		}
-		addr = "tcp://" + cfg.Addr
-		dial = cfg.DialContext
+		addr = "tcp://" + a.Addr
+		dial = a.DialContext
 	} else {
 		helper, err := connhelper.GetConnectionHelper(host)
 		if err != nil {

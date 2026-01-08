@@ -6,8 +6,8 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
@@ -19,7 +19,7 @@ type TCPTCPStream struct {
 	listener net.Listener
 	laddr    *net.TCPAddr
 	dst      *net.TCPAddr
-	agent    *agent.AgentConfig
+	agent    *agentpool.Agent
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -27,7 +27,7 @@ type TCPTCPStream struct {
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
+func NewTCPTCPStream(network, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
 	dst, err := net.ResolveTCPAddr(network, dstAddr)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func NewTCPTCPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentC
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{network: network, laddr: laddr, dst: dst, agent: agentCfg}, nil
+	return &TCPTCPStream{network: network, laddr: laddr, dst: dst, agent: agent}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {

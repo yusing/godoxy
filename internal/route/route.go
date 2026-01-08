@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/homepage"
@@ -94,7 +94,7 @@ type (
 
 		provider types.RouteProvider
 
-		agent *agent.AgentConfig
+		agent *agentpool.Agent
 
 		started      chan struct{}
 		onceStart    sync.Once
@@ -153,10 +153,10 @@ func (r *Route) validate() gperr.Error {
 		}
 		var ok bool
 		// by agent address
-		r.agent, ok = agent.GetAgent(r.Agent)
+		r.agent, ok = agentpool.Get(r.Agent)
 		if !ok {
 			// fallback to get agent by name
-			r.agent, ok = agent.GetAgentByName(r.Agent)
+			r.agent, ok = agentpool.GetAgent(r.Agent)
 			if !ok {
 				return gperr.Errorf("agent %s not found", r.Agent)
 			}
@@ -510,7 +510,7 @@ func (r *Route) Type() route.RouteType {
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
 
-func (r *Route) GetAgent() *agent.AgentConfig {
+func (r *Route) GetAgent() *agentpool.Agent {
 	if r.Container != nil && r.Container.Agent != nil {
 		return r.Container.Agent
 	}

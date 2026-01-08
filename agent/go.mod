@@ -23,11 +23,9 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
-	github.com/valyala/fasthttp v1.68.0
 	github.com/yusing/godoxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64
 	github.com/yusing/goutils/server v0.0.0-20260103043911-785deb23bd64
 )
 
@@ -106,9 +104,11 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.68.0 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/yusing/ds v0.3.1 // indirect
 	github.com/yusing/gointernals v0.1.16 // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64 // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20260103043911-785deb23bd64 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

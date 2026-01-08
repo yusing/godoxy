@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,11 +18,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/valyala/fasthttp"
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
 	agentstream "github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/certs"
 	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/version"
 )
 
@@ -31,9 +33,7 @@ type AgentConfig struct {
 	IsTCPStreamSupported bool   `json:"supports_tcp_stream"`
 	IsUDPStreamSupported bool   `json:"supports_udp_stream"`
 
-	httpClient                *http.Client
-	fasthttpClientHealthCheck *fasthttp.Client
-	tlsConfig                 tls.Config
+	tlsConfig tls.Config
 
 	// for stream
 	caCert     *x509.Certificate
@@ -106,7 +106,8 @@ func (cfg *AgentConfig) Parse(addr string) error {
 
 var serverVersion = version.Get()
 
-func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte) error {
+// InitWithCerts initializes the agent config with the given CA, certificate, and key.
+func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
 		return err
@@ -133,12 +134,6 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 		RootCAs:      caCertPool,
 		ServerName:   common.CertsDNSName,
 	}
-
-	// create transport and http client
-	cfg.httpClient = cfg.NewHTTPClient()
-	applyNormalTransportConfig(cfg.httpClient)
-
-	cfg.fasthttpClientHealthCheck = cfg.NewFastHTTPHealthCheckClient()
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -233,6 +228,25 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	return nil
 }
 
+func (cfg *AgentConfig) Init(ctx context.Context) error {
+	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
+	if !ok {
+		return fmt.Errorf("invalid agent host: %s", cfg.Addr)
+	}
+
+	certData, err := os.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to read agent certs: %w", err)
+	}
+
+	ca, crt, key, err := certs.ExtractCert(certData)
+	if err != nil {
+		return fmt.Errorf("failed to extract agent certs: %w", err)
+	}
+
+	return cfg.InitWithCerts(ctx, ca, crt, key)
+}
+
 // NewTCPClient creates a new TCP client for the agent.
 //
 // It returns an error if
@@ -265,50 +279,6 @@ func (cfg *AgentConfig) NewUDPClient(targetAddress string) (net.Conn, error) {
 	return agentstream.NewUDPClient(cfg.Addr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
-func (cfg *AgentConfig) Start(ctx context.Context) error {
-	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
-	if !ok {
-		return fmt.Errorf("invalid agent host: %s", cfg.Addr)
-	}
-
-	certData, err := os.ReadFile(filepath)
-	if err != nil {
-		return fmt.Errorf("failed to read agent certs: %w", err)
-	}
-
-	ca, crt, key, err := certs.ExtractCert(certData)
-	if err != nil {
-		return fmt.Errorf("failed to extract agent certs: %w", err)
-	}
-
-	return cfg.StartWithCerts(ctx, ca, crt, key)
-}
-
-func (cfg *AgentConfig) NewHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: cfg.Transport(),
-	}
-}
-
-func (cfg *AgentConfig) NewFastHTTPHealthCheckClient() *fasthttp.Client {
-	return &fasthttp.Client{
-		Dial: func(addr string) (net.Conn, error) {
-			if addr != AgentHost+":443" {
-				return nil, &net.AddrError{Err: "invalid address", Addr: addr}
-			}
-			return net.Dial("tcp", cfg.Addr)
-		},
-		TLSConfig:                     &cfg.tlsConfig,
-		ReadTimeout:                   5 * time.Second,
-		WriteTimeout:                  3 * time.Second,
-		DisableHeaderNamesNormalizing: true,
-		DisablePathNormalizing:        true,
-		NoDefaultUserAgentHeader:      true,
-		ReadBufferSize:                1024,
-		WriteBufferSize:               1024,
-	}
-}
-
 func (cfg *AgentConfig) Transport() *http.Transport {
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -324,6 +294,10 @@ func (cfg *AgentConfig) Transport() *http.Transport {
 	}
 }
 
+func (cfg *AgentConfig) TLSConfig() *tls.Config {
+	return &cfg.tlsConfig
+}
+
 var dialer = &net.Dialer{Timeout: 5 * time.Second}
 
 func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
@@ -334,10 +308,57 @@ func (cfg *AgentConfig) String() string {
 	return cfg.Name + "@" + cfg.Addr
 }
 
-func applyNormalTransportConfig(client *http.Client) {
-	transport := client.Transport.(*http.Transport)
-	transport.MaxIdleConns = 100
-	transport.MaxIdleConnsPerHost = 100
-	transport.ReadBufferSize = 16384
-	transport.WriteBufferSize = 16384
+func (cfg *AgentConfig) do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, APIBaseURL+endpoint, body)
+	if err != nil {
+		return nil, err
+	}
+	client := http.Client{
+		Transport: cfg.Transport(),
+	}
+	return client.Do(req)
+}
+
+func (cfg *AgentConfig) fetchString(ctx context.Context, endpoint string) (string, int, error) {
+	resp, err := cfg.do(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return "", 0, err
+	}
+	ret := string(data)
+	release(data)
+	return ret, resp.StatusCode, nil
+}
+
+// fetchJSON fetches a JSON response from the agent and unmarshals it into the provided struct
+//
+// It will return the status code of the response, and error if any.
+// If the status code is not http.StatusOK, out will be unchanged but error will still be nil.
+func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any) (int, error) {
+	resp, err := cfg.do(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return 0, err
+	}
+
+	defer release(data)
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, nil
+	}
+
+	err = json.Unmarshal(data, out)
+	if err != nil {
+		return 0, err
+	}
+	return resp.StatusCode, nil
 }

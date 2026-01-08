@@ -3,14 +3,14 @@ package monitor
 import (
 	"net/url"
 
-	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/synk"
 )
 
 type (
 	AgentProxiedMonitor struct {
-		agent *agentPkg.AgentConfig
+		agent *agentpool.Agent
 		query synk.Value[string]
 		*monitor
 	}
@@ -45,7 +45,7 @@ func (target *AgentCheckHealthTarget) displayURL() *url.URL {
 	}
 }
 
-func NewAgentProxiedMonitor(agent *agentPkg.AgentConfig, config types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
+func NewAgentProxiedMonitor(agent *agentpool.Agent, config types.HealthCheckConfig, target *AgentCheckHealthTarget) *AgentProxiedMonitor {
 	mon := &AgentProxiedMonitor{
 		agent: agent,
 	}

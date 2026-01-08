@@ -3,7 +3,7 @@ package types
 import (
 	"net/http"
 
-	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
@@ -35,7 +35,7 @@ type (
 		DisplayName() string
 		ContainerInfo() *Container
 
-		GetAgent() *agent.AgentConfig
+		GetAgent() *agentpool.Agent
 
 		IsDocker() bool
 		IsAgent() bool

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
 	"go.uber.org/atomic"
@@ -23,7 +23,7 @@ type UDPUDPStream struct {
 
 	laddr *net.UDPAddr
 	dst   *net.UDPAddr
-	agent *agent.AgentConfig
+	agent *agentpool.Agent
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -53,7 +53,7 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentConfig) (nettypes.Stream, error) {
+func NewUDPUDPStream(network, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
 	dst, err := net.ResolveUDPAddr(network, dstAddr)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func NewUDPUDPStream(network, listenAddr, dstAddr string, agentCfg *agent.AgentC
 		network: network,
 		laddr:   laddr,
 		dst:     dst,
-		agent:   agentCfg,
+		agent:   agent,
 		conns:   make(map[string]*udpUDPConn),
 	}, nil
 }
