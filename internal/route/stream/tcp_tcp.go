@@ -14,10 +14,13 @@ import (
 )
 
 type TCPTCPStream struct {
-	network  string
 	listener net.Listener
-	laddr    *net.TCPAddr
-	dst      *net.TCPAddr
+
+	network    string
+	dstNetwork string
+
+	laddr *net.TCPAddr
+	dst   *net.TCPAddr
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -25,8 +28,8 @@ type TCPTCPStream struct {
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(network, listenAddr, dstAddr string) (nettypes.Stream, error) {
-	dst, err := net.ResolveTCPAddr(network, dstAddr)
+func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string) (nettypes.Stream, error) {
+	dst, err := net.ResolveTCPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +37,7 @@ func NewTCPTCPStream(network, listenAddr, dstAddr string) (nettypes.Stream, erro
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{network: network, laddr: laddr, dst: dst}, nil
+	return &TCPTCPStream{network: network, dstNetwork: dstNetwork, laddr: laddr, dst: dst}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
@@ -72,7 +75,7 @@ func (s *TCPTCPStream) LocalAddr() net.Addr {
 }
 
 func (s *TCPTCPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "tcp-tcp")
+	e.Str("protocol", s.network+"->"+s.dstNetwork)
 
 	if s.listener != nil {
 		e.Str("listen", s.listener.Addr().String())
@@ -127,7 +130,7 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	dstConn, err := net.DialTCP("tcp", nil, s.dst)
+	dstConn, err := net.DialTCP(s.dstNetwork, nil, s.dst)
 	if err != nil {
 		if !s.closed.Load() {
 			logErr(s, err, "failed to dial destination")
