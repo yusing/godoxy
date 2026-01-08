@@ -152,7 +152,7 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 }
 
 func (s *UDPServer) createDestConnection(host, port string) (*net.UDPConn, error) {
-	addr := host + ":" + port
+	addr := net.JoinHostPort(host, port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err

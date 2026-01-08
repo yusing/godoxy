@@ -157,7 +157,7 @@ func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
 }
 
 func (s *TCPServer) createDestConnection(host, port string) (net.Conn, error) {
-	addr := host + ":" + port
+	addr := net.JoinHostPort(host, port)
 	conn, err := net.DialTimeout("tcp", addr, dialTimeout)
 	if err != nil {
 		return nil, err
