@@ -23,7 +23,8 @@ type DockerHealthcheckState struct {
 
 const dockerFailuresThreshold = 3
 
-var errDockerHealthCheckFailedTooManyTimes = errors.New("docker health check failed too many times")
+var ErrDockerHealthCheckFailedTooManyTimes = errors.New("docker health check failed too many times")
+var ErrDockerHealthCheckNotAvailable = errors.New("docker health check not available")
 
 func NewDockerHealthcheckState(client *docker.SharedClient, containerId string) *DockerHealthcheckState {
 	client.InterceptHTTPClient(interceptDockerInspectResponse)
@@ -36,7 +37,7 @@ func NewDockerHealthcheckState(client *docker.SharedClient, containerId string) 
 
 func Docker(ctx context.Context, state *DockerHealthcheckState, containerId string, timeout time.Duration) (types.HealthCheckResult, error) {
 	if state.numDockerFailures > dockerFailuresThreshold {
-		return types.HealthCheckResult{}, errDockerHealthCheckFailedTooManyTimes
+		return types.HealthCheckResult{}, ErrDockerHealthCheckFailedTooManyTimes
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -76,9 +77,9 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, containerId stri
 
 	health := containerState.Health
 	if health == nil {
-		// no health check from docker, directly use fallback
+		// no health check from docker, return error to trigger fallback
 		state.numDockerFailures = dockerFailuresThreshold + 1
-		return types.HealthCheckResult{}, errDockerHealthCheckFailedTooManyTimes
+		return types.HealthCheckResult{}, ErrDockerHealthCheckNotAvailable
 	}
 
 	state.numDockerFailures = 0

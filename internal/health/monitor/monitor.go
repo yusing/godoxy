@@ -11,7 +11,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -43,38 +42,6 @@ type (
 
 var ErrNegativeInterval = gperr.New("negative interval")
 
-func NewMonitor(r types.Route) types.HealthMonCheck {
-	target := &r.TargetURL().URL
-
-	var mon types.HealthMonCheck
-	if r.IsAgent() {
-		mon = NewAgentProxiedMonitor(r.HealthCheckConfig(), r.GetAgent(), target)
-	} else {
-		switch r := r.(type) {
-		case types.ReverseProxyRoute:
-			mon = NewHTTPHealthMonitor(r.HealthCheckConfig(), target)
-		case types.FileServerRoute:
-			mon = NewFileServerHealthMonitor(r.HealthCheckConfig(), r.RootPath())
-		case types.StreamRoute:
-			mon = NewStreamHealthMonitor(r.HealthCheckConfig(), target)
-		default:
-			log.Panic().Msgf("unexpected route type: %T", r)
-		}
-	}
-	if r.IsDocker() {
-		cont := r.ContainerInfo()
-		client, err := docker.NewClient(cont.DockerCfg, true)
-		if err != nil {
-			return mon
-		}
-		r.Task().OnCancel("close_docker_client", client.Close)
-
-		fallback := mon
-		return NewDockerHealthMonitor(r.HealthCheckConfig(), client, cont.ContainerID, fallback)
-	}
-	return mon
-}
-
 func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) *monitor {
 	if state := config.WorkingState.Load(); state != nil {
 		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
@@ -96,16 +63,14 @@ func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFun
 	return nil
 }
 
-func (mon *monitor) ContextWithTimeout(cause string) (ctx context.Context, cancel context.CancelFunc) {
-	switch {
-	case mon.config.BaseContext != nil:
-		ctx = mon.config.BaseContext()
-	case mon.task != nil:
-		ctx = mon.task.Context()
-	default:
-		ctx = context.Background()
+func (mon *monitor) Context() context.Context {
+	if mon.config.BaseContext != nil {
+		return mon.config.BaseContext()
 	}
-	return context.WithTimeoutCause(ctx, mon.config.Timeout, gperr.New(cause))
+	if mon.task != nil {
+		return mon.task.Context()
+	}
+	return context.Background()
 }
 
 func (mon *monitor) CheckHealth() (types.HealthCheckResult, error) {
