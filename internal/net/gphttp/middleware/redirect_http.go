@@ -39,7 +39,7 @@ func (m *redirectHTTP) before(w http.ResponseWriter, r *http.Request) (proceed b
 	}
 
 	if common.ProxyHTTPSPort != 443 {
-		r.URL.Host = host + ":" + strconv.Itoa(common.ProxyHTTPSPort)
+		r.URL.Host = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
 	} else {
 		r.URL.Host = host
 	}
