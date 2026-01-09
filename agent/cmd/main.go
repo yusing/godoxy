@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 
+	stdlog "log"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -18,7 +20,6 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 	gperr "github.com/yusing/goutils/errs"
-	httpServer "github.com/yusing/goutils/server"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
@@ -145,12 +146,19 @@ Tips:
 		runtime := strutils.Title(string(env.Runtime))
 
 		log.Info().Msgf("%s socket listening on: %s", runtime, socketproxy.ListenAddr)
-		opts := httpServer.Options{
-			Name:     runtime,
-			HTTPAddr: socketproxy.ListenAddr,
-			Handler:  socketproxy.NewHandler(),
+		l, err := net.Listen("tcp", socketproxy.ListenAddr)
+		if err != nil {
+			gperr.LogFatal("failed to listen on port", err)
 		}
-		httpServer.StartServer(t, opts)
+		errLog := log.Logger.With().Str("level", "error").Str("component", "socketproxy").Logger()
+		srv := http.Server{
+			Handler: socketproxy.NewHandler(),
+			BaseContext: func(net.Listener) context.Context {
+				return t.Context()
+			},
+			ErrorLog: stdlog.New(&errLog, "", 0),
+		}
+		srv.Serve(l)
 	}
 
 	systeminfo.Poller.Start()
