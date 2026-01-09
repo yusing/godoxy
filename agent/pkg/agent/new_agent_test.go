@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
 )
 
 func TestNewAgent(t *testing.T) {
@@ -72,7 +73,7 @@ func TestServerClient(t *testing.T) {
 	clientTLSConfig := &tls.Config{
 		Certificates: []tls.Certificate{*clientTLS},
 		RootCAs:      caPool,
-		ServerName:   CertsDNSName,
+		ServerName:   common.CertsDNSName,
 	}
 
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

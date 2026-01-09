@@ -5,7 +5,8 @@ services:
     restart: always
     {{ if eq .ContainerRuntime "podman" -}}
     ports:
-      - "{{.Port}}:{{.Port}}"
+      - "{{.Port}}:{{.Port}}/tcp"
+      - "{{.Port}}:{{.Port}}/udp"
     {{ else -}}
     network_mode: host # do not change this
     {{ end -}}
