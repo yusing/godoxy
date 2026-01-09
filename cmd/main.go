@@ -10,7 +10,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
 	"github.com/yusing/godoxy/internal/dnsproviders"
-	"github.com/yusing/godoxy/internal/homepage"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
@@ -39,7 +39,7 @@ func main() {
 	log.Trace().Msg("trace enabled")
 	parallel(
 		dnsproviders.InitProviders,
-		homepage.InitIconListCache,
+		iconlist.InitCache,
 		systeminfo.Poller.Start,
 		middleware.LoadComposeFiles,
 	)

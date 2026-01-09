@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/homepage"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
@@ -32,6 +32,6 @@ func Icons(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
-	icons := homepage.SearchIcons(request.Keyword, request.Limit)
+	icons := iconlist.SearchIcons(request.Keyword, request.Limit)
 	c.JSON(http.StatusOK, icons)
 }

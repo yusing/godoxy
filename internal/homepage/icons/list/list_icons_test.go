@@ -1,9 +1,10 @@
-package homepage_test
+package iconlist_test
 
 import (
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/homepage"
+	. "github.com/yusing/godoxy/internal/homepage/icons"
+	. "github.com/yusing/godoxy/internal/homepage/icons/list"
 )
 
 const walkxcodeIcons = `{
@@ -69,8 +70,8 @@ const selfhstIcons = `[
 ]`
 
 type testCases struct {
-	Key IconKey
-	IconMeta
+	Key Key
+	Meta
 }
 
 func runTests(t *testing.T, iconsCache IconMap, test []testCases) {
@@ -109,8 +110,8 @@ func TestListWalkxCodeIcons(t *testing.T) {
 	}
 	test := []testCases{
 		{
-			Key: NewIconKey(IconSourceWalkXCode, "app1"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceWalkXCode, "app1"),
+			Meta: Meta{
 				SVG:   true,
 				PNG:   true,
 				WebP:  true,
@@ -118,15 +119,15 @@ func TestListWalkxCodeIcons(t *testing.T) {
 			},
 		},
 		{
-			Key: NewIconKey(IconSourceWalkXCode, "app2"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceWalkXCode, "app2"),
+			Meta: Meta{
 				PNG:  true,
 				WebP: true,
 			},
 		},
 		{
-			Key: NewIconKey(IconSourceWalkXCode, "karakeep"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceWalkXCode, "karakeep"),
+			Meta: Meta{
 				SVG:  true,
 				PNG:  true,
 				WebP: true,
@@ -149,8 +150,8 @@ func TestListSelfhstIcons(t *testing.T) {
 	}
 	test := []testCases{
 		{
-			Key: NewIconKey(IconSourceSelfhSt, "2fauth"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceSelfhSt, "2fauth"),
+			Meta: Meta{
 				SVG:         true,
 				PNG:         true,
 				WebP:        true,
@@ -160,16 +161,16 @@ func TestListSelfhstIcons(t *testing.T) {
 			},
 		},
 		{
-			Key: NewIconKey(IconSourceSelfhSt, "dittofeed"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceSelfhSt, "dittofeed"),
+			Meta: Meta{
 				PNG:         true,
 				WebP:        true,
 				DisplayName: "Dittofeed",
 			},
 		},
 		{
-			Key: NewIconKey(IconSourceSelfhSt, "ars-technica"),
-			IconMeta: IconMeta{
+			Key: NewKey(SourceSelfhSt, "ars-technica"),
+			Meta: Meta{
 				SVG:         true,
 				PNG:         true,
 				WebP:        true,

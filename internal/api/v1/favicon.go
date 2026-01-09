@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/homepage/icons"
+	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	"github.com/yusing/godoxy/internal/route/routes"
 	apitypes "github.com/yusing/goutils/apitypes"
 
@@ -13,9 +14,9 @@ import (
 )
 
 type GetFavIconRequest struct {
-	URL     string               `form:"url" binding:"required_without=Alias"`
-	Alias   string               `form:"alias" binding:"required_without=URL"`
-	Variant homepage.IconVariant `form:"variant" binding:"omitempty,oneof=light dark"`
+	URL     string        `form:"url" binding:"required_without=Alias"`
+	Alias   string        `form:"alias" binding:"required_without=URL"`
+	Variant icons.Variant `form:"variant" binding:"omitempty,oneof=light dark"`
 } //	@name	GetFavIconRequest
 
 // @x-id				"favicon"
@@ -42,18 +43,18 @@ func FavIcon(c *gin.Context) {
 
 	// try with url
 	if request.URL != "" {
-		var iconURL homepage.IconURL
+		var iconURL icons.URL
 		if err := iconURL.Parse(request.URL); err != nil {
 			c.JSON(http.StatusBadRequest, apitypes.Error("invalid url", err))
 			return
 		}
 		icon := &iconURL
-		if request.Variant != homepage.IconVariantNone {
+		if request.Variant != icons.VariantNone {
 			icon = icon.WithVariant(request.Variant)
 		}
-		fetchResult, err := homepage.FetchFavIconFromURL(c.Request.Context(), icon)
+		fetchResult, err := iconfetch.FetchFavIconFromURL(c.Request.Context(), icon)
 		if err != nil {
-			homepage.GinFetchError(c, fetchResult.StatusCode, err)
+			iconfetch.GinError(c, fetchResult.StatusCode, err)
 			return
 		}
 		c.Data(fetchResult.StatusCode, fetchResult.ContentType(), fetchResult.Icon)
@@ -63,40 +64,40 @@ func FavIcon(c *gin.Context) {
 	// try with alias
 	result, err := GetFavIconFromAlias(c.Request.Context(), request.Alias, request.Variant)
 	if err != nil {
-		homepage.GinFetchError(c, result.StatusCode, err)
+		iconfetch.GinError(c, result.StatusCode, err)
 		return
 	}
 	c.Data(result.StatusCode, result.ContentType(), result.Icon)
 }
 
 //go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
-func GetFavIconFromAlias(ctx context.Context, alias string, variant homepage.IconVariant) (homepage.FetchResult, error) {
+func GetFavIconFromAlias(ctx context.Context, alias string, variant icons.Variant) (iconfetch.Result, error) {
 	// try with route.Icon
 	r, ok := routes.HTTP.Get(alias)
 	if !ok {
-		return homepage.FetchResultWithErrorf(http.StatusNotFound, "route not found")
+		return iconfetch.FetchResultWithErrorf(http.StatusNotFound, "route not found")
 	}
 
 	var (
-		result homepage.FetchResult
+		result iconfetch.Result
 		err    error
 	)
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
-		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL, variant)
-		} else if variant != homepage.IconVariantNone {
-			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(variant))
+		if hp.Icon.Source == icons.SourceRelative {
+			result, err = iconfetch.FindIcon(ctx, r, *hp.Icon.FullURL, variant)
+		} else if variant != icons.VariantNone {
+			result, err = iconfetch.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(variant))
 			if err != nil {
 				// fallback to no variant
-				result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(homepage.IconVariantNone))
+				result, err = iconfetch.FetchFavIconFromURL(ctx, hp.Icon.WithVariant(icons.VariantNone))
 			}
 		} else {
-			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
+			result, err = iconfetch.FetchFavIconFromURL(ctx, hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
-		result, err = homepage.FindIcon(ctx, r, "/", variant)
+		result, err = iconfetch.FindIcon(ctx, r, "/", variant)
 	}
 	if result.StatusCode == 0 {
 		result.StatusCode = http.StatusOK

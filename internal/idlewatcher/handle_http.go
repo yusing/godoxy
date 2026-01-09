@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/homepage/icons"
+	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
@@ -99,18 +100,18 @@ func (w *Watcher) handleWakeEventsSSE(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (w *Watcher) getFavIcon(ctx context.Context) (result homepage.FetchResult, err error) {
+func (w *Watcher) getFavIcon(ctx context.Context) (result iconfetch.Result, err error) {
 	r := w.route
 	hp := r.HomepageItem()
 	if hp.Icon != nil {
-		if hp.Icon.IconSource == homepage.IconSourceRelative {
-			result, err = homepage.FindIcon(ctx, r, *hp.Icon.FullURL, homepage.IconVariantNone)
+		if hp.Icon.Source == icons.SourceRelative {
+			result, err = iconfetch.FindIcon(ctx, r, *hp.Icon.FullURL, icons.VariantNone)
 		} else {
-			result, err = homepage.FetchFavIconFromURL(ctx, hp.Icon)
+			result, err = iconfetch.FetchFavIconFromURL(ctx, hp.Icon)
 		}
 	} else {
 		// try extract from "link[rel=icon]"
-		result, err = homepage.FindIcon(ctx, r, "/", homepage.IconVariantNone)
+		result, err = iconfetch.FindIcon(ctx, r, "/", icons.VariantNone)
 	}
 	if result.StatusCode == 0 {
 		result.StatusCode = http.StatusOK

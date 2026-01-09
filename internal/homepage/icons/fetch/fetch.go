@@ -1,4 +1,4 @@
-package homepage
+package iconfetch
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"github.com/vincent-petithory/dataurl"
+	"github.com/yusing/godoxy/internal/homepage/icons"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/cache"
@@ -22,22 +23,22 @@ import (
 	strutils "github.com/yusing/goutils/strings"
 )
 
-type FetchResult struct {
+type Result struct {
 	Icon       []byte
 	StatusCode int
 
 	contentType string
 }
 
-func FetchResultWithErrorf(statusCode int, msgFmt string, args ...any) (FetchResult, error) {
-	return FetchResult{StatusCode: statusCode}, fmt.Errorf(msgFmt, args...)
+func FetchResultWithErrorf(statusCode int, msgFmt string, args ...any) (Result, error) {
+	return Result{StatusCode: statusCode}, fmt.Errorf(msgFmt, args...)
 }
 
-func FetchResultOK(icon []byte, contentType string) (FetchResult, error) {
-	return FetchResult{Icon: icon, contentType: contentType}, nil
+func FetchResultOK(icon []byte, contentType string) (Result, error) {
+	return Result{Icon: icon, contentType: contentType}, nil
 }
 
-func GinFetchError(c *gin.Context, statusCode int, err error) {
+func GinError(c *gin.Context, statusCode int, err error) {
 	if statusCode == 0 {
 		statusCode = http.StatusInternalServerError
 	}
@@ -50,7 +51,7 @@ func GinFetchError(c *gin.Context, statusCode int, err error) {
 
 const faviconFetchTimeout = 3 * time.Second
 
-func (res *FetchResult) ContentType() string {
+func (res *Result) ContentType() string {
 	if res.contentType == "" {
 		if bytes.HasPrefix(res.Icon, []byte("<svg")) || bytes.HasPrefix(res.Icon, []byte("<?xml")) {
 			return "image/svg+xml"
@@ -62,19 +63,19 @@ func (res *FetchResult) ContentType() string {
 
 const maxRedirectDepth = 5
 
-func FetchFavIconFromURL(ctx context.Context, iconURL *IconURL) (FetchResult, error) {
-	switch iconURL.IconSource {
-	case IconSourceAbsolute:
+func FetchFavIconFromURL(ctx context.Context, iconURL *icons.URL) (Result, error) {
+	switch iconURL.Source {
+	case icons.SourceAbsolute:
 		return FetchIconAbsolute(ctx, iconURL.URL())
-	case IconSourceRelative:
+	case icons.SourceRelative:
 		return FetchResultWithErrorf(http.StatusBadRequest, "unexpected relative icon")
-	case IconSourceWalkXCode, IconSourceSelfhSt:
+	case icons.SourceWalkXCode, icons.SourceSelfhSt:
 		return fetchKnownIcon(ctx, iconURL)
 	}
 	return FetchResultWithErrorf(http.StatusBadRequest, "invalid icon source")
 }
 
-var FetchIconAbsolute = cache.NewKeyFunc(func(ctx context.Context, url string) (FetchResult, error) {
+var FetchIconAbsolute = cache.NewKeyFunc(func(ctx context.Context, url string) (Result, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return FetchResultWithErrorf(http.StatusInternalServerError, "cannot create request: %w", err)
@@ -103,7 +104,7 @@ var FetchIconAbsolute = cache.NewKeyFunc(func(ctx context.Context, url string) (
 		return FetchResultWithErrorf(http.StatusNotFound, "empty icon")
 	}
 
-	res := FetchResult{Icon: icon}
+	res := Result{Icon: icon}
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
 		res.contentType = contentType
 	}
@@ -122,22 +123,22 @@ func sanitizeName(name string) string {
 	return strings.ToLower(nameSanitizer.Replace(name))
 }
 
-func fetchKnownIcon(ctx context.Context, url *IconURL) (FetchResult, error) {
+func fetchKnownIcon(ctx context.Context, url *icons.URL) (Result, error) {
 	// if icon isn't in the list, no need to fetch
 	if !url.HasIcon() {
-		return FetchResult{StatusCode: http.StatusNotFound}, errors.New("no such icon")
+		return Result{StatusCode: http.StatusNotFound}, errors.New("no such icon")
 	}
 
 	return FetchIconAbsolute(ctx, url.URL())
 }
 
-func fetchIcon(ctx context.Context, filename string) (FetchResult, error) {
+func fetchIcon(ctx context.Context, filename string) (Result, error) {
 	for _, fileType := range []string{"svg", "webp", "png"} {
-		result, err := fetchKnownIcon(ctx, NewSelfhStIconURL(filename, fileType))
+		result, err := fetchKnownIcon(ctx, icons.NewURL(icons.SourceSelfhSt, filename, fileType))
 		if err == nil {
 			return result, err
 		}
-		result, err = fetchKnownIcon(ctx, NewWalkXCodeIconURL(filename, fileType))
+		result, err = fetchKnownIcon(ctx, icons.NewURL(icons.SourceWalkXCode, filename, fileType))
 		if err == nil {
 			return result, err
 		}
@@ -150,10 +151,10 @@ type contextValue struct {
 	uri string
 }
 
-func FindIcon(ctx context.Context, r route, uri string, variant IconVariant) (FetchResult, error) {
+func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (Result, error) {
 	for _, ref := range r.References() {
 		ref = sanitizeName(ref)
-		if variant != IconVariantNone {
+		if variant != icons.VariantNone {
 			ref += "-" + string(variant)
 		}
 		result, err := fetchIcon(ctx, ref)
@@ -168,12 +169,12 @@ func FindIcon(ctx context.Context, r route, uri string, variant IconVariant) (Fe
 	return FetchResultWithErrorf(http.StatusNotFound, "no icon found")
 }
 
-var findIconSlowCached = cache.NewKeyFunc(func(ctx context.Context, key string) (FetchResult, error) {
+var findIconSlowCached = cache.NewKeyFunc(func(ctx context.Context, key string) (Result, error) {
 	v := ctx.Value("route").(contextValue)
 	return findIconSlow(ctx, v.r, v.uri, nil)
 }).WithMaxEntries(200).Build() // no retries, no ttl
 
-func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) (FetchResult, error) {
+func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) (Result, error) {
 	select {
 	case <-ctx.Done():
 		return FetchResultWithErrorf(http.StatusBadGateway, "request timeout")

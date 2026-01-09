@@ -4,9 +4,14 @@ import (
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/homepage/icons"
 
 	expect "github.com/yusing/goutils/testing"
 )
+
+func strPtr(s string) *string {
+	return &s
+}
 
 func TestOverrideItem(t *testing.T) {
 	a := &Item{
@@ -14,9 +19,9 @@ func TestOverrideItem(t *testing.T) {
 		ItemConfig: ItemConfig{
 			Show: false,
 			Name: "Foo",
-			Icon: &IconURL{
-				FullURL:    strPtr("/favicon.ico"),
-				IconSource: IconSourceRelative,
+			Icon: &icons.URL{
+				FullURL: strPtr("/favicon.ico"),
+				Source:  icons.SourceRelative,
 			},
 			Category: "App",
 		},
@@ -25,9 +30,9 @@ func TestOverrideItem(t *testing.T) {
 		Show:     true,
 		Name:     "Bar",
 		Category: "Test",
-		Icon: &IconURL{
-			FullURL:    strPtr("@walkxcode/example.png"),
-			IconSource: IconSourceWalkXCode,
+		Icon: &icons.URL{
+			FullURL: strPtr("@walkxcode/example.png"),
+			Source:  icons.SourceWalkXCode,
 		},
 	}
 	overrides := GetOverrideConfig()

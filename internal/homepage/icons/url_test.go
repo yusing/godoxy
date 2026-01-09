@@ -1,9 +1,9 @@
-package homepage_test
+package icons_test
 
 import (
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/homepage"
+	. "github.com/yusing/godoxy/internal/homepage/icons"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -15,31 +15,31 @@ func TestIconURL(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		wantValue *IconURL
+		wantValue *URL
 		wantErr   bool
 	}{
 		{
 			name:  "absolute",
 			input: "http://example.com/icon.png",
-			wantValue: &IconURL{
-				FullURL:    strPtr("http://example.com/icon.png"),
-				IconSource: IconSourceAbsolute,
+			wantValue: &URL{
+				FullURL: strPtr("http://example.com/icon.png"),
+				Source:  SourceAbsolute,
 			},
 		},
 		{
 			name:  "relative",
 			input: "@target/icon.png",
-			wantValue: &IconURL{
-				FullURL:    strPtr("/icon.png"),
-				IconSource: IconSourceRelative,
+			wantValue: &URL{
+				FullURL: strPtr("/icon.png"),
+				Source:  SourceRelative,
 			},
 		},
 		{
 			name:  "relative2",
 			input: "/icon.png",
-			wantValue: &IconURL{
-				FullURL:    strPtr("/icon.png"),
-				IconSource: IconSourceRelative,
+			wantValue: &URL{
+				FullURL: strPtr("/icon.png"),
+				Source:  SourceRelative,
 			},
 		},
 		{
@@ -55,10 +55,10 @@ func TestIconURL(t *testing.T) {
 		{
 			name:  "walkxcode",
 			input: "@walkxcode/adguard-home.png",
-			wantValue: &IconURL{
-				IconSource: IconSourceWalkXCode,
-				Extra: &IconExtra{
-					Key:      NewIconKey(IconSourceWalkXCode, "adguard-home"),
+			wantValue: &URL{
+				Source: SourceWalkXCode,
+				Extra: &Extra{
+					Key:      NewKey(SourceWalkXCode, "adguard-home"),
 					FileType: "png",
 					Ref:      "adguard-home",
 				},
@@ -67,10 +67,10 @@ func TestIconURL(t *testing.T) {
 		{
 			name:  "walkxcode_light",
 			input: "@walkxcode/pfsense-light.png",
-			wantValue: &IconURL{
-				IconSource: IconSourceWalkXCode,
-				Extra: &IconExtra{
-					Key:      NewIconKey(IconSourceWalkXCode, "pfsense"),
+			wantValue: &URL{
+				Source: SourceWalkXCode,
+				Extra: &Extra{
+					Key:      NewKey(SourceWalkXCode, "pfsense"),
 					FileType: "png",
 					Ref:      "pfsense",
 					IsLight:  true,
@@ -85,10 +85,10 @@ func TestIconURL(t *testing.T) {
 		{
 			name:  "selfh.st_valid",
 			input: "@selfhst/adguard-home.webp",
-			wantValue: &IconURL{
-				IconSource: IconSourceSelfhSt,
-				Extra: &IconExtra{
-					Key:      NewIconKey(IconSourceSelfhSt, "adguard-home"),
+			wantValue: &URL{
+				Source: SourceSelfhSt,
+				Extra: &Extra{
+					Key:      NewKey(SourceSelfhSt, "adguard-home"),
 					FileType: "webp",
 					Ref:      "adguard-home",
 				},
@@ -97,10 +97,10 @@ func TestIconURL(t *testing.T) {
 		{
 			name:  "selfh.st_light",
 			input: "@selfhst/adguard-home-light.png",
-			wantValue: &IconURL{
-				IconSource: IconSourceSelfhSt,
-				Extra: &IconExtra{
-					Key:      NewIconKey(IconSourceSelfhSt, "adguard-home"),
+			wantValue: &URL{
+				Source: SourceSelfhSt,
+				Extra: &Extra{
+					Key:      NewKey(SourceSelfhSt, "adguard-home"),
 					FileType: "png",
 					Ref:      "adguard-home",
 					IsLight:  true,
@@ -110,10 +110,10 @@ func TestIconURL(t *testing.T) {
 		{
 			name:  "selfh.st_dark",
 			input: "@selfhst/adguard-home-dark.svg",
-			wantValue: &IconURL{
-				IconSource: IconSourceSelfhSt,
-				Extra: &IconExtra{
-					Key:      NewIconKey(IconSourceSelfhSt, "adguard-home"),
+			wantValue: &URL{
+				Source: SourceSelfhSt,
+				Extra: &Extra{
+					Key:      NewKey(SourceSelfhSt, "adguard-home"),
 					FileType: "svg",
 					Ref:      "adguard-home",
 					IsDark:   true,
@@ -143,7 +143,7 @@ func TestIconURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			u := &IconURL{}
+			u := &URL{}
 			err := u.Parse(tc.input)
 			if tc.wantErr {
 				expect.ErrorIs(t, ErrInvalidIconURL, err)

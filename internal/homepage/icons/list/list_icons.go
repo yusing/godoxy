@@ -1,8 +1,7 @@
-package homepage
+package iconlist
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/homepage/icons"
 	"github.com/yusing/godoxy/internal/serialization"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/intern"
@@ -21,59 +21,18 @@ import (
 )
 
 type (
-	IconKey  string
-	IconMap  map[IconKey]*IconMeta
+	IconMap  map[icons.Key]*icons.Meta
 	IconList []string
-	IconMeta struct {
-		SVG         bool   `json:"SVG"`
-		PNG         bool   `json:"PNG"`
-		WebP        bool   `json:"WebP"`
-		Light       bool   `json:"Light"`
-		Dark        bool   `json:"Dark"`
-		DisplayName string `json:"-"`
-		Tag         string `json:"-"`
-	}
-	IconMetaSearch struct {
-		*IconMeta
 
-		Source IconSource `json:"Source"`
-		Ref    string     `json:"Ref"`
+	IconMetaSearch struct {
+		*icons.Meta
+
+		Source icons.Source `json:"Source"`
+		Ref    string       `json:"Ref"`
 
 		rank int
 	}
 )
-
-func (icon *IconMeta) Filenames(ref string) []string {
-	filenames := make([]string, 0)
-	if icon.SVG {
-		filenames = append(filenames, ref+".svg")
-		if icon.Light {
-			filenames = append(filenames, ref+"-light.svg")
-		}
-		if icon.Dark {
-			filenames = append(filenames, ref+"-dark.svg")
-		}
-	}
-	if icon.PNG {
-		filenames = append(filenames, ref+".png")
-		if icon.Light {
-			filenames = append(filenames, ref+"-light.png")
-		}
-		if icon.Dark {
-			filenames = append(filenames, ref+"-dark.png")
-		}
-	}
-	if icon.WebP {
-		filenames = append(filenames, ref+".webp")
-		if icon.Light {
-			filenames = append(filenames, ref+"-light.webp")
-		}
-		if icon.Dark {
-			filenames = append(filenames, ref+"-dark.webp")
-		}
-	}
-	return filenames
-}
 
 const updateInterval = 2 * time.Hour
 
@@ -84,16 +43,7 @@ const (
 	selfhstIcons   = "https://raw.githubusercontent.com/selfhst/icons/refs/heads/main/index.json"
 )
 
-func NewIconKey(source IconSource, reference string) IconKey {
-	return IconKey(fmt.Sprintf("%s/%s", source, reference))
-}
-
-func (k IconKey) SourceRef() (IconSource, string) {
-	source, ref, _ := strings.Cut(string(k), "/")
-	return IconSource(source), ref
-}
-
-func InitIconListCache() {
+func InitCache() {
 	m := make(IconMap)
 	err := serialization.LoadJSONIfExist(common.IconListCachePath, &m)
 	if err != nil {
@@ -196,10 +146,10 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 
 		source, ref := k.SourceRef()
 		ranked := &IconMetaSearch{
-			Source:   source,
-			Ref:      ref,
-			IconMeta: icon,
-			rank:     rank,
+			Source: source,
+			Ref:    ref,
+			Meta:   icon,
+			rank:   rank,
 		}
 		// Sorted insert based on rank (lower rank = better match)
 		insertPos, _ := slices.BinarySearchFunc(results, ranked, sortByRank)
@@ -213,7 +163,7 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 	return results[:min(len(results), limit)]
 }
 
-func HasIcon(icon *IconURL) bool {
+func HasIcon(icon *icons.URL) bool {
 	if icon.Extra == nil {
 		return false
 	}
@@ -241,11 +191,11 @@ type HomepageMeta struct {
 	Tag         string
 }
 
-func GetHomepageMeta(ref string) (HomepageMeta, bool) {
-	meta, ok := ListAvailableIcons()[NewIconKey(IconSourceSelfhSt, ref)]
+func GetMetadata(ref string) (HomepageMeta, bool) {
+	meta, ok := ListAvailableIcons()[icons.NewKey(icons.SourceSelfhSt, ref)]
 	// these info is not available in walkxcode
 	// if !ok {
-	// 	meta, ok = iconsCache.Icons[NewIconKey(IconSourceWalkXCode, ref)]
+	// 	meta, ok = iconsCache.Icons[icons.NewIconKey(icons.IconSourceWalkXCode, ref)]
 	// }
 	if !ok {
 		return HomepageMeta{}, false
@@ -317,14 +267,14 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 	}
 
 	for fileType, files := range data {
-		var setExt func(icon *IconMeta)
+		var setExt func(icon *icons.Meta)
 		switch fileType {
 		case "png":
-			setExt = func(icon *IconMeta) { icon.PNG = true }
+			setExt = func(icon *icons.Meta) { icon.PNG = true }
 		case "svg":
-			setExt = func(icon *IconMeta) { icon.SVG = true }
+			setExt = func(icon *icons.Meta) { icon.SVG = true }
 		case "webp":
-			setExt = func(icon *IconMeta) { icon.WebP = true }
+			setExt = func(icon *icons.Meta) { icon.WebP = true }
 		}
 		for _, f := range files {
 			f = strings.TrimSuffix(f, "."+fileType)
@@ -336,10 +286,10 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 			if isDark {
 				f = strings.TrimSuffix(f, "-dark")
 			}
-			key := NewIconKey(IconSourceWalkXCode, f)
+			key := icons.NewKey(icons.SourceWalkXCode, f)
 			icon, ok := m[key]
 			if !ok {
-				icon = new(IconMeta)
+				icon = new(icons.Meta)
 				m[key] = icon
 			}
 			setExt(icon)
@@ -401,7 +351,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 			tag, _, _ = strings.Cut(item.Tags, ",")
 			tag = strings.TrimSpace(tag)
 		}
-		icon := &IconMeta{
+		icon := &icons.Meta{
 			DisplayName: item.Name,
 			Tag:         intern.Make(tag).Value(),
 			SVG:         item.SVG == "Yes",
@@ -410,7 +360,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 			Light:       item.Light == "Yes",
 			Dark:        item.Dark == "Yes",
 		}
-		key := NewIconKey(IconSourceSelfhSt, item.Reference)
+		key := icons.NewKey(icons.SourceSelfhSt, item.Reference)
 		m[key] = icon
 	}
 	return nil
