@@ -106,7 +106,7 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 		s.logger(clientConn).Err(err).Msg("failed to read stream header")
 		return
 	}
-	header := ToHeader(headerBuf)
+	header := ToHeader(&headerBuf)
 	if !header.Validate() {
 		s.logger(clientConn).Error().Bytes("header", headerBuf[:]).Msg("invalid stream header received")
 		return

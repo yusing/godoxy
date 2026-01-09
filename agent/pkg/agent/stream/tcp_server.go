@@ -151,7 +151,7 @@ func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
 		return nil, err
 	}
 
-	header := ToHeader(headerBuf)
+	header := ToHeader(&headerBuf)
 	if !header.Validate() {
 		return nil, ErrInvalidHeader
 	}

@@ -72,8 +72,9 @@ func NewStreamHealthCheckHeader() *StreamRequestHeader {
 	return header
 }
 
-func ToHeader(buf [headerSize]byte) *StreamRequestHeader {
-	return (*StreamRequestHeader)(unsafe.Pointer(&buf[0]))
+// ToHeader converts header byte array to a copy of itself as a StreamRequestHeader.
+func ToHeader(buf *[headerSize]byte) StreamRequestHeader {
+	return *(*StreamRequestHeader)(unsafe.Pointer(buf))
 }
 
 func (h *StreamRequestHeader) GetHostPort() (string, string) {

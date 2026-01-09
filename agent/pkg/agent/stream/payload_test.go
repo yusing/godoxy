@@ -15,7 +15,7 @@ func TestStreamRequestHeader_RoundTripAndChecksum(t *testing.T) {
 
 	var buf [headerSize]byte
 	copy(buf[:], h.Bytes())
-	h2 := ToHeader(buf)
+	h2 := ToHeader(&buf)
 	if !h2.Validate() {
 		t.Fatalf("expected round-tripped header to validate")
 	}
