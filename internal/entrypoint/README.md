@@ -9,7 +9,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 ### Key Features
 
 - Domain-based route lookup with subdomain support
-- Short link (`go/<short-code>` domain) handling
+- Short link (`go/<alias>` domain) handling
 - Middleware chain application
 - Access logging for all requests
 - Configurable not-found handling

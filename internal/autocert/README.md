@@ -144,6 +144,11 @@ flowchart TD
 
     T --> V[Update SNI Matcher]
     V --> G
+
+    style E fill:#22553F,color:#fff
+    style I fill:#8B8000,color:#fff
+    style N fill:#22553F,color:#fff
+    style U fill:#84261A,color:#fff
 ```
 
 ### SNI Matching Flow
@@ -163,6 +168,10 @@ flowchart LR
         F -->|Yes| D
         F -->|No| G[Return default cert]
     end
+
+    style C fill:#27632A,color:#fff
+    style E fill:#18597A,color:#fff
+    style F fill:#836C03,color:#fff
 ```
 
 ### Suffix Tree Structure
