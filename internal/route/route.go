@@ -479,13 +479,18 @@ func (r *Route) TargetURL() *nettypes.URL {
 }
 
 func (r *Route) References() []string {
+	aliasRef, _, ok := strings.Cut(r.Alias, ".")
+	if !ok {
+		aliasRef = r.Alias
+	}
+
 	if r.Container != nil {
 		if r.Container.ContainerName != r.Alias {
-			return []string{r.Container.ContainerName, r.Alias, r.Container.Image.Name, r.Container.Image.Author}
+			return []string{r.Container.ContainerName, aliasRef, r.Container.Image.Name, r.Container.Image.Author}
 		}
-		return []string{r.Container.Image.Name, r.Alias, r.Container.Image.Author}
+		return []string{r.Container.Image.Name, aliasRef, r.Container.Image.Author}
 	}
-	return []string{r.Alias}
+	return []string{aliasRef}
 }
 
 // Name implements pool.Object.
