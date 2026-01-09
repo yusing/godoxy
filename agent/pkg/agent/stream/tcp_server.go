@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -147,9 +148,11 @@ func (s *TCPServer) handle(conn net.Conn) {
 func (s *TCPServer) redirect(conn net.Conn) (net.Conn, error) {
 	// Read the stream header once as a handshake.
 	var headerBuf [headerSize]byte
+	_ = conn.SetReadDeadline(time.Now().Add(dialTimeout))
 	if _, err := io.ReadFull(conn, headerBuf[:]); err != nil {
 		return nil, err
 	}
+	_ = conn.SetReadDeadline(time.Time{})
 
 	header := ToHeader(&headerBuf)
 	if !header.Validate() {

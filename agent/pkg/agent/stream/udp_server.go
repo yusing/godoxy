@@ -102,10 +102,13 @@ func (s *UDPServer) handleDTLSConnection(clientConn net.Conn) {
 
 	// Read the stream header once as a handshake.
 	var headerBuf [headerSize]byte
+	_ = clientConn.SetReadDeadline(time.Now().Add(dialTimeout))
 	if _, err := io.ReadFull(clientConn, headerBuf[:]); err != nil {
 		s.logger(clientConn).Err(err).Msg("failed to read stream header")
 		return
 	}
+	_ = clientConn.SetReadDeadline(time.Time{})
+
 	header := ToHeader(&headerBuf)
 	if !header.Validate() {
 		s.logger(clientConn).Error().Bytes("header", headerBuf[:]).Msg("invalid stream header received")
