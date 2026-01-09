@@ -8,6 +8,10 @@ definitions:
         type: string
       runtime:
         $ref: '#/definitions/agent.ContainerRuntime'
+      supports_tcp_stream:
+        type: boolean
+      supports_udp_stream:
+        type: boolean
       version:
         type: string
     type: object
@@ -48,7 +52,7 @@ definitions:
   Container:
     properties:
       agent:
-        $ref: '#/definitions/Agent'
+        $ref: '#/definitions/agentpool.Agent'
       aliases:
         items:
           type: string
@@ -1236,6 +1240,21 @@ definitions:
     x-enum-varnames:
     - ContainerRuntimeDocker
     - ContainerRuntimePodman
+  agentpool.Agent:
+    properties:
+      addr:
+        type: string
+      name:
+        type: string
+      runtime:
+        $ref: '#/definitions/agent.ContainerRuntime'
+      supports_tcp_stream:
+        type: boolean
+      supports_udp_stream:
+        type: boolean
+      version:
+        type: string
+    type: object
   auth.UserPassAuthCallbackRequest:
     properties:
       password:

@@ -172,6 +172,9 @@ require (
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.2 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.105.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
+	github.com/pion/dtls/v3 v3.0.9 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/transport/v3 v3.1.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
