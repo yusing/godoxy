@@ -286,14 +286,11 @@ func (r *Route) validate() gperr.Error {
 				r.Bind = "0.0.0.0"
 			}
 			bindIP := net.ParseIP(r.Bind)
-			if bindIP == nil {
-				return gperr.Errorf("invalid bind address %s", r.Bind)
-			}
 			remoteIP := net.ParseIP(r.Host)
-			if remoteIP == nil {
-				return gperr.Errorf("invalid remote address %s", r.Host)
-			}
 			toNetwork := func(ip net.IP, scheme route.Scheme) string {
+				if ip == nil { // hostname, indeterminate
+					return scheme.String()
+				}
 				if ip.To4() == nil {
 					if scheme == route.SchemeTCP {
 						return "tcp6"
