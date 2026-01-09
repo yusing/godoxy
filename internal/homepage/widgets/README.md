@@ -109,7 +109,7 @@ var HTTPClient = &http.Client{
 
 ### Available Providers
 
-- **qbittorrent** - qBittorrent torrent client integration (WIP)
+- **qbittorrent** - qBittorrent torrent client integration _(WIP)_
 
 ## Usage Example
 
