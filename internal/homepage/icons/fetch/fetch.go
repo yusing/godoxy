@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -163,6 +164,9 @@ func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (
 		}
 	}
 	if r, ok := r.(httpRoute); ok {
+		if mon := r.HealthMonitor(); mon != nil && !mon.Status().Good() {
+			return FetchResultWithErrorf(http.StatusServiceUnavailable, "service unavailable")
+		}
 		// fallback to parse html
 		return findIconSlowCached(context.WithValue(ctx, "route", contextValue{r: r, uri: uri}), r.Key())
 	}
@@ -172,7 +176,7 @@ func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (
 var findIconSlowCached = cache.NewKeyFunc(func(ctx context.Context, key string) (Result, error) {
 	v := ctx.Value("route").(contextValue)
 	return findIconSlow(ctx, v.r, v.uri, nil)
-}).WithMaxEntries(200).Build() // no retries, no ttl
+}).WithMaxEntries(200).WithRetriesConstantBackoff(math.MaxInt, 15*time.Second).Build() // infinite retries, 15 seconds interval
 
 func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) (Result, error) {
 	select {
