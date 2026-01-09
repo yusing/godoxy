@@ -18,7 +18,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
-	github.com/go-acme/lego/v4 v4.30.1 // acme client
+	github.com/go-acme/lego/v4 v4.31.0 // acme client
 	github.com/go-playground/validator/v10 v10.30.1 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -39,9 +39,9 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.14.2 // fast json parsing
 	github.com/docker/cli v29.1.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
-	github.com/goccy/go-yaml v1.19.1 // yaml parsing for different config files
+	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0 // jwt authentication
-	github.com/luthermonson/go-proxmox v0.3.1 // proxmox API client
+	github.com/luthermonson/go-proxmox v0.3.2 // proxmox API client
 	github.com/moby/moby/api v1.52.0 // docker API
 	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
@@ -49,15 +49,15 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.12 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
-	github.com/valyala/fasthttp v1.68.0 // fast http for health check
+	github.com/valyala/fasthttp v1.69.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260104140148-1c2515cb298d
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260104140148-1c2515cb298d
+	github.com/yusing/godoxy/agent v0.0.0-20260109022755-4275cdae3854
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260109022755-4275cdae3854
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260103043911-785deb23bd64
-	github.com/yusing/goutils/http/websocket v0.0.0-20260103043911-785deb23bd64
-	github.com/yusing/goutils/server v0.0.0-20260103043911-785deb23bd64
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260109021609-78fda75d1e58
+	github.com/yusing/goutils/http/websocket v0.0.0-20260109021609-78fda75d1e58
+	github.com/yusing/goutils/server v0.0.0-20260109021609-78fda75d1e58
 )
 
 require (
@@ -92,7 +92,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
@@ -132,10 +132,10 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/api v0.258.0 // indirect
+	google.golang.org/api v0.259.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
@@ -166,7 +166,7 @@ require (
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
-	github.com/linode/linodego v1.63.0 // indirect
+	github.com/linode/linodego v1.64.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.2 // indirect
