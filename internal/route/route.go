@@ -20,6 +20,7 @@ import (
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/homepage"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -849,7 +850,7 @@ func (r *Route) FinalizeHomepageConfig() {
 	hp := r.Homepage
 	refs := r.References()
 	for _, ref := range refs {
-		meta, ok := homepage.GetHomepageMeta(ref)
+		meta, ok := iconlist.GetMetadata(ref)
 		if ok {
 			if hp.Name == "" {
 				hp.Name = meta.DisplayName

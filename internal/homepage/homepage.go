@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yusing/ds/ordered"
+	"github.com/yusing/godoxy/internal/homepage/icons"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
 	"github.com/yusing/godoxy/internal/serialization"
 	strutils "github.com/yusing/goutils/strings"
@@ -22,13 +23,13 @@ type (
 	} // @name HomepageCategory
 
 	ItemConfig struct {
-		Show        bool     `json:"show"`
-		Name        string   `json:"name"` // display name
-		Icon        *IconURL `json:"icon" swaggertype:"string"`
-		Category    string   `json:"category" validate:"omitempty"`
-		Description string   `json:"description" aliases:"desc"`
-		URL         string   `json:"url,omitempty"`
-		Favorite    bool     `json:"favorite"`
+		Show        bool       `json:"show"`
+		Name        string     `json:"name"` // display name
+		Icon        *icons.URL `json:"icon" swaggertype:"string"`
+		Category    string     `json:"category" validate:"omitempty"`
+		Description string     `json:"description" aliases:"desc"`
+		URL         string     `json:"url,omitempty"`
+		Favorite    bool       `json:"favorite"`
 
 		WidgetConfig *widgets.Config `json:"widget_config,omitempty" aliases:"widget" extensions:"x-nullable"`
 	} // @name HomepageItemConfig

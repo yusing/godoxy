@@ -1,4 +1,4 @@
-package homepage
+package iconfetch
 
 import (
 	"net/http"
