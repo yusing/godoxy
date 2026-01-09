@@ -43,6 +43,16 @@ const (
 	selfhstIcons   = "https://raw.githubusercontent.com/selfhst/icons/refs/heads/main/index.json"
 )
 
+type provider struct{}
+
+func (p provider) HasIcon(u *icons.URL) bool {
+	return HasIcon(u)
+}
+
+func init() {
+	icons.SetProvider(provider{})
+}
+
 func InitCache() {
 	m := make(IconMap)
 	err := serialization.LoadJSONIfExist(common.IconListCachePath, &m)
