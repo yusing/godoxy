@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
 	"go.uber.org/atomic"
@@ -24,6 +25,7 @@ type UDPUDPStream struct {
 
 	laddr *net.UDPAddr
 	dst   *net.UDPAddr
+	agent *agentpool.Agent
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -53,7 +55,7 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string) (nettypes.Stream, error) {
+func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
 	dst, err := net.ResolveUDPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
@@ -67,6 +69,7 @@ func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string) (nettypes.
 		dstNetwork: dstNetwork,
 		laddr:      laddr,
 		dst:        dst,
+		agent:      agent,
 		conns:      make(map[string]*udpUDPConn),
 	}, nil
 }
@@ -195,7 +198,11 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 		dstConn net.Conn
 		err     error
 	)
-	dstConn, err = net.DialUDP(s.dstNetwork, nil, s.dst)
+	if s.agent != nil {
+		dstConn, err = s.agent.NewUDPClient(s.dst.String())
+	} else {
+		dstConn, err = net.DialUDP(s.dst.Network(), nil, s.dst)
+	}
 	if err != nil {
 		logErr(s, err, "failed to dial dst")
 		return nil, false
