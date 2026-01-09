@@ -97,35 +97,6 @@ const AgentCertsBasePath = "certs"
 
 Base directory for storing certificate archives.
 
-```go
-package main
-
-import (
-    "os"
-    "github.com/yusing/godoxy/agent/pkg/certs"
-)
-
-func main() {
-    // Read certificate files
-    caData, _ := os.ReadFile("ca.pem")
-    certData, _ := os.ReadFile("cert.pem")
-    keyData, _ := os.ReadFile("key.pem")
-
-    // Create ZIP archive
-    zipData, err := certs.ZipCert(caData, certData, keyData)
-    if err != nil {
-        panic(err)
-    }
-
-    // Save to file
-    os.WriteFile("agent-certs.zip", zipData, 0644)
-
-    // Extract from archive
-    ca, crt, key, err := certs.ExtractCert(zipData)
-    // ...
-}
-```
-
 ## File Format
 
 The ZIP archive uses `zip.Store` compression (no compression) for fast creation and extraction. Each file is stored with its standard name (`ca.pem`, `cert.pem`, `key.pem`).
