@@ -21,11 +21,11 @@ require (
 	github.com/docker/docker v28.5.2+incompatible // docker daemon
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.11.0 // api server
-	github.com/go-acme/lego/v4 v4.30.1 // acme client
+	github.com/go-acme/lego/v4 v4.31.0 // acme client
 	github.com/go-playground/validator/v10 v10.30.1 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
-	github.com/gotify/server/v2 v2.7.3 // reference the Message struct for json response
+	github.com/gotify/server/v2 v2.8.0 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
 	github.com/pires/go-proxyproto v0.8.1 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // lock free map for concurrent operations
@@ -41,24 +41,24 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.14.2 // fast json parsing
-	github.com/docker/cli v29.1.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
-	github.com/goccy/go-yaml v1.19.1 // yaml parsing for different config files
+	github.com/docker/cli v29.1.4+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/luthermonson/go-proxmox v0.2.4
+	github.com/luthermonson/go-proxmox v0.3.2
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/quic-go/quic-go v0.58.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.25.12 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
-	github.com/valyala/fasthttp v1.68.0 // fast http for health check
+	github.com/valyala/fasthttp v1.69.0 // fast http for health check
 	github.com/yusing/ds v0.3.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260101052017-a47170da39d5
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260101052017-a47170da39d5
+	github.com/yusing/godoxy/agent v0.0.0-20260109134835-4ec352f1f610
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260109134835-4ec352f1f610
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20251230140005-51a75d684b27
-	github.com/yusing/goutils/http/websocket v0.0.0-20251230140005-51a75d684b27
-	github.com/yusing/goutils/server v0.0.0-20251230140005-51a75d684b27
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260109025656-326c1f1eb362
+	github.com/yusing/goutils/http/websocket v0.0.0-20260109025656-326c1f1eb362
+	github.com/yusing/goutils/server v0.0.0-20260109025656-326c1f1eb362
 )
 
 require (
@@ -93,7 +93,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
@@ -133,16 +133,21 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/api v0.258.0 // indirect
+	google.golang.org/api v0.259.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+require (
+	github.com/moby/moby/api v1.52.0
+	github.com/moby/moby/client v0.2.1
 )
 
 require (
@@ -169,11 +174,11 @@ require (
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
-	github.com/linode/linodego v1.63.0 // indirect
+	github.com/linode/linodego v1.64.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
-	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.105.2 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.105.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
@@ -181,6 +186,7 @@ require (
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
