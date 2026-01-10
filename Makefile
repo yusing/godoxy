@@ -3,6 +3,8 @@ export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
 
+REPO_URL ?= https://github.com/yusing/godoxy
+
 WEBUI_DIR ?= ../godoxy-webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
@@ -175,4 +177,4 @@ gen-api-types: gen-swagger
 
 .PHONY: update-wiki
 update-wiki:
-	DOCS_DIR=${DOCS_DIR} bun --bun scripts/update-wiki/main.ts
+	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki/main.ts

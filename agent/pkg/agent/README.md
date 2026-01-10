@@ -27,26 +27,26 @@ graph TD
 
 ## File Structure
 
-| File                                                     | Purpose                                                   |
-| -------------------------------------------------------- | --------------------------------------------------------- |
-| [`config.go`](agent/pkg/agent/config.go)                 | Core configuration, initialization, and API client logic. |
-| [`new_agent.go`](agent/pkg/agent/new_agent.go)           | Agent creation and certificate generation logic.          |
-| [`docker_compose.go`](agent/pkg/agent/docker_compose.go) | Generator for agent Docker Compose configurations.        |
-| [`bare_metal.go`](agent/pkg/agent/bare_metal.go)         | Generator for bare metal installation scripts.            |
-| [`env.go`](agent/pkg/agent/env.go)                       | Environment configuration types and constants.            |
-| [`common/`](agent/pkg/agent/common)                      | Shared constants and utilities for agents.                |
+| File                                     | Purpose                                                   |
+| ---------------------------------------- | --------------------------------------------------------- |
+| [`config.go`](config.go)                 | Core configuration, initialization, and API client logic. |
+| [`new_agent.go`](new_agent.go)           | Agent creation and certificate generation logic.          |
+| [`docker_compose.go`](docker_compose.go) | Generator for agent Docker Compose configurations.        |
+| [`bare_metal.go`](bare_metal.go)         | Generator for bare metal installation scripts.            |
+| [`env.go`](env.go)                       | Environment configuration types and constants.            |
+| `common/`                                | Shared constants and utilities for agents.                |
 
 ## Core Types
 
-### [`AgentConfig`](agent/pkg/agent/config.go:29)
+### [`AgentConfig`](config.go:29)
 
 The primary struct used by the GoDoxy server to manage a connection to an agent. It stores the agent's address, metadata, and TLS configuration.
 
-### [`AgentInfo`](agent/pkg/agent/config.go:45)
+### [`AgentInfo`](config.go:45)
 
 Contains basic metadata about the agent, including its version, name, and container runtime (Docker or Podman).
 
-### [`PEMPair`](agent/pkg/agent/new_agent.go:53)
+### [`PEMPair`](new_agent.go:53)
 
 A utility struct for handling PEM-encoded certificate and key pairs, supporting encryption, decryption, and conversion to `tls.Certificate`.
 
@@ -54,7 +54,7 @@ A utility struct for handling PEM-encoded certificate and key pairs, supporting 
 
 ### Certificate Generation
 
-The [`NewAgent`](agent/pkg/agent/new_agent.go:147) function creates a complete certificate infrastructure for an agent:
+The [`NewAgent`](new_agent.go:147) function creates a complete certificate infrastructure for an agent:
 
 - **CA Certificate**: Self-signed root certificate with 1000-year validity.
 - **Server Certificate**: For the agent's HTTPS server, signed by the CA.
@@ -65,18 +65,18 @@ All certificates use ECDSA with P-256 curve and SHA-256 signatures.
 ### Certificate Security
 
 - Certificates are encrypted using AES-GCM with a provided encryption key.
-- The [`PEMPair`](agent/pkg/agent/new_agent.go:53) struct provides methods for encryption, decryption, and conversion to `tls.Certificate`.
+- The [`PEMPair`](new_agent.go:53) struct provides methods for encryption, decryption, and conversion to `tls.Certificate`.
 - Base64 encoding is used for certificate storage and transmission.
 
 ## Key Features
 
 ### 1. Secure Communication
 
-All communication between the GoDoxy server and agents is secured using mutual TLS (mTLS). The [`AgentConfig`](agent/pkg/agent/config.go:29) handles the loading of CA and client certificates to establish secure connections.
+All communication between the GoDoxy server and agents is secured using mutual TLS (mTLS). The [`AgentConfig`](config.go:29) handles the loading of CA and client certificates to establish secure connections.
 
 ### 2. Agent Discovery and Initialization
 
-The [`Init`](agent/pkg/agent/config.go:231) and [`InitWithCerts`](agent/pkg/agent/config.go:110) methods allow the server to:
+The [`Init`](config.go:231) and [`InitWithCerts`](config.go:110) methods allow the server to:
 
 - Fetch agent metadata (version, name, runtime).
 - Verify compatibility between server and agent versions.
@@ -86,12 +86,12 @@ The [`Init`](agent/pkg/agent/config.go:231) and [`InitWithCerts`](agent/pkg/agen
 
 The package provides interfaces and implementations for generating deployment artifacts:
 
-- **Docker Compose**: Generates a `docker-compose.yml` for running the agent as a container via [`AgentComposeConfig.Generate()`](agent/pkg/agent/docker_compose.go:21).
-- **Bare Metal**: Generates a shell script to install and run the agent as a systemd service via [`AgentEnvConfig.Generate()`](agent/pkg/agent/bare_metal.go:27).
+- **Docker Compose**: Generates a `docker-compose.yml` for running the agent as a container via [`AgentComposeConfig.Generate()`](docker_compose.go:21).
+- **Bare Metal**: Generates a shell script to install and run the agent as a systemd service via [`AgentEnvConfig.Generate()`](bare_metal.go:27).
 
 ### 4. Fake Docker Host
 
-The package supports a "fake" Docker host scheme (`agent://<addr>`) to identify containers managed by an agent, allowing the GoDoxy server to route requests appropriately. See [`IsDockerHostAgent`](agent/pkg/agent/config.go:90) and [`GetAgentAddrFromDockerHost`](agent/pkg/agent/config.go:94).
+The package supports a "fake" Docker host scheme (`agent://<addr>`) to identify containers managed by an agent, allowing the GoDoxy server to route requests appropriately. See [`IsDockerHostAgent`](config.go:90) and [`GetAgentAddrFromDockerHost`](config.go:94).
 
 ## Usage Example
 
