@@ -55,7 +55,7 @@ type (
 
 		route.HTTPConfig
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
-		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
+		Rules        rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
 		HealthCheck  types.HealthCheckConfig        `json:"healthcheck,omitempty" extensions:"x-nullable"` // null on load-balancer routes
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`

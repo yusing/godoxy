@@ -26,6 +26,7 @@ func (on *RuleOn) Check(w http.ResponseWriter, r *http.Request) bool {
 }
 
 const (
+	OnDefault   = "default"
 	OnHeader    = "header"
 	OnQuery     = "query"
 	OnCookie    = "cookie"
@@ -50,6 +51,22 @@ var checkers = map[string]struct {
 	builder           func(args any) CheckFunc
 	isResponseChecker bool
 }{
+	OnDefault: {
+		help: Help{
+			command: OnDefault,
+			description: makeLines(
+				"The default rule is matched when no other rules are matched.",
+			),
+			args: map[string]string{},
+		},
+		validate: func(args []string) (any, gperr.Error) {
+			if len(args) != 0 {
+				return nil, ErrExpectNoArg
+			}
+			return nil, nil
+		},
+		builder: func(args any) CheckFunc { return func(w http.ResponseWriter, r *http.Request) bool { return false } }, // this should never be called
+	},
 	OnHeader: {
 		help: Help{
 			command: OnHeader,
