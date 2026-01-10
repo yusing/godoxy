@@ -811,7 +811,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/homepage.FetchResult"
+                "$ref": "#/definitions/iconfetch.Result"
               }
             }
           },
@@ -1698,7 +1698,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/homepage.IconMetaSearch"
+                "$ref": "#/definitions/iconlist.IconMetaSearch"
               }
             }
           },
@@ -4335,8 +4335,7 @@
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
         },
         "scheme": {
           "type": "string",
@@ -5202,7 +5201,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.FetchResult": {
+    "iconfetch.Result": {
       "type": "object",
       "properties": {
         "icon": {
@@ -5223,7 +5222,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconMetaSearch": {
+    "iconlist.IconMetaSearch": {
       "type": "object",
       "properties": {
         "Dark": {
@@ -5252,7 +5251,7 @@
           "x-omitempty": false
         },
         "Source": {
-          "$ref": "#/definitions/homepage.IconSource",
+          "$ref": "#/definitions/icons.Source",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -5265,7 +5264,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconSource": {
+    "icons.Source": {
       "type": "string",
       "enum": [
         "https://",
@@ -5274,10 +5273,10 @@
         "@selfhst"
       ],
       "x-enum-varnames": [
-        "IconSourceAbsolute",
-        "IconSourceRelative",
-        "IconSourceWalkXCode",
-        "IconSourceSelfhSt"
+        "SourceAbsolute",
+        "SourceRelative",
+        "SourceWalkXCode",
+        "SourceSelfhSt"
       ],
       "x-nullable": false,
       "x-omitempty": false
@@ -5515,8 +5514,7 @@
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
         },
         "scheme": {
           "type": "string",

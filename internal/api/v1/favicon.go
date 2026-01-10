@@ -28,7 +28,7 @@ type GetFavIconRequest struct {
 // @Produce		image/svg+xml,image/x-icon,image/png,image/webp
 // @Param			url		query		string	false	"URL of the route"
 // @Param			alias	query		string	false	"Alias of the route"
-// @Success		200		{array}		homepage.FetchResult
+// @Success		200		{array}		iconfetch.Result
 // @Failure		400		{object}	apitypes.ErrorResponse "Bad Request: alias is empty or route is not HTTPRoute"
 // @Failure		403		{object}	apitypes.ErrorResponse "Forbidden: unauthorized"
 // @Failure		404		{object}	apitypes.ErrorResponse "Not Found: route or icon not found"

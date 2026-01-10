@@ -959,6 +959,7 @@ definitions:
         items:
           $ref: '#/definitions/rules.Rule'
         type: array
+        x-nullable: true
       scheme:
         enum:
         - http
@@ -1428,7 +1429,7 @@ definitions:
     required:
     - id
     type: object
-  homepage.FetchResult:
+  iconfetch.Result:
     properties:
       icon:
         items:
@@ -1438,7 +1439,7 @@ definitions:
       statusCode:
         type: integer
     type: object
-  homepage.IconMetaSearch:
+  iconlist.IconMetaSearch:
     properties:
       Dark:
         type: boolean
@@ -1451,11 +1452,11 @@ definitions:
       SVG:
         type: boolean
       Source:
-        $ref: '#/definitions/homepage.IconSource'
+        $ref: '#/definitions/icons.Source'
       WebP:
         type: boolean
     type: object
-  homepage.IconSource:
+  icons.Source:
     enum:
     - https://
     - '@target'
@@ -1463,10 +1464,10 @@ definitions:
     - '@selfhst'
     type: string
     x-enum-varnames:
-    - IconSourceAbsolute
-    - IconSourceRelative
-    - IconSourceWalkXCode
-    - IconSourceSelfhSt
+    - SourceAbsolute
+    - SourceRelative
+    - SourceWalkXCode
+    - SourceSelfhSt
   mem.VirtualMemoryStat:
     properties:
       available:
@@ -1594,6 +1595,7 @@ definitions:
         items:
           $ref: '#/definitions/rules.Rule'
         type: array
+        x-nullable: true
       scheme:
         enum:
         - http
@@ -2229,7 +2231,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/homepage.FetchResult'
+              $ref: '#/definitions/iconfetch.Result'
             type: array
         "400":
           description: 'Bad Request: alias is empty or route is not HTTPRoute'
@@ -2811,7 +2813,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/homepage.IconMetaSearch'
+              $ref: '#/definitions/iconlist.IconMetaSearch'
             type: array
         "400":
           description: Bad Request

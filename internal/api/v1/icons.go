@@ -22,7 +22,7 @@ type ListIconsRequest struct {
 // @Produce		json
 // @Param			limit	query		int		false	"Limit"
 // @Param			keyword	query		string	false	"Keyword"
-// @Success		200		{array}		homepage.IconMetaSearch
+// @Success		200		{array}		iconlist.IconMetaSearch
 // @Failure		400		{object}	apitypes.ErrorResponse
 // @Failure		403		{object}	apitypes.ErrorResponse
 // @Router			/icons [get]
