@@ -480,6 +480,14 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) g
 		}
 		numValid++
 	}
+
+	if dst.Type().Implements(reflect.TypeFor[CustomValidator]()) {
+		err := dst.Interface().(CustomValidator).Validate()
+		if err != nil {
+			sliceErrs.Add(err)
+		}
+	}
+
 	if err := sliceErrs.Error(); err != nil {
 		dst.SetLen(numValid) // shrink to number of elements that were successfully converted
 		return err
