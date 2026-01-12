@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -196,6 +197,11 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 
 	if cfg.TLS != nil {
 		opt = append(opt, client.WithTLSClientConfig(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile))
+	}
+
+	// Use explicit API version if provided via environment variable, otherwise use default negotiation
+	if apiVersion := os.Getenv("DOCKER_API_VERSION"); apiVersion != "" {
+		opt = append(opt, client.WithAPIVersion(apiVersion))
 	}
 
 	client, err := client.New(opt...)
