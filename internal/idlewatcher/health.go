@@ -102,11 +102,6 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 }
 
 func (w *Watcher) checkUpdateState() (ready bool, err error) {
-	// the new container info not yet updated
-	if w.hc.URL().Host == "" {
-		return false, nil
-	}
-
 	state := w.state.Load()
 
 	// Check if container has been starting for too long (timeout after WakeTimeout)
