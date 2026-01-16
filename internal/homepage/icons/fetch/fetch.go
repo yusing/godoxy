@@ -29,7 +29,7 @@ type Result struct {
 	StatusCode int
 
 	contentType string
-}
+} // @name IconFetchResult
 
 func FetchResultWithErrorf(statusCode int, msgFmt string, args ...any) (Result, error) {
 	return Result{StatusCode: statusCode}, fmt.Errorf(msgFmt, args...)

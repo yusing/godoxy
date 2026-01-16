@@ -811,7 +811,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/iconfetch.Result"
+                "$ref": "#/definitions/IconFetchResult"
               }
             }
           },
@@ -1698,7 +1698,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/iconlist.IconMetaSearch"
+                "$ref": "#/definitions/IconMetaSearch"
               }
             }
           },
@@ -3423,6 +3423,69 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "IconFetchResult": {
+      "type": "object",
+      "properties": {
+        "icon": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "statusCode": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IconMetaSearch": {
+      "type": "object",
+      "properties": {
+        "Dark": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "Light": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "PNG": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "Ref": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "SVG": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "Source": {
+          "$ref": "#/definitions/icons.Source",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "WebP": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "IdlewatcherConfig": {
       "type": "object",
       "properties": {
@@ -3440,7 +3503,7 @@
           "x-omitempty": false
         },
         "idle_timeout": {
-          "description": "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative: idle watcher as a dependency.\tIdleTimeout time.Duration `json:\"idle_timeout\" json_ext:\"duration\"`",
+          "description": "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative: idle watcher as a dependency.",
           "allOf": [
             {
               "$ref": "#/definitions/time.Duration"
@@ -5196,69 +5259,6 @@
         "timeout": {
           "description": "Timeout (optional) is the timeout (in seconds) to wait for the container\nto stop gracefully before forcibly terminating it with SIGKILL.\n\n- Use nil to use the default timeout (10 seconds).\n- Use '-1' to wait indefinitely.\n- Use '0' to not wait for the container to exit gracefully, and\n  immediately proceeds to forcibly terminating the container.\n- Other positive values are used as timeout (in seconds).",
           "type": "integer"
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "iconfetch.Result": {
-      "type": "object",
-      "properties": {
-        "icon": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "statusCode": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "iconlist.IconMetaSearch": {
-      "type": "object",
-      "properties": {
-        "Dark": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "Light": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "PNG": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "Ref": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "SVG": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "Source": {
-          "$ref": "#/definitions/icons.Source",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "WebP": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
         }
       },
       "x-nullable": false,
