@@ -26,6 +26,8 @@ type (
 		config  types.HealthCheckConfig
 		url     synk.Value[*url.URL]
 
+		onUpdateURL func(url *url.URL)
+
 		status     synk.Value[types.HealthStatus]
 		lastResult synk.Value[types.HealthCheckResult]
 
@@ -151,6 +153,9 @@ func (mon *monitor) UpdateURL(url *url.URL) {
 		return
 	}
 	mon.url.Store(url)
+	if mon.onUpdateURL != nil {
+		mon.onUpdateURL(url)
+	}
 }
 
 // URL implements HealthChecker.
