@@ -106,6 +106,7 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 					logger.Err(err).Msg("docker health check failed, using fallback")
 				}
 			}
+			fallback.UpdateURL(u)
 			return fallback.CheckHealth()
 		}
 		return result, nil
@@ -116,7 +117,7 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 func NewAgentProxiedMonitor(config types.HealthCheckConfig, agent *agentpool.Agent, targetUrl *url.URL) Monitor {
 	var mon monitor
 	mon.init(targetUrl, config, func(u *url.URL) (result Result, err error) {
-		return CheckHealthAgentProxied(agent, config.Timeout, targetUrl)
+		return CheckHealthAgentProxied(agent, config.Timeout, u)
 	})
 	return &mon
 }
