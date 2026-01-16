@@ -17,7 +17,7 @@ type (
 	IdlewatcherConfigBase struct {
 		// 0: no idle watcher.
 		// Positive: idle watcher with idle timeout.
-		// Negative: idle watcher as a dependency.	IdleTimeout time.Duration `json:"idle_timeout" json_ext:"duration"`
+		// Negative: idle watcher as a dependency.
 		IdleTimeout time.Duration       `json:"idle_timeout"`
 		WakeTimeout time.Duration       `json:"wake_timeout"`
 		StopTimeout time.Duration       `json:"stop_timeout"`
