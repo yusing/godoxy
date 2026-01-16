@@ -97,7 +97,7 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 	isFirstFailure := true
 
 	var mon monitor
-	mon.init(displayURL, config, func(u *url.URL) (result Result, err error) {
+	mon.init(displayURL, config, func(_ *url.URL) (result Result, err error) {
 		result, err = healthcheck.Docker(mon.Context(), state, config.Timeout)
 		if err != nil {
 			if isFirstFailure {
@@ -106,11 +106,11 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 					logger.Err(err).Msg("docker health check failed, using fallback")
 				}
 			}
-			fallback.UpdateURL(u)
 			return fallback.CheckHealth()
 		}
 		return result, nil
 	})
+	mon.onUpdateURL = fallback.UpdateURL
 	return &mon
 }
 
