@@ -45,8 +45,6 @@
 
 <https://demo.godoxy.dev>
 
-[![Deployed on Zeabur](https://zeabur.com/deployed-on-zeabur-dark.svg)](https://zeabur.com/referral?referralCode=yusing&utm_source=yusing&utm_campaign=oss)
-
 ## 主要特點
 
 - **簡單易用**
