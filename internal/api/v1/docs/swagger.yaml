@@ -517,6 +517,33 @@ definitions:
           $ref: '#/definitions/HomepageItemConfig'
         type: object
     type: object
+  IconFetchResult:
+    properties:
+      icon:
+        items:
+          format: int32
+          type: integer
+        type: array
+      statusCode:
+        type: integer
+    type: object
+  IconMetaSearch:
+    properties:
+      Dark:
+        type: boolean
+      Light:
+        type: boolean
+      PNG:
+        type: boolean
+      Ref:
+        type: string
+      SVG:
+        type: boolean
+      Source:
+        $ref: '#/definitions/icons.Source'
+      WebP:
+        type: boolean
+    type: object
   IdlewatcherConfig:
     properties:
       depends_on:
@@ -528,9 +555,10 @@ definitions:
       idle_timeout:
         allOf:
         - $ref: '#/definitions/time.Duration'
-        description: "0: no idle watcher.\nPositive: idle watcher with idle timeout.\nNegative:
-          idle watcher as a dependency.\tIdleTimeout time.Duration `json:\"idle_timeout\"
-          json_ext:\"duration\"`"
+        description: |-
+          0: no idle watcher.
+          Positive: idle watcher with idle timeout.
+          Negative: idle watcher as a dependency.
       no_loading_page:
         type: boolean
       proxmox:
@@ -1429,33 +1457,6 @@ definitions:
     required:
     - id
     type: object
-  iconfetch.Result:
-    properties:
-      icon:
-        items:
-          format: int32
-          type: integer
-        type: array
-      statusCode:
-        type: integer
-    type: object
-  iconlist.IconMetaSearch:
-    properties:
-      Dark:
-        type: boolean
-      Light:
-        type: boolean
-      PNG:
-        type: boolean
-      Ref:
-        type: string
-      SVG:
-        type: boolean
-      Source:
-        $ref: '#/definitions/icons.Source'
-      WebP:
-        type: boolean
-    type: object
   icons.Source:
     enum:
     - https://
@@ -2231,7 +2232,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/iconfetch.Result'
+              $ref: '#/definitions/IconFetchResult'
             type: array
         "400":
           description: 'Bad Request: alias is empty or route is not HTTPRoute'
@@ -2813,7 +2814,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/iconlist.IconMetaSearch'
+              $ref: '#/definitions/IconMetaSearch'
             type: array
         "400":
           description: Bad Request

@@ -31,7 +31,7 @@ type (
 		Ref    string       `json:"Ref"`
 
 		rank int
-	}
+	} // @name IconMetaSearch
 )
 
 const updateInterval = 2 * time.Hour
