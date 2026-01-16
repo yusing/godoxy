@@ -168,11 +168,16 @@ get_timezone() {
 setenv() {
 	local key="$1"
 	local value="$2"
-	# uncomment line if it is commented
-	sed -i "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
-	sed -i "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
+	if [[ "$OSTYPE" == "darwin"* ]]; then
+		sed -i '' "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
+		sed -i '' "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
+	else
+		sed -i "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
+		sed -i "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
+	fi
 	echo "${key}=${value}"
 }
+
 
 # Setup required configurations
 # 1. Setup required directories
