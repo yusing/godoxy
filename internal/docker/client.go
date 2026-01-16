@@ -14,7 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/cli/cli/connhelper"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/agentpool"
@@ -198,7 +198,7 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 		opt = append(opt, client.WithTLSClientConfig(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile))
 	}
 
-	client, err := client.New(opt...)
+	client, err := client.NewClientWithOpts(opt...)
 	if err != nil {
 		return nil, err
 	}

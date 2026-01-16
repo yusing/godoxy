@@ -261,7 +261,7 @@ func loadNS[T store](ns namespace) T {
     }
     defer file.Close()
 
-    if err := sonic.ConfigDefault.NewDecoder(file).Decode(&store); err != nil {
+    if err := json.NewDecoder(file).Decode(&store); err != nil {
         log.Err(err).Msg("failed to decode store")
     }
 
@@ -316,7 +316,7 @@ type MapStore[VT any] struct {
 
 ```go
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
-    return sonic.Marshal(xsync.ToPlainMap(s.Map))
+    return json.Marshal(xsync.ToPlainMap(s.Map))
 }
 ```
 
@@ -325,7 +325,7 @@ func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
 ```go
 func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
     tmp := make(map[string]VT)
-    if err := sonic.Unmarshal(data, &tmp); err != nil {
+    if err := json.Unmarshal(data, &tmp); err != nil {
         return err
     }
     s.Map = xsync.NewMap[string, VT](xsync.WithPresize(len(tmp)))
@@ -349,7 +349,7 @@ The jsonstore package integrates with:
 Errors are logged but don't prevent store usage:
 
 ```go
-if err := sonic.Unmarshal(data, &tmp); err != nil {
+if err := json.Unmarshal(data, &tmp); err != nil {
     log.Err(err).
         Str("path", path).
         Msg("failed to load store")

@@ -2,12 +2,12 @@ package iconlist
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
@@ -270,7 +270,7 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 	}
 
 	data := make(map[string][]string)
-	err = sonic.Unmarshal(body, &data)
+	err = json.Unmarshal(body, &data)
 	release(body)
 	if err != nil {
 		return err
@@ -349,7 +349,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 	}
 
 	data := make([]SelfhStIcon, 0)
-	err = sonic.Unmarshal(body, &data) //nolint:musttag
+	err = json.Unmarshal(body, &data) //nolint:musttag
 	release(body)
 	if err != nil {
 		return err

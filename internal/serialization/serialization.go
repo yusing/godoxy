@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -10,7 +11,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
@@ -32,8 +32,8 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
 }
 
 func init() {
-	strutils.SetJSONMarshaler(sonic.Marshal)
-	strutils.SetJSONUnmarshaler(sonic.Unmarshal)
+	strutils.SetJSONMarshaler(json.Marshal)
+	strutils.SetJSONUnmarshaler(json.Unmarshal)
 	strutils.SetYAMLMarshaler(yaml.Marshal)
 	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
 }
@@ -677,7 +677,7 @@ func loadSerialized[T any](path string, dst *T, deserialize func(data []byte, ds
 }
 
 func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
-	data, err := sonic.Marshal(src)
+	data, err := json.Marshal(src)
 	if err != nil {
 		return err
 	}
@@ -685,7 +685,7 @@ func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
 }
 
 func LoadJSONIfExist[T any](path string, dst *T) error {
-	err := loadSerialized(path, dst, sonic.Unmarshal)
+	err := loadSerialized(path, dst, json.Unmarshal)
 	if os.IsNotExist(err) {
 		return nil
 	}

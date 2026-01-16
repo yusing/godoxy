@@ -2,12 +2,12 @@ package agentpool
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/valyala/fasthttp"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -63,7 +63,7 @@ func (cfg *Agent) DoHealthCheck(timeout time.Duration, query string) (ret Health
 		ret.Detail = fmt.Sprintf("HTTP %d %s", status, resp.Body())
 		return ret, nil
 	} else {
-		err = sonic.Unmarshal(resp.Body(), &ret)
+		err = json.Unmarshal(resp.Body(), &ret)
 		if err != nil {
 			return ret, err
 		}

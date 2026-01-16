@@ -2,11 +2,10 @@ package qbittorrent
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"time"
-
-	"github.com/bytedance/sonic"
 )
 
 const endpointLogs = "/api/v2/log/main"
@@ -45,7 +44,7 @@ func (l *LogEntry) Level() string {
 }
 
 func (l *LogEntry) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return json.Marshal(map[string]any{
 		"id":        l.ID,
 		"timestamp": l.Timestamp,
 		"level":     l.Level(),

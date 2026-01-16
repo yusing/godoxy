@@ -1,10 +1,10 @@
 package notif
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
-	"github.com/bytedance/sonic"
 	"github.com/gotify/server/v2/model"
 	"github.com/rs/zerolog"
 	gperr "github.com/yusing/goutils/errs"
@@ -65,7 +65,7 @@ func (client *GotifyClient) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 		}
 	}
 
-	data, err := sonic.Marshal(msg)
+	data, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (client *GotifyClient) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 // fmtError implements Provider.
 func (client *GotifyClient) fmtError(respBody io.Reader) error {
 	var errm model.Error
-	err := sonic.ConfigDefault.NewDecoder(respBody).Decode(&errm)
+	err := json.NewDecoder(respBody).Decode(&errm)
 	if err != nil {
 		return fmt.Errorf("failed to decode err response: %w", err)
 	}

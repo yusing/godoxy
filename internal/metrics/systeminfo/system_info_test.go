@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bytedance/sonic"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
@@ -82,12 +81,12 @@ var (
 
 func TestSystemInfo(t *testing.T) {
 	// Test marshaling
-	data, err := sonic.Marshal(testInfo)
+	data, err := json.Marshal(testInfo)
 	expect.NoError(t, err)
 
 	// Test unmarshaling back
 	var decoded SystemInfo
-	err = sonic.Unmarshal(data, &decoded)
+	err = json.Unmarshal(data, &decoded)
 	expect.NoError(t, err)
 
 	// Compare original and decoded
@@ -127,7 +126,7 @@ func TestSerialize(t *testing.T) {
 	for _, query := range allQueries {
 		t.Run(string(query), func(t *testing.T) {
 			_, result := aggregate(entries, url.Values{"aggregate": []string{string(query)}})
-			s, err := sonic.Marshal(result)
+			s, err := json.Marshal(result)
 			expect.NoError(t, err)
 			var v []map[string]any
 			expect.NoError(t, json.Unmarshal(s, &v))

@@ -1,12 +1,12 @@
 package middleware
 
 import (
+	"encoding/json"
 	"maps"
 	"net/http"
 	"reflect"
 	"sort"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/serialization"
@@ -152,7 +152,7 @@ func (m *Middleware) MarshalJSON() ([]byte, error) {
 		commonOptions
 		any
 	}
-	return sonic.MarshalIndent(map[string]any{
+	return json.MarshalIndent(map[string]any{
 		"name": m.name,
 		"options": allOptions{
 			commonOptions: m.commonOptions,

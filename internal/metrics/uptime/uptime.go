@@ -2,11 +2,11 @@ package uptime
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"slices"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
@@ -50,7 +50,7 @@ func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
 }
 
 func (s *Status) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return json.Marshal(map[string]any{
 		"status":    s.Status.String(),
 		"latency":   s.Latency,
 		"timestamp": s.Timestamp,
@@ -164,5 +164,5 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 }
 
 func (result Aggregated) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal([]RouteAggregate(result))
+	return json.Marshal([]RouteAggregate(result))
 }

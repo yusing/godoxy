@@ -1,11 +1,10 @@
 package idlewatcher
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
-
-	"github.com/bytedance/sonic"
 )
 
 type WakeEvent struct {
@@ -40,7 +39,7 @@ func (w *Watcher) newWakeEvent(eventType WakeEventType, message string, err erro
 }
 
 func (e *WakeEvent) WriteSSE(w io.Writer) error {
-	data, err := sonic.Marshal(e)
+	data, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}

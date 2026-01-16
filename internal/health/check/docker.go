@@ -2,13 +2,12 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
@@ -44,7 +43,7 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 	defer cancel()
 
 	// the actual inspect response is intercepted and returned as RequestInterceptedError
-	_, err := state.client.ContainerInspect(ctx, state.containerId, client.ContainerInspectOptions{})
+	_, err := state.client.ContainerInspect(ctx, state.containerId)
 
 	var interceptedErr *httputils.RequestInterceptedError
 	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
@@ -106,7 +105,7 @@ func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err 
 	}
 
 	var state container.State
-	err = sonic.Unmarshal(body, &state)
+	err = json.Unmarshal(body, &state)
 	release(body)
 	if err != nil {
 		return false, err

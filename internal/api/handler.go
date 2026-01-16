@@ -2,10 +2,8 @@ package api
 
 import (
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/codec/json"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	apiV1 "github.com/yusing/godoxy/internal/api/v1"
@@ -46,8 +44,6 @@ func NewHandler() *gin.Engine {
 	r.Use(ErrorHandler())
 	r.Use(ErrorLoggingMiddleware())
 	r.Use(NoCache())
-
-	log.Debug().Msg("gin codec json.API: " + reflect.TypeOf(json.API).Name())
 
 	r.GET("/api/v1/version", apiV1.Version)
 

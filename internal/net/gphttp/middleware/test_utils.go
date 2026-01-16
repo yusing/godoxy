@@ -3,12 +3,12 @@ package middleware
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"io"
 	"maps"
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -24,7 +24,7 @@ func init() {
 		return
 	}
 	tmp := map[string]string{}
-	err := sonic.Unmarshal(testHeadersRaw, &tmp)
+	err := json.Unmarshal(testHeadersRaw, &tmp)
 	if err != nil {
 		panic(err)
 	}

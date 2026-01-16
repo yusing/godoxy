@@ -102,7 +102,6 @@ func TestUDPServer_RejectInvalidClient(t *testing.T) {
 
 	srv := startUDPServer(t, certs)
 
-
 	// Try to connect with a client cert from a different CA
 	_, err = stream.NewUDPClient(srv.Addr.String(), dstAddr, certs.CaCert, invalidClientCert)
 	require.Error(t, err, "expected error when connecting with client cert from different CA")
