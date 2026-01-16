@@ -1,6 +1,6 @@
 # Homepage
 
-The homepage package provides the GoDoxy WebUI dashboard with support for categories, favorites, widgets, and dynamic item configuration.
+The homepage package provides the GoDoxy WebUI dashboard with support for categories, favorites, widgets, dynamic item configuration, and icon management.
 
 ## Overview
 
@@ -193,18 +193,6 @@ Widgets can display various types of information:
 - **Stats**: Usage statistics
 - **Links**: Quick access links
 - **Custom**: Provider-specific data
-
-## Icon Handling
-
-Icons are handled via `IconURL` type:
-
-```go
-type IconURL struct {
-    // Icon URL with various sources
-}
-
-// Automatic favicon fetching from item URL
-```
 
 ## Categories
 
