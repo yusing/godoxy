@@ -1,7 +1,7 @@
 module github.com/yusing/godoxy/cmd/h2c_test_server
 
-go 1.25.5
+go 1.25.6
 
-require golang.org/x/net v0.48.0
+require golang.org/x/net v0.49.0
 
-require golang.org/x/text v0.32.0 // indirect
+require golang.org/x/text v0.33.0 // indirect
