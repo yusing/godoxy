@@ -456,6 +456,18 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 }
 
 func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error {
+	if dst.Kind() == reflect.Pointer {
+		if dst.IsNil() && !dst.CanSet() {
+			return ErrNilValue
+		}
+		initPtr(dst)
+		dst = dst.Elem()
+	}
+
+	if !dst.CanSet() {
+		return ErrUnsettable.Subject(dst.Type().String())
+	}
+
 	if src.Kind() != reflect.Slice {
 		return Convert(src, dst, checkValidateTag)
 	}
