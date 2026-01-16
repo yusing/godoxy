@@ -208,18 +208,14 @@ func TestHTTPFlow_PostResponseRule(t *testing.T) {
 		"X-Upstream": []string{"upstream-value"},
 	})
 
-	tempFile, err := os.CreateTemp("", "test-log-*.txt")
-	// Create a temporary file for logging
-	require.NoError(t, err)
-	defer os.Remove(tempFile.Name())
-	tempFile.Close()
+	tempFile := TestRandomFileName()
 
 	var rules Rules
-	err = parseRules(fmt.Sprintf(`
+	err := parseRules(fmt.Sprintf(`
 - name: log-response
   on: path /test
   do: log info %s "$req_method $status_code"
-`, tempFile.Name()), &rules)
+`, tempFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -234,7 +230,7 @@ func TestHTTPFlow_PostResponseRule(t *testing.T) {
 	assert.Equal(t, "upstream-value", w.Header().Get("X-Upstream"))
 
 	// Check log file
-	content, err := os.ReadFile(tempFile.Name())
+	content := TestFileContent(tempFile)
 	require.NoError(t, err)
 	assert.Equal(t, "GET 200\n", string(content))
 }
@@ -253,16 +249,13 @@ func TestHTTPFlow_ResponseRuleWithStatusCondition(t *testing.T) {
 	var rules Rules
 
 	// Create a temporary file for logging
-	tempFile, err := os.CreateTemp("", "test-error-log-*.txt")
-	require.NoError(t, err)
-	defer os.Remove(tempFile.Name())
-	tempFile.Close()
+	tempFile := TestRandomFileName()
 
-	err = parseRules(fmt.Sprintf(`
+	err := parseRules(fmt.Sprintf(`
 - name: log-errors
   on: status 4xx
   do: log error %s "$req_url returned $status_code"
-`, tempFile.Name()), &rules)
+`, tempFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -282,7 +275,7 @@ func TestHTTPFlow_ResponseRuleWithStatusCondition(t *testing.T) {
 	assert.Equal(t, 404, w2.Code)
 
 	// Check log file
-	content, err := os.ReadFile(tempFile.Name())
+	content := TestFileContent(tempFile)
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
 	require.Len(t, lines, 1, "only 4xx requests should be logged")
@@ -345,18 +338,11 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRules(t *testing.T) {
 	})
 
 	// Create temporary files for logging
-	logFile, err := os.CreateTemp("", "test-access-log-*.txt")
-	require.NoError(t, err)
-	defer os.Remove(logFile.Name())
-	logFile.Close()
-
-	errorLogFile, err := os.CreateTemp("", "test-error-log-*.txt")
-	require.NoError(t, err)
-	defer os.Remove(errorLogFile.Name())
-	errorLogFile.Close()
+	logFile := TestRandomFileName()
+	errorLogFile := TestRandomFileName()
 
 	var rules Rules
-	err = parseRules(fmt.Sprintf(`
+	err := parseRules(fmt.Sprintf(`
 - name: add-correlation-id
   do: set resp_header X-Correlation-Id random_uuid
 - name: validate-auth
@@ -369,7 +355,7 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRules(t *testing.T) {
   on: status 4xx
   do: |
     log error %q "ERROR: $req_method $req_url $status_code"
-`, logFile.Name(), errorLogFile.Name()), &rules)
+`, logFile, errorLogFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -403,16 +389,14 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRules(t *testing.T) {
 	assert.Equal(t, 401, w3.Code)
 
 	// Check log files
-	logContent, err := os.ReadFile(logFile.Name())
-	require.NoError(t, err)
+	logContent := TestFileContent(logFile)
 	lines := strings.Split(strings.TrimSpace(string(logContent)), "\n")
 	require.Len(t, lines, 3, "all requests should be logged")
 	assert.Equal(t, "GET /public -> 200", lines[0])
 	assert.Equal(t, "GET /protected -> 401", lines[1])
 	assert.Equal(t, "GET /protected -> 401", lines[2])
 
-	errorLogContent, err := os.ReadFile(errorLogFile.Name())
-	require.NoError(t, err)
+	errorLogContent := TestFileContent(errorLogFile)
 	// Should have at least one 401 error logged
 	lines = strings.Split(strings.TrimSpace(string(errorLogContent)), "\n")
 	require.Len(t, lines, 2, "all errors should be logged")

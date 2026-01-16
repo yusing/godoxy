@@ -86,7 +86,7 @@ func initPtr(dst reflect.Value) {
 }
 
 func ValidateWithFieldTags(s any) gperr.Error {
-	errs := gperr.NewBuilder()
+	var errs gperr.Builder
 	err := validate.Struct(s)
 	var valErrs validator.ValidationErrors
 	if errors.As(err, &valErrs) {
@@ -302,7 +302,7 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 	// convert target fields to lower no-snake
 	// then check if the field of data is in the target
 
-	errs := gperr.NewBuilder()
+	var errs gperr.Builder
 
 	switch dstV.Kind() {
 	case reflect.Struct, reflect.Interface:
@@ -449,56 +449,94 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		}
 		return mapUnmarshalValidate(obj, dst.Addr(), checkValidateTag)
 	case srcKind == reflect.Slice: // slice to slice
-		srcLen := src.Len()
-		if srcLen == 0 {
-			dst.SetZero()
-			return nil
-		}
-		if dstT.Kind() != reflect.Slice {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
-		}
-		sliceErrs := gperr.NewBuilder()
-		i := 0
-		gi.ReflectInitSlice(dst, srcLen, srcLen)
-		for j, v := range src.Seq2() {
-			err := Convert(v, dst.Index(i), checkValidateTag)
-			if err != nil {
-				sliceErrs.Add(err.Subjectf("[%d]", j))
-				continue
-			}
-			i++
-		}
-		if err := sliceErrs.Error(); err != nil {
-			dst.SetLen(i) // shrink to number of elements that were successfully converted
-			return err
-		}
-		return nil
+		return ConvertSlice(src, dst, checkValidateTag)
 	}
 
-	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT.String(), dstT.String())
+	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 }
 
-var parserType = reflect.TypeFor[strutils.Parser]()
+func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error {
+	if dst.Kind() == reflect.Pointer {
+		if dst.IsNil() && !dst.CanSet() {
+			return ErrNilValue
+		}
+		initPtr(dst)
+		dst = dst.Elem()
+	}
+
+	if !dst.CanSet() {
+		return ErrUnsettable.Subject(dst.Type().String())
+	}
+
+	if src.Kind() != reflect.Slice {
+		return Convert(src, dst, checkValidateTag)
+	}
+
+	srcLen := src.Len()
+	if srcLen == 0 {
+		dst.SetZero()
+		return nil
+	}
+	if dst.Kind() != reflect.Slice {
+		return ErrUnsupportedConversion.Subjectf("%s to %s", dst.Type(), src.Type())
+	}
+
+	var sliceErrs gperr.Builder
+	numValid := 0
+	gi.ReflectInitSlice(dst, srcLen, srcLen)
+	for j := range srcLen {
+		err := Convert(src.Index(j), dst.Index(numValid), checkValidateTag)
+		if err != nil {
+			sliceErrs.Add(err.Subjectf("[%d]", j))
+			continue
+		}
+		numValid++
+	}
+
+	if dst.Type().Implements(reflect.TypeFor[CustomValidator]()) {
+		err := dst.Interface().(CustomValidator).Validate()
+		if err != nil {
+			sliceErrs.Add(err)
+		}
+	}
+
+	if err := sliceErrs.Error(); err != nil {
+		dst.SetLen(numValid) // shrink to number of elements that were successfully converted
+		return err
+	}
+	return nil
+}
 
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
+			// Early return for empty string
+			if src == "" {
+				return true, nil
+			}
 			initPtr(dst)
 		}
 		dst = dst.Elem()
 		dstT = dst.Type()
-	}
-	if dst.Kind() == reflect.String {
-		dst.SetString(src)
-		return true, nil
 	}
 
 	// Early return for empty string
 	if src == "" {
 		dst.SetZero()
 		return true, nil
+	}
+
+	if dst.Kind() == reflect.String {
+		dst.SetString(src)
+		return true, nil
+	}
+
+	// check if (*T).Convertor is implemented
+	if addr := dst.Addr(); addr.Type().Implements(reflect.TypeFor[strutils.Parser]()) {
+		parser := addr.Interface().(strutils.Parser)
+		return true, gperr.Wrap(parser.Parse(src))
 	}
 
 	switch dstT {
@@ -512,12 +550,6 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	default:
 	}
 
-	// check if (*T).Convertor is implemented
-	if dst.Addr().Type().Implements(parserType) {
-		parser := dst.Addr().Interface().(strutils.Parser)
-		return true, gperr.Wrap(parser.Parse(src))
-	}
-
 	if gi.ReflectIsNumeric(dst) || dst.Kind() == reflect.Bool {
 		err := gi.ReflectStrToNumBool(dst, src)
 		if err != nil {
@@ -527,29 +559,25 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	}
 
 	// yaml like
-	var tmp any
 	switch dst.Kind() {
 	case reflect.Slice:
-		// Avoid unnecessary TrimSpace if we can detect the format early
-		srcLen := len(src)
-		if srcLen == 0 {
-			return true, nil
-		}
-
 		// one liner is comma separated list
-		isMultiline := strings.ContainsRune(src, '\n')
-		if !isMultiline && src[0] != '-' {
+		isMultiline := strings.IndexByte(src, '\n') != -1
+		if !isMultiline && src[0] != '-' && src[0] != '[' {
 			values := strutils.CommaSeperatedList(src)
-			gi.ReflectInitSlice(dst, len(values), len(values))
-			errs := gperr.NewBuilder()
+			size := len(values)
+			gi.ReflectInitSlice(dst, size, size)
+			var errs gperr.Builder
 			for i, v := range values {
 				_, err := ConvertString(v, dst.Index(i))
 				if err != nil {
-					errs.Add(err.Subjectf("[%d]", i))
+					errs.AddSubjectf(err, "[%d]", i)
 				}
 			}
-			err := errs.Error()
-			return true, err
+			if errs.HasError() {
+				return true, errs.Error()
+			}
+			return true, nil
 		}
 
 		sl := []any{}
@@ -557,18 +585,17 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
-		tmp = sl
+		return true, ConvertSlice(reflect.ValueOf(sl), dst, true)
 	case reflect.Map, reflect.Struct:
 		rawMap := SerializedObject{}
 		err := yaml.Unmarshal(unsafe.Slice(unsafe.StringData(src), len(src)), &rawMap)
 		if err != nil {
 			return true, gperr.Wrap(err)
 		}
-		tmp = rawMap
+		return true, mapUnmarshalValidate(rawMap, dst, true)
 	default:
 		return false, nil
 	}
-	return true, Convert(reflect.ValueOf(tmp), dst, true)
 }
 
 var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}

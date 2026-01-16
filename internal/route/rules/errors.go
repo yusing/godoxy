@@ -15,6 +15,7 @@ var (
 	ErrInvalidArguments        = gperr.New("invalid arguments")
 	ErrInvalidOnTarget         = gperr.New("invalid `rule.on` target")
 	ErrInvalidCommandSequence  = gperr.New("invalid command sequence")
+	ErrMultipleDefaultRules    = gperr.New("multiple default rules")
 
 	// vars errors
 	ErrNoArgProvided   = gperr.New("no argument provided")

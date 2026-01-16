@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -80,7 +80,7 @@ func AllSystemInfo(c *gin.Context) {
 	}
 
 	// leave 5 extra slots for buffering in case new agents are added.
-	dataCh := make(chan SystemInfoData, 1+agent.NumAgents()+5)
+	dataCh := make(chan SystemInfoData, 1+agentpool.Num()+5)
 	defer close(dataCh)
 
 	ticker := time.NewTicker(req.Interval)
@@ -103,54 +103,52 @@ func AllSystemInfo(c *gin.Context) {
 
 	// processing function for one round.
 	doRound := func() (bool, error) {
-		var roundWg sync.WaitGroup
 		var numErrs atomic.Int32
 
 		totalAgents := int32(1) // myself
 
-		errs := gperr.NewBuilderWithConcurrency()
+		var errs gperr.Group
 		// get system info for me and all agents in parallel.
-		roundWg.Go(func() {
+		errs.Go(func() error {
 			data, err := systeminfo.Poller.GetRespData(req.Period, query)
 			if err != nil {
-				errs.Add(gperr.Wrap(err, "Main server"))
 				numErrs.Add(1)
-				return
+				return gperr.PrependSubject("Main server", err)
 			}
 			select {
 			case <-manager.Done():
-				return
+				return nil
 			case dataCh <- SystemInfoData{
 				AgentName:  "GoDoxy",
 				SystemInfo: data,
 			}:
 			}
+			return nil
 		})
 
-		for _, a := range agent.IterAgents() {
+		for _, a := range agentpool.Iter() {
 			totalAgents++
-			agentShallowCopy := *a
 
-			roundWg.Go(func() {
-				data, err := getAgentSystemInfoWithRetry(manager.Context(), &agentShallowCopy, queryEncoded)
+			errs.Go(func() error {
+				data, err := getAgentSystemInfoWithRetry(manager.Context(), a, queryEncoded)
 				if err != nil {
-					errs.Add(gperr.Wrap(err, "Agent "+agentShallowCopy.Name))
 					numErrs.Add(1)
-					return
+					return gperr.PrependSubject("Agent "+a.Name, err)
 				}
 				select {
 				case <-manager.Done():
-					return
+					return nil
 				case dataCh <- SystemInfoData{
-					AgentName:  agentShallowCopy.Name,
+					AgentName:  a.Name,
 					SystemInfo: data,
 				}:
 				}
+				return nil
 			})
 		}
 
-		roundWg.Wait()
-		return numErrs.Load() == totalAgents, errs.Error()
+		err := errs.Wait().Error()
+		return numErrs.Load() == totalAgents, err
 	}
 
 	// write system info immediately once.
@@ -178,7 +176,7 @@ func AllSystemInfo(c *gin.Context) {
 	}
 }
 
-func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
+func getAgentSystemInfo(ctx context.Context, a *agentpool.Agent, query string) (bytesFromPool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -197,7 +195,7 @@ func getAgentSystemInfo(ctx context.Context, a *agent.AgentConfig, query string)
 	return bytesFromPool{json.RawMessage(bytesBuf), release}, nil
 }
 
-func getAgentSystemInfoWithRetry(ctx context.Context, a *agent.AgentConfig, query string) (bytesFromPool, error) {
+func getAgentSystemInfoWithRetry(ctx context.Context, a *agentpool.Agent, query string) (bytesFromPool, error) {
 	const maxRetries = 3
 	var lastErr error
 

@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,33 +18,51 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/valyala/fasthttp"
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
+	agentstream "github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/certs"
+	gperr "github.com/yusing/goutils/errs"
+	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/version"
 )
 
 type AgentConfig struct {
-	Addr    string           `json:"addr"`
-	Name    string           `json:"name"`
-	Version version.Version  `json:"version" swaggertype:"string"`
-	Runtime ContainerRuntime `json:"runtime"`
+	AgentInfo
 
-	httpClient                *http.Client
-	fasthttpClientHealthCheck *fasthttp.Client
-	tlsConfig                 tls.Config
-	l                         zerolog.Logger
+	Addr                 string `json:"addr"`
+	IsTCPStreamSupported bool   `json:"supports_tcp_stream"`
+	IsUDPStreamSupported bool   `json:"supports_udp_stream"`
+
+	// for stream
+	caCert     *x509.Certificate
+	clientCert *tls.Certificate
+
+	tlsConfig tls.Config
+
+	l zerolog.Logger
 } // @name Agent
 
+type AgentInfo struct {
+	Version version.Version  `json:"version" swaggertype:"string"`
+	Name    string           `json:"name"`
+	Runtime ContainerRuntime `json:"runtime"`
+}
+
+// Deprecated. Replaced by EndpointInfo
 const (
-	EndpointVersion    = "/version"
-	EndpointName       = "/name"
-	EndpointRuntime    = "/runtime"
+	EndpointVersion = "/version"
+	EndpointName    = "/name"
+	EndpointRuntime = "/runtime"
+)
+
+const (
+	EndpointInfo       = "/info"
 	EndpointProxyHTTP  = "/proxy/http"
 	EndpointHealth     = "/health"
 	EndpointLogs       = "/logs"
 	EndpointSystemInfo = "/system_info"
 
-	AgentHost = CertsDNSName
+	AgentHost = common.CertsDNSName
 
 	APIEndpointBase = "/godoxy/agent"
 	APIBaseURL      = "https://" + AgentHost + APIEndpointBase
@@ -85,11 +106,13 @@ func (cfg *AgentConfig) Parse(addr string) error {
 
 var serverVersion = version.Get()
 
-func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte) error {
+// InitWithCerts initializes the agent config with the given CA, certificate, and key.
+func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) error {
 	clientCert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
 		return err
 	}
+	cfg.clientCert = &clientCert
 
 	// create tls config
 	caCertPool := x509.NewCertPool()
@@ -97,63 +120,104 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	if !ok {
 		return errors.New("invalid ca certificate")
 	}
+	// Keep the CA leaf for stream client dialing.
+	if block, _ := pem.Decode(ca); block == nil || block.Type != "CERTIFICATE" {
+		return errors.New("invalid ca certificate")
+	} else if cert, err := x509.ParseCertificate(block.Bytes); err != nil {
+		return err
+	} else {
+		cfg.caCert = cert
+	}
 
 	cfg.tlsConfig = tls.Config{
 		Certificates: []tls.Certificate{clientCert},
 		RootCAs:      caCertPool,
-		ServerName:   CertsDNSName,
+		ServerName:   common.CertsDNSName,
+		MinVersion:   tls.VersionTLS12,
 	}
-
-	// create transport and http client
-	cfg.httpClient = cfg.NewHTTPClient()
-	applyNormalTransportConfig(cfg.httpClient)
-
-	cfg.fasthttpClientHealthCheck = cfg.NewFastHTTPHealthCheckClient()
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// get agent name
-	name, _, err := cfg.fetchString(ctx, EndpointName)
+	status, err := cfg.fetchJSON(ctx, EndpointInfo, &cfg.AgentInfo)
 	if err != nil {
 		return err
 	}
 
-	cfg.Name = name
+	var streamUnsupportedErrs gperr.Builder
+
+	if status == http.StatusOK {
+		// test stream server connection
+		const fakeAddress = "localhost:8080" // it won't be used, just for testing
+		// test TCP stream support
+		err := agentstream.TCPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
+		if err != nil {
+			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
+		} else {
+			cfg.IsTCPStreamSupported = true
+		}
+
+		// test UDP stream support
+		err = agentstream.UDPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
+		if err != nil {
+			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
+		} else {
+			cfg.IsUDPStreamSupported = true
+		}
+	} else {
+		// old agent does not support EndpointInfo
+		// fallback with old logic
+		cfg.IsTCPStreamSupported = false
+		cfg.IsUDPStreamSupported = false
+		streamUnsupportedErrs.Adds("agent version is too old, does not support stream tunneling")
+
+		// get agent name
+		name, _, err := cfg.fetchString(ctx, EndpointName)
+		if err != nil {
+			return err
+		}
+
+		cfg.Name = name
+
+		// check agent version
+		agentVersion, _, err := cfg.fetchString(ctx, EndpointVersion)
+		if err != nil {
+			return err
+		}
+
+		cfg.Version = version.Parse(agentVersion)
+
+		// check agent runtime
+		runtime, status, err := cfg.fetchString(ctx, EndpointRuntime)
+		if err != nil {
+			return err
+		}
+
+		switch status {
+		case http.StatusOK:
+			switch runtime {
+			case "docker":
+				cfg.Runtime = ContainerRuntimeDocker
+			// case "nerdctl":
+			// 	cfg.Runtime = ContainerRuntimeNerdctl
+			case "podman":
+				cfg.Runtime = ContainerRuntimePodman
+			default:
+				return fmt.Errorf("invalid agent runtime: %s", runtime)
+			}
+		case http.StatusNotFound:
+			// backward compatibility, old agent does not have runtime endpoint
+			cfg.Runtime = ContainerRuntimeDocker
+		default:
+			return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtime)
+		}
+	}
 
 	cfg.l = log.With().Str("agent", cfg.Name).Logger()
 
-	// check agent version
-	agentVersion, _, err := cfg.fetchString(ctx, EndpointVersion)
-	if err != nil {
-		return err
+	if err := streamUnsupportedErrs.Error(); err != nil {
+		gperr.LogWarn("agent has limited/no stream tunneling support, TCP and UDP routes via agent will not work", err, &cfg.l)
 	}
-
-	// check agent runtime
-	runtime, status, err := cfg.fetchString(ctx, EndpointRuntime)
-	if err != nil {
-		return err
-	}
-	switch status {
-	case http.StatusOK:
-		switch runtime {
-		case "docker":
-			cfg.Runtime = ContainerRuntimeDocker
-		// case "nerdctl":
-		// 	cfg.Runtime = ContainerRuntimeNerdctl
-		case "podman":
-			cfg.Runtime = ContainerRuntimePodman
-		default:
-			return fmt.Errorf("invalid agent runtime: %s", runtime)
-		}
-	case http.StatusNotFound:
-		// backward compatibility, old agent does not have runtime endpoint
-		cfg.Runtime = ContainerRuntimeDocker
-	default:
-		return fmt.Errorf("failed to get agent runtime: HTTP %d %s", status, runtime)
-	}
-
-	cfg.Version = version.Parse(agentVersion)
 
 	if serverVersion.IsNewerThanMajor(cfg.Version) {
 		log.Warn().Msgf("agent %s major version mismatch: server: %s, agent: %s", cfg.Name, serverVersion, cfg.Version)
@@ -163,7 +227,8 @@ func (cfg *AgentConfig) StartWithCerts(ctx context.Context, ca, crt, key []byte)
 	return nil
 }
 
-func (cfg *AgentConfig) Start(ctx context.Context) error {
+// Init initializes the agent config with the given context.
+func (cfg *AgentConfig) Init(ctx context.Context) error {
 	filepath, ok := certs.AgentCertsFilepath(cfg.Addr)
 	if !ok {
 		return fmt.Errorf("invalid agent host: %s", cfg.Addr)
@@ -179,32 +244,39 @@ func (cfg *AgentConfig) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to extract agent certs: %w", err)
 	}
 
-	return cfg.StartWithCerts(ctx, ca, crt, key)
+	return cfg.InitWithCerts(ctx, ca, crt, key)
 }
 
-func (cfg *AgentConfig) NewHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: cfg.Transport(),
+// NewTCPClient creates a new TCP client for the agent.
+//
+// It returns an error if
+//   - the agent is not initialized
+//   - the agent does not support TCP stream tunneling
+//   - the agent stream server address is not initialized
+func (cfg *AgentConfig) NewTCPClient(targetAddress string) (net.Conn, error) {
+	if cfg.caCert == nil || cfg.clientCert == nil {
+		return nil, errors.New("agent is not initialized")
 	}
+	if !cfg.IsTCPStreamSupported {
+		return nil, errors.New("agent does not support TCP stream tunneling")
+	}
+	return agentstream.NewTCPClient(cfg.Addr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
-func (cfg *AgentConfig) NewFastHTTPHealthCheckClient() *fasthttp.Client {
-	return &fasthttp.Client{
-		Dial: func(addr string) (net.Conn, error) {
-			if addr != AgentHost+":443" {
-				return nil, &net.AddrError{Err: "invalid address", Addr: addr}
-			}
-			return net.Dial("tcp", cfg.Addr)
-		},
-		TLSConfig:                     &cfg.tlsConfig,
-		ReadTimeout:                   5 * time.Second,
-		WriteTimeout:                  3 * time.Second,
-		DisableHeaderNamesNormalizing: true,
-		DisablePathNormalizing:        true,
-		NoDefaultUserAgentHeader:      true,
-		ReadBufferSize:                1024,
-		WriteBufferSize:               1024,
+// NewUDPClient creates a new UDP client for the agent.
+//
+// It returns an error if
+//   - the agent is not initialized
+//   - the agent does not support UDP stream tunneling
+//   - the agent stream server address is not initialized
+func (cfg *AgentConfig) NewUDPClient(targetAddress string) (net.Conn, error) {
+	if cfg.caCert == nil || cfg.clientCert == nil {
+		return nil, errors.New("agent is not initialized")
 	}
+	if !cfg.IsUDPStreamSupported {
+		return nil, errors.New("agent does not support UDP stream tunneling")
+	}
+	return agentstream.NewUDPClient(cfg.Addr, targetAddress, cfg.caCert, cfg.clientCert)
 }
 
 func (cfg *AgentConfig) Transport() *http.Transport {
@@ -222,6 +294,10 @@ func (cfg *AgentConfig) Transport() *http.Transport {
 	}
 }
 
+func (cfg *AgentConfig) TLSConfig() *tls.Config {
+	return &cfg.tlsConfig
+}
+
 var dialer = &net.Dialer{Timeout: 5 * time.Second}
 
 func (cfg *AgentConfig) DialContext(ctx context.Context) (net.Conn, error) {
@@ -232,10 +308,57 @@ func (cfg *AgentConfig) String() string {
 	return cfg.Name + "@" + cfg.Addr
 }
 
-func applyNormalTransportConfig(client *http.Client) {
-	transport := client.Transport.(*http.Transport)
-	transport.MaxIdleConns = 100
-	transport.MaxIdleConnsPerHost = 100
-	transport.ReadBufferSize = 16384
-	transport.WriteBufferSize = 16384
+func (cfg *AgentConfig) do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, APIBaseURL+endpoint, body)
+	if err != nil {
+		return nil, err
+	}
+	client := http.Client{
+		Transport: cfg.Transport(),
+	}
+	return client.Do(req)
+}
+
+func (cfg *AgentConfig) fetchString(ctx context.Context, endpoint string) (string, int, error) {
+	resp, err := cfg.do(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return "", 0, err
+	}
+	ret := string(data)
+	release(data)
+	return ret, resp.StatusCode, nil
+}
+
+// fetchJSON fetches a JSON response from the agent and unmarshals it into the provided struct
+//
+// It will return the status code of the response, and error if any.
+// If the status code is not http.StatusOK, out will be unchanged but error will still be nil.
+func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any) (int, error) {
+	resp, err := cfg.do(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	data, release, err := httputils.ReadAllBody(resp)
+	if err != nil {
+		return 0, err
+	}
+
+	defer release(data)
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, nil
+	}
+
+	err = json.Unmarshal(data, out)
+	if err != nil {
+		return 0, err
+	}
+	return resp.StatusCode, nil
 }

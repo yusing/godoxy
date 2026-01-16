@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/utils"
+	"github.com/yusing/goutils/synk"
 )
 
 type File struct {
@@ -18,7 +18,7 @@ type File struct {
 	// Store it for later delete from `openedFiles`.
 	path string
 
-	refCount *utils.RefCount
+	refCount *synk.RefCount
 }
 
 var (
@@ -55,7 +55,7 @@ func NewFileIO(path string) (Writer, error) {
 	if _, err := f.Seek(0, io.SeekEnd); err != nil {
 		return nil, fmt.Errorf("access log seek error: %w", err)
 	}
-	file = &File{f: f, path: path, refCount: utils.NewRefCounter()}
+	file = &File{f: f, path: path, refCount: synk.NewRefCounter()}
 	openedFiles[path] = file
 	go file.closeOnZero()
 	return file, nil

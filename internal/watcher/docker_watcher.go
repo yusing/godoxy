@@ -104,7 +104,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 		}()
 
 		chs := client.Events(ctx, options)
-		defer log.Debug().Str("host", client.Address()).Msg("docker watcher closed")
+		defer log.Debug().Str("host", client.DaemonHost()).Msg("docker watcher closed")
 		for {
 			select {
 			case <-ctx.Done():
@@ -177,7 +177,7 @@ func checkConnection(ctx context.Context, client *docker.SharedClient) bool {
 	defer cancel()
 	err := client.CheckConnection(ctx)
 	if err != nil {
-		log.Debug().Err(err).Msg("docker watcher: connection failed")
+		log.Debug().Err(err).Str("host", client.DaemonHost()).Msg("docker watcher: connection failed")
 		return false
 	}
 	return true

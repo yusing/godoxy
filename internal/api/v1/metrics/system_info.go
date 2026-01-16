@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -49,9 +50,9 @@ func SystemInfo(c *gin.Context) {
 	}
 	c.Request.URL.RawQuery = query.Encode()
 
-	agent, ok := agentPkg.GetAgent(agentAddr)
+	agent, ok := agentpool.Get(agentAddr)
 	if !ok {
-		agent, ok = agentPkg.GetAgentByName(agentName)
+		agent, ok = agentpool.GetAgent(agentName)
 	}
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("agent_addr or agent_name not found"))

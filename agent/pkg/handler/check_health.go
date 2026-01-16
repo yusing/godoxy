@@ -1,16 +1,16 @@
 package handler
 
 import (
-	"context"
-	"fmt"
+	"net"
 	"net/http"
 	"net/url"
-	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bytedance/sonic"
+	healthcheck "github.com/yusing/godoxy/internal/health/check"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 )
 
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
@@ -20,6 +20,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing scheme", http.StatusBadRequest)
 		return
 	}
+	timeout := parseMsOrDefault(query.Get("timeout"))
 
 	var (
 		result types.HealthCheckResult
@@ -32,24 +33,21 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "missing path", http.StatusBadRequest)
 			return
 		}
-		_, err := os.Stat(path)
-		result = types.HealthCheckResult{Healthy: err == nil}
-		if err != nil {
-			result.Detail = err.Error()
-		}
-	case "http", "https": // path is optional
+		result, err = healthcheck.FileServer(path)
+	case "http", "https", "h2c": // path is optional
 		host := query.Get("host")
 		path := query.Get("path")
 		if host == "" {
 			http.Error(w, "missing host", http.StatusBadRequest)
 			return
 		}
-		result, err = monitor.NewHTTPHealthMonitor(&url.URL{
-			Scheme: scheme,
-			Host:   host,
-			Path:   path,
-		}, healthCheckConfigFromRequest(r)).CheckHealth()
-	case "tcp", "udp":
+		url := url.URL{Scheme: scheme, Host: host}
+		if scheme == "h2c" {
+			result, err = healthcheck.H2C(r.Context(), &url, http.MethodHead, path, timeout)
+		} else {
+			result, err = healthcheck.HTTP(&url, http.MethodHead, path, timeout)
+		}
+	case "tcp", "udp", "tcp4", "udp4", "tcp6", "udp6":
 		host := query.Get("host")
 		if host == "" {
 			http.Error(w, "missing host", http.StatusBadRequest)
@@ -62,12 +60,10 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if port != "" {
-			host = fmt.Sprintf("%s:%s", host, port)
+			host = net.JoinHostPort(host, port)
 		}
-		result, err = monitor.NewRawHealthMonitor(&url.URL{
-			Scheme: scheme,
-			Host:   host,
-		}, healthCheckConfigFromRequest(r)).CheckHealth()
+		url := url.URL{Scheme: scheme, Host: host}
+		result, err = healthcheck.Stream(r.Context(), &url, timeout)
 	}
 
 	if err != nil {
@@ -80,12 +76,15 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	sonic.ConfigDefault.NewEncoder(w).Encode(result)
 }
 
-func healthCheckConfigFromRequest(r *http.Request) types.HealthCheckConfig {
-	// we only need timeout and base context because it's one shot request
-	return types.HealthCheckConfig{
-		Timeout: types.HealthCheckTimeoutDefault,
-		BaseContext: func() context.Context {
-			return r.Context()
-		},
+func parseMsOrDefault(msStr string) time.Duration {
+	if msStr == "" {
+		return types.HealthCheckTimeoutDefault
 	}
+
+	timeoutMs, _ := strconv.ParseInt(msStr, 10, 64)
+	if timeoutMs == 0 {
+		return types.HealthCheckTimeoutDefault
+	}
+
+	return time.Duration(timeoutMs) * time.Millisecond
 }

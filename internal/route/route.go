@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"reflect"
@@ -14,17 +15,18 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/homepage"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
@@ -35,17 +37,17 @@ import (
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	route "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/utils"
 )
 
 type (
 	Route struct {
-		_ utils.NoCopy
-
 		Alias  string       `json:"alias"`
 		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
+
+		// for TCP and UDP routes, bind address to listen on
+		Bind string `json:"bind,omitempty" validate:"omitempty,ip_addr" extensions:"x-nullable"`
 
 		Root  string `json:"root,omitempty"`
 		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
@@ -53,7 +55,7 @@ type (
 
 		route.HTTPConfig
 		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
-		Rules        rules.Rules                    `json:"rules,omitempty" extension:"x-nullable"`
+		Rules        rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
 		HealthCheck  types.HealthCheckConfig        `json:"healthcheck,omitempty" extensions:"x-nullable"` // null on load-balancer routes
 		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
@@ -93,7 +95,7 @@ type (
 
 		provider types.RouteProvider
 
-		agent *agent.AgentConfig
+		agent *agentpool.Agent
 
 		started      chan struct{}
 		onceStart    sync.Once
@@ -152,10 +154,10 @@ func (r *Route) validate() gperr.Error {
 		}
 		var ok bool
 		// by agent address
-		r.agent, ok = agent.GetAgent(r.Agent)
+		r.agent, ok = agentpool.Get(r.Agent)
 		if !ok {
 			// fallback to get agent by name
-			r.agent, ok = agent.GetAgentByName(r.Agent)
+			r.agent, ok = agentpool.GetAgent(r.Agent)
 			if !ok {
 				return gperr.Errorf("agent %s not found", r.Agent)
 			}
@@ -268,19 +270,45 @@ func (r *Route) validate() gperr.Error {
 
 	switch r.Scheme {
 	case route.SchemeFileServer:
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 		r.Host = ""
 		r.Port.Proxy = 0
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	case route.SchemeTCP, route.SchemeUDP:
-		if !r.ShouldExclude() {
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://:%d", r.Scheme, r.Port.Listening))
+		if r.ShouldExclude() {
+			// should exclude, we don't care the scheme here.
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		} else {
+			if r.Bind == "" {
+				r.Bind = "0.0.0.0"
+			}
+			bindIP := net.ParseIP(r.Bind)
+			remoteIP := net.ParseIP(r.Host)
+			toNetwork := func(ip net.IP, scheme route.Scheme) string {
+				if ip == nil { // hostname, indeterminate
+					return scheme.String()
+				}
+				if ip.To4() == nil {
+					if scheme == route.SchemeTCP {
+						return "tcp6"
+					}
+					return "udp6"
+				}
+				if scheme == route.SchemeTCP {
+					return "tcp4"
+				}
+				return "udp4"
+			}
+			lScheme := toNetwork(bindIP, r.Scheme)
+			rScheme := toNetwork(remoteIP, r.Scheme)
+
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", lScheme, r.Bind, r.Port.Listening))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", rScheme, r.Host, r.Port.Proxy))
 		}
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -451,13 +479,18 @@ func (r *Route) TargetURL() *nettypes.URL {
 }
 
 func (r *Route) References() []string {
+	aliasRef, _, ok := strings.Cut(r.Alias, ".")
+	if !ok {
+		aliasRef = r.Alias
+	}
+
 	if r.Container != nil {
 		if r.Container.ContainerName != r.Alias {
-			return []string{r.Container.ContainerName, r.Alias, r.Container.Image.Name, r.Container.Image.Author}
+			return []string{r.Container.ContainerName, aliasRef, r.Container.Image.Name, r.Container.Image.Author}
 		}
-		return []string{r.Container.Image.Name, r.Alias, r.Container.Image.Author}
+		return []string{r.Container.Image.Name, aliasRef, r.Container.Image.Author}
 	}
-	return []string{r.Alias}
+	return []string{aliasRef}
 }
 
 // Name implements pool.Object.
@@ -488,7 +521,7 @@ func (r *Route) Type() route.RouteType {
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
 
-func (r *Route) GetAgent() *agent.AgentConfig {
+func (r *Route) GetAgent() *agentpool.Agent {
 	if r.Container != nil && r.Container.Agent != nil {
 		return r.Container.Agent
 	}
@@ -788,6 +821,15 @@ func (r *Route) Finalize() {
 	}
 
 	r.Port.Listening, r.Port.Proxy = lp, pp
+
+	workingState := config.WorkingState.Load()
+	if workingState == nil {
+		if common.IsTest { // in tests, working state might be nil
+			return
+		}
+		panic("bug: working state is nil")
+	}
+
 	r.HealthCheck.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
 }
 
@@ -813,7 +855,7 @@ func (r *Route) FinalizeHomepageConfig() {
 	hp := r.Homepage
 	refs := r.References()
 	for _, ref := range refs {
-		meta, ok := homepage.GetHomepageMeta(ref)
+		meta, ok := iconlist.GetMetadata(ref)
 		if ok {
 			if hp.Name == "" {
 				hp.Name = meta.DisplayName

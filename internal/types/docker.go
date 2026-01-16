@@ -4,7 +4,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/ds/ordered"
-	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -20,7 +20,7 @@ type (
 
 		State container.ContainerState `json:"state"`
 
-		Agent *agent.AgentConfig `json:"agent"`
+		Agent *agentpool.Agent `json:"agent"`
 
 		Labels            map[string]string  `json:"-"`      // for creating routes
 		ActualLabels      map[string]string  `json:"labels"` // for displaying in UI

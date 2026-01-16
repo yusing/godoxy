@@ -3,6 +3,8 @@ export VERSION ?= $(shell git describe --tags --abbrev=0)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
 
+REPO_URL ?= https://github.com/yusing/godoxy
+
 WEBUI_DIR ?= ../godoxy-webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
@@ -75,7 +77,7 @@ endif
 .PHONY: debug
 
 test:
-	go test -v -race ./internal/...
+	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 docker-build-test:
 	docker build -t godoxy .
@@ -172,3 +174,7 @@ gen-api-types: gen-swagger
 	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
 		 --responses -o ${WEBUI_DIR}/lib -n api.ts -p internal/api/v1/docs/swagger.json
 	bunx --bun prettier --config ${WEBUI_DIR}/.prettierrc --write ${WEBUI_DIR}/lib/api.ts
+
+.PHONY: update-wiki
+update-wiki:
+	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki/main.ts

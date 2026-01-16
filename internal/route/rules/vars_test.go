@@ -484,7 +484,7 @@ func TestExpandVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out strings.Builder
-			err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest, tt.input, &out)
+			err := ExpandVars(testResponseModifier, testRequest, tt.input, &out)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -506,7 +506,7 @@ func TestExpandVars_Integration(t *testing.T) {
 		testResponseModifier.WriteHeader(200)
 
 		var out strings.Builder
-		err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest,
+		err := ExpandVars(testResponseModifier, testRequest,
 			"$req_method $req_url $status_code User-Agent=$header(User-Agent)",
 			&out)
 
@@ -537,7 +537,7 @@ func TestExpandVars_Integration(t *testing.T) {
 		testResponseModifier.WriteHeader(200)
 
 		var out strings.Builder
-		err := ExpandVars(httputils.NewResponseModifier(httptest.NewRecorder()), testRequest,
+		err := ExpandVars(testResponseModifier, testRequest,
 			"Status: $status_code, Cache: $resp_header(Cache-Control), Limit: $resp_header(X-Rate-Limit)",
 			&out)
 

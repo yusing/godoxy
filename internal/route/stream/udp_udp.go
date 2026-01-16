@@ -11,17 +11,21 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
 	"go.uber.org/atomic"
 )
 
 type UDPUDPStream struct {
-	name     string
 	listener net.PacketConn
+
+	network    string
+	dstNetwork string
 
 	laddr *net.UDPAddr
 	dst   *net.UDPAddr
+	agent *agentpool.Agent
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -35,7 +39,7 @@ type UDPUDPStream struct {
 
 type udpUDPConn struct {
 	srcAddr  *net.UDPAddr
-	dstConn  *net.UDPConn
+	dstConn  net.Conn
 	listener net.PacketConn
 	lastUsed atomic.Time
 	closed   atomic.Bool
@@ -51,29 +55,32 @@ const (
 
 var bufPool = synk.GetSizedBytesPool()
 
-func NewUDPUDPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
-	dst, err := net.ResolveUDPAddr("udp", dstAddr)
+func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
+	dst, err := net.ResolveUDPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
 	}
-	laddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	laddr, err := net.ResolveUDPAddr(network, listenAddr)
 	if err != nil {
 		return nil, err
 	}
 	return &UDPUDPStream{
-		laddr: laddr,
-		dst:   dst,
-		conns: make(map[string]*udpUDPConn),
+		network:    network,
+		dstNetwork: dstNetwork,
+		laddr:      laddr,
+		dst:        dst,
+		agent:      agent,
+		conns:      make(map[string]*udpUDPConn),
 	}, nil
 }
 
 func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
-	var err error
-	s.listener, err = net.ListenUDP("udp", s.laddr)
+	l, err := net.ListenUDP(s.network, s.laddr)
 	if err != nil {
 		logErr(s, err, "failed to listen")
 		return
 	}
+	s.listener = l
 	if acl := acl.ActiveConfig.Load(); acl != nil {
 		s.listener = acl.WrapUDP(s.listener)
 	}
@@ -113,10 +120,7 @@ func (s *UDPUDPStream) LocalAddr() net.Addr {
 }
 
 func (s *UDPUDPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "udp-udp")
-	if s.name != "" {
-		e.Str("name", s.name)
-	}
+	e.Str("protocol", s.network+"->"+s.dstNetwork)
 	if s.dst != nil {
 		e.Str("dst", s.dst.String())
 	}
@@ -189,8 +193,16 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 		}
 	}
 
-	// Create UDP connection to destination
-	dstConn, err := net.DialUDP("udp", nil, s.dst)
+	// Create connection to destination (direct UDP or via agent stream tunnel)
+	var (
+		dstConn net.Conn
+		err     error
+	)
+	if s.agent != nil {
+		dstConn, err = s.agent.NewUDPClient(s.dst.String())
+	} else {
+		dstConn, err = net.DialUDP(s.dst.Network(), nil, s.dst)
+	}
 	if err != nil {
 		logErr(s, err, "failed to dial dst")
 		return nil, false
@@ -205,7 +217,7 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 
 	// Send initial data before starting response handler
 	if !conn.forwardToDestination(initialData) {
-		dstConn.Close()
+		_ = dstConn.Close()
 		return nil, false
 	}
 
@@ -328,6 +340,6 @@ func (conn *udpUDPConn) Close() {
 
 	conn.closed.Store(true)
 
-	conn.dstConn.Close()
+	_ = conn.dstConn.Close()
 	conn.dstConn = nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/url"
-	"sync"
 	"syscall"
 	"time"
 
@@ -72,43 +71,41 @@ func isNoDataAvailable(err error) bool {
 }
 
 func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, error) {
-	errs := gperr.NewBuilderWithConcurrency("failed to get system info")
+	errs := gperr.NewGroup("failed to get system info")
 	var s SystemInfo
 	s.Timestamp = time.Now().Unix()
 
-	var wg sync.WaitGroup
-
 	if !common.MetricsDisableCPU {
-		wg.Go(func() {
-			errs.Add(s.collectCPUInfo(ctx))
+		errs.Go(func() error {
+			return s.collectCPUInfo(ctx)
 		})
 	}
 	if !common.MetricsDisableMemory {
-		wg.Go(func() {
-			errs.Add(s.collectMemoryInfo(ctx))
+		errs.Go(func() error {
+			return s.collectMemoryInfo(ctx)
 		})
 	}
 	if !common.MetricsDisableDisk {
-		wg.Go(func() {
-			errs.Add(s.collectDisksInfo(ctx, lastResult))
+		errs.Go(func() error {
+			return s.collectDisksInfo(ctx, lastResult)
 		})
 	}
 	if !common.MetricsDisableNetwork {
-		wg.Go(func() {
-			errs.Add(s.collectNetworkInfo(ctx, lastResult))
+		errs.Go(func() error {
+			return s.collectNetworkInfo(ctx, lastResult)
 		})
 	}
 	if !common.MetricsDisableSensors {
-		wg.Go(func() {
-			errs.Add(s.collectSensorsInfo(ctx))
+		errs.Go(func() error {
+			return s.collectSensorsInfo(ctx)
 		})
 	}
-	wg.Wait()
 
-	if errs.HasError() {
+	result := errs.Wait()
+	if result.HasError() {
 		allWarnings := gperr.NewBuilder("")
 		allErrors := gperr.NewBuilder("failed to get system info")
-		errs.ForEach(func(err error) {
+		result.ForEach(func(err error) {
 			warnings := new(warning.Warning)
 			if errors.As(err, &warnings) {
 				for _, warning := range warnings.List {

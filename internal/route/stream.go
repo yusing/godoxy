@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/stream"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
@@ -27,13 +28,7 @@ type StreamRoute struct {
 
 func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
-	return &StreamRoute{
-		Route: base,
-		l: log.With().
-			Str("type", string(base.Scheme)).
-			Str("name", base.Name()).
-			Logger(),
-	}, nil
+	return &StreamRoute{Route: base}, nil
 }
 
 func (r *StreamRoute) Stream() nettypes.Stream {
@@ -42,6 +37,10 @@ func (r *StreamRoute) Stream() nettypes.Stream {
 
 // Start implements task.TaskStarter.
 func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
+	if r.LisURL == nil {
+		return gperr.Errorf("listen URL is not set")
+	}
+
 	stream, err := r.initStream()
 	if err != nil {
 		return gperr.Wrap(err)
@@ -70,7 +69,11 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	r.ListenAndServe(r.task.Context(), nil, nil)
-	r.l = r.l.With().Stringer("rurl", r.ProxyURL).Stringer("laddr", r.LocalAddr()).Logger()
+	r.l = log.With().
+		Str("type", r.LisURL.Scheme+"->"+r.ProxyURL.Scheme).
+		Str("name", r.Name()).
+		Stringer("rurl", r.ProxyURL).
+		Stringer("laddr", r.LocalAddr()).Logger()
 	r.l.Info().Msg("stream started")
 
 	r.task.OnCancel("close_stream", func() {
@@ -99,7 +102,10 @@ func (r *StreamRoute) LocalAddr() net.Addr {
 
 func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 	lurl, rurl := r.LisURL, r.ProxyURL
-	if lurl != nil && lurl.Scheme != rurl.Scheme {
+	// tcp4/tcp6 -> tcp, udp4/udp6 -> udp
+	lScheme := strings.TrimRight(lurl.Scheme, "46")
+	rScheme := strings.TrimRight(rurl.Scheme, "46")
+	if lScheme != rScheme {
 		return nil, fmt.Errorf("incoherent scheme is not yet supported: %s != %s", lurl.Scheme, rurl.Scheme)
 	}
 
@@ -108,11 +114,11 @@ func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 		laddr = lurl.Host
 	}
 
-	switch rurl.Scheme {
+	switch rScheme {
 	case "tcp":
-		return stream.NewTCPTCPStream(laddr, rurl.Host)
+		return stream.NewTCPTCPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
 	case "udp":
-		return stream.NewUDPUDPStream(laddr, rurl.Host)
+		return stream.NewUDPUDPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
 	}
 	return nil, fmt.Errorf("unknown scheme: %s", rurl.Scheme)
 }

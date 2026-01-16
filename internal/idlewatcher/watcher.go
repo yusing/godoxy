@@ -14,14 +14,13 @@ import (
 	"github.com/yusing/ds/ordered"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
-	U "github.com/yusing/godoxy/internal/utils"
 	"github.com/yusing/godoxy/internal/watcher/events"
-	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 	strutils "github.com/yusing/goutils/strings"
@@ -48,7 +47,6 @@ type (
 	}
 
 	Watcher struct {
-		_ U.NoCopy
 		routeHelper
 
 		l zerolog.Logger
@@ -143,7 +141,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 	}
 
-	depErrors := gperr.NewBuilder()
+	var depErrors gperr.Builder
 	for i, dep := range cfg.DependsOn {
 		depSegments := strings.Split(dep, ":")
 		dep = depSegments[0]

@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 
 	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/godoxy/internal/watcher/health/monitor"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )

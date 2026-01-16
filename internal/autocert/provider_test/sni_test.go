@@ -71,15 +71,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "a.internal.example.com"})
 		require.NoError(t, err)
@@ -100,15 +103,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.example.com"})
 		require.NoError(t, err)
@@ -129,15 +135,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "unknown.domain.com"})
 		require.NoError(t, err)
@@ -159,8 +168,11 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(nil)
 		require.NoError(t, err)
@@ -182,8 +194,11 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: ""})
 		require.NoError(t, err)
@@ -204,15 +219,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "FOO.EXAMPLE.COM"})
 		require.NoError(t, err)
@@ -233,15 +251,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "  foo.example.com.  "})
 		require.NoError(t, err)
@@ -262,15 +283,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert1, KeyPath: extraKey1},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.a.example.com"})
 		require.NoError(t, err)
@@ -292,8 +316,11 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "bar.example.com"})
 		require.NoError(t, err)
@@ -317,7 +344,7 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert1, KeyPath: extraKey1},
 				{CertPath: extraCert2, KeyPath: extraKey2},
 			},
@@ -325,8 +352,11 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert1, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.test.com"})
 		require.NoError(t, err)
@@ -352,15 +382,18 @@ func TestGetCertBySNI(t *testing.T) {
 			Provider: autocert.ProviderLocal,
 			CertPath: mainCert,
 			KeyPath:  mainKey,
-			Extra: []autocert.Config{
+			Extra: []autocert.ConfigExtra{
 				{CertPath: extraCert, KeyPath: extraKey},
 			},
 		}
 
 		require.NoError(t, cfg.Validate())
 
-		p := autocert.NewProvider(cfg, nil, nil)
-		require.NoError(t, p.Setup())
+		p, err := autocert.NewProvider(cfg, nil, nil)
+		require.NoError(t, err)
+
+		err = p.LoadCert()
+		require.NoError(t, err)
 
 		cert1, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.example.com"})
 		require.NoError(t, err)

@@ -7,6 +7,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
@@ -15,8 +16,13 @@ import (
 
 type TCPTCPStream struct {
 	listener net.Listener
-	laddr    *net.TCPAddr
-	dst      *net.TCPAddr
+
+	network    string
+	dstNetwork string
+
+	laddr *net.TCPAddr
+	dst   *net.TCPAddr
+	agent *agentpool.Agent
 
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
@@ -24,21 +30,21 @@ type TCPTCPStream struct {
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(listenAddr, dstAddr string) (nettypes.Stream, error) {
-	dst, err := net.ResolveTCPAddr("tcp", dstAddr)
+func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
+	dst, err := net.ResolveTCPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
 	}
-	laddr, err := net.ResolveTCPAddr("tcp", listenAddr)
+	laddr, err := net.ResolveTCPAddr(network, listenAddr)
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{laddr: laddr, dst: dst}, nil
+	return &TCPTCPStream{network: network, dstNetwork: dstNetwork, laddr: laddr, dst: dst, agent: agent}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
 	var err error
-	s.listener, err = net.ListenTCP("tcp", s.laddr)
+	s.listener, err = net.ListenTCP(s.network, s.laddr)
 	if err != nil {
 		logErr(s, err, "failed to listen")
 		return
@@ -71,7 +77,7 @@ func (s *TCPTCPStream) LocalAddr() net.Addr {
 }
 
 func (s *TCPTCPStream) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("protocol", "tcp-tcp")
+	e.Str("protocol", s.network+"->"+s.dstNetwork)
 
 	if s.listener != nil {
 		e.Str("listen", s.listener.Addr().String())
@@ -126,7 +132,15 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	dstConn, err := net.DialTCP("tcp", nil, s.dst)
+	var (
+		dstConn net.Conn
+		err     error
+	)
+	if s.agent != nil {
+		dstConn, err = s.agent.NewTCPClient(s.dst.String())
+	} else {
+		dstConn, err = net.DialTCP(s.dstNetwork, nil, s.dst)
+	}
 	if err != nil {
 		if !s.closed.Load() {
 			logErr(s, err, "failed to dial destination")
@@ -140,7 +154,7 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 	}
 
 	src := conn
-	dst := net.Conn(dstConn)
+	dst := dstConn
 	if s.onRead != nil {
 		src = &wrapperConn{
 			Conn:   conn,

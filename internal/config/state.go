@@ -18,8 +18,8 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/autocert"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
@@ -272,6 +272,7 @@ func (state *state) initAutoCert() error {
 	autocertCfg := state.AutoCert
 	if autocertCfg == nil {
 		autocertCfg = new(autocert.Config)
+		_ = autocertCfg.Validate()
 	}
 
 	user, legoCfg, err := autocertCfg.GetLegoConfig()
@@ -279,12 +280,19 @@ func (state *state) initAutoCert() error {
 		return err
 	}
 
-	state.autocertProvider = autocert.NewProvider(autocertCfg, user, legoCfg)
-	if err := state.autocertProvider.Setup(); err != nil {
-		return fmt.Errorf("autocert error: %w", err)
-	} else {
-		state.autocertProvider.ScheduleRenewal(state.task)
+	p, err := autocert.NewProvider(autocertCfg, user, legoCfg)
+	if err != nil {
+		return err
 	}
+
+	if err := p.ObtainCertIfNotExistsAll(); err != nil {
+		return err
+	}
+
+	p.ScheduleRenewalAll(state.task)
+	p.PrintCertExpiriesAll()
+
+	state.autocertProvider = p
 	return nil
 }
 
@@ -294,13 +302,16 @@ func (state *state) initProxmox() error {
 		return nil
 	}
 
-	errs := gperr.NewBuilder()
+	var errs gperr.Group
 	for _, cfg := range proxmoxCfg {
-		if err := cfg.Init(state.task.Context()); err != nil {
-			errs.Add(err.Subject(cfg.URL))
-		}
+		errs.Go(func() error {
+			if err := cfg.Init(state.task.Context()); err != nil {
+				return err.Subject(cfg.URL)
+			}
+			return nil
+		})
 	}
-	return errs.Error()
+	return errs.Wait().Error()
 }
 
 func (state *state) storeProvider(p types.RouteProvider) {
@@ -318,10 +329,10 @@ func (state *state) loadRouteProviders() error {
 	}()
 
 	providers := &state.Providers
-	errs := gperr.NewBuilderWithConcurrency("route provider errors")
-	results := gperr.NewBuilder("loaded route providers")
+	errs := gperr.NewGroup("route provider errors")
+	results := gperr.NewGroup("loaded route providers")
 
-	agent.RemoveAllAgents()
+	agentpool.RemoveAll()
 
 	numProviders := len(providers.Agents) + len(providers.Files) + len(providers.Docker)
 	providersCh := make(chan types.RouteProvider, numProviders)
@@ -341,11 +352,11 @@ func (state *state) loadRouteProviders() error {
 	var providersProducer sync.WaitGroup
 	for _, a := range providers.Agents {
 		providersProducer.Go(func() {
-			if err := a.Start(state.task.Context()); err != nil {
+			if err := a.Init(state.task.Context()); err != nil {
 				errs.Add(gperr.PrependSubject(a.String(), err))
 				return
 			}
-			agent.AddAgent(a)
+			agentpool.Add(a)
 			p := route.NewAgentProvider(a)
 			providersCh <- p
 		})
@@ -380,8 +391,6 @@ func (state *state) loadRouteProviders() error {
 		}
 	}
 
-	results.EnableConcurrency()
-
 	// load routes concurrently
 	var providersLoader sync.WaitGroup
 	for _, p := range state.providers.Range {
@@ -394,10 +403,10 @@ func (state *state) loadRouteProviders() error {
 	}
 	providersLoader.Wait()
 
-	state.tmpLog.Info().Msg(results.String())
+	state.tmpLog.Info().Msg(results.Wait().String())
 	state.printRoutesByProvider(lenLongestName)
 	state.printState()
-	return errs.Error()
+	return errs.Wait().Error()
 }
 
 func (state *state) printRoutesByProvider(lenLongestName int) {

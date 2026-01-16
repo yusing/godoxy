@@ -32,9 +32,9 @@ func BenchmarkDeserialize(b *testing.B) {
 		"c": "1,2,3",
 		"d": "a: a\nb: b\nc: c",
 		"e": "- a: a\n  b: b\n  c: c",
-		"f": map[string]any{"a": "a", "b": "456", "c": []string{"1", "2", "3"}},
+		"f": map[string]any{"a": "a", "b": "456", "c": `1,2,3`},
 		"g": map[string]any{"g1": "1.23", "g2": 123},
-		"h": []map[string]any{{"a": 123, "b": "456", "c": []string{"1", "2", "3"}}},
+		"h": []map[string]any{{"a": 123, "b": "456", "c": `["1","2","3"]`}},
 		"j": "1.23",
 		"k": 123,
 	}

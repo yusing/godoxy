@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"os"
 	"regexp"
@@ -19,13 +20,14 @@ import (
 	strutils "github.com/yusing/goutils/strings"
 )
 
+type ConfigExtra Config
 type Config struct {
 	Email       string                       `json:"email,omitempty"`
 	Domains     []string                     `json:"domains,omitempty"`
 	CertPath    string                       `json:"cert_path,omitempty"`
 	KeyPath     string                       `json:"key_path,omitempty"`
-	Extra       []Config                     `json:"extra,omitempty"`
-	ACMEKeyPath string                       `json:"acme_key_path,omitempty"`
+	Extra       []ConfigExtra                `json:"extra,omitempty"`
+	ACMEKeyPath string                       `json:"acme_key_path,omitempty"` // shared by all extra providers
 	Provider    string                       `json:"provider,omitempty"`
 	Options     map[string]strutils.Redacted `json:"options,omitempty"`
 
@@ -42,15 +44,12 @@ type Config struct {
 	HTTPClient *http.Client `json:"-"` // for tests only
 
 	challengeProvider challenge.Provider
+
+	idx int // 0: main, 1+: extra[i]
 }
 
 var (
-	ErrMissingDomain   = gperr.New("missing field 'domains'")
-	ErrMissingEmail    = gperr.New("missing field 'email'")
-	ErrMissingProvider = gperr.New("missing field 'provider'")
-	ErrMissingCADirURL = gperr.New("missing field 'ca_dir_url'")
-	ErrMissingCertPath = gperr.New("missing field 'cert_path'")
-	ErrMissingKeyPath  = gperr.New("missing field 'key_path'")
+	ErrMissingField    = gperr.New("missing field")
 	ErrDuplicatedPath  = gperr.New("duplicated path")
 	ErrInvalidDomain   = gperr.New("invalid domain")
 	ErrUnknownProvider = gperr.New("unknown provider")
@@ -66,95 +65,22 @@ var domainOrWildcardRE = regexp.MustCompile(`^\*?([^.]+\.)+[^.]+$`)
 
 // Validate implements the utils.CustomValidator interface.
 func (cfg *Config) Validate() gperr.Error {
-	if cfg == nil {
-		return nil
-	}
+	seenPaths := make(map[string]int) // path -> provider idx (0 for main, 1+ for extras)
+	return cfg.validate(seenPaths)
+}
 
+func (cfg *ConfigExtra) Validate() gperr.Error {
+	return nil // done by main config's validate
+}
+
+func (cfg *ConfigExtra) AsConfig() *Config {
+	return (*Config)(cfg)
+}
+
+func (cfg *Config) validate(seenPaths map[string]int) gperr.Error {
 	if cfg.Provider == "" {
 		cfg.Provider = ProviderLocal
 	}
-
-	b := gperr.NewBuilder("autocert errors")
-	if len(cfg.Extra) > 0 {
-		seenCertPaths := make(map[string]int, len(cfg.Extra))
-		seenKeyPaths := make(map[string]int, len(cfg.Extra))
-		for i := range cfg.Extra {
-			if cfg.Extra[i].CertPath == "" {
-				b.Add(ErrMissingCertPath.Subjectf("extra[%d].cert_path", i))
-			}
-			if cfg.Extra[i].KeyPath == "" {
-				b.Add(ErrMissingKeyPath.Subjectf("extra[%d].key_path", i))
-			}
-			if cfg.Extra[i].CertPath != "" {
-				if first, ok := seenCertPaths[cfg.Extra[i].CertPath]; ok {
-					b.Add(ErrDuplicatedPath.Subjectf("extra[%d].cert_path", i).Withf("first: %d", first))
-				} else {
-					seenCertPaths[cfg.Extra[i].CertPath] = i
-				}
-			}
-			if cfg.Extra[i].KeyPath != "" {
-				if first, ok := seenKeyPaths[cfg.Extra[i].KeyPath]; ok {
-					b.Add(ErrDuplicatedPath.Subjectf("extra[%d].key_path", i).Withf("first: %d", first))
-				} else {
-					seenKeyPaths[cfg.Extra[i].KeyPath] = i
-				}
-			}
-		}
-	}
-
-	if cfg.Provider == ProviderCustom && cfg.CADirURL == "" {
-		b.Add(ErrMissingCADirURL)
-	}
-
-	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
-		if len(cfg.Domains) == 0 {
-			b.Add(ErrMissingDomain)
-		}
-		if cfg.Email == "" {
-			b.Add(ErrMissingEmail)
-		}
-		if cfg.Provider != ProviderCustom {
-			for i, d := range cfg.Domains {
-				if !domainOrWildcardRE.MatchString(d) {
-					b.Add(ErrInvalidDomain.Subjectf("domains[%d]", i))
-				}
-			}
-		}
-		// check if provider is implemented
-		providerConstructor, ok := Providers[cfg.Provider]
-		if !ok {
-			if cfg.Provider != ProviderCustom {
-				b.Add(ErrUnknownProvider.
-					Subject(cfg.Provider).
-					With(gperr.DoYouMeanField(cfg.Provider, Providers)))
-			}
-		} else {
-			provider, err := providerConstructor(cfg.Options)
-			if err != nil {
-				b.Add(err)
-			} else {
-				cfg.challengeProvider = provider
-			}
-		}
-	}
-
-	if cfg.challengeProvider == nil {
-		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
-	}
-	return b.Error()
-}
-
-func (cfg *Config) dns01Options() []dns01.ChallengeOption {
-	return []dns01.ChallengeOption{
-		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
-	}
-}
-
-func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, nil, err
-	}
-
 	if cfg.CertPath == "" {
 		cfg.CertPath = CertFileDefault
 	}
@@ -165,6 +91,83 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 		cfg.ACMEKeyPath = ACMEKeyFileDefault
 	}
 
+	b := gperr.NewBuilder("certificate error")
+
+	// check if cert_path is unique
+	if first, ok := seenPaths[cfg.CertPath]; ok {
+		b.Add(ErrDuplicatedPath.Subjectf("cert_path %s", cfg.CertPath).Withf("first seen in %s", fmt.Sprintf("extra[%d]", first)))
+	} else {
+		seenPaths[cfg.CertPath] = cfg.idx
+	}
+
+	// check if key_path is unique
+	if first, ok := seenPaths[cfg.KeyPath]; ok {
+		b.Add(ErrDuplicatedPath.Subjectf("key_path %s", cfg.KeyPath).Withf("first seen in %s", fmt.Sprintf("extra[%d]", first)))
+	} else {
+		seenPaths[cfg.KeyPath] = cfg.idx
+	}
+
+	if cfg.Provider == ProviderCustom && cfg.CADirURL == "" {
+		b.Add(ErrMissingField.Subject("ca_dir_url"))
+	}
+
+	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
+		if len(cfg.Domains) == 0 {
+			b.Add(ErrMissingField.Subject("domains"))
+		}
+		if cfg.Email == "" {
+			b.Add(ErrMissingField.Subject("email"))
+		}
+		if cfg.Provider != ProviderCustom {
+			for i, d := range cfg.Domains {
+				if !domainOrWildcardRE.MatchString(d) {
+					b.Add(ErrInvalidDomain.Subjectf("domains[%d]", i))
+				}
+			}
+		}
+	}
+
+	// check if provider is implemented
+	providerConstructor, ok := Providers[cfg.Provider]
+	if !ok {
+		if cfg.Provider != ProviderCustom {
+			b.Add(ErrUnknownProvider.
+				Subject(cfg.Provider).
+				With(gperr.DoYouMeanField(cfg.Provider, Providers)))
+		}
+	} else {
+		provider, err := providerConstructor(cfg.Options)
+		if err != nil {
+			b.Add(err)
+		} else {
+			cfg.challengeProvider = provider
+		}
+	}
+
+	if cfg.challengeProvider == nil {
+		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
+	}
+
+	if len(cfg.Extra) > 0 {
+		for i := range cfg.Extra {
+			cfg.Extra[i] = MergeExtraConfig(cfg, &cfg.Extra[i])
+			cfg.Extra[i].AsConfig().idx = i + 1
+			err := cfg.Extra[i].AsConfig().validate(seenPaths)
+			if err != nil {
+				b.Add(err.Subjectf("extra[%d]", i))
+			}
+		}
+	}
+	return b.Error()
+}
+
+func (cfg *Config) dns01Options() []dns01.ChallengeOption {
+	return []dns01.ChallengeOption{
+		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
+	}
+}
+
+func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 
@@ -206,6 +209,46 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, gperr.Error) {
 	}
 
 	return user, legoCfg, nil
+}
+
+func MergeExtraConfig(mainCfg *Config, extraCfg *ConfigExtra) ConfigExtra {
+	merged := ConfigExtra(*mainCfg)
+	merged.Extra = nil
+	merged.CertPath = extraCfg.CertPath
+	merged.KeyPath = extraCfg.KeyPath
+	// NOTE: Using same ACME key as main provider
+
+	if extraCfg.Provider != "" {
+		merged.Provider = extraCfg.Provider
+	}
+	if extraCfg.Email != "" {
+		merged.Email = extraCfg.Email
+	}
+	if len(extraCfg.Domains) > 0 {
+		merged.Domains = extraCfg.Domains
+	}
+	if len(extraCfg.Options) > 0 {
+		merged.Options = extraCfg.Options
+	}
+	if len(extraCfg.Resolvers) > 0 {
+		merged.Resolvers = extraCfg.Resolvers
+	}
+	if extraCfg.CADirURL != "" {
+		merged.CADirURL = extraCfg.CADirURL
+	}
+	if len(extraCfg.CACerts) > 0 {
+		merged.CACerts = extraCfg.CACerts
+	}
+	if extraCfg.EABKid != "" {
+		merged.EABKid = extraCfg.EABKid
+	}
+	if extraCfg.EABHmac != "" {
+		merged.EABHmac = extraCfg.EABHmac
+	}
+	if extraCfg.HTTPClient != nil {
+		merged.HTTPClient = extraCfg.HTTPClient
+	}
+	return merged
 }
 
 func (cfg *Config) LoadACMEKey() (*ecdsa.PrivateKey, error) {

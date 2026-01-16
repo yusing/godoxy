@@ -17,10 +17,8 @@ import (
 	"math/big"
 	"strings"
 	"time"
-)
 
-const (
-	CertsDNSName = "godoxy.agent"
+	"github.com/yusing/godoxy/agent/pkg/agent/common"
 )
 
 func toPEMPair(certDER []byte, key *ecdsa.PrivateKey) *PEMPair {
@@ -156,7 +154,7 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 		SerialNumber: caSerialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"GoDoxy"},
-			CommonName:   CertsDNSName,
+			CommonName:   common.CertsDNSName,
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(1000, 0, 0), // 1000 years
@@ -196,9 +194,9 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 		Subject: pkix.Name{
 			Organization:       caTemplate.Subject.Organization,
 			OrganizationalUnit: []string{"Server"},
-			CommonName:         CertsDNSName,
+			CommonName:         common.CertsDNSName,
 		},
-		DNSNames:           []string{CertsDNSName},
+		DNSNames:           []string{common.CertsDNSName},
 		NotBefore:          time.Now(),
 		NotAfter:           time.Now().AddDate(1000, 0, 0), // Add validity period
 		KeyUsage:           x509.KeyUsageDigitalSignature,
@@ -228,9 +226,9 @@ func NewAgent() (ca, srv, client *PEMPair, err error) {
 		Subject: pkix.Name{
 			Organization:       caTemplate.Subject.Organization,
 			OrganizationalUnit: []string{"Client"},
-			CommonName:         CertsDNSName,
+			CommonName:         common.CertsDNSName,
 		},
-		DNSNames:           []string{CertsDNSName},
+		DNSNames:           []string{common.CertsDNSName},
 		NotBefore:          time.Now(),
 		NotAfter:           time.Now().AddDate(1000, 0, 0),
 		KeyUsage:           x509.KeyUsageDigitalSignature,

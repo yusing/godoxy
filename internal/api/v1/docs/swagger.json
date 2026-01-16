@@ -328,23 +328,26 @@
           "200": {
             "description": "OK",
             "schema": {
-              "$ref": "#/definitions/CertInfo"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CertInfo"
+              }
             }
           },
           "403": {
-            "description": "Forbidden",
+            "description": "Unauthorized",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "No certificates found or autocert is not enabled",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
           },
           "500": {
-            "description": "Internal Server Error",
+            "description": "Internal server error",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -808,7 +811,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/homepage.FetchResult"
+                "$ref": "#/definitions/iconfetch.Result"
               }
             }
           },
@@ -1695,7 +1698,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/homepage.IconMetaSearch"
+                "$ref": "#/definitions/iconlist.IconMetaSearch"
               }
             }
           },
@@ -2353,6 +2356,16 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "supports_tcp_stream": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "supports_udp_stream": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "version": {
           "type": "string",
           "x-nullable": false,
@@ -2436,7 +2449,7 @@
       "type": "object",
       "properties": {
         "agent": {
-          "$ref": "#/definitions/Agent",
+          "$ref": "#/definitions/agentpool.Agent",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4186,6 +4199,11 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "bind": {
+          "description": "for TCP and UDP routes, bind address to listen on",
+          "type": "string",
+          "x-nullable": true
+        },
         "container": {
           "description": "Docker only",
           "allOf": [
@@ -4317,8 +4335,7 @@
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
         },
         "scheme": {
           "type": "string",
@@ -4901,6 +4918,43 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "agentpool.Agent": {
+      "type": "object",
+      "properties": {
+        "addr": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "runtime": {
+          "$ref": "#/definitions/agent.ContainerRuntime",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "supports_tcp_stream": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "supports_udp_stream": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "auth.UserPassAuthCallbackRequest": {
       "type": "object",
       "properties": {
@@ -5147,7 +5201,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.FetchResult": {
+    "iconfetch.Result": {
       "type": "object",
       "properties": {
         "icon": {
@@ -5168,7 +5222,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconMetaSearch": {
+    "iconlist.IconMetaSearch": {
       "type": "object",
       "properties": {
         "Dark": {
@@ -5197,7 +5251,7 @@
           "x-omitempty": false
         },
         "Source": {
-          "$ref": "#/definitions/homepage.IconSource",
+          "$ref": "#/definitions/icons.Source",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -5210,7 +5264,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "homepage.IconSource": {
+    "icons.Source": {
       "type": "string",
       "enum": [
         "https://",
@@ -5219,10 +5273,10 @@
         "@selfhst"
       ],
       "x-enum-varnames": [
-        "IconSourceAbsolute",
-        "IconSourceRelative",
-        "IconSourceWalkXCode",
-        "IconSourceSelfhSt"
+        "SourceAbsolute",
+        "SourceRelative",
+        "SourceWalkXCode",
+        "SourceSelfhSt"
       ],
       "x-nullable": false,
       "x-omitempty": false
@@ -5323,6 +5377,11 @@
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "bind": {
+          "description": "for TCP and UDP routes, bind address to listen on",
+          "type": "string",
+          "x-nullable": true
         },
         "container": {
           "description": "Docker only",
@@ -5455,8 +5514,7 @@
           "items": {
             "$ref": "#/definitions/rules.Rule"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-nullable": true
         },
         "scheme": {
           "type": "string",

@@ -524,7 +524,7 @@ func (cmd *Command) Parse(v string) error {
 
 		if directive == CommandPass || directive == CommandPassAlt {
 			if len(args) != 0 {
-				return ErrInvalidArguments.Subject(directive)
+				return ErrExpectNoArg
 			}
 			executors = append(executors, BypassCommand{})
 			continue
@@ -569,12 +569,34 @@ func (cmd *Command) Parse(v string) error {
 }
 
 func buildCmd(executors []CommandHandler) (cmd CommandHandler, err error) {
+	// Validate the execution order.
+	//
+	// This allows sequences like:
+	//   route ws-api
+	//   log info /dev/stdout "..."
+	// where the first command is request-phase and the last is response-phase.
+	lastNonResp := -1
+	seenResp := false
 	for i, exec := range executors {
+		if exec.IsResponseHandler() {
+			seenResp = true
+			continue
+		}
+		if seenResp {
+			return nil, ErrInvalidCommandSequence.Withf("response handlers must be the last commands")
+		}
+		lastNonResp = i
+	}
+
+	for i, exec := range executors {
+		if i > lastNonResp {
+			break // response-handler tail
+		}
 		switch exec.(type) {
 		case TerminatingCommand, BypassCommand:
-			if i != len(executors)-1 {
+			if i != lastNonResp {
 				return nil, ErrInvalidCommandSequence.
-					Withf("a returning / bypass command must be the last command")
+					Withf("a response handler or terminating/bypass command must be the last command")
 			}
 		}
 	}

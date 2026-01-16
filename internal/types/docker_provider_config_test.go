@@ -1,7 +1,6 @@
 package types
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,7 +26,7 @@ test:
     ca_file: /etc/ssl/ca.crt
     cert_file: /etc/ssl/cert.crt
     key_file: /etc/ssl/key.crt`), &cfg)
-		assert.Error(t, err, os.ErrNotExist)
+		assert.NoError(t, err)
 		assert.Equal(t, &DockerProviderConfig{URL: "http://localhost:2375", TLS: &DockerTLSConfig{CAFile: "/etc/ssl/ca.crt", CertFile: "/etc/ssl/cert.crt", KeyFile: "/etc/ssl/key.crt"}}, cfg["test"])
 	})
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	apitypes "github.com/yusing/goutils/apitypes"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/websocket"
 )
 
@@ -40,33 +39,33 @@ func Renew(c *gin.Context) {
 	logs, cancel := memlogger.Events()
 	defer cancel()
 
-	done := make(chan struct{})
-
 	go func() {
-		defer close(done)
+		// Stream logs until WebSocket connection closes (renewal runs in background)
+		for {
+			select {
+			case <-manager.Context().Done():
+				return
+			case l := <-logs:
+				if err != nil {
+					return
+				}
 
-		err = autocert.ObtainCert()
-		if err != nil {
-			gperr.LogError("failed to obtain cert", err)
-			_ = manager.WriteData(websocket.TextMessage, []byte(err.Error()), 10*time.Second)
-		} else {
-			log.Info().Msg("cert obtained successfully")
+				err = manager.WriteData(websocket.TextMessage, l, 10*time.Second)
+				if err != nil {
+					return
+				}
+			}
 		}
 	}()
 
-	for {
-		select {
-		case l := <-logs:
-			if err != nil {
-				return
-			}
-
-			err = manager.WriteData(websocket.TextMessage, l, 10*time.Second)
-			if err != nil {
-				return
-			}
-		case <-done:
-			return
-		}
+	// renewal happens in background
+	ok := autocert.ForceExpiryAll()
+	if !ok {
+		log.Error().Msg("cert renewal already in progress")
+		time.Sleep(1 * time.Second) // wait for the log above to be sent
+		return
 	}
+	log.Info().Msg("cert force renewal requested")
+
+	autocert.WaitRenewalDone(manager.Context())
 }
