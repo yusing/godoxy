@@ -5,16 +5,19 @@ on:
     tags:
       - v*
 
+env:
+  OWNER_LC: ${{ github.repository_owner }}
+
 jobs:
   build-prod:
     uses: ./.github/workflows/docker-image.yml
     with:
-      image_name: ${{ github.repository_owner }}/godoxy
+      image_name: frozenfrog/godoxy
       tag: latest
       target: main
   build-prod-agent:
     uses: ./.github/workflows/docker-image.yml
     with:
-      image_name: ${{ github.repository_owner }}/godoxy-agent
+      image_name: frozenfrog/godoxy-agent
       tag: latest
       target: agent
