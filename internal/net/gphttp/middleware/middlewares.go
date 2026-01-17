@@ -19,6 +19,7 @@ var allMiddlewares = map[string]*Middleware{
 
 	"oidc":        OIDC,
 	"forwardauth": ForwardAuth,
+	"crowdsec":    Crowdsec,
 
 	"request":        ModifyRequest,
 	"modifyrequest":  ModifyRequest,
