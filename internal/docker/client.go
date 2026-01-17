@@ -149,6 +149,8 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 	var addr string
 	var dial func(ctx context.Context) (net.Conn, error)
 
+	opt = append(opt, client.WithAPIVersionNegotiation())
+
 	if agent.IsDockerHostAgent(host) {
 		a, ok := agentpool.Get(host)
 		if !ok {
