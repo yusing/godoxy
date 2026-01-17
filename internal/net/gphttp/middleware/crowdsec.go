@@ -181,7 +181,7 @@ func (m *crowdsecMiddleware) buildCrowdSecURL() (string, error) {
 func (m *crowdsecMiddleware) getRealIP(r *http.Request) string {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		Crowdsec.LogWarn(r).Str("remote_addr", r.RemoteAddr).Msg("remote ip")
+		Crowdsec.LogWarn(r).Str("remote_addr", r.RemoteAddr).Msg("remote ip request")
 		return r.RemoteAddr
 	}
 	return ip
