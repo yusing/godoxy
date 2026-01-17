@@ -20,11 +20,12 @@ type (
 	}
 
 	CrowdsecMiddlewareOpts struct {
-		Route      string `json:"route" validate:"required"`   // route name (alias) or IP address
-		Port       int    `json:"port"`                        // port number (optional if using route name)
-		APIKey     string `json:"api_key" validate:"required"` // API key for CrowdSec AppSec (mandatory)
-		Endpoint   string `json:"endpoint"`                    // default: "/"
-		httpClient *http.Client
+		Route              string `json:"route" validate:"required"`   // route name (alias) or IP address
+		Port               int    `json:"port"`                        // port number (optional if using route name)
+		APIKey             string `json:"api_key" validate:"required"` // API key for CrowdSec AppSec (mandatory)
+		Endpoint           string `json:"endpoint"`                    // default: "/"
+		CrowdsecBlockedLog bool   `json:"crowdsec_blocked_log"`
+		httpClient         *http.Client
 	}
 )
 
@@ -32,10 +33,11 @@ var Crowdsec = NewMiddleware[crowdsecMiddleware]()
 
 func (m *crowdsecMiddleware) setup() {
 	m.CrowdsecMiddlewareOpts = CrowdsecMiddlewareOpts{
-		Route:    "",
-		Port:     0,
-		APIKey:   "",
-		Endpoint: "/",
+		Route:              "",
+		Port:               7422, // default port for CrowdSec AppSec
+		APIKey:             "",
+		Endpoint:           "/",
+		CrowdsecBlockedLog: false,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 			// do not follow redirects
@@ -127,10 +129,12 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 		return true
 	case http.StatusForbidden:
 		// Request is blocked by CrowdSec
-		Crowdsec.LogWarn(r).
-			Str("ip", realIP).
-			Str("uri", r.URL.RequestURI()).
-			Msg("request blocked by CrowdSec")
+		if m.CrowdsecBlockedLog {
+			Crowdsec.LogWarn(r).
+				Str("ip", realIP).
+				Str("uri", r.URL.RequestURI()).
+				Msg("request blocked by CrowdSec")
+		}
 		w.WriteHeader(http.StatusForbidden)
 		return false
 	case http.StatusInternalServerError:
