@@ -210,22 +210,24 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 		return
 	}
 	if c.Network != "" {
-		v, ok := helper.NetworkSettings.Networks[c.Network]
-		if ok && v.IPAddress.IsValid() {
+		v, hasNetwork := helper.NetworkSettings.Networks[c.Network]
+		if hasNetwork && v.IPAddress.IsValid() {
 			c.PrivateHostname = v.IPAddress.String()
 			return
 		}
+		var hasComposeNetwork bool
 		// try {project_name}_{network_name}
 		if proj := DockerComposeProject(c); proj != "" {
-			oldNetwork, newNetwork := c.Network, fmt.Sprintf("%s_%s", proj, c.Network)
-			if newNetwork != oldNetwork {
-				v, ok = helper.NetworkSettings.Networks[newNetwork]
-				if ok && v.IPAddress.IsValid() {
-					c.Network = newNetwork // update network to the new one
-					c.PrivateHostname = v.IPAddress.String()
-					return
-				}
+			newNetwork := fmt.Sprintf("%s_%s", proj, c.Network)
+			v, hasComposeNetwork = helper.NetworkSettings.Networks[newNetwork]
+			if hasComposeNetwork && v.IPAddress.IsValid() {
+				c.Network = newNetwork // update network to the new one
+				c.PrivateHostname = v.IPAddress.String()
+				return
 			}
+		}
+		if hasNetwork || hasComposeNetwork { // network is found, but no IP assigned yet
+			return
 		}
 		nearest := gperr.DoYouMeanField(c.Network, helper.NetworkSettings.Networks)
 		addError(c, fmt.Errorf("network %q not found, %w", c.Network, nearest))
