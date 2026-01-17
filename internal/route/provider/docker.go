@@ -74,7 +74,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 		container := docker.FromDocker(&c, p.dockerCfg)
 
 		if container.Errors != nil {
-			errs.Add(container.Errors)
+			errs.Add(gperr.PrependSubject(container.ContainerName, container.Errors))
 			continue
 		}
 
