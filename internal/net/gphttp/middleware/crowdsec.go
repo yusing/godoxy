@@ -63,8 +63,6 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 		return false
 	}
 
-	Crowdsec.LogWarn(r).Str("crowdsec_url: ", crowdsecURL).Msg("crowdsec url")
-
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
@@ -80,7 +78,6 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 			w.WriteHeader(http.StatusInternalServerError)
 			return false
 		}
-		// Restore the body for downstream processing
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		body = bytes.NewBuffer(bodyBytes)
 	}
@@ -176,18 +173,14 @@ func (m *crowdsecMiddleware) buildCrowdSecURL() (string, error) {
 	return "", fmt.Errorf("route or IP address must be specified")
 }
 
-// getRealIP extracts the real client IP from the request
-// Note: If real_ip middleware is configured in the chain, r.RemoteAddr will already contain the real IP
 func (m *crowdsecMiddleware) getRealIP(r *http.Request) string {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		Crowdsec.LogWarn(r).Str("remote_addr", r.RemoteAddr).Msg("remote ip request")
 		return r.RemoteAddr
 	}
 	return ip
 }
 
-// getHTTPVersion returns the HTTP version in integer form (10, 11, 20, etc.)
 func (m *crowdsecMiddleware) getHTTPVersion(r *http.Request) string {
 	switch {
 	case r.ProtoMajor == 1 && r.ProtoMinor == 0:
