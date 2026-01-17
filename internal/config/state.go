@@ -320,12 +320,12 @@ func (state *state) storeProvider(p types.RouteProvider) {
 
 func (state *state) loadRouteProviders() error {
 	// disable pool logging temporary since we will have pretty logging below
-	routes.HTTP.ToggleLog(false)
-	routes.Stream.ToggleLog(false)
+	routes.HTTP.DisableLog(true)
+	routes.Stream.DisableLog(true)
 
 	defer func() {
-		routes.HTTP.ToggleLog(true)
-		routes.Stream.ToggleLog(true)
+		routes.HTTP.DisableLog(false)
+		routes.Stream.DisableLog(false)
 	}()
 
 	providers := &state.Providers
