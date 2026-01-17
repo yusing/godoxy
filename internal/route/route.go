@@ -277,11 +277,11 @@ func (r *Route) validate() gperr.Error {
 		if r.Port.Listening != 0 {
 			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
 		}
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
 	case route.SchemeTCP, route.SchemeUDP:
 		if r.ShouldExclude() {
 			// should exclude, we don't care the scheme here.
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", r.Scheme, r.Host, r.Port.Proxy))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
 		} else {
 			if r.Bind == "" {
 				r.Bind = "0.0.0.0"
@@ -306,8 +306,8 @@ func (r *Route) validate() gperr.Error {
 			lScheme := toNetwork(bindIP, r.Scheme)
 			rScheme := toNetwork(remoteIP, r.Scheme)
 
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", lScheme, r.Bind, r.Port.Listening))
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s:%d", rScheme, r.Host, r.Port.Proxy))
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
 		}
 	}
 
