@@ -141,7 +141,6 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 		if m.LogBlocked {
 			Crowdsec.LogWarn(r).
 				Str("ip", remoteIP).
-				Str("uri", r.URL.RequestURI()).
 				Msg("request blocked by CrowdSec")
 		}
 		w.WriteHeader(http.StatusForbidden)
