@@ -118,7 +118,7 @@ func (state *state) Init(data []byte) error {
 	errs := g.Wait()
 	// these won't benefit from running on goroutines
 	errs.Add(state.initNotification())
-	errs.Add(state.initAccessLogger())
+	errs.Add(state.initACL())
 	errs.Add(state.initEntrypoint())
 	return errs.Error()
 }
@@ -191,8 +191,8 @@ func (state *state) FlushTmpLog() {
 	state.tmpLogBuf.Reset()
 }
 
-// this one is connection level access logger, different from entrypoint access logger
-func (state *state) initAccessLogger() error {
+// initACL initializes the ACL.
+func (state *state) initACL() error {
 	if !state.ACL.Valid() {
 		return nil
 	}
