@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -75,8 +74,7 @@ type ipLog struct {
 	allowed bool
 }
 
-// could be nil
-var ActiveConfig atomic.Pointer[Config]
+type ContextKey struct{}
 
 const cacheTTL = 1 * time.Minute
 
