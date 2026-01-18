@@ -74,7 +74,6 @@ func SetState(state config.State) {
 
 	cfg := state.Value()
 	config.ActiveState.Store(state)
-	acl.ActiveConfig.Store(cfg.ACL)
 	entrypoint.ActiveConfig.Store(&cfg.Entrypoint)
 	homepage.ActiveConfig.Store(&cfg.Homepage)
 	if autocertProvider := state.AutoCertProvider(); autocertProvider != nil {
@@ -197,7 +196,12 @@ func (state *state) initAccessLogger() error {
 	if !state.ACL.Valid() {
 		return nil
 	}
-	return state.ACL.Start(state.task)
+	err := state.ACL.Start(state.task)
+	if err != nil {
+		return err
+	}
+	state.task.SetValue(acl.ContextKey{}, state.ACL)
+	return nil
 }
 
 func (state *state) initEntrypoint() error {
