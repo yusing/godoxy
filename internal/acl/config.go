@@ -292,15 +292,15 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipAndStr := &maxmind.IPInfo{IP: ip, Str: ipStr}
-	if c.Allow.Match(ipAndStr) {
-		c.logAndNotify(ipAndStr, true)
-		c.cacheRecord(ipAndStr, true)
-		return true
-	}
 	if c.Deny.Match(ipAndStr) {
 		c.logAndNotify(ipAndStr, false)
 		c.cacheRecord(ipAndStr, false)
 		return false
+	}
+	if c.Allow.Match(ipAndStr) {
+		c.logAndNotify(ipAndStr, true)
+		c.cacheRecord(ipAndStr, true)
+		return true
 	}
 
 	c.logAndNotify(ipAndStr, c.defaultAllow)
