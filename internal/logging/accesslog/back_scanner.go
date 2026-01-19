@@ -13,10 +13,9 @@ type ReaderAtSeeker interface {
 
 // BackScanner provides an interface to read a file backward line by line.
 type BackScanner struct {
-	file      ReaderAtSeeker
-	size      int64
-	chunkSize int
-	chunkBuf  []byte
+	file     ReaderAtSeeker
+	size     int64
+	chunkBuf []byte
 
 	offset int64
 	chunk  []byte
@@ -27,16 +26,25 @@ type BackScanner struct {
 // NewBackScanner creates a new Scanner to read the file backward.
 // chunkSize determines the size of each read chunk from the end of the file.
 func NewBackScanner(file ReaderAtSeeker, fileSize int64, chunkSize int) *BackScanner {
-	return newBackScanner(file, fileSize, make([]byte, chunkSize))
+	return newBackScanner(file, fileSize, sizedPool.GetSized(chunkSize))
 }
 
 func newBackScanner(file ReaderAtSeeker, fileSize int64, buf []byte) *BackScanner {
 	return &BackScanner{
-		file:      file,
-		size:      fileSize,
-		offset:    fileSize,
-		chunkSize: len(buf),
-		chunkBuf:  buf,
+		file:     file,
+		size:     fileSize,
+		offset:   fileSize,
+		chunkBuf: buf,
+	}
+}
+
+// Release releases the buffer back to the pool.
+func (s *BackScanner) Release() {
+	sizedPool.Put(s.chunkBuf)
+	s.chunkBuf = nil
+	if s.chunk != nil {
+		sizedPool.Put(s.chunk)
+		s.chunk = nil
 	}
 }
 
@@ -64,13 +72,14 @@ func (s *BackScanner) Scan() bool {
 				// No more data to read; check remaining buffer
 				if len(s.chunk) > 0 {
 					s.line = s.chunk
+					sizedPool.Put(s.chunk)
 					s.chunk = nil
 					return true
 				}
 				return false
 			}
 
-			newOffset := max(0, s.offset-int64(s.chunkSize))
+			newOffset := max(0, s.offset-int64(len(s.chunkBuf)))
 			chunkSize := s.offset - newOffset
 			chunk := s.chunkBuf[:chunkSize]
 
@@ -85,8 +94,19 @@ func (s *BackScanner) Scan() bool {
 			}
 
 			// Prepend the chunk to the buffer
-			clone := append([]byte{}, chunk[:n]...)
-			s.chunk = append(clone, s.chunk...)
+			if s.chunk == nil { // first chunk
+				s.chunk = sizedPool.GetSized(2 * len(s.chunkBuf))
+				copy(s.chunk, chunk[:n])
+				s.chunk = s.chunk[:n]
+			} else {
+				neededSize := n + len(s.chunk)
+				newChunk := sizedPool.GetSized(max(neededSize, 2*len(s.chunkBuf)))
+				copy(newChunk, chunk[:n])
+				copy(newChunk[n:], s.chunk)
+				sizedPool.Put(s.chunk)
+				s.chunk = newChunk[:neededSize]
+			}
+
 			s.offset = newOffset
 
 			// Check for newline in the updated buffer
@@ -110,13 +130,4 @@ func (s *BackScanner) Bytes() []byte {
 // Err returns the first non-EOF error encountered by the scanner.
 func (s *BackScanner) Err() error {
 	return s.err
-}
-
-func (s *BackScanner) Reset() error {
-	_, err := s.file.Seek(0, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	*s = *newBackScanner(s.file, s.size, s.chunkBuf)
-	return nil
 }

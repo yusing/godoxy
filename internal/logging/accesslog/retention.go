@@ -20,7 +20,7 @@ var (
 )
 
 // see back_scanner_test.go#L210 for benchmarks
-var defaultChunkSize = 256 * kilobyte
+var defaultChunkSize = 32 * kilobyte
 
 // Syntax:
 //
