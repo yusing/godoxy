@@ -15,14 +15,21 @@ type MultiAccessLogger struct {
 //
 // If there is only one writer, it will return a single AccessLogger.
 // Otherwise, it will return a MultiAccessLogger that writes to all the writers.
-func NewMultiAccessLogger(parent task.Parent, cfg AnyConfig, writers []Writer) AccessLogger {
+func NewMultiAccessLogger(parent task.Parent, cfg AnyConfig, writers []File) AccessLogger {
 	if len(writers) == 1 {
-		return NewAccessLoggerWithIO(parent, writers[0], cfg)
+		if writers[0] == stdout {
+			return NewConsoleLogger(cfg.ToConfig())
+		}
+		return NewFileAccessLogger(parent, writers[0], cfg)
 	}
 
 	accessLoggers := make([]AccessLogger, len(writers))
 	for i, writer := range writers {
-		accessLoggers[i] = NewAccessLoggerWithIO(parent, writer, cfg)
+		if writer == stdout {
+			accessLoggers[i] = NewConsoleLogger(cfg.ToConfig())
+		} else {
+			accessLoggers[i] = NewFileAccessLogger(parent, writer, cfg)
+		}
 	}
 	return &MultiAccessLogger{accessLoggers}
 }
@@ -31,9 +38,9 @@ func (m *MultiAccessLogger) Config() *Config {
 	return m.accessLoggers[0].Config()
 }
 
-func (m *MultiAccessLogger) Log(req *http.Request, res *http.Response) {
+func (m *MultiAccessLogger) LogRequest(req *http.Request, res *http.Response) {
 	for _, accessLogger := range m.accessLoggers {
-		accessLogger.Log(req, res)
+		accessLogger.LogRequest(req, res)
 	}
 }
 

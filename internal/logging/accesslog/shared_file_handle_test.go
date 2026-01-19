@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yusing/goutils/task"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
@@ -18,7 +19,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 	cfg.Path = "test.log"
 
 	loggerCount := runtime.GOMAXPROCS(0)
-	accessLogIOs := make([]Writer, loggerCount)
+	accessLogIOs := make([]File, loggerCount)
 
 	// make test log file
 	file, err := os.Create(cfg.Path)
@@ -28,16 +29,20 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 		assert.NoError(t, os.Remove(cfg.Path))
 	})
 
-	var wg sync.WaitGroup
+	var errs errgroup.Group
 	for i := range loggerCount {
-		wg.Go(func() {
-			file, err := NewFileIO(cfg.Path)
-			assert.NoError(t, err)
+		errs.Go(func() error {
+			file, err := OpenFile(cfg.Path)
+			if err != nil {
+				return err
+			}
 			accessLogIOs[i] = file
+			return nil
 		})
 	}
 
-	wg.Wait()
+	err = errs.Wait()
+	assert.NoError(t, err)
 
 	firstIO := accessLogIOs[0]
 	for _, io := range accessLogIOs {
@@ -58,7 +63,7 @@ func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 			loggers := make([]AccessLogger, loggerCount)
 
 			for i := range loggerCount {
-				loggers[i] = NewAccessLoggerWithIO(parent, file, cfg)
+				loggers[i] = NewFileAccessLogger(parent, file, cfg)
 			}
 
 			req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -87,7 +92,7 @@ func concurrentLog(logger AccessLogger, req *http.Request, resp *http.Response, 
 	var wg sync.WaitGroup
 	for range n {
 		wg.Go(func() {
-			logger.Log(req, resp)
+			logger.LogRequest(req, resp)
 			if rand.IntN(2) == 0 {
 				logger.Flush()
 			}

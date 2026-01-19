@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -17,7 +18,7 @@ type supportRotate interface {
 	io.ReaderAt
 	io.WriterAt
 	Truncate(size int64) error
-	Size() (int64, error)
+	Stat() (fs.FileInfo, error)
 }
 
 type RotateResult struct {
@@ -93,10 +94,11 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 		return false, nil // should not happen
 	}
 
-	fileSize, err := file.Size()
+	stat, err := file.Stat()
 	if err != nil {
 		return false, err
 	}
+	fileSize := stat.Size()
 
 	// nothing to rotate, return the nothing
 	if fileSize == 0 {
@@ -104,6 +106,7 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	}
 
 	s := NewBackScanner(file, fileSize, defaultChunkSize)
+	defer s.Release()
 	result.OriginalSize = fileSize
 
 	// Store the line positions and sizes we want to keep
@@ -216,16 +219,17 @@ func fileContentMove(file supportRotate, srcPos, dstPos int64, size int) error {
 //
 // Invalid lines will not be detected and included in the result.
 func rotateLogFileBySize(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
-	filesize, err := file.Size()
+	stat, err := file.Stat()
 	if err != nil {
 		return false, err
 	}
+	fileSize := stat.Size()
 
-	result.OriginalSize = filesize
+	result.OriginalSize = fileSize
 
 	keepSize := int64(config.KeepSize)
-	if keepSize >= filesize {
-		result.NumBytesKeep = filesize
+	if keepSize >= fileSize {
+		result.NumBytesKeep = fileSize
 		return false, nil
 	}
 	result.NumBytesKeep = keepSize

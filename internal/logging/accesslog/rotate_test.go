@@ -57,13 +57,13 @@ func TestRotateKeepLast(t *testing.T) {
 		t.Run(string(format)+" keep last", func(t *testing.T) {
 			file := NewMockFile(true)
 			mockable.MockTimeNow(testTime)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
 
 			for range 10 {
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 			}
 			logger.Flush()
 
@@ -87,14 +87,14 @@ func TestRotateKeepLast(t *testing.T) {
 
 		t.Run(string(format)+" keep days", func(t *testing.T) {
 			file := NewMockFile(true)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 			}
 			logger.Flush()
 			expect.Equal(t, file.NumLines(), nLines)
@@ -133,14 +133,14 @@ func TestRotateKeepFileSize(t *testing.T) {
 	for _, format := range ReqLoggerFormats {
 		t.Run(string(format)+" keep size no rotation", func(t *testing.T) {
 			file := NewMockFile(true)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 			}
 			logger.Flush()
 			expect.Equal(t, file.NumLines(), nLines)
@@ -165,14 +165,14 @@ func TestRotateKeepFileSize(t *testing.T) {
 
 	t.Run("keep size with rotation", func(t *testing.T) {
 		file := NewMockFile(true)
-		logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+		logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 			Format: FormatJSON,
 		})
 		expect.Nil(t, logger.Config().Retention)
 		nLines := 100
 		for i := range nLines {
 			mockable.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
-			logger.Log(req, resp)
+			logger.LogRequest(req, resp)
 		}
 		logger.Flush()
 		expect.Equal(t, file.NumLines(), nLines)
@@ -199,14 +199,14 @@ func TestRotateSkipInvalidTime(t *testing.T) {
 	for _, format := range ReqLoggerFormats {
 		t.Run(string(format), func(t *testing.T) {
 			file := NewMockFile(true)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				Format: format,
 			})
 			expect.Nil(t, logger.Config().Retention)
 			nLines := 10
 			for i := range nLines {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -nLines+i+1))
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 				logger.Flush()
 
 				n, err := file.Write([]byte("invalid time\n"))
@@ -241,7 +241,7 @@ func BenchmarkRotate(b *testing.B) {
 	for _, retention := range tests {
 		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := NewMockFile(true)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				ConfigBase: ConfigBase{
 					Retention: retention,
 				},
@@ -249,7 +249,7 @@ func BenchmarkRotate(b *testing.B) {
 			})
 			for i := range 100 {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 			}
 			logger.Flush()
 			content := file.Content()
@@ -275,7 +275,7 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 	for _, retention := range tests {
 		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := NewMockFile(true)
-			logger := NewAccessLoggerWithIO(task.RootTask("test", false), file, &RequestLoggerConfig{
+			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
 				ConfigBase: ConfigBase{
 					Retention: retention,
 				},
@@ -283,7 +283,7 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 			})
 			for i := range 10000 {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))
-				logger.Log(req, resp)
+				logger.LogRequest(req, resp)
 				if i%10 == 0 {
 					_, _ = file.Write([]byte("invalid time\n"))
 				}

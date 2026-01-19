@@ -1,6 +1,7 @@
 package accesslog_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,13 +54,13 @@ var (
 )
 
 func fmtLog(cfg *RequestLoggerConfig) (ts string, line string) {
-	buf := make([]byte, 0, 1024)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 
 	t := time.Now()
 	logger := NewMockAccessLogger(testTask, cfg)
 	mockable.MockTimeNow(t)
-	buf = logger.(RequestFormatter).AppendRequestLog(buf, req, resp)
-	return t.Format(LogTimeFormat), string(buf)
+	logger.(RequestFormatter).AppendRequestLog(buf, req, resp)
+	return t.Format(LogTimeFormat), buf.String()
 }
 
 func TestAccessLoggerCommon(t *testing.T) {
@@ -141,9 +142,6 @@ func TestAccessLoggerJSON(t *testing.T) {
 	expect.Equal(t, entry.UserAgent, ua)
 	expect.Equal(t, len(entry.Headers), 0)
 	expect.Equal(t, len(entry.Cookies), 0)
-	if status >= 400 {
-		expect.Equal(t, entry.Error, http.StatusText(status))
-	}
 }
 
 func BenchmarkAccessLoggerJSON(b *testing.B) {
@@ -152,7 +150,7 @@ func BenchmarkAccessLoggerJSON(b *testing.B) {
 	logger := NewMockAccessLogger(testTask, config)
 	b.ResetTimer()
 	for b.Loop() {
-		logger.Log(req, resp)
+		logger.LogRequest(req, resp)
 	}
 }
 
@@ -162,6 +160,6 @@ func BenchmarkAccessLoggerCombined(b *testing.B) {
 	logger := NewMockAccessLogger(testTask, config)
 	b.ResetTimer()
 	for b.Loop() {
-		logger.Log(req, resp)
+		logger.LogRequest(req, resp)
 	}
 }

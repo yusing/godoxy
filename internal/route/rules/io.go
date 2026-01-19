@@ -50,7 +50,7 @@ func openFile(path string) (io.WriteCloser, gperr.Error) {
 		return noopWriteCloser{buf}, nil
 	}
 
-	f, err := accesslog.NewFileIO(path)
+	f, err := accesslog.OpenFile(path)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
