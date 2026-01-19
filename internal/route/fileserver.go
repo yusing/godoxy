@@ -143,8 +143,13 @@ func (s *FileServer) RootPath() string {
 
 // ServeHTTP implements http.Handler.
 func (s *FileServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	s.handler.ServeHTTP(w, req)
 	if s.accessLogger != nil {
-		s.accessLogger.Log(req, req.Response)
+		rec := accesslog.GetResponseRecorder(w)
+		w = rec
+		defer func() {
+			s.accessLogger.LogRequest(req, rec.Response())
+			accesslog.PutResponseRecorder(rec)
+		}()
 	}
+	s.handler.ServeHTTP(w, req)
 }

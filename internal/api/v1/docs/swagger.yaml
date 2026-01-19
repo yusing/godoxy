@@ -879,9 +879,6 @@ definitions:
     type: object
   RequestLoggerConfig:
     properties:
-      buffer_size:
-        description: 'Deprecated: buffer size is adjusted dynamically'
-        type: integer
       fields:
         $ref: '#/definitions/accesslog.Fields'
       filters:

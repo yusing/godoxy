@@ -4191,12 +4191,6 @@
     "RequestLoggerConfig": {
       "type": "object",
       "properties": {
-        "buffer_size": {
-          "description": "Deprecated: buffer size is adjusted dynamically",
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "fields": {
           "$ref": "#/definitions/accesslog.Fields",
           "x-nullable": false,
