@@ -38,7 +38,7 @@ import (
 
 // @externalDocs.description  GoDoxy Docs
 // @externalDocs.url          https://docs.godoxy.dev
-func NewHandler() *gin.Engine {
+func NewHandler(requireAuth bool) *gin.Engine {
 	if !common.IsDebug {
 		gin.SetMode("release")
 	}
@@ -51,7 +51,7 @@ func NewHandler() *gin.Engine {
 
 	r.GET("/api/v1/version", apiV1.Version)
 
-	if auth.IsEnabled() {
+	if auth.IsEnabled() && requireAuth {
 		v1Auth := r.Group("/api/v1/auth")
 		{
 			v1Auth.HEAD("/check", authApi.Check)
@@ -64,7 +64,7 @@ func NewHandler() *gin.Engine {
 	}
 
 	v1 := r.Group("/api/v1")
-	if auth.IsEnabled() {
+	if auth.IsEnabled() && requireAuth {
 		v1.Use(AuthMiddleware())
 	}
 	if common.APISkipOriginCheck {

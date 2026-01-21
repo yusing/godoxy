@@ -30,6 +30,11 @@ var (
 	APIHTTPPort,
 	APIHTTPURL = env.GetAddrEnv("API_ADDR", "127.0.0.1:8888", "http")
 
+	LocalAPIHTTPAddr,
+	LocalAPIHTTPHost,
+	LocalAPIHTTPPort,
+	LocalAPIHTTPURL = env.GetAddrEnv("LOCAL_API_ADDR", "", "http")
+
 	APIJWTSecure   = env.GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(env.GetEnvString("API_JWT_SECRET", ""))
 	APIJWTTokenTTL = env.GetEnvDuation("API_JWT_TOKEN_TTL", 24*time.Hour)
