@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"bytes"
 	"net"
 	"strings"
 
@@ -12,6 +13,7 @@ type MatcherFunc func(*maxmind.IPInfo) bool
 
 type Matcher struct {
 	match MatcherFunc
+	raw   string
 }
 
 type Matchers []Matcher
@@ -46,6 +48,7 @@ func (matcher *Matcher) Parse(s string) error {
 	if len(parts) != 2 {
 		return errSyntax
 	}
+	matcher.raw = s
 
 	switch parts[0] {
 	case MatcherTypeIP:
@@ -77,6 +80,18 @@ func (matchers Matchers) Match(ip *maxmind.IPInfo) bool {
 		}
 	}
 	return false
+}
+
+func (matchers Matchers) MarshalText() ([]byte, error) {
+	if len(matchers) == 0 {
+		return []byte("[]"), nil
+	}
+	var buf bytes.Buffer
+	for _, m := range matchers {
+		buf.WriteString(m.raw)
+		buf.WriteByte('\n')
+	}
+	return buf.Bytes(), nil
 }
 
 func matchIP(ip net.IP) MatcherFunc {
