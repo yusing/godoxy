@@ -28,7 +28,6 @@ import (
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
 	route "github.com/yusing/godoxy/internal/route/provider"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -323,15 +322,6 @@ func (state *state) storeProvider(p types.RouteProvider) {
 }
 
 func (state *state) loadRouteProviders() error {
-	// disable pool logging temporary since we will have pretty logging below
-	routes.HTTP.DisableLog(true)
-	routes.Stream.DisableLog(true)
-
-	defer func() {
-		routes.HTTP.DisableLog(false)
-		routes.Stream.DisableLog(false)
-	}()
-
 	providers := &state.Providers
 	errs := gperr.NewGroup("route provider errors")
 	results := gperr.NewGroup("loaded route providers")
