@@ -10,6 +10,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -58,6 +59,15 @@ func Load() error {
 	config.WorkingState.Store(state)
 
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
+
+	// disable pool logging temporary since we already have pretty logging
+	routes.HTTP.DisableLog(true)
+	routes.Stream.DisableLog(true)
+
+	defer func() {
+		routes.HTTP.DisableLog(false)
+		routes.Stream.DisableLog(false)
+	}()
 
 	initErr := state.InitFromFile(common.ConfigPath)
 	err := errors.Join(initErr, state.StartProviders())
