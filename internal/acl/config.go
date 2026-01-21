@@ -26,9 +26,9 @@ type Config struct {
 	Log        *accesslog.ACLLoggerConfig `json:"log"`
 
 	Notify struct {
-		To             []string      `json:"to"`              // list of notification providers
-		Interval       time.Duration `json:"interval"`        // interval between notifications
-		IncludeAllowed *bool         `json:"include_allowed"` // default: false
+		To             []string      `json:"to,omitempty"`             // list of notification providers
+		Interval       time.Duration `json:"interval,omitempty"`       // interval between notifications
+		IncludeAllowed *bool         `json:"include_allowed,omitzero"` // default: false
 	} `json:"notify"`
 
 	config
