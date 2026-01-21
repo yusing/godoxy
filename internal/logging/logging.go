@@ -92,7 +92,7 @@ func NewLogger(out ...io.Writer) zerolog.Logger {
 	return zerolog.New(writer).Level(level).With().Timestamp().Logger()
 }
 
-func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
+func NewLoggerWithFixedLevel(lvl zerolog.Level, out ...io.Writer) zerolog.Logger {
 	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
 		w.Out = multiLevelWriter(out...)
 		w.TimeFormat = timeFmt
@@ -103,5 +103,5 @@ func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logg
 			return fmtMessage(msgI.(string))
 		}
 	})
-	return zerolog.New(writer).Level(level).With().Str("level", level.String()).Timestamp().Logger()
+	return zerolog.New(writer).Level(level).With().Str("level", lvl.String()).Timestamp().Logger()
 }
