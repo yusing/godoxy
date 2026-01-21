@@ -69,8 +69,17 @@ func main() {
 	server.StartServer(task.RootTask("api_server", false), server.Options{
 		Name:     "api",
 		HTTPAddr: common.APIHTTPAddr,
-		Handler:  api.NewHandler(),
+		Handler:  api.NewHandler(true),
 	})
+
+	// Local API Handler is used for unauthenticated access.
+	if common.LocalAPIHTTPAddr != "" {
+		server.StartServer(task.RootTask("local_api_server", false), server.Options{
+			Name:     "local_api",
+			HTTPAddr: common.LocalAPIHTTPAddr,
+			Handler:  api.NewHandler(false),
+		})
+	}
 
 	listenDebugServer()
 
