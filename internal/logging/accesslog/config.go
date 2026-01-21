@@ -37,16 +37,16 @@ type (
 
 	Format  string
 	Filters struct {
-		StatusCodes LogFilter[*StatusCodeRange] `json:"status_codes"`
-		Method      LogFilter[HTTPMethod]       `json:"method"`
-		Host        LogFilter[Host]             `json:"host"`
-		Headers     LogFilter[*HTTPHeader]      `json:"headers"` // header exists or header == value
-		CIDR        LogFilter[*CIDR]            `json:"cidr"`
+		StatusCodes LogFilter[*StatusCodeRange] `json:"status_codes,omitzero"`
+		Method      LogFilter[HTTPMethod]       `json:"method,omitzero"`
+		Host        LogFilter[Host]             `json:"host,omitzero"`
+		Headers     LogFilter[*HTTPHeader]      `json:"headers,omitzero"` // header exists or header == value
+		CIDR        LogFilter[*CIDR]            `json:"cidr,omitzero"`
 	}
 	Fields struct {
-		Headers FieldConfig `json:"headers" aliases:"header"`
-		Query   FieldConfig `json:"query" aliases:"queries"`
-		Cookies FieldConfig `json:"cookies" aliases:"cookie"`
+		Headers FieldConfig `json:"headers,omitzero" aliases:"header"`
+		Query   FieldConfig `json:"query,omitzero" aliases:"queries"`
+		Cookies FieldConfig `json:"cookies,omitzero" aliases:"cookie"`
 	}
 )
 
