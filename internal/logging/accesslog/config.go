@@ -10,7 +10,7 @@ import (
 
 type (
 	ConfigBase struct {
-		Path           string        `json:"path"`
+		Path           string        `json:"path,omitempty"`
 		Stdout         bool          `json:"stdout"`
 		Retention      *Retention    `json:"retention" aliases:"keep"`
 		RotateInterval time.Duration `json:"rotate_interval,omitempty" swaggertype:"primitive,integer"`

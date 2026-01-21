@@ -9,9 +9,9 @@ import (
 )
 
 type Retention struct {
-	Days     uint64 `json:"days"`
-	Last     uint64 `json:"last"`
-	KeepSize uint64 `json:"keep_size"`
+	Days     uint64 `json:"days,omitempty"`
+	Last     uint64 `json:"last,omitempty"`
+	KeepSize uint64 `json:"keep_size,omitempty"`
 } // @name LogRetention
 
 var (
