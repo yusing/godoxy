@@ -43,6 +43,9 @@ ENV VERSION=${VERSION}
 ARG MAKE_ARGS
 ENV MAKE_ARGS=${MAKE_ARGS}
 
+ARG BRANCH
+ENV BRANCH=${BRANCH}
+
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
   make ${MAKE_ARGS} docker=1 build
