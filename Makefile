@@ -1,5 +1,6 @@
 shell := /bin/sh
 export VERSION ?= $(shell git describe --tags --abbrev=0)
+export BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
 
@@ -8,7 +9,12 @@ REPO_URL ?= https://github.com/yusing/godoxy
 WEBUI_DIR ?= ../godoxy-webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
-GO_TAGS = sonic
+ifneq ($(BRANCH), compat)
+	GO_TAGS = sonic
+else
+	GO_TAGS =
+endif
+
 LDFLAGS = -X github.com/yusing/goutils/version.version=${VERSION} -checklinkname=0
 
 ifeq ($(agent), 1)
@@ -137,9 +143,6 @@ benchmark:
 dev-run: build
 	cd dev-data && ${BIN_PATH}
 
-mtrace:
-	 ${BIN_PATH} debug-ls-mtrace > mtrace.json
-
 rapid-crash:
 	docker run --restart=always --name test_crash -p 80 debian:bookworm-slim /bin/cat &&\
 	sleep 3 &&\
@@ -156,7 +159,7 @@ cloc:
 	scc -w -i go --not-match '_test.go$$'
 
 push-github:
-	git push origin $(shell git rev-parse --abbrev-ref HEAD)
+	git push origin $(BRANCH)
 
 gen-swagger:
   # go install github.com/swaggo/swag/cmd/swag@latest
