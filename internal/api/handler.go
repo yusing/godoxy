@@ -140,6 +140,7 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			docker.POST("/start", dockerApi.Start)
 			docker.POST("/stop", dockerApi.Stop)
 			docker.POST("/restart", dockerApi.Restart)
+			docker.GET("/stats/:id", dockerApi.Stats)
 		}
 	}
 

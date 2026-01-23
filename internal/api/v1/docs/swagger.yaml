@@ -180,6 +180,85 @@ definitions:
       total:
         type: integer
     type: object
+  ContainerStatsResponse:
+    properties:
+      blkio_stats:
+        allOf:
+        - $ref: '#/definitions/container.BlkioStats'
+        description: |-
+          BlkioStats stores all IO service stats for data read and write.
+
+          This type is Linux-specific and holds many fields that are specific
+          to cgroups v1.
+
+          On a cgroup v2 host, all fields other than "io_service_bytes_recursive"
+          are omitted or "null".
+
+          This type is only populated on Linux and omitted for Windows containers.
+      cpu_stats:
+        allOf:
+        - $ref: '#/definitions/container.CPUStats'
+        description: CPUStats contains CPU related info of the container.
+      id:
+        description: ID is the ID of the container for which the stats were collected.
+        type: string
+      memory_stats:
+        allOf:
+        - $ref: '#/definitions/container.MemoryStats'
+        description: |-
+          MemoryStats aggregates all memory stats since container inception on Linux.
+          Windows returns stats for commit and private working set only.
+      name:
+        description: Name is the name of the container for which the stats were collected.
+        type: string
+      networks:
+        additionalProperties:
+          $ref: '#/definitions/container.NetworkStats'
+        description: |-
+          Networks contains Nntwork statistics for the container per interface.
+
+          This field is omitted if the container has no networking enabled.
+        type: object
+      num_procs:
+        description: |-
+          NumProcs is the number of processors on the system.
+
+          This field is Windows-specific and always zero for Linux containers.
+        type: integer
+      os_type:
+        description: |-
+          OSType is the OS of the container ("linux" or "windows") to allow
+          platform-specific handling of stats.
+        type: string
+      pids_stats:
+        allOf:
+        - $ref: '#/definitions/container.PidsStats'
+        description: |-
+          PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).
+
+          This field is Linux-specific and omitted for Windows containers.
+      precpu_stats:
+        allOf:
+        - $ref: '#/definitions/container.CPUStats'
+        description: PreCPUStats contains the CPUStats of the previous sample.
+      preread:
+        description: |-
+          PreRead is the date and time at which this first sample was collected.
+          This field is not propagated if the "one-shot" option is set. If the
+          "one-shot" option is set, this field may be omitted, empty, or set
+          to a default date (`0001-01-01T00:00:00Z`).
+        type: string
+      read:
+        description: Read is the date and time at which this sample was collected.
+        type: string
+      storage_stats:
+        allOf:
+        - $ref: '#/definitions/container.StorageStats'
+        description: |-
+          StorageStats is the disk I/O stats for read/write on Windows.
+
+          This type is Windows-specific and omitted for Linux containers.
+    type: object
   ContainerStopMethod:
     enum:
     - pause
@@ -1288,6 +1367,100 @@ definitions:
       username:
         type: string
     type: object
+  container.BlkioStatEntry:
+    properties:
+      major:
+        type: integer
+      minor:
+        type: integer
+      op:
+        type: string
+      value:
+        type: integer
+    type: object
+  container.BlkioStats:
+    properties:
+      io_merged_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_queue_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_service_bytes_recursive:
+        description: number of bytes transferred to and from the block device
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_service_time_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_serviced_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_time_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      io_wait_time_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+      sectors_recursive:
+        items:
+          $ref: '#/definitions/container.BlkioStatEntry'
+        type: array
+    type: object
+  container.CPUStats:
+    properties:
+      cpu_usage:
+        allOf:
+        - $ref: '#/definitions/container.CPUUsage'
+        description: CPU Usage. Linux and Windows.
+      online_cpus:
+        description: Online CPUs. Linux only.
+        type: integer
+      system_cpu_usage:
+        description: System Usage. Linux only.
+        type: integer
+      throttling_data:
+        allOf:
+        - $ref: '#/definitions/container.ThrottlingData'
+        description: Throttling Data. Linux only.
+    type: object
+  container.CPUUsage:
+    properties:
+      percpu_usage:
+        description: |-
+          Total CPU time consumed per core (Linux). Not used on Windows.
+          Units: nanoseconds.
+        items:
+          type: integer
+        type: array
+      total_usage:
+        description: |-
+          Total CPU time consumed.
+          Units: nanoseconds (Linux)
+          Units: 100's of nanoseconds (Windows)
+        type: integer
+      usage_in_kernelmode:
+        description: |-
+          Time spent by tasks of the cgroup in kernel mode (Linux).
+          Time spent by all container processes in kernel mode (Windows).
+          Units: nanoseconds (Linux).
+          Units: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers.
+        type: integer
+      usage_in_usermode:
+        description: |-
+          Time spent by tasks of the cgroup in user mode (Linux).
+          Time spent by all container processes in user mode (Windows).
+          Units: nanoseconds (Linux).
+          Units: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers
+        type: integer
+    type: object
   container.ContainerState:
     enum:
     - created
@@ -1325,6 +1498,85 @@ definitions:
     - StateRemoving
     - StateExited
     - StateDead
+  container.MemoryStats:
+    properties:
+      commitbytes:
+        description: committed bytes
+        type: integer
+      commitpeakbytes:
+        description: peak committed bytes
+        type: integer
+      failcnt:
+        description: number of times memory usage hits limits.
+        type: integer
+      limit:
+        type: integer
+      max_usage:
+        description: maximum usage ever recorded.
+        type: integer
+      privateworkingset:
+        description: private working set
+        type: integer
+      stats:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: |-
+          TODO(vishh): Export these as stronger types.
+          all the stats exported via memory.stat.
+        type: object
+      usage:
+        description: current res_counter usage for memory
+        type: integer
+    type: object
+  container.NetworkStats:
+    properties:
+      endpoint_id:
+        description: Endpoint ID. Not used on Linux.
+        type: string
+      instance_id:
+        description: Instance ID. Not used on Linux.
+        type: string
+      rx_bytes:
+        description: Bytes received. Windows and Linux.
+        type: integer
+      rx_dropped:
+        description: Incoming packets dropped. Windows and Linux.
+        type: integer
+      rx_errors:
+        description: |-
+          Received errors. Not used on Windows. Note that we don't `omitempty` this
+          field as it is expected in the >=v1.21 API stats structure.
+        type: integer
+      rx_packets:
+        description: Packets received. Windows and Linux.
+        type: integer
+      tx_bytes:
+        description: Bytes sent. Windows and Linux.
+        type: integer
+      tx_dropped:
+        description: Outgoing packets dropped. Windows and Linux.
+        type: integer
+      tx_errors:
+        description: |-
+          Sent errors. Not used on Windows. Note that we don't `omitempty` this
+          field as it is expected in the >=v1.21 API stats structure.
+        type: integer
+      tx_packets:
+        description: Packets sent. Windows and Linux.
+        type: integer
+    type: object
+  container.PidsStats:
+    properties:
+      current:
+        description: Current is the number of pids in the cgroup
+        type: integer
+      limit:
+        description: |-
+          Limit is the hard limit on the number of pids in the cgroup.
+          A "Limit" of 0 means that there is no limit.
+        type: integer
+    type: object
   container.PortSummary:
     properties:
       IP:
@@ -1345,6 +1597,29 @@ definitions:
           Required: true
           Enum: ["tcp","udp","sctp"]
         type: string
+    type: object
+  container.StorageStats:
+    properties:
+      read_count_normalized:
+        type: integer
+      read_size_bytes:
+        type: integer
+      write_count_normalized:
+        type: integer
+      write_size_bytes:
+        type: integer
+    type: object
+  container.ThrottlingData:
+    properties:
+      periods:
+        description: Number of periods with throttling active
+        type: integer
+      throttled_periods:
+        description: Number of periods when the container hits its throttling limit.
+        type: integer
+      throttled_time:
+        description: Aggregate time the container was throttled for in nanoseconds.
+        type: integer
     type: object
   disk.IOCountersStat:
     properties:
@@ -2168,6 +2443,43 @@ paths:
       tags:
       - docker
       x-id: start
+  /docker/stats/{id}:
+    get:
+      description: Get container stats by container id
+      parameters:
+      - description: Container ID or route alias
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ContainerStatsResponse'
+        "400":
+          description: 'Invalid request: id is required or route is not a docker container'
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Container not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get container stats
+      tags:
+      - docker
+      - websocket
+      x-id: stats
   /docker/stop:
     post:
       description: Stop container by container id
