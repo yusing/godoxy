@@ -173,7 +173,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 
 		if !ok {
-			depRoute, ok = routes.Get(dep)
+			depRoute, ok = routes.GetIncludeExcluded(dep)
 			if !ok {
 				depErrors.Addf("dependency %q not found", dep)
 				continue
