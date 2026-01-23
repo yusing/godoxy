@@ -718,6 +718,62 @@
         "operationId": "start"
       }
     },
+    "/docker/stats/{id}": {
+      "get": {
+        "description": "Get container stats by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker",
+          "websocket"
+        ],
+        "summary": "Get container stats",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Container ID or route alias",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ContainerStatsResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request: id is required or route is not a docker container",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "stats",
+        "operationId": "stats"
+      }
+    },
     "/docker/stop": {
       "post": {
         "description": "Stop container by container id",
@@ -2701,6 +2757,118 @@
         },
         "total": {
           "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ContainerStatsResponse": {
+      "type": "object",
+      "properties": {
+        "blkio_stats": {
+          "description": "BlkioStats stores all IO service stats for data read and write.\n\nThis type is Linux-specific and holds many fields that are specific\nto cgroups v1.\n\nOn a cgroup v2 host, all fields other than \"io_service_bytes_recursive\"\nare omitted or \"null\".\n\nThis type is only populated on Linux and omitted for Windows containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.BlkioStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cpu_stats": {
+          "description": "CPUStats contains CPU related info of the container.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "id": {
+          "description": "ID is the ID of the container for which the stats were collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "memory_stats": {
+          "description": "MemoryStats aggregates all memory stats since container inception on Linux.\nWindows returns stats for commit and private working set only.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.MemoryStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "Name is the name of the container for which the stats were collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "networks": {
+          "description": "Networks contains Nntwork statistics for the container per interface.\n\nThis field is omitted if the container has no networking enabled.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/container.NetworkStats"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "num_procs": {
+          "description": "NumProcs is the number of processors on the system.\n\nThis field is Windows-specific and always zero for Linux containers.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "os_type": {
+          "description": "OSType is the OS of the container (\"linux\" or \"windows\") to allow\nplatform-specific handling of stats.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pids_stats": {
+          "description": "PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).\n\nThis field is Linux-specific and omitted for Windows containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.PidsStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "precpu_stats": {
+          "description": "PreCPUStats contains the CPUStats of the previous sample.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "preread": {
+          "description": "PreRead is the date and time at which this first sample was collected.\nThis field is not propagated if the \"one-shot\" option is set. If the\n\"one-shot\" option is set, this field may be omitted, empty, or set\nto a default date (`0001-01-01T00:00:00Z`).",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read": {
+          "description": "Read is the date and time at which this sample was collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "storage_stats": {
+          "description": "StorageStats is the disk I/O stats for read/write on Windows.\n\nThis type is Windows-specific and omitted for Linux containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.StorageStats"
+            }
+          ],
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -5029,6 +5197,178 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "container.BlkioStatEntry": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "minor": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "op": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.BlkioStats": {
+      "type": "object",
+      "properties": {
+        "io_merged_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_queue_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_service_bytes_recursive": {
+          "description": "number of bytes transferred to and from the block device",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_service_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_serviced_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_wait_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sectors_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.CPUStats": {
+      "type": "object",
+      "properties": {
+        "cpu_usage": {
+          "description": "CPU Usage. Linux and Windows.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUUsage"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "online_cpus": {
+          "description": "Online CPUs. Linux only.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "system_cpu_usage": {
+          "description": "System Usage. Linux only.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttling_data": {
+          "description": "Throttling Data. Linux only.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.ThrottlingData"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.CPUUsage": {
+      "type": "object",
+      "properties": {
+        "percpu_usage": {
+          "description": "Total CPU time consumed per core (Linux). Not used on Windows.\nUnits: nanoseconds.",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total_usage": {
+          "description": "Total CPU time consumed.\nUnits: nanoseconds (Linux)\nUnits: 100's of nanoseconds (Windows)",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage_in_kernelmode": {
+          "description": "Time spent by tasks of the cgroup in kernel mode (Linux).\nTime spent by all container processes in kernel mode (Windows).\nUnits: nanoseconds (Linux).\nUnits: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage_in_usermode": {
+          "description": "Time spent by tasks of the cgroup in user mode (Linux).\nTime spent by all container processes in user mode (Windows).\nUnits: nanoseconds (Linux).\nUnits: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "container.ContainerState": {
       "type": "string",
       "enum": [
@@ -5070,6 +5410,150 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "container.MemoryStats": {
+      "type": "object",
+      "properties": {
+        "commitbytes": {
+          "description": "committed bytes",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "commitpeakbytes": {
+          "description": "peak committed bytes",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "failcnt": {
+          "description": "number of times memory usage hits limits.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "limit": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "max_usage": {
+          "description": "maximum usage ever recorded.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "privateworkingset": {
+          "description": "private working set",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stats": {
+          "description": "TODO(vishh): Export these as stronger types.\nall the stats exported via memory.stat.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage": {
+          "description": "current res_counter usage for memory",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.NetworkStats": {
+      "type": "object",
+      "properties": {
+        "endpoint_id": {
+          "description": "Endpoint ID. Not used on Linux.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "instance_id": {
+          "description": "Instance ID. Not used on Linux.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_bytes": {
+          "description": "Bytes received. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_dropped": {
+          "description": "Incoming packets dropped. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_errors": {
+          "description": "Received errors. Not used on Windows. Note that we don't `omitempty` this\nfield as it is expected in the >=v1.21 API stats structure.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_packets": {
+          "description": "Packets received. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_bytes": {
+          "description": "Bytes sent. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_dropped": {
+          "description": "Outgoing packets dropped. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_errors": {
+          "description": "Sent errors. Not used on Windows. Note that we don't `omitempty` this\nfield as it is expected in the >=v1.21 API stats structure.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_packets": {
+          "description": "Packets sent. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.PidsStats": {
+      "type": "object",
+      "properties": {
+        "current": {
+          "description": "Current is the number of pids in the cgroup",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "limit": {
+          "description": "Limit is the hard limit on the number of pids in the cgroup.\nA \"Limit\" of 0 means that there is no limit.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "container.PortSummary": {
       "type": "object",
       "properties": {
@@ -5098,6 +5582,58 @@
         "Type": {
           "description": "type\nRequired: true\nEnum: [\"tcp\",\"udp\",\"sctp\"]",
           "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.StorageStats": {
+      "type": "object",
+      "properties": {
+        "read_count_normalized": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read_size_bytes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_count_normalized": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_size_bytes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.ThrottlingData": {
+      "type": "object",
+      "properties": {
+        "periods": {
+          "description": "Number of periods with throttling active",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttled_periods": {
+          "description": "Number of periods when the container hits its throttling limit.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttled_time": {
+          "description": "Aggregate time the container was throttled for in nanoseconds.",
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
