@@ -130,17 +130,10 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
 		displayName := alias
-		r, ok := routes.Get(alias)
-		if !ok {
-			// also search for excluded routes
-			r, ok = routes.Excluded.Get(alias)
-		}
-		if r != nil {
-			displayName = r.DisplayName()
-		}
-
 		status := types.StatusUnknown
-		if r != nil {
+		r, ok := routes.GetIncludeExcluded(alias)
+		if ok {
+			displayName = r.DisplayName()
 			mon := r.HealthMonitor()
 			if mon != nil {
 				status = mon.Status()

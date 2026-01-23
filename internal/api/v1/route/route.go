@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	statequery "github.com/yusing/godoxy/internal/config/query"
 	"github.com/yusing/godoxy/internal/route/routes"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
@@ -33,15 +32,8 @@ func Route(c *gin.Context) {
 		return
 	}
 
-	route, ok := routes.Get(request.Which)
+	route, ok := routes.GetIncludeExcluded(request.Which)
 	if ok {
-		c.JSON(http.StatusOK, route)
-		return
-	}
-
-	// also search for excluded routes
-	route = statequery.SearchRoute(request.Which)
-	if route != nil {
 		c.JSON(http.StatusOK, route)
 		return
 	}
