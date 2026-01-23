@@ -30,13 +30,3 @@ func RouteProviderList() []RouteProviderListResponse {
 	}
 	return list
 }
-
-func SearchRoute(alias string) types.Route {
-	state := config.ActiveState.Load()
-	for _, p := range state.IterProviders() {
-		if r, ok := p.GetRoute(alias); ok {
-			return r
-		}
-	}
-	return nil
-}
