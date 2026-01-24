@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/luthermonson/go-proxmox"
 	"github.com/yusing/goutils/pool"
 )
 
@@ -19,10 +18,21 @@ type NodeConfig struct {
 type Node struct {
 	name   string
 	id     string // likely node/<name>
-	client *proxmox.Client
+	client *Client
+
+	// statsScriptInitErrs *xsync.Map[int, error]
 }
 
 var Nodes = pool.New[*Node]("proxmox_nodes")
+
+func NewNode(client *Client, name, id string) *Node {
+	return &Node{
+		name:   name,
+		id:     id,
+		client: client,
+		// statsScriptInitErrs: xsync.NewMap[int, error](xsync.WithGrowOnly()),
+	}
+}
 
 func AvailableNodeNames() string {
 	if Nodes.Size() == 0 {

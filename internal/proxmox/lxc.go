@@ -47,7 +47,7 @@ func (n *Node) LXCAction(ctx context.Context, vmid int, action LXCAction) error 
 		return err
 	}
 
-	task := proxmox.NewTask(upid, n.client)
+	task := proxmox.NewTask(upid, n.client.Client)
 	checkTicker := time.NewTicker(proxmoxTaskCheckInterval)
 	defer checkTicker.Stop()
 	for {

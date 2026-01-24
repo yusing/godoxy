@@ -27,6 +27,7 @@ type JournalctlRequest struct {
 // @Success		200			string		plain	"Journalctl output"
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
+// @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
 // @Router			/api/v1/proxmox/journalctl/{node}/{vmid}/{service} [get]
 func Journalctl(c *gin.Context) {

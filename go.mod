@@ -28,8 +28,8 @@ require (
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.8.0 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
-	github.com/pires/go-proxyproto v0.9.0 // proxy protocol support
-	github.com/puzpuzpuz/xsync/v4 v4.3.0 // lock free map for concurrent operations
+	github.com/pires/go-proxyproto v0.9.1 // proxy protocol support
+	github.com/puzpuzpuz/xsync/v4 v4.4.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.47.0 // encrypting password with bcrypt
@@ -41,7 +41,7 @@ require (
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
-	github.com/bytedance/sonic v1.14.2 // indirect; fast json parsing
+	github.com/bytedance/sonic v1.15.0 // indirect; fast json parsing
 	github.com/docker/cli v29.1.5+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -146,14 +146,16 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-require github.com/moby/moby/api v1.52.0
+require (
+	github.com/moby/moby/api v1.52.0
+	github.com/moby/moby/client v0.2.1
+)
 
 require (
-	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v11 v11.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
-	github.com/bytedance/sonic/loader v0.4.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect

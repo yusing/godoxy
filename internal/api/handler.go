@@ -143,6 +143,7 @@ func NewHandler(requireAuth bool) *gin.Engine {
 		proxmox := v1.Group("/proxmox")
 		{
 			proxmox.GET("/journalctl/:node/:vmid/:service", proxmoxApi.Journalctl)
+			proxmox.GET("/stats/:node/:vmid", proxmoxApi.Stats)
 		}
 	}
 
