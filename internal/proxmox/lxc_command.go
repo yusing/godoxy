@@ -53,12 +53,16 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 	// Create a pipe to stream the websocket messages
 	pr, pw := io.Pipe()
 
-	shouldSkip := true
+	// Command line without trailing newline for matching in output
+	cmdLine := cmd[:len(cmd)-1]
 
 	// Start a goroutine to read from websocket and write to pipe
 	go func() {
 		defer close()
 		defer pw.Close()
+
+		seenCommand := false
+		shouldSkip := true
 
 		for {
 			select {
@@ -80,8 +84,16 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 				//
 				// send begins after the line above
 				if shouldSkip {
-					if bytes.Contains(msg, cmd[:len(cmd)-2]) { // without the \n
-						shouldSkip = false
+					// First, check if this message contains our command echo
+					if !seenCommand && bytes.Contains(msg, cmdLine) {
+						seenCommand = true
+					}
+					// Only stop skipping after we've seen the command AND output markers
+					if seenCommand {
+						if bytes.Contains(msg, []byte("\x1b[H")) || // watch cursor home
+							bytes.Contains(msg, []byte("\x1b[?2004l")) { // bracket paste OFF (command ended)
+							shouldSkip = false
+						}
 					}
 					continue
 				}
