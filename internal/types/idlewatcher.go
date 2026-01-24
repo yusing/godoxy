@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yusing/godoxy/internal/proxmox"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
 	IdlewatcherProviderConfig struct {
-		Proxmox *ProxmoxConfig `json:"proxmox,omitempty"`
-		Docker  *DockerConfig  `json:"docker,omitempty"`
+		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty"`
+		Docker  *DockerConfig       `json:"docker,omitempty"`
 	} // @name IdlewatcherProviderConfig
 	IdlewatcherConfigBase struct {
 		// 0: no idle watcher.
@@ -42,10 +43,6 @@ type (
 		ContainerID   string               `json:"container_id" validate:"required"`
 		ContainerName string               `json:"container_name" validate:"required"`
 	} // @name DockerConfig
-	ProxmoxConfig struct {
-		Node string `json:"node" validate:"required"`
-		VMID int    `json:"vmid" validate:"required"`
-	} // @name ProxmoxConfig
 )
 
 const (

@@ -64,6 +64,8 @@ type (
 		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
 		Agent        string                         `json:"agent,omitempty"`
 
+		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty" extensions:"x-nullable"`
+
 		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
 
 		Metadata `deserialize:"-"`
@@ -175,6 +177,10 @@ func (r *Route) validate() gperr.Error {
 			close(ch)
 		}
 	}, r.started)
+
+	if r.Proxmox != nil && r.Idlewatcher != nil {
+		r.Idlewatcher.Proxmox = r.Proxmox
+	}
 
 	if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 		node := r.Idlewatcher.Proxmox.Node

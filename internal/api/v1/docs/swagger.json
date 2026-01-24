@@ -3750,7 +3750,7 @@
           "x-omitempty": false
         },
         "proxmox": {
-          "$ref": "#/definitions/ProxmoxConfig",
+          "$ref": "#/definitions/ProxmoxNodeConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4369,7 +4369,7 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "ProxmoxConfig": {
+    "ProxmoxNodeConfig": {
       "type": "object",
       "required": [
         "node",
@@ -4380,6 +4380,9 @@
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "service": {
+          "type": "string"
         },
         "vmid": {
           "type": "integer",
@@ -4598,6 +4601,14 @@
         "provider": {
           "description": "for backward compatibility",
           "type": "string",
+          "x-nullable": true
+        },
+        "proxmox": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProxmoxNodeConfig"
+            }
+          ],
           "x-nullable": true
         },
         "purl": {
@@ -6067,6 +6078,14 @@
         "provider": {
           "description": "for backward compatibility",
           "type": "string",
+          "x-nullable": true
+        },
+        "proxmox": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProxmoxNodeConfig"
+            }
+          ],
           "x-nullable": true
         },
         "purl": {

@@ -10,6 +10,12 @@ import (
 	"github.com/yusing/goutils/pool"
 )
 
+type NodeConfig struct {
+	Node    string `json:"node" validate:"required"`
+	VMID    int    `json:"vmid" validate:"required"`
+	Service string `json:"service,omitempty"`
+} // @name ProxmoxNodeConfig
+
 type Node struct {
 	name   string
 	id     string // likely node/<name>
