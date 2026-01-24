@@ -641,7 +641,7 @@ definitions:
       no_loading_page:
         type: boolean
       proxmox:
-        $ref: '#/definitions/ProxmoxConfig'
+        $ref: '#/definitions/ProxmoxNodeConfig'
       start_endpoint:
         description: Optional path that must be hit to start container
         type: string
@@ -933,9 +933,11 @@ definitions:
     - ProviderTypeDocker
     - ProviderTypeFile
     - ProviderTypeAgent
-  ProxmoxConfig:
+  ProxmoxNodeConfig:
     properties:
       node:
+        type: string
+      service:
         type: string
       vmid:
         type: integer
@@ -1049,6 +1051,10 @@ definitions:
       provider:
         description: for backward compatibility
         type: string
+        x-nullable: true
+      proxmox:
+        allOf:
+        - $ref: '#/definitions/ProxmoxNodeConfig'
         x-nullable: true
       purl:
         type: string
@@ -1848,6 +1854,10 @@ definitions:
       provider:
         description: for backward compatibility
         type: string
+        x-nullable: true
+      proxmox:
+        allOf:
+        - $ref: '#/definitions/ProxmoxNodeConfig'
         x-nullable: true
       purl:
         type: string
