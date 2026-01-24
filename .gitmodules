@@ -7,3 +7,6 @@
 [submodule "goutils"]
 	path = goutils
 	url = https://github.com/yusing/goutils.git
+[submodule "internal/go-proxmox"]
+	path = internal/go-proxmox
+	url = https://github.com/yusing/go-proxmox
