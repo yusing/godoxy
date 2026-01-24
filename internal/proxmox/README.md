@@ -10,10 +10,13 @@ The proxmox package implements Proxmox API client management, node discovery, an
 
 - Proxmox API client management
 - Node discovery and pool management
-- LXC container operations (start, stop, status)
-- IP address retrieval for containers
+- LXC container operations (start, stop, status, stats, journalctl)
+- IP address retrieval for containers (online and offline)
+- Container stats streaming (like `docker stats`)
+- Journalctl streaming for LXC containers
+- Reverse resource lookup by IP, hostname, or alias
 - TLS configuration options
-- Token-based authentication
+- Token and username/password authentication
 
 ## Architecture
 
@@ -45,8 +48,11 @@ graph TD
 ```go
 type Config struct {
     URL       string            `json:"url" validate:"required,url"`
-    TokenID   string            `json:"token_id" validate:"required"`
-    Secret    strutils.Redacted `json:"secret" validate:"required"`
+    Username  string            `json:"username" validate:"required_without=TokenID Secret"`
+    Password  strutils.Redacted `json:"password" validate:"required_without=TokenID Secret"`
+    Realm     string            `json:"realm" validate:"required_without=TokenID Secret"`
+    TokenID   string            `json:"token_id" validate:"required_without=Username Password"`
+    Secret    strutils.Redacted `json:"secret" validate:"required_without=Username Password"`
     NoTLSVerify bool            `json:"no_tls_verify"`
 
     client *Client
@@ -58,8 +64,16 @@ type Config struct {
 ```go
 type Client struct {
     *proxmox.Client
-    proxmox.Cluster
+    *proxmox.Cluster
     Version *proxmox.Version
+    // id -> resource; id: lxc/<vmid> or qemu/<vmid>
+    resources   map[string]*VMResource
+    resourcesMu sync.RWMutex
+}
+
+type VMResource struct {
+    *proxmox.ClusterResource
+    IPs []net.IP
 }
 ```
 
@@ -69,10 +83,21 @@ type Client struct {
 type Node struct {
     name   string
     id     string
-    client *proxmox.Client
+    client *Client
 }
 
 var Nodes = pool.New[*Node]("proxmox_nodes")
+```
+
+### NodeConfig
+
+```go
+type NodeConfig struct {
+    Node    string `json:"node" validate:"required"`
+    VMID    int    `json:"vmid" validate:"required"`
+    VMName  string `json:"vmname,omitempty"`
+    Service string `json:"service,omitempty"`
+}
 ```
 
 ## Public API
@@ -87,11 +112,33 @@ func (c *Config) Init(ctx context.Context) gperr.Error
 func (c *Config) Client() *Client
 ```
 
+### Client Operations
+
+```go
+// UpdateClusterInfo fetches cluster info and discovers nodes.
+func (c *Client) UpdateClusterInfo(ctx context.Context) error
+
+// UpdateResources fetches VM resources and their IP addresses.
+func (c *Client) UpdateResources(ctx context.Context) error
+
+// GetResource gets a resource by kind and id.
+func (c *Client) GetResource(kind string, id int) (*VMResource, error)
+
+// ReverseLookupResource looks up a resource by IP, hostname, or alias.
+func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string) (*VMResource, error)
+```
+
 ### Node Operations
 
 ```go
 // AvailableNodeNames returns all available node names.
 func AvailableNodeNames() string
+
+// Node.Client returns the Proxmox client.
+func (n *Node) Client() *Client
+
+// Node.Get performs a GET request on the node.
+func (n *Node) Get(ctx context.Context, path string, v any) error
 ```
 
 ## Usage
@@ -136,57 +183,73 @@ fmt.Printf("Available nodes: %s\n", names)
 
 ## LXC Operations
 
+### Container Status
+
+```go
+type LXCStatus string
+
+const (
+    LXCStatusRunning   LXCStatus = "running"
+    LXCStatusStopped   LXCStatus = "stopped"
+    LXCStatusSuspended LXCStatus = "suspended"
+)
+
+// LXCStatus returns the current status of a container.
+func (node *Node) LXCStatus(ctx context.Context, vmid int) (LXCStatus, error)
+
+// LXCIsRunning checks if a container is running.
+func (node *Node) LXCIsRunning(ctx context.Context, vmid int) (bool, error)
+
+// LXCIsStopped checks if a container is stopped.
+func (node *Node) LXCIsStopped(ctx context.Context, vmid int) (bool, error)
+
+// LXCName returns the name of a container.
+func (node *Node) LXCName(ctx context.Context, vmid int) (string, error)
+```
+
+### Container Actions
+
+```go
+type LXCAction string
+
+const (
+    LXCStart    LXCAction = "start"
+    LXCShutdown LXCAction = "shutdown"
+    LXCSuspend  LXCAction = "suspend"
+    LXCResume   LXCAction = "resume"
+    LXCReboot   LXCAction = "reboot"
+)
+
+// LXCAction performs an action on a container with task tracking.
+func (node *Node) LXCAction(ctx context.Context, vmid int, action LXCAction) error
+
+// LXCSetShutdownTimeout sets the shutdown timeout for a container.
+func (node *Node) LXCSetShutdownTimeout(ctx context.Context, vmid int, timeout time.Duration) error
+```
+
 ### Get Container IPs
 
 ```go
-func getContainerIPs(ctx context.Context, node *proxmox.Node, vmid int) ([]net.IP, error) {
-    var ips []net.IP
+// LXCGetIPs returns IP addresses of a container.
+// First tries interfaces (online), then falls back to config (offline).
+func (node *Node) LXCGetIPs(ctx context.Context, vmid int) ([]net.IP, error)
 
-    err := node.Get(ctx, "/lxc/"+strconv.Itoa(vmid)+"/config", &config)
-    if err != nil {
-        return nil, err
-    }
+// LXCGetIPsFromInterfaces returns IP addresses from network interfaces.
+// Returns empty if container is stopped.
+func (node *Node) LXCGetIPsFromInterfaces(ctx context.Context, vmid int) ([]net.IP, error)
 
-    // Parse IP addresses from config
-    for _, ip := range config {
-        if ipNet := net.ParseCIDR(ip); ipNet != nil {
-            ips = append(ips, ipNet.IP)
-        }
-    }
-
-    return ips, nil
-}
+// LXCGetIPsFromConfig returns IP addresses from container config.
+// Works for stopped/offline containers.
+func (node *Node) LXCGetIPsFromConfig(ctx context.Context, vmid int) ([]net.IP, error)
 ```
 
-### Check Container Status
+### Container Stats (like `docker stats`)
 
 ```go
-func (node *Node) LXCIsRunning(ctx context.Context, vmid int) (bool, error) {
-    var status struct {
-        Status string `json:"status"`
-    }
-
-    err := node.Get(ctx, "/lxc/"+strconv.Itoa(vmid)+"/status/current", &status)
-    if err != nil {
-        return false, err
-    }
-
-    return status.Status == "running", nil
-}
-```
-
-### Start Container
-
-```go
-func (node *Node) LXCAction(ctx context.Context, vmid int, action string) error {
-    return node.Post(ctx,
-        "/lxc/"+strconv.Itoa(vmid)+"/status/"+action,
-        nil,
-        nil,
-    )
-}
-
-const LXCStart = "start"
+// LXCStats streams container statistics.
+// Format: "STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O"
+// Example: "running|31.1%|9.6GiB/20GiB|48.87%|4.7GiB/3.3GiB|25GiB/36GiB"
+func (node *Node) LXCStats(ctx context.Context, vmid int, stream bool) (io.ReadCloser, error)
 ```
 
 ## Data Flow
@@ -228,9 +291,36 @@ sequenceDiagram
 providers:
   proxmox:
     - url: https://proxmox.example.com:8006
+      # Token-based authentication (optional)
       token_id: user@pam!token-name
       secret: your-api-token-secret
+
+      # Username/Password authentication (required for journalctl (service logs) streaming)
+      # username: root
+      # password: your-password
+      # realm: pam
+
       no_tls_verify: false
+```
+
+### Authentication Options
+
+```go
+// Token-based authentication (recommended)
+opts := []proxmox.Option{
+    proxmox.WithAPIToken(c.TokenID, c.Secret.String()),
+    proxmox.WithHTTPClient(&http.Client{Transport: tr}),
+}
+
+// Username/Password authentication
+opts := []proxmox.Option{
+    proxmox.WithCredentials(&proxmox.Credentials{
+        Username: c.Username,
+        Password: c.Password.String(),
+        Realm:    c.Realm,
+    }),
+    proxmox.WithHTTPClient(&http.Client{Transport: tr}),
+}
 ```
 
 ### TLS Configuration
@@ -291,16 +381,12 @@ if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 
 ## Authentication
 
-The package uses API tokens for authentication:
+The package supports two authentication methods:
 
-```go
-opts := []proxmox.Option{
-    proxmox.WithAPIToken(c.TokenID, c.Secret.String()),
-    proxmox.WithHTTPClient(&http.Client{
-        Transport: tr,
-    }),
-}
-```
+1. **API Token** (recommended): Uses `token_id` and `secret`
+2. **Username/Password**: Uses `username`, `password`, and `realm`
+
+Both methods support TLS verification options.
 
 ## Error Handling
 
@@ -312,11 +398,24 @@ if errors.Is(err, context.DeadlineExceeded) {
 
 // Connection errors
 return gperr.New("failed to fetch proxmox cluster info").With(err)
+
+// Resource not found
+return gperr.New("resource not found").With(ErrResourceNotFound)
 ```
 
 ## Performance Considerations
 
 - Cluster info fetched once on init
 - Nodes cached in pool
-- Per-operation API calls
-- 3-second timeout for initial connection
+- Resources updated in background loop (every 3 seconds by default)
+- Concurrent IP resolution for all containers (limited to GOMAXPROCS \* 2)
+- 5-second timeout for initial connection
+- Per-operation API calls with 3-second timeout
+
+## Constants
+
+```go
+const ResourcePollInterval = 3 * time.Second
+```
+
+The `ResourcePollInterval` constant controls how often resources are updated in the background loop.
