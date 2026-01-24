@@ -44,6 +44,7 @@ Types are defined in `goutils/apitypes`:
 | `file`     | Configuration file read/write operations       |
 | `auth`     | Authentication and session management          |
 | `agent`    | Remote agent creation and management           |
+| `proxmox`  | Proxmox API management and monitoring          |
 
 ## Architecture
 
@@ -77,15 +78,16 @@ API listening address is configured with `GODOXY_API_ADDR` environment variable.
 
 ### Internal Dependencies
 
-| Package                 | Purpose                     |
-| ----------------------- | --------------------------- |
-| `internal/route/routes` | Route storage and iteration |
-| `internal/docker`       | Docker client management    |
-| `internal/config`       | Configuration access        |
-| `internal/metrics`      | System metrics collection   |
-| `internal/homepage`     | Homepage item generation    |
-| `internal/agentpool`    | Remote agent management     |
-| `internal/auth`         | Authentication services     |
+| Package                 | Purpose                               |
+| ----------------------- | ------------------------------------- |
+| `internal/route/routes` | Route storage and iteration           |
+| `internal/docker`       | Docker client management              |
+| `internal/config`       | Configuration access                  |
+| `internal/metrics`      | System metrics collection             |
+| `internal/homepage`     | Homepage item generation              |
+| `internal/agentpool`    | Remote agent management               |
+| `internal/auth`         | Authentication services               |
+| `internal/proxmox`      | Proxmox API management and monitoring |
 
 ### External Dependencies
 
