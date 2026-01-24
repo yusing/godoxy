@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/net/gphttp"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
@@ -28,6 +29,8 @@ type Config struct {
 
 	client *Client
 }
+
+const ResourcePollInterval = 3 * time.Second
 
 func (c *Config) Client() *Client {
 	if c.client == nil {
@@ -70,21 +73,54 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 	}
 	c.client = NewClient(c.URL, opts...)
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	initCtx, initCtxCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer initCtxCancel()
 
 	if useCredentials {
-		err := c.client.CreateSession(ctx)
+		err := c.client.CreateSession(initCtx)
 		if err != nil {
 			return gperr.New("failed to create session").With(err)
 		}
 	}
 
-	if err := c.client.UpdateClusterInfo(ctx); err != nil {
+	if err := c.client.UpdateClusterInfo(initCtx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return gperr.New("timeout fetching proxmox cluster info")
 		}
 		return gperr.New("failed to fetch proxmox cluster info").With(err)
 	}
+
+	go c.updateResourcesLoop(ctx)
 	return nil
+}
+
+func (c *Config) updateResourcesLoop(ctx context.Context) {
+	ticker := time.NewTicker(ResourcePollInterval)
+	defer ticker.Stop()
+
+	log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] starting resources update loop")
+
+	{
+		reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
+		err := c.client.UpdateResources(reqCtx)
+		reqCtxCancel()
+		if err != nil {
+			log.Warn().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] stopping resources update loop")
+			return
+		case <-ticker.C:
+			reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
+			err := c.client.UpdateResources(reqCtx)
+			reqCtxCancel()
+			if err != nil {
+				log.Error().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
+			}
+		}
+	}
 }
