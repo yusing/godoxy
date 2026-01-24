@@ -17,8 +17,12 @@ import (
 type Config struct {
 	URL string `json:"url" validate:"required,url"`
 
-	TokenID string            `json:"token_id" validate:"required"`
-	Secret  strutils.Redacted `json:"secret" validate:"required"`
+	Username string            `json:"username" validate:"required_without=TokenID Secret"`
+	Password strutils.Redacted `json:"password" validate:"required_without=TokenID Secret"`
+	Realm    string            `json:"realm" validate:"required_without=TokenID Secret"`
+
+	TokenID string            `json:"token_id" validate:"required_without=Username Password"`
+	Secret  strutils.Redacted `json:"secret" validate:"required_without=Username Password"`
 
 	NoTLSVerify bool `json:"no_tls_verify" yaml:"no_tls_verify,omitempty"`
 
@@ -49,15 +53,32 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 	}
 
 	opts := []proxmox.Option{
-		proxmox.WithAPIToken(c.TokenID, c.Secret.String()),
 		proxmox.WithHTTPClient(&http.Client{
 			Transport: tr,
 		}),
 	}
+	useCredentials := false
+	if c.Username != "" && c.Password != "" {
+		opts = append(opts, proxmox.WithCredentials(&proxmox.Credentials{
+			Username: c.Username,
+			Password: c.Password.String(),
+			Realm:    c.Realm,
+		}))
+		useCredentials = true
+	} else {
+		opts = append(opts, proxmox.WithAPIToken(c.TokenID, c.Secret.String()))
+	}
 	c.client = NewClient(c.URL, opts...)
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
+	if useCredentials {
+		err := c.client.CreateSession(ctx)
+		if err != nil {
+			return gperr.New("failed to create session").With(err)
+		}
+	}
 
 	if err := c.client.UpdateClusterInfo(ctx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
