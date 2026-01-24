@@ -941,6 +941,8 @@ definitions:
         type: string
       vmid:
         type: integer
+      vmname:
+        type: string
     required:
     - node
     - vmid

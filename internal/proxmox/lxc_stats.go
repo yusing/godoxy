@@ -7,8 +7,6 @@ import (
 	"io"
 	"strings"
 	"time"
-
-	"github.com/luthermonson/go-proxmox"
 )
 
 // const statsScriptLocation = "/tmp/godoxy-stats.sh"
@@ -105,7 +103,7 @@ func (n *Node) LXCStats(ctx context.Context, vmid int, stream bool) (io.ReadClos
 	return pr, nil
 }
 
-func writeLXCStatsLine(resource *proxmox.ClusterResource, w io.Writer) error {
+func writeLXCStatsLine(resource *VMResource, w io.Writer) error {
 	cpu := fmt.Sprintf("%.1f%%", resource.CPU*100)
 
 	memUsage := formatIECBytes(resource.Mem)

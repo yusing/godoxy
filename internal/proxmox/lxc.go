@@ -170,17 +170,17 @@ func getIPFromNet(s string) (res []net.IP) { // name:...,bridge:...,gw=..,ip=...
 }
 
 // LXCGetIPs returns the ip addresses of the container
-// it first tries to get the ip addresses from the config
-// if that fails, it gets the ip addresses from the interfaces
+// it first tries to get the ip addresses from the interfaces
+// if that fails, it gets the ip addresses from the config (offline containers)
 func (n *Node) LXCGetIPs(ctx context.Context, vmid int) (res []net.IP, err error) {
-	ips, err := n.LXCGetIPsFromConfig(ctx, vmid)
+	ips, err := n.LXCGetIPsFromInterfaces(ctx, vmid)
 	if err != nil {
 		return nil, err
 	}
 	if len(ips) > 0 {
 		return ips, nil
 	}
-	ips, err = n.LXCGetIPsFromInterfaces(ctx, vmid)
+	ips, err = n.LXCGetIPsFromConfig(ctx, vmid)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 type NodeConfig struct {
 	Node    string `json:"node" validate:"required"`
 	VMID    int    `json:"vmid" validate:"required"`
+	VMName  string `json:"vmname,omitempty"`
 	Service string `json:"service,omitempty"`
 } // @name ProxmoxNodeConfig
 
@@ -52,6 +53,10 @@ func (n *Node) Key() string {
 
 func (n *Node) Name() string {
 	return n.name
+}
+
+func (n *Node) Client() *Client {
+	return n.client
 }
 
 func (n *Node) String() string {

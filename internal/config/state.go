@@ -111,7 +111,6 @@ func (state *state) Init(data []byte) error {
 	g := gperr.NewGroup("config load error")
 	g.Go(state.initMaxMind)
 	g.Go(state.initProxmox)
-	g.Go(state.loadRouteProviders)
 	g.Go(state.initAutoCert)
 
 	errs := g.Wait()
@@ -119,6 +118,7 @@ func (state *state) Init(data []byte) error {
 	errs.Add(state.initNotification())
 	errs.Add(state.initACL())
 	errs.Add(state.initEntrypoint())
+	errs.Add(state.loadRouteProviders())
 	return errs.Error()
 }
 
