@@ -5,11 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"runtime"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
@@ -17,8 +22,13 @@ type Client struct {
 	*proxmox.Cluster
 	Version *proxmox.Version
 	// id -> resource; id: lxc/<vmid> or qemu/<vmid>
-	resources   map[string]*proxmox.ClusterResource
+	resources   map[string]*VMResource
 	resourcesMu sync.RWMutex
+}
+
+type VMResource struct {
+	*proxmox.ClusterResource
+	IPs []net.IP
 }
 
 var (
@@ -29,7 +39,7 @@ var (
 func NewClient(baseUrl string, opts ...proxmox.Option) *Client {
 	return &Client{
 		Client:    proxmox.NewClient(baseUrl, opts...),
-		resources: make(map[string]*proxmox.ClusterResource),
+		resources: make(map[string]*VMResource),
 	}
 }
 
@@ -62,8 +72,36 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 		return err
 	}
 	clear(c.resources)
+	var errs errgroup.Group
+	errs.SetLimit(runtime.GOMAXPROCS(0) * 2)
 	for _, resource := range resourcesSlice {
-		c.resources[resource.ID] = resource
+		c.resources[resource.ID] = &VMResource{
+			ClusterResource: resource,
+			IPs:             nil,
+		}
+		errs.Go(func() error {
+			node, ok := Nodes.Get(resource.Node)
+			if !ok {
+				return fmt.Errorf("node %s not found", resource.Node)
+			}
+			vmid, ok := strings.CutPrefix(resource.ID, "lxc/")
+			if !ok {
+				return nil // not a lxc resource
+			}
+			vmidInt, err := strconv.Atoi(vmid)
+			if err != nil {
+				return fmt.Errorf("invalid resource id %s: %w", resource.ID, err)
+			}
+			ips, err := node.LXCGetIPs(ctx, vmidInt)
+			if err != nil {
+				return fmt.Errorf("failed to get ips for resource %s: %w", resource.ID, err)
+			}
+			c.resources[resource.ID].IPs = ips
+			return nil
+		})
+	}
+	if err := errs.Wait(); err != nil {
+		return err
 	}
 	log.Debug().Str("cluster", c.Cluster.Name).Msgf("[proxmox] updated %d resources", len(c.resources))
 	return nil
@@ -72,7 +110,7 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 // GetResource gets a resource by kind and id.
 // kind: lxc or qemu
 // id: <vmid>
-func (c *Client) GetResource(kind string, id int) (*proxmox.ClusterResource, error) {
+func (c *Client) GetResource(kind string, id int) (*VMResource, error) {
 	c.resourcesMu.RLock()
 	defer c.resourcesMu.RUnlock()
 	resource, ok := c.resources[kind+"/"+strconv.Itoa(id)]
@@ -80,6 +118,33 @@ func (c *Client) GetResource(kind string, id int) (*proxmox.ClusterResource, err
 		return nil, ErrResourceNotFound
 	}
 	return resource, nil
+}
+
+// ReverseLookupResource looks up a resource by ip address, hostname, alias or all of them
+func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string) (*VMResource, error) {
+	c.resourcesMu.RLock()
+	defer c.resourcesMu.RUnlock()
+
+	shouldCheckIP := ip != nil && !ip.IsLoopback() && !ip.IsUnspecified()
+	shouldCheckHostname := hostname != ""
+	shouldCheckAlias := alias != ""
+
+	if shouldCheckHostname {
+		hostname, _, _ = strings.Cut(hostname, ".")
+	}
+
+	for _, resource := range c.resources {
+		if shouldCheckIP && slices.ContainsFunc(resource.IPs, func(a net.IP) bool { return a.Equal(ip) }) {
+			return resource, nil
+		}
+		if shouldCheckHostname && resource.Name == hostname {
+			return resource, nil
+		}
+		if shouldCheckAlias && resource.Name == alias {
+			return resource, nil
+		}
+	}
+	return nil, ErrResourceNotFound
 }
 
 // Key implements pool.Object

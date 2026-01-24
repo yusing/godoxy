@@ -4458,6 +4458,9 @@
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
+        },
+        "vmname": {
+          "type": "string"
         }
       },
       "x-nullable": false,

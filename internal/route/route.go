@@ -132,6 +132,10 @@ func (r Routes) Contains(alias string) bool {
 }
 
 func (r *Route) Validate() gperr.Error {
+	// wait for alias to be set
+	if r.Alias == "" {
+		return nil
+	}
 	// pcs := make([]uintptr, 1)
 	// runtime.Callers(2, pcs)
 	// f := runtime.FuncForPC(pcs[0])
@@ -182,22 +186,35 @@ func (r *Route) validate() gperr.Error {
 		r.Idlewatcher.Proxmox = r.Proxmox
 	}
 
-	if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
-		node := r.Idlewatcher.Proxmox.Node
-		vmid := r.Idlewatcher.Proxmox.VMID
-		if node == "" {
+	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
+		r.Proxmox = r.Idlewatcher.Proxmox
+	}
+
+	if r.Proxmox != nil {
+		nodeName := r.Proxmox.Node
+		vmid := r.Proxmox.VMID
+		if nodeName == "" {
 			return gperr.Errorf("node (proxmox node name) is required")
 		}
 		if vmid <= 0 {
 			return gperr.Errorf("vmid (lxc id) is required")
 		}
+
+		node, ok := proxmox.Nodes.Get(nodeName)
+		if !ok {
+			return gperr.Errorf("proxmox node %s not found in pool", node)
+		}
+
+		res, err := node.Client().GetResource("lxc", vmid)
+		if err != nil {
+			return gperr.Wrap(err) // ErrResourceNotFound
+		}
+
+		r.Proxmox.VMName = res.Name
+
 		if r.Host == DefaultHost {
 			containerName := r.Idlewatcher.ContainerName()
 			// get ip addresses of the vmid
-			node, ok := proxmox.Nodes.Get(node)
-			if !ok {
-				return gperr.Errorf("proxmox node %s not found in pool", node)
-			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -314,6 +331,33 @@ func (r *Route) validate() gperr.Error {
 
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
+		}
+	}
+
+	if r.Proxmox == nil && r.Container == nil {
+		proxmoxProviders := config.WorkingState.Load().Value().Providers.Proxmox
+		if len(proxmoxProviders) > 0 {
+			// it's fine if ip is nil
+			hostname := r.ProxyURL.Hostname()
+			ip := net.ParseIP(hostname)
+			for _, p := range config.WorkingState.Load().Value().Providers.Proxmox {
+				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
+				// reverse lookup resource by ip address, hostname or alias
+				if resource != nil {
+					r.Proxmox = &proxmox.NodeConfig{
+						Node:    resource.Node,
+						VMID:    int(resource.VMID),
+						VMName:  resource.Name,
+						Service: r.Alias,
+					}
+					log.Info().
+						Str("node", resource.Node).
+						Int("vmid", int(resource.VMID)).
+						Str("vmname", resource.Name).
+						Msgf("found proxmox resource for route %q", r.Alias)
+					break
+				}
+			}
 		}
 	}
 
@@ -495,6 +539,13 @@ func (r *Route) References() []string {
 			return []string{r.Container.ContainerName, aliasRef, r.Container.Image.Name, r.Container.Image.Author}
 		}
 		return []string{r.Container.Image.Name, aliasRef, r.Container.Image.Author}
+	}
+
+	if r.Proxmox != nil {
+		if r.Proxmox.VMName != r.Alias {
+			return []string{r.Proxmox.VMName, aliasRef, r.Proxmox.Service}
+		}
+		return []string{r.Proxmox.Service, aliasRef}
 	}
 	return []string{aliasRef}
 }
