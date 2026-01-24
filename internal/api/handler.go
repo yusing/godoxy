@@ -16,6 +16,7 @@ import (
 	fileApi "github.com/yusing/godoxy/internal/api/v1/file"
 	homepageApi "github.com/yusing/godoxy/internal/api/v1/homepage"
 	metricsApi "github.com/yusing/godoxy/internal/api/v1/metrics"
+	proxmoxApi "github.com/yusing/godoxy/internal/api/v1/proxmox"
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
@@ -141,6 +142,11 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			docker.POST("/stop", dockerApi.Stop)
 			docker.POST("/restart", dockerApi.Restart)
 			docker.GET("/stats/:id", dockerApi.Stats)
+		}
+
+		proxmox := v1.Group("/proxmox")
+		{
+			proxmox.GET("/journalctl/:node/:vmid/:service", proxmoxApi.Journalctl)
 		}
 	}
 

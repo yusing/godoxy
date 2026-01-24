@@ -165,6 +165,70 @@
         "operationId": "verify"
       }
     },
+    "/api/v1/proxmox/journalctl/{node}/{vmid}/{service}": {
+      "get": {
+        "description": "Get journalctl output",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
     "/auth/callback": {
       "post": {
         "description": "Handles the callback from the provider after successful authentication",
