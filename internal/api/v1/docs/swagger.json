@@ -4746,11 +4746,6 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "display_name": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "downtime": {
           "type": "number",
           "x-nullable": false,
@@ -4758,16 +4753,6 @@
         },
         "idle": {
           "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_docker": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_excluded": {
-          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },

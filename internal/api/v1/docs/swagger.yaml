@@ -1154,16 +1154,10 @@ definitions:
         - napping
         - starting
         type: string
-      display_name:
-        type: string
       downtime:
         type: number
       idle:
         type: number
-      is_docker:
-        type: boolean
-      is_excluded:
-        type: boolean
       statuses:
         items:
           $ref: '#/definitions/RouteStatus'
