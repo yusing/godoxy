@@ -4,6 +4,7 @@ go 1.25.6
 
 replace (
 	github.com/coreos/go-oidc/v3 => ./internal/go-oidc
+	github.com/luthermonson/go-proxmox => ./internal/go-proxmox
 	github.com/shirou/gopsutil/v4 => ./internal/gopsutil
 	github.com/yusing/godoxy/agent => ./agent
 	github.com/yusing/godoxy/internal/dnsproviders => ./internal/dnsproviders
