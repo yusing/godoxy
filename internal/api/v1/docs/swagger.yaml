@@ -2183,6 +2183,111 @@ paths:
       - proxmox
       - websocket
       x-id: journalctl
+  /api/v1/proxmox/lxc/:node/:vmid/restart:
+    post:
+      description: Restart LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Restart LXC container
+      tags:
+      - proxmox
+      x-id: lxcRestart
+  /api/v1/proxmox/lxc/:node/:vmid/start:
+    post:
+      description: Start LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Start LXC container
+      tags:
+      - proxmox
+      x-id: lxcStart
+  /api/v1/proxmox/lxc/:node/:vmid/stop:
+    post:
+      description: Stop LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Stop LXC container
+      tags:
+      - proxmox
+      x-id: lxcStop
   /api/v1/proxmox/stats/{node}/{vmid}:
     get:
       consumes:
