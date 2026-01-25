@@ -11,18 +11,18 @@ import (
 )
 
 type JournalctlRequest struct {
-	Node    string `uri:"node" binding:"required"`
-	VMID    *int   `uri:"vmid"` // optional - if not provided, streams node journalctl
-	Service string `uri:"service"`
-	Limit   int    `query:"limit" binding:"omitempty,min=1,max=1000"`
-}
+	Node    string `uri:"node" binding:"required"`                        // Node name
+	VMID    *int   `uri:"vmid"`                                           // Container VMID (optional - if not provided, streams node journalctl)
+	Service string `uri:"service"`                                        // Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)
+	Limit   int    `query:"limit" default:"100" binding:"min=1,max=1000"` // Limit output lines (1-1000)
+} //	@name	ProxmoxJournalctlRequest
 
 // @x-id				"journalctl"
 // @BasePath		/api/v1
 // @Summary		Get journalctl output
 // @Description	Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.
 // @Tags			proxmox,websocket
-// @Accept			json
+// @Accept		json
 // @Produce		application/json
 // @Param			node		path		string	true	"Node name"
 // @Param			vmid		path		int		  false	"Container VMID (optional - if not provided, streams node journalctl)"
@@ -42,6 +42,10 @@ func Journalctl(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
 	}
+	if err := c.ShouldBindQuery(&request); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
+		return
+	}
 
 	node, ok := proxmox.Nodes.Get(request.Node)
 	if !ok {
@@ -49,14 +53,10 @@ func Journalctl(c *gin.Context) {
 		return
 	}
 
-	manager, err := websocket.NewManagerWithUpgrade(c)
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
-		return
-	}
-	defer manager.Close()
+	c.Status(http.StatusContinue)
 
 	var reader io.ReadCloser
+	var err error
 	if request.VMID == nil {
 		reader, err = node.NodeJournalctl(c.Request.Context(), request.Service, request.Limit)
 	} else {
@@ -67,6 +67,13 @@ func Journalctl(c *gin.Context) {
 		return
 	}
 	defer reader.Close()
+
+	manager, err := websocket.NewManagerWithUpgrade(c)
+	if err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
+		return
+	}
+	defer manager.Close()
 
 	writer := manager.NewWriter(websocket.TextMessage)
 	_, err = io.Copy(writer, reader)

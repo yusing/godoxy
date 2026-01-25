@@ -52,11 +52,11 @@ graph TD
 ```go
 type Config struct {
     URL       string            `json:"url" validate:"required,url"`
-    Username  string            `json:"username" validate:"required_without=TokenID Secret"`
-    Password  strutils.Redacted `json:"password" validate:"required_without=TokenID Secret"`
-    Realm     string            `json:"realm" validate:"required_without=TokenID Secret"`
-    TokenID   string            `json:"token_id" validate:"required_without=Username Password"`
-    Secret    strutils.Redacted `json:"secret" validate:"required_without=Username Password"`
+    Username  string            `json:"username" validate:"required_without_all=TokenID Secret"`
+    Password  strutils.Redacted `json:"password" validate:"required_without_all=TokenID Secret"`
+    Realm     string            `json:"realm"`
+    TokenID   string            `json:"token_id" validate:"required_without_all=Username Password"`
+    Secret    strutils.Redacted `json:"secret" validate:"required_without_all=Username Password"`
     NoTLSVerify bool            `json:"no_tls_verify"`
 
     client *Client

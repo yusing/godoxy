@@ -23,7 +23,7 @@ type LogsQueryParams struct {
 	Since  string `form:"from"`
 	Until  string `form:"to"`
 	Levels string `form:"levels"`
-	Limit  int    `form:"limit,default=100" binding:"omitempty,min=1,max=1000"`
+	Limit  int    `form:"limit,default=100" binding:"min=1,max=1000"`
 } //	@name	LogsQueryParams
 
 // @x-id				"logs"

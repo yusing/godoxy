@@ -41,3 +41,7 @@ tsconfig.tsbuildinfo
 !agent.compose.yml
 !agent/pkg/**
 dev-data/
+
+RELEASE_NOTES.md
+CLAUDE.md
+.kilocode/**

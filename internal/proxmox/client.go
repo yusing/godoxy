@@ -65,6 +65,9 @@ func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
 }
 
 func (c *Client) UpdateResources(ctx context.Context) error {
+	if c.Cluster == nil {
+		return errors.New("cluster not initialized, call UpdateClusterInfo first")
+	}
 	resourcesSlice, err := c.Cluster.Resources(ctx, "vm")
 	if err != nil {
 		return err
