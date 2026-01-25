@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/api"
@@ -32,6 +33,16 @@ func parallel(fns ...func()) {
 }
 
 func main() {
+	done := make(chan struct{}, 1)
+	go func() {
+		select {
+		case <-done:
+			return
+		case <-time.After(time.Second * 10):
+			log.Fatal().Msgf("timeout waiting for initialization to complete, exiting...")
+		}
+	}()
+
 	initProfiling()
 
 	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
@@ -85,6 +96,8 @@ func main() {
 
 	uptime.Poller.Start()
 	config.WatchChanges()
+
+	close(done)
 
 	task.WaitExit(config.Value().TimeoutShutdown)
 }
