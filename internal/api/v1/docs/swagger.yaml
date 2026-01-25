@@ -269,19 +269,6 @@ definitions:
     - ContainerStopMethodPause
     - ContainerStopMethodStop
     - ContainerStopMethodKill
-  DockerConfig:
-    properties:
-      container_id:
-        type: string
-      container_name:
-        type: string
-      docker_cfg:
-        $ref: '#/definitions/DockerProviderConfig'
-    required:
-    - container_id
-    - container_name
-    - docker_cfg
-    type: object
   DockerProviderConfig:
     properties:
       tls:
@@ -630,7 +617,7 @@ definitions:
           type: string
         type: array
       docker:
-        $ref: '#/definitions/DockerConfig'
+        $ref: '#/definitions/IdlewatcherDockerConfig'
       idle_timeout:
         allOf:
         - $ref: '#/definitions/time.Duration'
@@ -641,7 +628,7 @@ definitions:
       no_loading_page:
         type: boolean
       proxmox:
-        $ref: '#/definitions/ProxmoxNodeConfig'
+        $ref: '#/definitions/IdlewatcherProxmoxNodeConfig'
       start_endpoint:
         description: Optional path that must be hit to start container
         type: string
@@ -653,6 +640,29 @@ definitions:
         $ref: '#/definitions/time.Duration'
       wake_timeout:
         $ref: '#/definitions/time.Duration'
+    type: object
+  IdlewatcherDockerConfig:
+    properties:
+      container_id:
+        type: string
+      container_name:
+        type: string
+      docker_cfg:
+        $ref: '#/definitions/DockerProviderConfig'
+    required:
+    - container_id
+    - container_name
+    - docker_cfg
+    type: object
+  IdlewatcherProxmoxNodeConfig:
+    properties:
+      node:
+        type: string
+      vmid:
+        type: integer
+    required:
+    - node
+    - vmid
     type: object
   ListFilesResponse:
     properties:
@@ -1792,11 +1802,11 @@ definitions:
         type: string
       kernel_version:
         type: string
-      load_avg_15m:
-        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
+        type: string
+      load_avg_15m:
         type: string
       mem_pct:
         type: string
