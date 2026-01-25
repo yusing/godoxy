@@ -106,7 +106,7 @@ func (c *Config) Validate() gperr.Error {
 		c.allowLocal = true
 	}
 
-	if c.Notify.Interval < 0 {
+	if c.Notify.Interval <= 0 {
 		c.Notify.Interval = defaultNotifyInterval
 	}
 

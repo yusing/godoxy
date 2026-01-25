@@ -50,6 +50,7 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 	// Send command
 	cmd := []byte(command + "\n")
 	if err := handleSend(cmd); err != nil {
+		closeFn()
 		return nil, err
 	}
 
@@ -70,6 +71,7 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 		for {
 			select {
 			case <-ctx.Done():
+				_ = pw.CloseWithError(ctx.Err())
 				return
 			case msg := <-recv:
 				// skip the header message like
@@ -106,7 +108,6 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 			case err := <-errs:
 				if err != nil {
 					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-						_ = pw.Close()
 						return
 					}
 					_ = pw.CloseWithError(err)

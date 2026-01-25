@@ -18,12 +18,12 @@ import (
 type Config struct {
 	URL string `json:"url" validate:"required,url"`
 
-	Username string            `json:"username" validate:"required_without=TokenID Secret"`
-	Password strutils.Redacted `json:"password" validate:"required_without=TokenID Secret"`
-	Realm    string            `json:"realm" validate:"required_without=TokenID Secret"`
+	Username string            `json:"username" validate:"required_without_all=TokenID Secret"`
+	Password strutils.Redacted `json:"password" validate:"required_without_all=TokenID Secret"`
+	Realm    string            `json:"realm"` // default is "pam"
 
-	TokenID string            `json:"token_id" validate:"required_without=Username Password"`
-	Secret  strutils.Redacted `json:"secret" validate:"required_without=Username Password"`
+	TokenID string            `json:"token_id" validate:"required_without_all=Username Password"`
+	Secret  strutils.Redacted `json:"secret" validate:"required_without_all=Username Password"`
 
 	NoTLSVerify bool `json:"no_tls_verify" yaml:"no_tls_verify,omitempty"`
 
@@ -65,6 +65,9 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 	}
 	useCredentials := false
 	if c.Username != "" && c.Password != "" {
+		if c.Realm == "" {
+			c.Realm = "pam"
+		}
 		opts = append(opts, proxmox.WithCredentials(&proxmox.Credentials{
 			Username: c.Username,
 			Password: c.Password.String(),

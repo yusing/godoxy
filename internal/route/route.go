@@ -218,7 +218,7 @@ func (r *Route) validate() gperr.Error {
 			r.Proxmox.VMName = res.Name
 
 			if r.Host == DefaultHost {
-				containerName := r.Idlewatcher.ContainerName()
+				containerName := res.Name
 				// get ip addresses of the vmid
 
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -336,7 +336,7 @@ func (r *Route) validate() gperr.Error {
 		}
 	}
 
-	if r.Proxmox == nil && r.Container == nil {
+	if r.Proxmox == nil && r.Container == nil && r.ProxyURL != nil {
 		proxmoxProviders := config.WorkingState.Load().Value().Providers.Proxmox
 		if len(proxmoxProviders) > 0 {
 			// it's fine if ip is nil

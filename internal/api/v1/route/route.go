@@ -37,5 +37,5 @@ func Route(c *gin.Context) {
 		c.JSON(http.StatusOK, route)
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, apitypes.Error("route not found"))
 }
