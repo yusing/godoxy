@@ -2109,8 +2109,12 @@
             "required": true
           },
           {
-            "type": "string",
-            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
             "name": "service",
             "in": "query"
           },
@@ -2189,8 +2193,12 @@
             "required": true
           },
           {
-            "type": "string",
-            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
             "name": "service",
             "in": "query"
           },
@@ -2276,8 +2284,12 @@
             "required": true
           },
           {
-            "type": "string",
-            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
             "name": "service",
             "in": "query"
           },
@@ -2369,8 +2381,12 @@
             "required": true
           },
           {
-            "type": "string",
-            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
             "name": "service",
             "in": "query"
           },
@@ -2388,8 +2404,12 @@
             "required": true
           },
           {
-            "type": "string",
-            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
             "name": "service",
             "in": "path"
           },
@@ -2713,6 +2733,91 @@
         },
         "x-id": "vmStats",
         "operationId": "vmStats"
+      }
+    },
+    "/proxmox/tail": {
+      "get": {
+        "description": "Get tail output for node or LXC container. If vmid is not provided, streams node tail.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get tail output",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "File paths",
+            "name": "file",
+            "in": "query",
+            "required": true
+          },
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tail output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "tail",
+        "operationId": "tail"
       }
     },
     "/reload": {
@@ -4972,26 +5077,38 @@
     },
     "ProxmoxNodeConfig": {
       "type": "object",
-      "required": [
-        "node",
-        "vmid"
-      ],
       "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "node": {
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "service": {
-          "type": "string"
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
         },
         "vmid": {
+          "description": "unset: auto discover; explicit 0: node-level route; >0: lxc/qemu resource route",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
         "vmname": {
-          "type": "string"
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
         }
       },
       "x-nullable": false,

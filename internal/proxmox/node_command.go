@@ -120,13 +120,25 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 	return pr, nil
 }
 
-func (n *Node) NodeJournalctl(ctx context.Context, service string, limit int) (io.ReadCloser, error) {
-	command := "journalctl -f"
-	if service != "" {
-		command = fmt.Sprintf("journalctl -u %q -f", service)
+// NodeJournalctl streams journalctl output for the given service.
+//
+// If services are not empty, it will be used to filter the output by services.
+// If limit is greater than 0, it will be used to limit the number of lines of output.
+func (n *Node) NodeJournalctl(ctx context.Context, services []string, limit int) (io.ReadCloser, error) {
+	command, err := formatJournalctl(services, limit)
+	if err != nil {
+		return nil, err
 	}
-	if limit > 0 {
-		command = fmt.Sprintf("%s -n %d", command, limit)
+	return n.NodeCommand(ctx, command)
+}
+
+// NodeTail streams tail output for the given file.
+//
+// If limit is greater than 0, it will be used to limit the number of lines of output.
+func (n *Node) NodeTail(ctx context.Context, files []string, limit int) (io.ReadCloser, error) {
+	command, err := formatTail(files, limit)
+	if err != nil {
+		return nil, err
 	}
 	return n.NodeCommand(ctx, command)
 }

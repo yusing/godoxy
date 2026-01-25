@@ -14,6 +14,7 @@ type NodeConfig struct {
 	VMID     *int     `json:"vmid"` // unset: auto discover; explicit 0: node-level route; >0: lxc/qemu resource route
 	VMName   string   `json:"vmname,omitempty"`
 	Services []string `json:"services,omitempty" aliases:"service"`
+	Files    []string `json:"files,omitempty" aliases:"file"`
 } // @name ProxmoxNodeConfig
 
 type Node struct {

@@ -945,17 +945,22 @@ definitions:
     - ProviderTypeAgent
   ProxmoxNodeConfig:
     properties:
+      files:
+        items:
+          type: string
+        type: array
       node:
         type: string
-      service:
-        type: string
+      services:
+        items:
+          type: string
+        type: array
       vmid:
+        description: 'unset: auto discover; explicit 0: node-level route; >0: lxc/qemu
+          resource route'
         type: integer
       vmname:
         type: string
-    required:
-    - node
-    - vmid
     type: object
   ProxyStats:
     properties:
@@ -3421,11 +3426,13 @@ paths:
         name: node
         required: true
         type: string
-      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
-          format for LXC)
+      - collectionFormat: csv
+        description: Service names
         in: query
+        items:
+          type: string
         name: service
-        type: string
+        type: array
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: query
         name: vmid
@@ -3477,11 +3484,13 @@ paths:
         name: node
         required: true
         type: string
-      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
-          format for LXC)
+      - collectionFormat: csv
+        description: Service names
         in: query
+        items:
+          type: string
         name: service
-        type: string
+        type: array
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: query
         name: vmid
@@ -3538,11 +3547,13 @@ paths:
         name: node
         required: true
         type: string
-      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
-          format for LXC)
+      - collectionFormat: csv
+        description: Service names
         in: query
+        items:
+          type: string
         name: service
-        type: string
+        type: array
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: query
         name: vmid
@@ -3603,11 +3614,13 @@ paths:
         name: node
         required: true
         type: string
-      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
-          format for LXC)
+      - collectionFormat: csv
+        description: Service names
         in: query
+        items:
+          type: string
         name: service
-        type: string
+        type: array
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: query
         name: vmid
@@ -3617,11 +3630,13 @@ paths:
         name: node
         required: true
         type: string
-      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
-          format for LXC)
+      - collectionFormat: csv
+        description: Service names
         in: path
+        items:
+          type: string
         name: service
-        type: string
+        type: array
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: path
         name: vmid
@@ -3837,6 +3852,65 @@ paths:
       - proxmox
       - websocket
       x-id: vmStats
+  /proxmox/tail:
+    get:
+      consumes:
+      - application/json
+      description: Get tail output for node or LXC container. If vmid is not provided,
+        streams node tail.
+      parameters:
+      - collectionFormat: csv
+        description: File paths
+        in: query
+        items:
+          type: string
+        name: file
+        required: true
+        type: array
+      - default: 100
+        description: Limit output lines (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Node name
+        in: query
+        name: node
+        required: true
+        type: string
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: query
+        name: vmid
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tail output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get tail output
+      tags:
+      - proxmox
+      - websocket
+      x-id: tail
   /reload:
     post:
       consumes:
