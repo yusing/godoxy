@@ -2452,12 +2452,9 @@
         "operationId": "lxcStop"
       }
     },
-    "/proxmox/stats/{node}/{vmid}": {
+    "/proxmox/stats/{node}": {
       "get": {
-        "description": "Get proxmox stats in format of \"STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O\"",
-        "consumes": [
-          "application/json"
-        ],
+        "description": "Get proxmox node stats in json",
         "produces": [
           "application/json"
         ],
@@ -2465,7 +2462,63 @@
           "proxmox",
           "websocket"
         ],
-        "summary": "Get proxmox stats",
+        "summary": "Get proxmox node stats",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats output",
+            "schema": {
+              "$ref": "#/definitions/proxmox.NodeStats"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "nodeStats",
+        "operationId": "nodeStats"
+      }
+    },
+    "/proxmox/stats/{node}/{vmid}": {
+      "get": {
+        "description": "Get proxmox VM stats in format of \"STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O\"",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get proxmox VM stats",
         "parameters": [
           {
             "type": "string",
@@ -2512,8 +2565,8 @@
             }
           }
         },
-        "x-id": "stats",
-        "operationId": "stats"
+        "x-id": "vmStats",
+        "operationId": "vmStats"
       }
     },
     "/reload": {
@@ -6328,6 +6381,83 @@
           "format": "ipv6"
         }
       ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "proxmox.NodeStats": {
+      "type": "object",
+      "properties": {
+        "cpu_model": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cpu_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "kernel_version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_15m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_1m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_5m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_pct": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_total": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pve_version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_pct": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_total": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
       "x-nullable": false,
       "x-omitempty": false
     },
