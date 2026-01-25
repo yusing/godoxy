@@ -219,11 +219,7 @@ func (r *Route) validate() gperr.Error {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			ips, err := node.LXCGetIPs(ctx, vmid)
-			if err != nil {
-				return gperr.Errorf("failed to get ip addresses of vmid %d: %w", vmid, err)
-			}
-
+			ips := res.IPs
 			if len(ips) == 0 {
 				return gperr.Multiline().
 					Addf("no ip addresses found for %s", containerName).
@@ -345,10 +341,9 @@ func (r *Route) validate() gperr.Error {
 				// reverse lookup resource by ip address, hostname or alias
 				if resource != nil {
 					r.Proxmox = &proxmox.NodeConfig{
-						Node:    resource.Node,
-						VMID:    int(resource.VMID),
-						VMName:  resource.Name,
-						Service: r.Alias,
+						Node:   resource.Node,
+						VMID:   int(resource.VMID),
+						VMName: resource.Name,
 					}
 					log.Info().
 						Str("node", resource.Node).
@@ -535,17 +530,23 @@ func (r *Route) References() []string {
 	}
 
 	if r.Container != nil {
-		if r.Container.ContainerName != r.Alias {
+		if r.Container.ContainerName != aliasRef {
 			return []string{r.Container.ContainerName, aliasRef, r.Container.Image.Name, r.Container.Image.Author}
 		}
 		return []string{r.Container.Image.Name, aliasRef, r.Container.Image.Author}
 	}
 
 	if r.Proxmox != nil {
-		if r.Proxmox.VMName != r.Alias {
-			return []string{r.Proxmox.VMName, aliasRef, r.Proxmox.Service}
+		if r.Proxmox.Service != "" && r.Proxmox.Service != aliasRef {
+			if r.Proxmox.VMName != aliasRef {
+				return []string{r.Proxmox.VMName, aliasRef, r.Proxmox.Service}
+			}
+			return []string{r.Proxmox.Service, aliasRef}
+		} else {
+			if r.Proxmox.VMName != aliasRef {
+				return []string{r.Proxmox.VMName, aliasRef}
+			}
 		}
-		return []string{r.Proxmox.Service, aliasRef}
 	}
 	return []string{aliasRef}
 }

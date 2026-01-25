@@ -2088,6 +2088,52 @@ paths:
       tags:
       - agent
       x-id: verify
+  /api/v1/proxmox/journalctl/{node}/{vmid}:
+    get:
+      consumes:
+      - application/json
+      description: Get journalctl output
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Journalctl output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get journalctl output
+      tags:
+      - proxmox
+      - websocket
+      x-id: journalctl
   /api/v1/proxmox/journalctl/{node}/{vmid}/{service}:
     get:
       consumes:
@@ -2100,11 +2146,14 @@ paths:
         type: string
       - in: path
         name: service
-        required: true
         type: string
       - in: path
         name: vmid
         required: true
+        type: integer
+      - description: limit
+        in: query
+        name: limit
         type: integer
       produces:
       - application/json
@@ -2438,6 +2487,10 @@ paths:
         in: query
         name: levels
         type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
