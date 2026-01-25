@@ -1784,6 +1784,37 @@ definitions:
     type: object
   netip.Addr:
     type: object
+  proxmox.NodeStats:
+    properties:
+      cpu_model:
+        type: string
+      cpu_usage:
+        type: string
+      kernel_version:
+        type: string
+      load_avg_15m:
+        type: string
+      load_avg_1m:
+        type: string
+      load_avg_5m:
+        type: string
+      mem_pct:
+        type: string
+      mem_total:
+        type: string
+      mem_usage:
+        type: string
+      pve_version:
+        type: string
+      rootfs_pct:
+        type: string
+      rootfs_total:
+        type: string
+      rootfs_usage:
+        type: string
+      uptime:
+        type: string
+    type: object
   route.Route:
     properties:
       access_log:
@@ -3611,11 +3642,46 @@ paths:
       tags:
       - proxmox
       x-id: lxcStop
+  /proxmox/stats/{node}:
+    get:
+      description: Get proxmox node stats in json
+      parameters:
+      - description: Node name
+        in: path
+        name: node
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Stats output
+          schema:
+            $ref: '#/definitions/proxmox.NodeStats'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get proxmox node stats
+      tags:
+      - proxmox
+      - websocket
+      x-id: nodeStats
   /proxmox/stats/{node}/{vmid}:
     get:
-      consumes:
-      - application/json
-      description: Get proxmox stats in format of "STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET
+      description: Get proxmox VM stats in format of "STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET
         I/O|BLOCK I/O"
       parameters:
       - in: path
@@ -3627,7 +3693,7 @@ paths:
         required: true
         type: integer
       produces:
-      - application/json
+      - text/plain
       responses:
         "200":
           description: Stats output
@@ -3649,11 +3715,11 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/ErrorResponse'
-      summary: Get proxmox stats
+      summary: Get proxmox VM stats
       tags:
       - proxmox
       - websocket
-      x-id: stats
+      x-id: vmStats
   /reload:
     post:
       consumes:

@@ -32,6 +32,9 @@ type Config struct {
 
 const ResourcePollInterval = 3 * time.Second
 
+// NodeStatsPollInterval controls how often node stats are streamed when streaming is enabled.
+const NodeStatsPollInterval = time.Second
+
 func (c *Config) Client() *Client {
 	if c.client == nil {
 		panic("proxmox client accessed before init")
