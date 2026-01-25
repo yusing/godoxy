@@ -2077,9 +2077,9 @@
         "operationId": "uptime"
       }
     },
-    "/proxmox/journalctl/{node}/{vmid}": {
+    "/proxmox/journalctl/{node}": {
       "get": {
-        "description": "Get journalctl output",
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
         "consumes": [
           "application/json"
         ],
@@ -2094,19 +2094,85 @@
         "parameters": [
           {
             "type": "string",
+            "description": "Node name",
             "name": "node",
             "in": "path",
             "required": true
           },
           {
             "type": "integer",
-            "name": "vmid",
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/journalctl/{node}/{vmid}": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
             "in": "path",
             "required": true
           },
           {
             "type": "integer",
-            "description": "limit",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "path"
+          },
+          {
+            "type": "integer",
+            "description": "Limit output lines (1-1000)",
             "name": "limit",
             "in": "query"
           }
@@ -2149,7 +2215,7 @@
     },
     "/proxmox/journalctl/{node}/{vmid}/{service}": {
       "get": {
-        "description": "Get journalctl output",
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
         "consumes": [
           "application/json"
         ],
@@ -2164,24 +2230,26 @@
         "parameters": [
           {
             "type": "string",
+            "description": "Node name",
             "name": "node",
             "in": "path",
             "required": true
           },
           {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "path"
+          },
+          {
             "type": "string",
+            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
             "name": "service",
             "in": "path"
           },
           {
             "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "description": "limit",
+            "description": "Limit output lines (1-1000)",
             "name": "limit",
             "in": "query"
           }
