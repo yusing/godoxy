@@ -196,68 +196,68 @@ func (r *Route) validate() gperr.Error {
 		if nodeName == "" {
 			return gperr.Errorf("node (proxmox node name) is required")
 		}
-		if vmid <= 0 {
-			return gperr.Errorf("vmid (lxc id) is required")
-		}
 
 		node, ok := proxmox.Nodes.Get(nodeName)
 		if !ok {
-			return gperr.Errorf("proxmox node %s not found in pool", node)
+			return gperr.Errorf("proxmox node %s not found in pool", nodeName)
 		}
 
-		res, err := node.Client().GetResource("lxc", vmid)
-		if err != nil {
-			return gperr.Wrap(err) // ErrResourceNotFound
-		}
-
-		r.Proxmox.VMName = res.Name
-
-		if r.Host == DefaultHost {
-			containerName := r.Idlewatcher.ContainerName()
-			// get ip addresses of the vmid
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			ips := res.IPs
-			if len(ips) == 0 {
-				return gperr.Multiline().
-					Addf("no ip addresses found for %s", containerName).
-					Adds("make sure you have set static ip address for container instead of dhcp").
-					Subject(containerName)
-			}
-
-			l := log.With().Str("container", containerName).Logger()
-
-			l.Info().Msg("checking if container is running")
-			running, err := node.LXCIsRunning(ctx, vmid)
+		// Node-level route (VMID = 0) - no container control needed
+		if vmid > 0 {
+			res, err := node.Client().GetResource("lxc", vmid)
 			if err != nil {
-				return gperr.New("failed to check container state").With(err)
+				return gperr.Wrap(err) // ErrResourceNotFound
 			}
 
-			if !running {
-				l.Info().Msg("starting container")
-				if err := node.LXCAction(ctx, vmid, proxmox.LXCStart); err != nil {
-					return gperr.New("failed to start container").With(err)
-				}
-			}
+			r.Proxmox.VMName = res.Name
 
-			l.Info().Msgf("finding reachable ip addresses")
-			errs := gperr.NewBuilder("failed to find reachable ip addresses")
-			for _, ip := range ips {
-				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
-					errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
-				} else {
-					r.Host = ip.String()
-					l.Info().Msgf("using ip %s", r.Host)
-					break
-				}
-			}
 			if r.Host == DefaultHost {
-				return gperr.Multiline().
-					Addf("no reachable ip addresses found, tried %d IPs", len(ips)).
-					With(errs.Error()).
-					Subject(containerName)
+				containerName := r.Idlewatcher.ContainerName()
+				// get ip addresses of the vmid
+
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				ips := res.IPs
+				if len(ips) == 0 {
+					return gperr.Multiline().
+						Addf("no ip addresses found for %s", containerName).
+						Adds("make sure you have set static ip address for container instead of dhcp").
+						Subject(containerName)
+				}
+
+				l := log.With().Str("container", containerName).Logger()
+
+				l.Info().Msg("checking if container is running")
+				running, err := node.LXCIsRunning(ctx, vmid)
+				if err != nil {
+					return gperr.New("failed to check container state").With(err)
+				}
+
+				if !running {
+					l.Info().Msg("starting container")
+					if err := node.LXCAction(ctx, vmid, proxmox.LXCStart); err != nil {
+						return gperr.New("failed to start container").With(err)
+					}
+				}
+
+				l.Info().Msgf("finding reachable ip addresses")
+				errs := gperr.NewBuilder("failed to find reachable ip addresses")
+				for _, ip := range ips {
+					if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
+						errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
+					} else {
+						r.Host = ip.String()
+						l.Info().Msgf("using ip %s", r.Host)
+						break
+					}
+				}
+				if r.Host == DefaultHost {
+					return gperr.Multiline().
+						Addf("no reachable ip addresses found, tried %d IPs", len(ips)).
+						With(errs.Error()).
+						Subject(containerName)
+				}
 			}
 		}
 	}
@@ -337,8 +337,21 @@ func (r *Route) validate() gperr.Error {
 			hostname := r.ProxyURL.Hostname()
 			ip := net.ParseIP(hostname)
 			for _, p := range config.WorkingState.Load().Value().Providers.Proxmox {
+				// First check if hostname, IP, or alias matches a node (node-level route)
+				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
+					r.Proxmox = &proxmox.NodeConfig{
+						Node:   nodeName,
+						VMID:   0, // node-level route, no specific VM
+						VMName: "",
+					}
+					log.Info().
+						Str("node", nodeName).
+						Msgf("found proxmox node for route %q", r.Alias)
+					break
+				}
+
+				// Then check if hostname, IP, or alias matches a VM resource
 				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
-				// reverse lookup resource by ip address, hostname or alias
 				if resource != nil {
 					r.Proxmox = &proxmox.NodeConfig{
 						Node:   resource.Node,

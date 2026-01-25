@@ -147,6 +147,34 @@ func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string)
 	return nil, ErrResourceNotFound
 }
 
+// ReverseLookupNode looks up a node by name or IP address.
+// Returns the node name if found.
+func (c *Client) ReverseLookupNode(hostname string, ip net.IP, alias string) string {
+	shouldCheckHostname := hostname != ""
+	shouldCheckIP := ip != nil && !ip.IsLoopback() && !ip.IsUnspecified()
+	shouldCheckAlias := alias != ""
+
+	if shouldCheckHostname {
+		hostname, _, _ = strings.Cut(hostname, ".")
+	}
+
+	for _, node := range c.Cluster.Nodes {
+		if shouldCheckHostname && node.Name == hostname {
+			return node.Name
+		}
+		if shouldCheckIP {
+			nodeIP := net.ParseIP(node.IP)
+			if nodeIP != nil && nodeIP.Equal(ip) {
+				return node.Name
+			}
+		}
+		if shouldCheckAlias && node.Name == alias {
+			return node.Name
+		}
+	}
+	return ""
+}
+
 // Key implements pool.Object
 func (c *Client) Key() string {
 	return c.Cluster.ID

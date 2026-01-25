@@ -12,7 +12,7 @@ import (
 
 type JournalctlRequest struct {
 	Node    string `uri:"node" binding:"required"`
-	VMID    int    `uri:"vmid" binding:"required"`
+	VMID    *int   `uri:"vmid"` // optional - if not provided, streams node journalctl
 	Service string `uri:"service"`
 	Limit   int    `query:"limit" binding:"omitempty,min=1,max=1000"`
 }
@@ -20,17 +20,20 @@ type JournalctlRequest struct {
 // @x-id				"journalctl"
 // @BasePath		/api/v1
 // @Summary		Get journalctl output
-// @Description	Get journalctl output
+// @Description	Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.
 // @Tags			proxmox,websocket
 // @Accept			json
 // @Produce		application/json
-// @Param			path		path		JournalctlRequest	true	"Request"
-// @Param			limit		query  	int	false	"limit"
-// @Success		200			string		plain	"Journalctl output"
+// @Param			node		path		string	true	"Node name"
+// @Param			vmid		path		int		  false	"Container VMID (optional - if not provided, streams node journalctl)"
+// @Param			service	path		string	false	"Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)"
+// @Param			limit		query		int		  false	"Limit output lines (1-1000)"
+// @Success		200			string	plain	  "Journalctl output"
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
+// @Router		/proxmox/journalctl/{node} [get]
 // @Router		/proxmox/journalctl/{node}/{vmid} [get]
 // @Router		/proxmox/journalctl/{node}/{vmid}/{service} [get]
 func Journalctl(c *gin.Context) {
@@ -53,7 +56,12 @@ func Journalctl(c *gin.Context) {
 	}
 	defer manager.Close()
 
-	reader, err := node.LXCJournalctl(c.Request.Context(), request.VMID, request.Service, request.Limit)
+	var reader io.ReadCloser
+	if request.VMID == nil {
+		reader, err = node.NodeJournalctl(c.Request.Context(), request.Service, request.Limit)
+	} else {
+		reader, err = node.LXCJournalctl(c.Request.Context(), *request.VMID, request.Service, request.Limit)
+	}
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get journalctl output"))
 		return

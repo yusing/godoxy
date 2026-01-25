@@ -186,3 +186,14 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 
 	return pr, nil
 }
+
+func (n *Node) NodeJournalctl(ctx context.Context, service string, limit int) (io.ReadCloser, error) {
+	command := "journalctl -f"
+	if service != "" {
+		command = fmt.Sprintf("journalctl -u %q -f", service)
+	}
+	if limit > 0 {
+		command = fmt.Sprintf("%s -n %d", command, limit)
+	}
+	return n.NodeCommand(ctx, command)
+}
