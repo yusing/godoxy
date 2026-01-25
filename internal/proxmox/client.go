@@ -65,20 +65,21 @@ func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
 }
 
 func (c *Client) UpdateResources(ctx context.Context) error {
-	c.resourcesMu.Lock()
-	defer c.resourcesMu.Unlock()
 	resourcesSlice, err := c.Cluster.Resources(ctx, "vm")
 	if err != nil {
 		return err
 	}
-	clear(c.resources)
-	var errs errgroup.Group
-	errs.SetLimit(runtime.GOMAXPROCS(0) * 2)
-	for _, resource := range resourcesSlice {
-		c.resources[resource.ID] = &VMResource{
+	vmResources := make([]*VMResource, len(resourcesSlice))
+	for i, resource := range resourcesSlice {
+		vmResources[i] = &VMResource{
 			ClusterResource: resource,
 			IPs:             nil,
 		}
+	}
+	var errs errgroup.Group
+	errs.SetLimit(runtime.GOMAXPROCS(0) * 2)
+	for i, resource := range resourcesSlice {
+		vmResource := vmResources[i]
 		errs.Go(func() error {
 			node, ok := Nodes.Get(resource.Node)
 			if !ok {
@@ -96,13 +97,19 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("failed to get ips for resource %s: %w", resource.ID, err)
 			}
-			c.resources[resource.ID].IPs = ips
+			vmResource.IPs = ips
 			return nil
 		})
 	}
 	if err := errs.Wait(); err != nil {
 		return err
 	}
+	c.resourcesMu.Lock()
+	clear(c.resources)
+	for i, resource := range resourcesSlice {
+		c.resources[resource.ID] = vmResources[i]
+	}
+	c.resourcesMu.Unlock()
 	log.Debug().Str("cluster", c.Cluster.Name).Msgf("[proxmox] updated %d resources", len(c.resources))
 	return nil
 }
