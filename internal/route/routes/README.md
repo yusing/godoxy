@@ -117,6 +117,43 @@ func GetHealthInfoSimple() map[string]types.HealthStatus
 func ByProvider() map[string][]types.Route
 ```
 
+## Proxmox Integration
+
+Routes can be automatically linked to Proxmox nodes or LXC containers through reverse lookup during validation.
+
+### Node-Level Routes
+
+Routes can be linked to a Proxmox node directly (VMID = 0) when the route's hostname, IP, or alias matches a node name or IP:
+
+```go
+// Route linked to Proxmox node (no specific VM)
+route.Proxmox = &proxmox.NodeConfig{
+    Node:   "pve-node-01",
+    VMID:   0,  // node-level, no container
+    VMName: "",
+}
+```
+
+### Container-Level Routes
+
+Routes are linked to LXC containers when they match a VM resource by hostname, IP, or alias:
+
+```go
+// Route linked to LXC container
+route.Proxmox = &proxmox.NodeConfig{
+    Node:   "pve-node-01",
+    VMID:   100,
+    VMName: "my-container",
+}
+```
+
+### Lookup Priority
+
+1. **Node match** - If hostname, IP, or alias matches a Proxmox node
+2. **VM match** - If hostname, IP, or alias matches a VM resource
+
+Node-level routes skip container control logic (start/check IPs) and can be used to proxy node services directly.
+
 ## Architecture
 
 ### Core Components
@@ -174,10 +211,11 @@ sequenceDiagram
 
 ## Dependency and Integration Map
 
-| Dependency                       | Purpose                           |
-| -------------------------------- | --------------------------------- |
-| `internal/types`                 | Route and health type definitions |
-| `github.com/yusing/goutils/pool` | Thread-safe pool implementation   |
+| Dependency                       | Purpose                            |
+| -------------------------------- | ---------------------------------- |
+| `internal/types`                 | Route and health type definitions  |
+| `internal/proxmox`               | Proxmox node/container integration |
+| `github.com/yusing/goutils/pool` | Thread-safe pool implementation    |
 
 ## Observability
 
