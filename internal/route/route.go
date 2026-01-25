@@ -185,21 +185,66 @@ func (r *Route) validate() gperr.Error {
 	if r.Proxmox != nil && r.Idlewatcher != nil {
 		r.Idlewatcher.Proxmox = &types.ProxmoxConfig{
 			Node: r.Proxmox.Node,
-			VMID: r.Proxmox.VMID,
+		}
+		if r.Proxmox.VMID != nil {
+			r.Idlewatcher.Proxmox.VMID = *r.Proxmox.VMID
 		}
 	}
 
 	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 		r.Proxmox = &proxmox.NodeConfig{
 			Node: r.Idlewatcher.Proxmox.Node,
-			VMID: r.Idlewatcher.Proxmox.VMID,
+			VMID: &r.Idlewatcher.Proxmox.VMID,
+		}
+	}
+
+	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
+		proxmoxProviders := config.WorkingState.Load().Value().Providers.Proxmox
+		if len(proxmoxProviders) > 0 {
+			// it's fine if ip is nil
+			hostname := r.Host
+			ip := net.ParseIP(hostname)
+			for _, p := range proxmoxProviders {
+				// First check if hostname, IP, or alias matches a node (node-level route)
+				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
+					zero := 0
+					if r.Proxmox == nil {
+						r.Proxmox = &proxmox.NodeConfig{}
+					}
+					r.Proxmox.Node = nodeName
+					r.Proxmox.VMID = &zero
+					r.Proxmox.VMName = ""
+					log.Info().
+						Str("node", nodeName).
+						Msgf("found proxmox node for route %q", r.Alias)
+					break
+				}
+
+				// Then check if hostname, IP, or alias matches a VM resource
+				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
+				if resource != nil {
+					vmid := int(resource.VMID)
+					if r.Proxmox == nil {
+						r.Proxmox = &proxmox.NodeConfig{}
+					}
+					r.Proxmox.Node = resource.Node
+					r.Proxmox.VMID = &vmid
+					r.Proxmox.VMName = resource.Name
+					log.Info().
+						Str("node", resource.Node).
+						Int("vmid", int(resource.VMID)).
+						Str("vmname", resource.Name).
+						Msgf("found proxmox resource for route %q", r.Alias)
+					break
+				}
+			}
 		}
 	}
 
 	if r.Proxmox != nil {
 		nodeName := r.Proxmox.Node
 		vmid := r.Proxmox.VMID
-		if nodeName == "" {
+		if nodeName == "" || vmid == nil {
 			return gperr.Errorf("node (proxmox node name) is required")
 		}
 
@@ -208,9 +253,19 @@ func (r *Route) validate() gperr.Error {
 			return gperr.Errorf("proxmox node %s not found in pool", nodeName)
 		}
 
-		// Node-level route (VMID = 0) - no container control needed
-		if vmid > 0 {
-			res, err := node.Client().GetResource("lxc", vmid)
+		// Node-level route (VMID = 0)
+		if *vmid == 0 {
+			r.Scheme = route.SchemeHTTPS
+			if r.Host == DefaultHost {
+				r.Host = node.Client().BaseURL.Hostname()
+			}
+			port, _ := strconv.Atoi(node.Client().BaseURL.Port())
+			if port == 0 {
+				port = 8006
+			}
+			r.Port.Proxy = port
+		} else {
+			res, err := node.Client().GetResource("lxc", *vmid)
 			if err != nil {
 				return gperr.Wrap(err) // ErrResourceNotFound
 			}
@@ -235,14 +290,14 @@ func (r *Route) validate() gperr.Error {
 				l := log.With().Str("container", containerName).Logger()
 
 				l.Info().Msg("checking if container is running")
-				running, err := node.LXCIsRunning(ctx, vmid)
+				running, err := node.LXCIsRunning(ctx, *vmid)
 				if err != nil {
 					return gperr.New("failed to check container state").With(err)
 				}
 
 				if !running {
 					l.Info().Msg("starting container")
-					if err := node.LXCAction(ctx, vmid, proxmox.LXCStart); err != nil {
+					if err := node.LXCAction(ctx, *vmid, proxmox.LXCStart); err != nil {
 						return gperr.New("failed to start container").With(err)
 					}
 				}
@@ -333,45 +388,6 @@ func (r *Route) validate() gperr.Error {
 
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-		}
-	}
-
-	if r.Proxmox == nil && r.Container == nil && r.ProxyURL != nil {
-		proxmoxProviders := config.WorkingState.Load().Value().Providers.Proxmox
-		if len(proxmoxProviders) > 0 {
-			// it's fine if ip is nil
-			hostname := r.ProxyURL.Hostname()
-			ip := net.ParseIP(hostname)
-			for _, p := range config.WorkingState.Load().Value().Providers.Proxmox {
-				// First check if hostname, IP, or alias matches a node (node-level route)
-				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
-					r.Proxmox = &proxmox.NodeConfig{
-						Node:   nodeName,
-						VMID:   0, // node-level route, no specific VM
-						VMName: "",
-					}
-					log.Info().
-						Str("node", nodeName).
-						Msgf("found proxmox node for route %q", r.Alias)
-					break
-				}
-
-				// Then check if hostname, IP, or alias matches a VM resource
-				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
-				if resource != nil {
-					r.Proxmox = &proxmox.NodeConfig{
-						Node:   resource.Node,
-						VMID:   int(resource.VMID),
-						VMName: resource.Name,
-					}
-					log.Info().
-						Str("node", resource.Node).
-						Int("vmid", int(resource.VMID)).
-						Str("vmname", resource.Name).
-						Msgf("found proxmox resource for route %q", r.Alias)
-					break
-				}
-			}
 		}
 	}
 
@@ -556,11 +572,11 @@ func (r *Route) References() []string {
 	}
 
 	if r.Proxmox != nil {
-		if r.Proxmox.Service != "" && r.Proxmox.Service != aliasRef {
+		if len(r.Proxmox.Services) > 0 && r.Proxmox.Services[0] != aliasRef {
 			if r.Proxmox.VMName != aliasRef {
-				return []string{r.Proxmox.VMName, aliasRef, r.Proxmox.Service}
+				return []string{r.Proxmox.VMName, aliasRef, r.Proxmox.Services[0]}
 			}
-			return []string{r.Proxmox.Service, aliasRef}
+			return []string{r.Proxmox.Services[0], aliasRef}
 		} else {
 			if r.Proxmox.VMName != aliasRef {
 				return []string{r.Proxmox.VMName, aliasRef}

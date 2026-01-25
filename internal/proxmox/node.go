@@ -10,10 +10,10 @@ import (
 )
 
 type NodeConfig struct {
-	Node    string `json:"node" validate:"required"`
-	VMID    int    `json:"vmid" validate:"required"`
-	VMName  string `json:"vmname,omitempty"`
-	Service string `json:"service,omitempty"`
+	Node     string   `json:"node"`
+	VMID     *int     `json:"vmid"` // unset: auto discover; explicit 0: node-level route; >0: lxc/qemu resource route
+	VMName   string   `json:"vmname,omitempty"`
+	Services []string `json:"services,omitempty" aliases:"service"`
 } // @name ProxmoxNodeConfig
 
 type Node struct {

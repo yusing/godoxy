@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"runtime"
 	"slices"
 	"strconv"
@@ -21,6 +22,7 @@ type Client struct {
 	*proxmox.Client
 	*proxmox.Cluster
 	Version *proxmox.Version
+	BaseURL *url.URL
 	// id -> resource; id: lxc/<vmid> or qemu/<vmid>
 	resources   map[string]*VMResource
 	resourcesMu sync.RWMutex
@@ -44,6 +46,11 @@ func NewClient(baseUrl string, opts ...proxmox.Option) *Client {
 }
 
 func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
+	baseURL, err := url.Parse(c.Client.GetBaseURL())
+	if err != nil {
+		return err
+	}
+	c.BaseURL = baseURL
 	c.Version, err = c.Client.Version(ctx)
 	if err != nil {
 		return err
