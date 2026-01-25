@@ -31,8 +31,8 @@ type JournalctlRequest struct {
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
-// @Router		/api/v1/proxmox/journalctl/{node}/{vmid} [get]
-// @Router		/api/v1/proxmox/journalctl/{node}/{vmid}/{service} [get]
+// @Router		/proxmox/journalctl/{node}/{vmid} [get]
+// @Router		/proxmox/journalctl/{node}/{vmid}/{service} [get]
 func Journalctl(c *gin.Context) {
 	var request JournalctlRequest
 	if err := c.ShouldBindUri(&request); err != nil {

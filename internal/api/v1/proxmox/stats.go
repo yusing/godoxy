@@ -29,7 +29,7 @@ type StatsRequest struct {
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
-// @Router		/api/v1/proxmox/stats/{node}/{vmid} [get]
+// @Router		/proxmox/stats/{node}/{vmid} [get]
 func Stats(c *gin.Context) {
 	var request StatsRequest
 	if err := c.ShouldBindUri(&request); err != nil {

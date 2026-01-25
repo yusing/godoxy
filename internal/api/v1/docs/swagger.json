@@ -165,377 +165,6 @@
         "operationId": "verify"
       }
     },
-    "/api/v1/proxmox/journalctl/{node}/{vmid}": {
-      "get": {
-        "description": "Get journalctl output",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox",
-          "websocket"
-        ],
-        "summary": "Get journalctl output",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "description": "limit",
-            "name": "limit",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Journalctl output",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "journalctl",
-        "operationId": "journalctl"
-      }
-    },
-    "/api/v1/proxmox/journalctl/{node}/{vmid}/{service}": {
-      "get": {
-        "description": "Get journalctl output",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox",
-          "websocket"
-        ],
-        "summary": "Get journalctl output",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "service",
-            "in": "path"
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "description": "limit",
-            "name": "limit",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Journalctl output",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "journalctl",
-        "operationId": "journalctl"
-      }
-    },
-    "/api/v1/proxmox/lxc/:node/:vmid/restart": {
-      "post": {
-        "description": "Restart LXC container by node and vmid",
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox"
-        ],
-        "summary": "Restart LXC container",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/SuccessResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "lxcRestart",
-        "operationId": "lxcRestart"
-      }
-    },
-    "/api/v1/proxmox/lxc/:node/:vmid/start": {
-      "post": {
-        "description": "Start LXC container by node and vmid",
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox"
-        ],
-        "summary": "Start LXC container",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/SuccessResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "lxcStart",
-        "operationId": "lxcStart"
-      }
-    },
-    "/api/v1/proxmox/lxc/:node/:vmid/stop": {
-      "post": {
-        "description": "Stop LXC container by node and vmid",
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox"
-        ],
-        "summary": "Stop LXC container",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/SuccessResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "lxcStop",
-        "operationId": "lxcStop"
-      }
-    },
-    "/api/v1/proxmox/stats/{node}/{vmid}": {
-      "get": {
-        "description": "Get proxmox stats in format of \"STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O\"",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "proxmox",
-          "websocket"
-        ],
-        "summary": "Get proxmox stats",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "node",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "integer",
-            "name": "vmid",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Stats output",
-            "schema": {
-              "type": "string"
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Node not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "stats",
-        "operationId": "stats"
-      }
-    },
     "/auth/callback": {
       "post": {
         "description": "Handles the callback from the provider after successful authentication",
@@ -2446,6 +2075,377 @@
         },
         "x-id": "uptime",
         "operationId": "uptime"
+      }
+    },
+    "/proxmox/journalctl/{node}/{vmid}": {
+      "get": {
+        "description": "Get journalctl output",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/journalctl/{node}/{vmid}/{service}": {
+      "get": {
+        "description": "Get journalctl output",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "service",
+            "in": "path"
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/restart": {
+      "post": {
+        "description": "Restart LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Restart LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcRestart",
+        "operationId": "lxcRestart"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/start": {
+      "post": {
+        "description": "Start LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Start LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcStart",
+        "operationId": "lxcStart"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/stop": {
+      "post": {
+        "description": "Stop LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Stop LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcStop",
+        "operationId": "lxcStop"
+      }
+    },
+    "/proxmox/stats/{node}/{vmid}": {
+      "get": {
+        "description": "Get proxmox stats in format of \"STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O\"",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get proxmox stats",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "stats",
+        "operationId": "stats"
       }
     },
     "/reload": {
