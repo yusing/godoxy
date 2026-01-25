@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
@@ -68,7 +67,7 @@ func Stats(c *gin.Context) {
 	defer dockerClient.Close()
 
 	if httpheaders.IsWebsocket(c.Request.Header) {
-		stats, err := dockerClient.ContainerStats(c.Request.Context(), id, client.ContainerStatsOptions{Stream: true})
+		stats, err := dockerClient.ContainerStats(c.Request.Context(), id, true)
 		if err != nil {
 			c.Error(apitypes.InternalServerError(err, "failed to get container stats"))
 			return
@@ -102,7 +101,7 @@ func Stats(c *gin.Context) {
 		}
 	}
 
-	stats, err := dockerClient.ContainerStats(c.Request.Context(), id, client.ContainerStatsOptions{Stream: false})
+	stats, err := dockerClient.ContainerStats(c.Request.Context(), id, false)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get container stats"))
 		return
