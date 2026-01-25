@@ -5,11 +5,21 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 )
 
 var ErrNoSession = fmt.Errorf("no session found, make sure username and password are set")
+
+// closeTransportConnections forces close idle HTTP connections to prevent goroutine leaks.
+// This is needed because the go-proxmox library's TermWebSocket closer doesn't close
+// the underlying HTTP/2 connections, leaving goroutines stuck in writeLoop/readLoop.
+func closeTransportConnections(httpClient *http.Client) {
+	if tr, ok := httpClient.Transport.(*http.Transport); ok {
+		tr.CloseIdleConnections()
+	}
+}
 
 // LXCCommand connects to the Proxmox VNC websocket and streams command output.
 // It returns an io.ReadCloser that streams the command output.
@@ -37,9 +47,17 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 		return nil, fmt.Errorf("failed to get term proxy: %w", err)
 	}
 
-	send, recv, errs, close, err := node.TermWebSocket(term)
+	send, recv, errs, closeWS, err := node.TermWebSocket(term)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to term websocket: %w", err)
+	}
+
+	// Wrap the websocket closer to also close HTTP transport connections.
+	// This prevents goroutine leaks when streaming connections are interrupted.
+	httpClient := n.client.GetHTTPClient()
+	closeFn := func() error {
+		closeTransportConnections(httpClient)
+		return closeWS()
 	}
 
 	handleSend := func(data []byte) error {
@@ -67,7 +85,7 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 
 	// Start a goroutine to read from websocket and write to pipe
 	go func() {
-		defer close()
+		defer closeFn()
 		defer pw.Close()
 
 		seenCommand := false
