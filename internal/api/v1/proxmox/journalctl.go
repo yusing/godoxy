@@ -13,7 +13,8 @@ import (
 type JournalctlRequest struct {
 	Node    string `uri:"node" binding:"required"`
 	VMID    int    `uri:"vmid" binding:"required"`
-	Service string `uri:"service" binding:"required"`
+	Service string `uri:"service"`
+	Limit   int    `query:"limit" binding:"omitempty,min=1,max=1000"`
 }
 
 // @x-id				"journalctl"
@@ -24,12 +25,14 @@ type JournalctlRequest struct {
 // @Accept			json
 // @Produce		application/json
 // @Param			path		path		JournalctlRequest	true	"Request"
+// @Param			limit		query  	int	false	"limit"
 // @Success		200			string		plain	"Journalctl output"
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
-// @Router			/api/v1/proxmox/journalctl/{node}/{vmid}/{service} [get]
+// @Router		/api/v1/proxmox/journalctl/{node}/{vmid} [get]
+// @Router		/api/v1/proxmox/journalctl/{node}/{vmid}/{service} [get]
 func Journalctl(c *gin.Context) {
 	var request JournalctlRequest
 	if err := c.ShouldBindUri(&request); err != nil {
@@ -50,7 +53,7 @@ func Journalctl(c *gin.Context) {
 	}
 	defer manager.Close()
 
-	reader, err := node.LXCJournalctl(c.Request.Context(), request.VMID, request.Service)
+	reader, err := node.LXCJournalctl(c.Request.Context(), request.VMID, request.Service, request.Limit)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get journalctl output"))
 		return

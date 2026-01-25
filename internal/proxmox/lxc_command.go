@@ -23,6 +23,15 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 		return nil, fmt.Errorf("failed to get node: %w", err)
 	}
 
+	lxc, err := node.Container(ctx, vmid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container: %w", err)
+	}
+
+	if lxc.Status != "running" {
+		return io.NopCloser(bytes.NewReader(fmt.Appendf(nil, "container %d is not running, status: %s\n", vmid, lxc.Status))), nil
+	}
+
 	term, err := node.TermProxy(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get term proxy: %w", err)
@@ -117,6 +126,16 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 }
 
 // LXCJournalctl streams journalctl output for the given service.
-func (n *Node) LXCJournalctl(ctx context.Context, vmid int, service string) (io.ReadCloser, error) {
-	return n.LXCCommand(ctx, vmid, fmt.Sprintf("journalctl -u %q -f", service))
+//
+// If service is not empty, it will be used to filter the output by service.
+// If limit is greater than 0, it will be used to limit the number of lines of output.
+func (n *Node) LXCJournalctl(ctx context.Context, vmid int, service string, limit int) (io.ReadCloser, error) {
+	command := "journalctl -f"
+	if service != "" {
+		command = fmt.Sprintf("journalctl -u %q -f", service)
+	}
+	if limit > 0 {
+		command = fmt.Sprintf("%s -n %d", command, limit)
+	}
+	return n.LXCCommand(ctx, vmid, command)
 }

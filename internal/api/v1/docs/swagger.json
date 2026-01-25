@@ -165,6 +165,76 @@
         "operationId": "verify"
       }
     },
+    "/api/v1/proxmox/journalctl/{node}/{vmid}": {
+      "get": {
+        "description": "Get journalctl output",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
     "/api/v1/proxmox/journalctl/{node}/{vmid}/{service}": {
       "get": {
         "description": "Get journalctl output",
@@ -189,14 +259,19 @@
           {
             "type": "string",
             "name": "service",
-            "in": "path",
-            "required": true
+            "in": "path"
           },
           {
             "type": "integer",
             "name": "vmid",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -702,6 +777,12 @@
             "type": "string",
             "description": "levels",
             "name": "levels",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
             "in": "query"
           }
         ],
