@@ -96,6 +96,15 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 		return gperr.New("failed to fetch proxmox cluster info").With(err)
 	}
 
+	{
+		reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
+		err := c.client.UpdateResources(reqCtx)
+		reqCtxCancel()
+		if err != nil {
+			log.Warn().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
+		}
+	}
+
 	go c.updateResourcesLoop(ctx)
 	return nil
 }
@@ -105,15 +114,6 @@ func (c *Config) updateResourcesLoop(ctx context.Context) {
 	defer ticker.Stop()
 
 	log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] starting resources update loop")
-
-	{
-		reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
-		err := c.client.UpdateResources(reqCtx)
-		reqCtxCancel()
-		if err != nil {
-			log.Warn().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
-		}
-	}
 
 	for {
 		select {
