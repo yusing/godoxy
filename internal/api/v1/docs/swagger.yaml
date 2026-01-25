@@ -3402,6 +3402,62 @@ paths:
       - metrics
       - websocket
       x-id: uptime
+  /proxmox/journalctl:
+    get:
+      consumes:
+      - application/json
+      description: Get journalctl output for node or LXC container. If vmid is not
+        provided, streams node journalctl.
+      parameters:
+      - default: 100
+        description: Limit output lines (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Node name
+        in: query
+        name: node
+        required: true
+        type: string
+      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
+          format for LXC)
+        in: query
+        name: service
+        type: string
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: query
+        name: vmid
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Journalctl output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get journalctl output
+      tags:
+      - proxmox
+      - websocket
+      x-id: journalctl
   /proxmox/journalctl/{node}:
     get:
       consumes:
@@ -3409,15 +3465,32 @@ paths:
       description: Get journalctl output for node or LXC container. If vmid is not
         provided, streams node journalctl.
       parameters:
+      - default: 100
+        description: Limit output lines (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Node name
+        in: query
+        name: node
+        required: true
+        type: string
+      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
+          format for LXC)
+        in: query
+        name: service
+        type: string
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: query
+        name: vmid
+        type: integer
       - description: Node name
         in: path
         name: node
         required: true
         type: string
-      - description: Limit output lines (1-1000)
-        in: query
-        name: limit
-        type: integer
       produces:
       - application/json
       responses:
@@ -3453,6 +3526,27 @@ paths:
       description: Get journalctl output for node or LXC container. If vmid is not
         provided, streams node journalctl.
       parameters:
+      - default: 100
+        description: Limit output lines (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Node name
+        in: query
+        name: node
+        required: true
+        type: string
+      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
+          format for LXC)
+        in: query
+        name: service
+        type: string
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: query
+        name: vmid
+        type: integer
       - description: Node name
         in: path
         name: node
@@ -3461,10 +3555,6 @@ paths:
       - description: Container VMID (optional - if not provided, streams node journalctl)
         in: path
         name: vmid
-        type: integer
-      - description: Limit output lines (1-1000)
-        in: query
-        name: limit
         type: integer
       produces:
       - application/json
@@ -3501,23 +3591,40 @@ paths:
       description: Get journalctl output for node or LXC container. If vmid is not
         provided, streams node journalctl.
       parameters:
+      - default: 100
+        description: Limit output lines (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Node name
+        in: query
+        name: node
+        required: true
+        type: string
+      - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
+          format for LXC)
+        in: query
+        name: service
+        type: string
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: query
+        name: vmid
+        type: integer
       - description: Node name
         in: path
         name: node
         required: true
         type: string
-      - description: Container VMID (optional - if not provided, streams node journalctl)
-        in: path
-        name: vmid
-        type: integer
       - description: Service name (e.g., 'pveproxy' for node, 'container@.service'
           format for LXC)
         in: path
         name: service
         type: string
-      - description: Limit output lines (1-1000)
-        in: query
-        name: limit
+      - description: Container VMID (optional - if not provided, streams node journalctl)
+        in: path
+        name: vmid
         type: integer
       produces:
       - application/json

@@ -2077,6 +2077,86 @@
         "operationId": "uptime"
       }
     },
+    "/proxmox/journalctl": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
     "/proxmox/journalctl/{node}": {
       "get": {
         "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
@@ -2093,17 +2173,39 @@
         "summary": "Get journalctl output",
         "parameters": [
           {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          },
+          {
             "type": "string",
             "description": "Node name",
             "name": "node",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "integer",
-            "description": "Limit output lines (1-1000)",
-            "name": "limit",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2158,6 +2260,34 @@
         "summary": "Get journalctl output",
         "parameters": [
           {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          },
+          {
             "type": "string",
             "description": "Node name",
             "name": "node",
@@ -2169,12 +2299,6 @@
             "description": "Container VMID (optional - if not provided, streams node journalctl)",
             "name": "vmid",
             "in": "path"
-          },
-          {
-            "type": "integer",
-            "description": "Limit output lines (1-1000)",
-            "name": "limit",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2229,17 +2353,39 @@
         "summary": "Get journalctl output",
         "parameters": [
           {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
             "type": "string",
             "description": "Node name",
             "name": "node",
-            "in": "path",
+            "in": "query",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)",
+            "name": "service",
+            "in": "query"
           },
           {
             "type": "integer",
             "description": "Container VMID (optional - if not provided, streams node journalctl)",
             "name": "vmid",
-            "in": "path"
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
@@ -2249,9 +2395,9 @@
           },
           {
             "type": "integer",
-            "description": "Limit output lines (1-1000)",
-            "name": "limit",
-            "in": "query"
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "path"
           }
         ],
         "responses": {
