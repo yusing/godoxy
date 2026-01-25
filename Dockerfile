@@ -14,6 +14,7 @@ WORKDIR /src
 COPY goutils/go.mod goutils/go.sum ./goutils/
 COPY internal/go-oidc/go.mod internal/go-oidc/go.sum ./internal/go-oidc/
 COPY internal/gopsutil/go.mod internal/gopsutil/go.sum ./internal/gopsutil/
+COPY internal/go-proxmox/go.mod internal/go-proxmox/go.sum ./internal/go-proxmox/
 COPY go.mod go.sum ./
 
 # remove godoxy stuff from go.mod first
