@@ -183,11 +183,17 @@ func (r *Route) validate() gperr.Error {
 	}, r.started)
 
 	if r.Proxmox != nil && r.Idlewatcher != nil {
-		r.Idlewatcher.Proxmox = r.Proxmox
+		r.Idlewatcher.Proxmox = &types.ProxmoxConfig{
+			Node: r.Proxmox.Node,
+			VMID: r.Proxmox.VMID,
+		}
 	}
 
 	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
-		r.Proxmox = r.Idlewatcher.Proxmox
+		r.Proxmox = &proxmox.NodeConfig{
+			Node: r.Idlewatcher.Proxmox.Node,
+			VMID: r.Idlewatcher.Proxmox.VMID,
+		}
 	}
 
 	if r.Proxmox != nil {
