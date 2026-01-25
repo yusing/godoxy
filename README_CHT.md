@@ -34,6 +34,10 @@
 - [安裝](#安裝)
   - [手動安裝](#手動安裝)
   - [資料夾結構](#資料夾結構)
+- [Proxmox 整合](#proxmox-整合)
+  - [自動路由綁定](#自動路由綁定)
+  - [WebUI 管理](#webui-管理)
+  - [API 端點](#api-端點)
 - [更新 / 卸載系統代理 (System Agent)](#更新--卸載系統代理-system-agent)
 - [截圖](#截圖)
   - [閒置休眠](#閒置休眠)
@@ -67,6 +71,10 @@
 - **閒置休眠**：根據流量停止和喚醒容器 _(參見[截圖](#閒置休眠))_
   - Docker 容器
   - Proxmox LXC 容器
+- **Proxmox 整合**
+  - **自動路由綁定**：透過比對主機名稱、IP 或別名自動將路由綁定至 Proxmox 節點或 LXC 容器
+  - **LXC 生命週期控制**：可直接從 WebUI 啟動、停止、重新啟動容器
+  - **即時日誌**：透過 WebSocket 串流節點和 LXC 容器的 journalctl 日誌
 - **流量管理**
   - HTTP 反向代理
   - TCP/UDP 連接埠轉送
@@ -79,7 +87,12 @@
   - 應用程式一覽
   - 設定編輯器
   - 執行時間與系統指標
-  - Docker 日誌檢視器
+  - **Docker**
+    - 容器生命週期管理 (啟動、停止、重新啟動)
+    - 透過 WebSocket 即時串流容器日誌
+  - **Proxmox**
+    - LXC 容器生命週期管理 (啟動、停止、重新啟動)
+    - 透過 WebSocket 即時串流節點和 LXC 容器 journalctl 日誌
 - **跨平台支援**
   - 支援 **linux/amd64** 與 **linux/arm64**
 - **高效能**
@@ -142,6 +155,50 @@
 │   │   ├── uptime.json
 │   │   └── system_info.json
 └── .env
+```
+
+## Proxmox 整合
+
+GoDoxy 可透過配置的提供者自動探索和管理 Proxmox 節點和 LXC 容器。
+
+### 自動路由綁定
+
+路由透過反向查詢自動連結至 Proxmox 資源：
+
+1. **節點級路由** (VMID = 0)：當主機名稱、IP 或別名符合 Proxmox 節點名稱或 IP 時
+2. **容器級路由** (VMID > 0)：當主機名稱、IP 或別名符合 LXC 容器時
+
+這可實現無需手動綁定的無縫代理配置：
+
+```yaml
+routes:
+  pve-node-01:
+    host: pve-node-01.internal
+    port: 8006
+    # 自動連結至 Proxmox 節點 pve-node-01
+```
+
+### WebUI 管理
+
+您可以從 WebUI：
+
+- **LXC 生命週期控制**：啟動、停止、重新啟動容器
+- **節點日誌**：串流來自節點的即時 journalctl 輸出
+- **LXC 日誌**：串流來自容器的即時 journalctl 輸出
+
+### API 端點
+
+```http
+# 節點 journalctl (WebSocket)
+GET /api/v1/proxmox/journalctl/:node
+
+# LXC journalctl (WebSocket)
+GET /api/v1/proxmox/journalctl/:node/:vmid
+
+# LXC 生命週期控制
+POST /api/v1/proxmox/lxc/:node/:vmid/start
+POST /api/v1/proxmox/lxc/:node/:vmid/stop
+POST /api/v1/proxmox/lxc/:node/:vmid/restart
 ```
 
 ## 更新 / 卸載系統代理 (System Agent)
