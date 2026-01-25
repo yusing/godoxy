@@ -19,7 +19,7 @@ import (
 // @Failure		400	{object}	apitypes.ErrorResponse "Invalid request"
 // @Failure		404	{object}	apitypes.ErrorResponse "Node not found"
 // @Failure		500	{object}	apitypes.ErrorResponse
-// @Router		/api/v1/proxmox/lxc/:node/:vmid/restart [post]
+// @Router		/proxmox/lxc/:node/:vmid/restart [post]
 func Restart(c *gin.Context) {
 	var req ActionRequest
 	if err := c.ShouldBindUri(&req); err != nil {

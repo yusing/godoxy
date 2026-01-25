@@ -2088,249 +2088,6 @@ paths:
       tags:
       - agent
       x-id: verify
-  /api/v1/proxmox/journalctl/{node}/{vmid}:
-    get:
-      consumes:
-      - application/json
-      description: Get journalctl output
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      - description: limit
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Journalctl output
-          schema:
-            type: string
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "403":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Get journalctl output
-      tags:
-      - proxmox
-      - websocket
-      x-id: journalctl
-  /api/v1/proxmox/journalctl/{node}/{vmid}/{service}:
-    get:
-      consumes:
-      - application/json
-      description: Get journalctl output
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: service
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      - description: limit
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Journalctl output
-          schema:
-            type: string
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "403":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Get journalctl output
-      tags:
-      - proxmox
-      - websocket
-      x-id: journalctl
-  /api/v1/proxmox/lxc/:node/:vmid/restart:
-    post:
-      description: Restart LXC container by node and vmid
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/SuccessResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Restart LXC container
-      tags:
-      - proxmox
-      x-id: lxcRestart
-  /api/v1/proxmox/lxc/:node/:vmid/start:
-    post:
-      description: Start LXC container by node and vmid
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/SuccessResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Start LXC container
-      tags:
-      - proxmox
-      x-id: lxcStart
-  /api/v1/proxmox/lxc/:node/:vmid/stop:
-    post:
-      description: Stop LXC container by node and vmid
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/SuccessResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Stop LXC container
-      tags:
-      - proxmox
-      x-id: lxcStop
-  /api/v1/proxmox/stats/{node}/{vmid}:
-    get:
-      consumes:
-      - application/json
-      description: Get proxmox stats in format of "STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET
-        I/O|BLOCK I/O"
-      parameters:
-      - in: path
-        name: node
-        required: true
-        type: string
-      - in: path
-        name: vmid
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Stats output
-          schema:
-            type: string
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "403":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Node not found
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Get proxmox stats
-      tags:
-      - proxmox
-      - websocket
-      x-id: stats
   /auth/callback:
     post:
       description: Handles the callback from the provider after successful authentication
@@ -3604,6 +3361,249 @@ paths:
       - metrics
       - websocket
       x-id: uptime
+  /proxmox/journalctl/{node}/{vmid}:
+    get:
+      consumes:
+      - application/json
+      description: Get journalctl output
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Journalctl output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get journalctl output
+      tags:
+      - proxmox
+      - websocket
+      x-id: journalctl
+  /proxmox/journalctl/{node}/{vmid}/{service}:
+    get:
+      consumes:
+      - application/json
+      description: Get journalctl output
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: service
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Journalctl output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get journalctl output
+      tags:
+      - proxmox
+      - websocket
+      x-id: journalctl
+  /proxmox/lxc/:node/:vmid/restart:
+    post:
+      description: Restart LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Restart LXC container
+      tags:
+      - proxmox
+      x-id: lxcRestart
+  /proxmox/lxc/:node/:vmid/start:
+    post:
+      description: Start LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Start LXC container
+      tags:
+      - proxmox
+      x-id: lxcStart
+  /proxmox/lxc/:node/:vmid/stop:
+    post:
+      description: Stop LXC container by node and vmid
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Stop LXC container
+      tags:
+      - proxmox
+      x-id: lxcStop
+  /proxmox/stats/{node}/{vmid}:
+    get:
+      consumes:
+      - application/json
+      description: Get proxmox stats in format of "STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET
+        I/O|BLOCK I/O"
+      parameters:
+      - in: path
+        name: node
+        required: true
+        type: string
+      - in: path
+        name: vmid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Stats output
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get proxmox stats
+      tags:
+      - proxmox
+      - websocket
+      x-id: stats
   /reload:
     post:
       consumes:
