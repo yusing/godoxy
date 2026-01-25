@@ -53,13 +53,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.69.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260121155423-6b752059da7d
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260122072701-630629a3fd8e
+	github.com/yusing/godoxy/agent v0.0.0-20260125091326-9c2051840fd9
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260125091925-b3d425586872
 	github.com/yusing/gointernals v0.1.16
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260121154438-bc9e96ebf387
-	github.com/yusing/goutils/http/websocket v0.0.0-20260121154438-bc9e96ebf387
-	github.com/yusing/goutils/server v0.0.0-20260121154438-bc9e96ebf387
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260125040745-bcc4b498f878
+	github.com/yusing/goutils/http/websocket v0.0.0-20260125040745-bcc4b498f878
+	github.com/yusing/goutils/server v0.0.0-20260125040745-bcc4b498f878
 )
 
 require (
@@ -105,7 +105,7 @@ require (
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/miekg/dns v1.1.70 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -137,8 +137,8 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
-	google.golang.org/api v0.261.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
+	google.golang.org/api v0.262.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260122232226-8e98ce8d340d // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
