@@ -11,11 +11,14 @@ import (
 	"github.com/yusing/goutils/http/websocket"
 )
 
+// e.g. ws://localhost:8889/api/v1/proxmox/journalctl?node=pve&vmid=127&service=pveproxy&service=pvedaemon&limit=10
+// e.g. ws://localhost:8889/api/v1/proxmox/journalctl/pve/127?service=pveproxy&service=pvedaemon&limit=10
+
 type JournalctlRequest struct {
-	Node    string `form:"node" uri:"node" binding:"required"`                       // Node name
-	VMID    *int   `form:"vmid" uri:"vmid"`                                          // Container VMID (optional - if not provided, streams node journalctl)
-	Service string `form:"service" uri:"service"`                                    // Service name (e.g., 'pveproxy' for node, 'container@.service' format for LXC)
-	Limit   *int   `form:"limit" uri:"limit" default:"100" binding:"min=1,max=1000"` // Limit output lines (1-1000)
+	Node     string   `form:"node" uri:"node" binding:"required"`                       // Node name
+	VMID     *int     `form:"vmid" uri:"vmid"`                                          // Container VMID (optional - if not provided, streams node journalctl)
+	Services []string `form:"service" uri:"service"`                                    // Service names
+	Limit    *int     `form:"limit" uri:"limit" default:"100" binding:"min=1,max=1000"` // Limit output lines (1-1000)
 } //	@name	ProxmoxJournalctlRequest
 
 // @x-id				"journalctl"
@@ -56,9 +59,9 @@ func Journalctl(c *gin.Context) {
 	var reader io.ReadCloser
 	var err error
 	if request.VMID == nil {
-		reader, err = node.NodeJournalctl(c.Request.Context(), request.Service, *request.Limit)
+		reader, err = node.NodeJournalctl(c.Request.Context(), request.Services, *request.Limit)
 	} else {
-		reader, err = node.LXCJournalctl(c.Request.Context(), *request.VMID, request.Service, *request.Limit)
+		reader, err = node.LXCJournalctl(c.Request.Context(), *request.VMID, request.Services, *request.Limit)
 	}
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get journalctl output"))

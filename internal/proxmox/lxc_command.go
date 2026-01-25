@@ -39,15 +39,23 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 
 // LXCJournalctl streams journalctl output for the given service.
 //
-// If service is not empty, it will be used to filter the output by service.
+// If services are not empty, it will be used to filter the output by service.
 // If limit is greater than 0, it will be used to limit the number of lines of output.
-func (n *Node) LXCJournalctl(ctx context.Context, vmid int, service string, limit int) (io.ReadCloser, error) {
-	command := "journalctl -f"
-	if service != "" {
-		command = fmt.Sprintf("journalctl -u %q -f", service)
+func (n *Node) LXCJournalctl(ctx context.Context, vmid int, services []string, limit int) (io.ReadCloser, error) {
+	command, err := formatJournalctl(services, limit)
+	if err != nil {
+		return nil, err
 	}
-	if limit > 0 {
-		command = fmt.Sprintf("%s -n %d", command, limit)
+	return n.LXCCommand(ctx, vmid, command)
+}
+
+// LXCTail streams tail output for the given file.
+//
+// If limit is greater than 0, it will be used to limit the number of lines of output.
+func (n *Node) LXCTail(ctx context.Context, vmid int, files []string, limit int) (io.ReadCloser, error) {
+	command, err := formatTail(files, limit)
+	if err != nil {
+		return nil, err
 	}
 	return n.LXCCommand(ctx, vmid, command)
 }
