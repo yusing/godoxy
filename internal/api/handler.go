@@ -149,6 +149,9 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			proxmox.GET("/journalctl/:node/:vmid", proxmoxApi.Journalctl)
 			proxmox.GET("/journalctl/:node/:vmid/:service", proxmoxApi.Journalctl)
 			proxmox.GET("/stats/:node/:vmid", proxmoxApi.Stats)
+			proxmox.POST("/lxc/:node/:vmid/start", proxmoxApi.Start)
+			proxmox.POST("/lxc/:node/:vmid/stop", proxmoxApi.Stop)
+			proxmox.POST("/lxc/:node/:vmid/restart", proxmoxApi.Restart)
 		}
 	}
 
