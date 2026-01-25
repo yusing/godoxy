@@ -10,11 +10,13 @@ The proxmox package implements Proxmox API client management, node discovery, an
 
 - Proxmox API client management
 - Node discovery and pool management
-- LXC container operations (start, stop, status, stats, journalctl)
+- LXC container operations (start, stop, status, stats, command execution)
 - IP address retrieval for containers (online and offline)
 - Container stats streaming (like `docker stats`)
+- Container command execution via VNC websocket
 - Journalctl streaming for LXC containers
 - Reverse resource lookup by IP, hostname, or alias
+- Reverse node lookup by hostname, IP, or alias
 - TLS configuration options
 - Token and username/password authentication
 
@@ -32,12 +34,14 @@ graph TD
     G --> I[Start Container]
     G --> J[Stop Container]
     G --> K[Check Status]
+    G --> L[Execute Command]
+    G --> M[Stream Stats]
 
     subgraph Node Pool
-        F --> L[Nodes Map]
-        L --> M[Node 1]
-        L --> N[Node 2]
-        L --> O[Node 3]
+        F --> N[Nodes Map]
+        N --> O[Node 1]
+        N --> P[Node 2]
+        N --> Q[Node 3]
     end
 ```
 
@@ -126,12 +130,18 @@ func (c *Client) GetResource(kind string, id int) (*VMResource, error)
 
 // ReverseLookupResource looks up a resource by IP, hostname, or alias.
 func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string) (*VMResource, error)
+
+// ReverseLookupNode looks up a node by hostname, IP, or alias.
+func (c *Client) ReverseLookupNode(hostname string, ip net.IP, alias string) string
+
+// NumNodes returns the number of nodes in the cluster.
+func (c *Client) NumNodes() int
 ```
 
 ### Node Operations
 
 ```go
-// AvailableNodeNames returns all available node names.
+// AvailableNodeNames returns all available node names as a comma-separated string.
 func AvailableNodeNames() string
 
 // Node.Client returns the Proxmox client.
@@ -139,6 +149,12 @@ func (n *Node) Client() *Client
 
 // Node.Get performs a GET request on the node.
 func (n *Node) Get(ctx context.Context, path string, v any) error
+
+// NodeCommand executes a command on the node and streams output.
+func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, error)
+
+// NodeJournalctl streams journalctl output from the node.
+func (n *Node) NodeJournalctl(ctx context.Context, service string, limit int) (io.ReadCloser, error)
 ```
 
 ## Usage
@@ -252,6 +268,16 @@ func (node *Node) LXCGetIPsFromConfig(ctx context.Context, vmid int) ([]net.IP, 
 func (node *Node) LXCStats(ctx context.Context, vmid int, stream bool) (io.ReadCloser, error)
 ```
 
+### Container Command Execution
+
+```go
+// LXCCommand executes a command inside a container and streams output.
+func (node *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.ReadCloser, error)
+
+// LXCJournalctl streams journalctl output for a container service.
+func (node *Node) LXCJournalctl(ctx context.Context, vmid int, service string, limit int) (io.ReadCloser, error)
+```
+
 ## Data Flow
 
 ```mermaid
@@ -281,6 +307,13 @@ sequenceDiagram
     Node->>ProxmoxAPI: POST /lxc/{vmid}/status/start
     ProxmoxAPI-->>Node: Success
     Node-->>User: Done
+
+    User->>Node: LXCCommand(vmid, "df -h")
+    Node->>ProxmoxAPI: WebSocket /nodes/{node}/termproxy
+    ProxmoxAPI-->>Node: WebSocket connection
+    Node->>ProxmoxAPI: Send: "pct exec {vmid} -- df -h"
+    ProxmoxAPI-->>Node: Command output stream
+    Node-->>User: Stream output
 ```
 
 ## Configuration
@@ -386,6 +419,10 @@ The package supports two authentication methods:
 1. **API Token** (recommended): Uses `token_id` and `secret`
 2. **Username/Password**: Uses `username`, `password`, and `realm`
 
+Username/password authentication is required for:
+
+- WebSocket connections (command execution, journalctl streaming)
+
 Both methods support TLS verification options.
 
 ## Error Handling
@@ -401,6 +438,19 @@ return gperr.New("failed to fetch proxmox cluster info").With(err)
 
 // Resource not found
 return gperr.New("resource not found").With(ErrResourceNotFound)
+
+// No session (for WebSocket operations)
+return gperr.New("no session").With(ErrNoSession)
+```
+
+## Errors
+
+```go
+var (
+    ErrResourceNotFound = errors.New("resource not found")
+    ErrNoResources      = errors.New("no resources")
+    ErrNoSession        = fmt.Errorf("no session found, make sure username and password are set")
+)
 ```
 
 ## Performance Considerations
@@ -411,6 +461,7 @@ return gperr.New("resource not found").With(ErrResourceNotFound)
 - Concurrent IP resolution for all containers (limited to GOMAXPROCS \* 2)
 - 5-second timeout for initial connection
 - Per-operation API calls with 3-second timeout
+- WebSocket connections properly closed to prevent goroutine leaks
 
 ## Constants
 
