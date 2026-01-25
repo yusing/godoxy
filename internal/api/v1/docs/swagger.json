@@ -3389,33 +3389,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "DockerConfig": {
-      "type": "object",
-      "required": [
-        "container_id",
-        "container_name",
-        "docker_cfg"
-      ],
-      "properties": {
-        "container_id": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "container_name": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "docker_cfg": {
-          "$ref": "#/definitions/DockerProviderConfig",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "DockerProviderConfig": {
       "type": "object",
       "properties": {
@@ -4164,7 +4137,7 @@
           "x-omitempty": false
         },
         "docker": {
-          "$ref": "#/definitions/DockerConfig",
+          "$ref": "#/definitions/IdlewatcherDockerConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4184,7 +4157,7 @@
           "x-omitempty": false
         },
         "proxmox": {
-          "$ref": "#/definitions/ProxmoxNodeConfig",
+          "$ref": "#/definitions/IdlewatcherProxmoxNodeConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4211,6 +4184,54 @@
         },
         "wake_timeout": {
           "$ref": "#/definitions/time.Duration",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherDockerConfig": {
+      "type": "object",
+      "required": [
+        "container_id",
+        "container_name",
+        "docker_cfg"
+      ],
+      "properties": {
+        "container_id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "docker_cfg": {
+          "$ref": "#/definitions/DockerProviderConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherProxmoxNodeConfig": {
+      "type": "object",
+      "required": [
+        "node",
+        "vmid"
+      ],
+      "properties": {
+        "node": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "vmid": {
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
