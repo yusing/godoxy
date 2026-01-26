@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type Config struct {
 }
 
 const ResourcePollInterval = 3 * time.Second
+const SessionRefreshInterval = 1 * time.Minute
 
 // NodeStatsPollInterval controls how often node stats are streamed when streaming is enabled.
 const NodeStatsPollInterval = time.Second
@@ -106,6 +108,7 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 	}
 
 	go c.updateResourcesLoop(ctx)
+	go c.refreshSessionLoop(ctx)
 	return nil
 }
 
@@ -126,6 +129,36 @@ func (c *Config) updateResourcesLoop(ctx context.Context) {
 			reqCtxCancel()
 			if err != nil {
 				log.Error().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
+			}
+		}
+	}
+}
+
+func (c *Config) refreshSessionLoop(ctx context.Context) {
+	ticker := time.NewTicker(SessionRefreshInterval)
+	defer ticker.Stop()
+
+	log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] starting session refresh loop")
+
+	numRetries := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] stopping session refresh loop")
+			return
+		case <-ticker.C:
+			reqCtx, reqCtxCancel := context.WithTimeout(ctx, SessionRefreshInterval)
+			err := c.client.RefreshSession(reqCtx)
+			reqCtxCancel()
+			if err != nil {
+				log.Error().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to refresh session")
+				// exponential backoff
+				numRetries++
+				backoff := time.Duration(min(math.Pow(2, float64(numRetries)), 10)) * time.Second
+				ticker.Reset(backoff)
+			} else {
+				ticker.Reset(SessionRefreshInterval)
 			}
 		}
 	}
