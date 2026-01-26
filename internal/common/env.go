@@ -13,6 +13,8 @@ var (
 	IsDebug = env.GetEnvBool("DEBUG", IsTest)
 	IsTrace = env.GetEnvBool("TRACE", false) && IsDebug
 
+	InitTimeout = env.GetEnvDuation("INIT_TIMEOUT", 1*time.Minute)
+
 	ShortLinkPrefix = env.GetEnvString("SHORTLINK_PREFIX", "go")
 
 	ProxyHTTPAddr,
@@ -29,6 +31,11 @@ var (
 	APIHTTPHost,
 	APIHTTPPort,
 	APIHTTPURL = env.GetAddrEnv("API_ADDR", "127.0.0.1:8888", "http")
+
+	LocalAPIHTTPAddr,
+	LocalAPIHTTPHost,
+	LocalAPIHTTPPort,
+	LocalAPIHTTPURL = env.GetAddrEnv("LOCAL_API_ADDR", "", "http")
 
 	APIJWTSecure   = env.GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(env.GetEnvString("API_JWT_SECRET", ""))

@@ -13,7 +13,7 @@ type MockFile struct {
 	buffered bool
 }
 
-var _ SupportRotate = (*MockFile)(nil)
+var _ File = (*MockFile)(nil)
 
 func NewMockFile(buffered bool) *MockFile {
 	f, _ := afero.TempFile(afero.NewMemMapFs(), "", "")
@@ -52,14 +52,9 @@ func (m *MockFile) NumLines() int {
 	return count
 }
 
-func (m *MockFile) Size() (int64, error) {
-	stat, _ := m.Stat()
-	return stat.Size(), nil
-}
-
 func (m *MockFile) MustSize() int64 {
-	size, _ := m.Size()
-	return size
+	stat, _ := m.Stat()
+	return stat.Size()
 }
 
 func (m *MockFile) Close() error {

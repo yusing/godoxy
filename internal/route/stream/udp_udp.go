@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/agentpool"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -81,7 +82,8 @@ func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 		return
 	}
 	s.listener = l
-	if acl := acl.ActiveConfig.Load(); acl != nil {
+	if acl, ok := ctx.Value(acl.ContextKey{}).(*acl.Config); ok {
+		log.Debug().Str("listener", s.listener.LocalAddr().String()).Msg("wrapping listener with ACL")
 		s.listener = acl.WrapUDP(s.listener)
 	}
 	s.preDial = preDial

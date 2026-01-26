@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -27,9 +26,9 @@ type Config struct {
 	Log        *accesslog.ACLLoggerConfig `json:"log"`
 
 	Notify struct {
-		To             []string      `json:"to"`              // list of notification providers
-		Interval       time.Duration `json:"interval"`        // interval between notifications
-		IncludeAllowed *bool         `json:"include_allowed"` // default: false
+		To             []string      `json:"to,omitempty"`             // list of notification providers
+		Interval       time.Duration `json:"interval,omitempty"`       // interval between notifications
+		IncludeAllowed *bool         `json:"include_allowed,omitzero"` // default: false
 	} `json:"notify"`
 
 	config
@@ -75,8 +74,7 @@ type ipLog struct {
 	allowed bool
 }
 
-// could be nil
-var ActiveConfig atomic.Pointer[Config]
+type ContextKey struct{}
 
 const cacheTTL = 1 * time.Minute
 
@@ -108,7 +106,7 @@ func (c *Config) Validate() gperr.Error {
 		c.allowLocal = true
 	}
 
-	if c.Notify.Interval < 0 {
+	if c.Notify.Interval <= 0 {
 		c.Notify.Interval = defaultNotifyInterval
 	}
 
@@ -292,15 +290,15 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipAndStr := &maxmind.IPInfo{IP: ip, Str: ipStr}
-	if c.Allow.Match(ipAndStr) {
-		c.logAndNotify(ipAndStr, true)
-		c.cacheRecord(ipAndStr, true)
-		return true
-	}
 	if c.Deny.Match(ipAndStr) {
 		c.logAndNotify(ipAndStr, false)
 		c.cacheRecord(ipAndStr, false)
 		return false
+	}
+	if c.Allow.Match(ipAndStr) {
+		c.logAndNotify(ipAndStr, true)
+		c.cacheRecord(ipAndStr, true)
+		return true
 	}
 
 	c.logAndNotify(ipAndStr, c.defaultAllow)

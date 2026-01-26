@@ -16,7 +16,7 @@ func TestNewMultiAccessLogger(t *testing.T) {
 	testTask := task.RootTask("test", false)
 	cfg := DefaultRequestLoggerConfig()
 
-	writers := []Writer{
+	writers := []File{
 		NewMockFile(true),
 		NewMockFile(true),
 	}
@@ -30,7 +30,7 @@ func TestMultiAccessLoggerConfig(t *testing.T) {
 	cfg := DefaultRequestLoggerConfig()
 	cfg.Format = FormatCommon
 
-	writers := []Writer{
+	writers := []File{
 		NewMockFile(true),
 		NewMockFile(true),
 	}
@@ -48,7 +48,7 @@ func TestMultiAccessLoggerLog(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -68,7 +68,7 @@ func TestMultiAccessLoggerLog(t *testing.T) {
 		ContentLength: 100,
 	}
 
-	logger.Log(req, resp)
+	logger.LogRequest(req, resp)
 	logger.Flush()
 
 	expect.Equal(t, writer1.NumLines(), 1)
@@ -81,7 +81,7 @@ func TestMultiAccessLoggerLogError(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -107,7 +107,7 @@ func TestMultiAccessLoggerLogACL(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -129,7 +129,7 @@ func TestMultiAccessLoggerFlush(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -143,7 +143,7 @@ func TestMultiAccessLoggerFlush(t *testing.T) {
 		StatusCode: http.StatusOK,
 	}
 
-	logger.Log(req, resp)
+	logger.LogRequest(req, resp)
 	logger.Flush()
 
 	expect.Equal(t, writer1.NumLines(), 1)
@@ -156,7 +156,7 @@ func TestMultiAccessLoggerClose(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -170,7 +170,7 @@ func TestMultiAccessLoggerMultipleLogs(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -185,7 +185,7 @@ func TestMultiAccessLoggerMultipleLogs(t *testing.T) {
 		resp := &http.Response{
 			StatusCode: http.StatusOK,
 		}
-		logger.Log(req, resp)
+		logger.LogRequest(req, resp)
 	}
 
 	logger.Flush()
@@ -199,7 +199,7 @@ func TestMultiAccessLoggerSingleWriter(t *testing.T) {
 	cfg := DefaultRequestLoggerConfig()
 
 	writer := NewMockFile(true)
-	writers := []Writer{writer}
+	writers := []File{writer}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 	expect.NotNil(t, logger)
@@ -214,7 +214,7 @@ func TestMultiAccessLoggerSingleWriter(t *testing.T) {
 		StatusCode: http.StatusOK,
 	}
 
-	logger.Log(req, resp)
+	logger.LogRequest(req, resp)
 	logger.Flush()
 
 	expect.Equal(t, writer.NumLines(), 1)
@@ -226,7 +226,7 @@ func TestMultiAccessLoggerMixedOperations(t *testing.T) {
 
 	writer1 := NewMockFile(true)
 	writer2 := NewMockFile(true)
-	writers := []Writer{writer1, writer2}
+	writers := []File{writer1, writer2}
 
 	logger := NewMultiAccessLogger(testTask, cfg, writers)
 
@@ -241,7 +241,7 @@ func TestMultiAccessLoggerMixedOperations(t *testing.T) {
 		StatusCode: http.StatusOK,
 	}
 
-	logger.Log(req, resp)
+	logger.LogRequest(req, resp)
 	logger.Flush()
 
 	info := &maxmind.IPInfo{

@@ -1,6 +1,7 @@
 package accesslog
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/yusing/godoxy/internal/serialization"
@@ -9,16 +10,15 @@ import (
 
 type (
 	ConfigBase struct {
-		B              int           `json:"buffer_size"` // Deprecated: buffer size is adjusted dynamically
-		Path           string        `json:"path"`
+		Path           string        `json:"path,omitempty"`
 		Stdout         bool          `json:"stdout"`
 		Retention      *Retention    `json:"retention" aliases:"keep"`
 		RotateInterval time.Duration `json:"rotate_interval,omitempty" swaggertype:"primitive,integer"`
-	}
+	} // @name AccessLoggerConfigBase
 	ACLLoggerConfig struct {
 		ConfigBase
 		LogAllowed bool `json:"log_allowed"`
-	}
+	} // @name ACLLoggerConfig
 	RequestLoggerConfig struct {
 		ConfigBase
 		Format  Format  `json:"format" validate:"oneof=common combined json"`
@@ -32,21 +32,21 @@ type (
 	}
 	AnyConfig interface {
 		ToConfig() *Config
-		Writers() ([]Writer, error)
+		Writers() ([]File, error)
 	}
 
 	Format  string
 	Filters struct {
-		StatusCodes LogFilter[*StatusCodeRange] `json:"status_codes"`
-		Method      LogFilter[HTTPMethod]       `json:"method"`
-		Host        LogFilter[Host]             `json:"host"`
-		Headers     LogFilter[*HTTPHeader]      `json:"headers"` // header exists or header == value
-		CIDR        LogFilter[*CIDR]            `json:"cidr"`
+		StatusCodes LogFilter[*StatusCodeRange] `json:"status_codes,omitzero"`
+		Method      LogFilter[HTTPMethod]       `json:"method,omitzero"`
+		Host        LogFilter[Host]             `json:"host,omitzero"`
+		Headers     LogFilter[*HTTPHeader]      `json:"headers,omitzero"` // header exists or header == value
+		CIDR        LogFilter[*CIDR]            `json:"cidr,omitzero"`
 	}
 	Fields struct {
-		Headers FieldConfig `json:"headers" aliases:"header"`
-		Query   FieldConfig `json:"query" aliases:"queries"`
-		Cookies FieldConfig `json:"cookies" aliases:"cookie"`
+		Headers FieldConfig `json:"headers,omitzero" aliases:"header"`
+		Query   FieldConfig `json:"query,omitzero" aliases:"queries"`
+		Cookies FieldConfig `json:"cookies,omitzero" aliases:"cookie"`
 	}
 )
 
@@ -66,17 +66,17 @@ func (cfg *ConfigBase) Validate() gperr.Error {
 }
 
 // Writers returns a list of writers for the config.
-func (cfg *ConfigBase) Writers() ([]Writer, error) {
-	writers := make([]Writer, 0, 2)
+func (cfg *ConfigBase) Writers() ([]File, error) {
+	writers := make([]File, 0, 2)
 	if cfg.Path != "" {
-		io, err := NewFileIO(cfg.Path)
+		f, err := OpenFile(cfg.Path)
 		if err != nil {
 			return nil, err
 		}
-		writers = append(writers, io)
+		writers = append(writers, f)
 	}
 	if cfg.Stdout {
-		writers = append(writers, NewStdout())
+		writers = append(writers, stdout)
 	}
 	return writers, nil
 }
@@ -93,6 +93,16 @@ func (cfg *RequestLoggerConfig) ToConfig() *Config {
 		ConfigBase: cfg.ConfigBase,
 		req:        cfg,
 	}
+}
+
+func (cfg *Config) ShouldLogRequest(req *http.Request, res *http.Response) bool {
+	if cfg.req == nil {
+		return true
+	}
+	return cfg.req.Filters.StatusCodes.CheckKeep(req, res) &&
+		cfg.req.Filters.Method.CheckKeep(req, res) &&
+		cfg.req.Filters.Headers.CheckKeep(req, res) &&
+		cfg.req.Filters.CIDR.CheckKeep(req, res)
 }
 
 func DefaultRequestLoggerConfig() *RequestLoggerConfig {

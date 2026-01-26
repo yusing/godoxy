@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/common"
 
+	"github.com/rs/zerolog/diode"
 	zerologlog "github.com/rs/zerolog/log"
 )
 
@@ -68,7 +69,13 @@ func fmtMessage(msg string) string {
 	return sb.String()
 }
 
-func multiLevelWriter(out ...io.Writer) io.Writer {
+func diodeMultiWriter(out ...io.Writer) io.Writer {
+	return diode.NewWriter(multiWriter(out...), 1024, 0, func(missed int) {
+		zerologlog.Warn().Int("missed", missed).Msg("missed log messages")
+	})
+}
+
+func multiWriter(out ...io.Writer) io.Writer {
 	if len(out) == 0 {
 		return os.Stdout
 	}
@@ -80,7 +87,7 @@ func multiLevelWriter(out ...io.Writer) io.Writer {
 
 func NewLogger(out ...io.Writer) zerolog.Logger {
 	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-		w.Out = multiLevelWriter(out...)
+		w.Out = diodeMultiWriter(out...)
 		w.TimeFormat = timeFmt
 		w.FormatMessage = func(msgI any) string { // pad spaces for each line
 			if msgI == nil {
@@ -92,9 +99,9 @@ func NewLogger(out ...io.Writer) zerolog.Logger {
 	return zerolog.New(writer).Level(level).With().Timestamp().Logger()
 }
 
-func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logger {
+func NewLoggerWithFixedLevel(lvl zerolog.Level, out ...io.Writer) zerolog.Logger {
 	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-		w.Out = multiLevelWriter(out...)
+		w.Out = diodeMultiWriter(out...)
 		w.TimeFormat = timeFmt
 		w.FormatMessage = func(msgI any) string { // pad spaces for each line
 			if msgI == nil {
@@ -103,5 +110,5 @@ func NewLoggerWithFixedLevel(level zerolog.Level, out ...io.Writer) zerolog.Logg
 			return fmtMessage(msgI.(string))
 		}
 	})
-	return zerolog.New(writer).Level(level).With().Str("level", level.String()).Timestamp().Logger()
+	return zerolog.New(writer).Level(level).With().Str("level", lvl.String()).Timestamp().Logger()
 }

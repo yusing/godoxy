@@ -20,25 +20,20 @@ import (
 )
 
 type (
-	AccessLogger interface {
-		Log(req *http.Request, res *http.Response)
-		LogError(req *http.Request, err error)
-		LogACL(info *maxmind.IPInfo, blocked bool)
-
-		Config() *Config
-
-		Flush()
-		Close() error
+	File interface {
+		io.WriteCloser
+		supportRotate
+		Name() string
 	}
 
-	accessLogger struct {
+	fileAccessLogger struct {
 		task *task.Task
 		cfg  *Config
 
-		writer        BufferedWriter
-		supportRotate SupportRotate
-		writeLock     *sync.Mutex
-		closed        bool
+		writer    BufferedWriter
+		file      File
+		writeLock *sync.Mutex
+		closed    bool
 
 		writeCount int64
 		bufSize    int
@@ -48,32 +43,7 @@ type (
 		logger zerolog.Logger
 
 		RequestFormatter
-		ACLFormatter
-	}
-
-	Writer interface {
-		io.WriteCloser
-		ShouldBeBuffered() bool
-		Name() string // file name or path
-	}
-
-	SupportRotate interface {
-		io.Writer
-		supportRotate
-		Name() string
-	}
-
-	AccessLogRotater interface {
-		Rotate(result *RotateResult) (rotated bool, err error)
-	}
-
-	RequestFormatter interface {
-		// AppendRequestLog appends a log line to line with or without a trailing newline
-		AppendRequestLog(line []byte, req *http.Request, res *http.Response) []byte
-	}
-	ACLFormatter interface {
-		// AppendACLLog appends a log line to line with or without a trailing newline
-		AppendACLLog(line []byte, info *maxmind.IPInfo, blocked bool) []byte
+		ACLLogFormatter
 	}
 )
 
@@ -96,112 +66,87 @@ const (
 var bytesPool = synk.GetUnsizedBytesPool()
 var sizedPool = synk.GetSizedBytesPool()
 
-func NewAccessLogger(parent task.Parent, cfg AnyConfig) (AccessLogger, error) {
-	writers, err := cfg.Writers()
-	if err != nil {
-		return nil, err
-	}
-
-	return NewMultiAccessLogger(parent, cfg, writers), nil
-}
-
-func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) AccessLogger {
-	return NewAccessLoggerWithIO(parent, NewMockFile(true), cfg)
-}
-
-func NewAccessLoggerWithIO(parent task.Parent, writer Writer, anyCfg AnyConfig) AccessLogger {
+func NewFileAccessLogger(parent task.Parent, file File, anyCfg AnyConfig) AccessLogger {
 	cfg := anyCfg.ToConfig()
 	if cfg.RotateInterval == 0 {
 		cfg.RotateInterval = defaultRotateInterval
 	}
 
-	l := &accessLogger{
-		task:           parent.Subtask("accesslog."+writer.Name(), true),
+	name := file.Name()
+	l := &fileAccessLogger{
+		task:           parent.Subtask("accesslog."+name, true),
 		cfg:            cfg,
 		bufSize:        InitialBufferSize,
 		errRateLimiter: rate.NewLimiter(rate.Every(errRateLimit), errBurst),
-		logger:         log.With().Str("file", writer.Name()).Logger(),
+		logger:         log.With().Str("file", name).Logger(),
 	}
 
-	l.writeLock, _ = writerLocks.LoadOrStore(writer.Name(), &sync.Mutex{})
+	l.writeLock, _ = writerLocks.LoadOrStore(name, &sync.Mutex{})
 
-	if writer.ShouldBeBuffered() {
-		l.writer = ioutils.NewBufferedWriter(writer, InitialBufferSize)
-	} else {
-		l.writer = NewUnbufferedWriter(writer)
-	}
-
-	if supportRotate, ok := writer.(SupportRotate); ok {
-		l.supportRotate = supportRotate
-	}
+	l.writer = ioutils.NewBufferedWriter(file, InitialBufferSize)
+	l.file = file
 
 	if cfg.req != nil {
-		fmt := CommonFormatter{cfg: &cfg.req.Fields}
 		switch cfg.req.Format {
 		case FormatCommon:
-			l.RequestFormatter = &fmt
+			l.RequestFormatter = CommonFormatter{cfg: &cfg.req.Fields}
 		case FormatCombined:
-			l.RequestFormatter = &CombinedFormatter{fmt}
+			l.RequestFormatter = CombinedFormatter{CommonFormatter{cfg: &cfg.req.Fields}}
 		case FormatJSON:
-			l.RequestFormatter = &JSONFormatter{fmt}
+			l.RequestFormatter = JSONFormatter{cfg: &cfg.req.Fields}
 		default: // should not happen, validation has done by validate tags
 			panic("invalid access log format")
 		}
-	} else {
-		l.ACLFormatter = ACLLogFormatter{}
 	}
 
 	go l.start()
 	return l
 }
 
-func (l *accessLogger) Config() *Config {
+func (l *fileAccessLogger) Config() *Config {
 	return l.cfg
 }
 
-func (l *accessLogger) shouldLog(req *http.Request, res *http.Response) bool {
-	if !l.cfg.req.Filters.StatusCodes.CheckKeep(req, res) ||
-		!l.cfg.req.Filters.Method.CheckKeep(req, res) ||
-		!l.cfg.req.Filters.Headers.CheckKeep(req, res) ||
-		!l.cfg.req.Filters.CIDR.CheckKeep(req, res) {
-		return false
-	}
-	return true
-}
-
-func (l *accessLogger) Log(req *http.Request, res *http.Response) {
-	if !l.shouldLog(req, res) {
+func (l *fileAccessLogger) LogRequest(req *http.Request, res *http.Response) {
+	if !l.cfg.ShouldLogRequest(req, res) {
 		return
 	}
 
-	line := bytesPool.Get()
-	line = l.AppendRequestLog(line, req, res)
-	if line[len(line)-1] != '\n' {
-		line = append(line, '\n')
+	line := bytesPool.GetBuffer()
+	defer bytesPool.PutBuffer(line)
+	l.AppendRequestLog(line, req, res)
+	// line is never empty
+	if line.Bytes()[line.Len()-1] != '\n' {
+		line.WriteByte('\n')
 	}
-	l.write(line)
-	bytesPool.Put(line)
+	l.write(line.Bytes())
 }
 
-func (l *accessLogger) LogError(req *http.Request, err error) {
-	l.Log(req, &http.Response{StatusCode: http.StatusInternalServerError, Status: err.Error()})
+var internalErrorResponse = &http.Response{
+	StatusCode: http.StatusInternalServerError,
+	Status:     http.StatusText(http.StatusInternalServerError),
 }
 
-func (l *accessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
-	line := bytesPool.Get()
-	line = l.AppendACLLog(line, info, blocked)
-	if line[len(line)-1] != '\n' {
-		line = append(line, '\n')
+func (l *fileAccessLogger) LogError(req *http.Request, err error) {
+	l.LogRequest(req, internalErrorResponse)
+}
+
+func (l *fileAccessLogger) LogACL(info *maxmind.IPInfo, blocked bool) {
+	line := bytesPool.GetBuffer()
+	defer bytesPool.PutBuffer(line)
+	l.AppendACLLog(line, info, blocked)
+	// line is never empty
+	if line.Bytes()[line.Len()-1] != '\n' {
+		line.WriteByte('\n')
 	}
-	l.write(line)
-	bytesPool.Put(line)
+	l.write(line.Bytes())
 }
 
-func (l *accessLogger) ShouldRotate() bool {
-	return l.supportRotate != nil && l.cfg.Retention.IsValid()
+func (l *fileAccessLogger) ShouldRotate() bool {
+	return l.cfg.Retention.IsValid()
 }
 
-func (l *accessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
+func (l *fileAccessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 	if !l.ShouldRotate() {
 		return false, nil
 	}
@@ -210,11 +155,11 @@ func (l *accessLogger) Rotate(result *RotateResult) (rotated bool, err error) {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 
-	rotated, err = rotateLogFile(l.supportRotate, l.cfg.Retention, result)
+	rotated, err = rotateLogFile(l.file, l.cfg.Retention, result)
 	return
 }
 
-func (l *accessLogger) handleErr(err error) {
+func (l *fileAccessLogger) handleErr(err error) {
 	if l.errRateLimiter.Allow() {
 		gperr.LogError("failed to write access log", err, &l.logger)
 	} else {
@@ -223,7 +168,7 @@ func (l *accessLogger) handleErr(err error) {
 	}
 }
 
-func (l *accessLogger) start() {
+func (l *fileAccessLogger) start() {
 	defer func() {
 		l.Flush()
 		l.Close()
@@ -259,7 +204,7 @@ func (l *accessLogger) start() {
 	}
 }
 
-func (l *accessLogger) Close() error {
+func (l *fileAccessLogger) Close() error {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -270,7 +215,7 @@ func (l *accessLogger) Close() error {
 	return l.writer.Close()
 }
 
-func (l *accessLogger) Flush() {
+func (l *fileAccessLogger) Flush() {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -279,7 +224,7 @@ func (l *accessLogger) Flush() {
 	l.writer.Flush()
 }
 
-func (l *accessLogger) write(data []byte) {
+func (l *fileAccessLogger) write(data []byte) {
 	l.writeLock.Lock()
 	defer l.writeLock.Unlock()
 	if l.closed {
@@ -294,7 +239,7 @@ func (l *accessLogger) write(data []byte) {
 	atomic.AddInt64(&l.writeCount, int64(n))
 }
 
-func (l *accessLogger) adjustBuffer() {
+func (l *fileAccessLogger) adjustBuffer() {
 	wps := int(atomic.SwapInt64(&l.writeCount, 0)) / int(bufferAdjustInterval.Seconds())
 	origBufSize := l.bufSize
 	newBufSize := origBufSize

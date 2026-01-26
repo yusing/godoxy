@@ -18,7 +18,7 @@ type ImplDoc = {
 const START_MARKER = "// GENERATED-IMPL-SIDEBAR-START";
 const END_MARKER = "// GENERATED-IMPL-SIDEBAR-END";
 
-const skipSubmodules = ["internal/go-oidc/", "internal/gopsutil/"];
+const skipSubmodules = ["internal/go-oidc/", "internal/gopsutil/", "internal/go-proxmox/"];
 
 function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -165,9 +165,8 @@ function rewriteImplMarkdown(params: {
         const repoRel = path.posix.normalize(
           path.posix.join(pkgPath, filePath)
         );
-        const githubUrl = `${repoUrl}/blob/main/${repoRel}${
-          line ? `#L${line}` : ""
-        }`;
+        const githubUrl = `${repoUrl}/blob/main/${repoRel}${line ? `#L${line}` : ""
+          }`;
         const rewritten = `${githubUrl}${fragment}`;
         return angleWrapped === urlRaw ? rewritten : `<${rewritten}>`;
       }

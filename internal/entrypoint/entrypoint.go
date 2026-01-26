@@ -100,7 +100,7 @@ func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rec := accesslog.GetResponseRecorder(w)
 		w = rec
 		defer func() {
-			ep.accessLogger.Log(r, rec.Response())
+			ep.accessLogger.LogRequest(r, rec.Response())
 			accesslog.PutResponseRecorder(rec)
 		}()
 	}

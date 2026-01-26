@@ -78,3 +78,14 @@ func Get(alias string) (types.Route, bool) {
 	}
 	return nil, false
 }
+
+// GetIncludeExcluded returns the route with the given alias, including excluded routes.
+func GetIncludeExcluded(alias string) (types.Route, bool) {
+	if r, ok := HTTP.Get(alias); ok {
+		return r, true
+	}
+	if r, ok := Stream.Get(alias); ok {
+		return r, true
+	}
+	return Excluded.Get(alias)
+}

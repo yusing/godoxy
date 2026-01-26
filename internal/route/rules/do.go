@@ -79,6 +79,10 @@ var commands = map[string]struct {
 		},
 		build: func(args any) CommandHandler {
 			return NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				if authHandler == nil {
+					http.Error(w, "Auth handler not initialized", http.StatusInternalServerError)
+					return errTerminated
+				}
 				if !authHandler(w, r) {
 					return errTerminated
 				}

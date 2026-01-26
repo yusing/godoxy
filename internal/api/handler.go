@@ -16,6 +16,7 @@ import (
 	fileApi "github.com/yusing/godoxy/internal/api/v1/file"
 	homepageApi "github.com/yusing/godoxy/internal/api/v1/homepage"
 	metricsApi "github.com/yusing/godoxy/internal/api/v1/metrics"
+	proxmoxApi "github.com/yusing/godoxy/internal/api/v1/proxmox"
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
@@ -38,7 +39,7 @@ import (
 
 // @externalDocs.description  GoDoxy Docs
 // @externalDocs.url          https://docs.godoxy.dev
-func NewHandler() *gin.Engine {
+func NewHandler(requireAuth bool) *gin.Engine {
 	if !common.IsDebug {
 		gin.SetMode("release")
 	}
@@ -51,7 +52,7 @@ func NewHandler() *gin.Engine {
 
 	r.GET("/api/v1/version", apiV1.Version)
 
-	if auth.IsEnabled() {
+	if auth.IsEnabled() && requireAuth {
 		v1Auth := r.Group("/api/v1/auth")
 		{
 			v1Auth.HEAD("/check", authApi.Check)
@@ -64,7 +65,7 @@ func NewHandler() *gin.Engine {
 	}
 
 	v1 := r.Group("/api/v1")
-	if auth.IsEnabled() {
+	if auth.IsEnabled() && requireAuth {
 		v1.Use(AuthMiddleware())
 	}
 	if common.APISkipOriginCheck {
@@ -140,6 +141,21 @@ func NewHandler() *gin.Engine {
 			docker.POST("/start", dockerApi.Start)
 			docker.POST("/stop", dockerApi.Stop)
 			docker.POST("/restart", dockerApi.Restart)
+			docker.GET("/stats/:id", dockerApi.Stats)
+		}
+
+		proxmox := v1.Group("/proxmox")
+		{
+			proxmox.GET("/tail", proxmoxApi.Tail)
+			proxmox.GET("/journalctl", proxmoxApi.Journalctl)
+			proxmox.GET("/journalctl/:node", proxmoxApi.Journalctl)
+			proxmox.GET("/journalctl/:node/:vmid", proxmoxApi.Journalctl)
+			proxmox.GET("/journalctl/:node/:vmid/:service", proxmoxApi.Journalctl)
+			proxmox.GET("/stats/:node", proxmoxApi.NodeStats)
+			proxmox.GET("/stats/:node/:vmid", proxmoxApi.VMStats)
+			proxmox.POST("/lxc/:node/:vmid/start", proxmoxApi.Start)
+			proxmox.POST("/lxc/:node/:vmid/stop", proxmoxApi.Stop)
+			proxmox.POST("/lxc/:node/:vmid/restart", proxmoxApi.Restart)
 		}
 	}
 

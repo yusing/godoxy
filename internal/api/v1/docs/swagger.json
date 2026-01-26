@@ -569,6 +569,12 @@
             "description": "levels",
             "name": "levels",
             "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "limit",
+            "name": "limit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -716,6 +722,62 @@
         },
         "x-id": "start",
         "operationId": "start"
+      }
+    },
+    "/docker/stats/{id}": {
+      "get": {
+        "description": "Get container stats by container id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "docker",
+          "websocket"
+        ],
+        "summary": "Get container stats",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Container ID or route alias",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ContainerStatsResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request: id is required or route is not a docker container",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Container not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "stats",
+        "operationId": "stats"
       }
     },
     "/docker/stop": {
@@ -2015,6 +2077,749 @@
         "operationId": "uptime"
       }
     },
+    "/proxmox/journalctl": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/journalctl/{node}": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/journalctl/{node}/{vmid}": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/journalctl/{node}/{vmid}/{service}": {
+      "get": {
+        "description": "Get journalctl output for node or LXC container. If vmid is not provided, streams node journalctl.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get journalctl output",
+        "parameters": [
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
+            "name": "service",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "Service names",
+            "name": "service",
+            "in": "path"
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journalctl output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "journalctl",
+        "operationId": "journalctl"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/restart": {
+      "post": {
+        "description": "Restart LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Restart LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcRestart",
+        "operationId": "lxcRestart"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/start": {
+      "post": {
+        "description": "Start LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Start LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcStart",
+        "operationId": "lxcStart"
+      }
+    },
+    "/proxmox/lxc/:node/:vmid/stop": {
+      "post": {
+        "description": "Stop LXC container by node and vmid",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox"
+        ],
+        "summary": "Stop LXC container",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "lxcStop",
+        "operationId": "lxcStop"
+      }
+    },
+    "/proxmox/stats/{node}": {
+      "get": {
+        "description": "Get proxmox node stats in json",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get proxmox node stats",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats output",
+            "schema": {
+              "$ref": "#/definitions/proxmox.NodeStats"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "nodeStats",
+        "operationId": "nodeStats"
+      }
+    },
+    "/proxmox/stats/{node}/{vmid}": {
+      "get": {
+        "description": "Get proxmox VM stats in format of \"STATUS|CPU%%|MEM USAGE/LIMIT|MEM%%|NET I/O|BLOCK I/O\"",
+        "produces": [
+          "text/plain"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get proxmox VM stats",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "name": "vmid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "vmStats",
+        "operationId": "vmStats"
+      }
+    },
+    "/proxmox/tail": {
+      "get": {
+        "description": "Get tail output for node or LXC container. If vmid is not provided, streams node tail.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "proxmox",
+          "websocket"
+        ],
+        "summary": "Get tail output",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "description": "File paths",
+            "name": "file",
+            "in": "query",
+            "required": true
+          },
+          {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer",
+            "default": 100,
+            "description": "Limit output lines (1-1000)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Node name",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "description": "Container VMID (optional - if not provided, streams node journalctl)",
+            "name": "vmid",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tail output",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "tail",
+        "operationId": "tail"
+      }
+    },
     "/reload": {
       "post": {
         "description": "Reload config",
@@ -2708,6 +3513,118 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "ContainerStatsResponse": {
+      "type": "object",
+      "properties": {
+        "blkio_stats": {
+          "description": "BlkioStats stores all IO service stats for data read and write.\n\nThis type is Linux-specific and holds many fields that are specific\nto cgroups v1.\n\nOn a cgroup v2 host, all fields other than \"io_service_bytes_recursive\"\nare omitted or \"null\".\n\nThis type is only populated on Linux and omitted for Windows containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.BlkioStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cpu_stats": {
+          "description": "CPUStats contains CPU related info of the container.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "id": {
+          "description": "ID is the ID of the container for which the stats were collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "memory_stats": {
+          "description": "MemoryStats aggregates all memory stats since container inception on Linux.\nWindows returns stats for commit and private working set only.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.MemoryStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "description": "Name is the name of the container for which the stats were collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "networks": {
+          "description": "Networks contains Nntwork statistics for the container per interface.\n\nThis field is omitted if the container has no networking enabled.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/container.NetworkStats"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "num_procs": {
+          "description": "NumProcs is the number of processors on the system.\n\nThis field is Windows-specific and always zero for Linux containers.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "os_type": {
+          "description": "OSType is the OS of the container (\"linux\" or \"windows\") to allow\nplatform-specific handling of stats.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pids_stats": {
+          "description": "PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).\n\nThis field is Linux-specific and omitted for Windows containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.PidsStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "precpu_stats": {
+          "description": "PreCPUStats contains the CPUStats of the previous sample.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "preread": {
+          "description": "PreRead is the date and time at which this first sample was collected.\nThis field is not propagated if the \"one-shot\" option is set. If the\n\"one-shot\" option is set, this field may be omitted, empty, or set\nto a default date (`0001-01-01T00:00:00Z`).",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read": {
+          "description": "Read is the date and time at which this sample was collected.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "storage_stats": {
+          "description": "StorageStats is the disk I/O stats for read/write on Windows.\n\nThis type is Windows-specific and omitted for Linux containers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.StorageStats"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "ContainerStopMethod": {
       "type": "string",
       "enum": [
@@ -2720,33 +3637,6 @@
         "ContainerStopMethodStop",
         "ContainerStopMethodKill"
       ],
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "DockerConfig": {
-      "type": "object",
-      "required": [
-        "container_id",
-        "container_name",
-        "docker_cfg"
-      ],
-      "properties": {
-        "container_id": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "container_name": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "docker_cfg": {
-          "$ref": "#/definitions/DockerProviderConfig",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -3498,7 +4388,7 @@
           "x-omitempty": false
         },
         "docker": {
-          "$ref": "#/definitions/DockerConfig",
+          "$ref": "#/definitions/IdlewatcherDockerConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3518,7 +4408,7 @@
           "x-omitempty": false
         },
         "proxmox": {
-          "$ref": "#/definitions/ProxmoxConfig",
+          "$ref": "#/definitions/IdlewatcherProxmoxNodeConfig",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3545,6 +4435,54 @@
         },
         "wake_timeout": {
           "$ref": "#/definitions/time.Duration",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherDockerConfig": {
+      "type": "object",
+      "required": [
+        "container_id",
+        "container_name",
+        "docker_cfg"
+      ],
+      "properties": {
+        "container_id": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "container_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "docker_cfg": {
+          "$ref": "#/definitions/DockerProviderConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherProxmoxNodeConfig": {
+      "type": "object",
+      "required": [
+        "node",
+        "vmid"
+      ],
+      "properties": {
+        "node": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "vmid": {
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -4137,20 +5075,38 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "ProxmoxConfig": {
+    "ProxmoxNodeConfig": {
       "type": "object",
-      "required": [
-        "node",
-        "vmid"
-      ],
       "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "node": {
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "vmid": {
+          "description": "unset: auto discover; explicit 0: node-level route; >0: lxc/qemu resource route",
           "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "vmname": {
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -4191,12 +5147,6 @@
     "RequestLoggerConfig": {
       "type": "object",
       "properties": {
-        "buffer_size": {
-          "description": "Deprecated: buffer size is adjusted dynamically",
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "fields": {
           "$ref": "#/definitions/accesslog.Fields",
           "x-nullable": false,
@@ -4372,6 +5322,14 @@
         "provider": {
           "description": "for backward compatibility",
           "type": "string",
+          "x-nullable": true
+        },
+        "proxmox": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProxmoxNodeConfig"
+            }
+          ],
           "x-nullable": true
         },
         "purl": {
@@ -4584,11 +5542,6 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "display_name": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "downtime": {
           "type": "number",
           "x-nullable": false,
@@ -4596,16 +5549,6 @@
         },
         "idle": {
           "type": "number",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_docker": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_excluded": {
-          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -5035,6 +5978,178 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "container.BlkioStatEntry": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "minor": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "op": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "value": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.BlkioStats": {
+      "type": "object",
+      "properties": {
+        "io_merged_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_queue_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_service_bytes_recursive": {
+          "description": "number of bytes transferred to and from the block device",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_service_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_serviced_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "io_wait_time_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "sectors_recursive": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/container.BlkioStatEntry"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.CPUStats": {
+      "type": "object",
+      "properties": {
+        "cpu_usage": {
+          "description": "CPU Usage. Linux and Windows.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.CPUUsage"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "online_cpus": {
+          "description": "Online CPUs. Linux only.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "system_cpu_usage": {
+          "description": "System Usage. Linux only.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttling_data": {
+          "description": "Throttling Data. Linux only.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/container.ThrottlingData"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.CPUUsage": {
+      "type": "object",
+      "properties": {
+        "percpu_usage": {
+          "description": "Total CPU time consumed per core (Linux). Not used on Windows.\nUnits: nanoseconds.",
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "total_usage": {
+          "description": "Total CPU time consumed.\nUnits: nanoseconds (Linux)\nUnits: 100's of nanoseconds (Windows)",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage_in_kernelmode": {
+          "description": "Time spent by tasks of the cgroup in kernel mode (Linux).\nTime spent by all container processes in kernel mode (Windows).\nUnits: nanoseconds (Linux).\nUnits: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage_in_usermode": {
+          "description": "Time spent by tasks of the cgroup in user mode (Linux).\nTime spent by all container processes in user mode (Windows).\nUnits: nanoseconds (Linux).\nUnits: 100's of nanoseconds (Windows). Not populated for Hyper-V Containers",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "container.ContainerState": {
       "type": "string",
       "enum": [
@@ -5076,6 +6191,150 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "container.MemoryStats": {
+      "type": "object",
+      "properties": {
+        "commitbytes": {
+          "description": "committed bytes",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "commitpeakbytes": {
+          "description": "peak committed bytes",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "failcnt": {
+          "description": "number of times memory usage hits limits.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "limit": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "max_usage": {
+          "description": "maximum usage ever recorded.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "privateworkingset": {
+          "description": "private working set",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "stats": {
+          "description": "TODO(vishh): Export these as stronger types.\nall the stats exported via memory.stat.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "usage": {
+          "description": "current res_counter usage for memory",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.NetworkStats": {
+      "type": "object",
+      "properties": {
+        "endpoint_id": {
+          "description": "Endpoint ID. Not used on Linux.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "instance_id": {
+          "description": "Instance ID. Not used on Linux.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_bytes": {
+          "description": "Bytes received. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_dropped": {
+          "description": "Incoming packets dropped. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_errors": {
+          "description": "Received errors. Not used on Windows. Note that we don't `omitempty` this\nfield as it is expected in the >=v1.21 API stats structure.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rx_packets": {
+          "description": "Packets received. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_bytes": {
+          "description": "Bytes sent. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_dropped": {
+          "description": "Outgoing packets dropped. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_errors": {
+          "description": "Sent errors. Not used on Windows. Note that we don't `omitempty` this\nfield as it is expected in the >=v1.21 API stats structure.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "tx_packets": {
+          "description": "Packets sent. Windows and Linux.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.PidsStats": {
+      "type": "object",
+      "properties": {
+        "current": {
+          "description": "Current is the number of pids in the cgroup",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "limit": {
+          "description": "Limit is the hard limit on the number of pids in the cgroup.\nA \"Limit\" of 0 means that there is no limit.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "container.PortSummary": {
       "type": "object",
       "properties": {
@@ -5104,6 +6363,58 @@
         "Type": {
           "description": "type\nRequired: true\nEnum: [\"tcp\",\"udp\",\"sctp\"]",
           "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.StorageStats": {
+      "type": "object",
+      "properties": {
+        "read_count_normalized": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "read_size_bytes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_count_normalized": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "write_size_bytes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "container.ThrottlingData": {
+      "type": "object",
+      "properties": {
+        "periods": {
+          "description": "Number of periods with throttling active",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttled_periods": {
+          "description": "Number of periods when the container hits its throttling limit.",
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "throttled_time": {
+          "description": "Aggregate time the container was throttled for in nanoseconds.",
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -5357,6 +6668,83 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "proxmox.NodeStats": {
+      "type": "object",
+      "properties": {
+        "cpu_model": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "cpu_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "kernel_version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_15m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_1m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "load_avg_5m": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_pct": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_total": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "mem_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "pve_version": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_pct": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_total": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "rootfs_usage": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "uptime": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "route.Route": {
       "type": "object",
       "properties": {
@@ -5488,6 +6876,14 @@
         "provider": {
           "description": "for backward compatibility",
           "type": "string",
+          "x-nullable": true
+        },
+        "proxmox": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProxmoxNodeConfig"
+            }
+          ],
           "x-nullable": true
         },
         "purl": {

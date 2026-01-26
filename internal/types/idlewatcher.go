@@ -41,11 +41,11 @@ type (
 		DockerCfg     DockerProviderConfig `json:"docker_cfg" validate:"required"`
 		ContainerID   string               `json:"container_id" validate:"required"`
 		ContainerName string               `json:"container_name" validate:"required"`
-	} // @name DockerConfig
+	} // @name IdlewatcherDockerConfig
 	ProxmoxConfig struct {
 		Node string `json:"node" validate:"required"`
 		VMID int    `json:"vmid" validate:"required"`
-	} // @name ProxmoxConfig
+	} // @name IdlewatcherProxmoxNodeConfig
 )
 
 const (

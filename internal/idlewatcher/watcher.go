@@ -173,7 +173,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 
 		if !ok {
-			depRoute, ok = routes.Get(dep)
+			depRoute, ok = routes.GetIncludeExcluded(dep)
 			if !ok {
 				depErrors.Addf("dependency %q not found", dep)
 				continue
@@ -612,10 +612,6 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 				if ready {
 					// Container is now ready, notify waiting handlers
 					w.healthTicker.Stop()
-					select {
-					case w.readyNotifyCh <- struct{}{}:
-					default: // channel full, notification already pending
-					}
 					w.resetIdleTimer()
 				}
 				// If not ready yet, keep checking on next tick

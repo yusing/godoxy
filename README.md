@@ -33,6 +33,10 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
 - [How does GoDoxy work](#how-does-godoxy-work)
+- [Proxmox Integration](#proxmox-integration)
+  - [Automatic Route Binding](#automatic-route-binding)
+  - [WebUI Management](#webui-management)
+  - [API Endpoints](#api-endpoints)
 - [Update / Uninstall system agent](#update--uninstall-system-agent)
 - [Screenshots](#screenshots)
   - [idlesleeper](#idlesleeper)
@@ -67,7 +71,11 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
   - Podman
 - **Idle-sleep**: stop and wake containers based on traffic _(see [screenshots](#idlesleeper))_
   - Docker containers
-  - Proxmox LXCs
+  - Proxmox LXC containers
+- **Proxmox Integration**
+  - **Automatic route binding**: Routes automatically bind to Proxmox nodes or LXC containers by matching hostname, IP, or alias
+  - **LXC lifecycle control**: Start, stop, restart containers directly from WebUI
+  - **Real-time logs**: Stream journalctl logs from nodes and LXC containers via WebSocket
 - **Traffic Management**
   - HTTP reserve proxy
   - TCP/UDP port forwarding
@@ -80,7 +88,12 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
   - App Dashboard
   - Config Editor
   - Uptime and System Metrics
-  - Docker Logs Viewer
+  - **Docker**
+    - Container lifecycle management (start, stop, restart)
+    - Real-time container logs via WebSocket
+  - **Proxmox**
+    - LXC container lifecycle management (start, stop, restart)
+    - Real-time node and LXC journalctl logs via WebSocket
 - **Cross-Platform support**
   - Supports **linux/amd64** and **linux/arm64**
 - **Efficient and Performant**
@@ -127,6 +140,50 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 > GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
 >
 > For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
+
+## Proxmox Integration
+
+GoDoxy can automatically discover and manage Proxmox nodes and LXC containers through configured providers.
+
+### Automatic Route Binding
+
+Routes are automatically linked to Proxmox resources through reverse lookup:
+
+1. **Node-level routes** (VMID = 0): When hostname, IP, or alias matches a Proxmox node name or IP
+2. **Container-level routes** (VMID > 0): When hostname, IP, or alias matches an LXC container
+
+This enables seamless proxy configuration without manual binding:
+
+```yaml
+routes:
+  pve-node-01:
+    host: pve-node-01.internal
+    port: 8006
+    # Automatically links to Proxmox node pve-node-01
+```
+
+### WebUI Management
+
+From the WebUI, you can:
+
+- **LXC Lifecycle Control**: Start, stop, restart containers
+- **Node Logs**: Stream real-time journalctl output from nodes
+- **LXC Logs**: Stream real-time journalctl output from containers
+
+### API Endpoints
+
+```http
+# Node journalctl (WebSocket)
+GET /api/v1/proxmox/journalctl/:node
+
+# LXC journalctl (WebSocket)
+GET /api/v1/proxmox/journalctl/:node/:vmid
+
+# LXC lifecycle control
+POST /api/v1/proxmox/lxc/:node/:vmid/start
+POST /api/v1/proxmox/lxc/:node/:vmid/stop
+POST /api/v1/proxmox/lxc/:node/:vmid/restart
+```
 
 ## Update / Uninstall system agent
 

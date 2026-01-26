@@ -26,6 +26,10 @@ const proxmoxStateCheckInterval = 1 * time.Second
 var ErrNodeNotFound = gperr.New("node not found in pool")
 
 func NewProxmoxProvider(ctx context.Context, nodeName string, vmid int) (idlewatcher.Provider, error) {
+	if nodeName == "" || vmid == 0 {
+		return nil, gperr.New("node name and vmid are required")
+	}
+
 	node, ok := proxmox.Nodes.Get(nodeName)
 	if !ok {
 		return nil, ErrNodeNotFound.Subject(nodeName).

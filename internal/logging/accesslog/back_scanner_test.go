@@ -1,15 +1,17 @@
 package accesslog
 
 import (
+	"bytes"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
-	expect "github.com/yusing/goutils/testing"
 
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
@@ -135,88 +137,40 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 	}
 }
 
-func logEntry() []byte {
+var logEntry = func() func() []byte {
 	accesslog := NewMockAccessLogger(task.RootTask("test", false), &RequestLoggerConfig{
 		Format: FormatJSON,
 	})
+
+	contentTypes := []string{"application/json", "text/html", "text/plain", "application/xml", "application/x-www-form-urlencoded"}
+	userAgents := []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/120.0", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/120.0", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/120.0"}
+	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"}
+	paths := []string{"/", "/about", "/contact", "/login", "/logout", "/register", "/profile"}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("hello"))
+		allocSize := rand.IntN(8192)
+		w.Header().Set("Content-Type", contentTypes[rand.IntN(len(contentTypes))])
+		w.Header().Set("Content-Length", strconv.Itoa(allocSize))
+		w.WriteHeader(http.StatusOK)
 	}))
 	srv.URL = "http://localhost:8080"
-	defer srv.Close()
-	// make a request to the server
-	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	res := httptest.NewRecorder()
-	// server the request
-	srv.Config.Handler.ServeHTTP(res, req)
-	b := accesslog.(RequestFormatter).AppendRequestLog(nil, req, res.Result())
-	if b[len(b)-1] != '\n' {
-		b = append(b, '\n')
-	}
-	return b
-}
 
-func TestReset(t *testing.T) {
-	file, err := afero.TempFile(afero.NewOsFs(), "", "accesslog")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
+	return func() []byte {
+		// make a request to the server
+		req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
+		res := httptest.NewRecorder()
+		req.Header.Set("User-Agent", userAgents[rand.IntN(len(userAgents))])
+		req.Method = methods[rand.IntN(len(methods))]
+		req.URL.Path = paths[rand.IntN(len(paths))]
+		// server the request
+		srv.Config.Handler.ServeHTTP(res, req)
+		b := bytes.NewBuffer(make([]byte, 0, 1024))
+		accesslog.(RequestFormatter).AppendRequestLog(b, req, res.Result())
+		return b.Bytes()
 	}
-	defer os.Remove(file.Name())
-	line := logEntry()
-	nLines := 1000
-	for range nLines {
-		_, err := file.Write(line)
-		if err != nil {
-			t.Fatalf("failed to write to temp file: %v", err)
-		}
-	}
-	linesRead := 0
-	stat, _ := file.Stat()
-	s := NewBackScanner(file, stat.Size(), defaultChunkSize)
-	for s.Scan() {
-		linesRead++
-	}
-	if err := s.Err(); err != nil {
-		t.Errorf("scanner error: %v", err)
-	}
-	expect.Equal(t, linesRead, nLines)
-	err = s.Reset()
-	if err != nil {
-		t.Errorf("failed to reset scanner: %v", err)
-	}
-
-	linesRead = 0
-	for s.Scan() {
-		linesRead++
-	}
-	if err := s.Err(); err != nil {
-		t.Errorf("scanner error: %v", err)
-	}
-	expect.Equal(t, linesRead, nLines)
-}
+}()
 
 // 100000 log entries.
-func BenchmarkBackScanner(b *testing.B) {
-	mockFile := NewMockFile(false)
-	line := logEntry()
-	for range 100000 {
-		_, _ = mockFile.Write(line)
-	}
-	for i := range 14 {
-		chunkSize := (2 << i) * kilobyte
-		scanner := NewBackScanner(mockFile, mockFile.MustSize(), chunkSize)
-		name := strutils.FormatByteSize(chunkSize)
-		b.ResetTimer()
-		b.Run(name, func(b *testing.B) {
-			for b.Loop() {
-				_ = scanner.Reset()
-				for scanner.Scan() {
-				}
-			}
-		})
-	}
-}
-
 func BenchmarkBackScannerRealFile(b *testing.B) {
 	file, err := afero.TempFile(afero.NewOsFs(), "", "accesslog")
 	if err != nil {
@@ -224,51 +178,58 @@ func BenchmarkBackScannerRealFile(b *testing.B) {
 	}
 	defer os.Remove(file.Name())
 
-	for range 10000 {
-		_, err = file.Write(logEntry())
-		if err != nil {
-			b.Fatalf("failed to write to temp file: %v", err)
-		}
+	buf := bytes.NewBuffer(nil)
+	for range 100000 {
+		buf.Write(logEntry())
 	}
 
-	stat, _ := file.Stat()
-	scanner := NewBackScanner(file, stat.Size(), 256*kilobyte)
-	b.ResetTimer()
-	for scanner.Scan() {
+	fSize := int64(buf.Len())
+	_, err = file.Write(buf.Bytes())
+	if err != nil {
+		b.Fatalf("failed to write to file: %v", err)
 	}
-	if err := scanner.Err(); err != nil {
-		b.Errorf("scanner error: %v", err)
+
+	// file position does not matter, Seek not needed
+
+	for i := range 12 {
+		chunkSize := (2 << i) * kilobyte
+		name := strutils.FormatByteSize(chunkSize)
+		b.ResetTimer()
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				scanner := NewBackScanner(file, fSize, chunkSize)
+				for scanner.Scan() {
+				}
+				scanner.Release()
+			}
+		})
 	}
 }
 
 /*
-BenchmarkBackScanner
-BenchmarkBackScanner/2_KiB
-BenchmarkBackScanner/2_KiB-20         	      52	  23254071 ns/op	67596663 B/op	   26420 allocs/op
-BenchmarkBackScanner/4_KiB
-BenchmarkBackScanner/4_KiB-20         	      55	  20961059 ns/op	62529378 B/op	   13211 allocs/op
-BenchmarkBackScanner/8_KiB
-BenchmarkBackScanner/8_KiB-20         	      64	  18242460 ns/op	62951141 B/op	    6608 allocs/op
-BenchmarkBackScanner/16_KiB
-BenchmarkBackScanner/16_KiB-20        	      52	  20162076 ns/op	62940256 B/op	    3306 allocs/op
-BenchmarkBackScanner/32_KiB
-BenchmarkBackScanner/32_KiB-20        	      54	  19247968 ns/op	67553645 B/op	    1656 allocs/op
-BenchmarkBackScanner/64_KiB
-BenchmarkBackScanner/64_KiB-20        	      60	  20909046 ns/op	64053342 B/op	     827 allocs/op
-BenchmarkBackScanner/128_KiB
-BenchmarkBackScanner/128_KiB-20       	      68	  17759890 ns/op	62201945 B/op	     414 allocs/op
-BenchmarkBackScanner/256_KiB
-BenchmarkBackScanner/256_KiB-20       	      52	  19531877 ns/op	61030487 B/op	     208 allocs/op
-BenchmarkBackScanner/512_KiB
-BenchmarkBackScanner/512_KiB-20       	      54	  19124656 ns/op	61030485 B/op	     208 allocs/op
-BenchmarkBackScanner/1_MiB
-BenchmarkBackScanner/1_MiB-20         	      67	  17078936 ns/op	61030495 B/op	     208 allocs/op
-BenchmarkBackScanner/2_MiB
-BenchmarkBackScanner/2_MiB-20         	      66	  18467421 ns/op	61030492 B/op	     208 allocs/op
-BenchmarkBackScanner/4_MiB
-BenchmarkBackScanner/4_MiB-20         	      68	  17214573 ns/op	61030486 B/op	     208 allocs/op
-BenchmarkBackScanner/8_MiB
-BenchmarkBackScanner/8_MiB-20         	      57	  18235229 ns/op	61030492 B/op	     208 allocs/op
-BenchmarkBackScanner/16_MiB
-BenchmarkBackScanner/16_MiB-20        	      57	  19343441 ns/op	61030499 B/op	     208 allocs/op
+BenchmarkBackScannerRealFile
+BenchmarkBackScannerRealFile/2_KiB
+BenchmarkBackScannerRealFile/2_KiB-10                 21          51796773 ns/op             619 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/4_KiB
+BenchmarkBackScannerRealFile/4_KiB-10                 36          32081281 ns/op             699 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/8_KiB
+BenchmarkBackScannerRealFile/8_KiB-10                 57          22155619 ns/op             847 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/16_KiB
+BenchmarkBackScannerRealFile/16_KiB-10                62          21323125 ns/op            1449 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/32_KiB
+BenchmarkBackScannerRealFile/32_KiB-10                63          17534883 ns/op            2729 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/64_KiB
+BenchmarkBackScannerRealFile/64_KiB-10                73          17877029 ns/op            4617 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/128_KiB
+BenchmarkBackScannerRealFile/128_KiB-10               75          17797267 ns/op            8866 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/256_KiB
+BenchmarkBackScannerRealFile/256_KiB-10               67          16732108 ns/op           19691 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/512_KiB
+BenchmarkBackScannerRealFile/512_KiB-10               70          17121683 ns/op           37577 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/1_MiB
+BenchmarkBackScannerRealFile/1_MiB-10                 51          19615791 ns/op          102930 B/op          1 allocs/op
+BenchmarkBackScannerRealFile/2_MiB
+BenchmarkBackScannerRealFile/2_MiB-10                 26          41744928 ns/op        77595287 B/op         57 allocs/op
+BenchmarkBackScannerRealFile/4_MiB
+BenchmarkBackScannerRealFile/4_MiB-10                 22          48081521 ns/op        79692224 B/op         49 allocs/op
 */

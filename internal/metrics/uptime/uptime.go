@@ -27,13 +27,10 @@ type (
 	RouteStatuses  map[string][]Status // @name RouteStatuses
 	RouteAggregate struct {
 		Alias         string             `json:"alias"`
-		DisplayName   string             `json:"display_name"`
 		Uptime        float32            `json:"uptime"`
 		Downtime      float32            `json:"downtime"`
 		Idle          float32            `json:"idle"`
 		AvgLatency    float32            `json:"avg_latency"`
-		IsDocker      bool               `json:"is_docker"`
-		IsExcluded    bool               `json:"is_excluded"`
 		CurrentStatus types.HealthStatus `json:"current_status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
 		Statuses      []Status           `json:"statuses"`
 	} // @name RouteUptimeAggregate
@@ -129,18 +126,9 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		statuses := rs[alias]
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
-		displayName := alias
-		r, ok := routes.Get(alias)
-		if !ok {
-			// also search for excluded routes
-			r, ok = routes.Excluded.Get(alias)
-		}
-		if r != nil {
-			displayName = r.DisplayName()
-		}
-
 		status := types.StatusUnknown
-		if r != nil {
+		r, ok := routes.GetIncludeExcluded(alias)
+		if ok {
 			mon := r.HealthMonitor()
 			if mon != nil {
 				status = mon.Status()
@@ -149,15 +137,12 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 
 		result[i] = RouteAggregate{
 			Alias:         alias,
-			DisplayName:   displayName,
 			Uptime:        up,
 			Downtime:      down,
 			Idle:          idle,
 			AvgLatency:    latency,
 			CurrentStatus: status,
 			Statuses:      statuses,
-			IsDocker:      r != nil && r.IsDocker(),
-			IsExcluded:    r == nil || r.ShouldExclude(),
 		}
 	}
 	return result

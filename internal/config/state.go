@@ -28,7 +28,6 @@ import (
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
 	route "github.com/yusing/godoxy/internal/route/provider"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -74,7 +73,6 @@ func SetState(state config.State) {
 
 	cfg := state.Value()
 	config.ActiveState.Store(state)
-	acl.ActiveConfig.Store(cfg.ACL)
 	entrypoint.ActiveConfig.Store(&cfg.Entrypoint)
 	homepage.ActiveConfig.Store(&cfg.Homepage)
 	if autocertProvider := state.AutoCertProvider(); autocertProvider != nil {
@@ -113,14 +111,14 @@ func (state *state) Init(data []byte) error {
 	g := gperr.NewGroup("config load error")
 	g.Go(state.initMaxMind)
 	g.Go(state.initProxmox)
-	g.Go(state.loadRouteProviders)
 	g.Go(state.initAutoCert)
 
 	errs := g.Wait()
 	// these won't benefit from running on goroutines
 	errs.Add(state.initNotification())
-	errs.Add(state.initAccessLogger())
+	errs.Add(state.initACL())
 	errs.Add(state.initEntrypoint())
+	errs.Add(state.loadRouteProviders())
 	return errs.Error()
 }
 
@@ -192,12 +190,17 @@ func (state *state) FlushTmpLog() {
 	state.tmpLogBuf.Reset()
 }
 
-// this one is connection level access logger, different from entrypoint access logger
-func (state *state) initAccessLogger() error {
+// initACL initializes the ACL.
+func (state *state) initACL() error {
 	if !state.ACL.Valid() {
 		return nil
 	}
-	return state.ACL.Start(state.task)
+	err := state.ACL.Start(state.task)
+	if err != nil {
+		return err
+	}
+	state.task.SetValue(acl.ContextKey{}, state.ACL)
+	return nil
 }
 
 func (state *state) initEntrypoint() error {
@@ -314,75 +317,49 @@ func (state *state) initProxmox() error {
 	return errs.Wait().Error()
 }
 
-func (state *state) storeProvider(p types.RouteProvider) {
-	state.providers.Store(p.String(), p)
-}
-
 func (state *state) loadRouteProviders() error {
-	// disable pool logging temporary since we will have pretty logging below
-	routes.HTTP.ToggleLog(false)
-	routes.Stream.ToggleLog(false)
-
-	defer func() {
-		routes.HTTP.ToggleLog(true)
-		routes.Stream.ToggleLog(true)
-	}()
-
-	providers := &state.Providers
+	providers := state.Providers
 	errs := gperr.NewGroup("route provider errors")
-	results := gperr.NewGroup("loaded route providers")
 
 	agentpool.RemoveAll()
 
-	numProviders := len(providers.Agents) + len(providers.Files) + len(providers.Docker)
-	providersCh := make(chan types.RouteProvider, numProviders)
-
-	// start providers concurrently
-	var providersConsumer sync.WaitGroup
-	providersConsumer.Go(func() {
-		for p := range providersCh {
-			if actual, loaded := state.providers.LoadOrStore(p.String(), p); loaded {
-				errs.Add(gperr.Errorf("provider %s already exists, first: %s, second: %s", p.String(), actual.GetType(), p.GetType()))
-				continue
-			}
-			state.storeProvider(p)
+	registerProvider := func(p types.RouteProvider) {
+		if actual, loaded := state.providers.LoadOrStore(p.String(), p); loaded {
+			errs.Addf("provider %s already exists, first: %s, second: %s", p.String(), actual.GetType(), p.GetType())
 		}
-	})
+	}
 
-	var providersProducer sync.WaitGroup
+	agentErrs := gperr.NewGroup("agent init errors")
 	for _, a := range providers.Agents {
-		providersProducer.Go(func() {
+		agentErrs.Go(func() error {
 			if err := a.Init(state.task.Context()); err != nil {
-				errs.Add(gperr.PrependSubject(a.String(), err))
-				return
+				return gperr.PrependSubject(a.String(), err)
 			}
 			agentpool.Add(a)
-			p := route.NewAgentProvider(a)
-			providersCh <- p
+			return nil
 		})
+	}
+
+	if err := agentErrs.Wait().Error(); err != nil {
+		errs.Add(err)
+	}
+
+	for _, a := range providers.Agents {
+		registerProvider(route.NewAgentProvider(a))
 	}
 
 	for _, filename := range providers.Files {
-		providersProducer.Go(func() {
-			p, err := route.NewFileProvider(filename)
-			if err != nil {
-				errs.Add(gperr.PrependSubject(filename, err))
-			} else {
-				providersCh <- p
-			}
-		})
+		p, err := route.NewFileProvider(filename)
+		if err != nil {
+			errs.Add(gperr.PrependSubject(filename, err))
+			return err
+		}
+		registerProvider(p)
 	}
 
 	for name, dockerCfg := range providers.Docker {
-		providersProducer.Go(func() {
-			providersCh <- route.NewDockerProvider(name, dockerCfg)
-		})
+		registerProvider(route.NewDockerProvider(name, dockerCfg))
 	}
-
-	providersProducer.Wait()
-
-	close(providersCh)
-	providersConsumer.Wait()
 
 	lenLongestName := 0
 	for k := range state.providers.Range {
@@ -392,18 +369,26 @@ func (state *state) loadRouteProviders() error {
 	}
 
 	// load routes concurrently
-	var providersLoader sync.WaitGroup
+	loadErrs := gperr.NewGroup("route load errors")
+
+	results := gperr.NewBuilder("loaded route providers")
+	resultsMu := sync.Mutex{}
 	for _, p := range state.providers.Range {
-		providersLoader.Go(func() {
+		loadErrs.Go(func() error {
 			if err := p.LoadRoutes(); err != nil {
-				errs.Add(err.Subject(p.String()))
+				return err.Subject(p.String())
 			}
+			resultsMu.Lock()
 			results.Addf("%-"+strconv.Itoa(lenLongestName)+"s %d routes", p.String(), p.NumRoutes())
+			resultsMu.Unlock()
+			return nil
 		})
 	}
-	providersLoader.Wait()
+	if err := loadErrs.Wait().Error(); err != nil {
+		errs.Add(err)
+	}
 
-	state.tmpLog.Info().Msg(results.Wait().String())
+	state.tmpLog.Info().Msg(results.String())
 	state.printRoutesByProvider(lenLongestName)
 	state.printState()
 	return errs.Wait().Error()

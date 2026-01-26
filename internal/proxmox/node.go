@@ -6,17 +6,35 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/luthermonson/go-proxmox"
 	"github.com/yusing/goutils/pool"
 )
+
+type NodeConfig struct {
+	Node     string   `json:"node"`
+	VMID     *int     `json:"vmid"` // unset: auto discover; explicit 0: node-level route; >0: lxc/qemu resource route
+	VMName   string   `json:"vmname,omitempty"`
+	Services []string `json:"services,omitempty" aliases:"service"`
+	Files    []string `json:"files,omitempty" aliases:"file"`
+} // @name ProxmoxNodeConfig
 
 type Node struct {
 	name   string
 	id     string // likely node/<name>
-	client *proxmox.Client
+	client *Client
+
+	// statsScriptInitErrs *xsync.Map[int, error]
 }
 
 var Nodes = pool.New[*Node]("proxmox_nodes")
+
+func NewNode(client *Client, name, id string) *Node {
+	return &Node{
+		name:   name,
+		id:     id,
+		client: client,
+		// statsScriptInitErrs: xsync.NewMap[int, error](xsync.WithGrowOnly()),
+	}
+}
 
 func AvailableNodeNames() string {
 	if Nodes.Size() == 0 {
@@ -36,6 +54,10 @@ func (n *Node) Key() string {
 
 func (n *Node) Name() string {
 	return n.name
+}
+
+func (n *Node) Client() *Client {
+	return n.client
 }
 
 func (n *Node) String() string {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moby/moby/api/pkg/stdcopy"
@@ -22,6 +23,7 @@ type LogsQueryParams struct {
 	Since  string `form:"from"`
 	Until  string `form:"to"`
 	Levels string `form:"levels"`
+	Limit  int    `form:"limit,default=100" binding:"min=1,max=1000"`
 } //	@name	LogsQueryParams
 
 // @x-id				"logs"
@@ -34,9 +36,10 @@ type LogsQueryParams struct {
 // @Param			id	path	string	true	"container id"
 // @Param			stdout		query	bool	false	"show stdout"
 // @Param			stderr		query	bool	false	"show stderr"
-// @Param			from		query	string	false	"from timestamp"
-// @Param			to			query	string	false	"to timestamp"
+// @Param			from		  query	string	false	"from timestamp"
+// @Param			to			  query	string	false	"to timestamp"
 // @Param			levels		query	string	false	"levels"
+// @Param			limit		  query	int	false	"limit"
 // @Success		200
 // @Failure		400	{object}	apitypes.ErrorResponse
 // @Failure		403	{object}	apitypes.ErrorResponse
@@ -77,7 +80,7 @@ func Logs(c *gin.Context) {
 		Until:      queryParams.Until,
 		Timestamps: true,
 		Follow:     true,
-		Tail:       "100",
+		Tail:       strconv.Itoa(queryParams.Limit),
 	}
 	if queryParams.Levels != "" {
 		opts.Details = true

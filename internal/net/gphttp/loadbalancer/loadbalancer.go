@@ -33,7 +33,7 @@ type (
 
 		task *task.Task
 
-		pool   pool.Pool[types.LoadBalancerServer]
+		pool   *pool.Pool[types.LoadBalancerServer]
 		poolMu sync.Mutex
 
 		sumWeight int

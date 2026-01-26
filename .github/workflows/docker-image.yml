@@ -45,10 +45,36 @@ jobs:
       attestations: write
 
     steps:
+      - name: Checkout (for tag resolution)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Prepare
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Compute VERSION for build
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            version="${GITHUB_REF_NAME}"
+            cache_variant="release"
+          elif [ "${GITHUB_REF_NAME}" = "main" ] || [ "${GITHUB_REF_NAME}" = "compat" ]; then
+            git fetch --tags origin main
+            version="$(git describe --tags --abbrev=0 origin/main 2>/dev/null || git describe --tags --abbrev=0 main 2>/dev/null || echo v0.0.0)"
+            cache_variant="${GITHUB_REF_NAME}"
+          else
+            version="v$(date -u +'%Y%m%d-%H%M')"
+            cache_variant="nightly"
+          fi
+          echo "VERSION_FOR_BUILD=$version" >> $GITHUB_ENV
+          echo "CACHE_VARIANT=$cache_variant" >> $GITHUB_ENV
+          if [ "${GITHUB_REF_TYPE}" = "branch" ]; then
+            echo "BRANCH_FOR_BUILD=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          else
+            echo "BRANCH_FOR_BUILD=" >> $GITHUB_ENV
+          fi
 
       - name: Docker meta
         id: meta
@@ -80,14 +106,15 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ inputs.image_name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.PLATFORM_PAIR }}
-          # type=gha,scope=${{ github.workflow }}-${{ env.PLATFORM_PAIR }}
+            type=gha,scope=${{ github.workflow }}-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }}
           cache-to: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
-          # type=gha,scope=${{ github.workflow }}-${{ env.PLATFORM_PAIR }},mode=max
+            type=gha,scope=${{ github.workflow }}-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }},mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }},mode=max
           build-args: |
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ env.VERSION_FOR_BUILD }}
             MAKE_ARGS=${{ env.MAKE_ARGS }}
+            BRANCH=${{ env.BRANCH_FOR_BUILD }}
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1

@@ -36,7 +36,7 @@ type (
 		Docker       map[string]types.DockerProviderConfig `json:"docker" yaml:"docker,omitempty" validate:"non_empty_docker_keys"`
 		Agents       []*agent.AgentConfig                  `json:"agents" yaml:"agents,omitempty"`
 		Notification []*notif.NotificationConfig           `json:"notification" yaml:"notification,omitempty"`
-		Proxmox      []proxmox.Config                      `json:"proxmox" yaml:"proxmox,omitempty"`
+		Proxmox      []*proxmox.Config                     `json:"proxmox" yaml:"proxmox,omitempty"`
 		MaxMind      *maxmind.Config                       `json:"maxmind" yaml:"maxmind,omitempty"`
 	}
 )

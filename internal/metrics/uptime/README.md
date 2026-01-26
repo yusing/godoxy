@@ -55,13 +55,10 @@ Individual route status at a point in time.
 ```go
 type RouteAggregate struct {
     Alias         string             `json:"alias"`
-    DisplayName   string             `json:"display_name"`
     Uptime        float32            `json:"uptime"`
     Downtime      float32            `json:"downtime"`
     Idle          float32            `json:"idle"`
     AvgLatency    float32            `json:"avg_latency"`
-    IsDocker      bool               `json:"is_docker"`
-    IsExcluded    bool               `json:"is_excluded"`
     CurrentStatus types.HealthStatus `json:"current_status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
     Statuses      []Status           `json:"statuses"`
 }
@@ -312,7 +309,7 @@ const ws = new WebSocket(
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   data.data.forEach((route) => {
-    console.log(`${route.display_name}: ${route.uptime * 100}% uptime`);
+    console.log(`${route.alias}: ${route.uptime * 100}% uptime`);
   });
 };
 ```
@@ -336,7 +333,7 @@ _, agg := uptime.aggregateStatuses(entries, url.Values{
 
 for _, route := range agg {
     fmt.Printf("%s: %.1f%% uptime, %.1fms avg latency\n",
-        route.DisplayName, route.Uptime*100, route.AvgLatency)
+        route.Alias, route.Uptime*100, route.AvgLatency)
 }
 ```
 
@@ -365,13 +362,10 @@ for _, route := range agg {
   "data": [
     {
       "alias": "api-server",
-      "display_name": "API Server",
       "uptime": 0.98,
       "downtime": 0.02,
       "idle": 0.0,
       "avg_latency": 45.5,
-      "is_docker": true,
-      "is_excluded": false,
       "current_status": "healthy",
       "statuses": [
         { "status": "healthy", "latency": 45, "timestamp": 1704892800 }

@@ -54,12 +54,6 @@ Returns all route providers as a map keyed by their short name. Thread-safe acce
 func RouteProviderList() []RouteProviderListResponse
 ```
 
-Returns a list of route providers with their short and full names. Useful for API responses.
-
-```go
-func SearchRoute(alias string) types.Route
-```
-
 Searches for a route by alias across all providers. Returns `nil` if not found.
 
 ```go
@@ -179,15 +173,6 @@ for shortName, provider := range providers {
 }
 ```
 
-### Searching for a route
-
-```go
-route := statequery.SearchRoute("my-service")
-if route != nil {
-    fmt.Printf("Found route: %s\n", route.Alias())
-}
-```
-
 ### Getting system statistics
 
 ```go
@@ -212,15 +197,5 @@ func handleGetStats(w http.ResponseWriter, r *http.Request) {
     stats := statequery.GetStatistics()
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(stats)
-}
-
-func handleFindRoute(w http.ResponseWriter, r *http.Request) {
-    alias := r.URL.Query().Get("alias")
-    route := statequery.SearchRoute(alias)
-    if route == nil {
-        http.NotFound(w, r)
-        return
-    }
-    json.NewEncoder(w).Encode(route)
 }
 ```
