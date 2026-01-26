@@ -13,6 +13,8 @@ var (
 	IsDebug = env.GetEnvBool("DEBUG", IsTest)
 	IsTrace = env.GetEnvBool("TRACE", false) && IsDebug
 
+	InitTimeout = env.GetEnvDuation("INIT_TIMEOUT", 1*time.Minute)
+
 	ShortLinkPrefix = env.GetEnvString("SHORTLINK_PREFIX", "go")
 
 	ProxyHTTPAddr,

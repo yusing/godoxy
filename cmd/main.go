@@ -38,7 +38,7 @@ func main() {
 		select {
 		case <-done:
 			return
-		case <-time.After(time.Second * 10):
+		case <-time.After(common.InitTimeout):
 			log.Fatal().Msgf("timeout waiting for initialization to complete, exiting...")
 		}
 	}()
