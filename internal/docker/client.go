@@ -152,7 +152,7 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 	if agent.IsDockerHostAgent(host) {
 		a, ok := agentpool.Get(host)
 		if !ok {
-			panic(fmt.Errorf("agent %q not found", host))
+			return nil, fmt.Errorf("agent %q not found", host)
 		}
 		opt = []client.Opt{
 			client.WithHost(agent.DockerHost),
