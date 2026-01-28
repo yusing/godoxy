@@ -39,12 +39,19 @@ func (n *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.Rea
 
 // LXCJournalctl streams journalctl output for the given service.
 //
+// On non systemd systems, it will tail /var/log/messages as fallback.
+//
 // If services are not empty, it will be used to filter the output by service.
 // If limit is greater than 0, it will be used to limit the number of lines of output.
 func (n *Node) LXCJournalctl(ctx context.Context, vmid int, services []string, limit int) (io.ReadCloser, error) {
 	command, err := formatJournalctl(services, limit)
 	if err != nil {
 		return nil, err
+	}
+	if len(services) == 0 {
+		// add /var/log/messages fallback for non systemd systems
+		// in tail command, try --retry first, if it fails, try the command again
+		command = fmt.Sprintf("sh -c '%s 2>/dev/null || tail -f -q --retry /var/log/messages 2>/dev/null || tail -f -q /var/log/messages'", command)
 	}
 	return n.LXCCommand(ctx, vmid, command)
 }
