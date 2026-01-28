@@ -31,14 +31,15 @@ func formatTail(files []string, limit int) (string, error) {
 		}
 	}
 	var command strings.Builder
-	command.WriteString("tail -f -q --retry ")
+	command.WriteString("tail -f -q ")
 	for _, file := range files {
 		fmt.Fprintf(&command, " %q ", file)
 	}
 	if limit > 0 {
 		fmt.Fprintf(&command, " -n %d", limit)
 	}
-	return command.String(), nil
+	// try --retry first, if it fails, try the command again
+	return fmt.Sprintf("sh -c '%s --retry 2>/dev/null || %s'", command.String(), command.String()), nil
 }
 
 func formatJournalctl(services []string, limit int) (string, error) {
