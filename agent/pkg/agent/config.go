@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
@@ -150,7 +150,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 		// test stream server connection
 		const fakeAddress = "localhost:8080" // it won't be used, just for testing
 		// test TCP stream support
-		err := agentstream.TCPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
+		err := agentstream.TCPHealthCheck(ctx, cfg.Addr, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via TCP: %w", err)
 		} else {
@@ -158,7 +158,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 		}
 
 		// test UDP stream support
-		err = agentstream.UDPHealthCheck(cfg.Addr, cfg.caCert, cfg.clientCert)
+		err = agentstream.UDPHealthCheck(ctx, cfg.Addr, cfg.caCert, cfg.clientCert)
 		if err != nil {
 			streamUnsupportedErrs.Addf("failed to connect to stream server via UDP: %w", err)
 		} else {
@@ -313,8 +313,18 @@ func (cfg *AgentConfig) do(ctx context.Context, method, endpoint string, body io
 	if err != nil {
 		return nil, err
 	}
+
+	timeout := 5 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining > 0 {
+			timeout = remaining
+		}
+	}
+
 	client := http.Client{
 		Transport: cfg.Transport(),
+		Timeout:   timeout,
 	}
 	return client.Do(req)
 }
@@ -356,7 +366,7 @@ func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any)
 		return resp.StatusCode, nil
 	}
 
-	err = json.Unmarshal(data, out)
+	err = sonic.Unmarshal(data, out)
 	if err != nil {
 		return 0, err
 	}

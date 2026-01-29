@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
@@ -35,10 +36,10 @@ func NewUDPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		return nil, err
 	}
 
-	return newUDPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	return newUDPClientWIthHeader(context.Background(), serverAddr, header, caCert, clientCert)
 }
 
-func newUDPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
+func newUDPClientWIthHeader(ctx context.Context, serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
 	// Setup DTLS configuration
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
@@ -62,10 +63,29 @@ func newUDPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCe
 	if err != nil {
 		return nil, err
 	}
+
+	deadline, hasDeadline := ctx.Deadline()
+	if hasDeadline {
+		err := conn.SetWriteDeadline(deadline)
+		if err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+	}
+
 	// Send the stream header once as a handshake.
 	if _, err := conn.Write(header.Bytes()); err != nil {
 		_ = conn.Close()
 		return nil, err
+	}
+
+	if hasDeadline {
+		// reset write deadline
+		err = conn.SetWriteDeadline(time.Time{})
+		if err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
 	}
 
 	return &UDPClient{
@@ -73,10 +93,10 @@ func newUDPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCe
 	}, nil
 }
 
-func UDPHealthCheck(serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
+func UDPHealthCheck(ctx context.Context, serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
 	header := NewStreamHealthCheckHeader()
 
-	conn, err := newUDPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	conn, err := newUDPClientWIthHeader(ctx, serverAddr, header, caCert, clientCert)
 	if err != nil {
 		return err
 	}
