@@ -2,6 +2,7 @@ package serialization
 
 import (
 	"errors"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -85,6 +86,10 @@ func initPtr(dst reflect.Value) {
 	}
 }
 
+// Validate performs struct validation using go-playground/validator tags.
+//
+// It collects all validation errors and returns them as a single error.
+// Field names in errors are prefixed with their namespace (e.g., "User.Email").
 func ValidateWithFieldTags(s any) gperr.Error {
 	var errs gperr.Builder
 	err := validate.Struct(s)
@@ -257,10 +262,11 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 	}
 }
 
-// MapUnmarshalValidate takes a SerializedObject and a target value, and assigns the values in the SerializedObject to the target value.
-// MapUnmarshalValidate ignores case differences between the field names in the SerializedObject and the target.
+// MapUnmarshalValidate takes a SerializedObject and a target value,
+// and assigns the values in the SerializedObject to the target value.
 //
-// The target value must be a struct or a map[string]any.
+// It ignores case differences between the field names in the SerializedObject and the target.
+//
 // If the target value is a struct , and implements the MapUnmarshaller interface,
 // the UnmarshalMap method will be called.
 //
@@ -455,6 +461,13 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
 }
 
+// ConvertSlice converts a source slice to a destination slice.
+//
+//   - Elements are converted one by one using the Convert function.
+//   - Validation is performed on each element if checkValidateTag is true.
+//   - The destination slice is initialized with the source length.
+//   - On error, the destination slice is truncated to the number of
+//     successfully converted elements.
 func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error {
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() && !dst.CanSet() {
@@ -507,6 +520,12 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) g
 	return nil
 }
 
+// ConvertString converts a string value to the destination reflect.Value.
+//   - It handles various types including numeric types, booleans, time.Duration,
+//     slices (comma-separated or YAML), maps, and structs (YAML).
+//   - If the destination implements the Parser interface, it is used for conversion.
+//   - Returns true if conversion was handled (even with error), false if
+//     conversion is unsupported.
 func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
 	convertible = true
 	dstT := dst.Type()
@@ -618,48 +637,80 @@ func substituteEnv(data []byte) ([]byte, gperr.Error) {
 	return data, nil
 }
 
-func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error {
+type (
+	marshalFunc    func(src any) ([]byte, error)
+	unmarshalFunc  func(data []byte, target any) error
+	newDecoderFunc func(r io.Reader) interface {
+		Decode(v any) error
+	}
+	interceptFunc func(m map[string]any) gperr.Error
+)
+
+// UnmarshalValidate unmarshals data into a map, applies optional intercept
+// functions, and validates the result against the target struct using field tags.
+//   - Environment variables in the data are substituted using ${VAR} syntax.
+//   - The unmarshaler function converts data to a map[string]any.
+//   - Intercept functions can modify or validate the map before unmarshaling.
+func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) gperr.Error {
 	data, err := substituteEnv(data)
 	if err != nil {
 		return err
 	}
 
 	m := make(map[string]any)
-	if err := yaml.Unmarshal(data, &m); err != nil {
+	if err := unmarshaler(data, &m); err != nil {
 		return gperr.Wrap(err)
+	}
+	for _, intercept := range interceptFns {
+		if err := intercept(m); err != nil {
+			return err
+		}
 	}
 	return MapUnmarshalValidate(m, target)
 }
 
-func UnmarshalValidateYAMLIntercept[T any](data []byte, target *T, intercept func(m map[string]any) gperr.Error) gperr.Error {
+// UnmarshalValidateReader reads from an io.Reader, unmarshals to a map,
+//   - Applies optional intercept functions, and validates against the target struct.
+//   - Environment variables are substituted during reading using ${VAR} syntax.
+//   - The newDecoder function creates a decoder for the reader (e.g.,
+//     json.NewDecoder).
+func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) gperr.Error {
+	m := make(map[string]any)
+	if err := newDecoder(NewSubstituteEnvReader(reader)).Decode(&m); err != nil {
+		return gperr.Wrap(err)
+	}
+	for _, intercept := range interceptFns {
+		if err := intercept(m); err != nil {
+			return err
+		}
+	}
+	return MapUnmarshalValidate(m, target)
+}
+
+// UnmarshalValidateXSync unmarshals data into an xsync.Map[string, V].
+//   - Environment variables in the data are substituted using ${VAR} syntax.
+//   - The unmarshaler function converts data to a map[string]any.
+//   - Intercept functions can modify or validate the map before unmarshaling.
+//   - Returns a thread-safe concurrent map with the unmarshaled values.
+func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], gperr.Error) {
 	data, err := substituteEnv(data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	m := make(map[string]any)
-	if err := yaml.Unmarshal(data, &m); err != nil {
-		return gperr.Wrap(err)
+	if err := unmarshaler(data, &m); err != nil {
+		return nil, gperr.Wrap(err)
 	}
-	if err := intercept(m); err != nil {
-		return err
-	}
-	return MapUnmarshalValidate(m, target)
-}
-
-func UnmarshalValidateYAMLXSync[V any](data []byte) (_ *xsync.Map[string, V], err gperr.Error) {
-	data, err = substituteEnv(data)
-	if err != nil {
-		return
+	for _, intercept := range interceptFns {
+		if err := intercept(m); err != nil {
+			return nil, err
+		}
 	}
 
-	m := make(map[string]any)
-	if err = gperr.Wrap(yaml.Unmarshal(data, &m)); err != nil {
-		return
-	}
 	m2 := make(map[string]V, len(m))
 	if err = MapUnmarshalValidate(m, m2); err != nil {
-		return
+		return nil, err
 	}
 	ret := xsync.NewMap[string, V](xsync.WithPresize(len(m)))
 	for k, v := range m2 {
@@ -668,26 +719,27 @@ func UnmarshalValidateYAMLXSync[V any](data []byte) (_ *xsync.Map[string, V], er
 	return ret, nil
 }
 
-func loadSerialized[T any](path string, dst *T, deserialize func(data []byte, dst any) error) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return deserialize(data, dst)
-}
-
-func SaveJSON[T any](path string, src *T, perm os.FileMode) error {
-	data, err := sonic.Marshal(src)
+// SaveFile marshals a value to bytes and writes it to a file.
+//   - The marshaler function converts the value to bytes.
+//   - The file is written with the specified permissions.
+func SaveFile[T any](path string, src *T, perm os.FileMode, marshaler marshalFunc) error {
+	data, err := marshaler(src)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, data, perm)
 }
 
-func LoadJSONIfExist[T any](path string, dst *T) error {
-	err := loadSerialized(path, dst, sonic.Unmarshal)
-	if os.IsNotExist(err) {
-		return nil
+// LoadFileIfExist reads a file and unmarshals its contents to a value.
+//   - The unmarshaler function converts the bytes to a value.
+//   - If the file does not exist, nil is returned and dst remains unchanged.
+func LoadFileIfExist[T any](path string, dst *T, unmarshaler unmarshalFunc) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
 	}
-	return err
+	return unmarshaler(data, dst)
 }

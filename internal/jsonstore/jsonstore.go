@@ -83,7 +83,8 @@ func loadNS[T store](ns namespace) T {
 func save() error {
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores {
-		if err := serialization.SaveJSON(filepath.Join(storesPath, string(ns)+".json"), &store, 0o644); err != nil {
+		path := filepath.Join(storesPath, string(ns)+".json")
+		if err := serialization.SaveFile(path, &store, 0o644, sonic.Marshal); err != nil {
 			errs.Add(err)
 		}
 	}

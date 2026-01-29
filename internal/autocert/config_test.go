@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/dnsproviders"
@@ -25,9 +26,9 @@ func TestEABConfigRequired(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			yaml := fmt.Appendf(nil, "eab_kid: %s\neab_hmac: %s", test.cfg.EABKid, test.cfg.EABHmac)
+			yamlCfg := fmt.Appendf(nil, "eab_kid: %s\neab_hmac: %s", test.cfg.EABKid, test.cfg.EABHmac)
 			cfg := autocert.Config{}
-			err := serialization.UnmarshalValidateYAML(yaml, &cfg)
+			err := serialization.UnmarshalValidate(yamlCfg, &cfg, yaml.Unmarshal)
 			if (err != nil) != test.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, test.wantErr)
 			}
