@@ -3,6 +3,7 @@ package autocert_test
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/dnsproviders"
@@ -42,7 +43,7 @@ extra:
 `
 
 	var cfg autocert.Config
-	err := error(serialization.UnmarshalValidateYAML([]byte(cfgYAML), &cfg))
+	err := error(serialization.UnmarshalValidate([]byte(cfgYAML), &cfg, yaml.Unmarshal))
 	require.NoError(t, err)
 
 	// Test: extra[0] inherits all fields from main except CertPath and KeyPath.

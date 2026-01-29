@@ -3,6 +3,7 @@ package proxmox
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/serialization"
 )
@@ -43,7 +44,7 @@ func TestValidateCommandArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var cfg NodeConfig
-			err := serialization.UnmarshalValidateYAML([]byte(tt.yamlCfg), &cfg)
+			err := serialization.UnmarshalValidate([]byte(tt.yamlCfg), &cfg, yaml.Unmarshal)
 			if tt.wantErr {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "input contains invalid characters")

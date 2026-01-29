@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
@@ -43,7 +44,7 @@ type (
 
 func Validate(data []byte) gperr.Error {
 	var model Config
-	return serialization.UnmarshalValidateYAML(data, &model)
+	return serialization.UnmarshalValidate(data, &model, yaml.Unmarshal)
 }
 
 func DefaultConfig() Config {
