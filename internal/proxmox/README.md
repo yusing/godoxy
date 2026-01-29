@@ -70,6 +70,7 @@ type Client struct {
     *proxmox.Client
     *proxmox.Cluster
     Version *proxmox.Version
+    BaseURL *url.URL
     // id -> resource; id: lxc/<vmid> or qemu/<vmid>
     resources   map[string]*VMResource
     resourcesMu sync.RWMutex
@@ -79,6 +80,9 @@ type VMResource struct {
     *proxmox.ClusterResource
     IPs []net.IP
 }
+
+// NewClient creates a new Proxmox client.
+func NewClient(baseUrl string, opts ...proxmox.Option) *Client
 ```
 
 ### Node
@@ -97,10 +101,11 @@ var Nodes = pool.New[*Node]("proxmox_nodes")
 
 ```go
 type NodeConfig struct {
-    Node    string `json:"node" validate:"required"`
-    VMID    int    `json:"vmid" validate:"required"`
-    VMName  string `json:"vmname,omitempty"`
-    Service string `json:"service,omitempty"`
+    Node     string   `json:"node" validate:"required"`
+    VMID     *int     `json:"vmid"` // nil: auto discover; 0: node-level route; >0: lxc/qemu resource route
+    VMName   string   `json:"vmname,omitempty"`
+    Services []string `json:"services,omitempty" aliases:"service"`
+    Files    []string `json:"files,omitempty" aliases:"file"`
 }
 ```
 
@@ -119,6 +124,9 @@ func (c *Config) Client() *Client
 ### Client Operations
 
 ```go
+// NewClient creates a new Proxmox client.
+func NewClient(baseUrl string, opts ...proxmox.Option) *Client
+
 // UpdateClusterInfo fetches cluster info and discovers nodes.
 func (c *Client) UpdateClusterInfo(ctx context.Context) error
 
@@ -136,6 +144,15 @@ func (c *Client) ReverseLookupNode(hostname string, ip net.IP, alias string) str
 
 // NumNodes returns the number of nodes in the cluster.
 func (c *Client) NumNodes() int
+
+// Key returns the cluster ID.
+func (c *Client) Key() string
+
+// Name returns the cluster name.
+func (c *Client) Name() string
+
+// MarshalJSON returns the cluster info as JSON.
+func (c *Client) MarshalJSON() ([]byte, error)
 ```
 
 ### Node Operations
@@ -144,17 +161,29 @@ func (c *Client) NumNodes() int
 // AvailableNodeNames returns all available node names as a comma-separated string.
 func AvailableNodeNames() string
 
+// NewNode creates a new node.
+func NewNode(client *Client, name, id string) *Node
+
 // Node.Client returns the Proxmox client.
 func (n *Node) Client() *Client
 
 // Node.Get performs a GET request on the node.
 func (n *Node) Get(ctx context.Context, path string, v any) error
 
+// Node.Key returns the node name.
+func (n *Node) Key() string
+
+// Node.Name returns the node name.
+func (n *Node) Name() string
+
 // NodeCommand executes a command on the node and streams output.
 func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, error)
 
 // NodeJournalctl streams journalctl output from the node.
-func (n *Node) NodeJournalctl(ctx context.Context, service string, limit int) (io.ReadCloser, error)
+func (n *Node) NodeJournalctl(ctx context.Context, services []string, limit int) (io.ReadCloser, error)
+
+// NodeTail streams tail output for the given file.
+func (n *Node) NodeTail(ctx context.Context, files []string, limit int) (io.ReadCloser, error)
 ```
 
 ## Usage
@@ -275,7 +304,35 @@ func (node *Node) LXCStats(ctx context.Context, vmid int, stream bool) (io.ReadC
 func (node *Node) LXCCommand(ctx context.Context, vmid int, command string) (io.ReadCloser, error)
 
 // LXCJournalctl streams journalctl output for a container service.
-func (node *Node) LXCJournalctl(ctx context.Context, vmid int, service string, limit int) (io.ReadCloser, error)
+// On non-systemd systems, it falls back to tailing /var/log/messages.
+func (node *Node) LXCJournalctl(ctx context.Context, vmid int, services []string, limit int) (io.ReadCloser, error)
+
+// LXCTail streams tail output for the given file.
+func (node *Node) LXCTail(ctx context.Context, vmid int, files []string, limit int) (io.ReadCloser, error)
+```
+
+## Node Stats
+
+```go
+type NodeStats struct {
+    KernelVersion string `json:"kernel_version"`
+    PVEVersion    string `json:"pve_version"`
+    CPUUsage      string `json:"cpu_usage"`
+    CPUModel      string `json:"cpu_model"`
+    MemUsage      string `json:"mem_usage"`
+    MemTotal      string `json:"mem_total"`
+    MemPct        string `json:"mem_pct"`
+    RootFSUsage   string `json:"rootfs_usage"`
+    RootFSTotal   string `json:"rootfs_total"`
+    RootFSPct     string `json:"rootfs_pct"`
+    Uptime        string `json:"uptime"`
+    LoadAvg1m     string `json:"load_avg_1m"`
+    LoadAvg5m     string `json:"load_avg_5m"`
+    LoadAvg15m    string `json:"load_avg_15m"`
+}
+
+// NodeStats streams node statistics like docker stats.
+func (n *Node) NodeStats(ctx context.Context, stream bool) (io.ReadCloser, error)
 ```
 
 ## Data Flow
@@ -453,6 +510,12 @@ var (
 )
 ```
 
+| Error                 | Description                                                           |
+| --------------------- | --------------------------------------------------------------------- |
+| `ErrResourceNotFound` | Resource not found in cluster                                         |
+| `ErrNoResources`      | No resources available                                                |
+| `ErrNoSession`        | No session for WebSocket operations (requires username/password auth) |
+
 ## Performance Considerations
 
 - Cluster info fetched once on init
@@ -463,10 +526,26 @@ var (
 - Per-operation API calls with 3-second timeout
 - WebSocket connections properly closed to prevent goroutine leaks
 
+## Command Validation
+
+Commands executed via WebSocket are validated to prevent command injection. Invalid characters include:
+
+```
+& | $ ; ' " ` $( ${ < >
+```
+
+Services and files passed to `journalctl` and `tail` commands are automatically validated.
+
 ## Constants
 
 ```go
 const ResourcePollInterval = 3 * time.Second
+const SessionRefreshInterval = 1 * time.Minute
+const NodeStatsPollInterval = time.Second
 ```
 
-The `ResourcePollInterval` constant controls how often resources are updated in the background loop.
+| Constant                 | Default | Description                        |
+| ------------------------ | ------- | ---------------------------------- |
+| `ResourcePollInterval`   | 3s      | How often VM resources are updated |
+| `SessionRefreshInterval` | 1m      | How often sessions are refreshed   |
+| `NodeStatsPollInterval`  | 1s      | How often node stats are streamed  |
