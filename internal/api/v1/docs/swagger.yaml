@@ -1807,11 +1807,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_15m:
+        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
-        type: string
-      load_avg_15m:
         type: string
       mem_pct:
         type: string
@@ -1830,127 +1830,6 @@ definitions:
       uptime:
         type: string
     type: object
-  route.Route:
-    properties:
-      access_log:
-        allOf:
-        - $ref: '#/definitions/RequestLoggerConfig'
-        x-nullable: true
-      agent:
-        type: string
-      alias:
-        type: string
-      bind:
-        description: for TCP and UDP routes, bind address to listen on
-        type: string
-        x-nullable: true
-      container:
-        allOf:
-        - $ref: '#/definitions/Container'
-        description: Docker only
-        x-nullable: true
-      disable_compression:
-        type: boolean
-      excluded:
-        type: boolean
-        x-nullable: true
-      excluded_reason:
-        type: string
-        x-nullable: true
-      health:
-        allOf:
-        - $ref: '#/definitions/HealthJSON'
-        description: for swagger
-      healthcheck:
-        allOf:
-        - $ref: '#/definitions/HealthCheckConfig'
-        description: null on load-balancer routes
-        x-nullable: true
-      homepage:
-        $ref: '#/definitions/HomepageItemConfig'
-      host:
-        type: string
-      idlewatcher:
-        allOf:
-        - $ref: '#/definitions/IdlewatcherConfig'
-        x-nullable: true
-      index:
-        description: Index file to serve for single-page app mode
-        type: string
-      load_balance:
-        allOf:
-        - $ref: '#/definitions/LoadBalancerConfig'
-        x-nullable: true
-      lurl:
-        description: private fields
-        type: string
-        x-nullable: true
-      middlewares:
-        additionalProperties:
-          $ref: '#/definitions/types.LabelMap'
-        type: object
-        x-nullable: true
-      no_tls_verify:
-        type: boolean
-      path_patterns:
-        items:
-          type: string
-        type: array
-        x-nullable: true
-      port:
-        $ref: '#/definitions/Port'
-      provider:
-        description: for backward compatibility
-        type: string
-        x-nullable: true
-      proxmox:
-        allOf:
-        - $ref: '#/definitions/ProxmoxNodeConfig'
-        x-nullable: true
-      purl:
-        type: string
-      response_header_timeout:
-        type: integer
-      root:
-        type: string
-      rule_file:
-        type: string
-        x-nullable: true
-      rules:
-        items:
-          $ref: '#/definitions/rules.Rule'
-        type: array
-        x-nullable: true
-      scheme:
-        enum:
-        - http
-        - https
-        - h2c
-        - tcp
-        - udp
-        - fileserver
-        type: string
-      spa:
-        description: 'Single-page app mode: serves index for non-existent paths'
-        type: boolean
-      ssl_certificate:
-        description: Path to client certificate
-        type: string
-      ssl_certificate_key:
-        description: Path to client certificate key
-        type: string
-      ssl_protocols:
-        description: Allowed TLS protocols
-        items:
-          type: string
-        type: array
-      ssl_server_name:
-        description: SSL/TLS proxy options (nginx-like)
-        type: string
-      ssl_trusted_certificate:
-        description: Path to trusted CA certificates
-        type: string
-    type: object
   routeApi.RawRule:
     properties:
       do:
@@ -1963,7 +1842,7 @@ definitions:
   routeApi.RoutesByProvider:
     additionalProperties:
       items:
-        $ref: '#/definitions/route.Route'
+        $ref: '#/definitions/Route'
       type: array
     type: object
   rules.Rule:
@@ -2741,7 +2620,7 @@ paths:
   /file/validate:
     post:
       consumes:
-      - text/plain
+      - application/yaml
       description: Validate file
       parameters:
       - description: Type
@@ -4079,6 +3958,83 @@ paths:
       - route
       - websocket
       x-id: providers
+  /route/validate:
+    get:
+      consumes:
+      - application/yaml
+      description: Validate route,
+      parameters:
+      - description: Route
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/Route'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Route validated
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "417":
+          description: Validation failed
+          schema: {}
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Validate route
+      tags:
+      - route
+      - websocket
+      x-id: validate
+    post:
+      consumes:
+      - application/yaml
+      description: Validate route,
+      parameters:
+      - description: Route
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/Route'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Route validated
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "417":
+          description: Validation failed
+          schema: {}
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Validate route
+      tags:
+      - route
+      - websocket
+      x-id: validate
   /stats:
     get:
       consumes:
