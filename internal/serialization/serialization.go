@@ -315,7 +315,7 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 		info := getTypeInfo(dstT)
 		for k, v := range src {
 			if field, ok := info.getField(dstV, k); ok {
-				err := Convert(reflect.ValueOf(v), field, !info.hasValidateTag)
+				err := Convert(reflect.ValueOf(v), field, checkValidateTag)
 				if err != nil {
 					errs.Add(err.Subject(k))
 				}
