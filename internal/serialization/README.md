@@ -11,7 +11,7 @@ This package provides robust YAML/JSON serialization with:
 - Case-insensitive field matching using FNV-1a hashing
 - Environment variable substitution (`${VAR}` syntax)
 - Field-level validation with go-playground/validator tags
-- Custom type conversion with alias support
+- Custom type conversion with pluggable format handlers
 
 ### Primary Consumers
 
@@ -55,21 +55,27 @@ type CustomValidator interface {
 ### Deserialization Functions
 
 ```go
-// YAML with full validation
-func UnmarshalValidateYAML[T any](data []byte, target *T) gperr.Error
+// Generic unmarshal with pluggable format handler
+func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) gperr.Error
 
-// YAML with interceptor for preprocessing
-func UnmarshalValidateYAMLIntercept[T any](
-    data []byte,
-    target *T,
-    intercept func(m map[string]any) gperr.Error,
-) gperr.Error
+// Read from io.Reader with format decoder
+func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) gperr.Error
 
 // Direct map deserialization
 func MapUnmarshalValidate(src SerializedObject, dst any) gperr.Error
 
-// To xsync.Map
-func UnmarshalValidateYAMLXSync[V any](data []byte) (*xsync.Map[string, V], gperr.Error)
+// To xsync.Map with pluggable format handler
+func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], gperr.Error)
+```
+
+### File I/O Functions
+
+```go
+// Write marshaled data to file
+func SaveFile[T any](path string, src *T, perm os.FileMode, marshaler marshalFunc) error
+
+// Read and unmarshal file if it exists
+func LoadFileIfExist[T any](path string, dst *T, unmarshaler unmarshalFunc) error
 ```
 
 ### Conversion Functions
@@ -115,19 +121,19 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject
 ```mermaid
 sequenceDiagram
     participant C as Caller
-    participant U as UnmarshalValidateYAML
+    participant U as UnmarshalValidate
     participant E as Env Substitution
-    participant Y as YAML Parser
+    participant F as Format Parser
     participant M as MapUnmarshalValidate
     participant T as Type Info Cache
     participant CV as Convert
     participant V as Validator
 
-    C->>U: YAML bytes + target struct
+    C->>U: Data bytes + target struct + format handler
     U->>E: Substitute ${ENV} vars
     E-->>U: Substituted bytes
-    U->>Y: Parse YAML
-    Y-->>U: map[string]any
+    U->>F: Parse with format handler (YAML/JSON)
+    F-->>U: map[string]any
     U->>M: Map + target
     M->>T: Get type info
     loop For each field in map
@@ -147,9 +153,9 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph Input Processing
-        YAML[YAML Bytes] --> EnvSub[Env Substitution]
-        EnvSub --> YAMLParse[YAML Parse]
-        YAMLParse --> Map[map<string,any>]
+        Bytes[Data Bytes] --> EnvSub[Env Substitution]
+        EnvSub --> FormatParse[Format Parse]
+        FormatParse --> Map[map<string,any>]
     end
 
     subgraph Type Inspection
@@ -221,6 +227,7 @@ autocert:
 ### Internal Dependencies
 
 - `github.com/yusing/goutils/errs` - Error handling
+- `github.com/yusing/gointernals` - Reflection utilities
 
 ## Observability
 
@@ -251,11 +258,11 @@ ErrUnsupportedConversion.Subjectf("string to int")
 | Validation failure | Structured error       | Fix field value          |
 | Type mismatch      | Error                  | Check field type         |
 | Missing env var    | Error                  | Set environment variable |
-| Invalid YAML       | Error                  | Fix YAML syntax          |
+| Invalid format     | Error                  | Fix YAML/JSON syntax     |
 
 ## Usage Examples
 
-### Basic Struct Deserialization
+### YAML Deserialization
 
 ```go
 type ServerConfig struct {
@@ -273,7 +280,16 @@ tls_enabled: true
 `)
 
 var config ServerConfig
-if err := serialization.UnmarshalValidateYAML(yamlData, &config); err != nil {
+if err := serialization.UnmarshalValidate(yamlData, &config, yaml.Unmarshal); err != nil {
+    panic(err)
+}
+```
+
+### JSON Deserialization
+
+```go
+var config ServerConfig
+if err := serialization.UnmarshalValidate(jsonData, &config, json.Unmarshal); err != nil {
     panic(err)
 }
 ```
@@ -293,7 +309,7 @@ func (c *Config) Validate() gperr.Error {
 }
 ```
 
-### Custom Type with Parse Method
+### Custom Type with Parser Interface
 
 ```go
 type Duration struct {
@@ -304,6 +320,31 @@ type Duration struct {
 func (d *Duration) Parse(v string) error {
     // custom parsing logic
     return nil
+}
+```
+
+### Reading from File
+
+```go
+var config ServerConfig
+if err := serialization.LoadFileIfExist("config.yml", &config, yaml.Unmarshal); err != nil {
+    panic(err)
+}
+
+// Save back to file
+if err := serialization.SaveFile("config.yml", &config, 0644, yaml.Marshal); err != nil {
+    panic(err)
+}
+```
+
+### Reading from io.Reader
+
+```go
+var config ServerConfig
+file, _ := os.Open("config.yml")
+defer file.Close()
+if err := serialization.UnmarshalValidateReader(file, &config, yaml.NewDecoder); err != nil {
+    panic(err)
 }
 ```
 
@@ -319,3 +360,4 @@ func (d *Duration) Parse(v string) error {
   - String conversions
   - Environment substitution
   - Custom validators
+  - Multiple format handlers (YAML/JSON)
