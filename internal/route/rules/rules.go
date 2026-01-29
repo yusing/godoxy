@@ -244,7 +244,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 }
 
 func appendRuleError(rm *httputils.ResponseModifier, rule *Rule, err error) {
-	rm.AppendError("rule: %s, error: %w", rule.Name, err)
+	// rm.AppendError("rule: %s, error: %w", rule.Name, err)
 }
 
 func isTerminatingHandler(handler CommandHandler) bool {

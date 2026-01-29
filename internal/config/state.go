@@ -103,7 +103,7 @@ func (state *state) InitFromFile(filename string) error {
 }
 
 func (state *state) Init(data []byte) error {
-	err := serialization.UnmarshalValidateYAML(data, &state.Config)
+	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
 	if err != nil {
 		return err
 	}

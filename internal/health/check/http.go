@@ -76,8 +76,11 @@ func H2C(ctx context.Context, url *url.URL, method, path string, timeout time.Du
 
 	setCommonHeaders(req.Header.Set)
 
+	client := *h2cClient
+	client.Timeout = timeout
+
 	start := time.Now()
-	resp, err := h2cClient.Do(req)
+	resp, err := client.Do(req)
 	lat := time.Since(start)
 
 	if resp != nil {

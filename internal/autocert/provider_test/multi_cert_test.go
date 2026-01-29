@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/serialization"
@@ -41,7 +42,7 @@ func TestMultipleCertificatesLifecycle(t *testing.T) {
 	cfg.HTTPClient = acmeServer.httpClient()
 
 	/* unmarshal yaml config with multiple certs */
-	err := error(serialization.UnmarshalValidateYAML(yamlConfig, &cfg))
+	err := error(serialization.UnmarshalValidate(yamlConfig, &cfg, yaml.Unmarshal))
 	require.NoError(t, err)
 	require.Equal(t, []string{"main.example.com"}, cfg.Domains)
 	require.Len(t, cfg.Extra, 2)

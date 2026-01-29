@@ -12,7 +12,7 @@ func TestTCPHealthCheck(t *testing.T) {
 
 	srv := startTCPServer(t, certs)
 
-	err := stream.TCPHealthCheck(srv.Addr.String(), certs.CaCert, certs.ClientCert)
+	err := stream.TCPHealthCheck(t.Context(), srv.Addr.String(), certs.CaCert, certs.ClientCert)
 	require.NoError(t, err, "health check")
 }
 
@@ -21,6 +21,6 @@ func TestUDPHealthCheck(t *testing.T) {
 
 	srv := startUDPServer(t, certs)
 
-	err := stream.UDPHealthCheck(srv.Addr.String(), certs.CaCert, certs.ClientCert)
+	err := stream.UDPHealthCheck(t.Context(), srv.Addr.String(), certs.CaCert, certs.ClientCert)
 	require.NoError(t, err, "health check")
 }

@@ -5,6 +5,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
@@ -43,7 +44,7 @@ func removeXPrefix(m map[string]any) gperr.Error {
 }
 
 func validate(data []byte) (routes route.Routes, err gperr.Error) {
-	err = serialization.UnmarshalValidateYAMLIntercept(data, &routes, removeXPrefix)
+	err = serialization.UnmarshalValidate(data, &routes, yaml.Unmarshal, removeXPrefix)
 	return routes, err
 }
 

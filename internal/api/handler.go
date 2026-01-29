@@ -86,6 +86,8 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			route.GET("/providers", routeApi.Providers)
 			route.GET("/by_provider", routeApi.ByProvider)
 			route.POST("/playground", routeApi.Playground)
+			route.GET("/validate", routeApi.Validate) // websocket
+			route.POST("/validate", routeApi.Validate)
 		}
 
 		file := v1.Group("/file")

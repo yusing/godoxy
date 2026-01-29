@@ -55,20 +55,20 @@ func init() {
 
 func InitCache() {
 	m := make(IconMap)
-	err := serialization.LoadJSONIfExist(common.IconListCachePath, &m)
+	err := serialization.LoadFileIfExist(common.IconListCachePath, &m, sonic.Unmarshal)
 	if err != nil {
 		// backward compatible
 		oldFormat := struct {
 			Icons      IconMap
 			LastUpdate time.Time
 		}{}
-		err = serialization.LoadJSONIfExist(common.IconListCachePath, &oldFormat)
+		err = serialization.LoadFileIfExist(common.IconListCachePath, &oldFormat, sonic.Unmarshal)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to load icons")
 		} else {
 			m = oldFormat.Icons
 			// store it to disk immediately
-			_ = serialization.SaveJSON(common.IconListCachePath, &m, 0o644)
+			_ = serialization.SaveFile(common.IconListCachePath, &m, 0o644, sonic.Marshal)
 		}
 	} else if len(m) > 0 {
 		log.Info().
@@ -84,7 +84,7 @@ func InitCache() {
 
 	task.OnProgramExit("save_icons_cache", func() {
 		icons := iconsCache.Load()
-		_ = serialization.SaveJSON(common.IconListCachePath, &icons, 0o644)
+		_ = serialization.SaveFile(common.IconListCachePath, &icons, 0o644, sonic.Marshal)
 	})
 
 	go backgroundUpdateIcons()
@@ -105,7 +105,7 @@ func backgroundUpdateIcons() {
 				// swap old cache with new cache
 				iconsCache.Store(newCache)
 				// save it to disk
-				err := serialization.SaveJSON(common.IconListCachePath, &newCache, 0o644)
+				err := serialization.SaveFile(common.IconListCachePath, &newCache, 0o644, sonic.Marshal)
 				if err != nil {
 					log.Warn().Err(err).Msg("failed to save icons")
 				}

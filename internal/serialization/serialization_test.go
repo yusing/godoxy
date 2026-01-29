@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -303,6 +304,6 @@ autocert:
 			} `yaml:"options"`
 		} `yaml:"autocert"`
 	}
-	require.NoError(t, UnmarshalValidateYAML(data, &cfg))
+	require.NoError(t, UnmarshalValidate(data, &cfg, yaml.Unmarshal))
 	require.Equal(t, "test", cfg.Autocert.Options.AuthToken)
 }

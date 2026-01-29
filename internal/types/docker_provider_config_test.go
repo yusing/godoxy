@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/yusing/godoxy/internal/serialization"
 )
@@ -10,14 +11,14 @@ import (
 func TestDockerProviderConfigUnmarshalMap(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
 		var cfg map[string]*DockerProviderConfig
-		err := serialization.UnmarshalValidateYAML([]byte("test: http://localhost:2375"), &cfg)
+		err := serialization.UnmarshalValidate([]byte("test: http://localhost:2375"), &cfg, yaml.Unmarshal)
 		assert.NoError(t, err)
 		assert.Equal(t, &DockerProviderConfig{URL: "http://localhost:2375"}, cfg["test"])
 	})
 
 	t.Run("detailed", func(t *testing.T) {
 		var cfg map[string]*DockerProviderConfig
-		err := serialization.UnmarshalValidateYAML([]byte(`
+		err := serialization.UnmarshalValidate([]byte(`
 test:
   scheme: http
   host: localhost
@@ -25,7 +26,7 @@ test:
   tls:
     ca_file: /etc/ssl/ca.crt
     cert_file: /etc/ssl/cert.crt
-    key_file: /etc/ssl/key.crt`), &cfg)
+    key_file: /etc/ssl/key.crt`), &cfg, yaml.Unmarshal)
 		assert.NoError(t, err)
 		assert.Equal(t, &DockerProviderConfig{URL: "http://localhost:2375", TLS: &DockerTLSConfig{CAFile: "/etc/ssl/ca.crt", CertFile: "/etc/ssl/cert.crt", KeyFile: "/etc/ssl/key.crt"}}, cfg["test"])
 	})
@@ -131,7 +132,7 @@ func TestDockerProviderConfigValidation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var cfg map[string]*DockerProviderConfig
-			err := serialization.UnmarshalValidateYAML([]byte(test.yamlStr), &cfg)
+			err := serialization.UnmarshalValidate([]byte(test.yamlStr), &cfg, yaml.Unmarshal)
 			if test.wantErr {
 				assert.Error(t, err)
 			} else {

@@ -14,7 +14,6 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -120,7 +119,6 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 		c.resources[resource.ID] = vmResources[i]
 	}
 	c.resourcesMu.Unlock()
-	log.Debug().Str("cluster", c.Cluster.Name).Msgf("[proxmox] updated %d resources", len(c.resources))
 	return nil
 }
 

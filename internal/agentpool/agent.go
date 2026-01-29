@@ -27,6 +27,7 @@ func newAgent(cfg *agent.AgentConfig) *Agent {
 		AgentConfig: cfg,
 		httpClient: &http.Client{
 			Transport: transport,
+			Timeout:   5 * time.Second,
 		},
 		fasthttpHcClient: &fasthttp.Client{
 			DialTimeout: func(addr string, timeout time.Duration) (net.Conn, error) {
