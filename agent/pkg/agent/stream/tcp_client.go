@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
@@ -34,13 +35,13 @@ func NewTCPClient(serverAddr, targetAddress string, caCert *x509.Certificate, cl
 		return nil, err
 	}
 
-	return newTCPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	return newTCPClientWIthHeader(context.Background(), serverAddr, header, caCert, clientCert)
 }
 
-func TCPHealthCheck(serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
+func TCPHealthCheck(ctx context.Context, serverAddr string, caCert *x509.Certificate, clientCert *tls.Certificate) error {
 	header := NewStreamHealthCheckHeader()
 
-	conn, err := newTCPClientWIthHeader(serverAddr, header, caCert, clientCert)
+	conn, err := newTCPClientWIthHeader(ctx, serverAddr, header, caCert, clientCert)
 	if err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func TCPHealthCheck(serverAddr string, caCert *x509.Certificate, clientCert *tls
 	return nil
 }
 
-func newTCPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
+func newTCPClientWIthHeader(ctx context.Context, serverAddr string, header *StreamRequestHeader, caCert *x509.Certificate, clientCert *tls.Certificate) (net.Conn, error) {
 	// Setup TLS configuration
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(caCert)
@@ -62,15 +63,41 @@ func newTCPClientWIthHeader(serverAddr string, header *StreamRequestHeader, caCe
 		ServerName:   common.CertsDNSName,
 	}
 
+	dialer := &net.Dialer{
+		Timeout: dialTimeout,
+	}
+	tlsDialer := &tls.Dialer{
+		NetDialer: dialer,
+		Config:    tlsConfig,
+	}
+
 	// Establish TLS connection
-	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: dialTimeout}, "tcp", serverAddr, tlsConfig)
+	conn, err := tlsDialer.DialContext(ctx, "tcp", serverAddr)
 	if err != nil {
 		return nil, err
+	}
+
+	deadline, hasDeadline := ctx.Deadline()
+	if hasDeadline {
+		err := conn.SetWriteDeadline(deadline)
+		if err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
 	}
 	// Send the stream header once as a handshake.
 	if _, err := conn.Write(header.Bytes()); err != nil {
 		_ = conn.Close()
 		return nil, err
+	}
+
+	if hasDeadline {
+		// reset write deadline
+		err = conn.SetWriteDeadline(time.Time{})
+		if err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
 	}
 
 	return &TCPClient{
