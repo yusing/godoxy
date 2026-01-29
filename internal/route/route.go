@@ -69,7 +69,7 @@ type (
 		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
 
 		Metadata `deserialize:"-"`
-	}
+	} // @name Route
 
 	Metadata struct {
 		/* Docker only */
