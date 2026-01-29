@@ -83,7 +83,7 @@ func save() error {
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores {
 		path := filepath.Join(storesPath, string(ns)+".json")
-		if err := serialization.SaveFile(path, &store, 0o644, sonic.Marshal); err != nil {
+		if err := serialization.SaveFile(path, &store, 0o644, json.Marshal); err != nil {
 			errs.Add(err)
 		}
 	}
