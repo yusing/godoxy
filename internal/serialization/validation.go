@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/puzpuzpuz/xsync/v4"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -28,18 +29,25 @@ type CustomValidator interface {
 
 var validatorType = reflect.TypeFor[CustomValidator]()
 
+var newValueMap = xsync.NewMap[reflect.Type, reflect.Value](xsync.WithPresize(100))
+
 func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
+	vt := v.Type()
 	if v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			// return nil
-			return validateWithValidator(reflect.New(v.Type().Elem()))
-		}
-		if v.Type().Implements(validatorType) {
+		elemType := vt.Elem()
+		if vt.Implements(validatorType) {
+			if v.IsNil() {
+				newValue, _ := newValueMap.LoadOrCompute(elemType, func() (reflect.Value, bool) {
+					return reflect.New(elemType), false
+				})
+				return newValue.Interface().(CustomValidator).Validate()
+			}
 			return v.Interface().(CustomValidator).Validate()
 		}
-		return validateWithValidator(v.Elem())
+		if elemType.Implements(validatorType) {
+			return v.Elem().Interface().(CustomValidator).Validate()
+		}
 	} else {
-		vt := v.Type()
 		if vt.PkgPath() != "" { // not a builtin type
 			// prioritize pointer method
 			if v.CanAddr() {
@@ -53,13 +61,6 @@ func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
 				return v.Interface().(CustomValidator).Validate()
 			}
 		}
-	}
-	return nil
-}
-
-func validateWithValidator(v reflect.Value) gperr.Error {
-	if v.Type().Implements(validatorType) {
-		return v.Interface().(CustomValidator).Validate()
 	}
 	return nil
 }
