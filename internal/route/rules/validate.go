@@ -115,24 +115,6 @@ func validateURL(args []string) (any, gperr.Error) {
 	return u, nil
 }
 
-// validateAbsoluteURL returns types.URL with the URL validated.
-func validateAbsoluteURL(args []string) (any, gperr.Error) {
-	if len(args) != 1 {
-		return nil, ErrExpectOneArg
-	}
-	u, err := nettypes.ParseURL(args[0])
-	if err != nil {
-		return nil, ErrInvalidArguments.With(err)
-	}
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-	if u.Host == "" {
-		return nil, ErrInvalidArguments.Withf("missing host")
-	}
-	return u, nil
-}
-
 // validateCIDR returns types.CIDR with the CIDR validated.
 func validateCIDR(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
