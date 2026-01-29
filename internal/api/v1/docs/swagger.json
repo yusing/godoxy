@@ -1087,7 +1087,7 @@
       "post": {
         "description": "Validate file",
         "consumes": [
-          "text/plain"
+          "application/yaml"
         ],
         "produces": [
           "application/json"
@@ -3024,6 +3024,122 @@
         },
         "x-id": "providers",
         "operationId": "providers"
+      }
+    },
+    "/route/validate": {
+      "get": {
+        "description": "Validate route,",
+        "consumes": [
+          "application/yaml"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route",
+          "websocket"
+        ],
+        "summary": "Validate route",
+        "parameters": [
+          {
+            "description": "Route",
+            "name": "route",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Route"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Route validated",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "417": {
+            "description": "Validation failed",
+            "schema": {}
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "validate",
+        "operationId": "validate"
+      },
+      "post": {
+        "description": "Validate route,",
+        "consumes": [
+          "application/yaml"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route",
+          "websocket"
+        ],
+        "summary": "Validate route",
+        "parameters": [
+          {
+            "description": "Route",
+            "name": "route",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Route"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Route validated",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "417": {
+            "description": "Validation failed",
+            "schema": {}
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "validate",
+        "operationId": "validate"
       }
     },
     "/route/{which}": {
@@ -6745,229 +6861,6 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "route.Route": {
-      "type": "object",
-      "properties": {
-        "access_log": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/RequestLoggerConfig"
-            }
-          ],
-          "x-nullable": true
-        },
-        "agent": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "alias": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "bind": {
-          "description": "for TCP and UDP routes, bind address to listen on",
-          "type": "string",
-          "x-nullable": true
-        },
-        "container": {
-          "description": "Docker only",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Container"
-            }
-          ],
-          "x-nullable": true
-        },
-        "disable_compression": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "excluded": {
-          "type": "boolean",
-          "x-nullable": true
-        },
-        "excluded_reason": {
-          "type": "string",
-          "x-nullable": true
-        },
-        "health": {
-          "description": "for swagger",
-          "allOf": [
-            {
-              "$ref": "#/definitions/HealthJSON"
-            }
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "healthcheck": {
-          "description": "null on load-balancer routes",
-          "allOf": [
-            {
-              "$ref": "#/definitions/HealthCheckConfig"
-            }
-          ],
-          "x-nullable": true
-        },
-        "homepage": {
-          "$ref": "#/definitions/HomepageItemConfig",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "host": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "idlewatcher": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/IdlewatcherConfig"
-            }
-          ],
-          "x-nullable": true
-        },
-        "index": {
-          "description": "Index file to serve for single-page app mode",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "load_balance": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/LoadBalancerConfig"
-            }
-          ],
-          "x-nullable": true
-        },
-        "lurl": {
-          "description": "private fields",
-          "type": "string",
-          "x-nullable": true
-        },
-        "middlewares": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/types.LabelMap"
-          },
-          "x-nullable": true
-        },
-        "no_tls_verify": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "path_patterns": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-nullable": true
-        },
-        "port": {
-          "$ref": "#/definitions/Port",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "provider": {
-          "description": "for backward compatibility",
-          "type": "string",
-          "x-nullable": true
-        },
-        "proxmox": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/ProxmoxNodeConfig"
-            }
-          ],
-          "x-nullable": true
-        },
-        "purl": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "response_header_timeout": {
-          "type": "integer",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "root": {
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "rule_file": {
-          "type": "string",
-          "x-nullable": true
-        },
-        "rules": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/rules.Rule"
-          },
-          "x-nullable": true
-        },
-        "scheme": {
-          "type": "string",
-          "enum": [
-            "http",
-            "https",
-            "h2c",
-            "tcp",
-            "udp",
-            "fileserver"
-          ],
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "spa": {
-          "description": "Single-page app mode: serves index for non-existent paths",
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ssl_certificate": {
-          "description": "Path to client certificate",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ssl_certificate_key": {
-          "description": "Path to client certificate key",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ssl_protocols": {
-          "description": "Allowed TLS protocols",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ssl_server_name": {
-          "description": "SSL/TLS proxy options (nginx-like)",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "ssl_trusted_certificate": {
-          "description": "Path to trusted CA certificates",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
     "routeApi.RawRule": {
       "type": "object",
       "properties": {
@@ -6995,7 +6888,7 @@
       "additionalProperties": {
         "type": "array",
         "items": {
-          "$ref": "#/definitions/route.Route"
+          "$ref": "#/definitions/Route"
         }
       },
       "x-nullable": false,

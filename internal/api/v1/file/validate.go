@@ -20,7 +20,7 @@ type ValidateFileRequest struct {
 // @Summary		Validate file
 // @Description	Validate file
 // @Tags			file
-// @Accept		json
+// @Accept		application/yaml
 // @Produce		json
 // @Param			type	query		FileType	true	"Type"
 // @Param			file	body		string		true	"File content"
