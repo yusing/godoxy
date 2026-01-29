@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
 )
 
@@ -23,6 +24,22 @@ type Node struct {
 	client *Client
 
 	// statsScriptInitErrs *xsync.Map[int, error]
+}
+
+// Validate implements the serialization.CustomValidator interface.
+func (n *NodeConfig) Validate() gperr.Error {
+	var errs gperr.Builder
+	for i, service := range n.Services {
+		if err := checkValidInput(service); err != nil {
+			errs.AddSubjectf(err, "services[%d]", i)
+		}
+	}
+	for i, file := range n.Files {
+		if err := checkValidInput(file); err != nil {
+			errs.AddSubjectf(err, "files[%d]", i)
+		}
+	}
+	return errs.Error()
 }
 
 var Nodes = pool.New[*Node]("proxmox_nodes")
