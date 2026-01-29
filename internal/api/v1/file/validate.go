@@ -20,7 +20,7 @@ type ValidateFileRequest struct {
 // @Summary		Validate file
 // @Description	Validate file
 // @Tags			file
-// @Accept			text/plain
+// @Accept		json
 // @Produce		json
 // @Param			type	query		FileType	true	"Type"
 // @Param			file	body		string		true	"File content"
@@ -29,7 +29,7 @@ type ValidateFileRequest struct {
 // @Failure		403		{object}	apitypes.ErrorResponse "Forbidden"
 // @Failure		417		{object}	any "Validation failed"
 // @Failure		500		{object}	apitypes.ErrorResponse "Internal server error"
-// @Router			/file/validate [post]
+// @Router		/file/validate [post]
 func Validate(c *gin.Context) {
 	var request ValidateFileRequest
 	if err := c.ShouldBindQuery(&request); err != nil {
