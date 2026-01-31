@@ -92,7 +92,7 @@ docker-build-test:
 
 go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
-gomod_paths := $(shell find . -name go.mod -type f | xargs dirname)
+gomod_paths := $(shell find . -name go.mod -type f | grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' | xargs dirname)
 
 update-go:
 	for file in ${files}; do \
