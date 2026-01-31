@@ -12,6 +12,14 @@ import (
 )
 
 func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (types.HealthCheckResult, error) {
+	if port := url.Port(); port == "" || port == "0" {
+		return types.HealthCheckResult{
+			Latency: 0,
+			Healthy: false,
+			Detail:  "no port specified",
+		}, nil
+	}
+
 	dialer := net.Dialer{
 		Timeout:       timeout,
 		FallbackDelay: -1,
