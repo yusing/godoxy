@@ -222,8 +222,9 @@ func (p *Provider) ObtainCertIfNotExistsAll() error {
 		})
 	}
 
+	err := errs.Wait().Error()
 	p.rebuildSNIMatcher()
-	return errs.Wait().Error()
+	return err
 }
 
 // obtainCertIfNotExists obtains a new certificate for this provider if it does not exist.
@@ -261,7 +262,10 @@ func (p *Provider) ObtainCertAll() error {
 			return nil
 		})
 	}
-	return errs.Wait().Error()
+
+	err := errs.Wait().Error()
+	p.rebuildSNIMatcher()
+	return err
 }
 
 // ObtainCert renews existing certificate or obtains a new certificate for this provider.
