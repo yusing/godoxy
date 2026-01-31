@@ -228,7 +228,7 @@ func (p *Provider) ObtainCertIfNotExistsAll() error {
 
 // obtainCertIfNotExists obtains a new certificate for this provider if it does not exist.
 func (p *Provider) obtainCertIfNotExists() error {
-	err := p.LoadCert()
+	err := p.loadCert()
 	if err == nil {
 		return nil
 	}
@@ -346,29 +346,32 @@ func (p *Provider) ObtainCert() error {
 	return nil
 }
 
-func (p *Provider) LoadCert() error {
+func (p *Provider) LoadCertAll() error {
 	var errs gperr.Builder
+	for _, provider := range p.allProviders() {
+		if err := provider.loadCert(); err != nil {
+			errs.Add(provider.fmtError(err))
+		}
+	}
+	p.rebuildSNIMatcher()
+	return errs.Error()
+}
+
+func (p *Provider) loadCert() error {
 	cert, err := tls.LoadX509KeyPair(p.cfg.CertPath, p.cfg.KeyPath)
 	if err != nil {
-		errs.Addf("load SSL certificate: %w", p.fmtError(err))
+		return err
 	}
 
 	expiries, err := getCertExpiries(&cert)
 	if err != nil {
-		errs.Addf("parse SSL certificate: %w", p.fmtError(err))
+		return err
 	}
 
 	p.tlsCert = &cert
 	p.certExpiries = expiries
 
-	for _, ep := range p.extraProviders {
-		if err := ep.LoadCert(); err != nil {
-			errs.Add(err)
-		}
-	}
-
-	p.rebuildSNIMatcher()
-	return errs.Error()
+	return nil
 }
 
 // PrintCertExpiriesAll prints the certificate expiries for this provider and all extra providers.

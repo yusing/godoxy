@@ -81,7 +81,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "a.internal.example.com"})
@@ -113,7 +113,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.example.com"})
@@ -145,7 +145,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "unknown.domain.com"})
@@ -171,7 +171,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(nil)
@@ -197,7 +197,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: ""})
@@ -229,7 +229,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "FOO.EXAMPLE.COM"})
@@ -261,7 +261,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "  foo.example.com.  "})
@@ -293,7 +293,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.a.example.com"})
@@ -319,7 +319,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "bar.example.com"})
@@ -355,7 +355,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert1, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.test.com"})
@@ -392,7 +392,7 @@ func TestGetCertBySNI(t *testing.T) {
 		p, err := autocert.NewProvider(cfg, nil, nil)
 		require.NoError(t, err)
 
-		err = p.LoadCert()
+		err = p.LoadCertAll()
 		require.NoError(t, err)
 
 		cert1, err := p.GetCert(&tls.ClientHelloInfo{ServerName: "foo.example.com"})
