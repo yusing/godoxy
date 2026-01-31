@@ -1,6 +1,7 @@
 package agentapi
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -36,6 +37,9 @@ type VerifyNewAgentRequest struct {
 // @Failure		500		{object}	ErrorResponse
 // @Router			/agent/verify [post]
 func Verify(c *gin.Context) {
+	// avoid timeout waiting for response headers
+	c.Status(http.StatusContinue)
+
 	var request VerifyNewAgentRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
@@ -60,7 +64,7 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, err := verifyNewAgent(request.Host, ca, client, request.ContainerRuntime)
+	nRoutesAdded, err := verifyNewAgent(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -82,7 +86,7 @@ func Verify(c *gin.Context) {
 
 var errAgentAlreadyExists = gperr.New("agent already exists")
 
-func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
+func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
@@ -99,7 +103,7 @@ func verifyNewAgent(host string, ca agent.PEMPair, client agent.PEMPair, contain
 		return 0, errAgentAlreadyExists
 	}
 
-	err := agentCfg.InitWithCerts(cfgState.Context(), ca.Cert, client.Cert, client.Key)
+	err := agentCfg.InitWithCerts(ctx, ca.Cert, client.Cert, client.Key)
 	if err != nil {
 		return 0, gperr.Wrap(err, "failed to initialize agent config")
 	}
