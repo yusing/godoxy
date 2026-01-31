@@ -749,6 +749,7 @@ const (
 	ExcludedReasonNoPortSpecified
 	ExcludedReasonBlacklisted
 	ExcludedReasonBuildx
+	ExcludedReasonYAMLAnchor
 	ExcludedReasonOld
 )
 
@@ -768,6 +769,8 @@ func (re ExcludedReason) String() string {
 		return "Blacklisted (backend service or database)"
 	case ExcludedReasonBuildx:
 		return "Buildx"
+	case ExcludedReasonYAMLAnchor:
+		return "YAML anchor or reference"
 	case ExcludedReasonOld:
 		return "Container renaming intermediate state"
 	default:
@@ -801,6 +804,12 @@ func (r *Route) findExcludedReason() ExcludedReason {
 		}
 	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
 		return ExcludedReasonNoPortSpecified
+	}
+	// this should happen on validation API only,
+	// those routes are removed before validation.
+	// see removeXPrefix in provider/file.go
+	if strings.HasPrefix(r.Alias, "x-") { // for YAML anchors and references
+		return ExcludedReasonYAMLAnchor
 	}
 	if strings.HasSuffix(r.Alias, "-old") {
 		return ExcludedReasonOld
