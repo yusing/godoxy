@@ -254,7 +254,7 @@ func (r *Route) validate() gperr.Error {
 	}
 
 	// return error if route is localhost:<godoxy_port> but route is not agent
-	if !r.IsAgent() {
+	if !r.IsAgent() && !r.ShouldExclude() {
 		switch r.Host {
 		case "localhost", "127.0.0.1":
 			switch r.Port.Proxy {
