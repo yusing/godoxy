@@ -49,5 +49,7 @@ COPY --from=builder /app/run /app/run
 
 WORKDIR /app
 
+LABEL proxy.#1.healthcheck.disable=true
+
 ENV LISTEN_ADDR=0.0.0.0:2375
 CMD ["/app/run"]
