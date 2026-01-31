@@ -4,10 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/go-acme/lego/v4/certcrypto"
@@ -27,7 +30,7 @@ type Config struct {
 	CertPath    string                       `json:"cert_path,omitempty"`
 	KeyPath     string                       `json:"key_path,omitempty"`
 	Extra       []ConfigExtra                `json:"extra,omitempty"`
-	ACMEKeyPath string                       `json:"acme_key_path,omitempty"` // shared by all extra providers
+	ACMEKeyPath string                       `json:"acme_key_path,omitempty"` // shared by all extra providers with the same CA directory URL
 	Provider    string                       `json:"provider,omitempty"`
 	Options     map[string]strutils.Redacted `json:"options,omitempty"`
 
@@ -88,7 +91,7 @@ func (cfg *Config) validate(seenPaths map[string]int) gperr.Error {
 		cfg.KeyPath = KeyFileDefault
 	}
 	if cfg.ACMEKeyPath == "" {
-		cfg.ACMEKeyPath = ACMEKeyFileDefault
+		cfg.ACMEKeyPath = acmeKeyPath(cfg.CADirURL)
 	}
 
 	b := gperr.NewBuilder("certificate error")
@@ -271,4 +274,17 @@ func (cfg *Config) SaveACMEKey(key *ecdsa.PrivateKey) error {
 		return err
 	}
 	return os.WriteFile(cfg.ACMEKeyPath, data, 0o600)
+}
+
+// acmeKeyPath returns the path to the ACME key file based on the CA directory URL.
+// Different CA directory URLs will use different key files to avoid key conflicts.
+func acmeKeyPath(caDirURL string) string {
+	// Use a hash of the CA directory URL to create a unique key filename
+	// Default to "acme" if no custom CA is configured (Let's Encrypt default)
+	filename := "acme"
+	if caDirURL != "" {
+		hash := sha256.Sum256([]byte(caDirURL))
+		filename = "acme_" + hex.EncodeToString(hash[:])[:16]
+	}
+	return filepath.Join(certBasePath, filename+".key")
 }
