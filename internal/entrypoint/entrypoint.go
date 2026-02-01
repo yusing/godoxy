@@ -22,7 +22,7 @@ type Entrypoint struct {
 	notFoundHandler http.Handler
 	accessLogger    accesslog.AccessLogger
 	findRouteFunc   func(host string) types.HTTPRoute
-	shortLinkTree   *ShortLinkMatcher
+	shortLinkMatcher   *ShortLinkMatcher
 }
 
 // nil-safe
@@ -36,12 +36,12 @@ func init() {
 func NewEntrypoint() Entrypoint {
 	return Entrypoint{
 		findRouteFunc: findRouteAnyDomain,
-		shortLinkTree: newShortLinkTree(),
+		shortLinkMatcher: newShortLinkMatcher(),
 	}
 }
 
 func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
-	return ep.shortLinkTree
+	return ep.shortLinkMatcher
 }
 
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
@@ -130,9 +130,9 @@ func (ep *Entrypoint) tryHandleShortLink(w http.ResponseWriter, r *http.Request)
 	}
 	if strings.EqualFold(host, common.ShortLinkPrefix) {
 		if ep.middleware != nil {
-			ep.middleware.ServeHTTP(ep.shortLinkTree.ServeHTTP, w, r)
+			ep.middleware.ServeHTTP(ep.shortLinkMatcher.ServeHTTP, w, r)
 		} else {
-			ep.shortLinkTree.ServeHTTP(w, r)
+			ep.shortLinkMatcher.ServeHTTP(w, r)
 		}
 		return true
 	}

@@ -14,7 +14,7 @@ type ShortLinkMatcher struct {
 	subdomainRoutes *xsync.Map[string, struct{}]
 }
 
-func newShortLinkTree() *ShortLinkMatcher {
+func newShortLinkMatcher() *ShortLinkMatcher {
 	return &ShortLinkMatcher{
 		fqdnRoutes:      xsync.NewMap[string, string](),
 		subdomainRoutes: xsync.NewMap[string, struct{}](),
