@@ -181,7 +181,6 @@ func newApiHandler(debugMux *debugMux) *gin.Engine {
 		registerGinRoute(v1, "GET", "Route favicon", "/favicon", apiV1.FavIcon)
 		registerGinRoute(v1, "GET", "Route health", "/health", apiV1.Health)
 		registerGinRoute(v1, "GET", "List icons", "/icons", apiV1.Icons)
-		registerGinRoute(v1, "POST", "Config reload", "/reload", apiV1.Reload)
 		registerGinRoute(v1, "GET", "Route stats", "/stats", apiV1.Stats)
 
 		route := v1.Group("/route")
