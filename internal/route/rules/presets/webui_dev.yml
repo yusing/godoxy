@@ -3,19 +3,16 @@
   do: pass
 - name: protected
   on: |
+    !path glob("@tanstack-start/*")
+    !path /@react-refresh
+    !path /@vite/client
+    !path regex("\?token=\w{5}-\w{5}")
+    !path glob("/@id/*")
     !path glob("/api/v1/auth/*")
     !path glob("/auth/*")
-    !path /icon0.svg
-    !path /favicon.ico
-    !path /apple-icon.png
-    !path glob("/web-app-manifest-*x*.png")
-    !path regex("\/assets\/(chunks\/)?[a-zA-Z0-9\-_]+\.(css|js|woff2)")
-    !path regex("\/assets\/workbox-window\.prod\.es5-[a-zA-Z0-9]+\.js")
-    !path regex("/workbox-[a-zA-Z0-9]+\.js")
+    !path regex("[A-Za-z0-9_\-/]+\.(css|ts|js|mjs|svg|png|jpg|jpeg|gif|ico|webp|woff2?|eot|ttf|otf|txt)(\?.+)?")
     !path /api/v1/version
     !path /manifest.webmanifest
-    !path /sw.js
-    !path /registerSW.js
   do: require_auth
 - name: proxy to backend
   on: path glob("/api/v1/*")

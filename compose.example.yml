@@ -31,8 +31,8 @@ services:
     user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
     read_only: true
     tmpfs:
-      - /app/.next/cache # next image caching
-
+      - /tmp:rw
+      - /app/node_modules/.cache:rw
       # for lite variant, do not change uid/gid
       # - /var/cache/nginx:uid=101,gid=101
       # - /run:uid=101,gid=101
