@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/agent
 
-go 1.25.6
+go 1.25.7
 
 exclude (
 	github.com/moby/moby/api v1.53.0 // allow older daemon versions
