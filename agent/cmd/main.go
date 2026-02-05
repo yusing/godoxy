@@ -161,7 +161,7 @@ Tips:
 		srv.Serve(l)
 	}
 
-	systeminfo.Poller.Start()
+	systeminfo.Poller.Start(t)
 
 	task.WaitExit(3)
 }
