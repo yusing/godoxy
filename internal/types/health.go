@@ -74,6 +74,19 @@ type (
 		Config *LoadBalancerConfig `json:"config"`
 		Pool   map[string]any      `json:"pool"`
 	} // @name HealthExtra
+
+	HealthInfoWithoutDetail struct {
+		Status  HealthStatus  `json:"status" swaggertype:"string" enums:"healthy,unhealthy,napping,starting,error,unknown"`
+		Uptime  time.Duration `json:"uptime" swaggertype:"number"`  // uptime in milliseconds
+		Latency time.Duration `json:"latency" swaggertype:"number"` // latency in microseconds
+	} // @name HealthInfoWithoutDetail
+
+	HealthInfo struct {
+		HealthInfoWithoutDetail
+		Detail string `json:"detail"`
+	} // @name HealthInfo
+
+	HealthMap = map[string]HealthStatusString // @name	HealthMap
 )
 
 const (

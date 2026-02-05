@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/route/routes"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 
@@ -24,11 +24,12 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/health [get]
 func Health(c *gin.Context) {
+	ep := entrypoint.FromCtx(c.Request.Context())
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 1*time.Second, func() (any, error) {
-			return routes.GetHealthInfoSimple(), nil
+			return ep.GetHealthInfoSimple(), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, routes.GetHealthInfoSimple())
+		c.JSON(http.StatusOK, ep.GetHealthInfoSimple())
 	}
 }

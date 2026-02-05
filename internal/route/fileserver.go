@@ -6,12 +6,12 @@ import (
 	"path"
 	"path/filepath"
 
-	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/rs/zerolog/log"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
@@ -120,20 +120,13 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	if s.UseHealthCheck() {
 		s.HealthMon = monitor.NewMonitor(s)
 		if err := s.HealthMon.Start(s.task); err != nil {
-			return err
+			l := log.With().Str("type", "fileserver").Str("name", s.Name()).Logger()
+			gperr.LogWarn("health monitor error", err, &l)
+			s.HealthMon = nil
 		}
 	}
 
-	routes.HTTP.Add(s)
-	if state := config.WorkingState.Load(); state != nil {
-		state.ShortLinkMatcher().AddRoute(s.Alias)
-	}
-	s.task.OnFinished("remove_route_from_http", func() {
-		routes.HTTP.Del(s)
-		if state := config.WorkingState.Load(); state != nil {
-			state.ShortLinkMatcher().DelRoute(s.Alias)
-		}
-	})
+	entrypoint.FromCtx(parent.Context()).AddRoute(s)
 	return nil
 }
 

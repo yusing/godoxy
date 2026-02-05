@@ -231,7 +231,7 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	expect.NoError(t, err)
 
 	expect.NoError(t, err)
-	entry := entrypoint.NewEntrypoint()
+	entry := entrypoint.NewEntrypoint(task.NewTestTask(t), nil)
 	r := &route.Route{
 		Alias: "test-route",
 		Host:  host,
@@ -260,7 +260,11 @@ func TestEntrypointBypassRoute(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "http://test-route.example.com", nil)
-	entry.ServeHTTP(recorder, req)
+	server, ok := entry.GetServer(r.ListenURL().Host)
+	if !ok {
+		t.Fatal("server not found")
+	}
+	server.ServeHTTP(recorder, req)
 	expect.Equal(t, recorder.Code, http.StatusOK, "should bypass http redirect")
 	expect.Equal(t, recorder.Body.String(), "test")
 	expect.Equal(t, recorder.Header().Get("Test-Header"), "test-value")

@@ -153,8 +153,8 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 	p.lastResult.Store(data)
 }
 
-func (p *Poller[T, AggregateT]) Start() {
-	t := task.RootTask("poller."+p.name, true)
+func (p *Poller[T, AggregateT]) Start(parent task.Parent) {
+	t := parent.Subtask("poller."+p.name, true)
 	l := log.With().Str("name", p.name).Logger()
 	err := p.load()
 	if err != nil {

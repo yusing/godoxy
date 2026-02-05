@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/route/routes"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/types"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
@@ -44,7 +44,7 @@ func Stats(c *gin.Context) {
 	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
 	if !ok {
 		var route types.Route
-		route, ok = routes.GetIncludeExcluded(id)
+		route, ok = entrypoint.FromCtx(c.Request.Context()).GetRoute(id)
 		if ok {
 			cont := route.ContainerInfo()
 			if cont == nil {

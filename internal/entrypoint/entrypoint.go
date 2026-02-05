@@ -1,47 +1,129 @@
 package entrypoint
 
 import (
+	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/common"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
-	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/types"
+	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 )
 
+type HTTPRoutes interface {
+	Get(alias string) (types.HTTPRoute, bool)
+}
+
+type findRouteFunc func(HTTPRoutes, string) types.HTTPRoute
+
 type Entrypoint struct {
-	middleware      *middleware.Middleware
-	notFoundHandler http.Handler
-	accessLogger    accesslog.AccessLogger
-	findRouteFunc   func(host string) types.HTTPRoute
-	shortLinkMatcher   *ShortLinkMatcher
+	task *task.Task
+
+	cfg *entrypoint.Config
+
+	middleware       *middleware.Middleware
+	notFoundHandler  http.Handler
+	accessLogger     accesslog.AccessLogger
+	findRouteFunc    findRouteFunc
+	shortLinkMatcher *ShortLinkMatcher
+
+	streamRoutes   *pool.Pool[types.StreamRoute]
+	excludedRoutes *pool.Pool[types.Route]
+
+	// this only affects future http servers creation
+	httpPoolDisableLog atomic.Bool
+
+	servers      *xsync.Map[string, *httpServer]    // listen addr -> server
+	tcpListeners *xsync.Map[string, net.Listener]   // listen addr -> listener
+	udpListeners *xsync.Map[string, net.PacketConn] // listen addr -> listener
 }
 
-// nil-safe
-var ActiveConfig atomic.Pointer[entrypoint.Config]
+var _ entrypoint.Entrypoint = &Entrypoint{}
 
-func init() {
-	// make sure it's not nil
-	ActiveConfig.Store(&entrypoint.Config{})
-}
+var emptyCfg entrypoint.Config
 
-func NewEntrypoint() Entrypoint {
-	return Entrypoint{
-		findRouteFunc: findRouteAnyDomain,
-		shortLinkMatcher: newShortLinkMatcher(),
+func NewEntrypoint(parent task.Parent, cfg *entrypoint.Config) *Entrypoint {
+	if cfg == nil {
+		cfg = &emptyCfg
 	}
+
+	ep := &Entrypoint{
+		task:             parent.Subtask("entrypoint", false),
+		cfg:              cfg,
+		findRouteFunc:    findRouteAnyDomain,
+		shortLinkMatcher: newShortLinkMatcher(),
+		streamRoutes:     pool.New[types.StreamRoute]("stream_routes"),
+		excludedRoutes:   pool.New[types.Route]("excluded_routes"),
+		servers:          xsync.NewMap[string, *httpServer](),
+		tcpListeners:     xsync.NewMap[string, net.Listener](),
+		udpListeners:     xsync.NewMap[string, net.PacketConn](),
+	}
+	ep.task.OnCancel("stop", func() {
+		// servers stop on their own when context is cancelled
+		var errs gperr.Group
+		for _, listener := range ep.tcpListeners.Range {
+			errs.Go(func() error {
+				return listener.Close()
+			})
+		}
+		for _, listener := range ep.udpListeners.Range {
+			errs.Go(func() error {
+				return listener.Close()
+			})
+		}
+		if err := errs.Wait().Error(); err != nil {
+			gperr.LogError("failed to stop entrypoint listeners", err)
+		}
+	})
+	ep.task.OnFinished("cleanup", func() {
+		ep.servers.Clear()
+		ep.tcpListeners.Clear()
+		ep.udpListeners.Clear()
+	})
+	return ep
 }
 
 func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
 	return ep.shortLinkMatcher
+}
+
+func (ep *Entrypoint) Config() *entrypoint.Config {
+	return ep.cfg
+}
+
+func (ep *Entrypoint) HTTPRoutes() entrypoint.PoolLike[types.HTTPRoute] {
+	return newHTTPPoolAdapter(ep)
+}
+
+func (ep *Entrypoint) StreamRoutes() entrypoint.PoolLike[types.StreamRoute] {
+	return ep.streamRoutes
+}
+
+func (ep *Entrypoint) ExcludedRoutes() entrypoint.RWPoolLike[types.Route] {
+	return ep.excludedRoutes
+}
+
+func (ep *Entrypoint) GetServer(addr string) (*httpServer, bool) {
+	return ep.servers.Load(addr)
+}
+
+func (ep *Entrypoint) DisablePoolsLog(v bool) {
+	ep.httpPoolDisableLog.Store(v)
+	// apply to all running http servers
+	for _, srv := range ep.servers.Range {
+		srv.routes.DisableLog(v)
+	}
+	// apply to other pools
+	ep.streamRoutes.DisableLog(v)
+	ep.excludedRoutes.DisableLog(v)
 }
 
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
@@ -74,7 +156,7 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 }
 
 func (ep *Entrypoint) SetNotFoundRules(rules rules.Rules) {
-	ep.notFoundHandler = rules.BuildHandler(http.HandlerFunc(ep.serveNotFound))
+	ep.notFoundHandler = rules.BuildHandler(serveNotFound)
 }
 
 func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.RequestLoggerConfig) (err error) {
@@ -91,111 +173,39 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 	return err
 }
 
-func (ep *Entrypoint) FindRoute(s string) types.HTTPRoute {
-	return ep.findRouteFunc(s)
-}
-
-func (ep *Entrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if ep.accessLogger != nil {
-		rec := accesslog.GetResponseRecorder(w)
-		w = rec
-		defer func() {
-			ep.accessLogger.LogRequest(r, rec.Response())
-			accesslog.PutResponseRecorder(rec)
-		}()
-	}
-
-	route := ep.findRouteFunc(r.Host)
-	switch {
-	case route != nil:
-		r = routes.WithRouteContext(r, route)
-		if ep.middleware != nil {
-			ep.middleware.ServeHTTP(route.ServeHTTP, w, r)
-		} else {
-			route.ServeHTTP(w, r)
-		}
-	case ep.tryHandleShortLink(w, r):
-		return
-	case ep.notFoundHandler != nil:
-		ep.notFoundHandler.ServeHTTP(w, r)
-	default:
-		ep.serveNotFound(w, r)
-	}
-}
-
-func (ep *Entrypoint) tryHandleShortLink(w http.ResponseWriter, r *http.Request) (handled bool) {
-	host := r.Host
-	if before, _, ok := strings.Cut(host, ":"); ok {
-		host = before
-	}
-	if strings.EqualFold(host, common.ShortLinkPrefix) {
-		if ep.middleware != nil {
-			ep.middleware.ServeHTTP(ep.shortLinkMatcher.ServeHTTP, w, r)
-		} else {
-			ep.shortLinkMatcher.ServeHTTP(w, r)
-		}
-		return true
-	}
-	return false
-}
-
-func (ep *Entrypoint) serveNotFound(w http.ResponseWriter, r *http.Request) {
-	// Why use StatusNotFound instead of StatusBadRequest or StatusBadGateway?
-	// On nginx, when route for domain does not exist, it returns StatusBadGateway.
-	// Then scraper / scanners will know the subdomain is invalid.
-	// With StatusNotFound, they won't know whether it's the path, or the subdomain that is invalid.
-	if served := middleware.ServeStaticErrorPageFile(w, r); !served {
-		log.Error().
-			Str("method", r.Method).
-			Str("url", r.URL.String()).
-			Str("remote", r.RemoteAddr).
-			Msgf("not found: %s", r.Host)
-		errorPage, ok := errorpage.GetErrorPageByStatus(http.StatusNotFound)
-		if ok {
-			w.WriteHeader(http.StatusNotFound)
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			if _, err := w.Write(errorPage); err != nil {
-				log.Err(err).Msg("failed to write error page")
-			}
-		} else {
-			http.NotFound(w, r)
-		}
-	}
-}
-
-func findRouteAnyDomain(host string) types.HTTPRoute {
+func findRouteAnyDomain(routes HTTPRoutes, host string) types.HTTPRoute {
 	idx := strings.IndexByte(host, '.')
 	if idx != -1 {
 		target := host[:idx]
-		if r, ok := routes.HTTP.Get(target); ok {
+		if r, ok := routes.Get(target); ok {
 			return r
 		}
 	}
-	if r, ok := routes.HTTP.Get(host); ok {
+	if r, ok := routes.Get(host); ok {
 		return r
 	}
 	// try striping the trailing :port from the host
 	if before, _, ok := strings.Cut(host, ":"); ok {
-		if r, ok := routes.HTTP.Get(before); ok {
+		if r, ok := routes.Get(before); ok {
 			return r
 		}
 	}
 	return nil
 }
 
-func findRouteByDomains(domains []string) func(host string) types.HTTPRoute {
-	return func(host string) types.HTTPRoute {
+func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) types.HTTPRoute {
+	return func(routes HTTPRoutes, host string) types.HTTPRoute {
 		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok {
-				if r, ok := routes.HTTP.Get(target); ok {
+				if r, ok := routes.Get(target); ok {
 					return r
 				}
 			}
 		}
 
 		// fallback to exact match
-		if r, ok := routes.HTTP.Get(host); ok {
+		if r, ok := routes.Get(host); ok {
 			return r
 		}
 		return nil

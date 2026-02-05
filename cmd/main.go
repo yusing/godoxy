@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/api"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
@@ -14,12 +14,9 @@ import (
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
-	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/rules"
 	gperr "github.com/yusing/goutils/errs"
-	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
 )
@@ -51,7 +48,6 @@ func main() {
 	parallel(
 		dnsproviders.InitProviders,
 		iconlist.InitCache,
-		systeminfo.Poller.Start,
 		middleware.LoadComposeFiles,
 	)
 
@@ -73,32 +69,13 @@ func main() {
 		gperr.LogWarn("errors in config", err)
 	}
 
-	config.StartProxyServers()
-
 	if err := auth.Initialize(); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize authentication")
 	}
 	rules.InitAuthHandler(auth.AuthOrProceed)
 
-	// API Handler needs to start after auth is initialized.
-	server.StartServer(task.RootTask("api_server", false), server.Options{
-		Name:     "api",
-		HTTPAddr: common.APIHTTPAddr,
-		Handler:  api.NewHandler(true),
-	})
-
-	// Local API Handler is used for unauthenticated access.
-	if common.LocalAPIHTTPAddr != "" {
-		server.StartServer(task.RootTask("local_api_server", false), server.Options{
-			Name:     "local_api",
-			HTTPAddr: common.LocalAPIHTTPAddr,
-			Handler:  api.NewHandler(false),
-		})
-	}
-
 	listenDebugServer()
 
-	uptime.Poller.Start()
 	config.WatchChanges()
 
 	close(done)

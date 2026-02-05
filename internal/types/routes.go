@@ -20,6 +20,7 @@ type (
 		pool.Object
 		ProviderName() string
 		GetProvider() RouteProvider
+		ListenURL() *nettypes.URL
 		TargetURL() *nettypes.URL
 		HealthMonitor() HealthMonitor
 		SetHealthMonitor(m HealthMonitor)

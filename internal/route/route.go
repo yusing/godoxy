@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/homepage"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
@@ -33,7 +34,6 @@ import (
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	route "github.com/yusing/godoxy/internal/route/types"
@@ -46,8 +46,7 @@ type (
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
 
-		// for TCP and UDP routes, bind address to listen on
-		Bind string `json:"bind,omitempty" validate:"omitempty,ip_addr" extensions:"x-nullable"`
+		Bind string `json:"bind,omitempty" validate:"omitempty,dive,ip_addr" extensions:"x-nullable"`
 
 		Root  string `json:"root,omitempty"`
 		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
@@ -274,24 +273,17 @@ func (r *Route) validate() gperr.Error {
 	var impl types.Route
 	var err gperr.Error
 
-	switch r.Scheme {
-	case route.SchemeFileServer:
-		r.Host = ""
-		r.Port.Proxy = 0
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
-	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
-		if r.Port.Listening != 0 {
-			errs.Addf("unexpected listening port for %s scheme", r.Scheme)
-		}
+	if r.ShouldExclude() {
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-	case route.SchemeTCP, route.SchemeUDP:
-		if r.ShouldExclude() {
-			// should exclude, we don't care the scheme here.
+	} else {
+		switch r.Scheme {
+		case route.SchemeFileServer:
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("https://%s", net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-		} else {
-			if r.Bind == "" {
-				r.Bind = "0.0.0.0"
-			}
+		case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
+			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("https://%s", net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
+		case route.SchemeTCP, route.SchemeUDP:
 			bindIP := net.ParseIP(r.Bind)
 			remoteIP := net.ParseIP(r.Host)
 			toNetwork := func(ip net.IP, scheme route.Scheme) string {
@@ -315,6 +307,12 @@ func (r *Route) validate() gperr.Error {
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
 		}
+	}
+
+	if r.Scheme == route.SchemeFileServer {
+		r.Host = ""
+		r.Port.Proxy = 0
+		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
@@ -360,8 +358,8 @@ func (r *Route) validateRules() error {
 				return errors.New("rule preset `webui.yml` not found")
 			}
 			r.Rules = rules
+			return nil
 		}
-		return nil
 	}
 
 	if r.RuleFile != "" && len(r.Rules) > 0 {
@@ -504,7 +502,7 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 	// skip checking for excluded routes
 	excluded := r.ShouldExclude()
 	if !excluded {
-		if err := checkExists(r); err != nil {
+		if err := checkExists(parent.Context(), r); err != nil {
 			return err
 		}
 	}
@@ -518,15 +516,19 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 			return err
 		}
 	} else {
-		r.task = parent.Subtask("excluded."+r.Name(), true)
-		routes.Excluded.Add(r.impl)
+		ep := entrypoint.FromCtx(parent.Context())
+
+		r.task = parent.Subtask("excluded."+r.Name(), false)
+		ep.ExcludedRoutes().Add(r.impl)
 		r.task.OnCancel("remove_route_from_excluded", func() {
-			routes.Excluded.Del(r.impl)
+			ep.ExcludedRoutes().Del(r.impl)
 		})
 		if r.UseHealthCheck() {
 			r.HealthMon = monitor.NewMonitor(r.impl)
 			err := r.HealthMon.Start(r.task)
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -562,6 +564,10 @@ func (r *Route) SetProvider(p types.RouteProvider) {
 
 func (r *Route) ProviderName() string {
 	return r.Provider
+}
+
+func (r *Route) ListenURL() *nettypes.URL {
+	return r.LisURL
 }
 
 func (r *Route) TargetURL() *nettypes.URL {
@@ -932,6 +938,20 @@ func (r *Route) Finalize() {
 		}
 	}
 
+	switch r.Scheme {
+	case route.SchemeTCP, route.SchemeUDP:
+		if r.Bind == "" {
+			r.Bind = "0.0.0.0"
+		}
+	default:
+		if r.Bind == "" {
+			r.Bind = common.ProxyHTTPSHost
+		}
+		if r.Port.Proxy == 0 {
+			r.Port.Proxy = common.ProxyHTTPSPort
+		}
+	}
+
 	r.Port.Listening, r.Port.Proxy = lp, pp
 
 	workingState := config.WorkingState.Load()
@@ -942,6 +962,7 @@ func (r *Route) Finalize() {
 		panic("bug: working state is nil")
 	}
 
+	// TODO: default value from context
 	r.HealthCheck.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
 }
 

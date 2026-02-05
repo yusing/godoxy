@@ -7,9 +7,9 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/acl"
+	acl "github.com/yusing/godoxy/internal/acl/types"
 	"github.com/yusing/godoxy/internal/agentpool"
-	"github.com/yusing/godoxy/internal/entrypoint"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
 	"go.uber.org/atomic"
@@ -51,12 +51,14 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 		return
 	}
 
-	if acl, ok := ctx.Value(acl.ContextKey{}).(*acl.Config); ok {
+	// TODO: add to entrypoint
+
+	if acl := acl.FromCtx(ctx); acl != nil {
 		log.Debug().Str("listener", s.listener.Addr().String()).Msg("wrapping listener with ACL")
 		s.listener = acl.WrapTCP(s.listener)
 	}
 
-	if proxyProto := entrypoint.ActiveConfig.Load().SupportProxyProtocol; proxyProto {
+	if proxyProto := entrypoint.FromCtx(ctx).Config().SupportProxyProtocol; proxyProto {
 		s.listener = &proxyproto.Listener{Listener: s.listener}
 	}
 

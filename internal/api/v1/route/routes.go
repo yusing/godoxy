@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -32,14 +32,16 @@ func Routes(c *gin.Context) {
 		return
 	}
 
+	ep := entrypoint.FromCtx(c.Request.Context())
+
 	provider := c.Query("provider")
 	if provider == "" {
-		c.JSON(http.StatusOK, slices.Collect(routes.IterAll))
+		c.JSON(http.StatusOK, slices.Collect(ep.IterRoutes))
 		return
 	}
 
-	rts := make([]types.Route, 0, routes.NumAllRoutes())
-	for r := range routes.IterAll {
+	rts := make([]types.Route, 0, ep.NumRoutes())
+	for r := range ep.IterRoutes {
 		if r.ProviderName() == provider {
 			rts = append(rts, r)
 		}
@@ -48,17 +50,19 @@ func Routes(c *gin.Context) {
 }
 
 func RoutesWS(c *gin.Context) {
+	ep := entrypoint.FromCtx(c.Request.Context())
+
 	provider := c.Query("provider")
 	if provider == "" {
 		websocket.PeriodicWrite(c, 3*time.Second, func() (any, error) {
-			return slices.Collect(routes.IterAll), nil
+			return slices.Collect(ep.IterRoutes), nil
 		})
 		return
 	}
 
 	websocket.PeriodicWrite(c, 3*time.Second, func() (any, error) {
-		rts := make([]types.Route, 0, routes.NumAllRoutes())
-		for r := range routes.IterAll {
+		rts := make([]types.Route, 0, ep.NumRoutes())
+		for r := range ep.IterRoutes {
 			if r.ProviderName() == provider {
 				rts = append(rts, r)
 			}

@@ -12,7 +12,6 @@ import (
 
 	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
@@ -90,16 +89,21 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	err = r.Start(task.RootTask("test", false))
+	err = r.Start(task.NewTestTask(b))
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	var w noopResponseWriter
 
+	server, ok := ep.GetServer(r.ListenURL().Host)
+	if !ok {
+		b.Fatal("server not found")
+	}
+
 	b.ResetTimer()
 	for b.Loop() {
-		ep.ServeHTTP(&w, &req)
+		server.ServeHTTP(&w, &req)
 		// if w.statusCode != http.StatusOK {
 		// 	b.Fatalf("status code is not 200: %d", w.statusCode)
 		// }
@@ -140,7 +144,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	rev, ok := routes.HTTP.Get("test")
+	rev, ok := ep.HTTPRoutes().Get("test")
 	if !ok {
 		b.Fatal("route not found")
 	}
@@ -148,9 +152,14 @@ func BenchmarkEntrypoint(b *testing.B) {
 
 	var w noopResponseWriter
 
+	server, ok := ep.GetServer(r.ListenURL().Host)
+	if !ok {
+		b.Fatal("server not found")
+	}
+
 	b.ResetTimer()
 	for b.Loop() {
-		ep.ServeHTTP(&w, &req)
+		server.ServeHTTP(&w, &req)
 		if w.statusCode != http.StatusOK {
 			b.Fatalf("status code is not 200: %d", w.statusCode)
 		}

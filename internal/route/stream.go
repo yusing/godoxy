@@ -8,10 +8,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/stream"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -65,6 +65,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
 			gperr.LogWarn("health monitor error", err, &r.l)
+			r.HealthMon = nil
 		}
 	}
 
@@ -81,10 +82,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.l.Info().Msg("stream closed")
 	})
 
-	routes.Stream.Add(r)
-	r.task.OnCancel("remove_route_from_stream", func() {
-		routes.Stream.Del(r)
-	})
+	entrypoint.FromCtx(parent.Context()).AddRoute(r)
 	return nil
 }
 

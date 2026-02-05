@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 
 	_ "github.com/yusing/goutils/apitypes"
 )
@@ -24,5 +24,6 @@ type RoutesByProvider map[string][]route.Route
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/route/by_provider [get]
 func ByProvider(c *gin.Context) {
-	c.JSON(http.StatusOK, routes.ByProvider())
+	ep := entrypoint.FromCtx(c.Request.Context())
+	c.JSON(http.StatusOK, ep.RoutesByProvider())
 }

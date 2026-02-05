@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusing/godoxy/internal/route/routes"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 )
@@ -46,7 +46,7 @@ func (m *forwardAuthMiddleware) setup() {
 
 // before implements RequestModifier.
 func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	route, ok := routes.HTTP.Get(m.Route)
+	route, ok := entrypoint.FromCtx(r.Context()).HTTPRoutes().Get(m.Route)
 	if !ok {
 		ForwardAuth.LogWarn(r).Str("route", m.Route).Msg("forwardauth route not found")
 		w.WriteHeader(http.StatusInternalServerError)

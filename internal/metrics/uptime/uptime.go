@@ -8,16 +8,17 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	config "github.com/yusing/godoxy/internal/config/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]routes.HealthInfoWithoutDetail `json:"statuses"`
-		Timestamp int64                                     `json:"timestamp"`
+		Map       map[string]types.HealthInfoWithoutDetail `json:"statuses"`
+		Timestamp int64                                    `json:"timestamp"`
 	} // @name RouteStatusesByAlias
 	Status struct {
 		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
@@ -41,7 +42,7 @@ var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
 	return StatusByAlias{
-		Map:       routes.GetHealthInfoWithoutDetail(),
+		Map:       entrypoint.FromCtx(ctx).GetHealthInfoWithoutDetail(),
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -127,11 +128,13 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
 		status := types.StatusUnknown
-		r, ok := routes.GetIncludeExcluded(alias)
-		if ok {
-			mon := r.HealthMonitor()
-			if mon != nil {
-				status = mon.Status()
+		if state := config.ActiveState.Load(); state != nil {
+			r, ok := entrypoint.FromCtx(state.Context()).GetRoute(alias)
+			if ok {
+				mon := r.HealthMonitor()
+				if mon != nil {
+					status = mon.Status()
+				}
 			}
 		}
 

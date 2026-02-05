@@ -14,11 +14,11 @@ import (
 	"github.com/yusing/ds/ordered"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -173,7 +173,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		}
 
 		if !ok {
-			depRoute, ok = routes.GetIncludeExcluded(dep)
+			depRoute, ok = entrypoint.FromCtx(parent.Context()).GetRoute(dep)
 			if !ok {
 				depErrors.Addf("dependency %q not found", dep)
 				continue

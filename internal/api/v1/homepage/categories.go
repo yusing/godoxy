@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/homepage"
-	"github.com/yusing/godoxy/internal/route/routes"
 
 	_ "github.com/yusing/goutils/apitypes"
 )
@@ -21,15 +21,16 @@ import (
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Router			/homepage/categories [get]
 func Categories(c *gin.Context) {
-	c.JSON(http.StatusOK, HomepageCategories())
+	ep := entrypoint.FromCtx(c.Request.Context())
+	c.JSON(http.StatusOK, HomepageCategories(ep))
 }
 
-func HomepageCategories() []string {
+func HomepageCategories(ep entrypoint.Entrypoint) []string {
 	check := make(map[string]struct{})
 	categories := make([]string, 0)
 	categories = append(categories, homepage.CategoryAll)
 	categories = append(categories, homepage.CategoryFavorites)
-	for _, r := range routes.HTTP.Iter {
+	for _, r := range ep.HTTPRoutes().Iter {
 		item := r.HomepageItem()
 		if item.Category == "" {
 			continue

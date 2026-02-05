@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/homepage"
-	"github.com/yusing/godoxy/internal/route/routes"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -53,29 +53,30 @@ func Items(c *gin.Context) {
 		hostname = host
 	}
 
+	ep := entrypoint.FromCtx(c.Request.Context())
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 2*time.Second, func() (any, error) {
-			return HomepageItems(proto, hostname, &request), nil
+			return HomepageItems(ep, proto, hostname, &request), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, HomepageItems(proto, hostname, &request))
+		c.JSON(http.StatusOK, HomepageItems(ep, proto, hostname, &request))
 	}
 }
 
-func HomepageItems(proto, hostname string, request *HomepageItemsRequest) homepage.Homepage {
+func HomepageItems(ep entrypoint.Entrypoint, proto, hostname string, request *HomepageItemsRequest) homepage.Homepage {
 	switch proto {
 	case "http", "https":
 	default:
 		proto = "http"
 	}
 
-	hp := homepage.NewHomepageMap(routes.HTTP.Size())
+	hp := homepage.NewHomepageMap(ep.HTTPRoutes().Size())
 
 	if strings.Count(hostname, ".") > 1 {
 		_, hostname, _ = strings.Cut(hostname, ".") // remove the subdomain
 	}
 
-	for _, r := range routes.HTTP.Iter {
+	for _, r := range ep.HTTPRoutes().Iter {
 		if request.Provider != "" && r.ProviderName() != request.Provider {
 			continue
 		}

@@ -5,15 +5,13 @@ import (
 
 	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 
+	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
-var ep = NewEntrypoint()
-
-func addRoute(alias string) {
-	routes.HTTP.Add(&route.ReveseProxyRoute{
+func addRoute(ep *Entrypoint, alias string) {
+	ep.AddRoute(&route.ReveseProxyRoute{
 		Route: &route.Route{
 			Alias: alias,
 			Port: route.Port{
@@ -25,26 +23,28 @@ func addRoute(alias string) {
 
 func run(t *testing.T, match []string, noMatch []string) {
 	t.Helper()
-	t.Cleanup(routes.Clear)
-	t.Cleanup(func() { ep.SetFindRouteDomains(nil) })
+	ep := NewEntrypoint(task.NewTestTask(t), nil)
 
 	for _, test := range match {
 		t.Run(test, func(t *testing.T) {
-			found := ep.FindRoute(test)
+			found, ok := ep.HTTPRoutes().Get(test)
+			expect.True(t, ok)
 			expect.NotNil(t, found)
 		})
 	}
 
 	for _, test := range noMatch {
 		t.Run(test, func(t *testing.T) {
-			found := ep.FindRoute(test)
+			found, ok := ep.HTTPRoutes().Get(test)
+			expect.False(t, ok)
 			expect.Nil(t, found)
 		})
 	}
 }
 
 func TestFindRouteAnyDomain(t *testing.T) {
-	addRoute("app1")
+	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	addRoute(ep, "app1")
 
 	tests := []string{
 		"app1.com",
@@ -62,6 +62,7 @@ func TestFindRouteAnyDomain(t *testing.T) {
 }
 
 func TestFindRouteExactHostMatch(t *testing.T) {
+	ep := NewEntrypoint(task.NewTestTask(t), nil)
 	tests := []string{
 		"app2.com",
 		"app2.domain.com",
@@ -75,19 +76,20 @@ func TestFindRouteExactHostMatch(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		addRoute(test)
+		addRoute(ep, test)
 	}
 
 	run(t, tests, testsNoMatch)
 }
 
 func TestFindRouteByDomains(t *testing.T) {
+	ep := NewEntrypoint(task.NewTestTask(t), nil)
 	ep.SetFindRouteDomains([]string{
 		".domain.com",
 		".sub.domain.com",
 	})
 
-	addRoute("app1")
+	addRoute(ep, "app1")
 
 	tests := []string{
 		"app1.domain.com",
@@ -107,12 +109,13 @@ func TestFindRouteByDomains(t *testing.T) {
 }
 
 func TestFindRouteByDomainsExactMatch(t *testing.T) {
+	ep := NewEntrypoint(task.NewTestTask(t), nil)
 	ep.SetFindRouteDomains([]string{
 		".domain.com",
 		".sub.domain.com",
 	})
 
-	addRoute("app1.foo.bar")
+	addRoute(ep, "app1.foo.bar")
 
 	tests := []string{
 		"app1.foo.bar", // exact match
@@ -131,8 +134,9 @@ func TestFindRouteByDomainsExactMatch(t *testing.T) {
 
 func TestFindRouteWithPort(t *testing.T) {
 	t.Run("AnyDomain", func(t *testing.T) {
-		addRoute("app1")
-		addRoute("app2.com")
+		ep := NewEntrypoint(task.NewTestTask(t), nil)
+		addRoute(ep, "app1")
+		addRoute(ep, "app2.com")
 
 		tests := []string{
 			"app1:8080",
@@ -148,12 +152,13 @@ func TestFindRouteWithPort(t *testing.T) {
 	})
 
 	t.Run("ByDomains", func(t *testing.T) {
+		ep := NewEntrypoint(task.NewTestTask(t), nil)
 		ep.SetFindRouteDomains([]string{
 			".domain.com",
 		})
-		addRoute("app1")
-		addRoute("app2")
-		addRoute("app3.domain.com")
+		addRoute(ep, "app1")
+		addRoute(ep, "app2")
+		addRoute(ep, "app3.domain.com")
 
 		tests := []string{
 			"app1.domain.com:8080",
