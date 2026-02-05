@@ -60,6 +60,16 @@ func Load() error {
 
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
+	initErr := state.InitFromFile(common.ConfigPath)
+	if initErr != nil {
+		// if error is critical, notify and return it without starting providers
+		var criticalErr CriticalError
+		if errors.As(initErr, &criticalErr) {
+			logNotifyError("init", criticalErr.err)
+			return criticalErr.err
+		}
+	}
+
 	// disable pool logging temporary since we already have pretty logging
 	routes.HTTP.DisableLog(true)
 	routes.Stream.DisableLog(true)

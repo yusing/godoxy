@@ -50,6 +50,18 @@ type state struct {
 	tmpLog    zerolog.Logger
 }
 
+type CriticalError struct {
+	err error
+}
+
+func (e CriticalError) Error() string {
+	return e.err.Error()
+}
+
+func (e CriticalError) Unwrap() error {
+	return e.err
+}
+
 func NewState() config.State {
 	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	return &state{
@@ -96,7 +108,7 @@ func (state *state) InitFromFile(filename string) error {
 		if errors.Is(err, fs.ErrNotExist) {
 			state.Config = config.DefaultConfig()
 		} else {
-			return err
+			return CriticalError{err}
 		}
 	}
 	return state.Init(data)
@@ -105,7 +117,7 @@ func (state *state) InitFromFile(filename string) error {
 func (state *state) Init(data []byte) error {
 	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
 	if err != nil {
-		return err
+		return CriticalError{err}
 	}
 
 	g := gperr.NewGroup("config load error")
@@ -117,7 +129,9 @@ func (state *state) Init(data []byte) error {
 	// these won't benefit from running on goroutines
 	errs.Add(state.initNotification())
 	errs.Add(state.initACL())
-	errs.Add(state.initEntrypoint())
+	if err := state.initEntrypoint(); err != nil {
+		errs.Add(CriticalError{err})
+	}
 	errs.Add(state.loadRouteProviders())
 	return errs.Error()
 }

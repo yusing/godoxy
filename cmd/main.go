@@ -66,6 +66,10 @@ func main() {
 
 	err := config.Load()
 	if err != nil {
+		var criticalErr config.CriticalError
+		if errors.As(err, &criticalErr) {
+			gperr.LogFatal("critical error in config", criticalErr)
+		}
 		gperr.LogWarn("errors in config", err)
 	}
 
