@@ -8,6 +8,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 
 	_ "github.com/yusing/goutils/apitypes"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type RoutesByProvider map[string][]route.Route
@@ -25,5 +26,9 @@ type RoutesByProvider map[string][]route.Route
 // @Router			/route/by_provider [get]
 func ByProvider(c *gin.Context) {
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible, but just in case
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
 	c.JSON(http.StatusOK, ep.RoutesByProvider())
 }

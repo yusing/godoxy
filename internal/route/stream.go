@@ -82,7 +82,11 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.l.Info().Msg("stream closed")
 	})
 
-	entrypoint.FromCtx(parent.Context()).AddRoute(r)
+	ep := entrypoint.FromCtx(parent.Context())
+	if ep == nil {
+		return gperr.New("entrypoint not initialized")
+	}
+	ep.AddRoute(r)
 	return nil
 }
 

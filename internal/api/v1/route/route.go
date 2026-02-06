@@ -33,6 +33,11 @@ func Route(c *gin.Context) {
 	}
 
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible, but just in case
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
+
 	route, ok := ep.GetRoute(request.Which)
 	if ok {
 		c.JSON(http.StatusOK, route)

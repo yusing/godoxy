@@ -74,6 +74,9 @@ func FavIcon(c *gin.Context) {
 func GetFavIconFromAlias(ctx context.Context, alias string, variant icons.Variant) (iconfetch.Result, error) {
 	// try with route.Icon
 	ep := entrypoint.FromCtx(ctx)
+	if ep == nil { // impossible, but just in case
+		return iconfetch.FetchResultWithErrorf(http.StatusInternalServerError, "entrypoint not initialized")
+	}
 	r, ok := ep.HTTPRoutes().Get(alias)
 	if !ok {
 		return iconfetch.FetchResultWithErrorf(http.StatusNotFound, "route not found")

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/entrypoint"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
@@ -47,13 +48,15 @@ func (t noopTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func BenchmarkEntrypointReal(b *testing.B) {
-	var ep Entrypoint
+	task := task.NewTestTask(b)
+	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",
 	}
 	ep.SetFindRouteDomains([]string{})
+	entrypoint.SetCtx(task, ep)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "1")
@@ -89,7 +92,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	err = r.Start(task.NewTestTask(b))
+	err = r.Start(task)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -114,13 +117,15 @@ func BenchmarkEntrypointReal(b *testing.B) {
 }
 
 func BenchmarkEntrypoint(b *testing.B) {
-	var ep Entrypoint
+	task := task.NewTestTask(b)
+	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",
 	}
 	ep.SetFindRouteDomains([]string{})
+	entrypoint.SetCtx(task, ep)
 
 	r := &route.Route{
 		Alias:  "test",
@@ -139,7 +144,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	err = r.Start(task.RootTask("test", false))
+	err = r.Start(task)
 	if err != nil {
 		b.Fatal(err)
 	}

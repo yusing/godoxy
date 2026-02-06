@@ -165,7 +165,7 @@ func TestEntrypoint_ShortLinkDispatch(t *testing.T) {
 	ep.ShortLinkMatcher().AddRoute("app")
 
 	server := NewHTTPServer(ep)
-	err := server.Listen("localhost:8080", HTTPProtoHTTP)
+	err := server.Listen("localhost:0", HTTPProtoHTTP)
 	require.NoError(t, err)
 
 	t.Run("shortlink host", func(t *testing.T) {

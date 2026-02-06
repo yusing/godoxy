@@ -163,10 +163,15 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
+	ep := entrypoint.FromCtx(parent.Context())
+	if ep == nil {
+		return gperr.New("entrypoint not initialized")
+	}
+
 	if r.UseLoadBalance() {
-		r.addToLoadBalancer(parent)
+		r.addToLoadBalancer(parent, ep)
 	} else {
-		entrypoint.FromCtx(parent.Context()).AddRoute(r)
+		ep.AddRoute(r)
 	}
 	return nil
 }
@@ -178,12 +183,11 @@ func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 var lbLock sync.Mutex
 
-func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
+func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.Entrypoint) {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
 	lbLock.Lock()
 
-	ep := entrypoint.FromCtx(r.task.Context())
 	l, ok := ep.HTTPRoutes().Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {

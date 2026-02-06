@@ -27,7 +27,7 @@ type findRouteFunc func(HTTPRoutes, string) types.HTTPRoute
 type Entrypoint struct {
 	task *task.Task
 
-	cfg *entrypoint.Config
+	cfg *Config
 
 	middleware       *middleware.Middleware
 	notFoundHandler  http.Handler
@@ -48,9 +48,9 @@ type Entrypoint struct {
 
 var _ entrypoint.Entrypoint = &Entrypoint{}
 
-var emptyCfg entrypoint.Config
+var emptyCfg Config
 
-func NewEntrypoint(parent task.Parent, cfg *entrypoint.Config) *Entrypoint {
+func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 	if cfg == nil {
 		cfg = &emptyCfg
 	}
@@ -91,12 +91,23 @@ func NewEntrypoint(parent task.Parent, cfg *entrypoint.Config) *Entrypoint {
 	return ep
 }
 
-func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
-	return ep.shortLinkMatcher
+func (ep *Entrypoint) SupportProxyProtocol() bool {
+	return ep.cfg.SupportProxyProtocol
 }
 
-func (ep *Entrypoint) Config() *entrypoint.Config {
-	return ep.cfg
+func (ep *Entrypoint) DisablePoolsLog(v bool) {
+	ep.httpPoolDisableLog.Store(v)
+	// apply to all running http servers
+	for _, srv := range ep.servers.Range {
+		srv.routes.DisableLog(v)
+	}
+	// apply to other pools
+	ep.streamRoutes.DisableLog(v)
+	ep.excludedRoutes.DisableLog(v)
+}
+
+func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
+	return ep.shortLinkMatcher
 }
 
 func (ep *Entrypoint) HTTPRoutes() entrypoint.PoolLike[types.HTTPRoute] {
@@ -111,19 +122,12 @@ func (ep *Entrypoint) ExcludedRoutes() entrypoint.RWPoolLike[types.Route] {
 	return ep.excludedRoutes
 }
 
-func (ep *Entrypoint) GetServer(addr string) (*httpServer, bool) {
+func (ep *Entrypoint) GetServer(addr string) (http.Handler, bool) {
 	return ep.servers.Load(addr)
 }
 
-func (ep *Entrypoint) DisablePoolsLog(v bool) {
-	ep.httpPoolDisableLog.Store(v)
-	// apply to all running http servers
-	for _, srv := range ep.servers.Range {
-		srv.routes.DisableLog(v)
-	}
-	// apply to other pools
-	ep.streamRoutes.DisableLog(v)
-	ep.excludedRoutes.DisableLog(v)
+func (ep *Entrypoint) PrintServers() {
+	log.Info().Msgf("servers: %v", xsync.ToPlainMap(ep.servers))
 }
 
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {

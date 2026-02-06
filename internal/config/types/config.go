@@ -8,7 +8,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"

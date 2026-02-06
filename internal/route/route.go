@@ -46,7 +46,7 @@ type (
 		Host   string       `json:"host,omitempty"`
 		Port   route.Port   `json:"port"`
 
-		Bind string `json:"bind,omitempty" validate:"omitempty,dive,ip_addr" extensions:"x-nullable"`
+		Bind string `json:"bind,omitempty" validate:"omitempty,ip_addr" extensions:"x-nullable"`
 
 		Root  string `json:"root,omitempty"`
 		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
@@ -199,7 +199,11 @@ func (r *Route) validate() gperr.Error {
 
 	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
 		wasNotNil := r.Proxmox != nil
-		proxmoxProviders := config.WorkingState.Load().Value().Providers.Proxmox
+		workingState := config.WorkingState.Load()
+		var proxmoxProviders []*proxmox.Config
+		if workingState != nil { // nil in tests
+			proxmoxProviders = workingState.Value().Providers.Proxmox
+		}
 		if len(proxmoxProviders) > 0 {
 			// it's fine if ip is nil
 			hostname := r.Host

@@ -8,6 +8,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage"
 
 	_ "github.com/yusing/goutils/apitypes"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 // @x-id				"categories"
@@ -22,6 +23,10 @@ import (
 // @Router			/homepage/categories [get]
 func Categories(c *gin.Context) {
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible, but just in case
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
 	c.JSON(http.StatusOK, HomepageCategories(ep))
 }
 

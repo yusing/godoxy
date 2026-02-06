@@ -74,11 +74,14 @@ func (ep *Entrypoint) AddRoute(r types.Route) {
 func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
 	if port := route.ListenURL().Port(); port == "" || port == "0" {
 		host := route.ListenURL().Hostname()
+		var httpAddr, httpsAddr string
 		if host == "" {
-			host = common.ProxyHTTPHost
+			httpAddr = common.ProxyHTTPAddr
+			httpsAddr = common.ProxyHTTPSAddr
+		} else {
+			httpAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPPort))
+			httpsAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
 		}
-		httpAddr := net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPPort))
-		httpsAddr := net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
 		return errors.Join(ep.addHTTPRoute(route, httpAddr, HTTPProtoHTTP), ep.addHTTPRoute(route, httpsAddr, HTTPProtoHTTPS))
 	}
 

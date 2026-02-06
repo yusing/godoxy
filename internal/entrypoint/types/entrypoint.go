@@ -5,7 +5,7 @@ import (
 )
 
 type Entrypoint interface {
-	Config() *Config
+	SupportProxyProtocol() bool
 
 	DisablePoolsLog(v bool)
 
