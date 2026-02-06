@@ -53,15 +53,15 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 
 	// TODO: add to entrypoint
 
-	if acl := acl.FromCtx(ctx); acl != nil {
-		log.Debug().Str("listener", s.listener.Addr().String()).Msg("wrapping listener with ACL")
-		s.listener = acl.WrapTCP(s.listener)
-	}
-
 	if ep := entrypoint.FromCtx(ctx); ep != nil {
 		if proxyProto := ep.SupportProxyProtocol(); proxyProto {
 			s.listener = &proxyproto.Listener{Listener: s.listener}
 		}
+	}
+
+	if acl := acl.FromCtx(ctx); acl != nil {
+		log.Debug().Str("listener", s.listener.Addr().String()).Msg("wrapping listener with ACL")
+		s.listener = acl.WrapTCP(s.listener)
 	}
 
 	s.preDial = preDial
