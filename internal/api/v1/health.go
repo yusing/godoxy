@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
-	apitypes "github.com/yusing/goutils/apitypes"
+	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
@@ -18,7 +18,7 @@ import (
 // @Tags			v1,websocket
 // @Accept			json
 // @Produce		json
-// @Success		200	{object}	routes.HealthMap "Health info by route name"
+// @Success		200	{object}	map[string]types.HealthStatusString "Health info by route name"
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/health [get]

@@ -1171,7 +1171,10 @@
           "200": {
             "description": "Health info by route name",
             "schema": {
-              "$ref": "#/definitions/HealthMap"
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/HealthStatusString"
+              }
             }
           },
           "403": {
@@ -2820,43 +2823,6 @@
         "operationId": "tail"
       }
     },
-    "/reload": {
-      "post": {
-        "description": "Reload config",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "v1"
-        ],
-        "summary": "Reload config",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/SuccessResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          }
-        },
-        "x-id": "reload",
-        "operationId": "reload"
-      }
-    },
     "/route/by_provider": {
       "get": {
         "description": "List routes by provider",
@@ -4067,14 +4033,6 @@
           "x-nullable": false,
           "x-omitempty": false
         }
-      },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "HealthMap": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/HealthStatusString"
       },
       "x-nullable": false,
       "x-omitempty": false
@@ -5329,7 +5287,6 @@
           "x-omitempty": false
         },
         "bind": {
-          "description": "for TCP and UDP routes, bind address to listen on",
           "type": "string",
           "x-nullable": true
         },

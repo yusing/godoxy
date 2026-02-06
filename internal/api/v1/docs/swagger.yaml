@@ -419,10 +419,6 @@ definitions:
       url:
         type: string
     type: object
-  HealthMap:
-    additionalProperties:
-      $ref: '#/definitions/HealthStatusString'
-    type: object
   HealthStatusString:
     enum:
     - unknown
@@ -1007,7 +1003,6 @@ definitions:
       alias:
         type: string
       bind:
-        description: for TCP and UDP routes, bind address to listen on
         type: string
         x-nullable: true
       container:
@@ -1807,11 +1802,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_5m:
+        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
-        type: string
-      load_avg_5m:
         type: string
       mem_pct:
         type: string
@@ -2675,7 +2670,9 @@ paths:
         "200":
           description: Health info by route name
           schema:
-            $ref: '#/definitions/HealthMap'
+            additionalProperties:
+              $ref: '#/definitions/HealthStatusString'
+            type: object
         "403":
           description: Forbidden
           schema:
@@ -3790,30 +3787,6 @@ paths:
       - proxmox
       - websocket
       x-id: tail
-  /reload:
-    post:
-      consumes:
-      - application/json
-      description: Reload config
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/SuccessResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-      summary: Reload config
-      tags:
-      - v1
-      x-id: reload
   /route/{which}:
     get:
       consumes:
