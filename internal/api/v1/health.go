@@ -9,8 +9,6 @@ import (
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
-
-	_ "github.com/yusing/goutils/apitypes"
 )
 
 // @x-id				"health"
