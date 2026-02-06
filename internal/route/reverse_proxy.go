@@ -165,7 +165,9 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
-		return gperr.New("entrypoint not initialized")
+		err := gperr.New("entrypoint not initialized")
+		r.task.Finish(err)
+		return err
 	}
 
 	if r.UseLoadBalance() {

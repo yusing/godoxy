@@ -128,7 +128,9 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
-		return gperr.New("entrypoint not initialized")
+		err := gperr.New("entrypoint not initialized")
+		s.task.Finish(err)
+		return err
 	}
 	ep.AddRoute(s)
 	return nil
