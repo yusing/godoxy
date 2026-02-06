@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -54,7 +55,13 @@ func (ep *Entrypoint) AddRoute(r types.Route) {
 	}
 	switch r := r.(type) {
 	case types.HTTPRoute:
-		ep.AddHTTPRoute(r)
+		if err := ep.AddHTTPRoute(r); err != nil {
+			log.Error().
+				Err(err).
+				Str("route", r.Key()).
+				Str("listen_url", r.ListenURL().String()).
+				Msg("failed to add HTTP route")
+		}
 		ep.shortLinkMatcher.AddRoute(r.Key())
 		r.Task().OnCancel("remove_route", func() {
 			ep.delHTTPRoute(r)
@@ -90,9 +97,9 @@ func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
 
 func (ep *Entrypoint) addHTTPRoute(route types.HTTPRoute, addr string, proto HTTPProto) error {
 	var err error
-	srv, _ := ep.servers.LoadOrCompute(addr, func() (srv *httpServer, cancel bool) {
-		srv = newHTTPServer(ep)
-		err = srv.Listen(addr, proto)
+	srv, _ := ep.servers.LoadOrCompute(addr, func() (newSrv *httpServer, cancel bool) {
+		newSrv = newHTTPServer(ep)
+		err = newSrv.Listen(addr, proto)
 		cancel = err != nil
 		return
 	})

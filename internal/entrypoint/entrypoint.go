@@ -126,10 +126,6 @@ func (ep *Entrypoint) GetServer(addr string) (http.Handler, bool) {
 	return ep.servers.Load(addr)
 }
 
-func (ep *Entrypoint) PrintServers() {
-	log.Info().Msgf("servers: %v", xsync.ToPlainMap(ep.servers))
-}
-
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 	if len(domains) == 0 {
 		ep.findRouteFunc = findRouteAnyDomain

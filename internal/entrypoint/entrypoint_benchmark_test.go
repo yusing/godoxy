@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
 	. "github.com/yusing/godoxy/internal/entrypoint"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
@@ -79,27 +81,20 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	r := &route.Route{
+	r, err := route.NewTestRoute(b, task, &route.Route{
 		Alias:       "test",
 		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
 		Port:        route.Port{Proxy: portInt},
 		HealthCheck: types.HealthCheckConfig{Disable: true},
-	}
+	})
 
-	err = r.Validate()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	err = r.Start(task)
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
+	require.False(b, r.ShouldExclude())
 
 	var w noopResponseWriter
 
-	server, ok := ep.GetServer(r.ListenURL().Host)
+	server, ok := ep.GetServer(common.ProxyHTTPAddr)
 	if !ok {
 		b.Fatal("server not found")
 	}
@@ -107,12 +102,12 @@ func BenchmarkEntrypointReal(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		server.ServeHTTP(&w, &req)
-		// if w.statusCode != http.StatusOK {
-		// 	b.Fatalf("status code is not 200: %d", w.statusCode)
-		// }
-		// if string(w.written) != "1" {
-		// 	b.Fatalf("written is not 1: %s", string(w.written))
-		// }
+		if w.statusCode != http.StatusOK {
+			b.Fatalf("status code is not 200: %d", w.statusCode)
+		}
+		if string(w.written) != "1" {
+			b.Fatalf("written is not 1: %s", string(w.written))
+		}
 	}
 }
 
@@ -127,7 +122,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 	ep.SetFindRouteDomains([]string{})
 	entrypoint.SetCtx(task, ep)
 
-	r := &route.Route{
+	r, err := route.NewTestRoute(b, task, &route.Route{
 		Alias:  "test",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   "localhost",
@@ -137,27 +132,16 @@ func BenchmarkEntrypoint(b *testing.B) {
 		HealthCheck: types.HealthCheckConfig{
 			Disable: true,
 		},
-	}
+	})
 
-	err := r.Validate()
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
+	require.False(b, r.ShouldExclude())
 
-	err = r.Start(task)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	rev, ok := ep.HTTPRoutes().Get("test")
-	if !ok {
-		b.Fatal("route not found")
-	}
-	rev.(types.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
+	r.(types.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
 
 	var w noopResponseWriter
 
-	server, ok := ep.GetServer(r.ListenURL().Host)
+	server, ok := ep.GetServer(common.ProxyHTTPAddr)
 	if !ok {
 		b.Fatal("server not found")
 	}
