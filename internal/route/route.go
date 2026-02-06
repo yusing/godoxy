@@ -946,13 +946,6 @@ func (r *Route) Finalize() {
 		if r.Bind == "" {
 			r.Bind = "0.0.0.0"
 		}
-	default:
-		if r.Bind == "" {
-			r.Bind = common.ProxyHTTPSHost
-		}
-		if r.Port.Proxy == 0 {
-			r.Port.Proxy = common.ProxyHTTPSPort
-		}
 	}
 
 	r.Port.Listening, r.Port.Proxy = lp, pp
