@@ -282,8 +282,10 @@ func (r *Route) validate() gperr.Error {
 	} else {
 		switch r.Scheme {
 		case route.SchemeFileServer:
+			r.Host = ""
+			r.Port.Proxy = 0
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("https://%s", net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
+			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 		case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("https://%s", net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
@@ -311,12 +313,6 @@ func (r *Route) validate() gperr.Error {
 			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
 			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
 		}
-	}
-
-	if r.Scheme == route.SchemeFileServer {
-		r.Host = ""
-		r.Port.Proxy = 0
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
 	}
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
