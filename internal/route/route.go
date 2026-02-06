@@ -521,6 +521,9 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 		}
 	} else {
 		ep := entrypoint.FromCtx(parent.Context())
+		if ep == nil {
+			return gperr.New("entrypoint not initialized")
+		}
 
 		r.task = parent.Subtask("excluded."+r.Name(), false)
 		ep.ExcludedRoutes().Add(r.impl)
