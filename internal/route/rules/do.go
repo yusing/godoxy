@@ -10,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -194,23 +196,21 @@ var commands = map[string]struct {
 			return args[0], nil
 		},
 		build: func(args any) CommandHandler {
-			// route := args.(string)
+			route := args.(string)
 			return TerminatingCommand(func(w http.ResponseWriter, req *http.Request) error {
-
-				// FIXME: circular dependency
-				// ep := entrypoint.FromCtx(req.Context())
-				// r, ok := ep.HTTPRoutes().Get(route)
-				// if !ok {
-				// 	excluded, has := ep.ExcludedRoutes().Get(route)
-				// 	if has {
-				// 		r, ok = excluded.(types.HTTPRoute)
-				// 	}
-				// }
-				// if ok {
-				// 	r.ServeHTTP(w, req)
-				// } else {
-				// 	http.Error(w, fmt.Sprintf("Route %q not found", route), http.StatusNotFound)
-				// }
+				ep := entrypoint.FromCtx(req.Context())
+				r, ok := ep.HTTPRoutes().Get(route)
+				if !ok {
+					excluded, has := ep.ExcludedRoutes().Get(route)
+					if has {
+						r, ok = excluded.(types.HTTPRoute)
+					}
+				}
+				if ok {
+					r.ServeHTTP(w, req)
+				} else {
+					http.Error(w, fmt.Sprintf("Route %q not found", route), http.StatusNotFound)
+				}
 				return nil
 			})
 		},
