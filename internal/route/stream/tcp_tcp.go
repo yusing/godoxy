@@ -59,7 +59,7 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 	}
 
 	if ep := entrypoint.FromCtx(ctx); ep != nil {
-		if proxyProto := entrypoint.FromCtx(ctx).SupportProxyProtocol(); proxyProto {
+		if proxyProto := ep.SupportProxyProtocol(); proxyProto {
 			s.listener = &proxyproto.Listener{Listener: s.listener}
 		}
 	}
