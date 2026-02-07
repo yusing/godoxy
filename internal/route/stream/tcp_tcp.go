@@ -43,15 +43,12 @@ func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *age
 	return &TCPTCPStream{network: network, dstNetwork: dstNetwork, laddr: laddr, dst: dst, agent: agent}, nil
 }
 
-func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
+func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
 	var err error
 	s.listener, err = net.ListenTCP(s.network, s.laddr)
 	if err != nil {
-		logErr(s, err, "failed to listen")
-		return
+		return err
 	}
-
-	// TODO: add to entrypoint
 
 	if ep := entrypoint.FromCtx(ctx); ep != nil {
 		if proxyProto := ep.SupportProxyProtocol(); proxyProto {
@@ -67,6 +64,7 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 	s.preDial = preDial
 	s.onRead = onRead
 	go s.listen(ctx)
+	return nil
 }
 
 func (s *TCPTCPStream) Close() error {

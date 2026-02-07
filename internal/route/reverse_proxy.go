@@ -171,9 +171,15 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	}
 
 	if r.UseLoadBalance() {
-		r.addToLoadBalancer(parent, ep)
+		if err := r.addToLoadBalancer(parent, ep); err != nil {
+			r.task.Finish(err)
+			return gperr.Wrap(err)
+		}
 	} else {
-		ep.AddRoute(r)
+		if err := ep.AddRoute(r); err != nil {
+			r.task.Finish(err)
+			return gperr.Wrap(err)
+		}
 	}
 	return nil
 }
@@ -185,7 +191,7 @@ func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 var lbLock sync.Mutex
 
-func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.Entrypoint) {
+func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.Entrypoint) error {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
 	lbLock.Lock()
@@ -217,7 +223,10 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 			handler:      lb,
 		}
 		linked.SetHealthMonitor(lb)
-		ep.AddRoute(linked)
+		if err := ep.AddRoute(linked); err != nil {
+			lb.Finish(err)
+			return err
+		}
 		lbLock.Unlock()
 	}
 	r.loadBalancer = lb
@@ -227,4 +236,5 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 	r.task.OnCancel("lb_remove_server", func() {
 		lb.RemoveServer(server)
 	})
+	return nil
 }

@@ -69,26 +69,16 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		}
 	}
 
-	r.ListenAndServe(r.task.Context(), nil, nil)
-	r.l = log.With().
-		Str("type", r.LisURL.Scheme+"->"+r.ProxyURL.Scheme).
-		Str("name", r.Name()).
-		Stringer("rurl", r.ProxyURL).
-		Stringer("laddr", r.LocalAddr()).Logger()
-	r.l.Info().Msg("stream started")
-
-	r.task.OnCancel("close_stream", func() {
-		r.stream.Close()
-		r.l.Info().Msg("stream closed")
-	})
-
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
 		err := gperr.New("entrypoint not initialized")
 		r.task.Finish(err)
 		return err
 	}
-	ep.AddRoute(r)
+	if err := ep.AddRoute(r); err != nil {
+		r.task.Finish(err)
+		return gperr.Wrap(err)
+	}
 	return nil
 }
 

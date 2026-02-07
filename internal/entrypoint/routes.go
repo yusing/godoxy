@@ -5,7 +5,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -45,22 +44,18 @@ func (ep *Entrypoint) GetRoute(alias string) (types.Route, bool) {
 	return nil, false
 }
 
-func (ep *Entrypoint) AddRoute(r types.Route) {
+func (ep *Entrypoint) AddRoute(r types.Route) error {
 	if r.ShouldExclude() {
 		ep.excludedRoutes.Add(r)
 		r.Task().OnCancel("remove_route", func() {
 			ep.excludedRoutes.Del(r)
 		})
-		return
+		return nil
 	}
 	switch r := r.(type) {
 	case types.HTTPRoute:
 		if err := ep.AddHTTPRoute(r); err != nil {
-			log.Error().
-				Err(err).
-				Str("route", r.Key()).
-				Str("listen_url", r.ListenURL().String()).
-				Msg("failed to add HTTP route")
+			return err
 		}
 		ep.shortLinkMatcher.AddRoute(r.Key())
 		r.Task().OnCancel("remove_route", func() {
@@ -68,11 +63,18 @@ func (ep *Entrypoint) AddRoute(r types.Route) {
 			ep.shortLinkMatcher.DelRoute(r.Key())
 		})
 	case types.StreamRoute:
+		err := r.ListenAndServe(r.Task().Context(), nil, nil)
+		if err != nil {
+			return err
+		}
 		ep.streamRoutes.Add(r)
+
 		r.Task().OnCancel("remove_route", func() {
+			r.Stream().Close()
 			ep.streamRoutes.Del(r)
 		})
 	}
+	return nil
 }
 
 // AddHTTPRoute adds a HTTP route to the entrypoint's server.

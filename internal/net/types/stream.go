@@ -6,7 +6,7 @@ import (
 )
 
 type Stream interface {
-	ListenAndServe(ctx context.Context, preDial, onRead HookFunc)
+	ListenAndServe(ctx context.Context, preDial, onRead HookFunc) error
 	LocalAddr() net.Addr
 	Close() error
 }
