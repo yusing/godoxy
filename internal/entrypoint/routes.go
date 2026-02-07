@@ -45,7 +45,7 @@ func (ep *Entrypoint) GetRoute(alias string) (types.Route, bool) {
 	return nil, false
 }
 
-func (ep *Entrypoint) AddRoute(r types.Route) error {
+func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 	if r.ShouldExclude() {
 		ep.excludedRoutes.Add(r)
 		r.Task().OnCancel("remove_route", func() {
@@ -80,13 +80,9 @@ func (ep *Entrypoint) AddRoute(r types.Route) error {
 	return nil
 }
 
-// AddHTTPRoute adds a HTTP route to the entrypoint's server.
-//
-// If the server does not exist, it will be created, started and return any error.
-func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
+func getAddr(route types.HTTPRoute) (httpAddr, httpsAddr string) {
 	if port := route.ListenURL().Port(); port == "" || port == "0" {
 		host := route.ListenURL().Hostname()
-		var httpAddr, httpsAddr string
 		if host == "" {
 			httpAddr = common.ProxyHTTPAddr
 			httpsAddr = common.ProxyHTTPSAddr
@@ -94,10 +90,26 @@ func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
 			httpAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPPort))
 			httpsAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
 		}
-		return errors.Join(ep.addHTTPRoute(route, httpAddr, HTTPProtoHTTP), ep.addHTTPRoute(route, httpsAddr, HTTPProtoHTTPS))
+		return httpAddr, httpsAddr
 	}
 
-	return ep.addHTTPRoute(route, route.ListenURL().Host, HTTPProtoHTTPS)
+	httpsAddr = route.ListenURL().Host
+	return
+}
+
+// AddHTTPRoute adds a HTTP route to the entrypoint's server.
+//
+// If the server does not exist, it will be created, started and return any error.
+func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
+	httpAddr, httpsAddr := getAddr(route)
+	var httpErr, httpsErr error
+	if httpAddr != "" {
+		httpErr = ep.addHTTPRoute(route, httpAddr, HTTPProtoHTTP)
+	}
+	if httpsAddr != "" {
+		httpsErr = ep.addHTTPRoute(route, httpsAddr, HTTPProtoHTTPS)
+	}
+	return errors.Join(httpErr, httpsErr)
 }
 
 func (ep *Entrypoint) addHTTPRoute(route types.HTTPRoute, addr string, proto HTTPProto) error {
@@ -117,10 +129,17 @@ func (ep *Entrypoint) addHTTPRoute(route types.HTTPRoute, addr string, proto HTT
 }
 
 func (ep *Entrypoint) delHTTPRoute(route types.HTTPRoute) {
-	addr := route.ListenURL().Host
-	srv, _ := ep.servers.Load(addr)
-	if srv != nil {
-		srv.DelRoute(route)
+	httpAddr, httpsAddr := getAddr(route)
+	if httpAddr != "" {
+		srv, _ := ep.servers.Load(httpAddr)
+		if srv != nil {
+			srv.DelRoute(route)
+		}
 	}
-	// TODO: close if no servers left
+	if httpsAddr != "" {
+		srv, _ := ep.servers.Load(httpsAddr)
+		if srv != nil {
+			srv.DelRoute(route)
+		}
+	}
 }

@@ -217,7 +217,7 @@ func TestRouteBindField(t *testing.T) {
 			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
-		require.NoError(t, err, "Validate should not return error for HTTP route with bind")
+		require.NoError(t, err, "Validate should not return error for HTTP route without bind")
 		require.NotNil(t, r.LisURL, "LisURL should be set")
 		require.Equal(t, "https://:0", r.LisURL.String(), "LisURL should contain bind address")
 	})

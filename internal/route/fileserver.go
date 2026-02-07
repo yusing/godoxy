@@ -133,7 +133,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		return err
 	}
 
-	if err := ep.AddRoute(s); err != nil {
+	if err := ep.StartAddRoute(s); err != nil {
 		s.task.Finish(err)
 		return gperr.Wrap(err)
 	}

@@ -75,7 +75,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		r.task.Finish(err)
 		return err
 	}
-	if err := ep.AddRoute(r); err != nil {
+	if err := ep.StartAddRoute(r); err != nil {
 		r.task.Finish(err)
 		return gperr.Wrap(err)
 	}

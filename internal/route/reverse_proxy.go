@@ -176,7 +176,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 			return gperr.Wrap(err)
 		}
 	} else {
-		if err := ep.AddRoute(r); err != nil {
+		if err := ep.StartAddRoute(r); err != nil {
 			r.task.Finish(err)
 			return gperr.Wrap(err)
 		}
@@ -195,6 +195,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
 	lbLock.Lock()
+	defer lbLock.Unlock()
 
 	l, ok := ep.HTTPRoutes().Get(cfg.Link)
 	var linked *ReveseProxyRoute
@@ -223,11 +224,10 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 			handler:      lb,
 		}
 		linked.SetHealthMonitor(lb)
-		if err := ep.AddRoute(linked); err != nil {
+		if err := ep.StartAddRoute(linked); err != nil {
 			lb.Finish(err)
 			return err
 		}
-		lbLock.Unlock()
 	}
 	r.loadBalancer = lb
 

@@ -2,6 +2,7 @@ package uptime
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"slices"
 	"time"
@@ -41,8 +42,12 @@ type (
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
+	ep := entrypoint.FromCtx(ctx)
+	if ep == nil {
+		return StatusByAlias{}, errors.New("entrypoint not found in context")
+	}
 	return StatusByAlias{
-		Map:       entrypoint.FromCtx(ctx).GetHealthInfoWithoutDetail(),
+		Map:       ep.GetHealthInfoWithoutDetail(),
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -129,6 +134,7 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 
 		status := types.StatusUnknown
 		if state := config.ActiveState.Load(); state != nil {
+			// FIXME: pass ctx to getRoute
 			r, ok := entrypoint.FromCtx(state.Context()).GetRoute(alias)
 			if ok {
 				mon := r.HealthMonitor()

@@ -10,7 +10,7 @@ type Entrypoint interface {
 	DisablePoolsLog(v bool)
 
 	GetRoute(alias string) (types.Route, bool)
-	AddRoute(r types.Route) error
+	StartAddRoute(r types.Route) error
 	IterRoutes(yield func(r types.Route) bool)
 	NumRoutes() int
 	RoutesByProvider() map[string][]types.Route
