@@ -54,7 +54,7 @@ type State interface {
     Task() *task.Task
     Context() context.Context
     Value() *Config
-    EntrypointHandler() http.Handler
+    Entrypoint() entrypoint.Entrypoint
     ShortLinkMatcher() config.ShortLinkMatcher
     AutoCertProvider() server.CertProvider
     LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool)
@@ -62,6 +62,12 @@ type State interface {
     IterProviders() iter.Seq2[string, types.RouteProvider]
     StartProviders() error
     NumProviders() int
+
+    // Lifecycle management
+    StartAPIServers()
+    StartMetrics()
+
+    FlushTmpLog()
 }
 ```
 
@@ -214,12 +220,15 @@ Configuration supports hot-reloading via editing `config/config.yml`.
 
 - `internal/acl` - Access control configuration
 - `internal/autocert` - SSL certificate management
-- `internal/entrypoint` - HTTP entrypoint setup
+- `internal/entrypoint` - HTTP entrypoint setup (now via interface)
 - `internal/route/provider` - Route providers (Docker, file, agent)
 - `internal/maxmind` - GeoIP configuration
 - `internal/notif` - Notification providers
 - `internal/proxmox` - LXC container management
 - `internal/homepage/types` - Dashboard configuration
+- `internal/api` - REST API servers
+- `internal/metrics/systeminfo` - System metrics polling
+- `internal/metrics/uptime` - Uptime tracking
 - `github.com/yusing/goutils/task` - Object lifecycle management
 
 ### External dependencies
@@ -312,5 +321,8 @@ for name, provider := range config.GetState().IterProviders() {
 
 ```go
 state := config.GetState()
-http.Handle("/", state.EntrypointHandler())
+// Get entrypoint interface for route management
+ep := state.Entrypoint()
+// Add routes directly to entrypoint
+ep.AddRoute(route)
 ```
