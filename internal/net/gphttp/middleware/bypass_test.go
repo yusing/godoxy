@@ -230,7 +230,6 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	expect.NoError(t, err)
 
-	expect.NoError(t, err)
 	entry := entrypoint.NewTestEntrypoint(t, nil)
 	_, err = route.NewStartedTestRoute(t, &route.Route{
 		Alias: "test-route",

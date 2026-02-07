@@ -212,9 +212,9 @@ func TestRouteBindField(t *testing.T) {
 	t.Run("HTTPSchemeWithoutBind", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test-http",
-			Scheme: route.SchemeHTTPS,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   route.Port{Proxy: 443},
+			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for HTTP route with bind")
@@ -225,9 +225,9 @@ func TestRouteBindField(t *testing.T) {
 	t.Run("HTTPSchemeWithBind", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test-http",
-			Scheme: route.SchemeHTTPS,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   route.Port{Proxy: 443},
+			Port:   route.Port{Proxy: 80},
 			Bind:   "0.0.0.0",
 		}
 		err := r.Validate()
@@ -239,15 +239,15 @@ func TestRouteBindField(t *testing.T) {
 	t.Run("HTTPSchemeWithBindAndPort", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test-http",
-			Scheme: route.SchemeHTTPS,
+			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
-			Port:   route.Port{Listening: 8443, Proxy: 443},
+			Port:   route.Port{Listening: 8080, Proxy: 80},
 			Bind:   "0.0.0.0",
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for HTTP route with bind and port")
 		require.NotNil(t, r.LisURL, "LisURL should be set")
-		require.Equal(t, "https://0.0.0.0:8443", r.LisURL.String(), "LisURL should contain bind address and listening port")
+		require.Equal(t, "https://0.0.0.0:8080", r.LisURL.String(), "LisURL should contain bind address and listening port")
 	})
 
 	t.Run("TCPSchemeDefaultsToZeroBind", func(t *testing.T) {

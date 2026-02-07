@@ -377,7 +377,7 @@ Routes can access the entrypoint from request context:
 
 ```go
 // Set entrypoint in context
-entrypoint.SetCtx(r.Context(), ep)
+entrypoint.SetCtx(task, ep)
 
 // Get entrypoint from context
 if ep := entrypoint.FromCtx(r.Context()); ep != nil {
