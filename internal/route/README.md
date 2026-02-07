@@ -228,8 +228,6 @@ routes:
       target: 3000
 ```
 
-### Route with Custom Bind Address
-
 ## Dependency and Integration Map
 
 | Dependency                         | Purpose                           |
