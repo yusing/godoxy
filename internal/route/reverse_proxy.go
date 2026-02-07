@@ -194,7 +194,7 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 	var linked *ReveseProxyRoute
 	if ok {
 		lbLock.Unlock()
-		linked = l.(*ReveseProxyRoute)
+		linked = l.(*ReveseProxyRoute) // it must be a reverse proxy route
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
 		if linked.Homepage.Name == "" {
@@ -207,6 +207,11 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 			Route: &Route{
 				Alias:    cfg.Link,
 				Homepage: r.Homepage,
+				Bind:     r.Bind,
+				Metadata: Metadata{
+					LisURL: r.ListenURL(),
+					task:   lb.Task(),
+				},
 			},
 			loadBalancer: lb,
 			handler:      lb,
