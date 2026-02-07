@@ -2704,6 +2704,10 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
       summary: List homepage categories
       tags:
       - homepage
@@ -2779,6 +2783,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/ErrorResponse'
       summary: Homepage items
