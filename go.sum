@@ -329,8 +329,8 @@ github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfS
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yusing/ds v0.4.1 h1:syMCh7hO6Yw8xfcFkEaln3W+lVeWB/U/meYv6Wf2/Ig=
 github.com/yusing/ds v0.4.1/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
-github.com/yusing/gointernals v0.1.16 h1:GrhZZdxzA+jojLEqankctJrOuAYDb7kY1C93S1pVR34=
-github.com/yusing/gointernals v0.1.16/go.mod h1:B/0FVXt4WPmgzVy3ynzkqKi+BSGaJVmwCJBRXYapo34=
+github.com/yusing/gointernals v0.1.18 h1:ou8/0tPURUgAOBJu3TN/iWF4S/5ZYQaap+rVkaJNUMw=
+github.com/yusing/gointernals v0.1.18/go.mod h1:B/0FVXt4WPmgzVy3ynzkqKi+BSGaJVmwCJBRXYapo34=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=

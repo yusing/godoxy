@@ -59,7 +59,7 @@ require (
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
 	github.com/yusing/godoxy/agent v0.0.0-20260129101716-0f13004ad6ba
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260129101716-0f13004ad6ba
-	github.com/yusing/gointernals v0.1.16
+	github.com/yusing/gointernals v0.1.18
 	github.com/yusing/goutils v0.7.0
 	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260129081554-24e52ede7468
 	github.com/yusing/goutils/http/websocket v0.0.0-20260129081554-24e52ede7468

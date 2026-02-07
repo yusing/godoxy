@@ -90,7 +90,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.69.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
-	github.com/yusing/gointernals v0.1.16 // indirect
+	github.com/yusing/gointernals v0.1.18 // indirect
 	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260129081554-24e52ede7468 // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20260129081554-24e52ede7468 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
