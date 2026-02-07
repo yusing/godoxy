@@ -54,9 +54,9 @@ var emptyCfg Config
 func NewTestEntrypoint(t testing.TB, cfg *Config) *Entrypoint {
 	t.Helper()
 
-	task := task.GetTestTask(t)
-	ep := NewEntrypoint(task, cfg)
-	entrypoint.SetCtx(task, ep)
+	testTask := task.GetTestTask(t)
+	ep := NewEntrypoint(testTask, cfg)
+	entrypoint.SetCtx(testTask, ep)
 	return ep
 }
 

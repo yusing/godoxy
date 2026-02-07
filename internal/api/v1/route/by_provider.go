@@ -7,7 +7,6 @@ import (
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
 
-	_ "github.com/yusing/goutils/apitypes"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 

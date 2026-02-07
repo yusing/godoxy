@@ -75,19 +75,22 @@ func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
 	}
 
 	task := srv.ep.task.Subtask("http_server", false)
-	server, err := server.StartServer(task, opts)
+	s, err := server.StartServer(task, opts)
 	if err != nil {
 		return err
 	}
 	srv.stopFunc = task.FinishAndWait
 	srv.addr = addr
-	srv.srv = server
+	srv.srv = s
 	srv.routes = pool.New[types.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr))
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	return nil
 }
 
 func (srv *httpServer) Close() {
+	if srv.stopFunc == nil {
+		return
+	}
 	srv.stopFunc(nil)
 }
 
@@ -160,8 +163,8 @@ func serveNotFound(w http.ResponseWriter, r *http.Request) {
 			Msgf("not found: %s", r.Host)
 		errorPage, ok := errorpage.GetErrorPageByStatus(http.StatusNotFound)
 		if ok {
-			w.WriteHeader(http.StatusNotFound)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
 			if _, err := w.Write(errorPage); err != nil {
 				log.Err(err).Msg("failed to write error page")
 			}

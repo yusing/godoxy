@@ -20,6 +20,7 @@ import (
 // @Produce		json
 // @Success		200	{array}		string
 // @Failure		403	{object}	apitypes.ErrorResponse
+// @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/homepage/categories [get]
 func Categories(c *gin.Context) {
 	ep := entrypoint.FromCtx(c.Request.Context())

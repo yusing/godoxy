@@ -2,6 +2,7 @@ package entrypoint
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 
@@ -12,17 +13,17 @@ import (
 func (ep *Entrypoint) IterRoutes(yield func(r types.Route) bool) {
 	for _, r := range ep.HTTPRoutes().Iter {
 		if !yield(r) {
-			break
+			return
 		}
 	}
 	for _, r := range ep.streamRoutes.Iter {
 		if !yield(r) {
-			break
+			return
 		}
 	}
 	for _, r := range ep.excludedRoutes.Iter {
 		if !yield(r) {
-			break
+			return
 		}
 	}
 }
@@ -73,6 +74,8 @@ func (ep *Entrypoint) AddRoute(r types.Route) error {
 			r.Stream().Close()
 			ep.streamRoutes.Del(r)
 		})
+	default:
+		return fmt.Errorf("unknown route type: %T", r)
 	}
 	return nil
 }

@@ -45,7 +45,7 @@ type Entrypoint interface {
 
     // Route registry access
     GetRoute(alias string) (types.Route, bool)
-    AddRoute(r types.Route)
+    AddRoute(r types.Route) error
     IterRoutes(yield func(r types.Route) bool)
     NumRoutes() int
     RoutesByProvider() map[string][]types.Route
@@ -368,7 +368,9 @@ route := &route.Route{
     Port:   route.Port{Proxy: 80, Target: 3000},
 }
 
-ep.AddRoute(route)
+if err := ep.AddRoute(route); err != nil {
+    return err
+}
 ```
 
 ## Context Integration

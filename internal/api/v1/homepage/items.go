@@ -36,6 +36,7 @@ type HomepageItemsRequest struct {
 // @Success		200			{object}	homepage.Homepage
 // @Failure		400			{object}	apitypes.ErrorResponse
 // @Failure		403			{object}	apitypes.ErrorResponse
+// @Failure		500			{object}	apitypes.ErrorResponse
 // @Router			/homepage/items [get]
 func Items(c *gin.Context) {
 	var request HomepageItemsRequest
@@ -54,6 +55,11 @@ func Items(c *gin.Context) {
 	}
 
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil {
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not found in context", nil))
+		return
+	}
+
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 2*time.Second, func() (any, error) {
 			return HomepageItems(ep, proto, hostname, &request), nil
