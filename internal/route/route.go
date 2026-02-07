@@ -959,7 +959,7 @@ func (r *Route) Finalize() {
 	}
 
 	// TODO: default value from context
-	r.HealthCheck.ApplyDefaults(config.WorkingState.Load().Value().Defaults.HealthCheck)
+	r.HealthCheck.ApplyDefaults(workingState.Value().Defaults.HealthCheck)
 }
 
 func (r *Route) FinalizeHomepageConfig() {
