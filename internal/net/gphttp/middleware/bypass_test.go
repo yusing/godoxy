@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/goutils/http/reverseproxy"
-	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -231,14 +231,15 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	expect.NoError(t, err)
 
 	expect.NoError(t, err)
-	entry := entrypoint.NewEntrypoint(task.NewTestTask(t), nil)
-	r := &route.Route{
+	entry := entrypoint.NewTestEntrypoint(t, nil)
+	_, err = route.NewStartedTestRoute(t, &route.Route{
 		Alias: "test-route",
 		Host:  host,
 		Port: routeTypes.Port{
 			Proxy: portInt,
 		},
-	}
+	})
+	expect.NoError(t, err)
 
 	err = entry.SetMiddlewares([]map[string]any{
 		{
@@ -254,13 +255,9 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	})
 	expect.NoError(t, err)
 
-	err = r.Validate()
-	expect.NoError(t, err)
-	r.Start(task.RootTask("test", false))
-
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "http://test-route.example.com", nil)
-	server, ok := entry.GetServer(r.ListenURL().Host)
+	server, ok := entry.GetServer(common.ProxyHTTPAddr)
 	if !ok {
 		t.Fatal("server not found")
 	}

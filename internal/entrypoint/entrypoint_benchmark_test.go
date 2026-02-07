@@ -50,7 +50,7 @@ func (t noopTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func BenchmarkEntrypointReal(b *testing.B) {
-	task := task.NewTestTask(b)
+	task := task.GetTestTask(b)
 	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
@@ -81,7 +81,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	r, err := route.NewTestRoute(b, task, &route.Route{
+	r, err := route.NewStartedTestRoute(b, &route.Route{
 		Alias:       "test",
 		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
@@ -112,7 +112,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 }
 
 func BenchmarkEntrypoint(b *testing.B) {
-	task := task.NewTestTask(b)
+	task := task.GetTestTask(b)
 	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
@@ -122,7 +122,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 	ep.SetFindRouteDomains([]string{})
 	entrypoint.SetCtx(task, ep)
 
-	r, err := route.NewTestRoute(b, task, &route.Route{
+	r, err := route.NewStartedTestRoute(b, &route.Route{
 		Alias:  "test",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   "localhost",

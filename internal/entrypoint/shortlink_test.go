@@ -14,7 +14,7 @@ import (
 )
 
 func TestShortLinkMatcher_FQDNAlias(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.AddRoute("app.domain.com")
 
@@ -47,7 +47,7 @@ func TestShortLinkMatcher_FQDNAlias(t *testing.T) {
 }
 
 func TestShortLinkMatcher_SubdomainAlias(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 	matcher.AddRoute("app")
@@ -72,7 +72,7 @@ func TestShortLinkMatcher_SubdomainAlias(t *testing.T) {
 }
 
 func TestShortLinkMatcher_NotFound(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 	matcher.AddRoute("app")
@@ -95,7 +95,7 @@ func TestShortLinkMatcher_NotFound(t *testing.T) {
 }
 
 func TestShortLinkMatcher_AddDelRoute(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 
@@ -133,7 +133,7 @@ func TestShortLinkMatcher_AddDelRoute(t *testing.T) {
 }
 
 func TestShortLinkMatcher_NoDefaultDomainSuffix(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	// no SetDefaultDomainSuffix called
 
@@ -160,7 +160,7 @@ func TestShortLinkMatcher_NoDefaultDomainSuffix(t *testing.T) {
 }
 
 func TestEntrypoint_ShortLinkDispatch(t *testing.T) {
-	ep := NewEntrypoint(task.NewTestTask(t), nil)
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	ep.ShortLinkMatcher().SetDefaultDomainSuffix(".example.com")
 	ep.ShortLinkMatcher().AddRoute("app")
 

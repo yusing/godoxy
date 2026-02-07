@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"testing"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
@@ -50,6 +51,15 @@ var _ entrypoint.Entrypoint = &Entrypoint{}
 
 var emptyCfg Config
 
+func NewTestEntrypoint(t testing.TB, cfg *Config) *Entrypoint {
+	t.Helper()
+
+	task := task.GetTestTask(t)
+	ep := NewEntrypoint(task, cfg)
+	entrypoint.SetCtx(task, ep)
+	return ep
+}
+
 func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 	if cfg == nil {
 		cfg = &emptyCfg
@@ -91,6 +101,10 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 	return ep
 }
 
+func (ep *Entrypoint) Task() *task.Task {
+	return ep.task
+}
+
 func (ep *Entrypoint) SupportProxyProtocol() bool {
 	return ep.cfg.SupportProxyProtocol
 }
@@ -122,7 +136,7 @@ func (ep *Entrypoint) ExcludedRoutes() entrypoint.RWPoolLike[types.Route] {
 	return ep.excludedRoutes
 }
 
-func (ep *Entrypoint) GetServer(addr string) (http.Handler, bool) {
+func (ep *Entrypoint) GetServer(addr string) (HTTPServer, bool) {
 	return ep.servers.Load(addr)
 }
 
