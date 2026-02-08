@@ -29,7 +29,7 @@ func logErr(stream zerolog.LogObjectMarshaler, err error, msg string) {
 	if err == nil {
 		return
 	}
-	log.Err(err).Object("stream", stream).Msg(msg)
+	log.Err(err).EmbedObject(stream).Msg(msg)
 }
 
 func logErrf(stream zerolog.LogObjectMarshaler, err error, format string, v ...any) {
@@ -37,5 +37,5 @@ func logErrf(stream zerolog.LogObjectMarshaler, err error, format string, v ...a
 	if err == nil {
 		return
 	}
-	log.Err(err).Object("stream", stream).Msgf(format, v...)
+	log.Err(err).EmbedObject(stream).Msgf(format, v...)
 }

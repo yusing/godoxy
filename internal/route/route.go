@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
@@ -218,9 +219,7 @@ func (r *Route) validate() gperr.Error {
 					r.Proxmox.Node = nodeName
 					r.Proxmox.VMID = &zero
 					r.Proxmox.VMName = ""
-					log.Info().
-						Str("node", nodeName).
-						Msgf("found proxmox node for route %q", r.Alias)
+					log.Info().EmbedObject(r).Msg("found proxmox node")
 					break
 				}
 
@@ -234,17 +233,13 @@ func (r *Route) validate() gperr.Error {
 					r.Proxmox.Node = resource.Node
 					r.Proxmox.VMID = &vmid
 					r.Proxmox.VMName = resource.Name
-					log.Info().
-						Str("node", resource.Node).
-						Int("vmid", int(resource.VMID)).
-						Str("vmname", resource.Name).
-						Msgf("found proxmox resource for route %q", r.Alias)
+					log.Info().EmbedObject(r).Msg("found proxmox resource")
 					break
 				}
 			}
 		}
 		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
-			log.Warn().Msgf("no proxmox node / resource found for route %q", r.Alias)
+			log.Warn().EmbedObject(r).Msg("no proxmox node / resource found")
 		}
 	}
 
@@ -395,7 +390,7 @@ func (r *Route) validateRules() error {
 }
 
 func (r *Route) validateProxmox() {
-	l := log.With().Str("route", r.Alias).Logger()
+	l := log.With().EmbedObject(r).Logger()
 
 	nodeName := r.Proxmox.Node
 	vmid := r.Proxmox.VMID
@@ -424,7 +419,7 @@ func (r *Route) validateProxmox() {
 	} else {
 		res, err := node.Client().GetResource("lxc", *vmid)
 		if err != nil { // ErrResourceNotFound
-			l.Err(err).Msgf("failed to get resource %d", *vmid)
+			l.Error().Err(err).Msgf("failed to get resource %d", *vmid)
 			return
 		}
 
@@ -443,24 +438,22 @@ func (r *Route) validateProxmox() {
 				return
 			}
 
-			l = l.With().Str("container", containerName).Logger()
-
-			l.Info().Msgf("checking if container is running")
+			l.Info().Str("container", containerName).Msg("checking if container is running")
 			running, err := node.LXCIsRunning(ctx, *vmid)
 			if err != nil {
-				l.Err(err).Msgf("failed to check container state")
+				l.Error().Err(err).Msgf("failed to check container state")
 				return
 			}
 
 			if !running {
-				l.Info().Msgf("starting container")
+				l.Info().Msg("starting container")
 				if err := node.LXCAction(ctx, *vmid, proxmox.LXCStart); err != nil {
-					l.Err(err).Msgf("failed to start container")
+					l.Error().Err(err).Msg("failed to start container")
 					return
 				}
 			}
 
-			l.Info().Msgf("finding reachable ip addresses")
+			l.Info().Msg("finding reachable ip addresses")
 			errs := gperr.NewBuilder("failed to find reachable ip addresses")
 			for _, ip := range ips {
 				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
@@ -685,6 +678,44 @@ func (r *Route) DisplayName() string {
 		return r.Alias
 	}
 	return r.Homepage.Name
+}
+
+func (r *Route) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("alias", r.Alias)
+	switch r := r.impl.(type) {
+	case *ReveseProxyRoute:
+		e.Str("type", "reverse_proxy").
+			Str("scheme", r.Scheme.String()).
+			Str("bind", r.LisURL.Host).
+			Str("target", r.ProxyURL.URL.String())
+	case *FileServer:
+		e.Str("type", "file_server").
+			Str("root", r.Root)
+	case *StreamRoute:
+		e.Str("type", "stream").
+			Str("scheme", r.LisURL.Scheme+"->"+r.ProxyURL.Scheme)
+		if r.stream != nil {
+			// listening port could be zero (random),
+			// use LocalAddr() to get the actual listening host+port.
+			e.Str("bind", r.stream.LocalAddr().String())
+		} else {
+			// not yet started
+			e.Str("bind", r.LisURL.Host)
+		}
+		e.Str("target", r.ProxyURL.URL.String())
+	}
+	if r.Proxmox != nil {
+		e.Str("proxmox", r.Proxmox.Node)
+		if r.Proxmox.VMID != nil {
+			e.Int("vmid", *r.Proxmox.VMID)
+		}
+		if r.Proxmox.VMName != "" {
+			e.Str("vmname", r.Proxmox.VMName)
+		}
+	}
+	if r.Container != nil {
+		e.Str("container", r.Container.ContainerName)
+	}
 }
 
 // PreferOver implements pool.Preferable to resolve duplicate route keys deterministically.

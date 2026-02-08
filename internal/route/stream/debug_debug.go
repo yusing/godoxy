@@ -8,5 +8,5 @@ import (
 )
 
 func logDebugf(stream zerolog.LogObjectMarshaler, format string, v ...any) {
-	log.Debug().Object("stream", stream).Msgf(format, v...)
+	log.Debug().EmbedObject(stream).Msgf(format, v...)
 }

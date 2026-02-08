@@ -120,8 +120,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 	if s.UseHealthCheck() {
 		s.HealthMon = monitor.NewMonitor(s)
 		if err := s.HealthMon.Start(s.task); err != nil {
-			l := log.With().Str("type", "fileserver").Str("name", s.Name()).Logger()
-			gperr.LogWarn("health monitor error", err, &l)
+			log.Warn().EmbedObject(s).Err(err).Msg("health monitor error")
 			s.HealthMon = nil
 		}
 	}

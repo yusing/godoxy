@@ -3,6 +3,7 @@ package types
 import (
 	"net/http"
 
+	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -18,6 +19,8 @@ type (
 		task.TaskStarter
 		task.TaskFinisher
 		pool.Object
+		zerolog.LogObjectMarshaler
+
 		ProviderName() string
 		GetProvider() RouteProvider
 		ListenURL() *nettypes.URL

@@ -57,7 +57,7 @@ func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 	}
 
 	if acl := acl.FromCtx(ctx); acl != nil {
-		log.Debug().Str("listener", s.listener.Addr().String()).Msg("wrapping listener with ACL")
+		log.Debug().EmbedObject(s).Msg("wrapping listener with ACL")
 		s.listener = acl.WrapTCP(s.listener)
 	}
 

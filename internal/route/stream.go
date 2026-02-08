@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/rs/zerolog"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
@@ -21,8 +20,6 @@ import (
 type StreamRoute struct {
 	*Route
 	stream nettypes.Stream
-
-	l zerolog.Logger
 }
 
 var _ types.StreamRoute = (*StreamRoute)(nil)
@@ -65,7 +62,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
-			gperr.LogWarn("health monitor error", err, &r.l)
+			gperr.LogWarn("health monitor error", err)
 			r.HealthMon = nil
 		}
 	}
