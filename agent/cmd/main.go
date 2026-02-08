@@ -158,7 +158,12 @@ Tips:
 			},
 			ErrorLog: stdlog.New(&errLog, "", 0),
 		}
-		srv.Serve(l)
+		go func() {
+			err := srv.Serve(l)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error().Err(err).Msg("socket proxy server stopped with error")
+			}
+		}()
 	}
 
 	systeminfo.Poller.Start(t)
