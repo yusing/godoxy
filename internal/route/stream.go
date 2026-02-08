@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
@@ -25,6 +24,8 @@ type StreamRoute struct {
 
 	l zerolog.Logger
 }
+
+var _ types.StreamRoute = (*StreamRoute)(nil)
 
 func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
@@ -82,8 +83,8 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-func (r *StreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
-	r.stream.ListenAndServe(ctx, preDial, onRead)
+func (r *StreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
+	return r.stream.ListenAndServe(ctx, preDial, onRead)
 }
 
 func (r *StreamRoute) Close() error {
