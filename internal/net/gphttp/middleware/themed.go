@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -66,7 +67,7 @@ func (m *themed) finalize() error {
 		m.m.HTML += buf.String()
 	}
 	if m.CSS != "" && m.Theme != "" {
-		return gperr.New("css and theme are mutually exclusive")
+		return errors.New("css and theme are mutually exclusive")
 	}
 	// credit: https://hackcss.egoist.dev
 	if m.Theme != "" {
@@ -78,7 +79,7 @@ func (m *themed) finalize() error {
 		case SolarizedDarkTheme:
 			m.m.HTML += wrapStyleTag(solarizedDarkModeCSS)
 		default:
-			return gperr.New("invalid theme").Subject(string(m.Theme))
+			return gperr.PrependSubject(errors.New("invalid theme"), m.Theme)
 		}
 	}
 	if m.CSS != "" {

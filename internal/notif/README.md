@@ -304,9 +304,9 @@ The notif package integrates with:
 
 ```go
 var (
-    ErrMissingNotifProvider     = gperr.New("missing notification provider")
-    ErrInvalidNotifProviderType = gperr.New("invalid notification provider type")
-    ErrUnknownNotifProvider     = gperr.New("unknown notification provider")
+    ErrMissingNotifProvider     = errors.New("missing notification provider")
+    ErrInvalidNotifProviderType = errors.New("invalid notification provider type")
+    ErrUnknownNotifProvider     = errors.New("unknown notification provider")
 )
 ```
 

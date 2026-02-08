@@ -44,15 +44,14 @@ var allMiddlewares = map[string]*Middleware{
 }
 
 var (
-	ErrUnknownMiddleware       = gperr.New("unknown middleware")
-	ErrMiddlewareAlreadyExists = gperr.New("middleware with the same name already exists")
+	ErrUnknownMiddleware       = errors.New("unknown middleware")
+	ErrMiddlewareAlreadyExists = errors.New("middleware with the same name already exists")
 )
 
-func Get(name string) (*Middleware, Error) {
+func Get(name string) (*Middleware, error) {
 	middleware, ok := allMiddlewares[strutils.ToLowerNoSnake(name)]
 	if !ok {
-		return nil, ErrUnknownMiddleware.
-			Subject(name).
+		return nil, gperr.PrependSubject(ErrUnknownMiddleware, name).
 			With(gperr.DoYouMeanField(name, allMiddlewares))
 	}
 	return middleware, nil
@@ -63,7 +62,7 @@ func All() map[string]*Middleware {
 }
 
 func LoadComposeFiles() {
-	errs := gperr.NewBuilder("middleware compile errors")
+	var errs gperr.Builder
 	middlewareDefs, err := fsutils.ListFiles(common.MiddlewareComposeBasePath, 0)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -81,7 +80,7 @@ func LoadComposeFiles() {
 		for name, m := range mws {
 			name = strutils.ToLowerNoSnake(name)
 			if _, ok := allMiddlewares[name]; ok {
-				errs.Add(ErrMiddlewareAlreadyExists.Subject(name))
+				errs.AddSubject(ErrMiddlewareAlreadyExists, name)
 				continue
 			}
 			allMiddlewares[name] = m
@@ -111,6 +110,6 @@ func LoadComposeFiles() {
 		}
 	}
 	if errs.HasError() {
-		gperr.LogError(errs.About(), errs.Error())
+		log.Err(errs.Error()).Msg("middleware compile errors")
 	}
 }

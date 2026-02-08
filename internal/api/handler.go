@@ -21,7 +21,6 @@ import (
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	apitypes "github.com/yusing/goutils/apitypes"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 // @title           GoDoxy API
@@ -203,9 +202,8 @@ func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 		if len(c.Errors) > 0 {
-			logger := log.With().Str("uri", c.Request.RequestURI).Logger()
 			for _, err := range c.Errors {
-				gperr.LogError("Internal error", err.Err, &logger)
+				log.Err(err.Err).Str("uri", c.Request.RequestURI).Msg("Internal error")
 			}
 			if !c.IsWebsocket() {
 				c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))

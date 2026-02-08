@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"maps"
 	"net/http"
 	"reflect"
@@ -10,15 +11,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/serialization"
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 type (
-	Error = gperr.Error
-
 	ReverseProxy = reverseproxy.ReverseProxy
 	ProxyRequest = reverseproxy.ProxyRequest
 
@@ -87,7 +85,7 @@ func (m *Middleware) setup() {
 	}
 }
 
-func (m *Middleware) apply(optsRaw OptionsRaw) gperr.Error {
+func (m *Middleware) apply(optsRaw OptionsRaw) error {
 	if len(optsRaw) == 0 {
 		return nil
 	}
@@ -120,10 +118,10 @@ func (m *Middleware) finalize() error {
 	return nil
 }
 
-func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, gperr.Error) {
+func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, error) {
 	if m.construct == nil { // likely a middleware from compose
 		if len(optsRaw) != 0 {
-			return nil, gperr.New("additional options not allowed for middleware").Subject(m.name)
+			return nil, fmt.Errorf("additional options not allowed for middleware %s", m.name)
 		}
 		return m, nil
 	}
@@ -133,7 +131,7 @@ func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, gperr.Error) {
 		return nil, err
 	}
 	if err := mid.finalize(); err != nil {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
 	mid.impl = mid.withCheckBypass()
 	return mid, nil
@@ -252,7 +250,7 @@ func (m *Middleware) LogError(req *http.Request) *zerolog.Event {
 		Str("path", req.URL.Path)
 }
 
-func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (err gperr.Error) {
+func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (err error) {
 	var middlewares []*Middleware
 	middlewares, err = compileMiddlewares(middlewaresMap)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -32,7 +33,7 @@ You may run "ls-config" to show or dump the current config.`
 )
 
 func logNotifyError(action string, err error) {
-	gperr.LogError("config "+action+" error", err)
+	log.Error().Err(err).Msg("config " + action + " error")
 	notif.Notify(&notif.LogMessage{
 		Level: zerolog.ErrorLevel,
 		Title: fmt.Sprintf("Config %s error", action),
@@ -41,7 +42,7 @@ func logNotifyError(action string, err error) {
 }
 
 func logNotifyWarn(action string, err error) {
-	gperr.LogWarn("config "+action+" error", err)
+	log.Warn().Err(err).Msg("config " + action + " warning")
 	notif.Notify(&notif.LogMessage{
 		Level: zerolog.WarnLevel,
 		Title: fmt.Sprintf("Config %s warning", action),
@@ -89,7 +90,7 @@ func Load() error {
 	return nil
 }
 
-func Reload() gperr.Error {
+func Reload() error {
 	// avoid race between config change and API reload request
 	reloadMu.Lock()
 	defer reloadMu.Unlock()
@@ -128,7 +129,7 @@ func WatchChanges() {
 		t,
 		configEventFlushInterval,
 		OnConfigChange,
-		func(err gperr.Error) {
+		func(err error) {
 			logNotifyError("reload", err)
 		},
 	)

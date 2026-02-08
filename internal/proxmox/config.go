@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/net/gphttp"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -44,7 +44,7 @@ func (c *Config) Client() *Client {
 	return c.client
 }
 
-func (c *Config) Init(ctx context.Context) gperr.Error {
+func (c *Config) Init(ctx context.Context) error {
 	var tr *http.Transport
 	if c.NoTLSVerify {
 		// user specified
@@ -87,15 +87,15 @@ func (c *Config) Init(ctx context.Context) gperr.Error {
 	if useCredentials {
 		err := c.client.CreateSession(initCtx)
 		if err != nil {
-			return gperr.New("failed to create session").With(err)
+			return fmt.Errorf("failed to create session: %w", err)
 		}
 	}
 
 	if err := c.client.UpdateClusterInfo(initCtx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return gperr.New("timeout fetching proxmox cluster info")
+			return fmt.Errorf("timeout fetching proxmox cluster info: %w", err)
 		}
-		return gperr.New("failed to fetch proxmox cluster info").With(err)
+		return fmt.Errorf("failed to fetch proxmox cluster info: %w", err)
 	}
 
 	{

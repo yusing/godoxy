@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/bytedance/sonic"
@@ -9,7 +10,7 @@ import (
 
 type Scheme uint8
 
-var ErrInvalidScheme = gperr.New("invalid scheme")
+var ErrInvalidScheme = errors.New("invalid scheme")
 
 const (
 	SchemeHTTP Scheme = 1 << iota
@@ -79,7 +80,7 @@ func (s *Scheme) Parse(v string) error {
 	case schemeStrFileServer:
 		*s = SchemeFileServer
 	default:
-		return ErrInvalidScheme.Subject(v)
+		return gperr.PrependSubject(ErrInvalidScheme, v)
 	}
 	return nil
 }

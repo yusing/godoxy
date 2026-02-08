@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 
 	_ "github.com/yusing/goutils/apitypes"
@@ -36,18 +37,18 @@ func Containers(c *gin.Context) {
 	serveHTTP[Container](c, GetContainers)
 }
 
-func GetContainers(ctx context.Context, dockerClients DockerClients) ([]Container, gperr.Error) {
+func GetContainers(ctx context.Context, dockerClients DockerClients) ([]Container, error) {
 	errs := gperr.NewBuilder("failed to get containers")
 	containers := make([]Container, 0)
-	for server, dockerClient := range dockerClients {
+	for name, dockerClient := range dockerClients {
 		conts, err := dockerClient.ContainerList(ctx, client.ContainerListOptions{All: true})
 		if err != nil {
-			errs.Add(err)
+			errs.AddSubject(err, name)
 			continue
 		}
 		for _, cont := range conts.Items {
 			containers = append(containers, Container{
-				Server: server,
+				Server: name,
 				Name:   cont.Names[0],
 				ID:     cont.ID,
 				Image:  cont.Image,
@@ -59,11 +60,10 @@ func GetContainers(ctx context.Context, dockerClients DockerClients) ([]Containe
 		return containers[i].Name < containers[j].Name
 	})
 	if err := errs.Error(); err != nil {
-		gperr.LogError("failed to get containers", err)
-		if len(containers) == 0 {
-			return nil, err
+		if len(containers) > 0 {
+			log.Err(err).Msg("failed to get containers from some servers")
+			return containers, nil
 		}
-		return containers, nil
 	}
-	return containers, nil
+	return containers, errs.Error()
 }

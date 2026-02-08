@@ -87,8 +87,28 @@ func multiWriter(out ...io.Writer) io.Writer {
 
 func NewLogger(out ...io.Writer) zerolog.Logger {
 	writer := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-		w.Out = diodeMultiWriter(out...)
+		if !common.IsTest {
+			w.Out = diodeMultiWriter(out...)
+		} else {
+			w.Out = multiWriter(out...)
+		}
 		w.TimeFormat = timeFmt
+		w.FormatPrepare = func(evt map[string]any) error {
+			// move error field to join message if it's multiline
+			if err, ok := evt[zerolog.ErrorFieldName].(string); ok {
+				if strings.Count(err, "\n") == 0 {
+					return nil
+				}
+				msg, ok := evt[zerolog.MessageFieldName].(string)
+				if ok && msg != "" {
+					evt[zerolog.MessageFieldName] = msg + "\n" + err
+				} else {
+					evt[zerolog.MessageFieldName] = err
+				}
+				delete(evt, zerolog.ErrorFieldName)
+			}
+			return nil
+		}
 		w.FormatMessage = func(msgI any) string { // pad spaces for each line
 			if msgI == nil {
 				return ""

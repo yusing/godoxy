@@ -19,7 +19,7 @@ type (
 		onError       OnErrorFunc
 	}
 	OnFlushFunc = func(events []Event)
-	OnErrorFunc = func(err gperr.Error)
+	OnErrorFunc = func(err error)
 )
 
 const eventQueueCapacity = 10
@@ -50,14 +50,14 @@ func NewEventQueue(queueTask *task.Task, flushInterval time.Duration, onFlush On
 	}
 }
 
-func (e *EventQueue) Start(eventCh <-chan Event, errCh <-chan gperr.Error) {
+func (e *EventQueue) Start(eventCh <-chan Event, errCh <-chan error) {
 	origOnFlush := e.onFlush
 	// recover panic in onFlush when in production mode
 	e.onFlush = func(events []Event) {
 		defer func() {
 			if errV := recover(); errV != nil {
 				if err, ok := errV.(error); ok {
-					e.onError(gperr.Wrap(err).Subject(e.task.Name()))
+					e.onError(gperr.PrependSubject(err, e.task.Name()))
 				} else {
 					e.onError(gperr.New("recovered panic in onFlush").Withf("%v", errV).Subject(e.task.Name()))
 				}

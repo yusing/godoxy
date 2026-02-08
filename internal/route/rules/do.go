@@ -72,7 +72,7 @@ var commands = map[string]struct {
 			description: makeLines("Require HTTP authentication for incoming requests"),
 			args:        map[string]string{},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 0 {
 				return nil, ErrExpectNoArg
 			}
@@ -103,17 +103,17 @@ var commands = map[string]struct {
 				"to":   "the path to rewrite to, must start with /",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 2 {
 				return nil, ErrExpectTwoArgs
 			}
 			path1, err1 := validateURLPath(args[:1])
 			path2, err2 := validateURLPath(args[1:])
 			if err1 != nil {
-				err1 = gperr.Errorf("from: %w", err1)
+				err1 = gperr.PrependSubject(err1, "from")
 			}
 			if err2 != nil {
-				err2 = gperr.Errorf("to: %w", err2)
+				err2 = gperr.PrependSubject(err2, "to")
 			}
 			if err1 != nil || err2 != nil {
 				return nil, gperr.Join(err1, err2)
@@ -189,7 +189,7 @@ var commands = map[string]struct {
 				"route": "the route to route to",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 1 {
 				return nil, ErrExpectOneArg
 			}
@@ -227,7 +227,7 @@ var commands = map[string]struct {
 				"text": "the error message to return",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 2 {
 				return nil, ErrExpectTwoArgs
 			}
@@ -267,7 +267,7 @@ var commands = map[string]struct {
 				"realm": "the authentication realm",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) == 1 {
 				return args[0], nil
 			}
@@ -334,7 +334,7 @@ var commands = map[string]struct {
 				"value":  "the value to set",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			return validateModField(ModFieldSet, args)
 		},
 		build: func(args any) CommandHandler {
@@ -354,7 +354,7 @@ var commands = map[string]struct {
 				"value":  "the value to add",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			return validateModField(ModFieldAdd, args)
 		},
 		build: func(args any) CommandHandler {
@@ -373,7 +373,7 @@ var commands = map[string]struct {
 				"field":  "the field to remove",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			return validateModField(ModFieldRemove, args)
 		},
 		build: func(args any) CommandHandler {
@@ -398,7 +398,7 @@ var commands = map[string]struct {
 				"template": "the template to log",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 3 {
 				return nil, ErrExpectThreeArgs
 			}
@@ -455,7 +455,7 @@ var commands = map[string]struct {
 				"body":     "the body of the notification",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 4 {
 				return nil, ErrExpectFourArgs
 			}
@@ -543,7 +543,7 @@ func (cmd *Command) Parse(v string) error {
 		validArgs, err := builder.validate(args)
 		if err != nil {
 			// Only attach help for the directive that failed, avoid bringing in unrelated KV errors
-			return err.Subject(directive).With(builder.help.Error())
+			return gperr.PrependSubject(err, directive).With(builder.help.Error())
 		}
 
 		handler := builder.build(validArgs)

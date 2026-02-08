@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/watcher/events"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -24,7 +23,7 @@ type DirWatcher struct {
 	mu    sync.Mutex
 
 	eventCh chan Event
-	errCh   chan gperr.Error
+	errCh   chan error
 
 	task *task.Task
 }
@@ -55,14 +54,14 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 		w:       w,
 		fwMap:   make(map[string]*fileWatcher),
 		eventCh: make(chan Event),
-		errCh:   make(chan gperr.Error),
+		errCh:   make(chan error),
 		task:    parent.Subtask("dir_watcher("+dirPath+")", true),
 	}
 	go helper.start()
 	return helper
 }
 
-func (h *DirWatcher) Events(_ context.Context) (<-chan Event, <-chan gperr.Error) {
+func (h *DirWatcher) Events(_ context.Context) (<-chan Event, <-chan error) {
 	return h.eventCh, h.errCh
 }
 
@@ -78,7 +77,7 @@ func (h *DirWatcher) Add(relPath string) Watcher {
 	s = &fileWatcher{
 		relPath: relPath,
 		eventCh: make(chan Event),
-		errCh:   make(chan gperr.Error),
+		errCh:   make(chan error),
 	}
 	h.fwMap[relPath] = s
 	return s
@@ -162,7 +161,7 @@ func (h *DirWatcher) start() {
 				return
 			}
 			select {
-			case h.errCh <- gperr.Wrap(err):
+			case h.errCh <- err:
 			default:
 			}
 		}

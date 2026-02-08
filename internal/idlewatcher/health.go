@@ -1,16 +1,16 @@
 package idlewatcher
 
 import (
+	"fmt"
 	"time"
 
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
 // Start implements health.HealthMonitor.
-func (w *Watcher) Start(parent task.Parent) gperr.Error {
+func (w *Watcher) Start(parent task.Parent) error {
 	w.task.OnCancel("route_cleanup", func() {
 		parent.Finish(w.task.FinishCause())
 	})
@@ -113,7 +113,7 @@ func (w *Watcher) checkUpdateState() (ready bool, err error) {
 	if !state.startedAt.IsZero() {
 		elapsed := time.Since(state.startedAt)
 		if elapsed > w.cfg.WakeTimeout {
-			err := gperr.Errorf("container failed to become ready within %v (started at %v, %d health check attempts)",
+			err := fmt.Errorf("container failed to become ready within %v (started at %v, %d health check attempts)",
 				w.cfg.WakeTimeout, state.startedAt, state.healthTries)
 			w.l.Error().
 				Dur("elapsed", elapsed).

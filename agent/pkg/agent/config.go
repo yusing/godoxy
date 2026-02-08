@@ -216,7 +216,7 @@ func (cfg *AgentConfig) InitWithCerts(ctx context.Context, ca, crt, key []byte) 
 	cfg.l = log.With().Str("agent", cfg.Name).Logger()
 
 	if err := streamUnsupportedErrs.Error(); err != nil {
-		gperr.LogWarn("agent has limited/no stream tunneling support, TCP and UDP routes via agent will not work", err, &cfg.l)
+		cfg.l.Warn().Err(err).Msg("agent has limited/no stream tunneling support, TCP and UDP routes via agent will not work")
 	}
 
 	if serverVersion.IsNewerThanMajor(cfg.Version) {

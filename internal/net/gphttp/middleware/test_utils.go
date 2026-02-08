@@ -11,7 +11,6 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -121,7 +120,7 @@ func (args *testArgs) bodyReader() io.Reader {
 	return nil
 }
 
-func newMiddlewareTest(middleware *Middleware, args *testArgs) (*TestResult, gperr.Error) {
+func newMiddlewareTest(middleware *Middleware, args *testArgs) (*TestResult, error) {
 	if args == nil {
 		args = new(testArgs)
 	}
@@ -135,7 +134,7 @@ func newMiddlewareTest(middleware *Middleware, args *testArgs) (*TestResult, gpe
 	return newMiddlewaresTest([]*Middleware{mid}, args)
 }
 
-func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult, gperr.Error) {
+func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult, error) {
 	if args == nil {
 		args = new(testArgs)
 	}
@@ -160,7 +159,7 @@ func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult,
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
 
 	return &TestResult{

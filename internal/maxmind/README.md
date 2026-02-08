@@ -99,7 +99,7 @@ type Location struct {
 
 ```go
 // LoadMaxMindDB loads or downloads the MaxMind database.
-func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error
+func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error
 ```
 
 ### Lookup
@@ -324,8 +324,8 @@ The maxmind package integrates with:
 
 ```go
 var (
-    ErrResponseNotOK   = gperr.New("response not OK")
-    ErrDownloadFailure = gperr.New("download failure")
+    ErrResponseNotOK   = errors.New("response not OK")
+    ErrDownloadFailure = errors.New("download failure")
 )
 ```
 

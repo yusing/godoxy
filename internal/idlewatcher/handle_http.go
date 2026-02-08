@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 
 	_ "unsafe"
@@ -79,7 +79,7 @@ func (w *Watcher) handleWakeEventsSSE(rw http.ResponseWriter, r *http.Request) {
 		default:
 			err := errors.Join(event.WriteSSE(rw), controller.Flush())
 			if err != nil {
-				gperr.LogError("Failed to write SSE event", err, &w.l)
+				log.Err(err).Msg("Failed to write SSE event")
 				return
 			}
 		}
@@ -91,7 +91,7 @@ func (w *Watcher) handleWakeEventsSSE(rw http.ResponseWriter, r *http.Request) {
 		case event := <-eventCh:
 			err := errors.Join(event.WriteSSE(rw), controller.Flush())
 			if err != nil {
-				gperr.LogError("Failed to write SSE event", err, &w.l)
+				log.Err(err).Msg("Failed to write SSE event")
 				return
 			}
 		case <-ctx.Done():
@@ -169,7 +169,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	err := w.Wake(r.Context())
 	if err != nil {
-		gperr.LogError("Failed to wake container", err, &w.l)
+		log.Err(err).Msg("Failed to wake container")
 		if !acceptHTML {
 			http.Error(rw, "Failed to wake container", http.StatusInternalServerError)
 			return false

@@ -20,7 +20,7 @@ func (e *watcherError) Error() string {
 }
 
 func (w *Watcher) newWatcherError(err error) error {
-	if errors.Is(err, causeReload) {
+	if errors.Is(err, errCauseReload) {
 		return nil
 	}
 	if wErr, ok := err.(*watcherError); ok { //nolint:errorlint
@@ -44,7 +44,7 @@ func (e *depError) Error() string {
 }
 
 func (w *Watcher) newDepError(action string, dep *dependency, err error) error {
-	if errors.Is(err, causeReload) {
+	if errors.Is(err, errCauseReload) {
 		return nil
 	}
 	if dErr, ok := err.(*depError); ok { //nolint:errorlint

@@ -2,6 +2,7 @@ package agentapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +14,6 @@ import (
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/route/provider"
 	apitypes "github.com/yusing/goutils/apitypes"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type VerifyNewAgentRequest struct {
@@ -84,9 +84,9 @@ func Verify(c *gin.Context) {
 	c.JSON(http.StatusOK, apitypes.Success(fmt.Sprintf("Added %d routes", nRoutesAdded)))
 }
 
-var errAgentAlreadyExists = gperr.New("agent already exists")
+var errAgentAlreadyExists = errors.New("agent already exists")
 
-func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, gperr.Error) {
+func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
@@ -105,12 +105,12 @@ func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client a
 
 	err := agentCfg.InitWithCerts(ctx, ca.Cert, client.Cert, client.Key)
 	if err != nil {
-		return 0, gperr.Wrap(err, "failed to initialize agent config")
+		return 0, fmt.Errorf("failed to initialize agent config: %w", err)
 	}
 
 	provider := provider.NewAgentProvider(&agentCfg)
 	if _, loaded := cfgState.LoadOrStoreProvider(provider.String(), provider); loaded {
-		return 0, gperr.Errorf("provider %s already exists", provider.String())
+		return 0, fmt.Errorf("provider %s already exists", provider.String())
 	}
 
 	// agent must be added before loading routes
@@ -122,7 +122,7 @@ func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client a
 	if err != nil {
 		cfgState.DeleteProvider(provider.String())
 		agentpool.Remove(&agentCfg)
-		return 0, gperr.Wrap(err, "failed to load routes")
+		return 0, fmt.Errorf("failed to load routes: %w", err)
 	}
 
 	return provider.NumRoutes(), nil

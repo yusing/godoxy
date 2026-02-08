@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	strutils "github.com/yusing/goutils/strings"
 )
 
-var ErrInvalidLabel = gperr.New("invalid label")
+var ErrInvalidLabel = errors.New("invalid label")
 
 const nsProxyDot = NSProxy + "."
 
@@ -23,7 +24,7 @@ var refPrefixes = func() []string {
 	return prefixes
 }()
 
-func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, gperr.Error) {
+func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, error) {
 	nestedMap := make(types.LabelMap)
 	errs := gperr.NewBuilder("labels error")
 
@@ -35,7 +36,7 @@ func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, g
 			continue
 		}
 		if len(parts) == 1 {
-			errs.Add(ErrInvalidLabel.Subject(lbl))
+			errs.AddSubject(ErrInvalidLabel, lbl)
 			continue
 		}
 		parts = parts[1:]

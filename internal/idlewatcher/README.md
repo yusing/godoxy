@@ -70,7 +70,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 func (w *Watcher) Wake(ctx context.Context) error
 
 // Start begins the idle watcher loop
-func (w *Watcher) Start(parent task.Parent) gperr.Error
+func (w *Watcher) Start(parent task.Parent) error
 
 // ServeHTTP serves the loading page and SSE events
 func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request)
@@ -103,7 +103,7 @@ var (
 classDiagram
     class Watcher {
         +Wake(ctx) error
-        +Start(parent) gperr.Error
+        +Start(parent) error
         +ServeHTTP(ResponseWriter, *Request)
         +ListenAndServe(ctx, preDial, onRead)
         +Key() string

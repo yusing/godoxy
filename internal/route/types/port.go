@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"strconv"
 
 	gperr "github.com/yusing/goutils/errs"
@@ -13,8 +14,8 @@ type Port struct {
 } // @name Port
 
 var (
-	ErrInvalidPortSyntax = gperr.New("invalid port syntax, expect [listening_port:]target_port")
-	ErrPortOutOfRange    = gperr.New("port out of range")
+	ErrInvalidPortSyntax = errors.New("invalid port syntax, expect [listening_port:]target_port")
+	ErrPortOutOfRange    = errors.New("port out of range")
 )
 
 // Parse implements strutils.Parser.
@@ -30,7 +31,7 @@ func (p *Port) Parse(v string) (err error) {
 		p.Proxy, err2 = strconv.Atoi(parts[1])
 		err = gperr.Join(err, err2)
 	default:
-		return ErrInvalidPortSyntax.Subject(v)
+		return gperr.PrependSubject(ErrInvalidPortSyntax, v)
 	}
 
 	if err != nil {
@@ -38,11 +39,11 @@ func (p *Port) Parse(v string) (err error) {
 	}
 
 	if p.Listening < MinPort || p.Listening > MaxPort {
-		return ErrPortOutOfRange.Subjectf("%d", p.Listening)
+		return gperr.PrependSubject(ErrPortOutOfRange, strconv.Itoa(p.Listening))
 	}
 
 	if p.Proxy < MinPort || p.Proxy > MaxPort {
-		return ErrPortOutOfRange.Subjectf("%d", p.Proxy)
+		return gperr.PrependSubject(ErrPortOutOfRange, strconv.Itoa(p.Proxy))
 	}
 
 	return nil

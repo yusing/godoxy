@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"net/url"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ type (
 		DependsOn     []string `json:"depends_on,omitempty"`
 		NoLoadingPage bool     `json:"no_loading_page,omitempty"`
 
-		valErr gperr.Error
+		valErr error
 	} // @name IdlewatcherConfig
 	ContainerStopMethod string // @name ContainerStopMethod
 	ContainerSignal     string // @name ContainerSignal
@@ -57,6 +58,13 @@ const (
 	ContainerStopMethodKill  ContainerStopMethod = "kill"
 )
 
+var (
+	ErrMissingProviderConfig = errors.New("missing idlewatcher provider config")
+	ErrInvalidStopMethod     = errors.New("invalid stop method")
+	ErrInvalidStopSignal     = errors.New("invalid stop signal")
+	ErrEmptyStartEndpoint    = errors.New("start endpoint must not be empty if defined")
+)
+
 func (c *IdlewatcherConfig) Key() string {
 	if c.Docker != nil {
 		return c.Docker.ContainerID
@@ -71,7 +79,7 @@ func (c *IdlewatcherConfig) ContainerName() string {
 	return "lxc-" + strconv.Itoa(c.Proxmox.VMID)
 }
 
-func (c *IdlewatcherConfig) Validate() gperr.Error {
+func (c *IdlewatcherConfig) Validate() error {
 	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
 		c.valErr = nil
 		return nil
@@ -89,13 +97,13 @@ func (c *IdlewatcherConfig) Validate() gperr.Error {
 	return c.valErr
 }
 
-func (c *IdlewatcherConfig) ValErr() gperr.Error {
+func (c *IdlewatcherConfig) ValErr() error {
 	return c.valErr
 }
 
 func (c *IdlewatcherConfig) validateProvider() error {
 	if c.Docker == nil && c.Proxmox == nil {
-		return gperr.New("missing idlewatcher provider config")
+		return ErrMissingProviderConfig
 	}
 	return nil
 }
@@ -118,7 +126,7 @@ func (c *IdlewatcherConfig) validateStopMethod() error {
 	case ContainerStopMethodPause, ContainerStopMethodStop, ContainerStopMethodKill:
 		return nil
 	default:
-		return gperr.New("invalid stop method").Subject(string(c.StopMethod))
+		return gperr.PrependSubject(ErrInvalidStopMethod, string(c.StopMethod))
 	}
 }
 
@@ -127,7 +135,7 @@ func (c *IdlewatcherConfig) validateStopSignal() error {
 	case "", "SIGINT", "SIGTERM", "SIGQUIT", "SIGHUP", "INT", "TERM", "QUIT", "HUP":
 		return nil
 	default:
-		return gperr.New("invalid stop signal").Subject(string(c.StopSignal))
+		return gperr.PrependSubject(ErrInvalidStopSignal, string(c.StopSignal))
 	}
 }
 
@@ -141,7 +149,7 @@ func (c *IdlewatcherConfig) validateStartEndpoint() error {
 		c.StartEndpoint = c.StartEndpoint[:i]
 	}
 	if len(c.StartEndpoint) == 0 {
-		return gperr.New("start endpoint must not be empty if defined")
+		return ErrEmptyStartEndpoint
 	}
 	_, err := url.ParseRequestURI(c.StartEndpoint)
 	return err

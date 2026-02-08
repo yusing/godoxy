@@ -1,11 +1,11 @@
 package accesslog
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/yusing/godoxy/internal/serialization"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -58,9 +58,9 @@ var (
 	ReqLoggerFormats = []Format{FormatCommon, FormatCombined, FormatJSON}
 )
 
-func (cfg *ConfigBase) Validate() gperr.Error {
+func (cfg *ConfigBase) Validate() error {
 	if cfg.Path == "" && !cfg.Stdout {
-		return gperr.New("path or stdout is required")
+		return errors.New("path or stdout is required")
 	}
 	return nil
 }

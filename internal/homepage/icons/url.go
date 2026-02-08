@@ -1,6 +1,7 @@
 package icons
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -40,7 +41,7 @@ const (
 	VariantDark  Variant = "dark"
 )
 
-var ErrInvalidIconURL = gperr.New("invalid icon url")
+var ErrInvalidIconURL = errors.New("invalid icon url")
 
 func NewURL(source Source, refOrName, format string) *URL {
 	switch source {
@@ -119,7 +120,7 @@ func (u *URL) parse(v string, checkExists bool) error {
 	case "@target", "": // @target/favicon.ico, /favicon.ico
 		url := v[slashIndex:]
 		if url == "/" {
-			return ErrInvalidIconURL.Withf("%s", "empty path")
+			return fmt.Errorf("%w: empty path", ErrInvalidIconURL)
 		}
 		u.FullURL = &url
 		u.Source = SourceRelative
@@ -131,7 +132,7 @@ func (u *URL) parse(v string, checkExists bool) error {
 		}
 		parts := strings.Split(v[slashIndex+1:], ".")
 		if len(parts) != 2 {
-			return ErrInvalidIconURL.Withf("expect @%s/<reference>.<format>, e.g. @%s/adguard-home.webp", beforeSlash, beforeSlash)
+			return fmt.Errorf("%w: expect %s/<reference>.<format>, e.g. %s/adguard-home.webp", ErrInvalidIconURL, beforeSlash, beforeSlash)
 		}
 		reference, format := parts[0], strings.ToLower(parts[1])
 		if reference == "" || format == "" {
@@ -140,7 +141,7 @@ func (u *URL) parse(v string, checkExists bool) error {
 		switch format {
 		case "svg", "png", "webp":
 		default:
-			return ErrInvalidIconURL.Withf("%s", "invalid image format, expect svg/png/webp")
+			return fmt.Errorf("%w: invalid image format, expect svg/png/webp", ErrInvalidIconURL)
 		}
 		isLight, isDark := false, false
 		if strings.HasSuffix(reference, "-light") {
@@ -158,10 +159,10 @@ func (u *URL) parse(v string, checkExists bool) error {
 			IsDark:   isDark,
 		}
 		if checkExists && !u.HasIcon() {
-			return ErrInvalidIconURL.Withf("no such icon %s.%s from %s", reference, format, u.Source)
+			return fmt.Errorf("%w: no such icon %s.%s from %s", ErrInvalidIconURL, reference, format, u.Source)
 		}
 	default:
-		return ErrInvalidIconURL.Subject(v)
+		return gperr.PrependSubject(ErrInvalidIconURL, v)
 	}
 
 	return nil

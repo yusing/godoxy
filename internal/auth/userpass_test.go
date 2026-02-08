@@ -27,7 +27,7 @@ func TestUserPassValidateCredentials(t *testing.T) {
 	err := auth.validatePassword("username", "password")
 	expect.NoError(t, err)
 	err = auth.validatePassword("username", "wrong-password")
-	expect.ErrorIs(t, ErrInvalidPassword, err)
+	expect.ErrorIs(t, bcrypt.ErrMismatchedHashAndPassword, err)
 	err = auth.validatePassword("wrong-username", "password")
 	expect.ErrorIs(t, ErrInvalidUsername, err)
 }

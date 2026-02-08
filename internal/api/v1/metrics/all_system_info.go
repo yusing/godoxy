@@ -113,7 +113,7 @@ func AllSystemInfo(c *gin.Context) {
 			data, err := systeminfo.Poller.GetRespData(req.Period, query)
 			if err != nil {
 				numErrs.Add(1)
-				return gperr.PrependSubject("Main server", err)
+				return gperr.PrependSubject(err, "Main server")
 			}
 			select {
 			case <-manager.Done():
@@ -133,7 +133,7 @@ func AllSystemInfo(c *gin.Context) {
 				data, err := getAgentSystemInfoWithRetry(manager.Context(), a, queryEncoded)
 				if err != nil {
 					numErrs.Add(1)
-					return gperr.PrependSubject("Agent "+a.Name, err)
+					return gperr.PrependSubject(err, "Agent "+a.Name)
 				}
 				select {
 				case <-manager.Done():
@@ -170,7 +170,7 @@ func AllSystemInfo(c *gin.Context) {
 					c.Error(apitypes.InternalServerError(err, "failed to get all system info"))
 					return
 				}
-				gperr.LogWarn("failed to get some system info", err)
+				log.Warn().Err(err).Msg("failed to get some system info")
 			}
 		}
 	}

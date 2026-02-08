@@ -3,6 +3,7 @@ package route
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"net/url"
 	"os"
 	"strings"
@@ -25,7 +26,7 @@ type HTTPConfig struct {
 }
 
 // BuildTLSConfig creates a TLS configuration based on the HTTP config options.
-func (cfg *HTTPConfig) BuildTLSConfig(targetURL *url.URL) (*tls.Config, gperr.Error) {
+func (cfg *HTTPConfig) BuildTLSConfig(targetURL *url.URL) (*tls.Config, error) {
 	tlsConfig := &tls.Config{}
 
 	// Handle InsecureSkipVerify (legacy NoTLSVerify option)
@@ -54,15 +55,12 @@ func (cfg *HTTPConfig) BuildTLSConfig(targetURL *url.URL) (*tls.Config, gperr.Er
 	if cfg.SSLTrustedCertificate != "" {
 		caCertData, err := os.ReadFile(cfg.SSLTrustedCertificate)
 		if err != nil {
-			return nil, gperr.New("failed to read trusted certificate file").
-				Subject(cfg.SSLTrustedCertificate).
-				With(err)
+			return nil, gperr.PrependSubject(err, cfg.SSLTrustedCertificate)
 		}
 
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(caCertData) {
-			return nil, gperr.New("failed to parse trusted certificates").
-				Subject(cfg.SSLTrustedCertificate)
+			return nil, gperr.PrependSubject(errors.New("failed to parse trusted certificates"), cfg.SSLTrustedCertificate)
 		}
 		tlsConfig.RootCAs = caCertPool
 	}
@@ -70,16 +68,16 @@ func (cfg *HTTPConfig) BuildTLSConfig(targetURL *url.URL) (*tls.Config, gperr.Er
 	// Handle ssl_certificate and ssl_certificate_key (client certificates)
 	if cfg.SSLCertificate != "" {
 		if cfg.SSLCertificateKey == "" {
-			return nil, gperr.New("ssl_certificate_key is required when ssl_certificate is specified")
+			return nil, errors.New("ssl_certificate_key is required when ssl_certificate is specified")
 		}
 
 		clientCert, err := tls.LoadX509KeyPair(cfg.SSLCertificate, cfg.SSLCertificateKey)
 		if err != nil {
-			return nil, gperr.New("failed to load client certificate").
-				Subject(cfg.SSLCertificate).
-				With(err)
+			return nil, gperr.PrependSubject(err, cfg.SSLCertificate)
 		}
 		tlsConfig.Certificates = []tls.Certificate{clientCert}
+	} else if cfg.SSLCertificateKey != "" {
+		return nil, errors.New("ssl_certificate is required when ssl_certificate_key is specified")
 	}
 
 	// Handle ssl_protocols (TLS versions)

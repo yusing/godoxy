@@ -87,7 +87,7 @@ const (
 	ACLDeny  = "deny"
 )
 
-func (c *Config) Validate() gperr.Error {
+func (c *Config) Validate() error {
 	switch c.Default {
 	case "", ACLAllow:
 		c.defaultAllow = true
@@ -131,7 +131,7 @@ func (c *Config) Valid() bool {
 	return c != nil && c.valErr == nil
 }
 
-func (c *Config) Start(parent task.Parent) gperr.Error {
+func (c *Config) Start(parent task.Parent) error {
 	if c.Log != nil {
 		logger, err := accesslog.NewAccessLogger(parent, c.Log)
 		if err != nil {

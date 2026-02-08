@@ -249,7 +249,7 @@ The package includes an embedded HTML template (`captcha.html`) that renders the
 ## Error Handling
 
 ```go
-var ErrCaptchaVerificationFailed = gperr.New("captcha verification failed")
+var ErrCaptchaVerificationFailed = errors.New("captcha verification failed")
 
 // Verification errors are logged with request details
 log.Warn().Err(err).Str("url", r.URL.String()).Str("remote_addr", r.RemoteAddr).Msg("failed to verify captcha")

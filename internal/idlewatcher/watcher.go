@@ -3,6 +3,7 @@ package idlewatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -97,8 +98,8 @@ const (
 )
 
 var (
-	causeReload           = gperr.New("reloaded")            //nolint:errname
-	causeContainerDestroy = gperr.New("container destroyed") //nolint:errname
+	errCauseReload           = errors.New("reloaded")
+	errCauseContainerDestroy = errors.New("container destroyed")
 )
 
 const reqTimeout = 3 * time.Second
@@ -286,7 +287,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 		w.stream = r.Stream()
 	default:
 		p.Close()
-		return nil, w.newWatcherError(gperr.Errorf("unexpected route type: %T", r))
+		return nil, w.newWatcherError(fmt.Errorf("unexpected route type: %T", r))
 	}
 	w.route = r
 
@@ -320,12 +321,12 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig)
 			delete(watcherMap, key)
 			watcherMapMu.Unlock()
 
-			if errors.Is(cause, causeReload) {
+			if errors.Is(cause, errCauseReload) {
 				// no log
-			} else if errors.Is(cause, causeContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) || errors.Is(cause, config.ErrConfigChanged) {
+			} else if errors.Is(cause, errCauseContainerDestroy) || errors.Is(cause, task.ErrProgramExiting) || errors.Is(cause, config.ErrConfigChanged) {
 				w.l.Info().Msg("idlewatcher stopped")
 			} else {
-				gperr.LogError("idlewatcher stopped unexpectedly", cause, &w.l)
+				w.l.Err(cause).Msg("idlewatcher stopped unexpectedly")
 			}
 
 			w.idleTicker.Stop()
@@ -467,7 +468,7 @@ func (w *Watcher) wakeIfStopped(ctx context.Context) error {
 	defer cancel()
 	p := w.provider.Load()
 	if p == nil {
-		return gperr.Errorf("provider not set")
+		return errors.New("provider not set")
 	}
 	switch state.status {
 	case idlewatcher.ContainerStatusStopped:
@@ -477,7 +478,7 @@ func (w *Watcher) wakeIfStopped(ctx context.Context) error {
 		w.sendEvent(WakeEventStarting, w.cfg.ContainerName()+" is unpausing...", nil)
 		return p.ContainerUnpause(ctx)
 	default:
-		return gperr.Errorf("unexpected container status: %s", state.status)
+		return fmt.Errorf("unexpected container status: %s", state.status)
 	}
 }
 
@@ -512,7 +513,7 @@ func (w *Watcher) stopByMethod() error {
 	var err error
 	p := w.provider.Load()
 	if p == nil {
-		return gperr.New("provider not set")
+		return errors.New("provider not set")
 	}
 	switch cfg.StopMethod {
 	case types.ContainerStopMethodPause:
@@ -522,7 +523,7 @@ func (w *Watcher) stopByMethod() error {
 	case types.ContainerStopMethodKill:
 		err = p.ContainerKill(ctx, cfg.StopSignal)
 	default:
-		err = w.newWatcherError(gperr.Errorf("unexpected stop method: %q", cfg.StopMethod))
+		err = w.newWatcherError(fmt.Errorf("unexpected stop method: %q", cfg.StopMethod))
 	}
 
 	if err != nil {
@@ -564,7 +565,7 @@ func (w *Watcher) expires() time.Time {
 func (w *Watcher) watchUntilDestroy() (returnCause error) {
 	p := w.provider.Load()
 	if p == nil {
-		return gperr.Errorf("provider not set")
+		return errors.New("provider not set")
 	}
 	defer p.Close()
 	eventCh, errCh := p.Watch(w.Task().Context())
@@ -572,14 +573,14 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 	for {
 		select {
 		case <-w.task.Context().Done():
-			return gperr.Wrap(w.task.FinishCause())
+			return w.task.FinishCause()
 		case err := <-errCh:
-			gperr.LogError("watcher error", err, &w.l)
+			w.l.Err(err).Msg("watcher error")
 		case e := <-eventCh:
 			w.l.Debug().Stringer("action", e.Action).Msg("state changed")
 			switch e.Action {
 			case events.ActionContainerDestroy:
-				return causeContainerDestroy
+				return errCauseContainerDestroy
 			case events.ActionForceReload:
 				continue
 			}

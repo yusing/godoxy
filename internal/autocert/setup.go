@@ -4,7 +4,7 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 )
 
-func (p *Provider) setupExtraProviders() gperr.Error {
+func (p *Provider) setupExtraProviders() error {
 	p.sniMatcher = sniMatcher{}
 	if len(p.cfg.Extra) == 0 {
 		return nil

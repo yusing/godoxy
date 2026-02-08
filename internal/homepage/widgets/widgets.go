@@ -2,6 +2,8 @@ package widgets
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
@@ -30,21 +32,21 @@ var widgetProviders = map[string]struct{}{
 	WidgetProviderQbittorrent: {},
 }
 
-var ErrInvalidProvider = gperr.New("invalid provider")
+var ErrInvalidProvider = errors.New("invalid provider")
 
 func (cfg *Config) UnmarshalMap(m map[string]any) error {
 	var ok bool
 	cfg.Provider, ok = m["provider"].(string)
 	if !ok {
-		return ErrInvalidProvider.Withf("non string")
+		return fmt.Errorf("%w: non string", ErrInvalidProvider)
 	}
 	if _, ok := widgetProviders[cfg.Provider]; !ok {
-		return ErrInvalidProvider.Subject(cfg.Provider)
+		return gperr.PrependSubject(ErrInvalidProvider, cfg.Provider)
 	}
 	delete(m, "provider")
 	m, ok = m["config"].(map[string]any)
 	if !ok {
-		return gperr.New("invalid config")
+		return errors.New("invalid config")
 	}
 	return serialization.MapUnmarshalValidate(m, &cfg.Config)
 }

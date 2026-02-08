@@ -2,13 +2,13 @@ package qbittorrent
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 
 	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type Client struct {
@@ -46,7 +46,7 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, query u
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, gperr.Errorf("%w: %d %s", widgets.ErrHTTPStatus, resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("%w: %d %s", widgets.ErrHTTPStatus, resp.StatusCode, resp.Status)
 	}
 
 	return resp, nil

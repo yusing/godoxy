@@ -1,15 +1,15 @@
 package serialization
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/go-playground/validator/v10"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 var validate = validator.New()
 
-var ErrValidationError = gperr.New("validation error")
+var ErrValidationError = errors.New("validation error")
 
 func Validator() *validator.Validate {
 	return validate
@@ -23,12 +23,12 @@ func MustRegisterValidation(tag string, fn validator.Func) {
 }
 
 type CustomValidator interface {
-	Validate() gperr.Error
+	Validate() error
 }
 
 var validatorType = reflect.TypeFor[CustomValidator]()
 
-func ValidateWithCustomValidator(v reflect.Value) gperr.Error {
+func ValidateWithCustomValidator(v reflect.Value) error {
 	vt := v.Type()
 	if v.Kind() == reflect.Pointer {
 		elemType := vt.Elem()

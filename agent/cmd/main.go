@@ -19,7 +19,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/handler"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
@@ -72,7 +71,7 @@ Tips:
 	// - Otherwise: route to HTTPS API handler
 	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{Port: env.AgentPort})
 	if err != nil {
-		gperr.LogFatal("failed to listen on port", err)
+		log.Fatal().Err(err).Msg("failed to listen on port")
 	}
 
 	caCertPool := x509.NewCertPool()
@@ -148,7 +147,7 @@ Tips:
 		log.Info().Msgf("%s socket listening on: %s", runtime, socketproxy.ListenAddr)
 		l, err := net.Listen("tcp", socketproxy.ListenAddr)
 		if err != nil {
-			gperr.LogFatal("failed to listen on port", err)
+			log.Fatal().Err(err).Msg("failed to listen on port")
 		}
 		errLog := log.Logger.With().Str("level", "error").Str("component", "socketproxy").Logger()
 		srv := http.Server{

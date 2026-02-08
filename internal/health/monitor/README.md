@@ -41,7 +41,7 @@ type HealthCheckFunc func(url *url.URL) (result types.HealthCheckResult, err err
 
 ```go
 type HealthMonitor interface {
-    Start(parent task.Parent) gperr.Error
+    Start(parent task.Parent) error
     Task() *task.Task
     Finish(reason any)
     UpdateURL(url *url.URL)

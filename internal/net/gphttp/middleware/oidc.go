@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"github.com/yusing/godoxy/internal/auth"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type oidcMiddleware struct {
@@ -28,7 +27,7 @@ var OIDC = NewMiddleware[oidcMiddleware]()
 
 func (amw *oidcMiddleware) finalize() error {
 	if !auth.IsOIDCEnabled() {
-		return gperr.New("OIDC not enabled but OIDC middleware is used")
+		return errors.New("OIDC not enabled but OIDC middleware is used")
 	}
 	return nil
 }

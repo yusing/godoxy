@@ -11,7 +11,6 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/fs"
 	"github.com/yusing/goutils/task"
 )
@@ -93,7 +92,7 @@ func watchDir() {
 				loadContent()
 			}
 		case err := <-errCh:
-			gperr.LogError("error watching error page directory", err)
+			log.Err(err).Msg("error watching error page directory")
 		}
 	}
 }

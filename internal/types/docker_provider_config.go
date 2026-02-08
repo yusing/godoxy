@@ -59,7 +59,7 @@ func (cfg *DockerProviderConfig) Parse(value string) error {
 	return nil
 }
 
-func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) gperr.Error {
+func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) error {
 	var tmp DockerProviderConfigDetailed
 	var err = serialization.MapUnmarshalValidate(m, &tmp)
 	if err != nil {
@@ -70,7 +70,7 @@ func (cfg *DockerProviderConfig) UnmarshalMap(m map[string]any) gperr.Error {
 	cfg.TLS = tmp.TLS
 	if cfg.TLS != nil {
 		if err := checkFilesOk(cfg.TLS.CAFile, cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil {
-			return gperr.Wrap(err)
+			return err
 		}
 	}
 	return nil

@@ -1,10 +1,10 @@
 package accesslog
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -15,8 +15,8 @@ type Retention struct {
 } // @name LogRetention
 
 var (
-	ErrInvalidSyntax = gperr.New("invalid syntax")
-	ErrZeroValue     = gperr.New("zero value")
+	ErrInvalidSyntax = errors.New("invalid syntax")
+	ErrZeroValue     = errors.New("zero value")
 )
 
 // see back_scanner_test.go#L210 for benchmarks
@@ -34,7 +34,7 @@ var defaultChunkSize = 32 * kilobyte
 func (r *Retention) Parse(v string) (err error) {
 	split := strutils.SplitSpace(v)
 	if len(split) != 2 {
-		return ErrInvalidSyntax.Subject(v)
+		return fmt.Errorf("%w: %s", ErrInvalidSyntax, v)
 	}
 	switch split[0] {
 	case "last":
@@ -64,7 +64,7 @@ func (r *Retention) Parse(v string) (err error) {
 		case "GB":
 			r.KeepSize = n * gigabyte
 		default:
-			return ErrInvalidSyntax.Subject("unit " + split[1])
+			return fmt.Errorf("%w: unit %s", ErrInvalidSyntax, split[1])
 		}
 	}
 	if !r.IsValid() {

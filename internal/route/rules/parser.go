@@ -31,7 +31,7 @@ var quoteChars = [256]bool{
 //	error 403 "Forbidden 'foo' 'bar'"
 //	error 403 Forbidden\ \"foo\"\ \"bar\".
 //	error 403 "Message: ${CLOUDFLARE_API_KEY}"
-func parse(v string) (subject string, args []string, err gperr.Error) {
+func parse(v string) (subject string, args []string, err error) {
 	buf := bytes.NewBuffer(make([]byte, 0, len(v)))
 
 	escaped := false

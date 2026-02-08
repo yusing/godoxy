@@ -43,12 +43,12 @@ type SerializedObject = map[string]any
 ```go
 // For custom map unmarshaling logic
 type MapUnmarshaller interface {
-    UnmarshalMap(m map[string]any) gperr.Error
+    UnmarshalMap(m map[string]any) error
 }
 
 // For custom validation logic
 type CustomValidator interface {
-    Validate() gperr.Error
+    Validate() error
 }
 ```
 
@@ -56,16 +56,16 @@ type CustomValidator interface {
 
 ```go
 // Generic unmarshal with pluggable format handler
-func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) gperr.Error
+func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) error
 
 // Read from io.Reader with format decoder
-func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) gperr.Error
+func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) error
 
 // Direct map deserialization
-func MapUnmarshalValidate(src SerializedObject, dst any) gperr.Error
+func MapUnmarshalValidate(src SerializedObject, dst any) error
 
 // To xsync.Map with pluggable format handler
-func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], gperr.Error)
+func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], error)
 ```
 
 ### File I/O Functions
@@ -82,23 +82,23 @@ func LoadFileIfExist[T any](path string, dst *T, unmarshaler unmarshalFunc) erro
 
 ```go
 // Convert any value to target reflect.Value
-func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error
+func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) error
 
 // String to target type conversion
-func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error)
+func ConvertString(src string, dst reflect.Value) (convertible bool, convErr error)
 ```
 
 ### Validation Functions
 
 ```go
 // Validate using struct tags
-func ValidateWithFieldTags(s any) gperr.Error
+func ValidateWithFieldTags(s any) error
 
 // Register custom validator
 func MustRegisterValidation(tag string, fn validator.Func)
 
 // Validate using CustomValidator interface
-func ValidateWithCustomValidator(v reflect.Value) gperr.Error
+func ValidateWithCustomValidator(v reflect.Value) error
 
 // Get underlying validator
 func Validator() *validator.Validate
@@ -301,9 +301,9 @@ type Config struct {
     URL string `json:"url" validate:"required"`
 }
 
-func (c *Config) Validate() gperr.Error {
+func (c *Config) Validate() error {
     if !strings.HasPrefix(c.URL, "https://") {
-        return gperr.New("url must use https").Subject("url")
+        return errors.New("url must use https")
     }
     return nil
 }

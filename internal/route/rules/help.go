@@ -131,7 +131,7 @@ Generate help string as error, e.g.
 		from: the path to rewrite, must start with /
 		to: the path to rewrite to, must start with /
 */
-func (h *Help) Error() gperr.Error {
+func (h *Help) Error() error {
 	var lines gperr.MultilineError
 
 	lines.Adds(ansi.WithANSI(h.command, ansi.HighlightGreen))

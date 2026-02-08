@@ -42,7 +42,7 @@ func BenchmarkDeserialize(b *testing.B) {
 		dst := complexStruct{}
 		err := MapUnmarshalValidate(src, &dst)
 		if err != nil {
-			b.Fatal(string(err.Plain()))
+			b.Fatal(err.Error())
 		}
 	}
 }

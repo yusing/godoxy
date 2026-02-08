@@ -108,17 +108,17 @@ type (
 )
 
 type lockedError struct {
-	err  gperr.Error
+	err  error
 	lock sync.Mutex
 }
 
-func (le *lockedError) Get() gperr.Error {
+func (le *lockedError) Get() error {
 	le.lock.Lock()
 	defer le.lock.Unlock()
 	return le.err
 }
 
-func (le *lockedError) Set(err gperr.Error) {
+func (le *lockedError) Set(err error) {
 	le.lock.Lock()
 	defer le.lock.Unlock()
 	le.err = err
@@ -131,7 +131,7 @@ func (r Routes) Contains(alias string) bool {
 	return ok
 }
 
-func (r *Route) Validate() gperr.Error {
+func (r *Route) Validate() error {
 	// wait for alias to be set
 	if r.Alias == "" {
 		return nil
@@ -150,13 +150,13 @@ func (r *Route) Validate() gperr.Error {
 	return r.valErr.Get()
 }
 
-func (r *Route) validate() gperr.Error {
+func (r *Route) validate() error {
 	// if strings.HasPrefix(r.Alias, "godoxy") {
 	// 	log.Debug().Any("route", r).Msg("validating route")
 	// }
 	if r.Agent != "" {
 		if r.Container != nil {
-			return gperr.Errorf("specifying agent is not allowed for docker container routes")
+			return errors.New("specifying agent is not allowed for docker container routes")
 		}
 		var ok bool
 		// by agent address
@@ -165,7 +165,7 @@ func (r *Route) validate() gperr.Error {
 			// fallback to get agent by name
 			r.agent, ok = agentpool.GetAgent(r.Agent)
 			if !ok {
-				return gperr.Errorf("agent %s not found", r.Agent)
+				return fmt.Errorf("agent %s not found", r.Agent)
 			}
 		}
 	}
@@ -258,7 +258,7 @@ func (r *Route) validate() gperr.Error {
 			switch r.Port.Proxy {
 			case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
 				if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
-					return gperr.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
+					return fmt.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
 				}
 			}
 		}
@@ -268,9 +268,6 @@ func (r *Route) validate() gperr.Error {
 	if err := r.validateRules(); err != nil {
 		errs.Add(err)
 	}
-
-	var impl types.Route
-	var err gperr.Error
 
 	if r.ShouldExclude() {
 		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
@@ -318,6 +315,8 @@ func (r *Route) validate() gperr.Error {
 		return errs.Error()
 	}
 
+	var impl types.Route
+	var err error
 	switch r.Scheme {
 	case route.SchemeFileServer:
 		impl, err = NewFileServer(r)
@@ -479,16 +478,16 @@ func (r *Route) Task() *task.Task {
 	return r.task
 }
 
-func (r *Route) Start(parent task.Parent) gperr.Error {
+func (r *Route) Start(parent task.Parent) error {
 	r.onceStart.Do(func() {
 		r.startErr.Set(r.start(parent))
 	})
 	return r.startErr.Get()
 }
 
-func (r *Route) start(parent task.Parent) gperr.Error {
+func (r *Route) start(parent task.Parent) error {
 	if r.impl == nil { // should not happen
-		return gperr.New("route not initialized")
+		return errors.New("route not initialized")
 	}
 	defer close(r.started)
 
@@ -511,7 +510,7 @@ func (r *Route) start(parent task.Parent) gperr.Error {
 	} else {
 		ep := entrypoint.FromCtx(parent.Context())
 		if ep == nil {
-			return gperr.New("entrypoint not initialized")
+			return errors.New("entrypoint not initialized")
 		}
 
 		r.task = parent.Subtask("excluded."+r.Name(), false)

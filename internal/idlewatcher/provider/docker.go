@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
@@ -9,7 +10,6 @@ import (
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type DockerProvider struct {
@@ -75,10 +75,10 @@ func (p *DockerProvider) ContainerStatus(ctx context.Context) (idlewatcher.Conta
 	case container.StatePaused:
 		return idlewatcher.ContainerStatusPaused, nil
 	}
-	return idlewatcher.ContainerStatusError, idlewatcher.ErrUnexpectedContainerStatus.Subject(string(status.Container.State.Status))
+	return idlewatcher.ContainerStatusError, fmt.Errorf("%w: %s", idlewatcher.ErrUnexpectedContainerStatus, status.Container.State.Status)
 }
 
-func (p *DockerProvider) Watch(ctx context.Context) (eventCh <-chan watcher.Event, errCh <-chan gperr.Error) {
+func (p *DockerProvider) Watch(ctx context.Context) (eventCh <-chan watcher.Event, errCh <-chan error) {
 	return p.watcher.EventsWithOptions(ctx, watcher.DockerListOptions{
 		Filters: watcher.NewDockerFilters(
 			watcher.DockerFilterContainer,

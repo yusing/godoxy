@@ -7,7 +7,6 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"golang.org/x/net/http2"
 
@@ -58,7 +57,7 @@ func (rule *Rule) IsResponseRule() bool {
 	return rule.On.IsResponseChecker() || rule.Do.IsResponseHandler()
 }
 
-func (rules Rules) Validate() gperr.Error {
+func (rules Rules) Validate() error {
 	var defaultRulesFound []int
 	for i, rule := range rules {
 		if rule.Name == "default" || rule.On.raw == OnDefault {

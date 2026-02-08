@@ -59,7 +59,7 @@ func Info(c *gin.Context) {
 	serveHTTP[dockerInfo](c, GetDockerInfo)
 }
 
-func GetDockerInfo(ctx context.Context, dockerClients DockerClients) ([]dockerInfo, gperr.Error) {
+func GetDockerInfo(ctx context.Context, dockerClients DockerClients) ([]dockerInfo, error) {
 	errs := gperr.NewBuilder("failed to get docker info")
 	dockerInfos := make([]dockerInfo, len(dockerClients))
 
@@ -67,7 +67,7 @@ func GetDockerInfo(ctx context.Context, dockerClients DockerClients) ([]dockerIn
 	for name, dockerClient := range dockerClients {
 		info, err := dockerClient.Info(ctx, client.InfoOptions{})
 		if err != nil {
-			errs.Add(err)
+			errs.AddSubject(err, name)
 			continue
 		}
 		info.Info.Name = name

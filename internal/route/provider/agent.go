@@ -5,7 +5,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/watcher"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type AgentProvider struct {
@@ -25,7 +24,7 @@ func (p *AgentProvider) IsExplicitOnly() bool {
 	return p.docker.IsExplicitOnly()
 }
 
-func (p *AgentProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
+func (p *AgentProvider) loadRoutesImpl() (route.Routes, error) {
 	return p.docker.loadRoutesImpl()
 }
 

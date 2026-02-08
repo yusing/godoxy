@@ -1,6 +1,9 @@
 package notif
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -11,13 +14,13 @@ type NotificationConfig struct {
 }
 
 var (
-	ErrMissingNotifProvider     = gperr.New("missing notification provider")
-	ErrInvalidNotifProviderType = gperr.New("invalid notification provider type")
-	ErrUnknownNotifProvider     = gperr.New("unknown notification provider")
+	ErrMissingNotifProvider     = errors.New("missing notification provider")
+	ErrInvalidNotifProviderType = errors.New("invalid notification provider type")
+	ErrUnknownNotifProvider     = errors.New("unknown notification provider")
 )
 
 // UnmarshalMap implements MapUnmarshaler.
-func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) {
+func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err error) {
 	// extract provider name
 	providerName := m["provider"]
 	switch providerName := providerName.(type) {
@@ -41,9 +44,8 @@ func (cfg *NotificationConfig) UnmarshalMap(m map[string]any) (err gperr.Error) 
 	case ProviderNtfy:
 		cfg.Provider = &Ntfy{}
 	default:
-		return ErrUnknownNotifProvider.
-			Subject(cfg.ProviderName).
-			Withf("expect %s or %s", ProviderWebhook, ProviderGotify)
+		return gperr.PrependSubject(ErrUnknownNotifProvider, cfg.ProviderName).
+			Withf("expect %s", strings.Join(AvailableProviders, ", "))
 	}
 
 	return serialization.MapUnmarshalValidate(m, cfg.Provider)

@@ -9,7 +9,6 @@ import (
 	"github.com/bytedance/gopkg/util/xxhash3"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type ipHash struct {
@@ -28,10 +27,10 @@ func (lb *LoadBalancer) newIPHash() impl {
 	if len(lb.Options) == 0 {
 		return impl
 	}
-	var err gperr.Error
+	var err error
 	impl.realIP, err = middleware.RealIP.New(lb.Options)
 	if err != nil {
-		gperr.LogError("invalid real_ip options, ignoring", err, &impl.l)
+		impl.l.Err(err).Msg("invalid real_ip options, ignoring")
 	}
 	return impl
 }

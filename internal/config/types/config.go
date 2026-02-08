@@ -15,7 +15,6 @@ import (
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -42,7 +41,7 @@ type (
 	}
 )
 
-func Validate(data []byte) gperr.Error {
+func Validate(data []byte) error {
 	var model Config
 	return serialization.UnmarshalValidate(data, &model, yaml.Unmarshal)
 }

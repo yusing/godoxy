@@ -51,7 +51,7 @@ func Validate(c *gin.Context) {
 	c.JSON(http.StatusOK, apitypes.Success("file validated"))
 }
 
-func validateFile(fileType FileType, content []byte) gperr.Error {
+func validateFile(fileType FileType, content []byte) error {
 	switch fileType {
 	case FileTypeConfig:
 		return config.Validate(content)

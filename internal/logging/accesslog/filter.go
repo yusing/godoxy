@@ -1,12 +1,13 @@
 package accesslog
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -29,7 +30,7 @@ type (
 	} // @name CIDR
 )
 
-var ErrInvalidHTTPHeaderFilter = gperr.New("invalid http header filter")
+var ErrInvalidHTTPHeaderFilter = errors.New("invalid http header filter")
 
 func (f *LogFilter[T]) CheckKeep(req *http.Request, res *http.Response) bool {
 	if len(f.Values) == 0 {
@@ -59,7 +60,7 @@ func (k *HTTPHeader) Parse(v string) error {
 		split = append(split, "")
 	case 2:
 	default:
-		return ErrInvalidHTTPHeaderFilter.Subject(v)
+		return fmt.Errorf("%w: %s", ErrInvalidHTTPHeaderFilter, v)
 	}
 	k.Key = split[0]
 	k.Value = split[1]

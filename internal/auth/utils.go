@@ -1,20 +1,20 @@
 package auth
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/yusing/godoxy/internal/common"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
 var (
-	ErrMissingSessionToken = gperr.New("missing session token")
-	ErrInvalidSessionToken = gperr.New("invalid session token")
-	ErrUserNotAllowed      = gperr.New("user not allowed")
+	ErrMissingSessionToken = errors.New("missing session token")
+	ErrInvalidSessionToken = errors.New("invalid session token")
+	ErrUserNotAllowed      = errors.New("user not allowed")
 )
 
 func IsFrontend(r *http.Request) bool {

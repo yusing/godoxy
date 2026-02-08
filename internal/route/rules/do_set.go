@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strconv"
 
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 )
@@ -228,7 +227,7 @@ var modFields = map[string]struct {
 				"template": "the body template",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 1 {
 				return nil, ErrExpectOneArg
 			}
@@ -273,7 +272,7 @@ var modFields = map[string]struct {
 				"template": "the response body template",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 1 {
 				return nil, ErrExpectOneArg
 			}
@@ -301,7 +300,7 @@ var modFields = map[string]struct {
 				"code": "the status code",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 1 {
 				return nil, ErrExpectOneArg
 			}

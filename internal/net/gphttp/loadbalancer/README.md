@@ -102,7 +102,7 @@ type LoadBalancer struct {
 func New(cfg *types.LoadBalancerConfig) *LoadBalancer
 
 // Start the load balancer as a background task
-func (lb *LoadBalancer) Start(parent task.Parent) gperr.Error
+func (lb *LoadBalancer) Start(parent task.Parent) error
 
 // Update configuration dynamically
 func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *types.LoadBalancerConfig)

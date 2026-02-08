@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -13,7 +14,6 @@ import (
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
@@ -42,7 +42,7 @@ type (
 	}
 )
 
-var ErrNegativeInterval = gperr.New("negative interval")
+var ErrNegativeInterval = errors.New("negative interval")
 
 func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
 	if state := config.WorkingState.Load(); state != nil {
@@ -79,7 +79,7 @@ func (mon *monitor) CheckHealth() (types.HealthCheckResult, error) {
 }
 
 // Start implements task.TaskStarter.
-func (mon *monitor) Start(parent task.Parent) gperr.Error {
+func (mon *monitor) Start(parent task.Parent) error {
 	if mon.config.Interval <= 0 {
 		return ErrNegativeInterval
 	}

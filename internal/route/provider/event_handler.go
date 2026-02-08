@@ -81,7 +81,7 @@ func (handler *EventHandler) match(event watcher.Event, route *route.Route) bool
 func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 	err := handler.provider.startRoute(parent, route)
 	if err != nil {
-		handler.errs.Add(err.Subject("add"))
+		handler.errs.AddSubjectf(err, "add")
 	}
 }
 
@@ -93,7 +93,7 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 	oldRoute.FinishAndWait("route update")
 	err := handler.provider.startRoute(parent, newRoute)
 	if err != nil {
-		handler.errs.Add(err.Subject("update"))
+		handler.errs.AddSubjectf(err, "update")
 	}
 }
 

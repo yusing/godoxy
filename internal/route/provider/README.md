@@ -39,7 +39,7 @@ type ProviderImpl interface {
     fmt.Stringer
     ShortName() string
     IsExplicitOnly() bool
-    loadRoutesImpl() (route.Routes, gperr.Error)
+    loadRoutesImpl() (route.Routes, error)
     NewWatcher() W.Watcher
     Logger() *zerolog.Logger
 }
@@ -62,8 +62,8 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider
 
 ```go
 func (p *Provider) GetType() provider.Type
-func (p *Provider) Start(parent task.Parent) gperr.Error
-func (p *Provider) LoadRoutes() gperr.Error
+func (p *Provider) Start(parent task.Parent) error
+func (p *Provider) LoadRoutes() error
 func (p *Provider) IterRoutes(yield func(string, types.Route) bool)
 func (p *Provider) GetRoute(alias string) (types.Route, bool)
 func (p *Provider) FindService(project, service string) (types.Route, bool)
@@ -80,8 +80,8 @@ classDiagram
         +t provider.Type
         +routes route.Routes
         +watcher W.Watcher
-        +Start(parent) gperr.Error
-        +LoadRoutes() gperr.Error
+        +Start(parent) error
+        +LoadRoutes() error
         +IterRoutes(yield)
     }
 
@@ -90,7 +90,7 @@ classDiagram
         +String() string
         +ShortName() string
         +IsExplicitOnly() bool
-        +loadRoutesImpl() (route.Routes, gperr.Error)
+        +loadRoutesImpl() (route.Routes, error)
         +NewWatcher() W.Watcher
         +Logger() *zerolog.Logger
     }
@@ -99,20 +99,20 @@ classDiagram
         +name string
         +dockerCfg types.DockerProviderConfig
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, gperr.Error)
+        +loadRoutesImpl() (route.Routes, error)
     }
 
     class FileProviderImpl {
         +filename string
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, gperr.Error)
+        +loadRoutesImpl() (route.Routes, error)
     }
 
     class AgentProviderImpl {
         +*agent.AgentConfig
         +docker DockerProviderImpl
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, gperr.Error)
+        +loadRoutesImpl() (route.Routes, error)
     }
 
     Provider --> ProviderImpl : wraps

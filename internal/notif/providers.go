@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/yusing/godoxy/internal/serialization"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -27,7 +26,7 @@ type (
 
 		fmtError(respBody io.Reader) error
 	}
-	ProviderCreateFunc func(map[string]any) (Provider, gperr.Error)
+	ProviderCreateFunc func(map[string]any) (Provider, error)
 	ProviderConfig     map[string]any
 )
 
@@ -36,6 +35,8 @@ const (
 	ProviderNtfy    = "ntfy"
 	ProviderWebhook = "webhook"
 )
+
+var AvailableProviders = []string{ProviderGotify, ProviderNtfy, ProviderWebhook}
 
 func (msg *LogMessage) notify(ctx context.Context, provider Provider) error {
 	body, err := provider.MarshalMessage(msg)

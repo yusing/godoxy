@@ -1,6 +1,6 @@
 package idlewatcher
 
-import gperr "github.com/yusing/goutils/errs"
+import "errors"
 
 type ContainerStatus string
 
@@ -11,4 +11,4 @@ const (
 	ContainerStatusStopped ContainerStatus = "stopped"
 )
 
-var ErrUnexpectedContainerStatus = gperr.New("unexpected container status")
+var ErrUnexpectedContainerStatus = errors.New("unexpected container status")

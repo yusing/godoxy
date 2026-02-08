@@ -150,7 +150,7 @@ func (p *Provider) GetName() string {
 }
 
 func (p *Provider) fmtError(err error) error {
-	return gperr.PrependSubject(fmt.Sprintf("provider: %s", p.GetName()), err)
+	return gperr.PrependSubject(err, "provider: "+p.GetName())
 }
 
 func (p *Provider) GetCertPath() string {
@@ -216,7 +216,7 @@ func (p *Provider) ObtainCertIfNotExistsAll() error {
 	for _, provider := range p.allProviders() {
 		errs.Go(func() error {
 			if err := provider.obtainCertIfNotExists(); err != nil {
-				return fmt.Errorf("failed to obtain cert for %s: %w", provider.GetName(), err)
+				return gperr.PrependSubject(err, provider.GetName())
 			}
 			return nil
 		})
@@ -475,7 +475,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 		renewed, err := p.renew(renewMode)
 		if err != nil {
-			gperr.LogWarn("autocert: cert renew failed", p.fmtError(err))
+			log.Warn().Err(p.fmtError(err)).Msg("autocert: cert renew failed")
 			notif.Notify(&notif.LogMessage{
 				Level: zerolog.ErrorLevel,
 				Title: fmt.Sprintf("SSL certificate renewal failed for %s", p.GetName()),
@@ -494,7 +494,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 			// Reset on success
 			if err := p.ClearLastFailure(); err != nil {
-				gperr.LogWarn("autocert: failed to clear last failure", p.fmtError(err))
+				log.Warn().Err(p.fmtError(err)).Msg("autocert: failed to clear last failure")
 			}
 			timer.Reset(time.Until(p.ShouldRenewOn()))
 		}

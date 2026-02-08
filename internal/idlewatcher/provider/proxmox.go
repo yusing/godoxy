@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -27,7 +29,7 @@ var ErrNodeNotFound = gperr.New("node not found in pool")
 
 func NewProxmoxProvider(ctx context.Context, nodeName string, vmid int) (idlewatcher.Provider, error) {
 	if nodeName == "" || vmid == 0 {
-		return nil, gperr.New("node name and vmid are required")
+		return nil, errors.New("node name and vmid are required")
 	}
 
 	node, ok := proxmox.Nodes.Get(nodeName)
@@ -77,12 +79,12 @@ func (p *ProxmoxProvider) ContainerStatus(ctx context.Context) (idlewatcher.Cont
 	case proxmox.LXCStatusStopped:
 		return idlewatcher.ContainerStatusStopped, nil
 	}
-	return idlewatcher.ContainerStatusError, idlewatcher.ErrUnexpectedContainerStatus.Subject(string(status))
+	return idlewatcher.ContainerStatusError, fmt.Errorf("%w: %s", idlewatcher.ErrUnexpectedContainerStatus, string(status))
 }
 
-func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-chan gperr.Error) {
+func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-chan error) {
 	eventCh := make(chan watcher.Event)
-	errCh := make(chan gperr.Error)
+	errCh := make(chan error)
 
 	go func() {
 		defer close(eventCh)
@@ -91,7 +93,7 @@ func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-ch
 		var err error
 		p.running, err = p.LXCIsRunning(ctx, p.vmid)
 		if err != nil {
-			errCh <- gperr.Wrap(err)
+			errCh <- err
 			return
 		}
 
@@ -110,7 +112,7 @@ func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-ch
 			case <-ticker.C:
 				status, err := p.ContainerStatus(ctx)
 				if err != nil {
-					errCh <- gperr.Wrap(err)
+					errCh <- err
 					return
 				}
 				running := status == idlewatcher.ContainerStatusRunning

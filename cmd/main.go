@@ -16,7 +16,6 @@ import (
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/rules"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
 )
@@ -64,9 +63,9 @@ func main() {
 	if err != nil {
 		var criticalErr config.CriticalError
 		if errors.As(err, &criticalErr) {
-			gperr.LogFatal("critical error in config", criticalErr)
+			log.Fatal().Err(criticalErr).Msg("critical error in config")
 		}
-		gperr.LogWarn("errors in config", err)
+		log.Warn().Err(err).Msg("errors in config")
 	}
 
 	if err := auth.Initialize(); err != nil {

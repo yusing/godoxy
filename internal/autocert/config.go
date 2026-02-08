@@ -66,13 +66,13 @@ const (
 
 var domainOrWildcardRE = regexp.MustCompile(`^\*?([^.]+\.)+[^.]+$`)
 
-// Validate implements the utils.CustomValidator interface.
-func (cfg *Config) Validate() gperr.Error {
+// Validate implements the serialization.CustomValidator interface.
+func (cfg *Config) Validate() error {
 	seenPaths := make(map[string]int) // path -> provider idx (0 for main, 1+ for extras)
 	return cfg.validate(seenPaths)
 }
 
-func (cfg *ConfigExtra) Validate() gperr.Error {
+func (cfg *ConfigExtra) Validate() error {
 	return nil // done by main config's validate
 }
 
@@ -80,7 +80,7 @@ func (cfg *ConfigExtra) AsConfig() *Config {
 	return (*Config)(cfg)
 }
 
-func (cfg *Config) validate(seenPaths map[string]int) gperr.Error {
+func (cfg *Config) validate(seenPaths map[string]int) error {
 	if cfg.Provider == "" {
 		cfg.Provider = ProviderLocal
 	}
@@ -157,7 +157,7 @@ func (cfg *Config) validate(seenPaths map[string]int) gperr.Error {
 			cfg.Extra[i].AsConfig().idx = i + 1
 			err := cfg.Extra[i].AsConfig().validate(seenPaths)
 			if err != nil {
-				b.Add(err.Subjectf("extra[%d]", i))
+				b.AddSubjectf(err, "extra[%d]", i)
 			}
 		}
 	}
@@ -179,10 +179,10 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 			log.Info().Err(err).Msg("failed to load ACME private key, generating a now one")
 			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
-				return nil, nil, gperr.New("generate ACME private key").With(err)
+				return nil, nil, fmt.Errorf("generate ACME private key: %w", err)
 			}
 			if err = cfg.SaveACMEKey(privKey); err != nil {
-				return nil, nil, gperr.New("save ACME private key").With(err)
+				return nil, nil, fmt.Errorf("save ACME private key: %w", err)
 			}
 		}
 	}
@@ -206,7 +206,7 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	if len(cfg.CACerts) > 0 {
 		certPool, err := lego.CreateCertPool(cfg.CACerts, true)
 		if err != nil {
-			return nil, nil, gperr.New("failed to create cert pool").With(err)
+			return nil, nil, fmt.Errorf("failed to create cert pool: %w", err)
 		}
 		legoCfg.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = certPool
 	}

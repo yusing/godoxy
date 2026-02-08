@@ -1,9 +1,11 @@
 package route
 
 import (
+	"errors"
 	"net/http"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
@@ -16,7 +18,6 @@ import (
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
@@ -34,7 +35,7 @@ var _ types.ReverseProxyRoute = (*ReveseProxyRoute)(nil)
 
 // var globalMux    = http.NewServeMux() // TODO: support regex subdomain matching.
 
-func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, gperr.Error) {
+func NewReverseProxyRoute(base *Route) (*ReveseProxyRoute, error) {
 	httpConfig := base.HTTPConfig
 	proxyURL := base.ProxyURL
 
@@ -123,7 +124,7 @@ func (r *ReveseProxyRoute) ReverseProxy() *reverseproxy.ReverseProxy {
 }
 
 // Start implements task.TaskStarter.
-func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
+func (r *ReveseProxyRoute) Start(parent task.Parent) error {
 	r.task = parent.Subtask("http."+r.Name(), false)
 
 	switch {
@@ -131,7 +132,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		waker, err := idlewatcher.NewWatcher(parent, r, r.IdlewatcherConfig())
 		if err != nil {
 			r.task.Finish(err)
-			return gperr.Wrap(err)
+			return err
 		}
 		r.handler = waker
 		r.HealthMon = waker
@@ -148,7 +149,7 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 		r.rp.AccessLogger, err = accesslog.NewAccessLogger(r.task, r.AccessLog)
 		if err != nil {
 			r.task.Finish(err)
-			return gperr.Wrap(err)
+			return err
 		}
 	}
 
@@ -158,14 +159,14 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
-			gperr.LogWarn("health monitor error", err, &r.rp.Logger)
+			log.Warn().Err(err).Msg("health monitor error")
 			r.HealthMon = nil
 		}
 	}
 
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
-		err := gperr.New("entrypoint not initialized")
+		err := errors.New("entrypoint not initialized")
 		r.task.Finish(err)
 		return err
 	}
@@ -173,12 +174,12 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 	if r.UseLoadBalance() {
 		if err := r.addToLoadBalancer(parent, ep); err != nil {
 			r.task.Finish(err)
-			return gperr.Wrap(err)
+			return err
 		}
 	} else {
 		if err := ep.StartAddRoute(r); err != nil {
 			r.task.Finish(err)
-			return gperr.Wrap(err)
+			return err
 		}
 	}
 	return nil

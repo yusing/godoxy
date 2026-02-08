@@ -315,7 +315,7 @@ e.onFlush = func(events []Event) {
     defer func() {
         if errV := recover(); errV != nil {
             if err, ok := errV.(error); ok {
-                e.onError(gperr.Wrap(err).Subject(e.task.Name()))
+                e.onError(gperr.PrependSubject(e.task.Name(), err))
             } else {
                 e.onError(gperr.New("recovered panic in onFlush").Withf("%v", errV).Subject(e.task.Name()))
             }

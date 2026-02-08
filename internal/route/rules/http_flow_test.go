@@ -17,7 +17,6 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
-	gperr "github.com/yusing/goutils/errs"
 	"golang.org/x/crypto/bcrypt"
 
 	. "github.com/yusing/godoxy/internal/route/rules"
@@ -44,7 +43,7 @@ func mockRoute(alias string) *route.FileServer {
 	return &route.FileServer{Route: &route.Route{Alias: alias}}
 }
 
-func parseRules(data string, target *Rules) gperr.Error {
+func parseRules(data string, target *Rules) error {
 	_, err := serialization.ConvertString(strings.TrimSpace(data), reflect.ValueOf(target))
 	return err
 }

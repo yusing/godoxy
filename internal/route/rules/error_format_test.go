@@ -3,7 +3,7 @@ package rules
 import (
 	"testing"
 
-	gperr "github.com/yusing/goutils/errs"
+	"github.com/rs/zerolog/log"
 )
 
 func TestErrorFormat(t *testing.T) {
@@ -19,5 +19,5 @@ func TestErrorFormat(t *testing.T) {
   do: set invalid_command
 - do: set resp_body "{{ .Request.Method {{ .Request.URL.Path }}"
 `, &rules)
-	gperr.LogError("error", err)
+	log.Err(err).Msg("error")
 }

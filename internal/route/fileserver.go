@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path"
@@ -50,12 +51,12 @@ func handler(root string, spa bool, index string) http.Handler {
 	})
 }
 
-func NewFileServer(base *Route) (*FileServer, gperr.Error) {
+func NewFileServer(base *Route) (*FileServer, error) {
 	s := &FileServer{Route: base}
 
 	s.Root = filepath.Clean(s.Root)
 	if !path.IsAbs(s.Root) {
-		return nil, gperr.New("`root` must be an absolute path")
+		return nil, errors.New("`root` must be an absolute path")
 	}
 
 	if s.Index == "" {
@@ -77,7 +78,7 @@ func NewFileServer(base *Route) (*FileServer, gperr.Error) {
 }
 
 // Start implements task.TaskStarter.
-func (s *FileServer) Start(parent task.Parent) gperr.Error {
+func (s *FileServer) Start(parent task.Parent) error {
 	s.task = parent.Subtask("fileserver."+s.Name(), false)
 
 	pathPatterns := s.PathPatterns
@@ -109,7 +110,7 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 		s.accessLogger, err = accesslog.NewAccessLogger(s.task, s.AccessLog)
 		if err != nil {
 			s.task.Finish(err)
-			return gperr.Wrap(err)
+			return err
 		}
 	}
 
@@ -127,14 +128,14 @@ func (s *FileServer) Start(parent task.Parent) gperr.Error {
 
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
-		err := gperr.New("entrypoint not initialized")
+		err := errors.New("entrypoint not initialized")
 		s.task.Finish(err)
 		return err
 	}
 
 	if err := ep.StartAddRoute(s); err != nil {
 		s.task.Finish(err)
-		return gperr.Wrap(err)
+		return err
 	}
 	return nil
 }

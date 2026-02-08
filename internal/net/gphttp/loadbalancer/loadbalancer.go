@@ -56,7 +56,7 @@ func New(cfg *types.LoadBalancerConfig) *LoadBalancer {
 }
 
 // Start implements task.TaskStarter.
-func (lb *LoadBalancer) Start(parent task.Parent) gperr.Error {
+func (lb *LoadBalancer) Start(parent task.Parent) error {
 	lb.startTime = time.Now()
 	lb.task = parent.Subtask("loadbalancer."+lb.Link, true)
 	lb.task.OnCancel("cleanup", func() {
@@ -234,7 +234,7 @@ func (lb *LoadBalancer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if err := errs.Wait().Error(); err != nil {
-			gperr.LogWarn("failed to wake some servers", err, &lb.l)
+			lb.l.Warn().Err(err).Msg("failed to wake some servers")
 		}
 	}
 

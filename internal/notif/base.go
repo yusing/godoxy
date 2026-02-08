@@ -1,6 +1,7 @@
 package notif
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -23,13 +24,13 @@ func (e rawError) Error() string {
 }
 
 var (
-	ErrMissingToken     = gperr.New("token is required")
-	ErrURLMissingScheme = gperr.New("url missing scheme, expect 'http://' or 'https://'")
-	ErrUnknownError     = gperr.New("unknown error")
+	ErrMissingToken     = errors.New("token is required")
+	ErrURLMissingScheme = errors.New("url missing scheme, expect 'http://' or 'https://'")
+	ErrUnknownError     = errors.New("unknown error")
 )
 
 // Validate implements the utils.CustomValidator interface.
-func (base *ProviderBase) Validate() gperr.Error {
+func (base *ProviderBase) Validate() error {
 	switch base.Format {
 	case "":
 		base.Format = LogFormatMarkdown
@@ -48,7 +49,7 @@ func (base *ProviderBase) Validate() gperr.Error {
 	}
 	u, err := url.Parse(base.URL)
 	if err != nil {
-		return gperr.Wrap(err)
+		return err
 	}
 	base.URL = u.String()
 	return nil

@@ -16,7 +16,7 @@ import (
 )
 
 type (
-	ValidateFunc      func(args []string) (any, gperr.Error)
+	ValidateFunc      func(args []string) (any, error)
 	Tuple[T1, T2 any] struct {
 		First  T1
 		Second T2
@@ -62,7 +62,7 @@ func (t *Tuple4[T1, T2, T3, T4]) String() string {
 }
 
 // validateSingleMatcher returns Matcher with the matcher validated.
-func validateSingleMatcher(args []string) (any, gperr.Error) {
+func validateSingleMatcher(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -70,7 +70,7 @@ func validateSingleMatcher(args []string) (any, gperr.Error) {
 }
 
 // toKVOptionalVMatcher returns *MapValueMatcher that value is optional.
-func toKVOptionalVMatcher(args []string) (any, gperr.Error) {
+func toKVOptionalVMatcher(args []string) (any, error) {
 	switch len(args) {
 	case 1:
 		return &MapValueMatcher{args[0], nil}, nil
@@ -85,7 +85,7 @@ func toKVOptionalVMatcher(args []string) (any, gperr.Error) {
 	}
 }
 
-func toKeyValueTemplate(args []string) (any, gperr.Error) {
+func toKeyValueTemplate(args []string) (any, error) {
 	if len(args) != 2 {
 		return nil, ErrExpectTwoArgs
 	}
@@ -98,7 +98,7 @@ func toKeyValueTemplate(args []string) (any, gperr.Error) {
 }
 
 // validateURL returns types.URL with the URL validated.
-func validateURL(args []string) (any, gperr.Error) {
+func validateURL(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -116,7 +116,7 @@ func validateURL(args []string) (any, gperr.Error) {
 }
 
 // validateCIDR returns types.CIDR with the CIDR validated.
-func validateCIDR(args []string) (any, gperr.Error) {
+func validateCIDR(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -131,7 +131,7 @@ func validateCIDR(args []string) (any, gperr.Error) {
 }
 
 // validateURLPath returns string with the path validated.
-func validateURLPath(args []string) (any, gperr.Error) {
+func validateURLPath(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -148,7 +148,7 @@ func validateURLPath(args []string) (any, gperr.Error) {
 	return p, nil
 }
 
-func validateURLPathMatcher(args []string) (any, gperr.Error) {
+func validateURLPathMatcher(args []string) (any, error) {
 	path, err := validateURLPath(args)
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func validateURLPathMatcher(args []string) (any, gperr.Error) {
 }
 
 // validateFSPath returns string with the path validated.
-func validateFSPath(args []string) (any, gperr.Error) {
+func validateFSPath(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -169,7 +169,7 @@ func validateFSPath(args []string) (any, gperr.Error) {
 }
 
 // validateMethod returns string with the method validated.
-func validateMethod(args []string) (any, gperr.Error) {
+func validateMethod(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -200,7 +200,7 @@ func validateStatusCode(status string) (int, error) {
 //   - 3xx
 //   - 4xx
 //   - 5xx
-func validateStatusRange(args []string) (any, gperr.Error) {
+func validateStatusRange(args []string) (any, error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -232,7 +232,7 @@ func validateStatusRange(args []string) (any, gperr.Error) {
 }
 
 // validateUserBCryptPassword returns *HashedCrendential with the password validated.
-func validateUserBCryptPassword(args []string) (any, gperr.Error) {
+func validateUserBCryptPassword(args []string) (any, error) {
 	if len(args) != 2 {
 		return nil, ErrExpectTwoArgs
 	}
@@ -240,7 +240,7 @@ func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 }
 
 // validateModField returns CommandHandler with the field validated.
-func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.Error) {
+func validateModField(mod FieldModifier, args []string) (CommandHandler, error) {
 	if len(args) == 0 {
 		return nil, ErrExpectTwoOrThreeArgs
 	}
@@ -257,7 +257,7 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	}
 	validArgs, err := setField.validate(args[1:])
 	if err != nil {
-		return nil, err.With(setField.help.Error())
+		return nil, gperr.Wrap(err).With(setField.help.Error())
 	}
 	modder := setField.builder(validArgs)
 	switch mod {
@@ -281,7 +281,7 @@ func validateModField(mod FieldModifier, args []string) (CommandHandler, gperr.E
 	return set, nil
 }
 
-func validateTemplate(tmplStr string, newline bool) (templateString, gperr.Error) {
+func validateTemplate(tmplStr string, newline bool) (templateString, error) {
 	if newline && !strings.HasSuffix(tmplStr, "\n") {
 		tmplStr += "\n"
 	}
@@ -292,22 +292,15 @@ func validateTemplate(tmplStr string, newline bool) (templateString, gperr.Error
 
 	err := ValidateVars(tmplStr)
 	if err != nil {
-		return templateString{}, gperr.Wrap(err)
+		return templateString{}, err
 	}
 	return templateString{tmplStr, true}, nil
 }
 
-func validateLevel(level string) (zerolog.Level, gperr.Error) {
+func validateLevel(level string) (zerolog.Level, error) {
 	l, err := zerolog.ParseLevel(level)
 	if err != nil {
 		return zerolog.NoLevel, ErrInvalidArguments.With(err)
 	}
 	return l, nil
 }
-
-// func validateNotifProvider(provider string) gperr.Error {
-// 	if !notif.HasProvider(provider) {
-// 		return ErrInvalidArguments.Subject(provider)
-// 	}
-// 	return nil
-// }

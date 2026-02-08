@@ -1,6 +1,7 @@
 package routeApi
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,16 +55,16 @@ type PlaygroundResponse struct {
 	MatchedRules   []string      `json:"matchedRules"`
 	FinalRequest   FinalRequest  `json:"finalRequest"`
 	FinalResponse  FinalResponse `json:"finalResponse"`
-	ExecutionError gperr.Error   `json:"executionError,omitempty"`
+	ExecutionError error         `json:"executionError,omitempty"` // we need the structured error, not the plain string
 	UpstreamCalled bool          `json:"upstreamCalled"`
 } // @name PlaygroundResponse
 
 type ParsedRule struct {
-	Name            string      `json:"name"`
-	On              string      `json:"on"`
-	Do              string      `json:"do"`
-	ValidationError gperr.Error `json:"validationError,omitempty"`
-	IsResponseRule  bool        `json:"isResponseRule"`
+	Name            string `json:"name"`
+	On              string `json:"on"`
+	Do              string `json:"do"`
+	ValidationError error  `json:"validationError,omitempty"` // we need the structured error, not the plain string
+	IsResponseRule  bool   `json:"isResponseRule"`
 } // @name ParsedRule
 
 type FinalRequest struct {
@@ -138,7 +139,7 @@ func Playground(c *gin.Context) {
 	// Execute rules
 	matchedRules := []string{}
 	upstreamCalled := false
-	var executionError gperr.Error
+	var executionError error
 
 	// Variables to capture modified request state
 	var finalReqMethod, finalReqPath, finalReqHost string
@@ -244,20 +245,22 @@ func Playground(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func handlerWithRecover(w http.ResponseWriter, r *http.Request, h http.HandlerFunc, outErr *gperr.Error) {
+func handlerWithRecover(w http.ResponseWriter, r *http.Request, h http.HandlerFunc, outErr *error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if outErr != nil {
-				*outErr = gperr.Errorf("panic during rule execution: %v", r)
+				*outErr = fmt.Errorf("panic during rule execution: %v", r)
 			}
 		}
 	}()
 	h(w, r)
 }
 
-func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, gperr.Error) {
+func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, error) {
 	var parsedRules []ParsedRule
 	var rulesList rules.Rules
+
+	var valErrs gperr.Builder
 
 	// Parse each rule individually to capture per-rule errors
 	for _, rawRule := range rawRules {
@@ -284,7 +287,11 @@ func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, gperr.Error) {
 
 		// Determine if valid
 		isValid := onErr == nil && doErr == nil
-		validationErr := gperr.Join(gperr.PrependSubject("on", onErr), gperr.PrependSubject("do", doErr))
+		var validationErr error
+		if !isValid {
+			validationErr = gperr.Join(gperr.PrependSubject(onErr, "on"), gperr.PrependSubject(doErr, "do"))
+			valErrs.Add(validationErr)
+		}
 
 		parsedRules = append(parsedRules, ParsedRule{
 			Name:            name,
@@ -300,7 +307,7 @@ func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, gperr.Error) {
 		}
 	}
 
-	return parsedRules, rulesList, nil
+	return parsedRules, rulesList, valErrs.Error()
 }
 
 func createMockRequest(mock MockRequest) *http.Request {

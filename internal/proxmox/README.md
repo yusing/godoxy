@@ -115,7 +115,7 @@ type NodeConfig struct {
 
 ```go
 // Init initializes the Proxmox client.
-func (c *Config) Init(ctx context.Context) gperr.Error
+func (c *Config) Init(ctx context.Context) error
 
 // Client returns the Proxmox client.
 func (c *Config) Client() *Client
@@ -460,7 +460,7 @@ if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 
     node, ok := proxmox.Nodes.Get(node)
     if !ok {
-        return gperr.Errorf("proxmox node %s not found", node)
+        return fmt.Errorf("proxmox node %s not found", node)
     }
 
     // Get container IPs

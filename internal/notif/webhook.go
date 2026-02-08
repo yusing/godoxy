@@ -2,6 +2,7 @@ package notif
 
 import (
 	_ "embed"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -26,9 +27,11 @@ var webhookTemplates = map[string]string{
 	"discord": discordPayload,
 }
 
-func (webhook *Webhook) Validate() gperr.Error {
-	if err := webhook.ProviderBase.Validate(); err != nil && !err.Is(ErrMissingToken) {
-		return err
+func (webhook *Webhook) Validate() error {
+	var errs gperr.Builder
+
+	if err := webhook.ProviderBase.Validate(); err != nil && !errors.Is(err, ErrMissingToken) {
+		errs.Add(err)
 	}
 
 	switch webhook.MIMEType {
@@ -36,18 +39,18 @@ func (webhook *Webhook) Validate() gperr.Error {
 		webhook.MIMEType = MimeTypeJSON
 	case MimeTypeJSON, MimeTypeForm, MimeTypeText:
 	default:
-		return gperr.Errorf("invalid mime_type, expect %s", strings.Join([]string{"empty", MimeTypeJSON, MimeTypeForm, MimeTypeText}, ", "))
+		errs.Addf("invalid mime_type, expect %s", strings.Join([]string{"empty", MimeTypeJSON, MimeTypeForm, MimeTypeText}, ", "))
 	}
 
 	switch webhook.Template {
 	case "":
 		if webhook.MIMEType == MimeTypeJSON {
 			if !validateJSONPayload(webhook.Payload) {
-				return gperr.New("invalid payload, expect valid JSON")
+				errs.Adds("invalid payload, expect valid JSON")
 			}
 		}
 		if webhook.Payload == "" {
-			return gperr.New("invalid payload, expect non-empty")
+			errs.Adds("invalid payload, expect non-empty")
 		}
 	case "discord":
 		webhook.ColorMode = "dec"
@@ -57,7 +60,7 @@ func (webhook *Webhook) Validate() gperr.Error {
 			webhook.Payload = discordPayload
 		}
 	default:
-		return gperr.New("invalid template, expect empty or 'discord'")
+		errs.Adds("invalid template, expect empty or 'discord'")
 	}
 
 	switch webhook.Method {
@@ -65,7 +68,7 @@ func (webhook *Webhook) Validate() gperr.Error {
 		webhook.Method = http.MethodPost
 	case http.MethodGet, http.MethodPost, http.MethodPut:
 	default:
-		return gperr.New("invalid method, expect empty, 'GET', 'POST' or 'PUT'")
+		errs.Adds("invalid method, expect empty, 'GET', 'POST' or 'PUT'")
 	}
 
 	switch webhook.ColorMode {
@@ -73,10 +76,10 @@ func (webhook *Webhook) Validate() gperr.Error {
 		webhook.ColorMode = "hex"
 	case "hex", "dec":
 	default:
-		return gperr.New("invalid color_mode, expect empty, 'hex' or 'dec'")
+		errs.Adds("invalid color_mode, expect empty, 'hex' or 'dec'")
 	}
 
-	return nil
+	return errs.Error()
 }
 
 // GetMethod implements Provider.

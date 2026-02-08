@@ -14,20 +14,21 @@ type Ntfy struct {
 }
 
 // Validate implements the utils.CustomValidator interface.
-func (n *Ntfy) Validate() gperr.Error {
+func (n *Ntfy) Validate() error {
+	var errs gperr.Builder
 	if err := n.ProviderBase.Validate(); err != nil {
-		return err
+		errs.Add(err)
 	}
 	if n.URL == "" {
-		return gperr.New("url is required")
+		errs.Adds("url is required")
 	}
 	if n.Topic == "" {
-		return gperr.New("topic is required")
+		errs.Adds("topic is required")
 	}
-	if n.Topic[0] == '/' {
-		return gperr.New("topic should not start with a slash")
+	if n.Topic != "" && n.Topic[0] == '/' {
+		errs.Adds("topic should not start with a slash")
 	}
-	return nil
+	return errs.Error()
 }
 
 // GetURL implements Provider.

@@ -3,6 +3,7 @@ package watcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	dockerEvents "github.com/moby/moby/api/types/events"
@@ -11,7 +12,6 @@ import (
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher/events"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type (
@@ -82,18 +82,18 @@ func NewDockerWatcher(dockerCfg types.DockerProviderConfig) DockerWatcher {
 	}
 }
 
-func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan gperr.Error) {
+func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan error) {
 	return w.EventsWithOptions(ctx, optionsDefault)
 }
 
-func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan gperr.Error) {
+func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan error) {
 	eventCh := make(chan Event)
-	errCh := make(chan gperr.Error)
+	errCh := make(chan error)
 
 	go func() {
 		client, err := docker.NewClient(w.cfg)
 		if err != nil {
-			errCh <- gperr.Wrap(err, "docker watcher: failed to initialize client")
+			errCh <- fmt.Errorf("docker watcher: failed to initialize client: %w", err)
 			return
 		}
 
@@ -148,14 +148,14 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 	return eventCh, errCh
 }
 
-func (w DockerWatcher) parseError(err error) gperr.Error {
+func (w DockerWatcher) parseError(err error) error {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return gperr.New("docker client connection timeout")
+		return errors.New("docker client connection timeout")
 	}
 	if client.IsErrConnectionFailed(err) {
-		return gperr.New("docker client connection failure")
+		return errors.New("docker client connection failure")
 	}
-	return gperr.Wrap(err)
+	return err
 }
 
 func (w DockerWatcher) handleEvent(event dockerEvents.Message, ch chan<- Event) {

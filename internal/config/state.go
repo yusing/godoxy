@@ -353,7 +353,7 @@ func (state *state) initProxmox() error {
 	for _, cfg := range proxmoxCfg {
 		errs.Go(func() error {
 			if err := cfg.Init(state.task.Context()); err != nil {
-				return err.Subject(cfg.URL)
+				return gperr.PrependSubject(err, cfg.URL)
 			}
 			return nil
 		})
@@ -377,7 +377,7 @@ func (state *state) loadRouteProviders() error {
 	for _, a := range providers.Agents {
 		agentErrs.Go(func() error {
 			if err := a.Init(state.task.Context()); err != nil {
-				return gperr.PrependSubject(a.String(), err)
+				return gperr.PrependSubject(err, a.String())
 			}
 			agentpool.Add(a)
 			return nil
@@ -395,7 +395,7 @@ func (state *state) loadRouteProviders() error {
 	for _, filename := range providers.Files {
 		p, err := route.NewFileProvider(filename)
 		if err != nil {
-			errs.Add(gperr.PrependSubject(filename, err))
+			errs.Add(gperr.PrependSubject(err, filename))
 			return err
 		}
 		registerProvider(p)
@@ -420,7 +420,7 @@ func (state *state) loadRouteProviders() error {
 	for _, p := range state.providers.Range {
 		loadErrs.Go(func() error {
 			if err := p.LoadRoutes(); err != nil {
-				return err.Subject(p.String())
+				return gperr.PrependSubject(err, p.String())
 			}
 			resultsMu.Lock()
 			results.Addf("%-"+strconv.Itoa(lenLongestName)+"s %d routes", p.String(), p.NumRoutes())

@@ -8,7 +8,6 @@ import (
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
@@ -66,8 +65,8 @@ type (
 		Stream() nettypes.Stream
 	}
 	RouteProvider interface {
-		Start(task.Parent) gperr.Error
-		LoadRoutes() gperr.Error
+		Start(parent task.Parent) error
+		LoadRoutes() error
 		GetRoute(alias string) (r Route, ok bool)
 		// should be used like `for _, r := range p.IterRoutes` (no braces), not calling it directly
 		IterRoutes(yield func(alias string, r Route) bool)

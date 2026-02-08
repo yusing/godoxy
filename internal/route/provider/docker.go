@@ -58,13 +58,13 @@ func (p *DockerProvider) NewWatcher() watcher.Watcher {
 	return watcher.NewDockerWatcher(p.dockerCfg)
 }
 
-func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
+func (p *DockerProvider) loadRoutesImpl() (route.Routes, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	containers, err := docker.ListContainers(ctx, p.dockerCfg)
 	if err != nil {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
 
 	errs := gperr.NewBuilder("")
@@ -74,21 +74,21 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 		container := docker.FromDocker(&c, p.dockerCfg)
 
 		if container.Errors != nil {
-			errs.Add(gperr.PrependSubject(container.ContainerName, container.Errors))
+			errs.AddSubject(container.Errors, container.ContainerName)
 			continue
 		}
 
 		if container.IsHostNetworkMode {
 			err := docker.UpdatePorts(ctx, container)
 			if err != nil {
-				errs.Add(gperr.PrependSubject(container.ContainerName, err))
+				errs.AddSubject(err, container.ContainerName)
 				continue
 			}
 		}
 
 		newEntries, err := p.routesFromContainerLabels(container)
 		if err != nil {
-			errs.Add(err.Subject(container.ContainerName))
+			errs.AddSubject(err, container.ContainerName)
 		}
 		for k, v := range newEntries {
 			if conflict, ok := routes[k]; ok {
@@ -97,7 +97,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 					Addf("container %s", container.ContainerName).
 					Addf("conflicting container %s", conflict.Container.ContainerName)
 				if conflict.ShouldExclude() || v.ShouldExclude() {
-					gperr.LogWarn("skipping conflicting route", err)
+					log.Warn().Err(err).Msg("skipping conflicting route")
 				} else {
 					errs.Add(err)
 				}
@@ -112,7 +112,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
 
 // Returns a list of proxy entries for a container.
 // Always non-nil.
-func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (route.Routes, gperr.Error) {
+func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (route.Routes, error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
 		return make(route.Routes, 0), nil
 	}
@@ -150,7 +150,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 				panic(fmt.Errorf("invalid entry map type %T", entryMapAny))
 			}
 			if err := yaml.Unmarshal([]byte(yamlStr), &entryMap); err != nil {
-				errs.Add(gperr.Wrap(err).Subject(alias))
+				errs.AddSubject(err, alias)
 				continue
 			}
 		}
@@ -185,7 +185,7 @@ func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (
 		// deserialize map into entry object
 		err := serialization.MapUnmarshalValidate(entryMap, r)
 		if err != nil {
-			errs.Add(err.Subject(alias))
+			errs.AddSubject(err, alias)
 		} else {
 			routes[alias] = r
 		}

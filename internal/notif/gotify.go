@@ -19,14 +19,15 @@ type (
 
 const gotifyMsgEndpoint = "/message"
 
-func (client *GotifyClient) Validate() gperr.Error {
+func (client *GotifyClient) Validate() error {
+	var errs gperr.Builder
 	if err := client.ProviderBase.Validate(); err != nil {
-		return err
+		errs.Add(err)
 	}
 	if client.Token == "" {
-		return gperr.New("token is required")
+		errs.Adds("token is required")
 	}
-	return nil
+	return errs.Error()
 }
 
 func (client *GotifyClient) GetURL() string {

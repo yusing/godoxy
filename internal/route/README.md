@@ -93,8 +93,8 @@ const (
 
 ```go
 // Validation and lifecycle
-func (r *Route) Validate() gperr.Error
-func (r *Route) Start(parent task.Parent) gperr.Error
+func (r *Route) Validate() error
+func (r *Route) Start(parent task.Parent) error
 func (r *Route) Finish(reason any)
 func (r *Route) Started() <-chan struct{}
 
@@ -119,8 +119,8 @@ func (r *Route) UseHealthCheck() bool
 ```mermaid
 classDiagram
     class Route {
-        +Validate() gperr.Error
-        +Start(parent) gperr.Error
+        +Validate() error
+        +Start(parent) error
         +Finish(reason)
         +Started() &lt;-chan struct#123;#125;
     }

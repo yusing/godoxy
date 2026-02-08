@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -47,7 +48,7 @@ func (m *middlewareChain) modifyResponse(resp *http.Response) error {
 	}
 	for i, mr := range m.modResps {
 		if err := mr.modifyResponse(resp); err != nil {
-			return gperr.Wrap(err).Subjectf("%d", i)
+			return gperr.PrependSubject(err, strconv.Itoa(i))
 		}
 	}
 	return nil

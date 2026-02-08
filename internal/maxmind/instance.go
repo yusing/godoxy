@@ -6,7 +6,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/notif"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -24,7 +23,7 @@ func warnNotConfigured() {
 	})
 }
 
-func SetInstance(parent task.Parent, cfg *Config) gperr.Error {
+func SetInstance(parent task.Parent, cfg *Config) error {
 	newInstance := &MaxMind{Config: cfg}
 	if err := newInstance.LoadMaxMindDB(parent); err != nil {
 		return err

@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/serialization"
 	W "github.com/yusing/godoxy/internal/watcher"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type FileProvider struct {
@@ -34,7 +33,7 @@ func FileProviderImpl(filename string) (ProviderImpl, error) {
 	return impl, nil
 }
 
-func removeXPrefix(m map[string]any) gperr.Error {
+func removeXPrefix(m map[string]any) error {
 	for alias := range m {
 		if strings.HasPrefix(alias, "x-") {
 			delete(m, alias)
@@ -43,12 +42,12 @@ func removeXPrefix(m map[string]any) gperr.Error {
 	return nil
 }
 
-func validate(data []byte) (routes route.Routes, err gperr.Error) {
+func validate(data []byte) (routes route.Routes, err error) {
 	err = serialization.UnmarshalValidate(data, &routes, yaml.Unmarshal, removeXPrefix)
 	return routes, err
 }
 
-func Validate(data []byte) (err gperr.Error) {
+func Validate(data []byte) (err error) {
 	_, err = validate(data)
 	return err
 }
@@ -69,16 +68,16 @@ func (p *FileProvider) Logger() *zerolog.Logger {
 	return &p.l
 }
 
-func (p *FileProvider) loadRoutesImpl() (route.Routes, gperr.Error) {
+func (p *FileProvider) loadRoutesImpl() (route.Routes, error) {
 	data, err := os.ReadFile(p.path)
 	if err != nil {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
 	routes, err := validate(data)
 	if err != nil && len(routes) == 0 {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
-	return routes, gperr.Wrap(err)
+	return routes, err
 }
 
 func (p *FileProvider) NewWatcher() W.Watcher {

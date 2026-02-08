@@ -2,17 +2,18 @@ package route
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/stream"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -24,7 +25,7 @@ type StreamRoute struct {
 
 var _ types.StreamRoute = (*StreamRoute)(nil)
 
-func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
+func NewStreamRoute(base *Route) (types.Route, error) {
 	// TODO: support non-coherent scheme
 	return &StreamRoute{Route: base}, nil
 }
@@ -34,14 +35,14 @@ func (r *StreamRoute) Stream() nettypes.Stream {
 }
 
 // Start implements task.TaskStarter.
-func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
+func (r *StreamRoute) Start(parent task.Parent) error {
 	if r.LisURL == nil {
-		return gperr.Errorf("listen URL is not set")
+		return errors.New("listen URL is not set")
 	}
 
 	stream, err := r.initStream()
 	if err != nil {
-		return gperr.Wrap(err)
+		return err
 	}
 	r.stream = stream
 
@@ -52,7 +53,7 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 		waker, err := idlewatcher.NewWatcher(parent, r, r.IdlewatcherConfig())
 		if err != nil {
 			r.task.Finish(err)
-			return gperr.Wrap(err, "idlewatcher error")
+			return fmt.Errorf("idlewatcher error: %w", err)
 		}
 		r.stream = waker
 		r.HealthMon = waker
@@ -62,20 +63,20 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
-			gperr.LogWarn("health monitor error", err)
+			log.Warn().Err(err).Msg("health monitor error")
 			r.HealthMon = nil
 		}
 	}
 
 	ep := entrypoint.FromCtx(parent.Context())
 	if ep == nil {
-		err := gperr.New("entrypoint not initialized")
+		err := errors.New("entrypoint not initialized")
 		r.task.Finish(err)
 		return err
 	}
 	if err := ep.StartAddRoute(r); err != nil {
 		r.task.Finish(err)
-		return gperr.Wrap(err)
+		return err
 	}
 	return nil
 }

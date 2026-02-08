@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/utils"
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
@@ -76,8 +75,8 @@ const (
 var (
 	errMissingIDToken = errors.New("missing id_token field from oauth token")
 
-	ErrMissingOAuthToken = gperr.New("missing oauth token")
-	ErrInvalidOAuthToken = gperr.New("invalid oauth token")
+	ErrMissingOAuthToken = errors.New("missing oauth token")
+	ErrInvalidOAuthToken = errors.New("invalid oauth token")
 )
 
 // generateState generates a random string for OIDC state.

@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
@@ -39,7 +38,7 @@ func handleResult[V any, T ResultType[V]](c *gin.Context, errs error, result T) 
 	c.JSON(http.StatusOK, result)
 }
 
-func serveHTTP[V any, T ResultType[V]](c *gin.Context, getResult func(ctx context.Context, dockerClients DockerClients) (T, gperr.Error)) {
+func serveHTTP[V any, T ResultType[V]](c *gin.Context, getResult func(ctx context.Context, dockerClients DockerClients) (T, error)) {
 	dockerClients := docker.Clients()
 	defer closeAllClients(dockerClients)
 

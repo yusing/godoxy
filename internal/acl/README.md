@@ -54,13 +54,13 @@ type Matchers []Matcher
 ### Exported functions and methods
 
 ```go
-func (c *Config) Validate() gperr.Error
+func (c *Config) Validate() error
 ```
 
 Validates configuration and sets defaults. Must be called before `Start`.
 
 ```go
-func (c *Config) Start(parent task.Parent) gperr.Error
+func (c *Config) Start(parent task.Parent) error
 ```
 
 Initializes the ACL, starts the logger and notification goroutines.
@@ -169,14 +169,14 @@ Configuration is loaded from `config/config.yml` under the `acl` key.
 
 ```yaml
 acl:
-  default: "allow"              # "allow" or "deny"
-  allow_local: true             # Allow private/loopback IPs
+  default: "allow" # "allow" or "deny"
+  allow_local: true # Allow private/loopback IPs
   log:
-    log_allowed: false          # Log allowed connections
+    log_allowed: false # Log allowed connections
   notify:
-    to: ["gotify"]              # Notification providers
-    interval: "1m"              # Notification interval
-    include_allowed: false      # Include allowed in notifications
+    to: ["gotify"] # Notification providers
+    interval: "1m" # Notification interval
+    include_allowed: false # Include allowed in notifications
 ```
 
 ### Hot-reloading

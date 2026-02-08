@@ -3,7 +3,6 @@ package period
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -196,7 +195,7 @@ func (p *Poller[T, AggregateT]) Start(parent task.Parent) {
 				if tickCount%gatherErrsTicks == 0 {
 					errs, ok := p.gatherErrs()
 					if ok {
-						gperr.LogError(fmt.Sprintf("poller %s has encountered %d errors in the last %s:", p.name, len(p.errs), gatherErrsInterval), errs)
+						log.Err(errs).Msgf("poller %s has encountered %d errors in the last %s:", p.name, len(p.errs), gatherErrsInterval)
 					}
 					p.clearErrs()
 				}

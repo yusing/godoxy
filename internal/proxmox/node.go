@@ -27,7 +27,7 @@ type Node struct {
 }
 
 // Validate implements the serialization.CustomValidator interface.
-func (n *NodeConfig) Validate() gperr.Error {
+func (n *NodeConfig) Validate() error {
 	var errs gperr.Builder
 	for i, service := range n.Services {
 		if err := checkValidInput(service); err != nil {

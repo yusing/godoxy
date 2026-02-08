@@ -1,10 +1,9 @@
 package captcha
 
 import (
+	"errors"
 	"net/http"
 	"time"
-
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type Provider interface {
@@ -16,4 +15,4 @@ type Provider interface {
 	FormHTML() string
 }
 
-var ErrCaptchaVerificationFailed = gperr.New("captcha verification failed")
+var ErrCaptchaVerificationFailed = errors.New("captcha verification failed")

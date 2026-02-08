@@ -50,8 +50,7 @@ const (
 ### Errors
 
 ```go
-var ErrInvalidProvider = gperr.New("invalid provider")
-var ErrHTTPStatus = gperr.New("http status")
+var ErrInvalidProvider = errors.New("invalid provider")
 ```
 
 ## API Reference

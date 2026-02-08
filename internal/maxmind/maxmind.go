@@ -16,7 +16,6 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -52,8 +51,8 @@ var httpClient = &http.Client{
 }
 
 var (
-	ErrResponseNotOK   = gperr.New("response not OK")
-	ErrDownloadFailure = gperr.New("download failure")
+	ErrResponseNotOK   = errors.New("response not OK")
+	ErrDownloadFailure = errors.New("download failure")
 )
 
 func (cfg *MaxMind) dbPath() string {
@@ -74,7 +73,7 @@ func (cfg *MaxMind) dbFilename() string {
 	return "GeoIP2-Country.mmdb"
 }
 
-func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
+func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error {
 	if cfg.Database == "" {
 		return nil
 	}
@@ -92,7 +91,7 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
 			// ignore invalid error, just download it again
 			var invalidErr maxminddb.InvalidDatabaseError
 			if !errors.As(err, &invalidErr) {
-				return gperr.Wrap(err)
+				return err
 			}
 		}
 		valid = false
@@ -101,7 +100,7 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) gperr.Error {
 	if !valid {
 		cfg.Logger().Info().Msg("MaxMind DB not found/invalid, downloading...")
 		if err = cfg.download(); err != nil {
-			return ErrDownloadFailure.With(err)
+			return fmt.Errorf("%w: %w", ErrDownloadFailure, err)
 		}
 	} else {
 		cfg.Logger().Info().Msg("MaxMind DB loaded")
@@ -236,7 +235,7 @@ func (cfg *MaxMind) download() error {
 	// extract .tar.gz and to database
 	err = extractFileFromTarGz(databaseGZ, cfg.dbFilename(), tmpDBPath)
 	if err != nil {
-		return gperr.New("failed to extract database from archive").With(err)
+		return err
 	}
 
 	// test if the downloaded database is valid

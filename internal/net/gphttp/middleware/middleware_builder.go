@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -10,7 +11,7 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 )
 
-var ErrMissingMiddlewareUse = gperr.New("missing middleware 'use' field")
+var ErrMissingMiddlewareUse = errors.New("missing middleware 'use' field")
 
 func BuildMiddlewaresFromComposeFile(filePath string, eb *gperr.Builder) map[string]*Middleware {
 	fileContent, err := os.ReadFile(filePath)
@@ -32,7 +33,7 @@ func BuildMiddlewaresFromYAML(source string, data []byte, eb *gperr.Builder) map
 	for name, defs := range rawMap {
 		chain, err := BuildMiddlewareFromChainRaw(name, defs)
 		if err != nil {
-			eb.Add(err.Subject(source))
+			eb.AddSubject(err, source)
 		} else {
 			middlewares[name+"@file"] = chain
 		}
@@ -40,7 +41,7 @@ func BuildMiddlewaresFromYAML(source string, data []byte, eb *gperr.Builder) map
 	return middlewares
 }
 
-func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gperr.Error) {
+func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, error) {
 	middlewares := make([]*Middleware, 0, len(middlewaresMap))
 
 	var errs gperr.Builder
@@ -68,7 +69,7 @@ func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, gp
 	return middlewares, errs.Error()
 }
 
-func BuildMiddlewareFromMap(name string, middlewaresMap map[string]OptionsRaw) (*Middleware, gperr.Error) {
+func BuildMiddlewareFromMap(name string, middlewaresMap map[string]OptionsRaw) (*Middleware, error) {
 	compiled, err := compileMiddlewares(middlewaresMap)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,7 @@ func BuildMiddlewareFromMap(name string, middlewaresMap map[string]OptionsRaw) (
 }
 
 // TODO: check conflict or duplicates.
-func BuildMiddlewareFromChainRaw(name string, defs []map[string]any) (*Middleware, gperr.Error) {
+func BuildMiddlewareFromChainRaw(name string, defs []map[string]any) (*Middleware, error) {
 	var chainErr gperr.Builder
 	chain := make([]*Middleware, 0, len(defs))
 	for i, def := range defs {

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/serialization"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 // mockUpstream creates a simple upstream handler for testing
@@ -32,7 +31,7 @@ func mockUpstreamWithHeaders(status int, body string, headers http.Header) http.
 	}
 }
 
-func parseRules(data string, target *Rules) gperr.Error {
+func parseRules(data string, target *Rules) error {
 	_, err := serialization.ConvertString(data, reflect.ValueOf(target))
 	return err
 }

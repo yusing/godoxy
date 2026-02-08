@@ -2,6 +2,7 @@ package serialization
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -40,15 +41,15 @@ func init() {
 }
 
 type MapUnmarshaller interface {
-	UnmarshalMap(m map[string]any) gperr.Error
+	UnmarshalMap(m map[string]any) error
 }
 
 var (
-	ErrInvalidType           = gperr.New("invalid type")
-	ErrNilValue              = gperr.New("nil")
-	ErrUnsettable            = gperr.New("unsettable")
-	ErrUnsupportedConversion = gperr.New("unsupported conversion")
-	ErrUnknownField          = gperr.New("unknown field")
+	ErrInvalidType           = errors.New("invalid type")
+	ErrNilValue              = errors.New("nil")
+	ErrUnsettable            = errors.New("unsettable")
+	ErrUnsupportedConversion = errors.New("unsupported conversion")
+	ErrUnknownField          = errors.New("unknown field")
 )
 
 var (
@@ -90,7 +91,7 @@ func initPtr(dst reflect.Value) {
 //
 // It collects all validation errors and returns them as a single error.
 // Field names in errors are prefixed with their namespace (e.g., "User.Email").
-func ValidateWithFieldTags(s any) gperr.Error {
+func ValidateWithFieldTags(s any) error {
 	var errs gperr.Builder
 	err := validate.Struct(s)
 	var valErrs validator.ValidationErrors
@@ -103,15 +104,14 @@ func ValidateWithFieldTags(s any) gperr.Error {
 			if detail != "required" {
 				detail = "require " + strconv.Quote(detail)
 			}
-			errs.Add(ErrValidationError.
-				Subject(e.Namespace()).
+			errs.Add(gperr.PrependSubject(ErrValidationError, e.Namespace()).
 				Withf(detail))
 		}
 	}
 	return errs.Error()
 }
 
-func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) {
+func dive(dst reflect.Value) (v reflect.Value, t reflect.Type) {
 	dstT := dst.Type()
 	for {
 		switch dstT.Kind() {
@@ -119,7 +119,7 @@ func dive(dst reflect.Value) (v reflect.Value, t reflect.Type, err gperr.Error) 
 			dst = dst.Elem()
 			dstT = dstT.Elem()
 		default:
-			return dst, dstT, nil
+			return dst, dstT
 		}
 	}
 }
@@ -276,32 +276,26 @@ func initTypeKeyFieldIndexesMap(t reflect.Type) typeInfo {
 // If the target value is a map[string]any the SerializedObject will be deserialized into the map.
 //
 // The function returns an error if the target value is not a struct or a map[string]any, or if there is an error during deserialization.
-func MapUnmarshalValidate(src SerializedObject, dst any) (err gperr.Error) {
+func MapUnmarshalValidate(src SerializedObject, dst any) error {
 	return mapUnmarshalValidate(src, reflect.ValueOf(dst), true)
 }
 
-func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidateTag bool) (err gperr.Error) {
+func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidateTag bool) (err error) {
 	dstT := dstV.Type()
 
 	if src != nil && dstT.Implements(mapUnmarshalerType) {
-		dstV, _, err = dive(dstV)
-		if err != nil {
-			return err
-		}
+		dstV, _ = dive(dstV)
 		return dstV.Addr().Interface().(MapUnmarshaller).UnmarshalMap(src)
 	}
 
-	dstV, dstT, err = dive(dstV)
-	if err != nil {
-		return err
-	}
+	dstV, dstT = dive(dstV)
 
 	if src == nil {
 		if dstV.CanSet() {
 			dstV.SetZero()
 			return nil
 		}
-		return gperr.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
+		return fmt.Errorf("deserialize: src is %w and dst is not settable", ErrNilValue)
 	}
 
 	// convert data fields to lower no-snake
@@ -317,10 +311,10 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 			if field, ok := info.getField(dstV, k); ok {
 				err := Convert(reflect.ValueOf(v), field, checkValidateTag)
 				if err != nil {
-					errs.Add(err.Subject(k))
+					errs.AddSubject(err, k)
 				}
 			} else {
-				errs.Add(ErrUnknownField.Subject(k).With(gperr.DoYouMeanField(k, info.fieldNames)))
+				errs.Add(gperr.PrependSubject(ErrUnknownField, k).With(gperr.DoYouMeanField(k, info.fieldNames)))
 			}
 		}
 		if info.hasValidateTag && checkValidateTag {
@@ -333,23 +327,23 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 	case reflect.Map:
 		if dstV.IsNil() {
 			if !dstV.CanSet() {
-				return gperr.Errorf("dive: dst is %w and is not settable", ErrNilValue)
+				return fmt.Errorf("dive: dst is %w and is not settable", ErrNilValue)
 			}
 			gi.ReflectInitMap(dstV, len(src))
 		}
 		if dstT.Key().Kind() != reflect.String {
-			return gperr.Errorf("deserialize: %w for map of non string keys (map of %s)", ErrUnsupportedConversion, dstT.Elem().String())
+			return fmt.Errorf("deserialize: %w for map of non string keys (map of %s)", ErrUnsupportedConversion, dstT.Elem().String())
 		}
 		// ?: should we clear the  map?
 		for k, v := range src {
 			elem := gi.ReflectStrMapAssign(dstV, k)
 			err := Convert(reflect.ValueOf(v), elem, true)
 			if err != nil {
-				errs.Add(err.Subject(k))
+				errs.AddSubject(err, k)
 				continue
 			}
 			if err := ValidateWithCustomValidator(elem); err != nil {
-				errs.Add(err.Subject(k))
+				errs.AddSubject(err, k)
 			}
 		}
 		if err := ValidateWithCustomValidator(dstV); err != nil {
@@ -357,7 +351,7 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 		}
 		return errs.Error()
 	default:
-		return ErrUnsupportedConversion.Subject("mapping to " + dstT.String() + " ")
+		return fmt.Errorf("deserialize: %w for mapping to %s", ErrUnsupportedConversion, dstT)
 	}
 }
 
@@ -373,14 +367,14 @@ func mapUnmarshalValidate(src SerializedObject, dstV reflect.Value, checkValidat
 //
 // Returns:
 //   - error: the error occurred during conversion, or nil if no error occurred.
-func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error {
+func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) error {
 	if !dst.IsValid() {
-		return gperr.Errorf("convert: dst is %w", ErrNilValue)
+		return fmt.Errorf("convert: dst is %w", ErrNilValue)
 	}
 
 	if (src.Kind() == reflect.Pointer && src.IsNil()) || !src.IsValid() {
 		if !dst.CanSet() {
-			return gperr.Errorf("convert: src is %w", ErrNilValue)
+			return fmt.Errorf("convert: src is %w", ErrNilValue)
 		}
 		dst.SetZero()
 		return nil
@@ -388,7 +382,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 
 	if src.IsZero() {
 		if !dst.CanSet() {
-			return gperr.Errorf("convert: src is %w", ErrNilValue)
+			return fmt.Errorf("convert: src is %w", ErrNilValue)
 		}
 		switch dst.Kind() {
 		case reflect.Pointer:
@@ -410,7 +404,7 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			if !dst.CanSet() {
-				return ErrUnsettable.Subject(dstT.String())
+				return fmt.Errorf("convert: dst is %w", ErrUnsettable)
 			}
 			initPtr(dst)
 		}
@@ -423,13 +417,13 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 	switch {
 	case srcT == dstT, srcT.AssignableTo(dstT):
 		if !dst.CanSet() {
-			return ErrUnsettable.Subject(dstT.String())
+			return fmt.Errorf("convert: dst is %w", ErrUnsettable)
 		}
 		dst.Set(src)
 		return nil
 	case srcKind == reflect.String:
 		if !dst.CanSet() {
-			return ErrUnsettable.Subject(dstT.String())
+			return fmt.Errorf("convert: dst is %w", ErrUnsettable)
 		}
 		if convertible, err := ConvertString(src.String(), dst); convertible {
 			return err
@@ -451,14 +445,14 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 		}
 		obj, ok := src.Interface().(SerializedObject)
 		if !ok {
-			return ErrUnsupportedConversion.Subject(dstT.String() + " to " + srcT.String())
+			return fmt.Errorf("convert: %w for %s to %s", ErrUnsupportedConversion, dstT, srcT)
 		}
 		return mapUnmarshalValidate(obj, dst.Addr(), checkValidateTag)
 	case srcKind == reflect.Slice: // slice to slice
 		return ConvertSlice(src, dst, checkValidateTag)
 	}
 
-	return ErrUnsupportedConversion.Subjectf("%s to %s", srcT, dstT)
+	return fmt.Errorf("convert: %w for %s to %s", ErrUnsupportedConversion, srcT, dstT)
 }
 
 // ConvertSlice converts a source slice to a destination slice.
@@ -468,17 +462,17 @@ func Convert(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.
 //   - The destination slice is initialized with the source length.
 //   - On error, the destination slice is truncated to the number of
 //     successfully converted elements.
-func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) gperr.Error {
+func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) error {
 	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() && !dst.CanSet() {
-			return ErrNilValue
+			return fmt.Errorf("convert: dst is %w", ErrNilValue)
 		}
 		initPtr(dst)
 		dst = dst.Elem()
 	}
 
 	if !dst.CanSet() {
-		return ErrUnsettable.Subject(dst.Type().String())
+		return fmt.Errorf("convert: dst is %w", ErrUnsettable)
 	}
 
 	if src.Kind() != reflect.Slice {
@@ -491,7 +485,7 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) g
 		return nil
 	}
 	if dst.Kind() != reflect.Slice {
-		return ErrUnsupportedConversion.Subjectf("%s to %s", dst.Type(), src.Type())
+		return fmt.Errorf("convert: %w for %s to %s", ErrUnsupportedConversion, dst.Type(), src.Type())
 	}
 
 	var sliceErrs gperr.Builder
@@ -500,7 +494,7 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) g
 	for j := range srcLen {
 		err := Convert(src.Index(j), dst.Index(numValid), checkValidateTag)
 		if err != nil {
-			sliceErrs.Add(err.Subjectf("[%d]", j))
+			sliceErrs.AddSubjectf(err, "[%d]", j)
 			continue
 		}
 		numValid++
@@ -526,7 +520,7 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) g
 //   - If the destination implements the Parser interface, it is used for conversion.
 //   - Returns true if conversion was handled (even with error), false if
 //     conversion is unsupported.
-func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gperr.Error) {
+func ConvertString(src string, dst reflect.Value) (convertible bool, convErr error) {
 	convertible = true
 	dstT := dst.Type()
 	if dst.Kind() == reflect.Pointer {
@@ -555,14 +549,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	// check if (*T).Convertor is implemented
 	if addr := dst.Addr(); addr.Type().Implements(reflect.TypeFor[strutils.Parser]()) {
 		parser := addr.Interface().(strutils.Parser)
-		return true, gperr.Wrap(parser.Parse(src))
+		return true, parser.Parse(src)
 	}
 
 	switch dstT {
 	case reflect.TypeFor[time.Duration]():
 		d, err := time.ParseDuration(src)
 		if err != nil {
-			return true, gperr.Wrap(err)
+			return true, err
 		}
 		gi.ReflectValueSet(dst, d)
 		return true, nil
@@ -572,7 +566,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 	if gi.ReflectIsNumeric(dst) || dst.Kind() == reflect.Bool {
 		err := gi.ReflectStrToNumBool(dst, src)
 		if err != nil {
-			return true, gperr.Wrap(err)
+			return true, err
 		}
 		return true, nil
 	}
@@ -602,14 +596,14 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 		sl := []any{}
 		err := yaml.Unmarshal(unsafe.Slice(unsafe.StringData(src), len(src)), &sl)
 		if err != nil {
-			return true, gperr.Wrap(err)
+			return true, err
 		}
 		return true, ConvertSlice(reflect.ValueOf(sl), dst, true)
 	case reflect.Map, reflect.Struct:
 		rawMap := SerializedObject{}
 		err := yaml.Unmarshal(unsafe.Slice(unsafe.StringData(src), len(src)), &rawMap)
 		if err != nil {
-			return true, gperr.Wrap(err)
+			return true, err
 		}
 		return true, mapUnmarshalValidate(rawMap, dst, true)
 	default:
@@ -619,7 +613,7 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr gpe
 
 var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}
 
-func substituteEnv(data []byte) ([]byte, gperr.Error) {
+func substituteEnv(data []byte) ([]byte, error) {
 	envError := gperr.NewBuilder("env substitution error")
 	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
 		varName := string(match[2 : len(match)-1])
@@ -643,7 +637,7 @@ type (
 	newDecoderFunc func(r io.Reader) interface {
 		Decode(v any) error
 	}
-	interceptFunc func(m map[string]any) gperr.Error
+	interceptFunc func(m map[string]any) error
 )
 
 // UnmarshalValidate unmarshals data into a map, applies optional intercept
@@ -651,7 +645,7 @@ type (
 //   - Environment variables in the data are substituted using ${VAR} syntax.
 //   - The unmarshaler function converts data to a map[string]any.
 //   - Intercept functions can modify or validate the map before unmarshaling.
-func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) gperr.Error {
+func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) error {
 	data, err := substituteEnv(data)
 	if err != nil {
 		return err
@@ -659,7 +653,7 @@ func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc,
 
 	m := make(map[string]any)
 	if err := unmarshaler(data, &m); err != nil {
-		return gperr.Wrap(err)
+		return err
 	}
 	for _, intercept := range interceptFns {
 		if err := intercept(m); err != nil {
@@ -674,10 +668,10 @@ func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc,
 //   - Environment variables are substituted during reading using ${VAR} syntax.
 //   - The newDecoder function creates a decoder for the reader (e.g.,
 //     json.NewDecoder).
-func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) gperr.Error {
+func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) error {
 	m := make(map[string]any)
 	if err := newDecoder(NewSubstituteEnvReader(reader)).Decode(&m); err != nil {
-		return gperr.Wrap(err)
+		return err
 	}
 	for _, intercept := range interceptFns {
 		if err := intercept(m); err != nil {
@@ -692,7 +686,7 @@ func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newD
 //   - The unmarshaler function converts data to a map[string]any.
 //   - Intercept functions can modify or validate the map before unmarshaling.
 //   - Returns a thread-safe concurrent map with the unmarshaled values.
-func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], gperr.Error) {
+func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], error) {
 	data, err := substituteEnv(data)
 	if err != nil {
 		return nil, err
@@ -700,7 +694,7 @@ func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, inter
 
 	m := make(map[string]any)
 	if err := unmarshaler(data, &m); err != nil {
-		return nil, gperr.Wrap(err)
+		return nil, err
 	}
 	for _, intercept := range interceptFns {
 		if err := intercept(m); err != nil {

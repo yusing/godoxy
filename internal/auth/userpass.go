@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -8,16 +9,12 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/godoxy/internal/common"
-	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrInvalidUsername = gperr.New("invalid username")
-	ErrInvalidPassword = gperr.New("invalid password")
-)
+var ErrInvalidUsername = errors.New("invalid username")
 
 type (
 	UserPassAuth struct {
@@ -94,9 +91,9 @@ func (auth *UserPassAuth) CheckToken(r *http.Request) error {
 	case !token.Valid:
 		return ErrInvalidSessionToken
 	case claims.Username != auth.username:
-		return ErrUserNotAllowed.Subject(claims.Username)
+		return fmt.Errorf("%w: %s", ErrUserNotAllowed, claims.Username)
 	case claims.ExpiresAt.Before(time.Now()):
-		return gperr.Errorf("token expired on %s", strutils.FormatTime(claims.ExpiresAt.Time))
+		return fmt.Errorf("token expired on %s", strutils.FormatTime(claims.ExpiresAt.Time))
 	}
 
 	return nil
@@ -140,10 +137,10 @@ func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) 
 
 func (auth *UserPassAuth) validatePassword(user, pass string) error {
 	if user != auth.username {
-		return ErrInvalidUsername.Subject(user)
+		return ErrInvalidUsername
 	}
 	if err := bcrypt.CompareHashAndPassword(auth.pwdHash, []byte(pass)); err != nil {
-		return ErrInvalidPassword.With(err).Subject(pass)
+		return err
 	}
 	return nil
 }

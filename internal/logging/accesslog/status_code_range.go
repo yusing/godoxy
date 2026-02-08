@@ -1,6 +1,8 @@
 package accesslog
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 
 	gperr "github.com/yusing/goutils/errs"
@@ -12,7 +14,7 @@ type StatusCodeRange struct {
 	End   int
 } // @name StatusCodeRange
 
-var ErrInvalidStatusCodeRange = gperr.New("invalid status code range")
+var ErrInvalidStatusCodeRange = errors.New("invalid status code range")
 
 func (r *StatusCodeRange) Includes(code int) bool {
 	return r.Start <= code && code <= r.End
@@ -25,7 +27,7 @@ func (r *StatusCodeRange) Parse(v string) error {
 	case 1:
 		start, err := strconv.Atoi(split[0])
 		if err != nil {
-			return gperr.Wrap(err)
+			return err
 		}
 		r.Start = start
 		r.End = start
@@ -40,7 +42,7 @@ func (r *StatusCodeRange) Parse(v string) error {
 		r.End = end
 		return nil
 	default:
-		return ErrInvalidStatusCodeRange.Subject(v)
+		return fmt.Errorf("%w: %s", ErrInvalidStatusCodeRange, v)
 	}
 }
 

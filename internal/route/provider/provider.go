@@ -34,7 +34,7 @@ type (
 		fmt.Stringer
 		ShortName() string
 		IsExplicitOnly() bool
-		loadRoutesImpl() (route.Routes, gperr.Error)
+		loadRoutesImpl() (route.Routes, error)
 		NewWatcher() W.Watcher
 		Logger() *zerolog.Logger
 	}
@@ -96,7 +96,7 @@ func (p *Provider) MarshalText() ([]byte, error) {
 }
 
 // Start implements task.TaskStarter.
-func (p *Provider) Start(parent task.Parent) gperr.Error {
+func (p *Provider) Start(parent task.Parent) error {
 	errs := gperr.NewGroup("routes error")
 
 	t := parent.Subtask("provider."+p.String(), false)
@@ -124,8 +124,8 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 			handler.Handle(t, events)
 			handler.Log()
 		},
-		func(err gperr.Error) {
-			gperr.LogError("event error", err, p.Logger())
+		func(err error) {
+			p.Logger().Err(err).Msg("event error")
 		},
 	)
 	eventQueue.Start(p.watcher.Events(t.Context()))
@@ -136,7 +136,7 @@ func (p *Provider) Start(parent task.Parent) gperr.Error {
 	return nil
 }
 
-func (p *Provider) LoadRoutes() (err gperr.Error) {
+func (p *Provider) LoadRoutes() (err error) {
 	p.routes, err = p.loadRoutes()
 	return err
 }
@@ -188,7 +188,7 @@ func (p *Provider) GetRoute(alias string) (types.Route, bool) {
 	return r.Impl(), true
 }
 
-func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
+func (p *Provider) loadRoutes() (routes route.Routes, err error) {
 	routes, err = p.loadRoutesImpl()
 	if err != nil && len(routes) == 0 {
 		return route.Routes{}, err
@@ -201,7 +201,7 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 		r.Alias = alias
 		r.SetProvider(p)
 		if err := r.Validate(); err != nil {
-			errs.Add(err.Subject(alias))
+			errs.AddSubject(err, alias)
 			delete(routes, alias)
 			continue
 		}
@@ -210,11 +210,11 @@ func (p *Provider) loadRoutes() (routes route.Routes, err gperr.Error) {
 	return routes, errs.Error()
 }
 
-func (p *Provider) startRoute(parent task.Parent, r *route.Route) gperr.Error {
+func (p *Provider) startRoute(parent task.Parent, r *route.Route) error {
 	err := r.Start(parent)
 	if err != nil {
 		p.lockDeleteRoute(r.Alias)
-		return err.Subject(r.Alias)
+		return gperr.PrependSubject(err, r.Alias)
 	}
 
 	p.lockAddRoute(r)

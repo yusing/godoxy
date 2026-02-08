@@ -176,7 +176,7 @@ func (icon *Meta) Filenames(ref string) []string
 func NewURL(source Source, refOrName, format string) *URL
 
 // ErrInvalidIconURL is returned when icon URL parsing fails
-var ErrInvalidIconURL = gperr.New("invalid icon url")
+var ErrInvalidIconURL = errors.New("invalid icon url")
 ```
 
 ### Provider Interface

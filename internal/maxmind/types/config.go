@@ -3,7 +3,6 @@ package maxmind
 import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -21,7 +20,7 @@ const (
 	MaxMindGeoIP2  DatabaseType = "geoip2"
 )
 
-func (cfg *Config) Validate() gperr.Error {
+func (cfg *Config) Validate() error {
 	if cfg.Database == "" {
 		cfg.Database = MaxMindGeoLite
 	}

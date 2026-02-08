@@ -59,7 +59,7 @@ var checkers = map[string]struct {
 			),
 			args: map[string]string{},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 0 {
 				return nil, ErrExpectNoArg
 			}
@@ -251,7 +251,7 @@ var checkers = map[string]struct {
 				"proto": "the http protocol (http, https, h3)",
 			},
 		},
-		validate: func(args []string) (any, gperr.Error) {
+		validate: func(args []string) (any, error) {
 			if len(args) != 1 {
 				return nil, ErrExpectOneArg
 			}
@@ -581,7 +581,7 @@ func (on *RuleOn) Parse(v string) error {
 		}
 		parsed, isResp, err := parseOn(rule)
 		if err != nil {
-			errs.Add(err.Subjectf("line %d", i+1))
+			errs.AddSubjectf(err, "line %d", i+1)
 			continue
 		}
 		if isResp {
@@ -603,7 +603,7 @@ func (on *RuleOn) MarshalText() ([]byte, error) {
 	return []byte(on.String()), nil
 }
 
-func parseOn(line string) (Checker, bool, gperr.Error) {
+func parseOn(line string) (Checker, bool, error) {
 	ors := splitPipe(line)
 
 	if len(ors) > 1 {
@@ -645,7 +645,7 @@ func parseOn(line string) (Checker, bool, gperr.Error) {
 
 	validArgs, err := checker.validate(args)
 	if err != nil {
-		return nil, false, err.With(checker.help.Error())
+		return nil, false, gperr.Wrap(err).With(checker.help.Error())
 	}
 
 	checkFunc := checker.builder(validArgs)

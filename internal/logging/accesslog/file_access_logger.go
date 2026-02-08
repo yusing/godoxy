@@ -1,6 +1,7 @@
 package accesslog
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
-	gperr "github.com/yusing/goutils/errs"
 	ioutils "github.com/yusing/goutils/io"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
@@ -161,9 +161,9 @@ func (l *fileAccessLogger) Rotate(result *RotateResult) (rotated bool, err error
 
 func (l *fileAccessLogger) handleErr(err error) {
 	if l.errRateLimiter.Allow() {
-		gperr.LogError("failed to write access log", err, &l.logger)
+		l.logger.Err(err).Msg("failed to write access log")
 	} else {
-		gperr.LogError("too many errors, stopping access log", err, &l.logger)
+		l.logger.Err(err).Msg("too many errors, stopping access log")
 		l.task.Finish(err)
 	}
 }
@@ -234,7 +234,7 @@ func (l *fileAccessLogger) write(data []byte) {
 	if err != nil {
 		l.handleErr(err)
 	} else if n < len(data) {
-		l.handleErr(gperr.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
+		l.handleErr(fmt.Errorf("%w, writing %d bytes, only %d written", io.ErrShortWrite, len(data), n))
 	}
 	atomic.AddInt64(&l.writeCount, int64(n))
 }
