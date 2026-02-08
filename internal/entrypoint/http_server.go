@@ -29,8 +29,7 @@ type HTTPServer interface {
 }
 
 type httpServer struct {
-	srv *server.Server
-	ep  *Entrypoint
+	ep *Entrypoint
 
 	stopFunc func(reason any)
 
@@ -55,7 +54,7 @@ func newHTTPServer(ep *Entrypoint) *httpServer {
 
 // Listen starts the server and stop when entrypoint is stopped.
 func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
-	if srv.srv != nil {
+	if srv.addr != "" {
 		return errors.New("server already started")
 	}
 
@@ -75,13 +74,12 @@ func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
 	}
 
 	task := srv.ep.task.Subtask("http_server", false)
-	s, err := server.StartServer(task, opts)
+	_, err := server.StartServer(task, opts)
 	if err != nil {
 		return err
 	}
 	srv.stopFunc = task.FinishAndWait
 	srv.addr = addr
-	srv.srv = s
 	srv.routes = pool.New[types.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr))
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	return nil

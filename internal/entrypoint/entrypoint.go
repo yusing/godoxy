@@ -1,7 +1,6 @@
 package entrypoint
 
 import (
-	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -14,7 +13,6 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 )
@@ -42,9 +40,7 @@ type Entrypoint struct {
 	// this only affects future http servers creation
 	httpPoolDisableLog atomic.Bool
 
-	servers      *xsync.Map[string, *httpServer]    // listen addr -> server
-	tcpListeners *xsync.Map[string, net.Listener]   // listen addr -> listener
-	udpListeners *xsync.Map[string, net.PacketConn] // listen addr -> listener
+	servers *xsync.Map[string, *httpServer] // listen addr -> server
 }
 
 var _ entrypoint.Entrypoint = &Entrypoint{}
@@ -73,31 +69,7 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 		streamRoutes:     pool.New[types.StreamRoute]("stream_routes"),
 		excludedRoutes:   pool.New[types.Route]("excluded_routes"),
 		servers:          xsync.NewMap[string, *httpServer](),
-		tcpListeners:     xsync.NewMap[string, net.Listener](),
-		udpListeners:     xsync.NewMap[string, net.PacketConn](),
 	}
-	ep.task.OnCancel("stop", func() {
-		// servers stop on their own when context is cancelled
-		var errs gperr.Group
-		for _, listener := range ep.tcpListeners.Range {
-			errs.Go(func() error {
-				return listener.Close()
-			})
-		}
-		for _, listener := range ep.udpListeners.Range {
-			errs.Go(func() error {
-				return listener.Close()
-			})
-		}
-		if err := errs.Wait().Error(); err != nil {
-			gperr.LogError("failed to stop entrypoint listeners", err)
-		}
-	})
-	ep.task.OnFinished("cleanup", func() {
-		ep.servers.Clear()
-		ep.tcpListeners.Clear()
-		ep.udpListeners.Clear()
-	})
 	return ep
 }
 
