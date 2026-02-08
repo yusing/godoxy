@@ -30,7 +30,7 @@ Internal package with stable core types. Route configuration schema is versioned
 type Route struct {
     Alias  string       // Unique route identifier
     Scheme Scheme       // http, https, h2c, tcp, udp, fileserver
-    Host   string       // Virtual host / target address
+    Host   string       // Target host
     Port   Port         // Listen and target ports
 
     Bind   string       // Bind address for listening (IP address, optional)
@@ -319,7 +319,7 @@ route := &route.Route{
     Scheme: route.SchemeHTTP,
     Host:   "myapp.local",
     Bind:   "192.168.1.100",  // Bind to specific interface
-    Port:   route.Port{Proxy: 80, Target: 3000, Listening: 8443},
+    Port:   route.Port{Listening: 8443, Proxy: 80},
 }
 ```
 

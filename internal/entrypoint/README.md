@@ -1,10 +1,10 @@
 # Entrypoint
 
-The entrypoint package provides the main HTTP entry point for GoDoxy, handling domain-based routing, middleware application, short link matching, access logging, and HTTP/TCP/UDP server lifecycle management.
+The entrypoint package provides the main HTTP entry point for GoDoxy, handling domain-based routing, middleware application, short link matching, access logging, and HTTP server lifecycle management.
 
 ## Overview
 
-The entrypoint package implements the primary HTTP handler that receives all incoming requests, manages the lifecycle of HTTP/TCP/UDP servers, determines the target route based on hostname, applies middleware, and forwards requests to the appropriate route handler.
+The entrypoint package implements the primary HTTP handler that receives all incoming requests, manages the lifecycle of HTTP servers, determines the target route based on hostname, applies middleware, and forwards requests to the appropriate route handler.
 
 ### Key Features
 
@@ -14,13 +14,13 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - Access logging for all requests
 - Configurable not-found handling
 - Per-domain route resolution
-- Multi-protocol server management (HTTP/HTTPS/TCP/UDP)
+- HTTP server management (HTTP/HTTPS)
 - Route pool abstractions via [`PoolLike`](internal/entrypoint/types/entrypoint.go:27) and [`RWPoolLike`](internal/entrypoint/types/entrypoint.go:33) interfaces
 
 ### Primary Consumers
 
 - **HTTP servers**: Per-listen-addr servers dispatch requests to routes
-- **Route providers**: Register routes via [`AddRoute`](internal/entrypoint/routes.go:48)
+- **Route providers**: Register routes via [`StartAddRoute`](internal/entrypoint/routes.go:48)
 - **Configuration layer**: Validates and applies middleware/access-logging config
 
 ### Non-goals
@@ -28,6 +28,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - Does not implement route discovery (delegates to providers)
 - Does not handle TLS certificate management (delegates to autocert)
 - Does not implement health checks (delegates to `internal/health/monitor`)
+- Does not manage TCP/UDP listeners directly (only HTTP/HTTPS via `goutils/server`)
 
 ### Stability
 
@@ -45,7 +46,7 @@ type Entrypoint interface {
 
     // Route registry access
     GetRoute(alias string) (types.Route, bool)
-    AddRoute(r types.Route) error
+    StartAddRoute(r types.Route) error
     IterRoutes(yield func(r types.Route) bool)
     NumRoutes() int
     RoutesByProvider() map[string][]types.Route
@@ -59,6 +60,15 @@ type Entrypoint interface {
     GetHealthInfo() map[string]types.HealthInfo
     GetHealthInfoWithoutDetail() map[string]types.HealthInfoWithoutDetail
     GetHealthInfoSimple() map[string]types.HealthStatus
+
+    // Configuration
+    SetFindRouteDomains(domains []string)
+    SetMiddlewares(mws []map[string]any) error
+    SetNotFoundRules(rules rules.Rules)
+    SetAccessLogger(parent task.Parent, cfg *accesslog.RequestLoggerConfig) error
+
+    // Context integration
+    ShortLinkMatcher() *ShortLinkMatcher
 }
 ```
 
@@ -82,8 +92,20 @@ type RWPoolLike[Route types.Route] interface {
 
 ```go
 type Config struct {
-    SupportProxyProtocol bool `json:"support_proxy_protocol"`
+    SupportProxyProtocol bool                     `json:"support_proxy_protocol"`
+    Rules                struct {
+        NotFound rules.Rules                     `json:"not_found"`
+    }                                               `json:"rules"`
+    Middlewares          []map[string]any          `json:"middlewares"`
+    AccessLog            *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
 }
+```
+
+### Context Functions
+
+```go
+func SetCtx(ctx interface{ SetValue(any, any) }, ep Entrypoint)
+func FromCtx(ctx context.Context) Entrypoint
 ```
 
 ## Architecture
@@ -93,32 +115,28 @@ type Config struct {
 ```mermaid
 classDiagram
     class Entrypoint {
-        +task *task.Task
+        +task *task.new_task
         +cfg *Config
         +middleware *middleware.Middleware
+        +notFoundHandler http.Handler
+        +accessLogger AccessLogger
+        +findRouteFunc findRouteFunc
         +shortLinkMatcher *ShortLinkMatcher
         +streamRoutes *pool.Pool[types.StreamRoute]
         +excludedRoutes *pool.Pool[types.Route]
         +servers *xsync.Map[string, *httpServer]
-        +tcpListeners *xsync.Map[string, net.Listener]
-        +udpListeners *xsync.Map[string, net.PacketConn]
         +SupportProxyProtocol() bool
-        +AddRoute(r)
+        +StartAddRoute(r) error
         +IterRoutes(yield)
         +HTTPRoutes() PoolLike
     }
 
     class httpServer {
-        +routes *routePool
+        +routes *pool.Pool[types.HTTPRoute]
         +ServeHTTP(w, r)
         +AddRoute(route)
         +DelRoute(route)
-    }
-
-    class routePool {
-        +Get(alias) (HTTPRoute, bool)
-        +AddRoute(route)
-        +DelRoute(route)
+        +FindRoute(s) types.HTTPRoute
     }
 
     class PoolLike {
@@ -135,10 +153,20 @@ classDiagram
         +Del(r Route)
     }
 
+    class ShortLinkMatcher {
+        +fqdnRoutes *xsync.Map[string, string]
+        +subdomainRoutes *xsync.Map[string, struct{}]
+        +ServeHTTP(w, r)
+        +AddRoute(alias)
+        +DelRoute(alias)
+        +SetDefaultDomainSuffix(suffix)
+    }
+
     Entrypoint --> httpServer : manages
-    Entrypoint --> routePool : HTTPRoutes()
-    Entrypoint --> PoolLike : returns
+    Entrypoint --> ShortLinkMatcher : owns
+    Entrypoint --> PoolLike : HTTPRoutes()
     Entrypoint --> RWPoolLike : ExcludedRoutes()
+    httpServer --> PoolLike : routes pool
 ```
 
 ### Request Processing Pipeline
@@ -172,8 +200,8 @@ flowchart TD
 stateDiagram-v2
     [*] --> Empty: NewEntrypoint()
 
-    Empty --> Listening: AddRoute()
-    Listening --> Listening: AddRoute()
+    Empty --> Listening: StartAddRoute()
+    Listening --> Listening: StartAddRoute()
     Listening --> Listening: delHTTPRoute()
     Listening --> [*]: Cancel()
 
@@ -182,8 +210,8 @@ stateDiagram-v2
 
     note right of Listening
         servers map: addr -> httpServer
-        tcpListeners map: addr -> Listener
-        udpListeners map: addr -> PacketConn
+        For HTTPS, routes are added to ProxyHTTPSAddr
+        Default routes added to both HTTP and HTTPS
     end note
 ```
 
@@ -209,7 +237,7 @@ sequenceDiagram
         Middleware->>Route: Forward Request
         Route-->>Middleware: Response
         Middleware-->>httpServer: Response
-    else Short Link
+    else Short Link (go.example.com/alias)
         httpServer->>ShortLinkMatcher: Match short code
         ShortLinkMatcher-->>httpServer: Redirect
     else Not Found
@@ -222,13 +250,15 @@ sequenceDiagram
 
 ## Route Registry
 
-Routes are now managed per-entrypoint instead of global registry:
+Routes are managed per-entrypoint:
 
 ```go
-// Adding a route
-ep.AddRoute(route)
+// Adding a route (main entry point for providers)
+if err := ep.StartAddRoute(route); err != nil {
+    return err
+}
 
-// Iterating all routes
+// Iterating all routes including excluded
 ep.IterRoutes(func(r types.Route) bool {
     log.Info().Str("alias", r.Name()).Msg("route")
     return true // continue iteration
@@ -250,6 +280,14 @@ Environment variables and YAML config file:
 ```yaml
 entrypoint:
   support_proxy_protocol: true
+  middlewares:
+    - rate_limit:
+        requests_per_second: 100
+  rules:
+    not_found:
+      # not-found rules configuration
+  access_log:
+    path: /var/log/godoxy/access.log
 ```
 
 ### Environment Variables
@@ -260,16 +298,17 @@ entrypoint:
 
 ## Dependency and Integration Map
 
-| Dependency                       | Purpose                    |
-| -------------------------------- | -------------------------- |
-| `internal/route`                 | Route types and handlers   |
-| `internal/route/rules`           | Not-found rules processing |
-| `internal/logging/accesslog`     | Request logging            |
-| `internal/net/gphttp/middleware` | Middleware chain           |
-| `internal/types`                 | Route and health types     |
-| `github.com/puzpuzpuz/xsync/v4`  | Concurrent server map      |
-| `github.com/yusing/goutils/pool` | Route pool implementations |
-| `github.com/yusing/goutils/task` | Lifecycle management       |
+| Dependency                         | Purpose                     |
+| ---------------------------------- | --------------------------- |
+| `internal/route`                   | Route types and handlers    |
+| `internal/route/rules`             | Not-found rules processing  |
+| `internal/logging/accesslog`       | Request logging             |
+| `internal/net/gphttp/middleware`   | Middleware chain            |
+| `internal/types`                   | Route and health types      |
+| `github.com/puzpuzpuz/xsync/v4`    | Concurrent server map       |
+| `github.com/yusing/goutils/pool`   | Route pool implementations  |
+| `github.com/yusing/goutils/task`   | Lifecycle management        |
+| `github.com/yusing/goutils/server` | HTTP/HTTPS server lifecycle |
 
 ## Observability
 
@@ -300,15 +339,16 @@ healthMap := ep.GetHealthInfo()
 - Middleware chain is applied per-request
 - Proxy protocol support must be explicitly enabled
 - Access logger captures request metadata before processing
+- Short link matching is limited to configured domains
 
 ## Failure Modes and Recovery
 
-| Failure               | Behavior                       | Recovery                     |
-| --------------------- | ------------------------------ | ---------------------------- |
-| Server bind fails     | Error logged, route not added  | Fix port/address conflict    |
-| Route start fails     | Route excluded, error logged   | Fix route configuration      |
-| Middleware load fails | AddRoute returns error         | Fix middleware configuration |
-| Context cancelled     | All servers stopped gracefully | Restart entrypoint           |
+| Failure               | Behavior                        | Recovery                     |
+| --------------------- | ------------------------------- | ---------------------------- |
+| Server bind fails     | Error returned, route not added | Fix port/address conflict    |
+| Route start fails     | Route excluded, error logged    | Fix route configuration      |
+| Middleware load fails | SetMiddlewares returns error    | Fix middleware configuration |
+| Context cancelled     | All servers stopped gracefully  | Restart entrypoint           |
 
 ## Usage Examples
 
@@ -343,13 +383,14 @@ if err != nil {
 
 ```go
 // Iterate all routes including excluded
-for r := range ep.IterRoutes {
+ep.IterRoutes(func(r types.Route) bool {
     log.Info().
         Str("alias", r.Name()).
         Str("provider", r.ProviderName()).
         Bool("excluded", r.ShouldExclude()).
         Msg("route")
-}
+    return true // continue iteration
+})
 
 // Get health info for all routes
 healthMap := ep.GetHealthInfoSimple()
@@ -360,25 +401,21 @@ for alias, status := range healthMap {
 
 ### Route Addition
 
-```go
-route := &route.Route{
-    Alias:  "myapp",
-    Scheme: route.SchemeHTTP,
-    Host:   "myapp",
-    Port:   route.Port{Proxy: 80, Target: 3000},
-}
+Routes are typically added by providers via `StartAddRoute`:
 
-if err := ep.AddRoute(route); err != nil {
+```go
+// StartAddRoute handles route registration and server creation
+if err := ep.StartAddRoute(route); err != nil {
     return err
 }
 ```
 
-## Context Integration
+### Context Integration
 
 Routes can access the entrypoint from request context:
 
 ```go
-// Set entrypoint in context
+// Set entrypoint in context (typically during initialization)
 entrypoint.SetCtx(task, ep)
 
 // Get entrypoint from context
