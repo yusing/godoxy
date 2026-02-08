@@ -200,7 +200,6 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.E
 	l, ok := ep.HTTPRoutes().Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {
-		lbLock.Unlock()
 		linked = l.(*ReveseProxyRoute) // it must be a reverse proxy route
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
