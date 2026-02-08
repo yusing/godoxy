@@ -30,7 +30,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.8.0 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
-	github.com/pires/go-proxyproto v0.9.2 // proxy protocol support
+	github.com/pires/go-proxyproto v0.10.0 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.4.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
@@ -44,7 +44,7 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.0 // fast json parsing
-	github.com/docker/cli v29.2.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.2.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.3.2 // proxmox API client
@@ -52,18 +52,18 @@ require (
 	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
-	github.com/shirou/gopsutil/v4 v4.25.12 // system information
+	github.com/shirou/gopsutil/v4 v4.26.1 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.69.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260129101716-0f13004ad6ba
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260129101716-0f13004ad6ba
+	github.com/yusing/godoxy/agent v0.0.0-20260208011746-31b4fedf728b
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260208011746-31b4fedf728b
 	github.com/yusing/gointernals v0.1.18
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260129081554-24e52ede7468
-	github.com/yusing/goutils/http/websocket v0.0.0-20260129081554-24e52ede7468
-	github.com/yusing/goutils/server v0.0.0-20260129081554-24e52ede7468
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260207122228-56663372deda
+	github.com/yusing/goutils/http/websocket v0.0.0-20260207122228-56663372deda
+	github.com/yusing/goutils/server v0.0.0-20260207122228-56663372deda
 )
 
 require (
@@ -89,7 +89,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -99,7 +99,7 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
-	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
@@ -124,25 +124,25 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
-	github.com/samber/slog-common v0.19.0 // indirect
-	github.com/samber/slog-zerolog/v2 v2.9.0 // indirect
+	github.com/samber/slog-common v0.20.0 // indirect
+	github.com/samber/slog-zerolog/v2 v2.9.1 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
-	go.opentelemetry.io/otel v1.39.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0
+	go.opentelemetry.io/otel v1.40.0 // indirect
+	go.opentelemetry.io/otel/metric v1.40.0 // indirect
+	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
-	google.golang.org/api v0.263.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/api v0.265.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260203192932-546029d2fa20 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
@@ -172,11 +172,11 @@ require (
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
-	github.com/linode/linodego v1.64.0 // indirect
+	github.com/linode/linodego v1.65.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.107.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.107.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.108.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.108.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pion/dtls/v3 v3.0.10 // indirect
 	github.com/pion/logging v0.2.4 // indirect
@@ -190,7 +190,7 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vultr/govultr/v3 v3.26.1 // indirect
+	github.com/vultr/govultr/v3 v3.27.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 )
