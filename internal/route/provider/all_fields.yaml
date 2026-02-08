@@ -2,18 +2,44 @@ example: # matching `example.y.z`
   scheme: http
   host: 10.0.0.254
   port: 80
+  bind: 0.0.0.0
+  root: /var/www/example
+  spa: true
+  index: index.html
   no_tls_verify: true
+  disable_compression: false
+  response_header_timeout: 30s
+  ssl_server_name: "" # empty uses target hostname, "off" disables SNI
+  ssl_trusted_certificate: /etc/ssl/certs/ca-certificates.crt
+  ssl_certificate: /etc/ssl/client.crt
+  ssl_certificate_key: /etc/ssl/client.key
+  ssl_protocols:
+    - tlsv1.2
+    - tlsv1.3
   path_patterns: # Check https://pkg.go.dev/net/http#hdr-Patterns-ServeMux for syntax
     - GET / # accept any GET request
     - POST /auth # for /auth and /auth/* accept only POST
     - GET /home/{$} # for exactly /home
+  rules:
+    - name: default
+      do: pass
+    - name: block-admin
+      on: path /admin
+      do: error 403 Forbidden
+  rule_file: embed://webui.yml
   healthcheck:
     disabled: false
+    use_get: true
     path: /
     interval: 5s
+    timeout: 5s
+    retries: -1 # -1: immediate fail, 0: use default, >0: retry count
   load_balance:
-    link: app
-    mode: ip_hash
+    link: app # link to another route alias
+    mode: roundrobin # roundrobin, leastconn, iphash
+    weight: 1
+    sticky: false
+    sticky_max_age: 1h
     options:
       header: X-Forwarded-For
   middlewares:
@@ -23,15 +49,19 @@ example: # matching `example.y.z`
         - 10.0.0.0/8
       status_code: 403
       message: IP not allowed
-    hideXForwarded:
   homepage:
+    show: true
     name: Example App
     icon: "@selfhst/adguard-home.png"
     description: An example app
     category: example
   access_log:
-    buffer_size: 100
     path: /var/log/example.log
+    stdout: false
+    retention:
+      days: 30
+    rotate_interval: 24h
+    format: combined # common, combined, json
     filters:
       status_codes:
         values:
@@ -53,14 +83,29 @@ example: # matching `example.y.z`
           - 192.168.10.0/24
     fields:
       headers:
-        default: keep
-        config:
-          foo: redact
-      query:
         default: drop
         config:
-          foo: keep
-      cookies:
-        default: redact
+          foo: redact
+          authorization: drop
+      query:
+        default: keep
         config:
           foo: keep
+          password: redact
+      cookies:
+        default: drop
+        config:
+          session: keep
+  idlewatcher:
+    idle_timeout: 30m
+    wake_timeout: 30s
+    stop_timeout: 1m
+    stop_method: stop # pause, stop, kill
+    stop_signal: SIGTERM
+    start_endpoint: /api/wake
+    depends_on:
+      - other-service
+    no_loading_page: false
+    docker:
+      container_id: abc123
+      container_name: example-app

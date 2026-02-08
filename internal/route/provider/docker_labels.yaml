@@ -31,7 +31,6 @@ proxy.app: |
     description: An example app
     category: example
   access_log:
-    buffer_size: 100
     path: /var/log/example.log
     filters:
       status_codes:
@@ -92,7 +91,6 @@ proxy.app1.homepage.name: Example App
 proxy.app1.homepage.icon: "@selfhst/adguard-home.png"
 proxy.app1.homepage.description: An example app
 proxy.app1.homepage.category: example
-proxy.app1.access_log.buffer_size: 100
 proxy.app1.access_log.path: /var/log/example.log
 proxy.app1.access_log.filters: |
   status_codes:
