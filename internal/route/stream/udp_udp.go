@@ -11,7 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/acl"
+	acl "github.com/yusing/godoxy/internal/acl/types"
 	"github.com/yusing/godoxy/internal/agentpool"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/synk"
@@ -75,14 +75,13 @@ func NewUDPUDPStream(network, dstNetwork, listenAddr, dstAddr string, agent *age
 	}, nil
 }
 
-func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
+func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
 	l, err := net.ListenUDP(s.network, s.laddr)
 	if err != nil {
-		logErr(s, err, "failed to listen")
-		return
+		return err
 	}
 	s.listener = l
-	if acl, ok := ctx.Value(acl.ContextKey{}).(*acl.Config); ok {
+	if acl := acl.FromCtx(ctx); acl != nil {
 		log.Debug().Str("listener", s.listener.LocalAddr().String()).Msg("wrapping listener with ACL")
 		s.listener = acl.WrapUDP(s.listener)
 	}
@@ -90,6 +89,7 @@ func (s *UDPUDPStream) ListenAndServe(ctx context.Context, preDial, onRead netty
 	s.onRead = onRead
 	go s.listen(ctx)
 	go s.cleanUp(ctx)
+	return nil
 }
 
 func (s *UDPUDPStream) Close() error {

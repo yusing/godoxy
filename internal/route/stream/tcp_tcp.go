@@ -7,9 +7,9 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/acl"
+	acl "github.com/yusing/godoxy/internal/acl/types"
 	"github.com/yusing/godoxy/internal/agentpool"
-	"github.com/yusing/godoxy/internal/entrypoint"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
 	"go.uber.org/atomic"
@@ -43,26 +43,28 @@ func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *age
 	return &TCPTCPStream{network: network, dstNetwork: dstNetwork, laddr: laddr, dst: dst, agent: agent}, nil
 }
 
-func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
+func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
 	var err error
 	s.listener, err = net.ListenTCP(s.network, s.laddr)
 	if err != nil {
-		logErr(s, err, "failed to listen")
-		return
+		return err
 	}
 
-	if acl, ok := ctx.Value(acl.ContextKey{}).(*acl.Config); ok {
+	if ep := entrypoint.FromCtx(ctx); ep != nil {
+		if proxyProto := ep.SupportProxyProtocol(); proxyProto {
+			s.listener = &proxyproto.Listener{Listener: s.listener}
+		}
+	}
+
+	if acl := acl.FromCtx(ctx); acl != nil {
 		log.Debug().Str("listener", s.listener.Addr().String()).Msg("wrapping listener with ACL")
 		s.listener = acl.WrapTCP(s.listener)
-	}
-
-	if proxyProto := entrypoint.ActiveConfig.Load().SupportProxyProtocol; proxyProto {
-		s.listener = &proxyproto.Listener{Listener: s.listener}
 	}
 
 	s.preDial = preDial
 	s.onRead = onRead
 	go s.listen(ctx)
+	return nil
 }
 
 func (s *TCPTCPStream) Close() error {

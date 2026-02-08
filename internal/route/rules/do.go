@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
@@ -197,9 +198,10 @@ var commands = map[string]struct {
 		build: func(args any) CommandHandler {
 			route := args.(string)
 			return TerminatingCommand(func(w http.ResponseWriter, req *http.Request) error {
-				r, ok := routes.HTTP.Get(route)
+				ep := entrypoint.FromCtx(req.Context())
+				r, ok := ep.HTTPRoutes().Get(route)
 				if !ok {
-					excluded, has := routes.Excluded.Get(route)
+					excluded, has := ep.ExcludedRoutes().Get(route)
 					if has {
 						r, ok = excluded.(types.HTTPRoute)
 					}

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusing/godoxy/internal/route/routes"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 )
@@ -66,7 +66,7 @@ func (m *crowdsecMiddleware) finalize() error {
 // before implements RequestModifier.
 func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	// Build CrowdSec URL
-	crowdsecURL, err := m.buildCrowdSecURL()
+	crowdsecURL, err := m.buildCrowdSecURL(r.Context())
 	if err != nil {
 		Crowdsec.LogError(r).Err(err).Msg("failed to build CrowdSec URL")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -167,10 +167,10 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 }
 
 // buildCrowdSecURL constructs the CrowdSec server URL based on route or IP configuration
-func (m *crowdsecMiddleware) buildCrowdSecURL() (string, error) {
+func (m *crowdsecMiddleware) buildCrowdSecURL(ctx context.Context) (string, error) {
 	// Try to get route first
 	if m.Route != "" {
-		if route, ok := routes.HTTP.Get(m.Route); ok {
+		if route, ok := entrypoint.FromCtx(ctx).GetRoute(m.Route); ok {
 			// Using route name
 			targetURL := *route.TargetURL()
 			targetURL.Path = m.Endpoint

@@ -74,8 +74,6 @@ type ipLog struct {
 	allowed bool
 }
 
-type ContextKey struct{}
-
 const cacheTTL = 1 * time.Minute
 
 func (c *checkCache) Expired() bool {

@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
-	"github.com/yusing/godoxy/internal/route/routes"
 	apitypes "github.com/yusing/goutils/apitypes"
 
 	_ "unsafe"
@@ -73,7 +73,11 @@ func FavIcon(c *gin.Context) {
 //go:linkname GetFavIconFromAlias v1.GetFavIconFromAlias
 func GetFavIconFromAlias(ctx context.Context, alias string, variant icons.Variant) (iconfetch.Result, error) {
 	// try with route.Icon
-	r, ok := routes.HTTP.Get(alias)
+	ep := entrypoint.FromCtx(ctx)
+	if ep == nil { // impossible, but just in case
+		return iconfetch.FetchResultWithErrorf(http.StatusInternalServerError, "entrypoint not initialized")
+	}
+	r, ok := ep.HTTPRoutes().Get(alias)
 	if !ok {
 		return iconfetch.FetchResultWithErrorf(http.StatusNotFound, "route not found")
 	}

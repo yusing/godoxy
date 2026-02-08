@@ -6,7 +6,7 @@ import (
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
-	config "github.com/yusing/godoxy/internal/config/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/loadbalancer"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/route/routes"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -159,23 +158,28 @@ func (r *ReveseProxyRoute) Start(parent task.Parent) gperr.Error {
 
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
-			return err
+			gperr.LogWarn("health monitor error", err, &r.rp.Logger)
+			r.HealthMon = nil
 		}
 	}
 
+	ep := entrypoint.FromCtx(parent.Context())
+	if ep == nil {
+		err := gperr.New("entrypoint not initialized")
+		r.task.Finish(err)
+		return err
+	}
+
 	if r.UseLoadBalance() {
-		r.addToLoadBalancer(parent)
-	} else {
-		routes.HTTP.Add(r)
-		if state := config.WorkingState.Load(); state != nil {
-			state.ShortLinkMatcher().AddRoute(r.Alias)
+		if err := r.addToLoadBalancer(parent, ep); err != nil {
+			r.task.Finish(err)
+			return gperr.Wrap(err)
 		}
-		r.task.OnCancel("remove_route", func() {
-			routes.HTTP.Del(r)
-			if state := config.WorkingState.Load(); state != nil {
-				state.ShortLinkMatcher().DelRoute(r.Alias)
-			}
-		})
+	} else {
+		if err := ep.StartAddRoute(r); err != nil {
+			r.task.Finish(err)
+			return gperr.Wrap(err)
+		}
 	}
 	return nil
 }
@@ -187,16 +191,16 @@ func (r *ReveseProxyRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 var lbLock sync.Mutex
 
-func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
+func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.Entrypoint) error {
 	var lb *loadbalancer.LoadBalancer
 	cfg := r.LoadBalance
 	lbLock.Lock()
+	defer lbLock.Unlock()
 
-	l, ok := routes.HTTP.Get(cfg.Link)
+	l, ok := ep.HTTPRoutes().Get(cfg.Link)
 	var linked *ReveseProxyRoute
 	if ok {
-		lbLock.Unlock()
-		linked = l.(*ReveseProxyRoute)
+		linked = l.(*ReveseProxyRoute) // it must be a reverse proxy route
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
 		if linked.Homepage.Name == "" {
@@ -209,22 +213,20 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 			Route: &Route{
 				Alias:    cfg.Link,
 				Homepage: r.Homepage,
+				Bind:     r.Bind,
+				Metadata: Metadata{
+					LisURL: r.ListenURL(),
+					task:   lb.Task(),
+				},
 			},
 			loadBalancer: lb,
 			handler:      lb,
 		}
 		linked.SetHealthMonitor(lb)
-		routes.HTTP.AddKey(cfg.Link, linked)
-		if state := config.WorkingState.Load(); state != nil {
-			state.ShortLinkMatcher().AddRoute(cfg.Link)
+		if err := ep.StartAddRoute(linked); err != nil {
+			lb.Finish(err)
+			return err
 		}
-		r.task.OnFinished("remove_loadbalancer_route", func() {
-			routes.HTTP.DelKey(cfg.Link)
-			if state := config.WorkingState.Load(); state != nil {
-				state.ShortLinkMatcher().DelRoute(cfg.Link)
-			}
-		})
-		lbLock.Unlock()
 	}
 	r.loadBalancer = lb
 
@@ -233,4 +235,5 @@ func (r *ReveseProxyRoute) addToLoadBalancer(parent task.Parent) {
 	r.task.OnCancel("lb_remove_server", func() {
 		lb.RemoveServer(server)
 	})
+	return nil
 }

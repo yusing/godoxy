@@ -1,12 +1,17 @@
 package route
 
 import (
-	"github.com/yusing/godoxy/internal/route/routes"
+	"context"
+
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
 
-func checkExists(r types.Route) gperr.Error {
+// checkExists checks if the route already exists in the entrypoint.
+//
+// Context must be passed from the parent task that carries the entrypoint value.
+func checkExists(ctx context.Context, r types.Route) gperr.Error {
 	if r.UseLoadBalance() { // skip checking for load balanced routes
 		return nil
 	}
@@ -16,9 +21,9 @@ func checkExists(r types.Route) gperr.Error {
 	)
 	switch r := r.(type) {
 	case types.HTTPRoute:
-		existing, ok = routes.HTTP.Get(r.Key())
+		existing, ok = entrypoint.FromCtx(ctx).HTTPRoutes().Get(r.Key())
 	case types.StreamRoute:
-		existing, ok = routes.Stream.Get(r.Key())
+		existing, ok = entrypoint.FromCtx(ctx).StreamRoutes().Get(r.Key())
 	}
 	if ok {
 		return gperr.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())

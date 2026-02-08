@@ -63,10 +63,9 @@ func NewUDPUDPStream(network, listenAddr, dstAddr string) (nettypes.Stream, erro
 
 ```go
 type Stream interface {
-    ListenAndServe(ctx context.Context, preDial, onRead HookFunc)
+    ListenAndServe(ctx context.Context, preDial, onRead HookFunc) error
     Close() error
     LocalAddr() net.Addr
-    zerolog.LogObjectMarshaler
 }
 
 type HookFunc func(ctx context.Context) error

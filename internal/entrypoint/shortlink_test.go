@@ -6,13 +6,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/yusing/godoxy/internal/common"
 	. "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/goutils/task"
 )
 
 func TestShortLinkMatcher_FQDNAlias(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.AddRoute("app.domain.com")
 
@@ -45,7 +47,7 @@ func TestShortLinkMatcher_FQDNAlias(t *testing.T) {
 }
 
 func TestShortLinkMatcher_SubdomainAlias(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 	matcher.AddRoute("app")
@@ -70,7 +72,7 @@ func TestShortLinkMatcher_SubdomainAlias(t *testing.T) {
 }
 
 func TestShortLinkMatcher_NotFound(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 	matcher.AddRoute("app")
@@ -93,7 +95,7 @@ func TestShortLinkMatcher_NotFound(t *testing.T) {
 }
 
 func TestShortLinkMatcher_AddDelRoute(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	matcher.SetDefaultDomainSuffix(".example.com")
 
@@ -131,7 +133,7 @@ func TestShortLinkMatcher_AddDelRoute(t *testing.T) {
 }
 
 func TestShortLinkMatcher_NoDefaultDomainSuffix(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	matcher := ep.ShortLinkMatcher()
 	// no SetDefaultDomainSuffix called
 
@@ -158,15 +160,19 @@ func TestShortLinkMatcher_NoDefaultDomainSuffix(t *testing.T) {
 }
 
 func TestEntrypoint_ShortLinkDispatch(t *testing.T) {
-	ep := NewEntrypoint()
+	ep := NewEntrypoint(task.GetTestTask(t), nil)
 	ep.ShortLinkMatcher().SetDefaultDomainSuffix(".example.com")
 	ep.ShortLinkMatcher().AddRoute("app")
+
+	server := NewHTTPServer(ep)
+	err := server.Listen("localhost:0", HTTPProtoHTTP)
+	require.NoError(t, err)
 
 	t.Run("shortlink host", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/app", nil)
 		req.Host = common.ShortLinkPrefix
 		w := httptest.NewRecorder()
-		ep.ServeHTTP(w, req)
+		server.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
 		assert.Equal(t, "https://app.example.com/", w.Header().Get("Location"))
@@ -176,7 +182,7 @@ func TestEntrypoint_ShortLinkDispatch(t *testing.T) {
 		req := httptest.NewRequest("GET", "/app", nil)
 		req.Host = common.ShortLinkPrefix + ":8080"
 		w := httptest.NewRecorder()
-		ep.ServeHTTP(w, req)
+		server.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
 		assert.Equal(t, "https://app.example.com/", w.Header().Get("Location"))
@@ -186,7 +192,7 @@ func TestEntrypoint_ShortLinkDispatch(t *testing.T) {
 		req := httptest.NewRequest("GET", "/app", nil)
 		req.Host = "app.example.com"
 		w := httptest.NewRecorder()
-		ep.ServeHTTP(w, req)
+		server.ServeHTTP(w, req)
 
 		// Should not redirect, should try normal route lookup (which will 404)
 		assert.NotEqual(t, http.StatusTemporaryRedirect, w.Code)

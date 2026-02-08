@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 
-	_ "github.com/yusing/goutils/apitypes"
+	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type RoutesByProvider map[string][]route.Route
@@ -24,5 +24,10 @@ type RoutesByProvider map[string][]route.Route
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/route/by_provider [get]
 func ByProvider(c *gin.Context) {
-	c.JSON(http.StatusOK, routes.ByProvider())
+	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible, but just in case
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
+	c.JSON(http.StatusOK, ep.RoutesByProvider())
 }

@@ -2,22 +2,24 @@ package uptime
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"slices"
 	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	config "github.com/yusing/godoxy/internal/config/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]routes.HealthInfoWithoutDetail `json:"statuses"`
-		Timestamp int64                                     `json:"timestamp"`
+		Map       map[string]types.HealthInfoWithoutDetail `json:"statuses"`
+		Timestamp int64                                    `json:"timestamp"`
 	} // @name RouteStatusesByAlias
 	Status struct {
 		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
@@ -40,8 +42,12 @@ type (
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
+	ep := entrypoint.FromCtx(ctx)
+	if ep == nil {
+		return StatusByAlias{}, errors.New("entrypoint not found in context")
+	}
 	return StatusByAlias{
-		Map:       routes.GetHealthInfoWithoutDetail(),
+		Map:       ep.GetHealthInfoWithoutDetail(),
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -127,11 +133,14 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
 		status := types.StatusUnknown
-		r, ok := routes.GetIncludeExcluded(alias)
-		if ok {
-			mon := r.HealthMonitor()
-			if mon != nil {
-				status = mon.Status()
+		if state := config.ActiveState.Load(); state != nil {
+			// FIXME: pass ctx to getRoute
+			r, ok := entrypoint.FromCtx(state.Context()).GetRoute(alias)
+			if ok {
+				mon := r.HealthMonitor()
+				if mon != nil {
+					status = mon.Status()
+				}
 			}
 		}
 

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/fs"
 	"iter"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -18,14 +17,20 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
-	"github.com/yusing/godoxy/internal/acl"
+	acl "github.com/yusing/godoxy/internal/acl/types"
 	"github.com/yusing/godoxy/internal/agentpool"
+	"github.com/yusing/godoxy/internal/api"
 	"github.com/yusing/godoxy/internal/autocert"
+	autocertctx "github.com/yusing/godoxy/internal/autocert/types"
+	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
+	entrypointctx "github.com/yusing/godoxy/internal/entrypoint/types"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/maxmind"
+	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/notif"
 	route "github.com/yusing/godoxy/internal/route/provider"
 	"github.com/yusing/godoxy/internal/serialization"
@@ -40,7 +45,7 @@ type state struct {
 
 	providers        *xsync.Map[string, types.RouteProvider]
 	autocertProvider *autocert.Provider
-	entrypoint       entrypoint.Entrypoint
+	entrypoint       *entrypoint.Entrypoint
 
 	task *task.Task
 
@@ -65,11 +70,10 @@ func (e CriticalError) Unwrap() error {
 func NewState() config.State {
 	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	return &state{
-		providers:  xsync.NewMap[string, types.RouteProvider](),
-		entrypoint: entrypoint.NewEntrypoint(),
-		task:       task.RootTask("config", false),
-		tmpLogBuf:  tmpLogBuf,
-		tmpLog:     logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
+		providers: xsync.NewMap[string, types.RouteProvider](),
+		task:      task.RootTask("config", false),
+		tmpLogBuf: tmpLogBuf,
+		tmpLog:    logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
 	}
 }
 
@@ -85,7 +89,6 @@ func SetState(state config.State) {
 
 	cfg := state.Value()
 	config.ActiveState.Store(state)
-	entrypoint.ActiveConfig.Store(&cfg.Entrypoint)
 	homepage.ActiveConfig.Store(&cfg.Homepage)
 	if autocertProvider := state.AutoCertProvider(); autocertProvider != nil {
 		autocert.ActiveProvider.Store(autocertProvider.(*autocert.Provider))
@@ -148,8 +151,8 @@ func (state *state) Value() *config.Config {
 	return &state.Config
 }
 
-func (state *state) EntrypointHandler() http.Handler {
-	return &state.entrypoint
+func (state *state) Entrypoint() entrypointctx.Entrypoint {
+	return state.entrypoint
 }
 
 func (state *state) ShortLinkMatcher() config.ShortLinkMatcher {
@@ -204,6 +207,29 @@ func (state *state) FlushTmpLog() {
 	state.tmpLogBuf.Reset()
 }
 
+func (state *state) StartAPIServers() {
+	// API Handler needs to start after auth is initialized.
+	server.StartServer(state.task.Subtask("api_server", false), server.Options{
+		Name:     "api",
+		HTTPAddr: common.APIHTTPAddr,
+		Handler:  api.NewHandler(true),
+	})
+
+	// Local API Handler is used for unauthenticated access.
+	if common.LocalAPIHTTPAddr != "" {
+		server.StartServer(state.task.Subtask("local_api_server", false), server.Options{
+			Name:     "local_api",
+			HTTPAddr: common.LocalAPIHTTPAddr,
+			Handler:  api.NewHandler(false),
+		})
+	}
+}
+
+func (state *state) StartMetrics() {
+	systeminfo.Poller.Start(state.task)
+	uptime.Poller.Start(state.task)
+}
+
 // initACL initializes the ACL.
 func (state *state) initACL() error {
 	if !state.ACL.Valid() {
@@ -213,7 +239,7 @@ func (state *state) initACL() error {
 	if err != nil {
 		return err
 	}
-	state.task.SetValue(acl.ContextKey{}, state.ACL)
+	acl.SetCtx(state.task, state.ACL)
 	return nil
 }
 
@@ -221,6 +247,7 @@ func (state *state) initEntrypoint() error {
 	epCfg := state.Config.Entrypoint
 	matchDomains := state.MatchDomains
 
+	state.entrypoint = entrypoint.NewEntrypoint(state.task, &epCfg)
 	state.entrypoint.SetFindRouteDomains(matchDomains)
 	state.entrypoint.SetNotFoundRules(epCfg.Rules.NotFound)
 
@@ -233,6 +260,8 @@ func (state *state) initEntrypoint() error {
 			state.entrypoint.ShortLinkMatcher().SetDefaultDomainSuffix("." + domain)
 		}
 	}
+
+	entrypointctx.SetCtx(state.task, state.entrypoint)
 
 	errs := gperr.NewBuilder("entrypoint error")
 	errs.Add(state.entrypoint.SetMiddlewares(epCfg.Middlewares))
@@ -310,6 +339,7 @@ func (state *state) initAutoCert() error {
 	p.PrintCertExpiriesAll()
 
 	state.autocertProvider = p
+	autocertctx.SetCtx(state.task, p)
 	return nil
 }
 

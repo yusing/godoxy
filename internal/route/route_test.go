@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/common"
 	route "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
-	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRouteValidate(t *testing.T) {
@@ -19,20 +19,8 @@ func TestRouteValidate(t *testing.T) {
 			Port:   route.Port{Proxy: common.ProxyHTTPPort},
 		}
 		err := r.Validate()
-		expect.HasError(t, err, "Validate should return error for localhost with reserved port")
-		expect.ErrorContains(t, err, "reserved for godoxy")
-	})
-
-	t.Run("ListeningPortWithHTTP", func(t *testing.T) {
-		r := &Route{
-			Alias:  "test",
-			Scheme: route.SchemeHTTP,
-			Host:   "example.com",
-			Port:   route.Port{Proxy: 80, Listening: 1234},
-		}
-		err := r.Validate()
-		expect.HasError(t, err, "Validate should return error for HTTP scheme with listening port")
-		expect.ErrorContains(t, err, "unexpected listening port")
+		require.Error(t, err, "Validate should return error for localhost with reserved port")
+		require.ErrorContains(t, err, "reserved for godoxy")
 	})
 
 	t.Run("DisabledHealthCheckWithLoadBalancer", func(t *testing.T) {
@@ -49,8 +37,8 @@ func TestRouteValidate(t *testing.T) {
 			}, // Minimal LoadBalance config with non-empty Link will be checked by UseLoadBalance
 		}
 		err := r.Validate()
-		expect.HasError(t, err, "Validate should return error for disabled healthcheck with loadbalancer")
-		expect.ErrorContains(t, err, "cannot disable healthcheck")
+		require.Error(t, err, "Validate should return error for disabled healthcheck with loadbalancer")
+		require.ErrorContains(t, err, "cannot disable healthcheck")
 	})
 
 	t.Run("FileServerScheme", func(t *testing.T) {
@@ -62,8 +50,8 @@ func TestRouteValidate(t *testing.T) {
 			Root:   "/tmp", // Root is required for file server
 		}
 		err := r.Validate()
-		expect.NoError(t, err, "Validate should not return error for valid file server route")
-		expect.NotNil(t, r.impl, "Impl should be initialized")
+		require.NoError(t, err, "Validate should not return error for valid file server route")
+		require.NotNil(t, r.impl, "Impl should be initialized")
 	})
 
 	t.Run("HTTPScheme", func(t *testing.T) {
@@ -74,8 +62,8 @@ func TestRouteValidate(t *testing.T) {
 			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
-		expect.NoError(t, err, "Validate should not return error for valid HTTP route")
-		expect.NotNil(t, r.impl, "Impl should be initialized")
+		require.NoError(t, err, "Validate should not return error for valid HTTP route")
+		require.NotNil(t, r.impl, "Impl should be initialized")
 	})
 
 	t.Run("TCPScheme", func(t *testing.T) {
@@ -86,8 +74,8 @@ func TestRouteValidate(t *testing.T) {
 			Port:   route.Port{Proxy: 80, Listening: 8080},
 		}
 		err := r.Validate()
-		expect.NoError(t, err, "Validate should not return error for valid TCP route")
-		expect.NotNil(t, r.impl, "Impl should be initialized")
+		require.NoError(t, err, "Validate should not return error for valid TCP route")
+		require.NotNil(t, r.impl, "Impl should be initialized")
 	})
 
 	t.Run("DockerContainer", func(t *testing.T) {
@@ -106,8 +94,8 @@ func TestRouteValidate(t *testing.T) {
 			},
 		}
 		err := r.Validate()
-		expect.NoError(t, err, "Validate should not return error for valid docker container route")
-		expect.NotNil(t, r.ProxyURL, "ProxyURL should be set")
+		require.NoError(t, err, "Validate should not return error for valid docker container route")
+		require.NotNil(t, r.ProxyURL, "ProxyURL should be set")
 	})
 
 	t.Run("InvalidScheme", func(t *testing.T) {
@@ -117,7 +105,7 @@ func TestRouteValidate(t *testing.T) {
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
 		}
-		expect.Panics(t, func() {
+		require.Panics(t, func() {
 			_ = r.Validate()
 		}, "Validate should panic for invalid scheme")
 	})
@@ -130,9 +118,9 @@ func TestRouteValidate(t *testing.T) {
 			Port:   route.Port{Proxy: 80},
 		}
 		err := r.Validate()
-		expect.NoError(t, err)
-		expect.NotNil(t, r.ProxyURL)
-		expect.NotNil(t, r.HealthCheck)
+		require.NoError(t, err)
+		require.NotNil(t, r.ProxyURL)
+		require.NotNil(t, r.HealthCheck)
 	})
 }
 
@@ -144,7 +132,7 @@ func TestPreferredPort(t *testing.T) {
 	}
 
 	port := preferredPort(ports)
-	expect.Equal(t, port, 3000)
+	require.Equal(t, 3000, port)
 }
 
 func TestDockerRouteDisallowAgent(t *testing.T) {
@@ -164,8 +152,8 @@ func TestDockerRouteDisallowAgent(t *testing.T) {
 		},
 	}
 	err := r.Validate()
-	expect.HasError(t, err, "Validate should return error for docker route with agent")
-	expect.ErrorContains(t, err, "specifying agent is not allowed for docker container routes")
+	require.Error(t, err, "Validate should return error for docker route with agent")
+	require.ErrorContains(t, err, "specifying agent is not allowed for docker container routes")
 }
 
 func TestRouteAgent(t *testing.T) {
@@ -177,8 +165,8 @@ func TestRouteAgent(t *testing.T) {
 		Agent:  "test-agent",
 	}
 	err := r.Validate()
-	expect.NoError(t, err, "Validate should not return error for valid route with agent")
-	expect.NotNil(t, r.GetAgent(), "GetAgent should return agent")
+	require.NoError(t, err, "Validate should not return error for valid route with agent")
+	require.NotNil(t, r.GetAgent(), "GetAgent should return agent")
 }
 
 func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
@@ -188,6 +176,106 @@ func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
 		Timeout:  10 * time.Second,
 	})
 
-	expect.Equal(t, hc.Interval, 15*time.Second)
-	expect.Equal(t, hc.Timeout, 10*time.Second)
+	require.Equal(t, 15*time.Second, hc.Interval)
+	require.Equal(t, 10*time.Second, hc.Timeout)
+}
+
+func TestRouteBindField(t *testing.T) {
+	t.Run("TCPSchemeWithCustomBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-tcp",
+			Scheme: route.SchemeTCP,
+			Host:   "192.168.1.100",
+			Port:   route.Port{Proxy: 80, Listening: 8080},
+			Bind:   "192.168.1.1",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for TCP route with custom bind")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "tcp4://192.168.1.1:8080", r.LisURL.String(), "LisURL should contain custom bind address")
+	})
+
+	t.Run("UDPSchemeWithCustomBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-udp",
+			Scheme: route.SchemeUDP,
+			Host:   "10.0.0.1",
+			Port:   route.Port{Proxy: 53, Listening: 53},
+			Bind:   "10.0.0.254",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for UDP route with custom bind")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "udp4://10.0.0.254:53", r.LisURL.String(), "LisURL should contain custom bind address")
+	})
+
+	t.Run("HTTPSchemeWithoutBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-http",
+			Scheme: route.SchemeHTTP,
+			Host:   "example.com",
+			Port:   route.Port{Proxy: 80},
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for HTTP route without bind")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "https://:0", r.LisURL.String(), "LisURL should contain bind address")
+	})
+
+	t.Run("HTTPSchemeWithBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-http",
+			Scheme: route.SchemeHTTP,
+			Host:   "example.com",
+			Port:   route.Port{Proxy: 80},
+			Bind:   "0.0.0.0",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for HTTP route with bind")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "https://0.0.0.0:0", r.LisURL.String(), "LisURL should contain bind address")
+	})
+
+	t.Run("HTTPSchemeWithBindAndPort", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-http",
+			Scheme: route.SchemeHTTP,
+			Host:   "example.com",
+			Port:   route.Port{Listening: 8080, Proxy: 80},
+			Bind:   "0.0.0.0",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for HTTP route with bind and port")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "https://0.0.0.0:8080", r.LisURL.String(), "LisURL should contain bind address and listening port")
+	})
+
+	t.Run("TCPSchemeDefaultsToZeroBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-default-bind",
+			Scheme: route.SchemeTCP,
+			Host:   "example.com",
+			Port:   route.Port{Proxy: 80, Listening: 8080},
+			Bind:   "",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for TCP route with empty bind")
+		require.Equal(t, "0.0.0.0", r.Bind, "Bind should default to 0.0.0.0 for TCP scheme")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "tcp4://0.0.0.0:8080", r.LisURL.String(), "LisURL should use default bind address")
+	})
+
+	t.Run("FileServerSchemeWithBind", func(t *testing.T) {
+		r := &Route{
+			Alias:  "test-fileserver",
+			Scheme: route.SchemeFileServer,
+			Port:   route.Port{Listening: 9000},
+			Root:   "/tmp",
+			Bind:   "127.0.0.1",
+		}
+		err := r.Validate()
+		require.NoError(t, err, "Validate should not return error for fileserver route with bind")
+		require.NotNil(t, r.LisURL, "LisURL should be set")
+		require.Equal(t, "https://127.0.0.1:9000", r.LisURL.String(), "LisURL should contain bind address")
+	})
 }

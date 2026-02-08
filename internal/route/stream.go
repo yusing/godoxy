@@ -7,11 +7,10 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/route/stream"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -25,6 +24,8 @@ type StreamRoute struct {
 
 	l zerolog.Logger
 }
+
+var _ types.StreamRoute = (*StreamRoute)(nil)
 
 func NewStreamRoute(base *Route) (types.Route, gperr.Error) {
 	// TODO: support non-coherent scheme
@@ -65,31 +66,25 @@ func (r *StreamRoute) Start(parent task.Parent) gperr.Error {
 	if r.HealthMon != nil {
 		if err := r.HealthMon.Start(r.task); err != nil {
 			gperr.LogWarn("health monitor error", err, &r.l)
+			r.HealthMon = nil
 		}
 	}
 
-	r.ListenAndServe(r.task.Context(), nil, nil)
-	r.l = log.With().
-		Str("type", r.LisURL.Scheme+"->"+r.ProxyURL.Scheme).
-		Str("name", r.Name()).
-		Stringer("rurl", r.ProxyURL).
-		Stringer("laddr", r.LocalAddr()).Logger()
-	r.l.Info().Msg("stream started")
-
-	r.task.OnCancel("close_stream", func() {
-		r.stream.Close()
-		r.l.Info().Msg("stream closed")
-	})
-
-	routes.Stream.Add(r)
-	r.task.OnCancel("remove_route_from_stream", func() {
-		routes.Stream.Del(r)
-	})
+	ep := entrypoint.FromCtx(parent.Context())
+	if ep == nil {
+		err := gperr.New("entrypoint not initialized")
+		r.task.Finish(err)
+		return err
+	}
+	if err := ep.StartAddRoute(r); err != nil {
+		r.task.Finish(err)
+		return gperr.Wrap(err)
+	}
 	return nil
 }
 
-func (r *StreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) {
-	r.stream.ListenAndServe(ctx, preDial, onRead)
+func (r *StreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
+	return r.stream.ListenAndServe(ctx, preDial, onRead)
 }
 
 func (r *StreamRoute) Close() error {

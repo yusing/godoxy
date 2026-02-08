@@ -30,8 +30,10 @@ Internal package with stable core types. Route configuration schema is versioned
 type Route struct {
     Alias  string       // Unique route identifier
     Scheme Scheme       // http, https, h2c, tcp, udp, fileserver
-    Host   string       // Virtual host
+    Host   string       // Target host
     Port   Port         // Listen and target ports
+
+    Bind   string       // Bind address for listening (IP address, optional)
 
     // File serving
     Root  string        // Document root
@@ -196,6 +198,7 @@ type Route struct {
     Alias  string       `json:"alias"`
     Scheme Scheme       `json:"scheme"`
     Host   string       `json:"host,omitempty"`
+    Bind   string       `json:"bind,omitempty"`  // Listen bind address
     Port   Port         `json:"port"`
     Root   string       `json:"root,omitempty"`
     SPA    bool         `json:"spa,omitempty"`
@@ -218,23 +221,26 @@ labels:
 routes:
   myapp:
     scheme: http
-    root: /var/www/myapp
-    spa: true
+    host: myapp.local
+    bind: 192.168.1.100 # Optional: bind to specific address
+    port:
+      proxy: 80
+      target: 3000
 ```
 
 ## Dependency and Integration Map
 
-| Dependency                       | Purpose                          |
-| -------------------------------- | -------------------------------- |
-| `internal/route/routes`          | Route registry and lookup        |
-| `internal/route/rules`           | Request/response rule processing |
-| `internal/route/stream`          | TCP/UDP stream proxying          |
-| `internal/route/provider`        | Route discovery and loading      |
-| `internal/health/monitor`        | Health checking                  |
-| `internal/idlewatcher`           | Idle container management        |
-| `internal/logging/accesslog`     | Request logging                  |
-| `internal/homepage`              | Dashboard integration            |
-| `github.com/yusing/goutils/errs` | Error handling                   |
+| Dependency                         | Purpose                           |
+| ---------------------------------- | --------------------------------- |
+| `internal/route/routes/context.go` | Route context helpers (only file) |
+| `internal/route/rules`             | Request/response rule processing  |
+| `internal/route/stream`            | TCP/UDP stream proxying           |
+| `internal/route/provider`          | Route discovery and loading       |
+| `internal/health/monitor`          | Health checking                   |
+| `internal/idlewatcher`             | Idle container management         |
+| `internal/logging/accesslog`       | Request logging                   |
+| `internal/homepage`                | Dashboard integration             |
+| `github.com/yusing/goutils/errs`   | Error handling                    |
 
 ## Observability
 
@@ -302,6 +308,18 @@ route := &route.Route{
         Interval: 30 * time.Second,
         Timeout:  5 * time.Second,
     },
+}
+```
+
+### Route with Custom Bind Address
+
+```go
+route := &route.Route{
+    Alias:  "myapp",
+    Scheme: route.SchemeHTTP,
+    Host:   "myapp.local",
+    Bind:   "192.168.1.100",  // Bind to specific interface
+    Port:   route.Port{Listening: 8443, Proxy: 80},
 }
 ```
 

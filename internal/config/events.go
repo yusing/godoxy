@@ -10,11 +10,9 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
-	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/watcher"
 	"github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
-	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/strings/ansi"
 	"github.com/yusing/goutils/task"
 )
@@ -71,19 +69,19 @@ func Load() error {
 	}
 
 	// disable pool logging temporary since we already have pretty logging
-	routes.HTTP.DisableLog(true)
-	routes.Stream.DisableLog(true)
-
+	state.Entrypoint().DisablePoolsLog(true)
 	defer func() {
-		routes.HTTP.DisableLog(false)
-		routes.Stream.DisableLog(false)
+		state.Entrypoint().DisablePoolsLog(false)
 	}()
 
-	initErr := state.InitFromFile(common.ConfigPath)
 	err := errors.Join(initErr, state.StartProviders())
 	if err != nil {
 		logNotifyError("init", err)
 	}
+
+	state.StartAPIServers()
+	state.StartMetrics()
+
 	SetState(state)
 
 	// flush temporary log
@@ -118,7 +116,9 @@ func Reload() gperr.Error {
 		logNotifyError("start providers", err)
 		return nil // continue
 	}
-	StartProxyServers()
+
+	newState.StartAPIServers()
+	newState.StartMetrics()
 	return nil
 }
 
@@ -151,17 +151,4 @@ func OnConfigChange(ev []events.Event) {
 		// recovered in event queue
 		panic(err)
 	}
-}
-
-func StartProxyServers() {
-	cfg := GetState()
-	server.StartServer(cfg.Task(), server.Options{
-		Name:                 "proxy",
-		CertProvider:         cfg.AutoCertProvider(),
-		HTTPAddr:             common.ProxyHTTPAddr,
-		HTTPSAddr:            common.ProxyHTTPSAddr,
-		Handler:              cfg.EntrypointHandler(),
-		ACL:                  cfg.Value().ACL,
-		SupportProxyProtocol: cfg.Value().Entrypoint.SupportProxyProtocol,
-	})
 }

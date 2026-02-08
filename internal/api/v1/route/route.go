@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/route/routes"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
@@ -32,7 +32,13 @@ func Route(c *gin.Context) {
 		return
 	}
 
-	route, ok := routes.GetIncludeExcluded(request.Which)
+	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible, but just in case
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
+
+	route, ok := ep.GetRoute(request.Which)
 	if ok {
 		c.JSON(http.StatusOK, route)
 		return

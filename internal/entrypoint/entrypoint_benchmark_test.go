@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
 	. "github.com/yusing/godoxy/internal/entrypoint"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/route/routes"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
@@ -48,13 +50,15 @@ func (t noopTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func BenchmarkEntrypointReal(b *testing.B) {
-	var ep Entrypoint
+	task := task.GetTestTask(b)
+	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",
 	}
 	ep.SetFindRouteDomains([]string{})
+	entrypoint.SetCtx(task, ep)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "1")
@@ -77,48 +81,48 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	r := &route.Route{
+	r, err := route.NewStartedTestRoute(b, &route.Route{
 		Alias:       "test",
 		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
 		Port:        route.Port{Proxy: portInt},
 		HealthCheck: types.HealthCheckConfig{Disable: true},
-	}
+	})
 
-	err = r.Validate()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	err = r.Start(task.RootTask("test", false))
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
+	require.False(b, r.ShouldExclude())
 
 	var w noopResponseWriter
 
+	server, ok := ep.GetServer(common.ProxyHTTPAddr)
+	if !ok {
+		b.Fatal("server not found")
+	}
+
 	b.ResetTimer()
 	for b.Loop() {
-		ep.ServeHTTP(&w, &req)
-		// if w.statusCode != http.StatusOK {
-		// 	b.Fatalf("status code is not 200: %d", w.statusCode)
-		// }
-		// if string(w.written) != "1" {
-		// 	b.Fatalf("written is not 1: %s", string(w.written))
-		// }
+		server.ServeHTTP(&w, &req)
+		if w.statusCode != http.StatusOK {
+			b.Fatalf("status code is not 200: %d", w.statusCode)
+		}
+		if string(w.written) != "1" {
+			b.Fatalf("written is not 1: %s", string(w.written))
+		}
 	}
 }
 
 func BenchmarkEntrypoint(b *testing.B) {
-	var ep Entrypoint
+	task := task.GetTestTask(b)
+	ep := NewEntrypoint(task, nil)
 	req := http.Request{
 		Method: "GET",
 		URL:    &url.URL{Path: "/", RawPath: "/"},
 		Host:   "test.domain.tld",
 	}
 	ep.SetFindRouteDomains([]string{})
+	entrypoint.SetCtx(task, ep)
 
-	r := &route.Route{
+	r, err := route.NewStartedTestRoute(b, &route.Route{
 		Alias:  "test",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   "localhost",
@@ -128,29 +132,23 @@ func BenchmarkEntrypoint(b *testing.B) {
 		HealthCheck: types.HealthCheckConfig{
 			Disable: true,
 		},
-	}
+	})
 
-	err := r.Validate()
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
+	require.False(b, r.ShouldExclude())
 
-	err = r.Start(task.RootTask("test", false))
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	rev, ok := routes.HTTP.Get("test")
-	if !ok {
-		b.Fatal("route not found")
-	}
-	rev.(types.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
+	r.(types.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
 
 	var w noopResponseWriter
 
+	server, ok := ep.GetServer(common.ProxyHTTPAddr)
+	if !ok {
+		b.Fatal("server not found")
+	}
+
 	b.ResetTimer()
 	for b.Loop() {
-		ep.ServeHTTP(&w, &req)
+		server.ServeHTTP(&w, &req)
 		if w.statusCode != http.StatusOK {
 			b.Fatalf("status code is not 200: %d", w.statusCode)
 		}
