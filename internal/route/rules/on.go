@@ -604,7 +604,9 @@ func splitPipe(s string) []string {
 
 	// drop trailing empty part.
 	if start < len(s) {
-		result = append(result, strings.TrimSpace(s[start:]))
+		if part := strings.TrimSpace(s[start:]); part != "" {
+			result = append(result, part)
+		}
 	}
 
 	return result
