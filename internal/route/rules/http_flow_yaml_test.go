@@ -895,7 +895,7 @@ func TestHTTPFlow_PreTermination_SkipsLaterPreCommands_ButRunsPostOnlyAndPostMat
 	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamCalled = true
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("upstream"))
+		fmt.Fprint(w, "upstream")
 	})
 
 	var rules Rules
@@ -903,7 +903,7 @@ func TestHTTPFlow_PreTermination_SkipsLaterPreCommands_ButRunsPostOnlyAndPostMat
 - on: path /
   do: error 403 blocked
 - on: path /
-  do: set resp_header X-Late should-not-run
+  do: set resp_header X-Late should-run
 - on: status 4xx
   do: set resp_header X-Post true
 `, &rules)
@@ -918,7 +918,7 @@ func TestHTTPFlow_PreTermination_SkipsLaterPreCommands_ButRunsPostOnlyAndPostMat
 	assert.False(t, upstreamCalled)
 	assert.Equal(t, 403, w.Code)
 	assert.Equal(t, "blocked\n", w.Body.String())
-	assert.Equal(t, "should-not-run", w.Header().Get("X-Late"))
+	assert.Equal(t, "should-run", w.Header().Get("X-Late"))
 	assert.Equal(t, "true", w.Header().Get("X-Post"))
 }
 

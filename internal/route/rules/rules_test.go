@@ -75,6 +75,55 @@ header Host example.com {
 `,
 			want: nil,
 		},
+		{
+			name: "same condition with terminating handler inside if block",
+			rules: `
+header Host example.com {
+	@default {
+		error 404 "not found"
+	}
+}
+
+header Host example.com {
+	error 403 "forbidden"
+}
+`,
+			want: ErrDeadRule,
+		},
+		{
+			name: "same condition with terminating handler across if else block",
+			rules: `
+header Host example.com {
+	@method GET {
+		error 404 "not found"
+	} else {
+		redirect https://example.com
+	}
+}
+
+header Host example.com {
+	error 403 "forbidden"
+}
+`,
+			want: ErrDeadRule,
+		},
+		{
+			name: "same condition with non terminating if branch in if else block",
+			rules: `
+header Host example.com {
+	@method GET {
+		set resp_header X-Test first
+	} else {
+		error 404 "not found"
+	}
+}
+
+header Host example.com {
+	error 403 "forbidden"
+}
+`,
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,4 +176,16 @@ func TestHasTopLevelLBrace(t *testing.T) {
 			assert.Equal(t, tt.want, hasTopLevelLBrace(tt.in))
 		})
 	}
+}
+
+func TestRulesParse_BlockTriedThenYAMLFails_ReturnsBlockError(t *testing.T) {
+	input := `default {`
+
+	_, blockErr := parseBlockRules(input)
+	require.Error(t, blockErr)
+
+	var rules Rules
+	err := rules.Parse(input)
+	require.Error(t, err)
+	assert.Equal(t, blockErr.Error(), err.Error())
 }

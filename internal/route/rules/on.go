@@ -655,7 +655,9 @@ func forEachPipePart(s string, fn func(part string)) {
 		}
 	}
 	if start < len(s) {
-		fn(strings.TrimSpace(s[start:]))
+		if part := strings.TrimSpace(s[start:]); part != "" {
+			fn(part)
+		}
 	}
 }
 

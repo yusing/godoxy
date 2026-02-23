@@ -103,16 +103,53 @@ func (rules Rules) Validate() gperr.Error {
 }
 
 func (rule Rule) doesTerminateInPre() bool {
-	for _, cmd := range rule.Do.pre {
-		handler, ok := cmd.(Handler)
-		if !ok {
-			continue
+	return commandsTerminateInPre(rule.Do.pre)
+}
+
+func commandsTerminateInPre(cmds []CommandHandler) bool {
+	return slices.ContainsFunc(cmds, commandTerminatesInPre)
+}
+
+func commandTerminatesInPre(cmd CommandHandler) bool {
+	switch c := cmd.(type) {
+	case Handler:
+		return c.Terminates()
+	case *Handler:
+		return c.Terminates()
+	case IfBlockCommand:
+		return ruleOnAlwaysTrue(c.On) && commandsTerminateInPre(c.Do)
+	case *IfBlockCommand:
+		return c != nil && ruleOnAlwaysTrue(c.On) && commandsTerminateInPre(c.Do)
+	case IfElseBlockCommand:
+		return ifElseBlockTerminatesInPre(c)
+	case *IfElseBlockCommand:
+		return c != nil && ifElseBlockTerminatesInPre(*c)
+	default:
+		return false
+	}
+}
+
+func ifElseBlockTerminatesInPre(cmd IfElseBlockCommand) bool {
+	hasFallback := len(cmd.Else) > 0
+	for _, br := range cmd.Ifs {
+		if !commandsTerminateInPre(br.Do) {
+			return false
 		}
-		if handler.Terminates() {
-			return true
+		if ruleOnAlwaysTrue(br.On) {
+			hasFallback = true
 		}
 	}
-	return false
+	if !hasFallback {
+		return false
+	}
+	if len(cmd.Else) > 0 && !commandsTerminateInPre(cmd.Else) {
+		return false
+	}
+	return true
+}
+
+func ruleOnAlwaysTrue(on RuleOn) bool {
+	return strings.TrimSpace(on.raw) == OnDefault || on.checker == nil
 }
 
 func matcherSignature(raw string) (string, bool) {
@@ -162,14 +199,18 @@ func (rules *Rules) Parse(config string) error {
 		return nil
 	}
 
+	blockTried := false
+	var blockErr gperr.Error
+
 	// Prefer block syntax if it looks like block syntax.
 	if hasTopLevelLBrace(config) {
+		blockTried = true
 		blockRules, err := parseBlockRules(config)
 		if err == nil {
 			*rules = blockRules
 			return nil
 		}
-		// Fall through to YAML (backward compatibility).
+		blockErr = err
 	}
 
 	// YAML fallback
@@ -179,13 +220,16 @@ func (rules *Rules) Parse(config string) error {
 		return serialization.ConvertSlice(reflect.ValueOf(anySlice), reflect.ValueOf(rules), false)
 	}
 
-	// If YAML fails and we didn't try block syntax yet, try it now.
-	blockRules, err := parseBlockRules(config)
-	if err == nil {
-		*rules = blockRules
-		return nil
+	// If YAML fails and we haven't tried block syntax yet, try it now.
+	if !blockTried {
+		blockRules, err := parseBlockRules(config)
+		if err == nil {
+			*rules = blockRules
+			return nil
+		}
+		blockErr = err
 	}
-	return err
+	return blockErr
 }
 
 // hasTopLevelLBrace reports whether s contains a '{' outside quotes/backticks and comments.

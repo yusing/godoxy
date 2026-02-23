@@ -420,7 +420,7 @@ func TestHTTPFlow_HeaderManipulation(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(`
-default {
+{
   remove resp_header X-Secret
   add resp_header X-Custom-Header custom-value
 }
