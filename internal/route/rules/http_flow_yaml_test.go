@@ -250,12 +250,10 @@ func TestHTTPFlow_ResponseRuleWithStatusConditionYAML(t *testing.T) {
 	infoLog := TestRandomFileName()
 
 	err := parseRules(fmt.Sprintf(`
-	status 4xx {
-		log error %s "$req_url returned $status_code"
-	}
-	status 200 {
-		log info %s "$req_url returned $status_code"
-	}
+- on: status 4xx
+	do: log error %s "$req_url returned $status_code"
+- on: status 200 {
+	do: log info %s "$req_url returned $status_code"
 `, errorLog, infoLog), &rules)
 	require.NoError(t, err)
 
