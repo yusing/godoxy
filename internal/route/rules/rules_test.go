@@ -124,6 +124,19 @@ header Host example.com {
 `,
 			want: nil,
 		},
+		{
+			name: "unconditional terminating rule shadows later unconditional rule",
+			rules: `
+{
+	error 404 "not found"
+}
+
+{
+	error 403 "forbidden"
+}
+`,
+			want: ErrDeadRule,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

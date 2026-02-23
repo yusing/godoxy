@@ -155,7 +155,7 @@ func ruleOnAlwaysTrue(on RuleOn) bool {
 func matcherSignature(raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return "", false
+		return "(any)", true // unconditional rule
 	}
 
 	andParts := splitAnd(raw)
