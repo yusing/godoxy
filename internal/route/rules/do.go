@@ -470,17 +470,29 @@ var commands = map[string]struct {
 		build: func(args any) HandlerFunc {
 			level, f, tmpl := args.(*onLogArgs).Unpack()
 			var logger io.Writer
-			if f == stdout || f == stderr {
+			isStdLogger := f == stdout || f == stderr
+			if isStdLogger {
 				logger = logging.NewLoggerWithFixedLevel(level, f)
 			} else {
 				logger = f
 			}
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
-				_, err := tmpl.ExpandVars(w, r, logger)
-				if err != nil {
+				if isStdLogger {
+					bufPool := w.BufPool()
+					buf := bufPool.GetBuffer()
+					defer bufPool.PutBuffer(buf)
+
+					if _, err := tmpl.ExpandVars(w, r, buf); err != nil {
+						return err
+					}
+					if buf.Len() == 0 {
+						return nil
+					}
+					_, err := logger.Write(buf.Bytes())
 					return err
 				}
-				return nil
+				_, err := tmpl.ExpandVars(w, r, logger)
+				return err
 			}
 		},
 	},

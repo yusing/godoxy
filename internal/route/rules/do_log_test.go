@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"bytes"
 	"fmt"
 	"maps"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,6 +71,17 @@ default {
 }
 
 func TestLogCommand_StdoutAndStderr(t *testing.T) {
+	originalStdout := stdout
+	originalStderr := stderr
+	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
+	stdout = noopWriteCloser{&stdoutBuf}
+	stderr = noopWriteCloser{&stderrBuf}
+	defer func() {
+		stdout = originalStdout
+		stderr = originalStderr
+	}()
+
 	upstream := mockUpstream(http.StatusOK, "success")
 
 	var rules Rules
@@ -88,8 +101,12 @@ default {
 	handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	// Note: We can't easily capture stdout/stderr in unit tests,
-	// but we can verify no errors occurred and the handler completed
+	require.Eventually(t, func() bool {
+		return strings.Contains(stdoutBuf.String(), "stdout: GET 200") &&
+			strings.Contains(stderrBuf.String(), "stderr: /test 200")
+	}, time.Second, 10*time.Millisecond)
+	assert.Equal(t, 1, strings.Count(stdoutBuf.String(), "stdout: GET 200"))
+	assert.Equal(t, 1, strings.Count(stderrBuf.String(), "stderr: /test 200"))
 }
 
 func TestLogCommand_DifferentLogLevels(t *testing.T) {
