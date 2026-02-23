@@ -457,7 +457,7 @@ func TestHTTPFlow_NestedBlocks_RemoteOverride(t *testing.T) {
 	err := parseRules(`
 header X-Test-Header {
   set header X-Remote-Type public
-  @remote 127.0.0.1 | remote 192.168.0.0/16 {
+  remote 127.0.0.1 | remote 192.168.0.0/16 {
     set header X-Remote-Type private
   }
 }
@@ -495,7 +495,7 @@ func TestHTTPFlow_NestedBlocks_ElifElse(t *testing.T) {
 	var rules Rules
 	err := parseRules(`
 header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   } elif method POST {
     set header X-Mode post
@@ -552,7 +552,7 @@ func TestHTTPFlow_NestedBlocks_TerminatingActionStopsFlow(t *testing.T) {
 	err := parseRules(`
 path / {
   set header X-Pre pre
-  @header X-Block {
+  header X-Block {
     error 403 "blocked"
   }
   set resp_header X-After should-not-run
@@ -593,7 +593,7 @@ func TestHTTPFlow_NestedBlocks_InResponseRule_ModifiesResponseByRequestMethod(t 
 	err := parseRules(`
 {
   set header X-Method "should-be-overridden"
-  @method POST {
+  method POST {
     set header X-Method "post"
   } elif method GET {
     set header X-Method "get"

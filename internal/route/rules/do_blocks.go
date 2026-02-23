@@ -13,7 +13,7 @@ import (
 //
 // Syntax (within a rule do block):
 //
-//	@<on-expr> { <do...> }
+//	<on-expr> { <do...> }
 //
 // Semantics:
 //   - Evaluated in the same phase the parent rule runs.
@@ -53,7 +53,7 @@ func (c IfBlockCommand) Phase() PhaseFlag {
 //
 // Syntax (within a rule do block):
 //
-//	@<on-expr> { <do...> } elif <on-expr> { <do...> } ... else { <do...> }
+//	<on-expr> { <do...> } elif <on-expr> { <do...> } ... else { <do...> }
 //
 // NOTE: `elif`/`else` must appear on the same line as the preceding closing brace (`}`),
 // e.g. `} elif ... {` and `} else {`.
@@ -113,9 +113,9 @@ func skipSameLineSpace(src string, pos int) int {
 	return pos
 }
 
-func parseAtBlockChain(src string, atPos int) (CommandHandler, int, error) {
+func parseAtBlockChain(src string, blockPos int) (CommandHandler, int, error) {
 	length := len(src)
-	headerStart := atPos + 1
+	headerStart := blockPos
 
 	parseBranch := func(onExpr string, bodyStart int, bodyEnd int) (RuleOn, []CommandHandler, error) {
 		var on RuleOn
@@ -140,11 +140,14 @@ func parseAtBlockChain(src string, atPos int) (CommandHandler, int, error) {
 	if herr != nil {
 		return nil, 0, herr
 	}
+	if onExpr == "" {
+		return nil, 0, ErrInvalidBlockSyntax.Withf("expected on-expr before '{'")
+	}
 	if bracePos >= length || src[bracePos] != '{' {
 		return nil, 0, ErrInvalidBlockSyntax.Withf("expected '{' after nested block header")
 	}
 
-	// Parse first @<on-expr> { ... }
+	// Parse first <on-expr> { ... }
 	p := bracePos
 	bodyStart := p + 1
 	bodyEnd, ferr := findMatchingBrace(src, &p, bodyStart)
@@ -288,10 +291,56 @@ func parseAtBlockChain(src string, atPos int) (CommandHandler, int, error) {
 	return IfBlockCommand{On: ifs[0].On, Do: ifs[0].Do}, p, nil
 }
 
-// parseDoWithBlocks parses a do-body containing plain command lines and nested @-blocks.
+func lineEndsWithUnquotedOpenBrace(src string, lineStart int, lineEnd int) bool {
+	quote := byte(0)
+	lastSignificant := byte(0)
+	atLineStart := true
+	prevIsSpace := true
+
+	for i := lineStart; i < lineEnd; i++ {
+		c := src[i]
+		if quote != 0 {
+			if c == '\\' && i+1 < lineEnd {
+				i++
+				continue
+			}
+			if c == quote {
+				quote = 0
+			}
+			atLineStart = false
+			prevIsSpace = false
+			continue
+		}
+		if quoteChars[c] {
+			quote = c
+			atLineStart = false
+			prevIsSpace = false
+			continue
+		}
+		if c == '#' && (atLineStart || prevIsSpace) {
+			break
+		}
+		if c == '/' && i+1 < lineEnd {
+			n := rune(src[i+1])
+			if (atLineStart || prevIsSpace) && (n == '/' || n == '*') {
+				break
+			}
+		}
+		if unicode.IsSpace(rune(c)) {
+			prevIsSpace = true
+			continue
+		}
+		lastSignificant = c
+		atLineStart = false
+		prevIsSpace = false
+	}
+	return quote == 0 && lastSignificant == '{'
+}
+
+// parseDoWithBlocks parses a do-body containing plain command lines and nested blocks.
 // It returns the outer command handlers and the require phase.
 //
-// A nested block is only recognized when '@' is the first non-space character on a line.
+// A nested block is recognized when a line ends with an unquoted '{' (ignoring trailing whitespace).
 func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 	pos := 0
 	length := len(src)
@@ -351,7 +400,12 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 				linePos++
 			}
 
-			if linePos < length && src[linePos] == '@' {
+			lineEnd := linePos
+			for lineEnd < length && src[lineEnd] != '\n' {
+				lineEnd++
+			}
+
+			if linePos < length && lineEndsWithUnquotedOpenBrace(src, linePos, lineEnd) {
 				h, next, err := parseAtBlockChain(src, linePos)
 				if err != nil {
 					return nil, err
@@ -363,7 +417,7 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 			}
 
 			// Not a nested block; parse the rest of this line as a command.
-			lineEnd := pos
+			lineEnd = pos
 			for lineEnd < length && src[lineEnd] != '\n' {
 				lineEnd++
 			}

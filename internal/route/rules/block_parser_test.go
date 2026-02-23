@@ -176,7 +176,7 @@ func TestParseBlockRules_NestedBlocks(t *testing.T) {
 	rules := testParseRules(t, `
 header X-Test-Header {
   set header X-Remote-Type public
-  @remote 127.0.0.1 | remote 192.168.0.0/16 {
+  remote 127.0.0.1 | remote 192.168.0.0/16 {
     set header X-Remote-Type private
   }
 }`)
@@ -226,7 +226,7 @@ func TestParseBlockRules_NestedBlocks_ElifElse(t *testing.T) {
 	rules := testParseRules(t, `
 header X-Test-Header {
   set header X-Mode outer
-  @method GET {
+  method GET {
     set header X-Mode get
   } elif method POST {
     set header X-Mode post
@@ -289,7 +289,7 @@ default {
 
 func TestParseBlockRules_NestedBlocks_ElifMustBeSameLine(t *testing.T) {
 	err := testParseRulesError(t, `header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   }
   elif method POST {
@@ -301,7 +301,7 @@ func TestParseBlockRules_NestedBlocks_ElifMustBeSameLine(t *testing.T) {
 
 func TestParseBlockRules_NestedBlocks_ElseMustBeLastOnLine(t *testing.T) {
 	err := testParseRulesError(t, `header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   } else {
     set header X-Mode other
@@ -313,7 +313,7 @@ func TestParseBlockRules_NestedBlocks_ElseMustBeLastOnLine(t *testing.T) {
 
 func TestParseBlockRules_NestedBlocks_MultipleElse(t *testing.T) {
 	err := testParseRulesError(t, `header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   } else {
     set header X-Mode other
@@ -328,7 +328,7 @@ func TestParseBlockRules_NestedBlocks_MultipleElse(t *testing.T) {
 
 func TestParseBlockRules_NestedBlocks_ElifMissingOnExpr(t *testing.T) {
 	err := testParseRulesError(t, `header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   } elif {
     set header X-Mode post
@@ -336,4 +336,55 @@ func TestParseBlockRules_NestedBlocks_ElifMissingOnExpr(t *testing.T) {
 }`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected on-expr after 'elif'")
+}
+
+func TestParseBlockRules_NestedBlocks_LineEndingBraceHeuristic(t *testing.T) {
+	rules := testParseRules(t, `{
+  set header X-Literal "{"
+}`)
+	require.Len(t, rules, 1)
+	require.Len(t, rules[0].Do.pre, 1)
+	_, ok := rules[0].Do.pre[0].(Handler)
+	require.True(t, ok)
+}
+
+func TestParseBlockRules_NestedBlocks_LineEndingBraceWithTrailingSpaces(t *testing.T) {
+	rules := testParseRules(t, `header X-Test-Header {
+  method GET {
+    set header X-Mode get
+  }
+}`)
+	require.Len(t, rules, 1)
+	require.Len(t, rules[0].Do.pre, 1)
+	ifCmd, ok := rules[0].Do.pre[0].(IfBlockCommand)
+	require.True(t, ok)
+	assert.Equal(t, "method GET", ifCmd.On.raw)
+}
+
+func TestParseBlockRules_NestedBlocks_LineEndingBraceWithTrailingComment(t *testing.T) {
+	rules := testParseRules(t, `header X-Test-Header {
+  method GET {    // GET branch
+    set header X-Mode get
+  } else {    # fallback branch
+    set header X-Mode other
+  }
+}`)
+	require.Len(t, rules, 1)
+	require.Len(t, rules[0].Do.pre, 1)
+
+	ifCmd, ok := rules[0].Do.pre[0].(IfElseBlockCommand)
+	require.True(t, ok)
+	require.Len(t, ifCmd.Ifs, 1)
+	assert.Equal(t, "method GET", ifCmd.Ifs[0].On.raw)
+	require.NotNil(t, ifCmd.Else)
+}
+
+func TestParseBlockRules_NestedBlocks_LineEndingBraceInterpretsAsBlock(t *testing.T) {
+	err := testParseRulesError(t, `{
+  set header X-Bad {
+    set header X-Test fail
+  }
+}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid `rule.on` target")
 }

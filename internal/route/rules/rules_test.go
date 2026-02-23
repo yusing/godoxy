@@ -79,7 +79,7 @@ header Host example.com {
 			name: "same condition with terminating handler inside if block",
 			rules: `
 header Host example.com {
-	@default {
+	default {
 		error 404 "not found"
 	}
 }
@@ -94,7 +94,7 @@ header Host example.com {
 			name: "same condition with terminating handler across if else block",
 			rules: `
 header Host example.com {
-	@method GET {
+	method GET {
 		error 404 "not found"
 	} else {
 		redirect https://example.com
@@ -111,7 +111,7 @@ header Host example.com {
 			name: "same condition with non terminating if branch in if else block",
 			rules: `
 header Host example.com {
-	@method GET {
+	method GET {
 		set resp_header X-Test first
 	} else {
 		error 404 "not found"
