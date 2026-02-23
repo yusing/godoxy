@@ -370,14 +370,43 @@ path /special {
 	assert.Equal(t, "true", w1.Header().Get("X-Default-Applied"))
 	assert.Empty(t, w1.Header().Get("X-Special-Handled"))
 
-	// Test special rule + default rule
+	// Test special rule (default should not run)
 	req2 := httptest.NewRequest(http.MethodGet, "/special", nil)
 	w2 := httptest.NewRecorder()
 	handler.ServeHTTP(w2, req2)
 
 	assert.Equal(t, http.StatusOK, w2.Code)
-	assert.Equal(t, "true", w2.Header().Get("X-Default-Applied"))
+	assert.Empty(t, w2.Header().Get("X-Default-Applied"))
 	assert.Equal(t, "true", w2.Header().Get("X-Special-Handled"))
+}
+
+func TestHTTPFlow_UnconditionalRuleSuppressesDefaultRule(t *testing.T) {
+	upstream := mockUpstream(http.StatusOK, "upstream response")
+
+	var rules Rules
+	err := parseRules(`
+{
+  set resp_header X-Unconditional true
+}
+default {
+  set resp_header X-Default-Applied true
+}
+path /never-match {
+  set resp_header X-Never-Match true
+}
+`, &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(upstream)
+
+	req := httptest.NewRequest(http.MethodGet, "/special", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "true", w.Header().Get("X-Unconditional"))
+	assert.Empty(t, w.Header().Get("X-Default-Applied"))
+	assert.Empty(t, w.Header().Get("X-Never-Match"))
 }
 
 func TestHTTPFlow_HeaderManipulation(t *testing.T) {
@@ -449,7 +478,7 @@ header X-Test-Header {
 	// Public IP => public
 	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
 	req2.Header.Set("X-Test-Header", "1")
-	req2.RemoteAddr = "10.0.0.1:12345"
+	req2.RemoteAddr = "1.1.1.1:12345"
 	w2 := httptest.NewRecorder()
 	handler.ServeHTTP(w2, req2)
 	assert.Equal(t, http.StatusOK, w2.Code)

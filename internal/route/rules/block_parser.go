@@ -77,6 +77,9 @@ func expandEnvVarsRaw(v string) (string, gperr.Error) {
 
 	var err gperr.Error
 	if inEnvVar {
+		// Write back the unterminated ${...} so the output matches the input.
+		buf.WriteString("${")
+		buf.WriteString(envVar.String())
 		err = ErrUnterminatedEnvVar
 	}
 	if len(missingEnvVars) > 0 {

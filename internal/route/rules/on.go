@@ -56,7 +56,7 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnDefault,
 			description: makeLines(
-				"Select the default (baseline) rule.",
+				"Select the default (fallback) rule.",
 			),
 			args: map[string]string{},
 		},
@@ -67,8 +67,8 @@ var checkers = map[string]struct {
 			return phase, nil, nil
 		},
 		builder: func(args any) CheckFunc {
-			return func(w *httputils.ResponseModifier, r *http.Request) bool { return false }
-		}, // this should never be called
+			return func(w *httputils.ResponseModifier, r *http.Request) bool { return true }
+		},
 	},
 	OnHeader: {
 		help: Help{

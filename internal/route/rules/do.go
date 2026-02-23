@@ -103,6 +103,9 @@ var commands = map[string]struct {
 		},
 		build: func(args any) HandlerFunc {
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+				if authHandler == nil { // no auth handler configured, allow request to proceed
+					return nil
+				}
 				if proceed := authHandler(w, r); !proceed {
 					return errTerminateRule
 				}

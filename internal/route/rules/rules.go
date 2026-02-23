@@ -294,19 +294,15 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 
 		var hasError bool
 
-		preRules := make(Rules, 0, len(nonDefaultRules)+1)
-		if defaultRule != nil {
-			preRules = append(preRules, *defaultRule)
-		}
-		preRules = append(preRules, nonDefaultRules...)
-
-		executedPre := make([]bool, len(preRules))
-		terminatedInPre := make([]bool, len(preRules))
+		executedPre := make([]bool, len(nonDefaultRules))
+		terminatedInPre := make([]bool, len(nonDefaultRules))
+		matchedNonDefaultPre := false
 		preTerminated := false
-		for i, rule := range preRules {
+		for i, rule := range nonDefaultRules {
 			if rule.On.phase.IsPostRule() || !rule.On.Check(rm, r) {
 				continue
 			}
+			matchedNonDefaultPre = true
 			if preTerminated {
 				// Preserve post-only commands (e.g. logging) even after
 				// pre-phase termination.
@@ -331,6 +327,24 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
+		// Default rule is a fallback: run only when no non-default pre rule matched.
+		defaultExecutedPre := false
+		defaultTerminatedInPre := false
+		if defaultRule != nil && !matchedNonDefaultPre && !defaultRule.On.phase.IsPostRule() && defaultRule.On.Check(rm, r) {
+			defaultExecutedPre = true
+			if err := execPreCommand(defaultRule.Do, rm, r); err != nil {
+				if errors.Is(err, errTerminateRule) {
+					defaultTerminatedInPre = true
+				} else {
+					if isUnexpectedError(err) {
+						// will logged by logFlushError after FlushRelease
+						rm.AppendError("executing pre rule (%s): %w", defaultRule.Do.raw, err)
+					}
+					hasError = true
+				}
+			}
+		}
+
 		if !rm.HasStatus() {
 			if hasError {
 				http.Error(rm, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -341,7 +355,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 
 		// Run post commands for rules that actually executed in pre phase,
 		// unless that same rule terminated in pre phase.
-		for i, rule := range preRules {
+		for i, rule := range nonDefaultRules {
 			if !executedPre[i] || terminatedInPre[i] {
 				continue
 			}
@@ -352,6 +366,14 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if isUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing post rule (%s): %w", rule.Do.raw, err)
+				}
+			}
+		}
+		if defaultExecutedPre && !defaultTerminatedInPre {
+			if err := execPostCommand(defaultRule.Do, rm, r); err != nil {
+				if !errors.Is(err, errTerminateRule) && isUnexpectedError(err) {
+					// will logged by logFlushError after FlushRelease
+					rm.AppendError("executing post rule (%s): %w", defaultRule.Do.raw, err)
 				}
 			}
 		}

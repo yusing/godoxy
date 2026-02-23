@@ -10,7 +10,7 @@ import (
 	httputils "github.com/yusing/goutils/http"
 )
 
-func TestIfElseBlockCommandServeHTTP_UnconditionalNilDoFallsThrough(t *testing.T) {
+func TestIfElseBlockCommandServeHTTP_UnconditionalNilDoNotFallsThrough(t *testing.T) {
 	elseCalled := false
 	cmd := IfElseBlockCommand{
 		Ifs: []IfBlockCommand{
@@ -36,10 +36,10 @@ func TestIfElseBlockCommandServeHTTP_UnconditionalNilDoFallsThrough(t *testing.T
 
 	err := cmd.ServeHTTP(rm, req, nil)
 	require.NoError(t, err)
-	assert.True(t, elseCalled)
+	assert.False(t, elseCalled)
 }
 
-func TestIfElseBlockCommandServeHTTP_ConditionalMatchedNilDoFallsThrough(t *testing.T) {
+func TestIfElseBlockCommandServeHTTP_ConditionalMatchedNilDoNotFallsThrough(t *testing.T) {
 	elseCalled := false
 	cmd := IfElseBlockCommand{
 		Ifs: []IfBlockCommand{
@@ -69,5 +69,5 @@ func TestIfElseBlockCommandServeHTTP_ConditionalMatchedNilDoFallsThrough(t *test
 
 	err := cmd.ServeHTTP(rm, req, nil)
 	require.NoError(t, err)
-	assert.True(t, elseCalled)
+	assert.False(t, elseCalled)
 }

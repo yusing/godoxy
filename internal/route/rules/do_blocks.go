@@ -67,14 +67,14 @@ func (c IfElseBlockCommand) ServeHTTP(w *httputils.ResponseModifier, r *http.Req
 		// If On.checker is nil, treat as unconditional.
 		if br.On.checker == nil {
 			if br.Do == nil {
-				continue
+				return nil
 			}
 			return Commands(br.Do).ServeHTTP(w, r, upstream)
 		}
-		if br.Do == nil {
-			continue
-		}
 		if br.On.checker.Check(w, r) {
+			if br.Do == nil {
+				return nil
+			}
 			return Commands(br.Do).ServeHTTP(w, r, upstream)
 		}
 	}

@@ -145,7 +145,7 @@ Rules run in two phases:
 1. **Pre phase**
    - Evaluate only request-based matchers (`path`, `method`, `header`, `remote`, etc.) in declaration order.
    - Execute matched rule `do` pre-commands in order.
-   - If a default rule exists (`name: default` or `on: default`), it is evaluated first as a baseline rule.
+   - If a default rule exists (`name: default` or `on: default`), it is a fallback and runs only when no non-default pre rule matches.
    - If a terminating action runs, stop:
      - remaining commands in that rule
      - all later pre-phase commands.
@@ -552,16 +552,16 @@ Log context includes: `rule`, `alias`, `match_result`
   do: bypass
 ```
 
-### Default Rule (Baseline)
+### Default Rule (Fallback)
 
 ```yaml
-# Default runs first and can provide baseline behavior
+# Default runs only if no non-default pre rule matches
 - name: default
   do: |
     remove resp_header X-Internal
     add resp_header X-Powered-By godoxy
 
-# Specific rules can override or add to baseline behavior
+# Matching rules suppress default
 - name: api routes
   on: path glob("/api/*")
   do: proxy http://api:8080
@@ -571,7 +571,7 @@ Log context includes: `rule`, `alias`, `match_result`
   do: set resp_header X-API true
 ```
 
-Only one default rule is allowed per route. `name: default` and `on: default` are equivalent selectors.
+Only one default rule is allowed per route. `name: default` and `on: default` are equivalent selectors and both behave as fallback-only.
 
 ## Testing Notes
 

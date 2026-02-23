@@ -380,7 +380,7 @@ func TestHTTPFlow_ComplexFlowWithPreAndPostRulesYAML(t *testing.T) {
 	handler.ServeHTTP(w2, req2)
 
 	assert.Equal(t, http.StatusUnauthorized, w2.Code)
-	assert.Equal(t, w2.Body.String(), "Unauthorized\n")
+	assert.Equal(t, "Unauthorized\n", w2.Body.String())
 
 	// Test authorized protected request
 	req3 := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -432,13 +432,48 @@ func TestHTTPFlow_DefaultRuleYAML(t *testing.T) {
 	assert.Equal(t, "true", w1.Header().Get("X-Default-Applied"))
 	assert.Empty(t, w1.Header().Get("X-Special-Handled"))
 
-	// Test special rule + default rule
+	// Test special rule (default should not run)
 	req2 := httptest.NewRequest(http.MethodGet, "/special", nil)
 	w2 := httptest.NewRecorder()
 	handler.ServeHTTP(w2, req2)
 
 	assert.Equal(t, http.StatusOK, w2.Code)
-	assert.Equal(t, "true", w2.Header().Get("X-Default-Applied"))
+	assert.Empty(t, w2.Header().Get("X-Default-Applied"))
+	assert.Equal(t, "true", w2.Header().Get("X-Special-Handled"))
+}
+
+func TestHTTPFlow_DefaultRuleWithOnDefaultYAML(t *testing.T) {
+	upstream := mockUpstream(http.StatusOK, "upstream response")
+
+	var rules Rules
+	err := parseRules(`
+- name: default-on-rule
+  on: default
+  do: set resp_header X-Default-Applied true
+- name: special-rule
+  on: path /special
+  do: set resp_header X-Special-Handled true
+`, &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(upstream)
+
+	// Test default rule on regular request
+	req1 := httptest.NewRequest(http.MethodGet, "/regular", nil)
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, req1)
+
+	assert.Equal(t, http.StatusOK, w1.Code)
+	assert.Equal(t, "true", w1.Header().Get("X-Default-Applied"))
+	assert.Empty(t, w1.Header().Get("X-Special-Handled"))
+
+	// Test special rule on matching request (default should not run)
+	req2 := httptest.NewRequest(http.MethodGet, "/special", nil)
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, req2)
+
+	assert.Equal(t, http.StatusOK, w2.Code)
+	assert.Empty(t, w2.Header().Get("X-Default-Applied"))
 	assert.Equal(t, "true", w2.Header().Get("X-Special-Handled"))
 }
 
