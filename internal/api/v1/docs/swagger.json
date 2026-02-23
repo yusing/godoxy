@@ -5093,11 +5093,6 @@
           "x-nullable": false,
           "x-omitempty": false
         },
-        "isResponseRule": {
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "name": {
           "type": "string",
           "x-nullable": false,

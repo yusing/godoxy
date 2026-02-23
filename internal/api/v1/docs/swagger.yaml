@@ -891,8 +891,6 @@ definitions:
     properties:
       do:
         type: string
-      isResponseRule:
-        type: boolean
       name:
         type: string
       "on":
@@ -1837,11 +1835,11 @@ definitions:
         type: string
       kernel_version:
         type: string
-      load_avg_5m:
-        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
+        type: string
+      load_avg_5m:
         type: string
       mem_pct:
         type: string

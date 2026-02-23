@@ -64,7 +64,6 @@ type ParsedRule struct {
 	On              string `json:"on"`
 	Do              string `json:"do"`
 	ValidationError error  `json:"validationError,omitempty"` // we need the structured error, not the plain string
-	IsResponseRule  bool   `json:"isResponseRule"`
 } // @name ParsedRule
 
 type FinalRequest struct {
@@ -298,7 +297,6 @@ func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, error) {
 			On:              onStr,
 			Do:              doStr,
 			ValidationError: validationErr,
-			// IsResponseRule:  rule.Requirement()&rules.RequirementFlagResponse != 0,
 		})
 
 		// Only add valid rules to execution list
