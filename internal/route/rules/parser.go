@@ -1,8 +1,7 @@
 package rules
 
 import (
-	"bytes"
-	"fmt"
+	"strings"
 	"unicode"
 
 	"github.com/yusing/goutils/env"
@@ -25,6 +24,76 @@ var quoteChars = [256]bool{
 	'`':  true,
 }
 
+func parseSimple(v string) (subject string, args []string, err error, ok bool) {
+	brackets := 0
+	for i := range len(v) {
+		switch v[i] {
+		case '\\', '$', '"', '\'', '`', '\t', '\r', '\n':
+			return "", nil, nil, false
+		case '(':
+			brackets++
+		case ')':
+			if brackets == 0 {
+				return "", nil, ErrUnterminatedBrackets, true
+			}
+			brackets--
+		}
+	}
+	if brackets != 0 {
+		return "", nil, ErrUnterminatedBrackets, true
+	}
+
+	i := 0
+	for i < len(v) && v[i] == ' ' {
+		i++
+	}
+	if i >= len(v) {
+		return "", nil, nil, true
+	}
+
+	start := i
+	for i < len(v) && v[i] != ' ' {
+		i++
+	}
+	subject = v[start:i]
+
+	if i >= len(v) {
+		return subject, nil, nil, true
+	}
+
+	argCount := 0
+	for j := i; j < len(v); {
+		for j < len(v) && v[j] == ' ' {
+			j++
+		}
+		if j >= len(v) {
+			break
+		}
+		argCount++
+		for j < len(v) && v[j] != ' ' {
+			j++
+		}
+	}
+	if argCount == 0 {
+		return subject, nil, nil, true
+	}
+	args = make([]string, 0, argCount)
+	for i < len(v) {
+		for i < len(v) && v[i] == ' ' {
+			i++
+		}
+		if i >= len(v) {
+			break
+		}
+		start = i
+		for i < len(v) && v[i] != ' ' {
+			i++
+		}
+		args = append(args, v[start:i])
+	}
+	return subject, args, nil, true
+}
+
 // parse expression to subject and args
 // with support for quotes, escaped chars, and env substitution, e.g.
 //
@@ -32,14 +101,21 @@ var quoteChars = [256]bool{
 //	error 403 Forbidden\ \"foo\"\ \"bar\".
 //	error 403 "Message: ${CLOUDFLARE_API_KEY}"
 func parse(v string) (subject string, args []string, err error) {
-	buf := bytes.NewBuffer(make([]byte, 0, len(v)))
+	if subject, args, err, ok := parseSimple(v); ok {
+		return subject, args, err
+	}
+
+	buf := getStringBuffer(len(v))
+	args = make([]string, 0, 4)
 
 	escaped := false
 	quote := rune(0)
 	brackets := 0
 
-	var envVar bytes.Buffer
-	var missingEnvVars []string
+	var (
+		envVar         strings.Builder
+		missingEnvVars []string
+	)
 	inEnvVar := false
 	expectingBrace := false
 
@@ -71,7 +147,8 @@ func parse(v string) (subject string, args []string, err error) {
 			if ch, ok := escapedChars[r]; ok {
 				buf.WriteRune(ch)
 			} else {
-				fmt.Fprintf(buf, `\%c`, r)
+				buf.WriteRune('\\')
+				buf.WriteRune(r)
 			}
 			escaped = false
 			continue

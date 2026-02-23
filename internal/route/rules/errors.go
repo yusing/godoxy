@@ -14,8 +14,9 @@ var (
 	ErrEnvVarNotFound          = gperr.New("env variable not found")
 	ErrInvalidArguments        = gperr.New("invalid arguments")
 	ErrInvalidOnTarget         = gperr.New("invalid `rule.on` target")
-	ErrInvalidCommandSequence  = gperr.New("invalid command sequence")
-	ErrMultipleDefaultRules    = gperr.New("multiple default rules")
+
+	ErrMultipleDefaultRules = gperr.New("multiple default rules")
+	ErrDeadRule             = gperr.New("dead rule")
 
 	// vars errors
 	ErrNoArgProvided   = gperr.New("no argument provided")
@@ -31,5 +32,5 @@ var (
 	ErrExpectFourArgs       = gperr.Wrap(ErrInvalidArguments, "expect 4 args")
 	ErrExpectKVOptionalV    = gperr.Wrap(ErrInvalidArguments, "expect 'key' or 'key value'")
 
-	errTerminated = gperr.New("terminated")
+	ErrInvalidBlockSyntax = gperr.New("invalid block syntax") // TODO: struct this error
 )

@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
 	"testing"
 
@@ -72,12 +71,12 @@ func TestFieldHandler_Header(t *testing.T) {
 			tt.setup(req)
 			w := httptest.NewRecorder()
 
-			tmpl, tErr := validateTemplate(tt.value, false)
+			_, tmpl, tErr := validateTemplate(tt.value, false)
 			if tErr != nil {
 				t.Fatalf("Failed to validate template: %v", tErr)
 			}
 			handler := modFields[FieldHeader].builder(&keyValueTemplate{tt.key, tmpl})
-			var cmd CommandHandler
+			var cmd HandlerFunc
 			switch tt.modifier {
 			case ModFieldSet:
 				cmd = handler.set
@@ -87,7 +86,7 @@ func TestFieldHandler_Header(t *testing.T) {
 				cmd = handler.remove
 			}
 
-			err := cmd.Handle(w, req)
+			err := cmd(httputils.NewResponseModifier(w), req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
@@ -150,12 +149,12 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 				tt.setup(w)
 			}
 
-			tmpl, tErr := validateTemplate(tt.value, false)
+			_, tmpl, tErr := validateTemplate(tt.value, false)
 			if tErr != nil {
 				t.Fatalf("Failed to validate template: %v", tErr)
 			}
 			handler := modFields[FieldResponseHeader].builder(&keyValueTemplate{tt.key, tmpl})
-			var cmd CommandHandler
+			var cmd HandlerFunc
 			switch tt.modifier {
 			case ModFieldSet:
 				cmd = handler.set
@@ -165,7 +164,7 @@ func TestFieldHandler_ResponseHeader(t *testing.T) {
 				cmd = handler.remove
 			}
 
-			err := cmd.Handle(w, req)
+			err := cmd(httputils.NewResponseModifier(w), req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
@@ -237,12 +236,12 @@ func TestFieldHandler_Query(t *testing.T) {
 			tt.setup(req)
 			w := httptest.NewRecorder()
 
-			tmpl, tErr := validateTemplate(tt.value, false)
+			_, tmpl, tErr := validateTemplate(tt.value, false)
 			if tErr != nil {
 				t.Fatalf("Failed to validate template: %v", tErr)
 			}
 			handler := modFields[FieldQuery].builder(&keyValueTemplate{tt.key, tmpl})
-			var cmd CommandHandler
+			var cmd HandlerFunc
 			switch tt.modifier {
 			case ModFieldSet:
 				cmd = handler.set
@@ -252,7 +251,7 @@ func TestFieldHandler_Query(t *testing.T) {
 				cmd = handler.remove
 			}
 
-			err := cmd.Handle(w, req)
+			err := cmd(httputils.NewResponseModifier(w), req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
@@ -335,12 +334,12 @@ func TestFieldHandler_Cookie(t *testing.T) {
 			tt.setup(req)
 			w := httptest.NewRecorder()
 
-			tmpl, tErr := validateTemplate(tt.value, false)
+			_, tmpl, tErr := validateTemplate(tt.value, false)
 			if tErr != nil {
 				t.Fatalf("Failed to validate template: %v", tErr)
 			}
 			handler := modFields[FieldCookie].builder(&keyValueTemplate{tt.key, tmpl})
-			var cmd CommandHandler
+			var cmd HandlerFunc
 			switch tt.modifier {
 			case ModFieldSet:
 				cmd = handler.set
@@ -350,7 +349,7 @@ func TestFieldHandler_Cookie(t *testing.T) {
 				cmd = handler.remove
 			}
 
-			err := cmd.Handle(w, req)
+			err := cmd(httputils.NewResponseModifier(w), req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
@@ -371,7 +370,7 @@ func TestFieldHandler_Body(t *testing.T) {
 			name:     "set body with template",
 			template: "Hello $req_method $req_path",
 			setup: func(r *http.Request) {
-				r.Method = "POST"
+				r.Method = http.MethodPost
 				r.URL.Path = "/test"
 			},
 			verify: func(r *http.Request) {
@@ -399,15 +398,15 @@ func TestFieldHandler_Body(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			tt.setup(req)
-			w := httptest.NewRecorder()
+			w := httputils.NewResponseModifier(httptest.NewRecorder())
 
-			tmpl, tErr := validateTemplate(tt.template, false)
+			_, tmpl, tErr := validateTemplate(tt.template, false)
 			if tErr != nil {
 				t.Fatalf("Failed to parse template: %v", tErr)
 			}
 
 			handler := modFields[FieldBody].builder(tmpl)
-			err := handler.set.Handle(w, req)
+			err := handler.set(w, req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
@@ -428,7 +427,7 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 			name:     "set response body with template",
 			template: "Response: $req_method $req_path",
 			setup: func(r *http.Request) {
-				r.Method = "GET"
+				r.Method = http.MethodGet
 				r.URL.Path = "/api/test"
 			},
 			verify: func(rm *httputils.ResponseModifier) {
@@ -443,23 +442,20 @@ func TestFieldHandler_ResponseBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			tt.setup(req)
-			w := httptest.NewRecorder()
+			w := httputils.NewResponseModifier(httptest.NewRecorder())
 
-			// Create ResponseModifier wrapper
-			rm := httputils.NewResponseModifier(w)
-
-			tmpl, tErr := validateTemplate(tt.template, false)
+			_, tmpl, tErr := validateTemplate(tt.template, false)
 			if tErr != nil {
 				t.Fatalf("Failed to parse template: %v", tErr)
 			}
 
 			handler := modFields[FieldResponseBody].builder(tmpl)
-			err := handler.set.Handle(rm, req)
+			err := handler.set(w, req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
 
-			tt.verify(rm)
+			tt.verify(w)
 		})
 	}
 }
@@ -472,23 +468,23 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 	}{
 		{
 			name:   "set status code 200",
-			status: 200,
+			status: http.StatusOK,
 			verify: func(w *httptest.ResponseRecorder) {
-				assert.Equal(t, 200, w.Code, "Expected status code 200")
+				assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200")
 			},
 		},
 		{
 			name:   "set status code 404",
-			status: 404,
+			status: http.StatusNotFound,
 			verify: func(w *httptest.ResponseRecorder) {
-				assert.Equal(t, 404, w.Code, "Expected status code 404")
+				assert.Equal(t, http.StatusNotFound, w.Code, "Expected status code 404")
 			},
 		},
 		{
 			name:   "set status code 500",
-			status: 500,
+			status: http.StatusInternalServerError,
 			verify: func(w *httptest.ResponseRecorder) {
-				assert.Equal(t, 500, w.Code, "Expected status code 500")
+				assert.Equal(t, http.StatusInternalServerError, w.Code, "Expected status code 500")
 			},
 		},
 	}
@@ -503,12 +499,11 @@ func TestFieldHandler_StatusCode(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
-			err = cmd.ServeHTTP(rm, req)
+			err = cmd.post.ServeHTTP(rm, req, nil)
 			if err != nil {
 				t.Fatalf("Handler returned error: %v", err)
 			}
 			rm.FlushRelease()
-
 			tt.verify(w)
 		})
 	}
@@ -600,32 +595,13 @@ func TestFieldValidation(t *testing.T) {
 			field, exists := modFields[tt.field]
 			assert.True(t, exists, "Field %s does not exist", tt.field)
 
-			_, err := field.validate(tt.args)
+			_, _, err := field.validate(tt.args)
 			if tt.wantError {
 				assert.Error(t, err, "Expected error but got none")
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)
 			}
 		})
-	}
-}
-
-func TestAllFields(t *testing.T) {
-	expectedFields := []string{
-		FieldHeader,
-		FieldResponseHeader,
-		FieldQuery,
-		FieldCookie,
-		FieldBody,
-		FieldResponseBody,
-		FieldStatusCode,
-	}
-
-	require.Len(t, AllFields, len(expectedFields), "Expected %d fields", len(expectedFields))
-
-	for _, expected := range expectedFields {
-		found := slices.Contains(AllFields, expected)
-		assert.True(t, found, "Expected field %s not found in AllFields", expected)
 	}
 }
 

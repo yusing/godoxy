@@ -11,58 +11,88 @@ import (
 var (
 	VarHeader         = "header"
 	VarResponseHeader = "resp_header"
+	VarCookie         = "cookie"
 	VarQuery          = "arg"
 	VarForm           = "form"
 	VarPostForm       = "postform"
 )
 
-type dynamicVarGetter func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error)
+type dynamicVarGetter struct {
+	phase PhaseFlag
+	get   func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error)
+}
 
 var dynamicVarSubsMap = map[string]dynamicVarGetter{
-	VarHeader: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
-		key, index, err := getKeyAndIndex(args)
-		if err != nil {
-			return "", err
-		}
-		return getValueByKeyAtIndex(req.Header, key, index)
-	},
-	VarResponseHeader: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
-		key, index, err := getKeyAndIndex(args)
-		if err != nil {
-			return "", err
-		}
-		return getValueByKeyAtIndex(w.Header(), key, index)
-	},
-	VarQuery: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
-		key, index, err := getKeyAndIndex(args)
-		if err != nil {
-			return "", err
-		}
-		return getValueByKeyAtIndex(httputils.GetSharedData(w).GetQueries(req), key, index)
-	},
-	VarForm: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
-		key, index, err := getKeyAndIndex(args)
-		if err != nil {
-			return "", err
-		}
-		if req.Form == nil {
-			if err := req.ParseForm(); err != nil {
+	VarHeader: {
+		phase: PhaseNone,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
 				return "", err
 			}
-		}
-		return getValueByKeyAtIndex(req.Form, key, index)
+			return getValueByKeyAtIndex(req.Header, key, index)
+		},
 	},
-	VarPostForm: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
-		key, index, err := getKeyAndIndex(args)
-		if err != nil {
-			return "", err
-		}
-		if req.Form == nil {
-			if err := req.ParseForm(); err != nil {
+	VarResponseHeader: {
+		phase: PhasePost,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
 				return "", err
 			}
-		}
-		return getValueByKeyAtIndex(req.PostForm, key, index)
+			return getValueByKeyAtIndex(w.Header(), key, index)
+		},
+	},
+	VarCookie: {
+		phase: PhaseNone,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
+				return "", err
+			}
+			sharedData := httputils.GetSharedData(w)
+			return getValueByKeyAtIndex(sharedData.GetCookiesMap(req), key, index)
+		},
+	},
+	VarQuery: {
+		phase: PhaseNone,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
+				return "", err
+			}
+			return getValueByKeyAtIndex(httputils.GetSharedData(w).GetQueries(req), key, index)
+		},
+	},
+	VarForm: {
+		phase: PhaseNone,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
+				return "", err
+			}
+			if req.Form == nil {
+				if err := req.ParseForm(); err != nil {
+					return "", err
+				}
+			}
+			return getValueByKeyAtIndex(req.Form, key, index)
+		},
+	},
+	VarPostForm: {
+		phase: PhaseNone,
+		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
+			key, index, err := getKeyAndIndex(args)
+			if err != nil {
+				return "", err
+			}
+			if req.Form == nil {
+				if err := req.ParseForm(); err != nil {
+					return "", err
+				}
+			}
+			return getValueByKeyAtIndex(req.PostForm, key, index)
+		},
 	},
 }
 

@@ -12,7 +12,7 @@ import (
 
 type (
 	FieldHandler struct {
-		set, add, remove CommandHandler
+		set, add, remove HandlerFunc
 	}
 	FieldModifier string
 )
@@ -49,30 +49,30 @@ var modFields = map[string]struct {
 				"value": "the header template",
 			},
 		},
-		validate: toKeyValueTemplate,
+		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
 					r.Header[k] = []string{v}
 					return nil
-				}),
-				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				},
+				add: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
 					r.Header[k] = append(r.Header[k], v)
 					return nil
-				}),
-				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				},
+				remove: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 					delete(r.Header, k)
 					return nil
-				}),
+				},
 			}
 		},
 	},
@@ -84,30 +84,30 @@ var modFields = map[string]struct {
 				"value": "the response header template",
 			},
 		},
-		validate: toKeyValueTemplate,
+		validate: validatePostResponseKVTemplate,
 		builder: func(args any) *FieldHandler {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
 					w.Header()[k] = []string{v}
 					return nil
-				}),
-				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				},
+				add: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
 					w.Header()[k] = append(w.Header()[k], v)
 					return nil
-				}),
-				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				},
+				remove: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 					delete(w.Header(), k)
 					return nil
-				}),
+				},
 			}
 		},
 	},
@@ -119,36 +119,36 @@ var modFields = map[string]struct {
 				"value": "the query template",
 			},
 		},
-		validate: toKeyValueTemplate,
+		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
-					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+					w.SharedData().UpdateQueries(r, func(queries url.Values) {
 						queries.Set(k, v)
 					})
 					return nil
-				}),
-				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				},
+				add: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
-					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+					w.SharedData().UpdateQueries(r, func(queries url.Values) {
 						queries.Add(k, v)
 					})
 					return nil
-				}),
-				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					httputils.GetSharedData(w).UpdateQueries(r, func(queries url.Values) {
+				},
+				remove: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					w.SharedData().UpdateQueries(r, func(queries url.Values) {
 						queries.Del(k)
 					})
 					return nil
-				}),
+				},
 			}
 		},
 	},
@@ -160,16 +160,16 @@ var modFields = map[string]struct {
 				"value": "the cookie value",
 			},
 		},
-		validate: toKeyValueTemplate,
+		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
 			k, tmpl := args.(*keyValueTemplate).Unpack()
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
-					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+					w.SharedData().UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						for i, c := range cookies {
 							if c.Name == k {
 								cookies[i].Value = v
@@ -179,19 +179,19 @@ var modFields = map[string]struct {
 						return append(cookies, &http.Cookie{Name: k, Value: v})
 					})
 					return nil
-				}),
-				add: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					v, err := tmpl.ExpandVarsToString(w, r)
+				},
+				add: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					v, _, err := tmpl.ExpandVarsToString(w, r)
 					if err != nil {
 						return err
 					}
-					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+					w.SharedData().UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						return append(cookies, &http.Cookie{Name: k, Value: v})
 					})
 					return nil
-				}),
-				remove: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					httputils.GetSharedData(w).UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
+				},
+				remove: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					w.SharedData().UpdateCookies(r, func(cookies []*http.Cookie) []*http.Cookie {
 						index := -1
 						for i, c := range cookies {
 							if c.Name == k {
@@ -208,7 +208,7 @@ var modFields = map[string]struct {
 						return cookies
 					})
 					return nil
-				}),
+				},
 			}
 		},
 	},
@@ -227,24 +227,27 @@ var modFields = map[string]struct {
 				"template": "the body template",
 			},
 		},
-		validate: func(args []string) (any, error) {
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
-				return nil, ErrExpectOneArg
+				return 0, nil, ErrExpectOneArg
 			}
-			return validateTemplate(args[0], true)
+			phase = PhasePre
+			tmplReq, parsedArgs, err := validateTemplate(args[0], true)
+			phase |= tmplReq
+			return
 		},
 		builder: func(args any) *FieldHandler {
 			tmpl := args.(templateString)
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 					if r.Body != nil {
 						r.Body.Close()
 						r.Body = nil
 					}
 
-					bufPool := httputils.GetInitResponseModifier(w).BufPool()
+					bufPool := w.BufPool()
 					b := bufPool.GetBuffer()
-					err := tmpl.ExpandVars(w, r, b)
+					_, err := tmpl.ExpandVars(w, r, b)
 					if err != nil {
 						return err
 					}
@@ -252,7 +255,7 @@ var modFields = map[string]struct {
 						bufPool.PutBuffer(b)
 					})
 					return nil
-				}),
+				},
 			}
 		},
 	},
@@ -272,20 +275,26 @@ var modFields = map[string]struct {
 				"template": "the response body template",
 			},
 		},
-		validate: func(args []string) (any, error) {
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
-				return nil, ErrExpectOneArg
+				return 0, nil, ErrExpectOneArg
 			}
-			return validateTemplate(args[0], true)
+			phase = PhasePost
+			tmplReq, parsedArgs, err := validateTemplate(args[0], true)
+			phase |= tmplReq
+			return
 		},
 		builder: func(args any) *FieldHandler {
 			tmpl := args.(templateString)
 			return &FieldHandler{
-				set: OnResponseCommand(func(w http.ResponseWriter, r *http.Request) error {
-					rm := httputils.GetInitResponseModifier(w)
-					rm.ResetBody()
-					return tmpl.ExpandVars(w, r, rm)
-				}),
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					w.ResetBody()
+					_, err := tmpl.ExpandVars(w, r, w)
+					if err != nil {
+						return err
+					}
+					return nil
+				},
 			}
 		},
 	},
@@ -300,26 +309,27 @@ var modFields = map[string]struct {
 				"code": "the status code",
 			},
 		},
-		validate: func(args []string) (any, error) {
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
-				return nil, ErrExpectOneArg
+				return phase, nil, ErrExpectOneArg
 			}
+			phase = PhasePost
 			status, err := strconv.Atoi(args[0])
 			if err != nil {
-				return nil, ErrInvalidArguments.With(err)
+				return phase, nil, ErrInvalidArguments.With(err)
 			}
 			if status < 100 || status > 599 {
-				return nil, ErrInvalidArguments.Withf("status code must be between 100 and 599, got %d", status)
+				return phase, nil, ErrInvalidArguments.Withf("status code must be between 100 and 599, got %d", status)
 			}
-			return status, nil
+			return phase, status, nil
 		},
 		builder: func(args any) *FieldHandler {
 			status := args.(int)
 			return &FieldHandler{
-				set: NonTerminatingCommand(func(w http.ResponseWriter, r *http.Request) error {
-					httputils.GetInitResponseModifier(w).WriteHeader(status)
+				set: func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+					w.WriteHeader(status)
 					return nil
-				}),
+				},
 			}
 		},
 	},

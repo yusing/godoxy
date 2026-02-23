@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
@@ -16,7 +17,7 @@ import (
 )
 
 type (
-	ValidateFunc      func(args []string) (any, error)
+	ValidateFunc      func(args []string) (phase PhaseFlag, parsedArgs any, err error)
 	Tuple[T1, T2 any] struct {
 		First  T1
 		Second T2
@@ -36,6 +37,8 @@ type (
 	IntTuple        = Tuple[int, int]
 	MapValueMatcher = Tuple[string, Matcher]
 )
+
+var cidrCache = xsync.NewMap[string, *net.IPNet]()
 
 func (t *Tuple[T1, T2]) Unpack() (T1, T2) {
 	return t.First, t.Second
@@ -62,7 +65,7 @@ func (t *Tuple4[T1, T2, T3, T4]) String() string {
 }
 
 // validateSingleMatcher returns Matcher with the matcher validated.
-func validateSingleMatcher(args []string) (any, error) {
+func validateSingleMatcher(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -70,7 +73,7 @@ func validateSingleMatcher(args []string) (any, error) {
 }
 
 // toKVOptionalVMatcher returns *MapValueMatcher that value is optional.
-func toKVOptionalVMatcher(args []string) (any, error) {
+func toKVOptionalVMatcher(args []string) (any, gperr.Error) {
 	switch len(args) {
 	case 1:
 		return &MapValueMatcher{args[0], nil}, nil
@@ -85,20 +88,8 @@ func toKVOptionalVMatcher(args []string) (any, error) {
 	}
 }
 
-func toKeyValueTemplate(args []string) (any, error) {
-	if len(args) != 2 {
-		return nil, ErrExpectTwoArgs
-	}
-
-	isTemplate, err := validateTemplate(args[1], false)
-	if err != nil {
-		return nil, err
-	}
-	return &keyValueTemplate{args[0], isTemplate}, nil
-}
-
 // validateURL returns types.URL with the URL validated.
-func validateURL(args []string) (any, error) {
+func validateURL(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -116,22 +107,27 @@ func validateURL(args []string) (any, error) {
 }
 
 // validateCIDR returns types.CIDR with the CIDR validated.
-func validateCIDR(args []string) (any, error) {
+func validateCIDR(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
-	if !strings.Contains(args[0], "/") {
-		args[0] += "/32"
+	cidr := args[0]
+	if !strings.Contains(cidr, "/") {
+		cidr += "/32"
 	}
-	_, ipnet, err := net.ParseCIDR(args[0])
+	if cached, ok := cidrCache.Load(cidr); ok {
+		return cached, nil
+	}
+	_, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}
+	cidrCache.Store(cidr, ipnet)
 	return ipnet, nil
 }
 
 // validateURLPath returns string with the path validated.
-func validateURLPath(args []string) (any, error) {
+func validateURLPath(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -148,7 +144,7 @@ func validateURLPath(args []string) (any, error) {
 	return p, nil
 }
 
-func validateURLPathMatcher(args []string) (any, error) {
+func validateURLPathMatcher(args []string) (any, gperr.Error) {
 	path, err := validateURLPath(args)
 	if err != nil {
 		return nil, err
@@ -157,7 +153,7 @@ func validateURLPathMatcher(args []string) (any, error) {
 }
 
 // validateFSPath returns string with the path validated.
-func validateFSPath(args []string) (any, error) {
+func validateFSPath(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -169,7 +165,7 @@ func validateFSPath(args []string) (any, error) {
 }
 
 // validateMethod returns string with the method validated.
-func validateMethod(args []string) (any, error) {
+func validateMethod(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -200,7 +196,7 @@ func validateStatusCode(status string) (int, error) {
 //   - 3xx
 //   - 4xx
 //   - 5xx
-func validateStatusRange(args []string) (any, error) {
+func validateStatusRange(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
@@ -232,7 +228,7 @@ func validateStatusRange(args []string) (any, error) {
 }
 
 // validateUserBCryptPassword returns *HashedCrendential with the password validated.
-func validateUserBCryptPassword(args []string) (any, error) {
+func validateUserBCryptPassword(args []string) (any, gperr.Error) {
 	if len(args) != 2 {
 		return nil, ErrExpectTwoArgs
 	}
@@ -240,64 +236,93 @@ func validateUserBCryptPassword(args []string) (any, error) {
 }
 
 // validateModField returns CommandHandler with the field validated.
-func validateModField(mod FieldModifier, args []string) (CommandHandler, error) {
+func validateModField(mod FieldModifier, args []string) (phase PhaseFlag, handler HandlerFunc, err error) {
 	if len(args) == 0 {
-		return nil, ErrExpectTwoOrThreeArgs
+		return phase, nil, ErrExpectTwoOrThreeArgs
 	}
 	setField, ok := modFields[args[0]]
 	if !ok {
-		return nil, ErrUnknownModField.Subject(args[0])
+		return phase, nil, ErrUnknownModField.Subject(args[0])
 	}
 	if mod == ModFieldRemove {
 		if len(args) != 2 {
-			return nil, ErrExpectTwoArgs
+			return phase, nil, ErrExpectTwoArgs
 		}
 		// setField expect validateStrTuple
 		args = append(args, "")
 	}
-	validArgs, err := setField.validate(args[1:])
+	phase, validArgs, err := setField.validate(args[1:])
 	if err != nil {
-		return nil, gperr.Wrap(err).With(setField.help.Error())
+		return phase, nil, gperr.Wrap(err).With(setField.help.Error())
 	}
+
 	modder := setField.builder(validArgs)
 	switch mod {
 	case ModFieldAdd:
 		add := modder.add
 		if add == nil {
-			return nil, ErrInvalidArguments.Withf("add is not supported for %s", mod)
+			return phase, nil, ErrInvalidArguments.Withf("add is not supported for field %s", args[0])
 		}
-		return add, nil
+		return phase, add, nil
 	case ModFieldRemove:
 		remove := modder.remove
 		if remove == nil {
-			return nil, ErrInvalidArguments.Withf("remove is not supported for %s", mod)
+			return phase, nil, ErrInvalidArguments.Withf("remove is not supported for field %s", args[0])
 		}
-		return remove, nil
+		return phase, remove, nil
 	}
 	set := modder.set
 	if set == nil {
-		return nil, ErrInvalidArguments.Withf("set is not supported for %s", mod)
+		return phase, nil, ErrInvalidArguments.Withf("set is not supported for field %s", args[0])
 	}
-	return set, nil
+	return phase, set, nil
 }
 
-func validateTemplate(tmplStr string, newline bool) (templateString, error) {
+func validateTemplate(tmplStr string, newline bool) (phase PhaseFlag, tmpl templateString, err error) {
 	if newline && !strings.HasSuffix(tmplStr, "\n") {
 		tmplStr += "\n"
 	}
 
 	if !NeedExpandVars(tmplStr) {
-		return templateString{tmplStr, false}, nil
+		return phase, templateString{tmplStr, false}, nil
 	}
 
-	err := ValidateVars(tmplStr)
+	phase, err = ValidateVars(tmplStr)
 	if err != nil {
-		return templateString{}, err
+		return phase, templateString{}, gperr.Wrap(err)
 	}
-	return templateString{tmplStr, true}, nil
+	return phase, templateString{tmplStr, true}, nil
 }
 
-func validateLevel(level string) (zerolog.Level, error) {
+func validatePreRequestKVTemplate(args []string) (phase PhaseFlag, parsedArgs any, err error) {
+	if len(args) != 2 {
+		return phase, nil, ErrExpectTwoArgs
+	}
+
+	phase = PhasePre
+	tmplReq, tmpl, err := validateTemplate(args[1], false)
+	if err != nil {
+		return phase, nil, err
+	}
+	phase |= tmplReq
+	return phase, &keyValueTemplate{args[0], tmpl}, nil
+}
+
+func validatePostResponseKVTemplate(args []string) (phase PhaseFlag, parsedArgs any, err error) {
+	if len(args) != 2 {
+		return phase, nil, ErrExpectTwoArgs
+	}
+
+	phase = PhasePost
+	tmplReq, tmpl, err := validateTemplate(args[1], false)
+	if err != nil {
+		return phase, nil, err
+	}
+	phase |= tmplReq
+	return phase, &keyValueTemplate{args[0], tmpl}, nil
+}
+
+func validateLevel(level string) (zerolog.Level, gperr.Error) {
 	l, err := zerolog.ParseLevel(level)
 	if err != nil {
 		return zerolog.NoLevel, ErrInvalidArguments.With(err)

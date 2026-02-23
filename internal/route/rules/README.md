@@ -36,15 +36,15 @@ type Rule struct {
 }
 
 type RuleOn struct {
-    raw               string
-    checker           Checker
-    isResponseChecker bool
+    raw         string
+    checker     Checker
+    phase PhaseFlag
 }
 
 type Command struct {
-    raw               string
-    exec              CommandHandler
-    isResponseHandler bool
+    raw  string
+    pre  Commands
+    post Commands
 }
 ```
 
@@ -59,6 +59,9 @@ func ParseRules(config string) (Rules, error)
 
 // ValidateRules validates rule syntax
 func ValidateRules(config string) error
+
+// Validate validates rule semantics (e.g., prevents multiple default rules)
+func (rules Rules) Validate() gperr.Error
 ```
 
 ## Architecture
@@ -122,15 +125,51 @@ sequenceDiagram
         Pre->>Pre: Execute handler
         alt Terminating action
             Pre-->>Req: Response
-            Return-->>Req: Return immediately
+            Note right of Pre: Stop remaining pre commands
         end
     end
-    Req->>Proxy: Forward request
-    Proxy-->>Req: Response
-    Req->>Post: Check post-rules
-    Post->>Post: Execute handlers
-    Post-->>Req: Modified response
+    opt No pre termination
+      Req->>Proxy: Forward request
+      Proxy-->>Req: Response
+    end
+    Req->>Post: Run scheduled post commands
+    Req->>Post: Evaluate response matchers
+    Post->>Post: Execute matched post handlers
+    Post-->>Req: Final response
 ```
+
+### Execution Model (Authoritative)
+
+Rules run in two phases:
+
+1. **Pre phase**
+   - Evaluate only request-based matchers (`path`, `method`, `header`, `remote`, etc.) in declaration order.
+   - Execute matched rule `do` pre-commands in order.
+   - If a default rule exists (`name: default` or `on: default`), it is evaluated first as a baseline rule.
+   - If a terminating action runs, stop:
+     - remaining commands in that rule
+     - all later pre-phase commands.
+   - Exception: rules that only contain post commands (no pre commands) are still scheduled for post phase.
+
+2. **Upstream phase**
+   - Upstream is called only if pre phase did not terminate.
+
+3. **Post phase**
+   - Run post-commands for rules whose pre phase executed, except rules that terminated in pre.
+   - Then evaluate response-based matchers (`status`, `resp_header`) and execute their `do` commands.
+   - Response-based rules run even when the response was produced in pre phase.
+
+**Important:** termination is explicit by command semantics, not inferred from status-code mutation.
+
+### Phase Flags
+
+Rule and command parsing tracks phase requirements via `PhaseFlag`:
+
+- `PhasePre`
+- `PhasePost`
+- `PhasePre | PhasePost` (combined)
+
+Combined flags are expected for nested/compound commands and variable templates that may need both request and response context.
 
 ### Condition Matchers
 
@@ -166,22 +205,22 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 
 **Terminating Actions** (stop processing):
 
-| Command                  | Description            |
-| ------------------------ | ---------------------- |
-| `error <code> <message>` | Return HTTP error      |
-| `redirect <url>`         | Redirect to URL        |
-| `serve <path>`           | Serve local files      |
-| `route <name>`           | Route to another route |
-| `proxy <url>`            | Proxy to upstream      |
+| Command                        | Description                           |
+| ------------------------------ | ------------------------------------- |
+| `upstream` / `bypass` / `pass` | Call upstream and terminate pre-phase |
+| `error <code> <message>`       | Return HTTP error                     |
+| `redirect <url>`               | Redirect to URL                       |
+| `serve <path>`                 | Serve local files                     |
+| `route <name>`                 | Route to another route                |
+| `proxy <url>`                  | Proxy to upstream                     |
+| `require_basic_auth <realm>`   | Return 401 challenge                  |
 
 **Non-Terminating Actions** (modify and continue):
 
 | Command                        | Description            |
 | ------------------------------ | ---------------------- |
-| `pass` / `bypass`              | Pass through unchanged |
 | `rewrite <from> <to>`          | Rewrite request path   |
 | `require_auth`                 | Require authentication |
-| `require_basic_auth <realm>`   | Basic auth challenge   |
 | `set <target> <field> <value>` | Set header/variable    |
 | `add <target> <field> <value>` | Add header/variable    |
 | `remove <target> <field>`      | Remove header/variable |
@@ -208,6 +247,166 @@ rules:
       action2
 ```
 
+### Rule Configuration (Block Syntax)
+
+This is an alternative (and will eventually be the primary) syntax for rules that avoids YAML.
+It keeps the **inner** `on` and `do` DSLs exactly the same (same matchers, same commands, same optional quotes), but wraps each rule in a `{ ... }` block.
+
+#### Key ideas
+
+- A rule is:
+  - `default { <do...> }`,
+  - `{ <do...> }`, or
+  - `<on-expr> { <do...> }`
+- Comments are supported:
+  - line comment: `// ...` (to end of line)
+  - line comment: `# ...` (to end of line, for YAML familiarity)
+  - block comment: `/* ... */` (may span multiple lines)
+  - Comments are ignored **only when outside quotes** (`"`, `'` or backticks).
+  - Environment variable syntax: `${NAME}` is supported by the inner DSL parser in [`parse()`](internal/route/rules/parser.go:34).
+    Block-syntax rule:
+    - In `on` (rule header): `${...}` must be inside quotes/backticks.
+    - In `do` (rule body): `${...}` may be unquoted; the outer parser must treat `${...}` as an opaque token so braces inside it are not structural.
+
+#### Grammar sketch (EBNF-ish)
+
+```text
+file        := { ws | comment | rule }
+rule        := default_rule | unconditional_rule | conditional_rule
+
+default_rule     := 'default' ws* block
+unconditional_rule := ws* block
+conditional_rule := on_expr ws* block
+
+block       := '{' do_body '}'
+
+// on_expr and do_body are raw text regions.
+// The outer parser only needs to:
+// - find the top-level '{' to start a rule block
+// - find the matching top-level '}' to end it
+// while respecting quotes and comments.
+```
+
+#### Elif/Else Chain Grammar
+
+```text
+// Elif/Else chains can appear in do_body
+do_stmt      := command_line | nested_block | elif_else_chain
+elif_else_chain := nested_block { elif_clause } [else_clause]
+elif_clause    := 'elif' ws* on_expr ws* '{' do_body '}'
+else_clause    := 'else' ws* '{' do_body '}'
+```
+
+#### Nested blocks (inline conditionals inside `do`)
+
+Inside a rule body (`do_body`), you can write **nested blocks** that start with `@`:
+
+```text
+do_stmt      := command_line | nested_block | elif_else_chain
+
+nested_block := '@' on_expr ws* '{' do_body '}'
+```
+
+Notes:
+
+- A nested block is only recognized when `@` is the **first non-space character on a line**.
+- `on_expr` uses the same syntax as rule `on` (supports `|`, `&`, quoting/backticks, matcher functions, etc.).
+- The nested block executes **in sequence**, at the point where it appears in the parent `do` list.
+- Nested blocks are evaluated in the same phase the parent rule runs (no special phase promotion).
+- Nested blocks can be chained with `elif`/`else` for conditional execution (see Elif/Else Chains section).
+
+Example:
+
+```go
+default {
+  remove resp_header X-Secret
+  add resp_header X-Custom-Header custom-value
+}
+
+header X-Test-Header {
+  set header X-Remote-Type public
+  @remote 127.0.0.1 | remote 192.168.0.0/16 {
+    set header X-Remote-Type private
+  }
+}
+```
+
+#### Elif/Else Chains
+
+You can chain multiple conditions using `elif` and provide a fallback with `else`.
+The `elif`/`else` keywords must appear on the same line as the preceding closing brace (`}`).
+
+```go
+header X-Test-Header {
+  @method GET {
+    set header X-Mode get
+  } elif method POST {
+    set header X-Mode post
+  } else {
+    set header X-Mode other
+  }
+}
+```
+
+Notes:
+
+- `elif` and `else` must be on the same line as the preceding `}`.
+- Multiple `elif` branches are allowed; only one `else` is allowed.
+- The entire chain is evaluated in sequence; the first matching branch executes.
+- Elif/else chains can only be used within nested blocks (starting with `@`).
+- Each `elif` clause must have its own condition expression and block.
+- The `else` clause is optional and provides a default action when no conditions match.
+
+#### Examples
+
+Basic default rule:
+
+```go
+default {
+  bypass
+}
+```
+
+WebSocket upgrade routing:
+
+```bash
+# WebSocket requests
+header Connection Upgrade &
+header Upgrade websocket {
+  route ws-api
+  log info /dev/stdout "Websocket request $req_path from $remote_host to $upstream_name"
+}
+```
+
+Block comments:
+
+```go
+/* protect admin area */
+path glob("/admin/*") {
+  require_auth
+}
+```
+
+Always log the request
+
+```bash
+{
+  log info /dev/stdout "Request $req_method $req_path"
+}
+```
+
+#### Notes and constraints
+
+- The block syntax uses `{` and `}` as structure delimiters at **top-level** (outside quotes/comments).
+  - Braces inside quoted strings (including backticks) are not structural.
+  - `${...}` handling:
+    - `on`: must be quoted/backticked
+    - `do`: may be unquoted
+      Preferred style: always write env vars as `${NAME}` rather than a bare `$NAME`.
+    - If you need literal `{` or `}` outside quotes/backticks (for example unquoted templates like `{{ ... }}`), wrap that argument in quotes/backticks so the outer parser does not treat it as structure.
+- Rule naming remains minimal: if no explicit name is provided by the syntax, it will behave like the current YAML behavior (empty name becomes `rule[index]` in [`Rules.BuildHandler()`](internal/route/rules/rules.go:75)).
+- YAML remains supported as a fallback for backward compatibility.
+
 ### Condition Syntax
 
 ```yaml
@@ -215,12 +414,13 @@ rules:
 on: path /api/users
 
 # Multiple conditions (AND)
-on: |
-  header Authorization Bearer
-  & path /api/admin/*
+on: header Authorization Bearer & path glob("/api/admin/*")
 
 # Negation
-on: !path /public/*
+on: !path glob("/public/*")
+
+# Negation on matcher
+on: path !glob("/public/*")
 
 # OR within a line
 on: method GET | method POST
@@ -228,21 +428,21 @@ on: method GET | method POST
 
 ### Variable Substitution
 
-```go
-// Static variables
-$req_method      // Request method
-$req_host        // Request host
-$req_path        // Request path
-$status_code     // Response status
-$remote_host     // Client IP
+```bash
+# Static variables
+$req_method      # Request method
+$req_host        # Request host
+$req_path        # Request path
+$status_code     # Response status
+$remote_host     # Client IP
 
-// Dynamic variables
-$header(Name)           // Request header
-$header(Name, index)    // Header at index
-$arg(Name)              // Query argument
-$form(Name)             // Form field
+# Dynamic variables
+$header(Name)           # Request header
+$header(Name, index)    # Header at index
+$arg(Name)              # Query argument
+$form(Name)             # Form field
 
-// Environment variables
+# Environment variables
 ${ENV_VAR}
 ```
 
@@ -277,12 +477,13 @@ Log context includes: `rule`, `alias`, `match_result`
 
 ## Failure Modes and Recovery
 
-| Failure             | Behavior                  | Recovery                           |
-| ------------------- | ------------------------- | ---------------------------------- |
-| Invalid rule syntax | Route validation fails    | Fix YAML syntax                    |
-| Missing variables   | Variable renders as empty | Check variable sources             |
-| Rule timeout        | Request times out         | Increase timeout or simplify rules |
-| Auth failure        | Returns 401/403           | Fix credentials                    |
+| Failure                | Behavior                  | Recovery                           |
+| ---------------------- | ------------------------- | ---------------------------------- |
+| Invalid rule syntax    | Route validation fails    | Fix YAML syntax                    |
+| Multiple default rules | Route validation fails    | Remove duplicate default rules     |
+| Missing variables      | Variable renders as empty | Check variable sources             |
+| Rule timeout           | Request times out         | Increase timeout or simplify rules |
+| Auth failure           | Returns 401/403           | Fix credentials                    |
 
 ## Usage Examples
 
@@ -297,11 +498,11 @@ Log context includes: `rule`, `alias`, `match_result`
 
 ```yaml
 - name: api proxy
-  on: path /api/*
+  on: path glob("/api/*")
   do: proxy http://api-backend:8080
 
 - name: static files
-  on: path /static/*
+  on: path glob("/static/*")
   do: serve /var/www/static
 ```
 
@@ -309,11 +510,11 @@ Log context includes: `rule`, `alias`, `match_result`
 
 ```yaml
 - name: admin protection
-  on: path /admin/*
+  on: path glob("/admin/*")
   do: require_auth
 
 - name: basic auth for API
-  on: path /api/*
+  on: path glob("/api/*")
   do: require_basic_auth "API Access"
 ```
 
@@ -321,7 +522,7 @@ Log context includes: `rule`, `alias`, `match_result`
 
 ```yaml
 - name: rewrite API v1
-  on: path /v1/*
+  on: path glob("/v1/*")
   do: |
     rewrite /v1 /api/v1
     proxy http://backend:8080
@@ -350,6 +551,27 @@ Log context includes: `rule`, `alias`, `match_result`
     header Upgrade websocket
   do: bypass
 ```
+
+### Default Rule (Baseline)
+
+```yaml
+# Default runs first and can provide baseline behavior
+- name: default
+  do: |
+    remove resp_header X-Internal
+    add resp_header X-Powered-By godoxy
+
+# Specific rules can override or add to baseline behavior
+- name: api routes
+  on: path glob("/api/*")
+  do: proxy http://api:8080
+
+- name: api marker
+  on: path glob("/api/*")
+  do: set resp_header X-API true
+```
+
+Only one default rule is allowed per route. `name: default` and `on: default` are equivalent selectors.
 
 ## Testing Notes
 

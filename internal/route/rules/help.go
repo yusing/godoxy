@@ -131,12 +131,13 @@ Error generates help string as error, e.g.
 		from: the path to rewrite, must start with /
 		to: the path to rewrite to, must start with /
 */
-func (h *Help) Error() error {
-	var lines gperr.MultilineError
+func (h *Help) Error() gperr.Error {
+	help := gperr.New(ansi.WithANSI(h.command, ansi.HighlightGreen))
+	for _, line := range h.description {
+		help = help.Withf("%s", line)
+	}
 
-	lines.Adds(ansi.WithANSI(h.command, ansi.HighlightGreen))
-	lines.AddStrings(h.description...)
-	lines.Adds("  args:")
+	args := gperr.New("args")
 
 	argKeys := make([]string, 0, len(h.args))
 	longestArg := 0
@@ -151,7 +152,9 @@ func (h *Help) Error() error {
 	slices.Sort(argKeys)
 	for _, arg := range argKeys {
 		desc := h.args[arg]
-		lines.Addf("    %-"+strconv.Itoa(longestArg)+"s: %s", ansi.WithANSI(arg, ansi.HighlightCyan), desc)
+		paddedArg := fmt.Sprintf("%-"+strconv.Itoa(longestArg)+"s", arg)
+		args = args.Withf("%s%s", ansi.WithANSI(paddedArg, ansi.HighlightCyan)+": ", desc)
 	}
-	return &lines
+
+	return help.With(args)
 }

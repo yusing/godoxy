@@ -1,15 +1,16 @@
 package rules
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
+	"unsafe"
 
 	httputils "github.com/yusing/goutils/http"
-	ioutils "github.com/yusing/goutils/io"
 )
 
 // TODO: remove middleware/vars.go and use this instead
@@ -45,41 +46,84 @@ var (
 	}
 )
 
+type bytesBufferLike interface {
+	io.Writer
+	WriteByte(c byte) error
+	WriteString(s string) (int, error)
+}
+
+type bytesBufferAdapter struct {
+	io.Writer
+}
+
+func (b bytesBufferAdapter) WriteByte(c byte) error {
+	buf := [1]byte{c}
+	_, err := b.Write(buf[:])
+	return err
+}
+
+func (b bytesBufferAdapter) WriteString(s string) (int, error) {
+	return b.Write(unsafe.Slice(unsafe.StringData(s), len(s))) // avoid copy
+}
+
+func asBytesBufferLike(w io.Writer) bytesBufferLike {
+	switch w := w.(type) {
+	case *bytes.Buffer:
+		return w
+	case bytesBufferLike:
+		return w
+	default:
+		return bytesBufferAdapter{w}
+	}
+}
+
 // ValidateVars validates the variables in the given string.
-// It returns ErrUnexpectedVar if any invalid variable is found.
-func ValidateVars(s string) error {
+// It returns the phase that the variables require and an error if any error occurs.
+//
+// Possible errors:
+// - ErrUnexpectedVar: if any invalid variable is found
+// - ErrUnterminatedEnvVar: missing closing }
+// - ErrUnterminatedQuotes: missing closing " or ' or `
+// - ErrUnterminatedParenthesis: missing closing )
+func ValidateVars(s string) (phase PhaseFlag, err error) {
 	return ExpandVars(voidResponseModifier, &dummyRequest, s, io.Discard)
 }
 
-func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, dstW io.Writer) error {
-	dst := ioutils.NewBufferedWriter(dstW, 1024)
-	defer dst.Close()
-
+// ExpandVars expands the variables in the given string and writes the result to the given writer.
+// It returns the phase that the variables require and an error if any error occurs.
+//
+// Possible errors:
+// - ErrUnexpectedVar: if any invalid variable is found
+// - ErrUnterminatedEnvVar: missing closing }
+// - ErrUnterminatedQuotes: missing closing " or ' or `
+// - ErrUnterminatedParenthesis: missing closing )
+func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, dstW io.Writer) (phase PhaseFlag, err error) {
+	dst := asBytesBufferLike(dstW)
 	for i := 0; i < len(src); i++ {
 		ch := src[i]
 		if ch != '$' {
-			if err := dst.WriteByte(ch); err != nil {
-				return err
+			if err = dst.WriteByte(ch); err != nil {
+				return phase, err
 			}
 			continue
 		}
 
 		// Look ahead
 		if i+1 >= len(src) {
-			return ErrUnterminatedEnvVar
+			return phase, ErrUnterminatedEnvVar
 		}
 		j := i + 1
 
 		switch src[j] {
 		case '$': // $$ -> literal '$'
 			if err := dst.WriteByte('$'); err != nil {
-				return err
+				return phase, err
 			}
 			i = j
 			continue
 		case '{': // ${...} pass through as-is
 			if _, err := dst.WriteString("${"); err != nil {
-				return err
+				return phase, err
 			}
 			i = j // we've consumed the '{' too
 			continue
@@ -102,24 +146,26 @@ func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, ds
 			if getter, ok := dynamicVarSubsMap[name]; ok {
 				// Function-like variables
 				isStatic = false
+				phase |= getter.phase
 				args, nextIdx, err := extractArgs(src, j, name)
 				if err != nil {
-					return err
+					return phase, err
 				}
 				i = nextIdx
-				actual, err = getter(args, w, req)
+				actual, err = getter.get(args, w, req)
 				if err != nil {
-					return err
+					return phase, err
 				}
-			} else if getter, ok := staticReqVarSubsMap[name]; ok {
+			} else if getter, ok := staticReqVarSubsMap[name]; ok { // always available
 				actual = getter(req)
-			} else if getter, ok := staticRespVarSubsMap[name]; ok {
+			} else if getter, ok := staticRespVarSubsMap[name]; ok { // post response
 				actual = getter(w)
+				phase |= PhasePost
 			} else {
-				return ErrUnexpectedVar.Subject(name)
+				return phase, ErrUnexpectedVar.Subject(name)
 			}
 			if _, err := dst.WriteString(actual); err != nil {
-				return err
+				return phase, err
 			}
 			if isStatic {
 				i = k - 1
@@ -128,10 +174,10 @@ func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, ds
 		}
 
 		// No valid construct after '$'
-		return ErrUnterminatedEnvVar.Withf("around $ at position %d", j)
+		return phase, ErrUnterminatedEnvVar.Withf("around $ at position %d", j)
 	}
 
-	return nil
+	return phase, nil
 }
 
 func extractArgs(src string, i int, funcName string) (args []string, nextIdx int, err error) {

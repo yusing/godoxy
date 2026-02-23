@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gobwas/glob"
+	"github.com/puzpuzpuz/xsync/v4"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -12,6 +13,8 @@ type (
 	Matcher     func(string) bool
 	MatcherType string
 )
+
+var matcherCache = xsync.NewMap[string, Matcher]() // map[string]Matcher
 
 const (
 	MatcherTypeString MatcherType = "string"
@@ -59,7 +62,12 @@ func ExtractExpr(s string) (matcherType MatcherType, expr string, err gperr.Erro
 }
 
 func ParseMatcher(expr string) (Matcher, gperr.Error) {
+	if cached, ok := matcherCache.Load(expr); ok {
+		return cached, nil
+	}
+
 	negate := false
+	origExpr := expr
 	if strings.HasPrefix(expr, "!") {
 		negate = true
 		expr = expr[1:]
@@ -72,11 +80,23 @@ func ParseMatcher(expr string) (Matcher, gperr.Error) {
 
 	switch t {
 	case MatcherTypeString:
-		return StringMatcher(expr, negate)
+		m, err := StringMatcher(expr, negate)
+		if err == nil {
+			matcherCache.Store(origExpr, m)
+		}
+		return m, err
 	case MatcherTypeGlob:
-		return GlobMatcher(expr, negate)
+		m, err := GlobMatcher(expr, negate)
+		if err == nil {
+			matcherCache.Store(origExpr, m)
+		}
+		return m, err
 	case MatcherTypeRegex:
-		return RegexMatcher(expr, negate)
+		m, err := RegexMatcher(expr, negate)
+		if err == nil {
+			matcherCache.Store(origExpr, m)
+		}
+		return m, err
 	}
 	// won't reach here
 	return nil, ErrInvalidArguments.Withf("invalid matcher type: %s", t)

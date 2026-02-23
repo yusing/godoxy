@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	. "github.com/yusing/godoxy/internal/route/rules"
+	httputils "github.com/yusing/goutils/http"
 	expect "github.com/yusing/goutils/testing"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -386,7 +387,7 @@ func TestOnCorrectness(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
+			w := httputils.NewResponseModifier(httptest.NewRecorder())
 			var on RuleOn
 			err := on.Parse(tt.checker)
 			expect.NoError(t, err)

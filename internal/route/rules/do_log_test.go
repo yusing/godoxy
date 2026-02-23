@@ -37,7 +37,7 @@ func parseRules(data string, target *Rules) error {
 }
 
 func TestLogCommand_TemporaryFile(t *testing.T) {
-	upstream := mockUpstreamWithHeaders(200, "success response", http.Header{
+	upstream := mockUpstreamWithHeaders(http.StatusOK, "success response", http.Header{
 		"Content-Type": []string{"application/json"},
 	})
 
@@ -45,10 +45,9 @@ func TestLogCommand_TemporaryFile(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(fmt.Sprintf(`
-- name: log-request-response
-  do: |
-    log info %q '$req_method $req_url $status_code $resp_header(Content-Type)'
-`, logFile), &rules)
+default {
+	log info %q '$req_method $req_url $status_code $resp_header(Content-Type)'
+}`, logFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -59,7 +58,7 @@ func TestLogCommand_TemporaryFile(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "success response", w.Body.String())
 
 	// Read and verify log content
@@ -74,12 +73,10 @@ func TestLogCommand_StdoutAndStderr(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(`
-- name: log-stdout
-  do: |
-    log info /dev/stdout "stdout: $req_method $status_code"
-- name: log-stderr
-  do: |
-    log error /dev/stderr "stderr: $req_path $status_code"
+default {
+	log info /dev/stdout "stdout: $req_method $status_code"
+	log error /dev/stderr "stderr: $req_path $status_code"
+}
 `, &rules)
 	require.NoError(t, err)
 
@@ -90,7 +87,7 @@ func TestLogCommand_StdoutAndStderr(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 	// Note: We can't easily capture stdout/stderr in unit tests,
 	// but we can verify no errors occurred and the handler completed
 }
@@ -104,26 +101,22 @@ func TestLogCommand_DifferentLogLevels(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(fmt.Sprintf(`
-- name: log-info
-  do: |
-    log info %s "INFO: $req_method $status_code"
-- name: log-warn
-  do: |
-    log warn %s "WARN: $req_path $status_code"
-- name: log-error
-  do: |
-    log error %s "ERROR: $req_method $req_path $status_code"
+default {
+	log info %s "INFO: $req_method $status_code"
+	log warn %s "WARN: $req_path $status_code"
+	log error %s "ERROR: $req_method $req_path $status_code"
+}
 `, infoFile, warnFile, errorFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
 
-	req := httptest.NewRequest("DELETE", "/api/resource/123", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/resource/123", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	assert.Equal(t, 404, w.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	// Verify each log file
 	infoContent := TestFileContent(infoFile)
@@ -148,22 +141,22 @@ func TestLogCommand_TemplateVariables(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(fmt.Sprintf(`
-- name: log-with-templates
-  do: |
-    log info %s 'Request: $req_method $req_url Host: $req_host User-Agent: $header(User-Agent) Response: $status_code Custom-Header: $resp_header(X-Custom-Header) Content-Length: $resp_header(Content-Length)'
+default {
+	log info %s 'Request: $req_method $req_url Host: $req_host User-Agent: $header(User-Agent) Response: $status_code Custom-Header: $resp_header(X-Custom-Header) Content-Length: $resp_header(Content-Length)'
+}
 `, tempFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
 
-	req := httptest.NewRequest("PUT", "/api/resource", nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/resource", nil)
 	req.Header.Set("User-Agent", "test-client/1.0")
 	req.Host = "example.com"
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
-	assert.Equal(t, 201, w.Code)
+	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// Verify log content
 	content := TestFileContent(tempFile)
@@ -192,14 +185,12 @@ func TestLogCommand_ConditionalLogging(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(fmt.Sprintf(`
-- name: log-success
-  on: status 2xx
-  do: |
-    log info %q "SUCCESS: $req_method $req_path $status_code"
-- name: log-error
-  on: status 4xx | status 5xx
-  do: |
-    log error %q "ERROR: $req_method $req_path $status_code"
+status 2xx {
+	log info %q "SUCCESS: $req_method $req_path $status_code"
+}
+status 4xx | status 5xx {
+	log error %q "ERROR: $req_method $req_path $status_code"
+}
 `, successFile, errorFile), &rules)
 	require.NoError(t, err)
 
@@ -244,9 +235,10 @@ func TestLogCommand_MultipleLogEntries(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(fmt.Sprintf(`
-- name: log-multiple
-  do: |
-    log info %q "$req_method $req_path $status_code"`, tempFile), &rules)
+default {
+	log info %q "$req_method $req_path $status_code"
+}
+`, tempFile), &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -256,10 +248,10 @@ func TestLogCommand_MultipleLogEntries(t *testing.T) {
 		method string
 		path   string
 	}{
-		{"GET", "/users"},
-		{"POST", "/users"},
-		{"PUT", "/users/1"},
-		{"DELETE", "/users/1"},
+		{http.MethodGet, "/users"},
+		{http.MethodPost, "/users"},
+		{http.MethodPost, "/users/1"},
+		{http.MethodDelete, "/users/1"},
 	}
 
 	for _, reqInfo := range requests {
@@ -287,8 +279,9 @@ func TestLogCommand_InvalidTemplate(t *testing.T) {
 
 	// Test with invalid template syntax
 	err := parseRules(`
-- name: log-invalid
-  do: |
-    log info /dev/stdout "$invalid_var"`, &rules)
-	assert.ErrorIs(t, err, ErrUnexpectedVar)
+default {
+	log info /dev/stdout "$invalid_var"
+}
+`, &rules)
+	require.ErrorIs(t, err, ErrUnexpectedVar)
 }

@@ -4,13 +4,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"unsafe"
 
 	httputils "github.com/yusing/goutils/http"
 )
 
 type templateString struct {
 	string
+
 	isTemplate bool
 }
 
@@ -23,32 +23,28 @@ func (tmpl *keyValueTemplate) Unpack() (string, templateString) {
 	return tmpl.key, tmpl.tmpl
 }
 
-func (tmpl *templateString) ExpandVars(w http.ResponseWriter, req *http.Request, dstW io.Writer) error {
+func (tmpl *templateString) ExpandVars(w *httputils.ResponseModifier, req *http.Request, dst io.Writer) (phase PhaseFlag, err error) {
 	if !tmpl.isTemplate {
-		_, err := dstW.Write(strtobNoCopy(tmpl.string))
-		return err
+		_, err := asBytesBufferLike(dst).WriteString(tmpl.string)
+		return PhaseNone, err
 	}
 
-	return ExpandVars(httputils.GetInitResponseModifier(w), req, tmpl.string, dstW)
+	return ExpandVars(w, req, tmpl.string, dst)
 }
 
-func (tmpl *templateString) ExpandVarsToString(w http.ResponseWriter, req *http.Request) (string, error) {
+func (tmpl *templateString) ExpandVarsToString(w *httputils.ResponseModifier, r *http.Request) (string, PhaseFlag, error) {
 	if !tmpl.isTemplate {
-		return tmpl.string, nil
+		return tmpl.string, PhaseNone, nil
 	}
 
 	var buf strings.Builder
-	err := ExpandVars(httputils.GetInitResponseModifier(w), req, tmpl.string, &buf)
+	phase, err := tmpl.ExpandVars(w, r, &buf)
 	if err != nil {
-		return "", err
+		return "", PhaseNone, err
 	}
-	return buf.String(), nil
+	return buf.String(), phase, nil
 }
 
 func (tmpl *templateString) Len() int {
 	return len(tmpl.string)
-}
-
-func strtobNoCopy(s string) []byte {
-	return unsafe.Slice(unsafe.StringData(s), len(s))
 }

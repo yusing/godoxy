@@ -10,6 +10,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type noopWriteCloser struct {
@@ -30,7 +31,7 @@ var (
 	testFilesLock sync.Mutex
 )
 
-func openFile(path string) (io.WriteCloser, error) {
+func openFile(path string) (io.WriteCloser, gperr.Error) {
 	switch path {
 	case "/dev/stdout":
 		return stdout, nil

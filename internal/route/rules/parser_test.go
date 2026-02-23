@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	gperr "github.com/yusing/goutils/errs"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -13,6 +14,7 @@ func TestParser(t *testing.T) {
 		input   string
 		subject string
 		args    []string
+		wantErr gperr.Error
 	}{
 		{
 			name:    "basic",
@@ -90,6 +92,10 @@ func TestParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			subject, args, err := parse(tt.input)
+			if tt.wantErr != nil {
+				expect.ErrorIs(t, tt.wantErr, err)
+				return
+			}
 			// t.Log(subject, args, err)
 			expect.NoError(t, err)
 			expect.Equal(t, subject, tt.subject)

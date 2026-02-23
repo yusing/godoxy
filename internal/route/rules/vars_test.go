@@ -232,7 +232,7 @@ func TestExpandVars(t *testing.T) {
 		{
 			name:  "req_method",
 			input: "$req_method",
-			want:  "POST",
+			want:  http.MethodPost,
 		},
 		{
 			name:  "req_path",
@@ -484,7 +484,7 @@ func TestExpandVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out strings.Builder
-			err := ExpandVars(testResponseModifier, testRequest, tt.input, &out)
+			_, err := ExpandVars(testResponseModifier, testRequest, tt.input, &out)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -506,7 +506,7 @@ func TestExpandVars_Integration(t *testing.T) {
 		testResponseModifier.WriteHeader(http.StatusOK)
 
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest,
+		_, err := ExpandVars(testResponseModifier, testRequest,
 			"$req_method $req_url $status_code User-Agent=$header(User-Agent)",
 			&out)
 
@@ -520,7 +520,7 @@ func TestExpandVars_Integration(t *testing.T) {
 		testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest,
+		_, err := ExpandVars(testResponseModifier, testRequest,
 			"Query: $arg(q), Page: $arg(page)",
 			&out)
 
@@ -537,7 +537,7 @@ func TestExpandVars_Integration(t *testing.T) {
 		testResponseModifier.WriteHeader(http.StatusOK)
 
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest,
+		_, err := ExpandVars(testResponseModifier, testRequest,
 			"Status: $status_code, Cache: $resp_header(Cache-Control), Limit: $resp_header(X-Rate-Limit)",
 			&out)
 
@@ -560,7 +560,7 @@ func TestExpandVars_RequestSchemes(t *testing.T) {
 		{
 			name: "https scheme",
 			request: &http.Request{
-				Method: "GET",
+				Method: http.MethodGet,
 				URL:    &url.URL{Scheme: "https", Host: "example.com", Path: "/"},
 				TLS:    &tls.ConnectionState{}, // Simulate TLS connection
 			},
@@ -572,7 +572,7 @@ func TestExpandVars_RequestSchemes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 			var out strings.Builder
-			err := ExpandVars(testResponseModifier, tt.request, "$req_scheme", &out)
+			_, err := ExpandVars(testResponseModifier, tt.request, "$req_scheme", &out)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, out.String())
 		})
@@ -598,7 +598,7 @@ func TestExpandVars_UpstreamVariables(t *testing.T) {
 	for _, varExpr := range upstreamVars {
 		t.Run(varExpr, func(t *testing.T) {
 			var out strings.Builder
-			err := ExpandVars(testResponseModifier, testRequest, varExpr, &out)
+			_, err := ExpandVars(testResponseModifier, testRequest, varExpr, &out)
 			// Should not error, may return empty string
 			require.NoError(t, err)
 		})
@@ -614,16 +614,16 @@ func TestExpandVars_NoHostPort(t *testing.T) {
 
 	t.Run("req_host without port", func(t *testing.T) {
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest, "$req_host", &out)
+		_, err := ExpandVars(testResponseModifier, testRequest, "$req_host", &out)
 		require.NoError(t, err)
 		require.Equal(t, "example.com", out.String())
 	})
 
 	t.Run("req_port without port", func(t *testing.T) {
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest, "$req_port", &out)
+		_, err := ExpandVars(testResponseModifier, testRequest, "$req_port", &out)
 		require.NoError(t, err)
-		require.Empty(t, out.String())
+		require.Equal(t, "", out.String())
 	})
 }
 
@@ -636,16 +636,16 @@ func TestExpandVars_NoRemotePort(t *testing.T) {
 
 	t.Run("remote_host without port", func(t *testing.T) {
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest, "$remote_host", &out)
+		_, err := ExpandVars(testResponseModifier, testRequest, "$remote_host", &out)
 		require.NoError(t, err)
-		require.Empty(t, out.String())
+		require.Equal(t, "", out.String())
 	})
 
 	t.Run("remote_port without port", func(t *testing.T) {
 		var out strings.Builder
-		err := ExpandVars(testResponseModifier, testRequest, "$remote_port", &out)
+		_, err := ExpandVars(testResponseModifier, testRequest, "$remote_port", &out)
 		require.NoError(t, err)
-		require.Empty(t, out.String())
+		require.Equal(t, "", out.String())
 	})
 }
 
@@ -654,7 +654,7 @@ func TestExpandVars_WhitespaceHandling(t *testing.T) {
 	testResponseModifier := httputils.NewResponseModifier(httptest.NewRecorder())
 
 	var out strings.Builder
-	err := ExpandVars(testResponseModifier, testRequest, "$req_method $req_path", &out)
+	_, err := ExpandVars(testResponseModifier, testRequest, "$req_method $req_path", &out)
 	require.NoError(t, err)
 	require.Equal(t, "GET /test", out.String())
 }
@@ -699,7 +699,7 @@ func TestValidateVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateVars(tt.input)
+			_, err := ValidateVars(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

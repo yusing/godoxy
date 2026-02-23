@@ -298,7 +298,7 @@ func parseRules(rawRules []RawRule) ([]ParsedRule, rules.Rules, error) {
 			On:              onStr,
 			Do:              doStr,
 			ValidationError: validationErr,
-			IsResponseRule:  rule.IsResponseRule(),
+			// IsResponseRule:  rule.Requirement()&rules.RequirementFlagResponse != 0,
 		})
 
 		// Only add valid rules to execution list
