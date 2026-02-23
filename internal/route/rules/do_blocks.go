@@ -417,10 +417,6 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 			}
 
 			// Not a nested block; parse the rest of this line as a command.
-			lineEnd = pos
-			for lineEnd < length && src[lineEnd] != '\n' {
-				lineEnd++
-			}
 			if lerr := appendLineCommand(src[pos:lineEnd]); lerr != nil {
 				return nil, lerr
 			}

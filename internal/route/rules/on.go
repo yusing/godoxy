@@ -651,7 +651,9 @@ func forEachPipePart(s string, fn func(part string)) {
 			}
 		case '|':
 			if quote == 0 && brackets == 0 {
-				fn(strings.TrimSpace(s[start:i]))
+				if part := strings.TrimSpace(s[start:i]); part != "" {
+					fn(part)
+				}
 				start = i + 1
 			}
 		}
