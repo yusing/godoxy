@@ -27,10 +27,9 @@ func TestHTTPFlow_BasicPreRules(t *testing.T) {
 
 	var rules Rules
 	err := parseRules(`
-- name: add-header
-  on: path /
-  do: set header X-Custom-Header test-value
-`, &rules)
+path / {
+  set header X-Custom-Header test-value
+}`, &rules)
 	require.NoError(t, err)
 
 	handler := rules.BuildHandler(upstream)
@@ -1286,7 +1285,7 @@ path / {
   error 403 blocked
 }
 path / {
-  set resp_header X-Late should-not-run
+  set resp_header X-Late should-run
 }
 status 4xx {
   set resp_header X-Post true
@@ -1303,7 +1302,7 @@ status 4xx {
 	assert.False(t, upstreamCalled)
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Equal(t, "blocked\n", w.Body.String())
-	assert.Equal(t, "should-not-run", w.Header().Get("X-Late"))
+	assert.Equal(t, "should-run", w.Header().Get("X-Late"))
 	assert.Equal(t, "true", w.Header().Get("X-Post"))
 }
 
