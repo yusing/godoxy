@@ -234,22 +234,22 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 
 ## Configuration Surface
 
-### Rule Configuration (YAML)
-
-```yaml
-rules:
-  - name: rule name
-    on: |
-      condition1
-      & condition2
-    do: |
-      action1
-      action2
-```
-
 ### Rule Configuration (Block Syntax)
 
-This is an alternative (and will eventually be the primary) syntax for rules that avoids YAML.
+```bash
+default {
+  action1
+  action2
+}
+
+condition1 &
+condition2 {
+  action1
+  action2
+}
+```
+
+This is the primary syntax for rules and avoids YAML wrappers.
 It keeps the **inner** `on` and `do` DSLs exactly the same (same matchers, same commands, same optional quotes), but wraps each rule in a `{ ... }` block.
 
 #### Key ideas
@@ -299,17 +299,17 @@ else_clause    := 'else' ws* '{' do_body '}'
 
 #### Nested blocks (inline conditionals inside `do`)
 
-Inside a rule body (`do_body`), you can write **nested blocks** that start with `@`:
+Inside a rule body (`do_body`), you can write **nested blocks**:
 
 ```text
 do_stmt      := command_line | nested_block | elif_else_chain
 
-nested_block := '@' on_expr ws* '{' do_body '}'
+nested_block := on_expr ws* '{' do_body '}'
 ```
 
 Notes:
 
-- A nested block is only recognized when `@` is the **first non-space character on a line**.
+- A nested block is recognized when a line ends with an unquoted `{` (ignoring trailing whitespace).
 - `on_expr` uses the same syntax as rule `on` (supports `|`, `&`, quoting/backticks, matcher functions, etc.).
 - The nested block executes **in sequence**, at the point where it appears in the parent `do` list.
 - Nested blocks are evaluated in the same phase the parent rule runs (no special phase promotion).
@@ -325,7 +325,7 @@ default {
 
 header X-Test-Header {
   set header X-Remote-Type public
-  @remote 127.0.0.1 | remote 192.168.0.0/16 {
+  remote 127.0.0.1 | remote 192.168.0.0/16 {
     set header X-Remote-Type private
   }
 }
@@ -338,7 +338,7 @@ The `elif`/`else` keywords must appear on the same line as the preceding closing
 
 ```go
 header X-Test-Header {
-  @method GET {
+  method GET {
     set header X-Mode get
   } elif method POST {
     set header X-Mode post
@@ -353,7 +353,7 @@ Notes:
 - `elif` and `else` must be on the same line as the preceding `}`.
 - Multiple `elif` branches are allowed; only one `else` is allowed.
 - The entire chain is evaluated in sequence; the first matching branch executes.
-- Elif/else chains can only be used within nested blocks (starting with `@`).
+- Elif/else chains can only be used within nested blocks.
 - Each `elif` clause must have its own condition expression and block.
 - The `else` clause is optional and provides a default action when no conditions match.
 
@@ -409,21 +409,21 @@ Always log the request
 
 ### Condition Syntax
 
-```yaml
+```bash
 # Simple condition
-on: path /api/users
+path /api/users
 
 # Multiple conditions (AND)
-on: header Authorization Bearer & path glob("/api/admin/*")
+header Authorization Bearer & path glob("/api/admin/*")
 
 # Negation
-on: !path glob("/public/*")
+!path glob("/public/*")
 
 # Negation on matcher
-on: path !glob("/public/*")
+path !glob("/public/*")
 
 # OR within a line
-on: method GET | method POST
+method GET | method POST
 ```
 
 ### Variable Substitution
@@ -479,7 +479,7 @@ Log context includes: `rule`, `alias`, `match_result`
 
 | Failure                | Behavior                  | Recovery                           |
 | ---------------------- | ------------------------- | ---------------------------------- |
-| Invalid rule syntax    | Route validation fails    | Fix YAML syntax                    |
+| Invalid rule syntax    | Route validation fails    | Fix block rule syntax              |
 | Multiple default rules | Route validation fails    | Remove duplicate default rules     |
 | Missing variables      | Variable renders as empty | Check variable sources             |
 | Rule timeout           | Request times out         | Increase timeout or simplify rules |
@@ -489,86 +489,84 @@ Log context includes: `rule`, `alias`, `match_result`
 
 ### Basic Pass-Through
 
-```yaml
-- name: default
-  do: pass
+```bash
+default {
+  pass
+}
 ```
 
 ### Path-Based Routing
 
-```yaml
-- name: api proxy
-  on: path glob("/api/*")
-  do: proxy http://api-backend:8080
+```bash
+path glob("/api/*") {
+  proxy http://api-backend:8080
+}
 
-- name: static files
-  on: path glob("/static/*")
-  do: serve /var/www/static
+path glob("/static/*") {
+  serve /var/www/static
+}
 ```
 
 ### Authentication
 
-```yaml
-- name: admin protection
-  on: path glob("/admin/*")
-  do: require_auth
+```bash
+path glob("/admin/*") {
+  require_auth
+}
 
-- name: basic auth for API
-  on: path glob("/api/*")
-  do: require_basic_auth "API Access"
+path glob("/api/*") {
+  require_basic_auth "API Access"
+}
 ```
 
 ### Path Rewriting
 
-```yaml
-- name: rewrite API v1
-  on: path glob("/v1/*")
-  do: |
-    rewrite /v1 /api/v1
-    proxy http://backend:8080
+```bash
+path glob("/v1/*") {
+  rewrite /v1 /api/v1
+  proxy http://backend:8080
+}
 ```
 
 ### IP-Based Access Control
 
-```yaml
-- name: allow internal
-  on: remote 10.0.0.0/8
-  do: pass
+```bash
+remote 10.0.0.0/8 {
+  pass
+}
 
-- name: block external
-  on: |
-    !remote 10.0.0.0/8
-    !remote 192.168.0.0/16
-  do: error 403 "Access Denied"
+!remote 10.0.0.0/8 &
+!remote 192.168.0.0/16 {
+  error 403 "Access Denied"
+}
 ```
 
 ### WebSocket Support
 
-```yaml
-- name: websocket upgrade
-  on: |
-    header Connection Upgrade
-    header Upgrade websocket
-  do: bypass
+```bash
+header Connection Upgrade &
+header Upgrade websocket {
+  bypass
+}
 ```
 
 ### Default Rule (Fallback)
 
-```yaml
+```bash
 # Default runs only if no non-default pre rule matches
-- name: default
-  do: |
-    remove resp_header X-Internal
-    add resp_header X-Powered-By godoxy
+default {
+  remove resp_header X-Internal
+  add resp_header X-Powered-By godoxy
+}
 
 # Matching rules suppress default
-- name: api routes
-  on: path glob("/api/*")
-  do: proxy http://api:8080
+path glob("/api/*") {
+  proxy http://api:8080
+}
 
-- name: api marker
-  on: path glob("/api/*")
-  do: set resp_header X-API true
+path glob("/api/*") {
+  set resp_header X-API true
+}
 ```
 
 Only one default rule is allowed per route. `name: default` and `on: default` are equivalent selectors and both behave as fallback-only.
@@ -577,6 +575,6 @@ Only one default rule is allowed per route. `name: default` and `on: default` ar
 
 - Unit tests for all matchers and actions
 - Integration tests with real HTTP requests
-- Parser tests for YAML syntax
+- Parser tests for block syntax
 - Variable substitution tests
 - Performance benchmarks for hot paths
