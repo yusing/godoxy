@@ -570,45 +570,10 @@ func splitPipe(s string) []string {
 		return []string{}
 	}
 
-	result := make([]string, 0, 2)
-	quote := byte(0)
-	brackets := 0
-	start := 0
-
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\\':
-			// Skip escaped character.
-			if i+1 < len(s) {
-				i++
-			}
-		case '"', '\'', '`':
-			if quote == 0 && brackets == 0 {
-				quote = s[i]
-			} else if s[i] == quote {
-				quote = 0
-			}
-		case '(':
-			brackets++
-		case ')':
-			if brackets > 0 {
-				brackets--
-			}
-		case '|':
-			if quote == 0 && brackets == 0 {
-				result = append(result, strings.TrimSpace(s[start:i]))
-				start = i + 1
-			}
-		}
-	}
-
-	// drop trailing empty part.
-	if start < len(s) {
-		if part := strings.TrimSpace(s[start:]); part != "" {
-			result = append(result, part)
-		}
-	}
-
+	result := []string{}
+	forEachPipePart(s, func(part string) {
+		result = append(result, part)
+	})
 	return result
 }
 

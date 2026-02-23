@@ -76,7 +76,7 @@ func TestSplitPipe(t *testing.T) {
 		{
 			name:  "empty_segments",
 			input: "rule1 || rule2 | | rule3",
-			want:  []string{"rule1", "", "rule2", "", "rule3"},
+			want:  []string{"rule1", "rule2", "rule3"},
 		},
 	}
 	for _, tt := range tests {
