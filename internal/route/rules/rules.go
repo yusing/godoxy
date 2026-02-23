@@ -288,7 +288,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		rm := httputils.NewResponseModifier(w)
 		defer func() {
 			if _, err := rm.FlushRelease(); err != nil {
-				logError(err, r)
+				logFlushError(err, r)
 			}
 		}()
 
@@ -323,7 +323,10 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 					preTerminated = true
 					continue
 				}
-				logError(err, r)
+				if isUnexpectedError(err) {
+					// will logged by logFlushError after FlushRelease
+					rm.AppendError("executing pre rule (%s): %w", rule.Do.raw, err)
+				}
 				hasError = true
 			}
 		}
@@ -346,7 +349,10 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				logError(err, r)
+				if isUnexpectedError(err) {
+					// will logged by logFlushError after FlushRelease
+					rm.AppendError("executing post rule (%s): %w", rule.Do.raw, err)
+				}
 			}
 		}
 
@@ -361,13 +367,19 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				logError(err, r)
+				if isUnexpectedError(err) {
+					// will logged by logFlushError after FlushRelease
+					rm.AppendError("executing pre rule (%s): %w", rule.Do.raw, err)
+				}
 			}
 			if err := execPostCommand(rule.Do, rm, r); err != nil {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				logError(err, r)
+				if isUnexpectedError(err) {
+					// will logged by logFlushError after FlushRelease
+					rm.AppendError("executing post rule (%s): %w", rule.Do.raw, err)
+				}
 			}
 		}
 	}
@@ -390,14 +402,14 @@ var errStreamClosed error
 //go:linkname errClientDisconnected golang.org/x/net/http2.errClientDisconnected
 var errClientDisconnected error
 
-func logError(err error, r *http.Request) {
+func isUnexpectedError(err error) bool {
 	if errors.Is(err, errStreamClosed) || errors.Is(err, errClientDisconnected) {
-		return
+		return false
 	}
 	if h2Err, ok := errors.AsType[http2.StreamError](err); ok {
 		// ignore these errors
 		if h2Err.Code == http2.ErrCodeStreamClosed {
-			return
+			return false
 		}
 	}
 	if h3Err, ok := errors.AsType[*http3.Error](err); ok {
@@ -406,8 +418,12 @@ func logError(err error, r *http.Request) {
 		case
 			http3.ErrCodeNoError,
 			http3.ErrCodeRequestCanceled:
-			return
+			return false
 		}
 	}
+	return true
+}
+
+func logFlushError(err error, r *http.Request) {
 	log.Err(err).Str("method", r.Method).Str("url", r.Host+r.URL.Path).Msg("error executing rules")
 }
