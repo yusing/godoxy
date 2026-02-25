@@ -36,6 +36,17 @@ while IFS= read -r file; do
 	[ -f "$min_file" ] || : >"$min_file"
 done < <(find internal/ -name '*.js' ! -name '*-min.js')
 
+docker_version="$(
+	git show origin/compat:go.mod |
+		sed -n 's/^[[:space:]]*github.com\/docker\/docker[[:space:]]\+\(v[^[:space:]]\+\).*/\1/p' |
+		head -n 1
+)"
+if [ -n "$docker_version" ]; then
+	go mod edit -droprequire=github.com/docker/docker/api || true
+	go mod edit -droprequire=github.com/docker/docker/client || true
+	go mod edit -require="github.com/docker/docker@${docker_version}"
+fi
+
 go mod tidy
 go mod -C agent tidy
 git add -A
