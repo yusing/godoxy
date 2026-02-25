@@ -17,15 +17,22 @@ endif
 
 LDFLAGS = -X github.com/yusing/goutils/version.version=${VERSION} -checklinkname=0
 
+PACKAGE ?= ./cmd
+
 ifeq ($(agent), 1)
 	NAME = godoxy-agent
 	PWD = ${shell pwd}/agent
 else ifeq ($(socket-proxy), 1)
 	NAME = godoxy-socket-proxy
 	PWD = ${shell pwd}/socket-proxy
+else ifeq ($(cli), 1)
+	NAME = godoxy-cli
+	PWD = ${shell pwd}/cmd/cli
+	PACKAGE = .
 else
 	NAME = godoxy
 	PWD = ${shell pwd}
+	godoxy = 1
 endif
 
 ifeq ($(trace), 1)
@@ -58,7 +65,6 @@ endif
 
 BUILD_FLAGS += -tags '$(GO_TAGS)' -ldflags='$(LDFLAGS)'
 BIN_PATH := $(shell pwd)/bin/${NAME}
-CLI_BIN_PATH ?= $(shell pwd)/bin/godoxy-cli
 
 export NAME
 export CGO_ENABLED
@@ -133,13 +139,20 @@ minify-js:
 		done \
 	fi
 
-build: minify-js
+build:
+	@if [ "${godoxy}" = "1" ]; then \
+		make minify-js; \
+	elif [ "${cli}" = "1" ]; then \
+		make gen-cli; \
+	fi
 	mkdir -p $(shell dirname ${BIN_PATH})
-	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ./cmd
-	${POST_BUILD}
+	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ${PACKAGE}
+	@if [ "${godoxy}" = "1" ]; then \
+		${POST_BUILD} \
+	fi
 
 run: minify-js
-	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ./cmd
+	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${PACKAGE}
 
 dev:
 	docker compose -f dev.compose.yml $(args)
@@ -186,13 +199,10 @@ gen-api-types: gen-swagger
 	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
 		 --responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
 
+.PHONY: gen-cli build-cli update-wiki
+
 gen-cli:
 	cd cmd/cli && go run ./gen
 
-build-cli: gen-cli
-	mkdir -p $(shell dirname ${CLI_BIN_PATH})
-	go build -C cmd/cli -o ${CLI_BIN_PATH} .
-
-.PHONY: gen-cli build-cli update-wiki
 update-wiki:
 	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki/main.ts

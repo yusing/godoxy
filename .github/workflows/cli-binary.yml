@@ -47,14 +47,20 @@ jobs:
 
       - name: Build CLI
         run: |
-          make CLI_BIN_PATH=bin/${{ matrix.binary_name }} build-cli
+          make cli=1 NAME=${{ matrix.binary_name }} build
 
       - name: Check binary
         run: |
           file bin/${{ matrix.binary_name }}
 
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.binary_name }}
           path: bin/${{ matrix.binary_name }}
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: bin/${{ matrix.binary_name }}
