@@ -82,7 +82,11 @@ endif
 
 
 # CAP_NET_BIND_SERVICE: permission for binding to :80 and :443
-POST_BUILD = $(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH};
+POST_BUILD = echo;
+
+ifeq ($(godoxy), 1)
+	POST_BUILD += $(SETCAP_CMD) CAP_NET_BIND_SERVICE=+ep ${BIN_PATH};
+endif
 ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
@@ -147,9 +151,7 @@ build:
 	fi
 	mkdir -p $(shell dirname ${BIN_PATH})
 	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ${PACKAGE}
-	@if [ "${godoxy}" = "1" ]; then \
-		${POST_BUILD} \
-	fi
+	${POST_BUILD}
 
 run: minify-js
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${PACKAGE}
