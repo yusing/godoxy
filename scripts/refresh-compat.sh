@@ -10,7 +10,7 @@ git fetch origin main compat
 git checkout -B compat origin/compat
 patch_file="$(mktemp)"
 trap 'rm -f "$patch_file"' EXIT
-git diff origin/main -- . ':(exclude)**/go.mod' ':(exclude)**/go.sum' >"$patch_file"
+git diff origin/main -- ':(glob)**/*.go' >"$patch_file"
 git checkout -B main origin/main
 git branch -D compat
 git checkout -b compat
