@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -233,6 +234,9 @@ var commands = map[string]struct {
 			route := args.(string)
 			return func(w *httputils.ResponseModifier, req *http.Request, upstream http.HandlerFunc) error {
 				ep := entrypoint.FromCtx(req.Context())
+				if ep == nil {
+					return errors.New("entrypoint not found")
+				}
 				r, ok := ep.HTTPRoutes().Get(route)
 				if !ok {
 					excluded, has := ep.ExcludedRoutes().Get(route)
