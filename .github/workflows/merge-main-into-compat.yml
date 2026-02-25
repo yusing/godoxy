@@ -1,4 +1,4 @@
-name: Cherry-pick into Compat
+name: Refresh Compat from Main Patch
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - ".github/workflows/merge-main-into-compat.yml"
 
 jobs:
-  cherry-pick:
+  refresh-compat:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,20 +20,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Cherry-pick commits from last tag
+      - name: Refresh compat with single patch commit
         run: |
-          git fetch origin compat
-          git checkout compat
-          CURRENT_TAG=${{ github.ref_name }}
-          PREV_TAG=$(git describe --tags --abbrev=0 $CURRENT_TAG^ 2>/dev/null || echo "")
-
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag found. Cherry-picking all commits up to $CURRENT_TAG"
-            git rev-list --reverse --no-merges $CURRENT_TAG | xargs -r git cherry-pick
-          else
-            echo "Cherry-picking commits from $PREV_TAG to $CURRENT_TAG"
-            git rev-list --reverse --no-merges $PREV_TAG..$CURRENT_TAG | xargs -r git cherry-pick
-          fi
+          ./scripts/refresh-compat.sh
       - name: Push compat
         run: |
-          git push origin compat
+          git push origin compat --force
