@@ -27,6 +27,17 @@ done
 if [ "${#fmt_go_files[@]}" -gt 0 ]; then
 	gofmt -w "${fmt_go_files[@]}"
 fi
+
+# create placeholder files for minified JS files so go vet won't complain
+while IFS= read -r file; do
+	ext="${file##*.}"
+	base="${file%.*}"
+	min_file="${base}-min.${ext}"
+	[ -f "$min_file" ] || : >"$min_file"
+done < <(find internal/ -name '*.js' ! -name '*-min.js')
+
+go mod tidy
+go mod -C agent tidy
 git add -A
 git commit -m "Apply compat patch"
 go vet ./...
