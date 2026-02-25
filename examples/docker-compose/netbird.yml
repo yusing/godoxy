@@ -1,0 +1,46 @@
+services:
+  netbird-dashboard:
+    image: netbirdio/dashboard:latest
+    container_name: netbird-dashboard
+    restart: unless-stopped
+    networks: [netbird-net]
+    env_file: dashboard.env
+    labels:
+      proxy.aliases: netbird
+      proxy.#1.port: 80
+      proxy.#1.scheme: http
+      proxy.#1.homepage.name: NetBird
+      proxy.#1.homepage.icon: "@selfhst/netbird.svg"
+      proxy.#1.homepage.category: networking
+      proxy.#1.rules: | # https://docs.netbird.io/selfhosted/configuration-files
+        path glob(/signalexchange.SignalExchange/**) | path glob(/management.ManagementService/**) | path glob(/management.ProxyService/**) {
+          route netbird-grpc
+        }
+        path glob(/relay*) | path glob(/ws-proxy/**) | path glob(/api*) | path glob(/oauth2*) {
+          route netbird-api
+        }
+        default {
+          pass
+        }
+  netbird-server:
+    image: netbirdio/netbird-server:latest
+    container_name: netbird-server
+    restart: unless-stopped
+    networks:
+      - netbird-net
+    volumes:
+      - netbird_data:/var/lib/netbird
+      - ./config.yaml:/etc/netbird/config.yaml
+    command: ["--config", "/etc/netbird/config.yaml"]
+    labels:
+      proxy.aliases: netbird-api, netbird-grpc
+      proxy.*.port: 80
+      proxy.*.homepage.show: false
+      proxy.#1.scheme: http
+      proxy.#2.scheme: h2c
+
+networks:
+  netbird-net:
+
+volumes:
+  netbird_data:
