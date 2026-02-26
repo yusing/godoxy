@@ -27,22 +27,21 @@ type (
 			Example:
 
 				proxy.app1.rules: |
-					- name: default
-						do: |
-							rewrite / /index.html
-							serve /var/www/goaccess
-					- name: ws
-						on: |
-							header Connection Upgrade
-							header Upgrade websocket
-						do: bypass
+					default {
+						rewrite / /index.html
+						serve /var/www/goaccess
+					}
+					header Connection Upgrade & header Upgrade websocket {
+						bypass
+					}
 
 				proxy.app2.rules: |
-					- name: default
-						do: bypass
-					- name: block POST and PUT
-						on: method POST | method PUT
-						do: error 403 Forbidden
+					default {
+						bypass
+					}
+					method POST | method PUT {
+						error 403 Forbidden
+					}
 	*/
 	//nolint:recvcheck
 	Rules []Rule
