@@ -309,7 +309,8 @@ nested_block := on_expr ws* '{' do_body '}'
 
 Notes:
 
-- A nested block is recognized when a line ends with an unquoted `{` (ignoring trailing whitespace).
+- A nested block is recognized when a logical header ends with an unquoted `{`.
+- Logical headers can continue to the next line when the current line ends with `|` or `&`.
 - `on_expr` uses the same syntax as rule `on` (supports `|`, `&`, quoting/backticks, matcher functions, etc.).
 - The nested block executes **in sequence**, at the point where it appears in the parent `do` list.
 - Nested blocks are evaluated in the same phase the parent rule runs (no special phase promotion).
@@ -424,6 +425,15 @@ path !glob("/public/*")
 
 # OR within a line
 method GET | method POST
+
+# OR across multiple lines (line continuation)
+method GET |
+method POST |
+method PUT
+
+# AND across multiple lines
+header Connection Upgrade &
+header Upgrade websocket
 ```
 
 ### Variable Substitution

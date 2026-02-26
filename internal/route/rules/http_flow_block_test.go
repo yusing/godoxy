@@ -456,7 +456,8 @@ func TestHTTPFlow_NestedBlocks_RemoteOverride(t *testing.T) {
 	err := parseRules(`
 header X-Test-Header {
   set header X-Remote-Type public
-  remote 127.0.0.1 | remote 192.168.0.0/16 {
+  remote 127.0.0.1 |
+	remote 192.168.0.0/16 {
     set header X-Remote-Type private
   }
 }

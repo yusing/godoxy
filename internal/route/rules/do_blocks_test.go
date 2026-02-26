@@ -71,3 +71,38 @@ func TestIfElseBlockCommandServeHTTP_ConditionalMatchedNilDoNotFallsThrough(t *t
 	require.NoError(t, err)
 	assert.False(t, elseCalled)
 }
+
+func TestParseDoWithBlocks_MultilineBlockHeaderContinuation(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "or continuation",
+			src: `
+remote 127.0.0.1 |
+remote 192.168.0.0/16 {
+  set header X-Remote-Type private
+}
+`,
+		},
+		{
+			name: "and continuation",
+			src: `
+method GET &
+remote 127.0.0.1 {
+  set header X-Remote-Type private
+}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlers, err := parseDoWithBlocks(tt.src)
+			require.NoError(t, err)
+			require.Len(t, handlers, 1)
+			require.IsType(t, IfBlockCommand{}, handlers[0])
+		})
+	}
+}

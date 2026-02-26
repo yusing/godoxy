@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"net/http"
+	"net/url"
 	"testing"
 
 	gperr "github.com/yusing/goutils/errs"
@@ -132,6 +134,16 @@ func TestSplitAnd(t *testing.T) {
 			name:  "spaces_around",
 			input: " rule1\nrule2 & rule3 ",
 			want:  []string{"rule1", "rule2", "rule3"},
+		},
+		{
+			name:  "newline_after_pipe_is_or_continuation",
+			input: "path /abc |\npath /bcd",
+			want:  []string{"path /abc |\npath /bcd"},
+		},
+		{
+			name:  "newline_after_pipe_with_spaces_is_or_continuation",
+			input: "path /abc |   \n  path /bcd",
+			want:  []string{"path /abc |   \n  path /bcd"},
 		},
 	}
 	for _, tt := range tests {
@@ -280,6 +292,11 @@ func TestParseOn(t *testing.T) {
 			input:   `method GET | path regex("^(_next/static|_next/image|favicon.ico).*$") | header Authorization`,
 			wantErr: nil,
 		},
+		{
+			name:    "pipe_multiline_continuation",
+			input:   "path /abc |\npath /bcd |",
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -293,4 +310,19 @@ func TestParseOn(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRuleOnParse_MultilineOrContinuation(t *testing.T) {
+	var on RuleOn
+	err := on.Parse("path /abc |\npath /bcd |")
+	expect.NoError(t, err)
+
+	w := http.ResponseWriter(nil)
+	reqABC := &http.Request{URL: &url.URL{Path: "/abc"}}
+	reqBCD := &http.Request{URL: &url.URL{Path: "/bcd"}}
+	reqXYZ := &http.Request{URL: &url.URL{Path: "/xyz"}}
+
+	expect.Equal(t, on.Check(w, reqABC), true)
+	expect.Equal(t, on.Check(w, reqBCD), true)
+	expect.Equal(t, on.Check(w, reqXYZ), false)
 }

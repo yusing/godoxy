@@ -292,6 +292,20 @@ func parseAtBlockChain(src string, blockPos int) (CommandHandler, int, error) {
 }
 
 func lineEndsWithUnquotedOpenBrace(src string, lineStart int, lineEnd int) bool {
+	return lineEndsWithUnquotedToken(src, lineStart, lineEnd) == '{'
+}
+
+func lineContinuationOperator(src string, lineStart int, lineEnd int) byte {
+	token := lineEndsWithUnquotedToken(src, lineStart, lineEnd)
+	switch token {
+	case '|', '&':
+		return token
+	default:
+		return 0
+	}
+}
+
+func lineEndsWithUnquotedToken(src string, lineStart int, lineEnd int) byte {
 	quote := byte(0)
 	lastSignificant := byte(0)
 	atLineStart := true
@@ -334,13 +348,22 @@ func lineEndsWithUnquotedOpenBrace(src string, lineStart int, lineEnd int) bool 
 		atLineStart = false
 		prevIsSpace = false
 	}
-	return quote == 0 && lastSignificant == '{'
+	if quote != 0 {
+		return 0
+	}
+	return lastSignificant
 }
 
 // parseDoWithBlocks parses a do-body containing plain command lines and nested blocks.
 // It returns the outer command handlers and the require phase.
 //
-// A nested block is recognized when a line ends with an unquoted '{' (ignoring trailing whitespace).
+// A nested block is recognized when a logical header ends with an unquoted '{'.
+// Logical headers may span lines using trailing '|' or '&', for example:
+//
+//	remote 127.0.0.1 |
+//	remote 192.168.0.0/16 {
+//	  set header X-Remote-Type private
+//	}
 func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 	pos := 0
 	length := len(src)
@@ -400,12 +423,38 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 				linePos++
 			}
 
-			lineEnd := linePos
-			for lineEnd < length && src[lineEnd] != '\n' {
-				lineEnd++
+			logicalEnd := linePos
+			for logicalEnd < length && src[logicalEnd] != '\n' {
+				logicalEnd++
 			}
 
-			if linePos < length && lineEndsWithUnquotedOpenBrace(src, linePos, lineEnd) {
+			for linePos < length && lineContinuationOperator(src, linePos, logicalEnd) != 0 {
+				nextPos := logicalEnd
+				if nextPos < length && src[nextPos] == '\n' {
+					nextPos++
+				}
+				for nextPos < length {
+					c := rune(src[nextPos])
+					if c == '\n' {
+						nextPos++
+						continue
+					}
+					if c == '\r' || unicode.IsSpace(c) {
+						nextPos++
+						continue
+					}
+					break
+				}
+				if nextPos >= length {
+					break
+				}
+				logicalEnd = nextPos
+				for logicalEnd < length && src[logicalEnd] != '\n' {
+					logicalEnd++
+				}
+			}
+
+			if linePos < length && lineEndsWithUnquotedOpenBrace(src, linePos, logicalEnd) {
 				h, next, err := parseAtBlockChain(src, linePos)
 				if err != nil {
 					return nil, err
@@ -417,10 +466,10 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 			}
 
 			// Not a nested block; parse the rest of this line as a command.
-			if lerr := appendLineCommand(src[pos:lineEnd]); lerr != nil {
+			if lerr := appendLineCommand(src[pos:logicalEnd]); lerr != nil {
 				return nil, lerr
 			}
-			pos = lineEnd
+			pos = logicalEnd
 			lineStart = true
 			continue
 		}

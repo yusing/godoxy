@@ -505,62 +505,70 @@ var (
 	andSeps    = [256]uint8{'&': 1, '\n': 1}
 )
 
-func indexAnd(s string) int {
-	for i := range s {
-		if andSeps[s[i]] != 0 {
-			return i
-		}
-	}
-	return -1
-}
-
-func countAnd(s string) int {
-	n := 0
-	for i := range s {
-		if andSeps[s[i]] != 0 {
-			n++
-		}
-	}
-	return n
-}
-
-// splitAnd splits a string by "&" and "\n" with all spaces removed.
-// empty strings are not included in the result.
+// splitAnd splits a condition string into AND parts.
+// It treats '&' and newline as AND separators, except when a line ends with
+// an unescaped '|' (OR continuation), where the newline stays in the same part.
+// Empty parts are omitted.
 func splitAnd(s string) []string {
 	if s == "" {
 		return []string{}
 	}
-	n := countAnd(s)
-	a := make([]string, n+1)
-	i := 0
-	for i < n {
-		end := indexAnd(s)
-		if end == -1 {
-			break
+	result := []string{}
+	forEachAndPart(s, func(part string) {
+		result = append(result, part)
+	})
+	return result
+}
+
+func lineEndsWithUnescapedPipe(s string, start, end int) bool {
+	for i := end - 1; i >= start; i-- {
+		if asciiSpace[s[i]] != 0 {
+			continue
 		}
-		beg := 0
-		// trim leading spaces
-		for beg < end && asciiSpace[s[beg]] != 0 {
-			beg++
+		if s[i] != '|' {
+			return false
 		}
-		// trim trailing spaces
-		next := end + 1
-		for end-1 > beg && asciiSpace[s[end-1]] != 0 {
-			end--
+		escapes := 0
+		for j := i - 1; j >= start && s[j] == '\\'; j-- {
+			escapes++
 		}
-		// skip empty segments
-		if end > beg {
-			a[i] = s[beg:end]
-			i++
-		}
-		s = s[next:]
+		return escapes%2 == 0
 	}
-	s = strings.TrimSpace(s)
-	if s != "" {
-		a[i] = s
-		i++
+	return false
+}
+
+func advanceSplitState(s string, i *int, quote *byte, brackets *int) bool {
+	c := s[*i]
+	if *quote != 0 {
+		if c == '\\' && *i+1 < len(s) {
+			*i++
+			return true
+		}
+		if c == *quote {
+			*quote = 0
+		}
+		return true
 	}
-	return a[:i]
+
+	switch c {
+	case '\\':
+		if *i+1 < len(s) {
+			*i++
+			return true
+		}
+	case '"', '\'', '`':
+		*quote = c
+		return true
+	case '(':
+		*brackets++
+		return true
+	case ')':
+		if *brackets > 0 {
+			*brackets--
+		}
+		return true
+	}
+	return false
 }
 
 // splitPipe splits a string by "|" but respects quotes, brackets, and escaped characters.
@@ -578,8 +586,26 @@ func splitPipe(s string) []string {
 }
 
 func forEachAndPart(s string, fn func(part string)) {
+	quote := byte(0)
+	brackets := 0
 	start := 0
+
 	for i := 0; i <= len(s); i++ {
+		if i < len(s) {
+			c := s[i]
+			if advanceSplitState(s, &i, &quote, &brackets) {
+				continue
+			}
+
+			if c == '\n' {
+				if brackets > 0 || lineEndsWithUnescapedPipe(s, start, i) {
+					continue
+				}
+			} else if c != '&' || brackets > 0 {
+				continue
+			}
+		}
+
 		if i < len(s) && andSeps[s[i]] == 0 {
 			continue
 		}
@@ -597,30 +623,14 @@ func forEachPipePart(s string, fn func(part string)) {
 	start := 0
 
 	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\\':
-			if i+1 < len(s) {
-				i++
+		if advanceSplitState(s, &i, &quote, &brackets) {
+			continue
+		}
+		if s[i] == '|' && brackets == 0 {
+			if part := strings.TrimSpace(s[start:i]); part != "" {
+				fn(part)
 			}
-		case '"', '\'', '`':
-			if quote == 0 && brackets == 0 {
-				quote = s[i]
-			} else if s[i] == quote {
-				quote = 0
-			}
-		case '(':
-			brackets++
-		case ')':
-			if brackets > 0 {
-				brackets--
-			}
-		case '|':
-			if quote == 0 && brackets == 0 {
-				if part := strings.TrimSpace(s[start:i]); part != "" {
-					fn(part)
-				}
-				start = i + 1
-			}
+			start = i + 1
 		}
 	}
 	if start < len(s) {
