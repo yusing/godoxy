@@ -122,9 +122,9 @@ classDiagram
         +accessLogger AccessLogger
         +findRouteFunc findRouteFunc
         +shortLinkMatcher *ShortLinkMatcher
-        +streamRoutes *pool.Pool[types.StreamRoute]
-        +excludedRoutes *pool.Pool[types.Route]
-        +servers *xsync.Map[string, *httpServer]
+        +streamRoutes *pool.Pool\[types.StreamRoute\]
+        +excludedRoutes *pool.Pool\[types.Route\]
+        +servers *xsync.Map\[string, *httpServer\]
         +SupportProxyProtocol() bool
         +StartAddRoute(r) error
         +IterRoutes(yield)
@@ -132,7 +132,7 @@ classDiagram
     }
 
     class httpServer {
-        +routes *pool.Pool[types.HTTPRoute]
+        +routes *pool.Pool\[types.HTTPRoute\]
         +ServeHTTP(w, r)
         +AddRoute(route)
         +DelRoute(route)
@@ -154,8 +154,8 @@ classDiagram
     }
 
     class ShortLinkMatcher {
-        +fqdnRoutes *xsync.Map[string, string]
-        +subdomainRoutes *xsync.Map[string, struct{}]
+        +fqdnRoutes *xsync.Map\[string, string\]
+        +subdomainRoutes *xsync.Map\[string, emptyStruct\]
         +ServeHTTP(w, r)
         +AddRoute(alias)
         +DelRoute(alias)
