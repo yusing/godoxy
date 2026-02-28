@@ -190,7 +190,7 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		}
 	}
 
-	if httpheaders.IsWebsocket(r.Header) || strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+	if httpheaders.IsWebsocket(r.Header) || strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/event-stream") {
 		next(w, r)
 		return
 	}
@@ -350,6 +350,15 @@ func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
 		return n, err
 	}
 	return s.buf.Write(p)
+}
+
+func (s *ssePassthroughWriter) Flush() {
+	if s.sse {
+		return // writes already went to the real writer with Flush() called on each Write
+	}
+	if f, ok := s.real.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {
