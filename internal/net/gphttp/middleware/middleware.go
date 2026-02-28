@@ -368,8 +368,8 @@ func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
 // Flush implements http.Flusher. It activates SSE passthrough if Content-Type
 // is text/event-stream and no write has occurred yet (covering the case where a
 // handler sets the header and calls Flush before the first Write). In passthrough
-// mode it flushes directly to the real ResponseWriter; otherwise it delegates to
-// the underlying ResponseWriter's Flush if available.
+// mode it flushes directly to the real ResponseWriter; in buffered (non-SSE) mode
+// it delegates to the ResponseModifier so middleware mutations are not bypassed.
 func (s *ssePassthroughWriter) Flush() {
 	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get("Content-Type")), mimeEventStream) {
 		code := s.buf.StatusCode()
@@ -384,7 +384,7 @@ func (s *ssePassthroughWriter) Flush() {
 		}
 		return
 	}
-	if f, ok := s.real.(http.Flusher); ok {
+	if f, ok := s.buf.(http.Flusher); ok {
 		f.Flush()
 	}
 }
