@@ -54,7 +54,11 @@ type (
 	RequestModifier interface {
 		before(w http.ResponseWriter, r *http.Request) (proceed bool)
 	}
-	ResponseModifier             interface{ modifyResponse(r *http.Response) error }
+	ResponseModifier     interface{ modifyResponse(r *http.Response) error }
+	BodyResponseModifier interface {
+		ResponseModifier
+		isBodyResponseModifier()
+	}
 	MiddlewareWithSetup          interface{ setup() }
 	MiddlewareFinalizer          interface{ finalize() }
 	MiddlewareFinalizerWithError interface {
@@ -208,8 +212,15 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		next(w, r)
 		return
 	}
+	isBodyModifier := isBodyResponseModifier(exec)
 
-	lrm := httputils.NewLazyResponseModifier(w, canBufferAndModifyResponseBody)
+	shouldBuffer := canBufferAndModifyResponseBody
+	if !isBodyModifier {
+		// Header-only response modifiers do not need body rewrite capability checks.
+		// We still respect max buffer limits and may fall back to passthrough for large bodies.
+		shouldBuffer = func(http.Header) bool { return true }
+	}
+	lrm := httputils.NewLazyResponseModifier(w, shouldBuffer)
 	lrm.SetMaxBufferedBytes(maxModifiableBody)
 	defer func() {
 		_, err := lrm.FlushRelease()
@@ -225,6 +236,9 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	}
 
 	rm := lrm.ResponseModifier()
+	if rm.IsPassthrough() {
+		return
+	}
 	currentBody := rm.BodyReader()
 	currentResp := &http.Response{
 		StatusCode:    rm.StatusCode(),
@@ -246,7 +260,7 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	maps.Copy(rm.Header(), respToModify.Header)
 
 	// override the body if changed
-	if respToModify.Body != currentBody {
+	if isBodyModifier && respToModify.Body != currentBody {
 		err := rm.SetBody(respToModify.Body)
 		if err != nil {
 			m.LogError(r).Err(err).Msg("failed to set response body")

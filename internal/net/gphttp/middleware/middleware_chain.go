@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -9,12 +8,9 @@ import (
 )
 
 type middlewareChain struct {
-	befores  []RequestModifier
-	modResps []ResponseModifier
-}
-
-type bodyRewriteRequired interface {
-	requiresBodyRewrite() bool
+	befores    []RequestModifier
+	respHeader []ResponseModifier
+	respBody   []ResponseModifier
 }
 
 // TODO: check conflict or duplicates.
@@ -27,7 +23,11 @@ func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 			chainMid.befores = append(chainMid.befores, before)
 		}
 		if mr, ok := comp.impl.(ResponseModifier); ok {
-			chainMid.modResps = append(chainMid.modResps, mr)
+			if isBodyResponseModifier(mr) {
+				chainMid.respBody = append(chainMid.respBody, mr)
+			} else {
+				chainMid.respHeader = append(chainMid.respHeader, mr)
+			}
 		}
 	}
 	return m
@@ -48,55 +48,32 @@ func (m *middlewareChain) before(w http.ResponseWriter, r *http.Request) (procee
 
 // modifyResponse implements ResponseModifier.
 func (m *middlewareChain) modifyResponse(resp *http.Response) error {
-	if len(m.modResps) == 0 {
-		return nil
-	}
-	for i, mr := range m.modResps {
-		if err := modifyResponseWithBodyRewriteGate(mr, resp); err != nil {
+	for i, mr := range m.respHeader {
+		if err := mr.modifyResponse(resp); err != nil {
 			return gperr.PrependSubject(err, strconv.Itoa(i))
 		}
 	}
-	return nil
-}
-
-func modifyResponseWithBodyRewriteGate(mr ResponseModifier, resp *http.Response) error {
-	originalBody := resp.Body
-	originalContentLength := resp.ContentLength
-	allowBodyRewrite := canBufferAndModifyResponseBody(responseHeaderForBodyRewriteGate(resp))
-	if !allowBodyRewrite && requiresBodyRewrite(mr) {
+	if len(m.respBody) == 0 || !canBufferAndModifyResponseBody(responseHeaderForBodyRewriteGate(resp)) {
 		return nil
 	}
-
-	if err := mr.modifyResponse(resp); err != nil {
-		return err
-	}
-
-	if allowBodyRewrite || resp.Body == originalBody {
-		return nil
-	}
-
-	if resp.Body != nil {
-		if err := resp.Body.Close(); err != nil {
-			return fmt.Errorf("close rewritten body: %w", err)
+	headerLen := len(m.respHeader)
+	for i, mr := range m.respBody {
+		if err := mr.modifyResponse(resp); err != nil {
+			return gperr.PrependSubject(err, strconv.Itoa(i+headerLen))
 		}
 	}
-	if originalBody == nil || originalBody == http.NoBody {
-		resp.Body = http.NoBody
-	} else {
-		resp.Body = originalBody
-	}
-	resp.ContentLength = originalContentLength
-	if originalContentLength >= 0 {
-		resp.Header.Set("Content-Length", strconv.FormatInt(originalContentLength, 10))
-	} else {
-		resp.Header.Del("Content-Length")
-	}
 	return nil
 }
 
-func requiresBodyRewrite(mr ResponseModifier) bool {
-	required, ok := mr.(bodyRewriteRequired)
-	return ok && required.requiresBodyRewrite()
+func isBodyResponseModifier(mr ResponseModifier) bool {
+	if chain, ok := mr.(*middlewareChain); ok {
+		return len(chain.respBody) > 0
+	}
+	if bypass, ok := mr.(*checkBypass); ok {
+		return isBodyResponseModifier(bypass.modRes)
+	}
+	_, ok := mr.(BodyResponseModifier)
+	return ok
 }
 
 func responseHeaderForBodyRewriteGate(resp *http.Response) http.Header {

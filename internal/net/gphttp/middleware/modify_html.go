@@ -22,9 +22,7 @@ type modifyHTML struct {
 
 var ModifyHTML = NewMiddleware[modifyHTML]()
 
-func (*modifyHTML) requiresBodyRewrite() bool {
-	return true
-}
+func (*modifyHTML) isBodyResponseModifier() {}
 
 func (m *modifyHTML) before(_ http.ResponseWriter, req *http.Request) bool {
 	req.Header.Set("Accept-Encoding", "identity")
