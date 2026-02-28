@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"reflect"
@@ -326,13 +327,18 @@ func (s *ssePassthroughWriter) Header() http.Header {
 }
 
 // bypassToReal commits the status code to the buffer (so StatusCode() remains
-// accurate) then copies the accumulated headers to the real ResponseWriter and
-// writes the status code directly, switching all future writes to bypass mode.
+// accurate) then copies the accumulated headers and any already-buffered body
+// bytes to the real ResponseWriter, switching all future writes to bypass mode.
+// Draining the buffer here prevents data loss when SSE is detected after some
+// bytes were already written via the non-SSE path.
 func (s *ssePassthroughWriter) bypassToReal(code int) {
 	s.buf.WriteHeader(code) // store code so StatusCode() is correct if caller checks
 	s.sse = true
 	maps.Copy(s.real.Header(), s.buf.Header())
 	s.real.WriteHeader(code)
+	if body := s.buf.BodyReader(); body != nil {
+		io.Copy(s.real, body) //nolint:errcheck
+	}
 }
 
 // WriteHeader checks whether the response is SSE before committing the status
