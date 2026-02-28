@@ -17,7 +17,10 @@ import (
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
-const mimeEventStream = "text/event-stream"
+const (
+	mimeEventStream   = "text/event-stream"
+	headerContentType = "Content-Type"
+)
 
 type (
 	ReverseProxy = reverseproxy.ReverseProxy
@@ -336,7 +339,7 @@ func (s *ssePassthroughWriter) bypassToReal(code int) {
 // code. If Content-Type is text/event-stream the writer switches to passthrough
 // mode; otherwise the status code is forwarded to the ResponseModifier buffer.
 func (s *ssePassthroughWriter) WriteHeader(code int) {
-	if strings.Contains(strings.ToLower(s.buf.Header().Get("Content-Type")), mimeEventStream) {
+	if strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
 		s.bypassToReal(code)
 		return
 	}
@@ -348,7 +351,7 @@ func (s *ssePassthroughWriter) WriteHeader(code int) {
 // written directly to the real ResponseWriter and flushed immediately; otherwise
 // the chunk is forwarded to the ResponseModifier buffer.
 func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
-	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get("Content-Type")), mimeEventStream) {
+	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
 		code := s.buf.StatusCode()
 		if code == 0 {
 			code = http.StatusOK
@@ -371,7 +374,7 @@ func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
 // mode it flushes directly to the real ResponseWriter; in buffered (non-SSE) mode
 // it delegates to the ResponseModifier so middleware mutations are not bypassed.
 func (s *ssePassthroughWriter) Flush() {
-	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get("Content-Type")), mimeEventStream) {
+	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
 		code := s.buf.StatusCode()
 		if code == 0 {
 			code = http.StatusOK
