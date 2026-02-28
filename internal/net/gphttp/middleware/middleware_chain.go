@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"maps"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -47,23 +47,53 @@ func (m *middlewareChain) modifyResponse(resp *http.Response) error {
 	if len(m.modResps) == 0 {
 		return nil
 	}
-	allowBodyModification := canModifyResponseBody(resp)
 	for i, mr := range m.modResps {
-		respToModify := resp
-		if !allowBodyModification {
-			shadow := *resp
-			shadow.Body = eofReader{}
-			respToModify = &shadow
-		}
-		if err := mr.modifyResponse(respToModify); err != nil {
+		if err := modifyResponseWithBodyRewriteGate(mr, resp); err != nil {
 			return gperr.PrependSubject(err, strconv.Itoa(i))
-		}
-		if !allowBodyModification {
-			resp.StatusCode = respToModify.StatusCode
-			if respToModify.Header != nil {
-				maps.Copy(resp.Header, respToModify.Header)
-			}
 		}
 	}
 	return nil
+}
+
+func modifyResponseWithBodyRewriteGate(mr ResponseModifier, resp *http.Response) error {
+	originalBody := resp.Body
+	originalContentLength := resp.ContentLength
+	allowBodyRewrite := canBufferAndModifyResponseBody(responseHeaderForBodyRewriteGate(resp))
+
+	if err := mr.modifyResponse(resp); err != nil {
+		return err
+	}
+
+	if allowBodyRewrite || resp.Body == originalBody {
+		return nil
+	}
+
+	if resp.Body != nil {
+		if err := resp.Body.Close(); err != nil {
+			return fmt.Errorf("close rewritten body: %w", err)
+		}
+	}
+	if originalBody == nil || originalBody == http.NoBody {
+		resp.Body = http.NoBody
+	} else {
+		resp.Body = originalBody
+	}
+	resp.ContentLength = originalContentLength
+	if originalContentLength >= 0 {
+		resp.Header.Set("Content-Length", strconv.FormatInt(originalContentLength, 10))
+	} else {
+		resp.Header.Del("Content-Length")
+	}
+	return nil
+}
+
+func responseHeaderForBodyRewriteGate(resp *http.Response) http.Header {
+	h := resp.Header.Clone()
+	if len(resp.TransferEncoding) > 0 && len(h.Values("Transfer-Encoding")) == 0 {
+		h["Transfer-Encoding"] = append([]string(nil), resp.TransferEncoding...)
+	}
+	if resp.ContentLength >= 0 && h.Get("Content-Length") == "" {
+		h.Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+	}
+	return h
 }

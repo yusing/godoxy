@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"fmt"
-	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
@@ -21,6 +22,7 @@ import (
 const (
 	mimeEventStream   = "text/event-stream"
 	headerContentType = "Content-Type"
+	maxModifiableBody = 4 * 1024 * 1024 // 4MB
 )
 
 type (
@@ -201,81 +203,107 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		return
 	}
 
-	if exec, ok := m.impl.(ResponseModifier); ok {
-		rm := httputils.NewResponseModifier(w)
-		sw := &ssePassthroughWriter{real: w, buf: rm}
-		defer func() {
-			if sw.sse {
-				return // already written directly to the real writer
-			}
-			_, err := rm.FlushRelease()
-			if err != nil {
-				m.LogError(r).Err(err).Msg("failed to flush response")
-			}
-		}()
-		next(sw, r)
-
-		if sw.sse {
-			return
-		}
-
-		currentBody := rm.BodyReader()
-		currentResp := &http.Response{
-			StatusCode:    rm.StatusCode(),
-			Header:        rm.Header(),
-			ContentLength: int64(rm.ContentLength()),
-			Body:          currentBody,
-			Request:       r,
-		}
-		allowBodyModification := canModifyResponseBody(currentResp)
-		respToModify := currentResp
-		if !allowBodyModification {
-			shadow := *currentResp
-			shadow.Body = eofReader{}
-			respToModify = &shadow
-		}
-		if err := exec.modifyResponse(respToModify); err != nil {
-			log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
-		}
-
-		// override the response status code
-		rm.WriteHeader(respToModify.StatusCode)
-
-		// overriding the response header
-		maps.Copy(rm.Header(), respToModify.Header)
-
-		// override the content length and body if changed
-		if respToModify.Body != currentBody {
-			if allowBodyModification {
-				if err := rm.SetBody(respToModify.Body); err != nil {
-					m.LogError(r).Err(err).Msg("failed to set response body")
-				}
-			} else {
-				respToModify.Body.Close()
-			}
-		}
-	} else {
+	exec, ok := m.impl.(ResponseModifier)
+	if !ok {
 		next(w, r)
+		return
+	}
+
+	lrm := httputils.NewLazyResponseModifier(w, canBufferAndModifyResponseBody)
+	lrm.SetMaxBufferedBytes(maxModifiableBody)
+	defer func() {
+		_, err := lrm.FlushRelease()
+		if err != nil {
+			m.LogError(r).Err(err).Msg("failed to flush response")
+		}
+	}()
+	next(lrm, r)
+
+	// Skip modification if response wasn't buffered
+	if !lrm.IsBuffered() {
+		return
+	}
+
+	rm := lrm.ResponseModifier()
+	currentBody := rm.BodyReader()
+	currentResp := &http.Response{
+		StatusCode:    rm.StatusCode(),
+		Header:        rm.Header(),
+		ContentLength: int64(rm.ContentLength()),
+		Body:          currentBody,
+		Request:       r,
+	}
+	respToModify := currentResp
+	if err := exec.modifyResponse(respToModify); err != nil {
+		log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
+		return // skip modification if failed
+	}
+
+	// override the response status code
+	rm.WriteHeader(respToModify.StatusCode)
+
+	// overriding the response header
+	maps.Copy(rm.Header(), respToModify.Header)
+
+	// override the body if changed
+	if respToModify.Body != currentBody {
+		err := rm.SetBody(respToModify.Body)
+		if err != nil {
+			m.LogError(r).Err(err).Msg("failed to set response body")
+			return // skip modification if failed
+		}
 	}
 }
 
-func canModifyResponseBody(resp *http.Response) bool {
-	if hasNonIdentityEncoding(resp.TransferEncoding) {
+// canBufferAndModifyResponseBody checks if the response body can be buffered and modified.
+//
+// A body can be buffered and modified if:
+// - The response is not a websocket and is not an event stream
+// - The response has identity transfer encoding
+// - The response has identity content encoding
+// - The response has a content length
+// - The content length is less than 4MB
+// - The content type is text-like
+func canBufferAndModifyResponseBody(respHeader http.Header) bool {
+	if httpheaders.IsWebsocket(respHeader) {
 		return false
 	}
-	if hasNonIdentityEncoding(resp.Header.Values("Transfer-Encoding")) {
+	contentType := respHeader.Get("Content-Type")
+	if contentType == "" { // safe default: skip if no content type
 		return false
 	}
-	if hasNonIdentityEncoding(resp.Header.Values("Content-Encoding")) {
+	contentType = strings.ToLower(contentType)
+	if strings.Contains(contentType, mimeEventStream) {
 		return false
 	}
-	return isTextLikeMediaType(string(httputils.GetContentType(resp.Header)))
+	// strip charset or any other parameters
+	contentType, _, err := mime.ParseMediaType(contentType)
+	if err != nil { // skip if invalid content type
+		return false
+	}
+	if hasNonIdentityEncoding(respHeader.Values("Transfer-Encoding")) {
+		return false
+	}
+	if hasNonIdentityEncoding(respHeader.Values("Content-Encoding")) {
+		return false
+	}
+	if contentLengthRaw := respHeader.Get("Content-Length"); contentLengthRaw != "" {
+		contentLength, err := strconv.ParseInt(contentLengthRaw, 10, 64)
+		if err != nil || contentLength >= maxModifiableBody {
+			return false
+		}
+	}
+	if !isTextLikeMediaType(contentType) {
+		return false
+	}
+	return true
 }
 
 func hasNonIdentityEncoding(values []string) bool {
 	for _, value := range values {
-		for _, token := range strings.Split(value, ",") {
-			if strings.TrimSpace(token) == "" || strings.EqualFold(strings.TrimSpace(token), "identity") {
+		for token := range strings.SplitSeq(value, ",") {
+			token = strings.TrimSpace(token)
+			if token == "" || strings.EqualFold(token, "identity") {
 				continue
 			}
 			return true
@@ -308,97 +336,6 @@ func isTextLikeMediaType(contentType string) bool {
 		return true
 	}
 	return contentType == "application/x-www-form-urlencoded"
-}
-
-// ssePassthroughWriter wraps a ResponseModifier but detects SSE responses
-// (Content-Type: text/event-stream) at the point headers are first committed.
-// Once detected, subsequent writes go directly to the underlying ResponseWriter
-// with immediate flushing, preserving real-time streaming behaviour for SSE
-// endpoints that use POST (which cannot send Accept: text/event-stream upfront).
-type ssePassthroughWriter struct {
-	real http.ResponseWriter
-	buf  *httputils.ResponseModifier
-	sse  bool
-}
-
-// Header returns the buffered response headers from the ResponseModifier.
-func (s *ssePassthroughWriter) Header() http.Header {
-	return s.buf.Header()
-}
-
-// bypassToReal commits the status code to the buffer (so StatusCode() remains
-// accurate) then copies the accumulated headers and any already-buffered body
-// bytes to the real ResponseWriter, switching all future writes to bypass mode.
-// Draining the buffer here prevents data loss when SSE is detected after some
-// bytes were already written via the non-SSE path.
-func (s *ssePassthroughWriter) bypassToReal(code int) {
-	s.buf.WriteHeader(code) // store code so StatusCode() is correct if caller checks
-	s.sse = true
-	maps.Copy(s.real.Header(), s.buf.Header())
-	s.real.WriteHeader(code)
-	if body := s.buf.BodyReader(); body != nil {
-		io.Copy(s.real, body) //nolint:errcheck
-	}
-}
-
-// WriteHeader checks whether the response is SSE before committing the status
-// code. If Content-Type is text/event-stream the writer switches to passthrough
-// mode; otherwise the status code is forwarded to the ResponseModifier buffer.
-func (s *ssePassthroughWriter) WriteHeader(code int) {
-	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
-		s.bypassToReal(code)
-		return
-	}
-	if s.sse {
-		return // already committed to real writer
-	}
-	s.buf.WriteHeader(code)
-}
-
-// Write detects a late SSE Content-Type (set after WriteHeader was called) and
-// switches to passthrough mode if needed. In passthrough mode each chunk is
-// written directly to the real ResponseWriter and flushed immediately; otherwise
-// the chunk is forwarded to the ResponseModifier buffer.
-func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
-	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
-		code := s.buf.StatusCode()
-		if code == 0 {
-			code = http.StatusOK
-		}
-		s.bypassToReal(code)
-	}
-	if s.sse {
-		n, err := s.real.Write(p)
-		if f, ok := s.real.(http.Flusher); ok {
-			f.Flush()
-		}
-		return n, err
-	}
-	return s.buf.Write(p)
-}
-
-// Flush implements http.Flusher. It activates SSE passthrough if Content-Type
-// is text/event-stream and no write has occurred yet (covering the case where a
-// handler sets the header and calls Flush before the first Write). In passthrough
-// mode it flushes directly to the real ResponseWriter; in buffered (non-SSE) mode
-// it delegates to the ResponseModifier so middleware mutations are not bypassed.
-func (s *ssePassthroughWriter) Flush() {
-	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
-		code := s.buf.StatusCode()
-		if code == 0 {
-			code = http.StatusOK
-		}
-		s.bypassToReal(code)
-	}
-	if s.sse {
-		if f, ok := s.real.(http.Flusher); ok {
-			f.Flush()
-		}
-		return
-	}
-	if f, ok := s.buf.(http.Flusher); ok {
-		f.Flush()
-	}
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {
