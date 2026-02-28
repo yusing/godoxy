@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 	"syscall"
 	"time"
 
@@ -152,19 +153,24 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 		}
 	}
 
-	partitions, err := disk.PartitionsWithContext(ctx, false)
+	partitions, err := disk.PartitionsWithContext(ctx, true)
 	if err != nil {
 		return err
 	}
+
 	s.Disks = make(map[string]disk.UsageStat, len(partitions))
 	errs := gperr.NewBuilder("failed to get disks info")
 	for _, partition := range partitions {
+		if !shouldCollectPartition(partition) {
+			continue
+		}
 		diskInfo, err := disk.UsageWithContext(ctx, partition.Mountpoint)
 		if err != nil {
 			errs.Add(err)
 			continue
 		}
-		s.Disks[partition.Device] = diskInfo
+		key := diskKey(partition)
+		s.Disks[key] = diskInfo
 	}
 
 	if errs.HasError() {
@@ -174,6 +180,41 @@ func (s *SystemInfo) collectDisksInfo(ctx context.Context, lastResult *SystemInf
 		log.Warn().Msg(errs.String())
 	}
 	return nil
+}
+
+func shouldCollectPartition(partition disk.PartitionStat) bool {
+	if partition.Mountpoint == "/" {
+		return true
+	}
+
+	if partition.Mountpoint == "" {
+		return false
+	}
+
+	// includes WSL mounts like /mnt/c, but exclude /mnt/ itself and /mnt/wsl*
+	if len(partition.Mountpoint) >= len("/mnt/") &&
+		strings.HasPrefix(partition.Mountpoint, "/mnt/") &&
+		!strings.HasPrefix(partition.Mountpoint, "/mnt/wsl") {
+		return true
+	}
+
+	if strings.HasPrefix(partition.Device, "/dev/") {
+		return true
+	}
+
+	return false
+}
+
+func diskKey(partition disk.PartitionStat) string {
+	if partition.Device == "" || partition.Device == "none" {
+		return partition.Mountpoint
+	}
+
+	if partition.Device == "/dev/root" {
+		return partition.Mountpoint
+	}
+
+	return partition.Device
 }
 
 func (s *SystemInfo) collectNetworkInfo(ctx context.Context, lastResult *SystemInfo) error {
