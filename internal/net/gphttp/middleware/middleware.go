@@ -315,10 +315,14 @@ type ssePassthroughWriter struct {
 	sse  bool
 }
 
+// Header returns the buffered response headers from the ResponseModifier.
 func (s *ssePassthroughWriter) Header() http.Header {
 	return s.buf.Header()
 }
 
+// bypassToReal commits the status code to the buffer (so StatusCode() remains
+// accurate) then copies the accumulated headers to the real ResponseWriter and
+// writes the status code directly, switching all future writes to bypass mode.
 func (s *ssePassthroughWriter) bypassToReal(code int) {
 	s.buf.WriteHeader(code) // store code so StatusCode() is correct if caller checks
 	s.sse = true
@@ -326,6 +330,9 @@ func (s *ssePassthroughWriter) bypassToReal(code int) {
 	s.real.WriteHeader(code)
 }
 
+// WriteHeader checks whether the response is SSE before committing the status
+// code. If Content-Type is text/event-stream the writer switches to passthrough
+// mode; otherwise the status code is forwarded to the ResponseModifier buffer.
 func (s *ssePassthroughWriter) WriteHeader(code int) {
 	if strings.Contains(s.buf.Header().Get("Content-Type"), "text/event-stream") {
 		s.bypassToReal(code)
@@ -334,6 +341,10 @@ func (s *ssePassthroughWriter) WriteHeader(code int) {
 	s.buf.WriteHeader(code)
 }
 
+// Write detects a late SSE Content-Type (set after WriteHeader was called) and
+// switches to passthrough mode if needed. In passthrough mode each chunk is
+// written directly to the real ResponseWriter and flushed immediately; otherwise
+// the chunk is forwarded to the ResponseModifier buffer.
 func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
 	if !s.sse && strings.Contains(s.buf.Header().Get("Content-Type"), "text/event-stream") {
 		code := s.buf.StatusCode()
@@ -352,6 +363,9 @@ func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
 	return s.buf.Write(p)
 }
 
+// Flush implements http.Flusher. In passthrough mode it is a no-op because
+// each Write already flushes directly to the real ResponseWriter. Otherwise it
+// delegates to the underlying ResponseWriter's Flush if available.
 func (s *ssePassthroughWriter) Flush() {
 	if s.sse {
 		return // writes already went to the real writer with Flush() called on each Write
