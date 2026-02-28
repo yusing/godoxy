@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +29,29 @@ type testResponseRewrite struct {
 	HeaderKey  string `json:"header_key"`
 	HeaderVal  string `json:"header_val"`
 	Body       string `json:"body"`
+}
+
+type closeSensitiveBody struct {
+	data   []byte
+	offset int
+	closed bool
+}
+
+func (b *closeSensitiveBody) Read(p []byte) (int, error) {
+	if b.closed {
+		return 0, errors.New("http: read on closed response body")
+	}
+	if b.offset >= len(b.data) {
+		return 0, io.EOF
+	}
+	n := copy(p, b.data[b.offset:])
+	b.offset += n
+	return n, nil
+}
+
+func (b *closeSensitiveBody) Close() error {
+	b.closed = true
+	return nil
 }
 
 func (t testResponseRewrite) modifyResponse(resp *http.Response) error {
@@ -225,4 +249,35 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 			expect.Equal(t, string(data), tc.expectBody)
 		})
 	}
+}
+
+func TestMiddlewareResponseRewriteGateSkipsBodyRewriterWhenRewriteBlocked(t *testing.T) {
+	originalBody := &closeSensitiveBody{
+		data: []byte("<html><body>original</body></html>"),
+	}
+	req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type":      []string{"text/html; charset=utf-8"},
+			"Transfer-Encoding": []string{"chunked"},
+		},
+		Body:             originalBody,
+		ContentLength:    -1,
+		TransferEncoding: []string{"chunked"},
+		Request:          req,
+	}
+
+	themedMid, err := Themed.New(OptionsRaw{
+		"theme": DarkTheme,
+	})
+	expect.NoError(t, err)
+
+	respMod, ok := themedMid.impl.(ResponseModifier)
+	expect.True(t, ok)
+	expect.NoError(t, modifyResponseWithBodyRewriteGate(respMod, resp))
+
+	data, err := io.ReadAll(resp.Body)
+	expect.NoError(t, err)
+	expect.Equal(t, string(data), "<html><body>original</body></html>")
 }

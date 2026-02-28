@@ -13,6 +13,10 @@ type middlewareChain struct {
 	modResps []ResponseModifier
 }
 
+type bodyRewriteRequired interface {
+	requiresBodyRewrite() bool
+}
+
 // TODO: check conflict or duplicates.
 func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 	chainMid := &middlewareChain{}
@@ -59,6 +63,9 @@ func modifyResponseWithBodyRewriteGate(mr ResponseModifier, resp *http.Response)
 	originalBody := resp.Body
 	originalContentLength := resp.ContentLength
 	allowBodyRewrite := canBufferAndModifyResponseBody(responseHeaderForBodyRewriteGate(resp))
+	if !allowBodyRewrite && requiresBodyRewrite(mr) {
+		return nil
+	}
 
 	if err := mr.modifyResponse(resp); err != nil {
 		return err
@@ -85,6 +92,11 @@ func modifyResponseWithBodyRewriteGate(mr ResponseModifier, resp *http.Response)
 		resp.Header.Del("Content-Length")
 	}
 	return nil
+}
+
+func requiresBodyRewrite(mr ResponseModifier) bool {
+	required, ok := mr.(bodyRewriteRequired)
+	return ok && required.requiresBodyRewrite()
 }
 
 func responseHeaderForBodyRewriteGate(resp *http.Response) http.Header {

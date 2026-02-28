@@ -20,6 +20,10 @@ var CustomErrorPage = NewMiddleware[customErrorPage]()
 
 const StaticFilePathPrefix = "/$gperrorpage/"
 
+func (customErrorPage) requiresBodyRewrite() bool {
+	return true
+}
+
 // before implements RequestModifier.
 func (customErrorPage) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	return !ServeStaticErrorPageFile(w, r)
