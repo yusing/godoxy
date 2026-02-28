@@ -190,20 +190,28 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		}
 	}
 
-	if httpheaders.IsWebsocket(r.Header) || r.Header.Get("Accept") == "text/event-stream" {
+	if httpheaders.IsWebsocket(r.Header) || strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
 		next(w, r)
 		return
 	}
 
 	if exec, ok := m.impl.(ResponseModifier); ok {
 		rm := httputils.NewResponseModifier(w)
+		sw := &ssePassthroughWriter{real: w, buf: rm}
 		defer func() {
+			if sw.sse {
+				return // already written directly to the real writer
+			}
 			_, err := rm.FlushRelease()
 			if err != nil {
 				m.LogError(r).Err(err).Msg("failed to flush response")
 			}
 		}()
-		next(rm, r)
+		next(sw, r)
+
+		if sw.sse {
+			return
+		}
 
 		currentBody := rm.BodyReader()
 		currentResp := &http.Response{
@@ -294,6 +302,54 @@ func isTextLikeMediaType(contentType string) bool {
 		return true
 	}
 	return contentType == "application/x-www-form-urlencoded"
+}
+
+// ssePassthroughWriter wraps a ResponseModifier but detects SSE responses
+// (Content-Type: text/event-stream) at the point headers are first committed.
+// Once detected, subsequent writes go directly to the underlying ResponseWriter
+// with immediate flushing, preserving real-time streaming behaviour for SSE
+// endpoints that use POST (which cannot send Accept: text/event-stream upfront).
+type ssePassthroughWriter struct {
+	real http.ResponseWriter
+	buf  *httputils.ResponseModifier
+	sse  bool
+}
+
+func (s *ssePassthroughWriter) Header() http.Header {
+	return s.buf.Header()
+}
+
+func (s *ssePassthroughWriter) bypassToReal(code int) {
+	s.buf.WriteHeader(code) // store code so StatusCode() is correct if caller checks
+	s.sse = true
+	maps.Copy(s.real.Header(), s.buf.Header())
+	s.real.WriteHeader(code)
+}
+
+func (s *ssePassthroughWriter) WriteHeader(code int) {
+	if strings.Contains(s.buf.Header().Get("Content-Type"), "text/event-stream") {
+		s.bypassToReal(code)
+		return
+	}
+	s.buf.WriteHeader(code)
+}
+
+func (s *ssePassthroughWriter) Write(p []byte) (int, error) {
+	if !s.sse && strings.Contains(s.buf.Header().Get("Content-Type"), "text/event-stream") {
+		code := s.buf.StatusCode()
+		if code == 0 {
+			code = http.StatusOK
+		}
+		s.bypassToReal(code)
+	}
+	if s.sse {
+		n, err := s.real.Write(p)
+		if f, ok := s.real.(http.Flusher); ok {
+			f.Flush()
+		}
+		return n, err
+	}
+	return s.buf.Write(p)
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {
