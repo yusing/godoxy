@@ -345,9 +345,12 @@ func (s *ssePassthroughWriter) bypassToReal(code int) {
 // code. If Content-Type is text/event-stream the writer switches to passthrough
 // mode; otherwise the status code is forwarded to the ResponseModifier buffer.
 func (s *ssePassthroughWriter) WriteHeader(code int) {
-	if strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
+	if !s.sse && strings.Contains(strings.ToLower(s.buf.Header().Get(headerContentType)), mimeEventStream) {
 		s.bypassToReal(code)
 		return
+	}
+	if s.sse {
+		return // already committed to real writer
 	}
 	s.buf.WriteHeader(code)
 }
