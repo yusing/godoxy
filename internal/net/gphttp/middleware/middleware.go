@@ -3,9 +3,11 @@ package middleware
 import (
 	"fmt"
 	"maps"
+	"mime"
 	"net/http"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
@@ -15,6 +17,12 @@ import (
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/reverseproxy"
+)
+
+const (
+	mimeEventStream   = "text/event-stream"
+	headerContentType = "Content-Type"
+	maxModifiableBody = 4 * 1024 * 1024 // 4MB
 )
 
 type (
@@ -190,78 +198,112 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		}
 	}
 
-	if httpheaders.IsWebsocket(r.Header) || r.Header.Get("Accept") == "text/event-stream" {
+	if httpheaders.IsWebsocket(r.Header) || strings.Contains(strings.ToLower(r.Header.Get("Accept")), mimeEventStream) {
 		next(w, r)
 		return
 	}
 
-	if exec, ok := m.impl.(ResponseModifier); ok {
-		rm := httputils.NewResponseModifier(w)
-		defer func() {
-			_, err := rm.FlushRelease()
-			if err != nil {
-				m.LogError(r).Err(err).Msg("failed to flush response")
-			}
-		}()
-		next(rm, r)
-
-		currentBody := rm.BodyReader()
-		currentResp := &http.Response{
-			StatusCode:    rm.StatusCode(),
-			Header:        rm.Header(),
-			ContentLength: int64(rm.ContentLength()),
-			Body:          currentBody,
-			Request:       r,
-		}
-		allowBodyModification := canModifyResponseBody(currentResp)
-		respToModify := currentResp
-		if !allowBodyModification {
-			shadow := *currentResp
-			shadow.Body = eofReader{}
-			respToModify = &shadow
-		}
-		if err := exec.modifyResponse(respToModify); err != nil {
-			log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
-		}
-
-		// override the response status code
-		rm.WriteHeader(respToModify.StatusCode)
-
-		// overriding the response header
-		maps.Copy(rm.Header(), respToModify.Header)
-
-		// override the content length and body if changed
-		if respToModify.Body != currentBody {
-			if allowBodyModification {
-				if err := rm.SetBody(respToModify.Body); err != nil {
-					m.LogError(r).Err(err).Msg("failed to set response body")
-				}
-			} else {
-				respToModify.Body.Close()
-			}
-		}
-	} else {
+	exec, ok := m.impl.(ResponseModifier)
+	if !ok {
 		next(w, r)
+		return
+	}
+
+	lrm := httputils.NewLazyResponseModifier(w, canBufferAndModifyResponseBody)
+	lrm.SetMaxBufferedBytes(maxModifiableBody)
+	defer func() {
+		_, err := lrm.FlushRelease()
+		if err != nil {
+			m.LogError(r).Err(err).Msg("failed to flush response")
+		}
+	}()
+	next(lrm, r)
+
+	// Skip modification if response wasn't buffered
+	if !lrm.IsBuffered() {
+		return
+	}
+
+	rm := lrm.ResponseModifier()
+	currentBody := rm.BodyReader()
+	currentResp := &http.Response{
+		StatusCode:    rm.StatusCode(),
+		Header:        rm.Header(),
+		ContentLength: int64(rm.ContentLength()),
+		Body:          currentBody,
+		Request:       r,
+	}
+	respToModify := currentResp
+	if err := exec.modifyResponse(respToModify); err != nil {
+		log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
+		return // skip modification if failed
+	}
+
+	// override the response status code
+	rm.WriteHeader(respToModify.StatusCode)
+
+	// overriding the response header
+	maps.Copy(rm.Header(), respToModify.Header)
+
+	// override the body if changed
+	if respToModify.Body != currentBody {
+		err := rm.SetBody(respToModify.Body)
+		if err != nil {
+			m.LogError(r).Err(err).Msg("failed to set response body")
+			return // skip modification if failed
+		}
 	}
 }
 
-func canModifyResponseBody(resp *http.Response) bool {
-	if hasNonIdentityEncoding(resp.TransferEncoding) {
+// canBufferAndModifyResponseBody checks if the response body can be buffered and modified.
+//
+// A body can be buffered and modified if:
+// - The response is not a websocket and is not an event stream
+// - The response has identity transfer encoding
+// - The response has identity content encoding
+// - The response has a content length
+// - The content length is less than 4MB
+// - The content type is text-like
+func canBufferAndModifyResponseBody(respHeader http.Header) bool {
+	if httpheaders.IsWebsocket(respHeader) {
 		return false
 	}
-	if hasNonIdentityEncoding(resp.Header.Values("Transfer-Encoding")) {
+	contentType := respHeader.Get("Content-Type")
+	if contentType == "" { // safe default: skip if no content type
 		return false
 	}
-	if hasNonIdentityEncoding(resp.Header.Values("Content-Encoding")) {
+	contentType = strings.ToLower(contentType)
+	if strings.Contains(contentType, mimeEventStream) {
 		return false
 	}
-	return isTextLikeMediaType(string(httputils.GetContentType(resp.Header)))
+	// strip charset or any other parameters
+	contentType, _, err := mime.ParseMediaType(contentType)
+	if err != nil { // skip if invalid content type
+		return false
+	}
+	if hasNonIdentityEncoding(respHeader.Values("Transfer-Encoding")) {
+		return false
+	}
+	if hasNonIdentityEncoding(respHeader.Values("Content-Encoding")) {
+		return false
+	}
+	if contentLengthRaw := respHeader.Get("Content-Length"); contentLengthRaw != "" {
+		contentLength, err := strconv.ParseInt(contentLengthRaw, 10, 64)
+		if err != nil || contentLength >= maxModifiableBody {
+			return false
+		}
+	}
+	if !isTextLikeMediaType(contentType) {
+		return false
+	}
+	return true
 }
 
 func hasNonIdentityEncoding(values []string) bool {
 	for _, value := range values {
-		for _, token := range strings.Split(value, ",") {
-			if strings.TrimSpace(token) == "" || strings.EqualFold(strings.TrimSpace(token), "identity") {
+		for token := range strings.SplitSeq(value, ",") {
+			token = strings.TrimSpace(token)
+			if token == "" || strings.EqualFold(token, "identity") {
 				continue
 			}
 			return true

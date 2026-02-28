@@ -3,6 +3,7 @@ package middleware
 import (
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -127,9 +128,101 @@ func TestMiddlewareResponseRewriteGate(t *testing.T) {
 				respStatus:    http.StatusOK,
 			})
 			expect.NoError(t, err)
-			expect.Equal(t, result.ResponseStatus, 418)
+			expect.Equal(t, result.ResponseStatus, http.StatusTeapot)
 			expect.Equal(t, result.ResponseHeaders.Get("X-Rewrite"), "1")
 			expect.Equal(t, string(result.Data), tc.expectBody)
+		})
+	}
+}
+
+func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
+	opts := OptionsRaw{
+		"status_code": 418,
+		"header_key":  "X-Rewrite",
+		"header_val":  "1",
+		"body":        "rewritten-body",
+	}
+
+	tests := []struct {
+		name             string
+		respHeaders      http.Header
+		respBody         string
+		expectStatusCode int
+		expectHeader     string
+		expectBody       string
+	}{
+		{
+			name: "allow_body_rewrite_for_html",
+			respHeaders: http.Header{
+				"Content-Type": []string{"text/html; charset=utf-8"},
+			},
+			respBody:         "<html><body>original</body></html>",
+			expectStatusCode: http.StatusTeapot,
+			expectHeader:     "1",
+			expectBody:       "rewritten-body",
+		},
+		{
+			name: "block_body_rewrite_for_binary_content",
+			respHeaders: http.Header{
+				"Content-Type": []string{"application/octet-stream"},
+			},
+			respBody:         "binary",
+			expectStatusCode: http.StatusOK,
+			expectHeader:     "",
+			expectBody:       "binary",
+		},
+		{
+			name: "block_body_rewrite_for_transfer_encoded_html",
+			respHeaders: http.Header{
+				"Content-Type":      []string{"text/html"},
+				"Transfer-Encoding": []string{"chunked"},
+			},
+			respBody:         "<html><body>original</body></html>",
+			expectStatusCode: http.StatusOK,
+			expectHeader:     "",
+			expectBody:       "<html><body>original</body></html>",
+		},
+		{
+			name: "block_body_rewrite_for_content_encoded_html",
+			respHeaders: http.Header{
+				"Content-Type":     []string{"text/html"},
+				"Content-Encoding": []string{"gzip"},
+			},
+			respBody:         "<html><body>original</body></html>",
+			expectStatusCode: http.StatusOK,
+			expectHeader:     "",
+			expectBody:       "<html><body>original</body></html>",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mid, err := responseRewrite.New(opts)
+			expect.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			rw := httptest.NewRecorder()
+
+			next := func(w http.ResponseWriter, _ *http.Request) {
+				for key, values := range tc.respHeaders {
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(tc.respBody))
+			}
+
+			mid.ServeHTTP(next, rw, req)
+
+			resp := rw.Result()
+			defer resp.Body.Close()
+			data, readErr := io.ReadAll(resp.Body)
+			expect.NoError(t, readErr)
+
+			expect.Equal(t, resp.StatusCode, tc.expectStatusCode)
+			expect.Equal(t, resp.Header.Get("X-Rewrite"), tc.expectHeader)
+			expect.Equal(t, string(data), tc.expectBody)
 		})
 	}
 }
