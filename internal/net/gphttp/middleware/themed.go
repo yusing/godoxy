@@ -54,9 +54,7 @@ func (m *themed) modifyResponse(resp *http.Response) error {
 	return m.m.modifyResponse(resp)
 }
 
-func (*themed) requiresBodyRewrite() bool {
-	return true
-}
+func (*themed) isBodyResponseModifier() {}
 
 func (m *themed) finalize() error {
 	m.m.Target = "body"

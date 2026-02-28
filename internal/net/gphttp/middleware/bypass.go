@@ -122,10 +122,6 @@ func (c *checkBypass) modifyResponse(resp *http.Response) error {
 	return c.modRes.modifyResponse(resp)
 }
 
-func (c *checkBypass) requiresBodyRewrite() bool {
-	return requiresBodyRewrite(c.modRes)
-}
-
 func (m *Middleware) withCheckBypass() any {
 	if len(m.Bypass) > 0 {
 		modReq, _ := m.impl.(RequestModifier)
