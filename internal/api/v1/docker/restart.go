@@ -3,15 +3,15 @@ package dockerapi
 import (
 	"net/http"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type RestartRequest struct {
 	ID string `json:"id" binding:"required"`
-	client.ContainerRestartOptions
+	container.StopOptions
 }
 
 // @x-id				"restart"
@@ -20,7 +20,7 @@ type RestartRequest struct {
 // @Description	Restart container by container id
 // @Tags			docker
 // @Produce		json
-// @Param			request	body	RestartRequest	true	"Request"
+// @Param			request	body		StopRequest	true	"Request"
 // @Success		200	{object}  apitypes.SuccessResponse
 // @Failure		400	{object}	apitypes.ErrorResponse "Invalid request"
 // @Failure		403	{object}	apitypes.ErrorResponse
@@ -48,7 +48,7 @@ func Restart(c *gin.Context) {
 
 	defer client.Close()
 
-	_, err = client.ContainerRestart(c.Request.Context(), req.ID, req.ContainerRestartOptions)
+	err = client.ContainerRestart(c.Request.Context(), req.ID, req.StopOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to restart container"))
 		return

@@ -2,12 +2,12 @@ package iconlist
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
@@ -55,7 +55,7 @@ func init() {
 
 func InitCache() {
 	m := make(IconMap)
-	err := serialization.LoadFileIfExist(common.IconListCachePath, &m, sonic.Unmarshal)
+	err := serialization.LoadFileIfExist(common.IconListCachePath, &m, json.Unmarshal)
 	switch {
 	case err != nil:
 		// backward compatible
@@ -63,13 +63,13 @@ func InitCache() {
 			Icons      IconMap
 			LastUpdate time.Time
 		}{}
-		err = serialization.LoadFileIfExist(common.IconListCachePath, &oldFormat, sonic.Unmarshal)
+		err = serialization.LoadFileIfExist(common.IconListCachePath, &oldFormat, json.Unmarshal)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to load icons")
 		} else {
 			m = oldFormat.Icons
 			// store it to disk immediately
-			_ = serialization.SaveFile(common.IconListCachePath, &m, 0o644, sonic.Marshal)
+			_ = serialization.SaveFile(common.IconListCachePath, &m, 0o644, json.Marshal)
 		}
 	case len(m) > 0:
 		log.Info().
@@ -85,7 +85,7 @@ func InitCache() {
 
 	task.OnProgramExit("save_icons_cache", func() {
 		icons := iconsCache.Load()
-		_ = serialization.SaveFile(common.IconListCachePath, &icons, 0o644, sonic.Marshal)
+		_ = serialization.SaveFile(common.IconListCachePath, &icons, 0o644, json.Marshal)
 	})
 
 	go backgroundUpdateIcons()
@@ -106,7 +106,7 @@ func backgroundUpdateIcons() {
 				// swap old cache with new cache
 				iconsCache.Store(newCache)
 				// save it to disk
-				err := serialization.SaveFile(common.IconListCachePath, &newCache, 0o644, sonic.Marshal)
+				err := serialization.SaveFile(common.IconListCachePath, &newCache, 0o644, json.Marshal)
 				if err != nil {
 					log.Warn().Err(err).Msg("failed to save icons")
 				}
@@ -286,7 +286,7 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 	}
 
 	data := make(map[string][]string)
-	err = sonic.Unmarshal(body, &data)
+	err = json.Unmarshal(body, &data)
 	release(body)
 	if err != nil {
 		return err
@@ -365,7 +365,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 	}
 
 	data := make([]SelfhStIcon, 0)
-	err = sonic.Unmarshal(body, &data) //nolint:musttag
+	err = json.Unmarshal(body, &data) //nolint:musttag
 	release(body)
 	if err != nil {
 		return err

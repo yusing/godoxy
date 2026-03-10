@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
@@ -34,8 +34,8 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
 }
 
 func init() {
-	strutils.SetJSONMarshaler(sonic.Marshal)
-	strutils.SetJSONUnmarshaler(sonic.Unmarshal)
+	strutils.SetJSONMarshaler(json.Marshal)
+	strutils.SetJSONUnmarshaler(json.Unmarshal)
 	strutils.SetYAMLMarshaler(yaml.Marshal)
 	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
 }

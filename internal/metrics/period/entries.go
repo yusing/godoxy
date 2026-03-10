@@ -3,8 +3,6 @@ package period
 import (
 	"encoding/json"
 	"time"
-
-	"github.com/bytedance/sonic"
 )
 
 type Entries[T any] struct {
@@ -75,7 +73,7 @@ type entriesJSON[T any] struct {
 }
 
 func (e *Entries[T]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(entriesJSON[T]{
+	return json.Marshal(entriesJSON[T]{
 		Entries:  e.Get(),
 		Interval: e.interval,
 	})

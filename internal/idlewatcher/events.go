@@ -1,11 +1,11 @@
 package idlewatcher
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
-	"github.com/bytedance/sonic"
-	gevents "github.com/yusing/goutils/events"
+	"github.com/yusing/goutils/events"
 )
 
 type WakeEvent struct {
@@ -26,7 +26,7 @@ const (
 )
 
 func writeSSE(w io.Writer, v any) error {
-	data, err := sonic.Marshal(v)
+	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
@@ -58,12 +58,12 @@ func (w *Watcher) sendEvent(eventType WakeEventType, message string, err error) 
 
 	w.l.Debug().Str("event", string(eventType)).Str("message", message).Err(err).Msg("sending event")
 
-	level := gevents.LevelInfo
+	level := events.LevelInfo
 	if eventType == WakeEventError {
-		level = gevents.LevelError
+		level = events.LevelError
 	}
 
-	w.events.Add(gevents.NewEvent(
+	w.events.Add(events.NewEvent(
 		level,
 		w.cfg.ContainerName(),
 		string(eventType),

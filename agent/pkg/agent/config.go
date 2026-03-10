@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
@@ -366,7 +366,7 @@ func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any)
 		return resp.StatusCode, nil
 	}
 
-	err = sonic.Unmarshal(data, out)
+	err = json.Unmarshal(data, out)
 	if err != nil {
 		return 0, err
 	}

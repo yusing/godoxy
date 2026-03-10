@@ -22,7 +22,7 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
-	gevents "github.com/yusing/goutils/events"
+	"github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/http/reverseproxy"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
@@ -67,7 +67,7 @@ type (
 		task          *task.Task
 
 		// Per-watcher event history (for SSE and debug)
-		events *gevents.History
+		events *events.History
 
 		dependsOn []*dependency
 	}
@@ -132,7 +132,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *Config) (*Watcher, error
 			idleTicker:    time.NewTicker(cfg.IdleTimeout),
 			healthTicker:  time.NewTicker(idleWakerCheckInterval),
 			readyNotifyCh: make(chan struct{}, 1), // buffered to avoid blocking
-			events:        gevents.NewHistory(),
+			events:        events.NewHistory(),
 			cfg:           cfg,
 			routeHelper: routeHelper{
 				hc: monitor.NewMonitor(r),

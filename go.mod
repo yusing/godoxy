@@ -46,13 +46,12 @@ require (
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
-	github.com/bytedance/sonic v1.15.0 // fast json parsing
+	github.com/bytedance/sonic v1.15.0 // indirect; fast json parsing
 	github.com/docker/cli v29.3.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.0 // proxmox API client
 	github.com/moby/moby/api v1.52.0 // docker API
-	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.2 // system information
@@ -162,6 +161,7 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
@@ -196,4 +196,14 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.25.0 // indirect
+)
+
+require (
+	github.com/containerd/log v0.1.0 // indirect
+	github.com/moby/sys/atomicwriter v0.1.0 // indirect
+	github.com/moby/term v0.5.2 // indirect
+	github.com/morikuni/aec v1.1.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.42.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
 )

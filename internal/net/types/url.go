@@ -1,9 +1,8 @@
 package nettypes
 
 import (
+	"encoding/json"
 	urlPkg "net/url"
-
-	"github.com/bytedance/sonic"
 )
 
 type URL struct {
@@ -47,7 +46,7 @@ func (u *URL) MarshalJSON() (text []byte, err error) {
 	if u == nil {
 		return []byte("null"), nil
 	}
-	return sonic.Marshal(u.URL.String())
+	return json.Marshal(u.URL.String())
 }
 
 func (u *URL) Equals(other *URL) bool {

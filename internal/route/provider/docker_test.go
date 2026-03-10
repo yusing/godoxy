@@ -1,13 +1,12 @@
 package provider
 
 import (
-	"net/netip"
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	D "github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
@@ -276,7 +275,7 @@ func TestPrivateIPLocalhost(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -294,7 +293,7 @@ func TestPrivateIPRemote(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -316,11 +315,11 @@ func TestStreamDefaultValues(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(privIP),
+					IPAddress: privIP,
 				},
 			},
 		},
-		Ports: []container.PortSummary{
+		Ports: []container.Port{
 			{Type: "udp", PrivatePort: privPort, PublicPort: pubPort},
 		},
 	}
@@ -373,7 +372,7 @@ func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("exposed port detection", func(t *testing.T) {
 		r, ok := makeRoutes(&container.Summary{
 			Names: dummyNames,
-			Ports: []container.PortSummary{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 5432, PublicPort: 5432},
 			},
 		})["a"]

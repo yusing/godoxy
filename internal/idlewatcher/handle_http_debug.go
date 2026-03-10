@@ -9,12 +9,12 @@ import (
 
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
 	"github.com/yusing/godoxy/internal/types"
-	gevents "github.com/yusing/goutils/events"
+	"github.com/yusing/goutils/events"
 )
 
 func DebugHandler(rw http.ResponseWriter, r *http.Request) {
 	w := &Watcher{
-		events: gevents.NewHistory(),
+		events: events.NewHistory(),
 		cfg: &types.IdlewatcherConfig{
 			IdlewatcherProviderConfig: types.IdlewatcherProviderConfig{
 				Docker: &types.DockerConfig{

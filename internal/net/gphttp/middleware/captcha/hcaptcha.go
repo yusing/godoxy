@@ -3,6 +3,7 @@ package captcha
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 
 	_ "embed"
 
-	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -73,7 +73,7 @@ func (p *HcaptchaProvider) Verify(r *http.Request) error {
 		Success bool     `json:"success"`
 		Error   []string `json:"error-codes"`
 	}
-	if err := sonic.ConfigDefault.NewDecoder(resp.Body).Decode(&respData); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 		return err
 	}
 

@@ -2,11 +2,11 @@ package agentproxy
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/bytedance/sonic"
 	route "github.com/yusing/godoxy/internal/route/types"
 )
 
@@ -53,7 +53,7 @@ func proxyConfigFromHeaders(h http.Header) (cfg Config, err error) {
 		return cfg, err
 	}
 
-	err = sonic.Unmarshal(cfgJSON, &cfg)
+	err = json.Unmarshal(cfgJSON, &cfg)
 	return cfg, err
 }
 
@@ -67,7 +67,7 @@ func (cfg *Config) SetAgentProxyConfigHeadersLegacy(h http.Header) {
 func (cfg *Config) SetAgentProxyConfigHeaders(h http.Header) {
 	h.Set(HeaderXProxyHost, cfg.Host)
 	h.Set(HeaderXProxyScheme, string(cfg.Scheme))
-	cfgJSON, _ := sonic.Marshal(cfg.HTTPConfig)
+	cfgJSON, _ := json.Marshal(cfg.HTTPConfig)
 	cfgBase64 := base64.StdEncoding.EncodeToString(cfgJSON)
 	h.Set(HeaderXProxyConfig, cfgBase64)
 }
