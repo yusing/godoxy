@@ -1,10 +1,12 @@
 module github.com/yusing/godoxy/agent
 
-go 1.26.0
+go 1.26.1
 
 exclude (
 	github.com/moby/moby/api v1.53.0 // allow older daemon versions
+	github.com/moby/moby/api v1.54.0 // allow older daemon versions
 	github.com/moby/moby/client v0.2.2 // allow older daemon versions
+	github.com/moby/moby/client v0.3.0 // allow older daemon versions
 )
 
 replace (
@@ -21,13 +23,13 @@ exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
 require (
 	github.com/bytedance/sonic v1.15.0
-	github.com/gin-gonic/gin v1.11.0
+	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/dtls/v3 v3.1.2
 	github.com/pion/transport/v3 v3.1.1
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
-	github.com/yusing/godoxy v0.26.0
+	github.com/yusing/godoxy v0.27.2
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
 )
@@ -43,7 +45,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v29.2.1+incompatible // indirect
+	github.com/docker/cli v29.3.0+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
@@ -81,7 +83,7 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.4.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.26.1 // indirect
+	github.com/shirou/gopsutil/v4 v4.26.2 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
@@ -91,18 +93,19 @@ require (
 	github.com/valyala/fasthttp v1.69.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
 	github.com/yusing/gointernals v0.2.0 // indirect
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260223150038-3be815cb6e3b // indirect
-	github.com/yusing/goutils/http/websocket v0.0.0-20260223150038-3be815cb6e3b // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260228084019-4912690d409d // indirect
+	github.com/yusing/goutils/http/websocket v0.0.0-20260228084019-4912690d409d // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0 // indirect
-	go.opentelemetry.io/otel v1.40.0 // indirect
-	go.opentelemetry.io/otel/metric v1.40.0 // indirect
-	go.opentelemetry.io/otel/trace v1.40.0 // indirect
-	golang.org/x/arch v0.24.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
+	go.opentelemetry.io/otel v1.42.0 // indirect
+	go.opentelemetry.io/otel/metric v1.42.0 // indirect
+	go.opentelemetry.io/otel/trace v1.42.0 // indirect
+	golang.org/x/arch v0.25.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

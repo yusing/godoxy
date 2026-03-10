@@ -1,4 +1,4 @@
-FROM golang:1.26.0-alpine AS builder
+FROM golang:1.26.1-alpine AS builder
 
 HEALTHCHECK NONE
 
