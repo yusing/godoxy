@@ -25,13 +25,15 @@ type TCPTCPStream struct {
 	dst   *net.TCPAddr
 	agent *agentpool.Agent
 
+	relayProxyProtocolHeader bool
+
 	preDial nettypes.HookFunc
 	onRead  nettypes.HookFunc
 
 	closed atomic.Bool
 }
 
-func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent) (nettypes.Stream, error) {
+func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *agentpool.Agent, relayProxyProtocolHeader bool) (nettypes.Stream, error) {
 	dst, err := net.ResolveTCPAddr(dstNetwork, dstAddr)
 	if err != nil {
 		return nil, err
@@ -40,7 +42,14 @@ func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *age
 	if err != nil {
 		return nil, err
 	}
-	return &TCPTCPStream{network: network, dstNetwork: dstNetwork, laddr: laddr, dst: dst, agent: agent}, nil
+	return &TCPTCPStream{
+		network:                  network,
+		dstNetwork:               dstNetwork,
+		laddr:                    laddr,
+		dst:                      dst,
+		agent:                    agent,
+		relayProxyProtocolHeader: relayProxyProtocolHeader,
+	}, nil
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
@@ -157,6 +166,14 @@ func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
 
 	if s.closed.Load() {
 		return
+	}
+	if s.relayProxyProtocolHeader {
+		if err := writeProxyProtocolHeader(dstConn, conn); err != nil {
+			if !s.closed.Load() {
+				logErr(s, err, "failed to write proxy protocol header")
+			}
+			return
+		}
 	}
 
 	src := conn

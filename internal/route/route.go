@@ -54,15 +54,16 @@ type (
 		Index string `json:"index,omitempty"` // Index file to serve for single-page app mode
 
 		route.HTTPConfig
-		PathPatterns []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
-		Rules        rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
-		RuleFile     string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
-		HealthCheck  types.HealthCheckConfig        `json:"healthcheck,omitzero" extensions:"x-nullable"` // null on load-balancer routes
-		LoadBalance  *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
-		Middlewares  map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
-		Homepage     *homepage.ItemConfig           `json:"homepage"`
-		AccessLog    *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
-		Agent        string                         `json:"agent,omitempty"`
+		PathPatterns             []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
+		Rules                    rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
+		RuleFile                 string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
+		HealthCheck              types.HealthCheckConfig        `json:"healthcheck,omitzero" extensions:"x-nullable"` // null on load-balancer routes
+		LoadBalance              *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
+		Middlewares              map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
+		Homepage                 *homepage.ItemConfig           `json:"homepage"`
+		AccessLog                *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
+		RelayProxyProtocolHeader bool                           `json:"relay_proxy_protocol_header,omitempty"` // TCP only: relay PROXY protocol header to the destination
+		Agent                    string                         `json:"agent,omitempty"`
 
 		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty" extensions:"x-nullable"`
 
@@ -309,6 +310,9 @@ func (r *Route) validate() error {
 
 	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
 		errs.Adds("cannot disable healthcheck when loadbalancer or idle watcher is enabled")
+	}
+	if r.RelayProxyProtocolHeader && r.Scheme != route.SchemeTCP {
+		errs.Adds("relay_proxy_protocol_header is only supported for tcp routes")
 	}
 
 	if errs.HasError() {

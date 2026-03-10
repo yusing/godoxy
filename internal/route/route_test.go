@@ -78,6 +78,19 @@ func TestRouteValidate(t *testing.T) {
 		require.NotNil(t, r.impl, "Impl should be initialized")
 	})
 
+	t.Run("RelayProxyProtocolHeaderTCPOnly", func(t *testing.T) {
+		r := &Route{
+			Alias:                    "test-udp-relay",
+			Scheme:                   route.SchemeUDP,
+			Host:                     "127.0.0.1",
+			Port:                     route.Port{Proxy: 53, Listening: 53},
+			RelayProxyProtocolHeader: true,
+		}
+		err := r.Validate()
+		require.Error(t, err, "Validate should reject proxy protocol relay on UDP routes")
+		require.ErrorContains(t, err, "relay_proxy_protocol_header is only supported for tcp routes")
+	})
+
 	t.Run("DockerContainer", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",

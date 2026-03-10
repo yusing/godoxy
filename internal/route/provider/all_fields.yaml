@@ -3,6 +3,7 @@ example: # matching `example.y.z`
   host: 10.0.0.254
   port: 80
   bind: 0.0.0.0
+  relay_proxy_protocol_header: false # tcp only, sends PROXY header to upstream
   root: /var/www/example
   spa: true
   index: index.html

@@ -181,6 +181,7 @@ routes:
     scheme: tcp4
       bind: 0.0.0.0 # optional
       port: 2222:22 # listening port: target port
+      relay_proxy_protocol_header: true # optional, tcp only
 
   dns-proxy:
     scheme: udp4
@@ -223,6 +224,7 @@ Log context includes: `protocol`, `listen`, `dst`, `action`
 
 - ACL wrapping available for TCP and UDP listeners
 - PROXY protocol support for original client IP
+- TCP routes can optionally emit a fresh upstream PROXY v2 header with `relay_proxy_protocol_header: true`
 - No protocol validation (relies on upstream)
 - Connection limits managed by OS
 

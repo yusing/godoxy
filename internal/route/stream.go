@@ -110,7 +110,14 @@ func (r *StreamRoute) initStream() (nettypes.Stream, error) {
 
 	switch rScheme {
 	case "tcp":
-		return stream.NewTCPTCPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
+		return stream.NewTCPTCPStream(
+			lurl.Scheme,
+			rurl.Scheme,
+			laddr,
+			rurl.Host,
+			r.GetAgent(),
+			r.RelayProxyProtocolHeader,
+		)
 	case "udp":
 		return stream.NewUDPUDPStream(lurl.Scheme, rurl.Scheme, laddr, rurl.Host, r.GetAgent())
 	}

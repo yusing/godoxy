@@ -26,3 +26,9 @@ app2:
   scheme: udp
   host: 10.0.0.2
   port: 2223:dns
+
+ssh-with-proxy-protocol:
+  scheme: tcp
+  host: 10.0.0.3
+  port: 2222:22
+  relay_proxy_protocol_header: true
