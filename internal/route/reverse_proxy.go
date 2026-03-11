@@ -123,6 +123,24 @@ func (r *ReverseProxyRoute) ReverseProxy() *reverseproxy.ReverseProxy {
 	return r.rp
 }
 
+func (r *ReverseProxyRoute) isSyntheticLoadBalancerRoute() bool {
+	return r.loadBalancer != nil && r.rp == nil
+}
+
+func (r *ReverseProxyRoute) Key() string {
+	if r.isSyntheticLoadBalancerRoute() {
+		return r.Alias
+	}
+	return r.Route.Key()
+}
+
+func (r *ReverseProxyRoute) ShouldExclude() bool {
+	if r.isSyntheticLoadBalancerRoute() {
+		return false
+	}
+	return r.Route.ShouldExclude()
+}
+
 // Start implements task.TaskStarter.
 func (r *ReverseProxyRoute) Start(parent task.Parent) error {
 	r.task = parent.Subtask("http."+r.Name(), false)
@@ -206,7 +224,7 @@ func (r *ReverseProxyRoute) addToLoadBalancer(parent task.Parent, ep entrypoint.
 		linked = l.(*ReverseProxyRoute) // it must be a reverse proxy route
 		lb = linked.loadBalancer
 		lb.UpdateConfigIfNeeded(cfg)
-		if linked.Homepage.Name == "" {
+		if linked.Homepage == nil || linked.Homepage.Name == "" {
 			linked.Homepage = r.Homepage
 		}
 	} else {
