@@ -1,24 +1,20 @@
-name: Docker Image CI (nightly)
+name: Docker Image CI (compat)
 
 on:
   push:
     branches:
-      - "*" # matches every branch that doesn't contain a '/'
-      - "*/*" # matches every branch containing a single '/'
-      - "**" # matches every branch
-      - "!dependabot/*"
-      - "!main" # excludes main
+      - "compat" # compat branch
 
 jobs:
-  build-nightly:
+  build-compat:
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy
-      tag: nightly
+      tag: compat
       target: main
-  build-nightly-agent:
+  build-compat-agent:
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy-agent
-      tag: nightly
+      tag: compat
       target: agent
