@@ -1,6 +1,7 @@
 package fileapi
 
 import (
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -44,7 +45,14 @@ func Get(c *gin.Context) {
 		return
 	}
 
-	content, err := os.ReadFile(request.FileType.GetPath(request.Filename))
+	f, err := os.OpenInRoot(".", request.FileType.GetPath(request.Filename))
+	if err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to open root"))
+		return
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to read file"))
 		return
