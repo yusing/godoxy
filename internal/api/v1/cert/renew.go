@@ -19,6 +19,7 @@ import (
 // @Tags			cert,websocket
 // @Produce		plain
 // @Success		200	{object}	apitypes.SuccessResponse
+// @Failure		400	{object}	apitypes.ErrorResponse
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/cert/renew [get]

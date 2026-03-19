@@ -56,11 +56,11 @@ func NewHandler(requireAuth bool) *gin.Engine {
 	if auth.IsEnabled() && requireAuth {
 		v1Auth := r.Group("/api/v1/auth")
 		{
-			v1Auth.HEAD("/check", authApi.Check)
-			v1Auth.POST("/login", authApi.Login)
+			v1Auth.HEAD("/check", CSRFMiddleware(), authApi.Check)
+			v1Auth.POST("/login", CSRFMiddleware(), authApi.Login)
 			v1Auth.GET("/callback", authApi.Callback)
-			v1Auth.POST("/callback", authApi.Callback)
-			v1Auth.POST("/logout", authApi.Logout)
+			v1Auth.POST("/callback", CSRFMiddleware(), authApi.Callback)
+			v1Auth.POST("/logout", CSRFMiddleware(), authApi.Logout)
 			v1Auth.GET("/logout", authApi.Logout)
 		}
 	}
@@ -68,6 +68,7 @@ func NewHandler(requireAuth bool) *gin.Engine {
 	v1 := r.Group("/api/v1")
 	if auth.IsEnabled() && requireAuth {
 		v1.Use(AuthMiddleware())
+		v1.Use(CSRFMiddleware())
 	}
 	if common.APISkipOriginCheck {
 		v1.Use(SkipOriginCheckMiddleware())
