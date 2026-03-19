@@ -22,7 +22,7 @@ replace (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.11.0 // parsing HTML for extract fav icon; modify_html middleware
+	github.com/PuerkitoBio/goquery v1.12.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/cenkalti/backoff/v5 v5.0.3 // backoff for retrying operations
 	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
@@ -37,15 +37,15 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.4.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.34.0 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
-	golang.org/x/crypto v0.48.0 // encrypting password with bcrypt
-	golang.org/x/net v0.51.0 // HTTP header utilities
+	golang.org/x/crypto v0.49.0 // encrypting password with bcrypt
+	golang.org/x/net v0.52.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.36.0 // oauth2 authentication
 	golang.org/x/sync v0.20.0 // errgroup and singleflight for concurrent operations
 	golang.org/x/time v0.15.0 // time utilities
 )
 
 require (
-	github.com/bytedance/gopkg v0.1.3 // xxhash64 for fast hash
+	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.0 // fast json parsing
 	github.com/docker/cli v29.3.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
@@ -60,13 +60,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.69.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260228194043-59238adb5b6e
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260228194043-59238adb5b6e
+	github.com/yusing/godoxy/agent v0.0.0-20260311035107-3c84692b40d7
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260311035107-3c84692b40d7
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260228084019-4912690d409d
-	github.com/yusing/goutils/http/websocket v0.0.0-20260228084019-4912690d409d
-	github.com/yusing/goutils/server v0.0.0-20260228084019-4912690d409d
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260310041503-e48e337bd10c
+	github.com/yusing/goutils/http/websocket v0.0.0-20260310041503-e48e337bd10c
+	github.com/yusing/goutils/server v0.0.0-20260310041503-e48e337bd10c
 )
 
 require (
@@ -102,14 +102,14 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
-	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.19.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/magefile/mage v1.16.0 // indirect
+	github.com/magefile/mage v1.16.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
@@ -140,13 +140,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.42.0 // indirect
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
-	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
-	google.golang.org/api v0.270.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/grpc v1.79.2 // indirect
+	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
+	google.golang.org/api v0.272.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260316180232-0b37fe3546d5 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -169,7 +169,7 @@ require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
 	github.com/go-resty/resty/v2 v2.17.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
@@ -177,8 +177,8 @@ require (
 	github.com/linode/linodego v1.66.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260216142805-b3301c5f2a88 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.109.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.109.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.109.2 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.109.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pion/dtls/v3 v3.1.2 // indirect
 	github.com/pion/logging v0.2.4 // indirect
