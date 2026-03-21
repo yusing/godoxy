@@ -6,9 +6,10 @@
     !path glob("/@tanstack-start/*")
     !path glob("/@vite-plugin-pwa/*")
     !path glob("/__tsd/*")
+    !path glob("/src/*")
     !path /@react-refresh
     !path /@vite/client
-    !path regex("/\?token=[a-zA-Z0-9-_]+")
+    !header Sec-Websocket-Protocol vite-hmr
     !path glob("/@id/*")
     !path glob("/api/v1/auth/*")
     !path glob("/auth/*")
