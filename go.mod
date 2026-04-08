@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy
 
-go 1.26.1
+go 1.26.2
 
 exclude (
 	github.com/moby/moby/api v1.53.0 // allow older daemon versions
@@ -26,7 +26,7 @@ replace (
 require (
 	github.com/PuerkitoBio/goquery v1.12.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/cenkalti/backoff/v5 v5.0.3 // backoff for retrying operations
-	github.com/coreos/go-oidc/v3 v3.17.0 // oidc authentication
+	github.com/coreos/go-oidc/v3 v3.18.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
 	github.com/go-acme/lego/v4 v4.33.0 // acme client
@@ -49,7 +49,7 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.0 // fast json parsing
-	github.com/docker/cli v29.3.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.4.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
@@ -60,19 +60,19 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.3 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
-	github.com/valyala/fasthttp v1.69.0 // fast http for health check
+	github.com/valyala/fasthttp v1.70.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260321022848-11e3a9231f23
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260321022848-11e3a9231f23
+	github.com/yusing/godoxy/agent v0.0.0-20260404025020-8e670f15e530
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260404025020-8e670f15e530
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260319064740-635feb302e50
-	github.com/yusing/goutils/http/websocket v0.0.0-20260319064740-635feb302e50
-	github.com/yusing/goutils/server v0.0.0-20260319064740-635feb302e50
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260404022832-28add9313f7f
+	github.com/yusing/goutils/http/websocket v0.0.0-20260404022832-28add9313f7f
+	github.com/yusing/goutils/server v0.0.0-20260404022832-28add9313f7f
 )
 
 require (
-	cloud.google.com/go/auth v0.19.0 // indirect
+	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0 // indirect
@@ -136,7 +136,7 @@ require (
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
@@ -146,8 +146,8 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
-	google.golang.org/api v0.274.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	google.golang.org/api v0.275.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
@@ -179,8 +179,8 @@ require (
 	github.com/linode/linodego v1.67.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.110.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.110.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.111.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.111.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pion/dtls/v3 v3.1.2 // indirect
 	github.com/pion/logging v0.2.4 // indirect
