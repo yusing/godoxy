@@ -19,6 +19,17 @@
 
 # 3. other providers, see https://docs.godoxy.dev/DNS-01-Providers
 
+# Inbound mTLS profiles (optional)
+#
+# Reusable named profiles for inbound HTTPS client-certificate validation.
+# A profile must trust either the system CA store, one or more CA files, or both.
+#
+# inbound_mtls_profiles:
+#   corp:
+#     use_system_cas: true
+#     ca_files:
+#       - /app/certs/corp-ca.pem
+
 # Access Control
 # When enabled, it will be applied globally at connection level,
 # all incoming connections (web, tcp and udp) will be checked against the ACL rules.

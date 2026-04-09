@@ -91,6 +91,19 @@ func TestRouteValidate(t *testing.T) {
 		require.ErrorContains(t, err, "relay_proxy_protocol_header is only supported for tcp routes")
 	})
 
+	t.Run("InboundMTLSProfileHTTPOnly", func(t *testing.T) {
+		r := &Route{
+			Alias:              "test-udp-mtls",
+			Scheme:             route.SchemeUDP,
+			Host:               "127.0.0.1",
+			Port:               route.Port{Proxy: 53, Listening: 53},
+			InboundMTLSProfile: "corp",
+		}
+		err := r.Validate()
+		require.Error(t, err, "Validate should reject inbound mTLS on non-HTTP routes")
+		require.ErrorContains(t, err, "inbound_mtls_profile is only supported for HTTP-based routes")
+	})
+
 	t.Run("DockerContainer", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",

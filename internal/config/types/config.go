@@ -19,14 +19,15 @@ import (
 
 type (
 	Config struct {
-		ACL             *acl.Config       `json:"acl"`
-		AutoCert        *autocert.Config  `json:"autocert"`
-		Entrypoint      entrypoint.Config `json:"entrypoint"`
-		Providers       Providers         `json:"providers"`
-		MatchDomains    []string          `json:"match_domains" validate:"domain_name"`
-		Homepage        homepage.Config   `json:"homepage"`
-		Defaults        Defaults          `json:"defaults"`
-		TimeoutShutdown int               `json:"timeout_shutdown" validate:"gte=0"`
+		ACL                 *acl.Config                         `json:"acl"`
+		AutoCert            *autocert.Config                    `json:"autocert"`
+		Entrypoint          entrypoint.Config                   `json:"entrypoint"`
+		InboundMTLSProfiles map[string]types.InboundMTLSProfile `json:"inbound_mtls_profiles" yaml:"inbound_mtls_profiles,omitempty"`
+		Providers           Providers                           `json:"providers"`
+		MatchDomains        []string                            `json:"match_domains" validate:"domain_name"`
+		Homepage            homepage.Config                     `json:"homepage"`
+		Defaults            Defaults                            `json:"defaults"`
+		TimeoutShutdown     int                                 `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Defaults struct {
 		HealthCheck types.HealthCheckConfig `json:"healthcheck"`

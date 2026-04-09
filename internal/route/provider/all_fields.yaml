@@ -10,6 +10,7 @@ example: # matching `example.y.z`
   no_tls_verify: true
   disable_compression: false
   response_header_timeout: 30s
+  inbound_mtls_profile: corp # optional, only supported when no global entrypoint inbound_mtls_profile is configured; selected by TLS SNI and Host/SNI must resolve to the same route
   ssl_server_name: "" # empty uses target hostname, "off" disables SNI
   ssl_trusted_certificate: /etc/ssl/certs/ca-certificates.crt
   ssl_certificate: /etc/ssl/client.crt

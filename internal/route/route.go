@@ -19,6 +19,7 @@ import (
 	"github.com/yusing/godoxy/internal/agentpool"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	entrypointimpl "github.com/yusing/godoxy/internal/entrypoint"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/homepage"
@@ -54,6 +55,7 @@ type (
 		Index string `json:"index,omitempty"` // Index file to serve for single-page app mode
 
 		route.HTTPConfig
+		InboundMTLSProfile       string                         `json:"inbound_mtls_profile,omitempty"`
 		PathPatterns             []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
 		Rules                    rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 		RuleFile                 string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
@@ -171,7 +173,22 @@ func (r *Route) validate() error {
 		}
 	}
 
+	if workingState := config.WorkingState.Load(); workingState != nil {
+		cfg := workingState.Value()
+		if err := entrypointimpl.ValidateInboundMTLSProfileRef(r.InboundMTLSProfile, cfg.Entrypoint.InboundMTLSProfile, cfg.InboundMTLSProfiles); err != nil {
+			return err
+		}
+	}
+
 	r.Finalize()
+
+	if r.InboundMTLSProfile != "" {
+		switch r.Scheme {
+		case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C, route.SchemeFileServer:
+		default:
+			return errors.New("inbound_mtls_profile is only supported for HTTP-based routes")
+		}
+	}
 
 	r.started = make(chan struct{})
 	// close the channel when the route is destroyed (if not closed yet).
@@ -765,6 +782,10 @@ func (r *Route) PreferOver(other any) bool {
 
 func (r *Route) ContainerInfo() *types.Container {
 	return r.Container
+}
+
+func (r *Route) InboundMTLSProfileRef() string {
+	return r.InboundMTLSProfile
 }
 
 func (r *Route) IsDocker() bool {

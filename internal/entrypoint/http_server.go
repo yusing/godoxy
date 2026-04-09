@@ -71,6 +71,7 @@ func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
 	case HTTPProtoHTTPS:
 		opts.HTTPSAddr = addr
 		opts.CertProvider = autocert.FromCtx(srv.ep.task.Context())
+		opts.TLSConfigMutator = srv.mutateServerTLSConfig
 	}
 
 	task := srv.ep.task.Subtask("http_server", false)
@@ -116,8 +117,11 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	route := srv.ep.findRouteFunc(srv.routes, r.Host)
+	route, err := srv.resolveRequestRoute(r)
 	switch {
+	case err != nil:
+		http.Error(w, err.Error(), http.StatusMisdirectedRequest)
+		return
 	case route != nil:
 		r = routes.WithRouteContext(r, route)
 		if srv.ep.middleware != nil {
@@ -131,6 +135,50 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		srv.ep.notFoundHandler.ServeHTTP(w, r)
 	default:
 		serveNotFound(w, r)
+	}
+}
+
+var (
+	errSecureRouteRequiresSNI = errors.New("secure route requires matching TLS SNI")
+	errSecureRouteMisdirected = errors.New("secure route host must match TLS SNI")
+)
+
+func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {
+	hostRoute := srv.FindRoute(req.Host)
+	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" || len(srv.ep.inboundMTLSProfiles) == 0 {
+		return hostRoute, nil
+	}
+
+	serverName := req.TLS.ServerName
+	if serverName == "" {
+		if pool := srv.resolveInboundMTLSProfileForRoute(hostRoute); pool != nil {
+			return nil, errSecureRouteRequiresSNI
+		}
+		return hostRoute, nil
+	}
+
+	sniRoute := srv.FindRoute(serverName)
+	if pool := srv.resolveInboundMTLSProfileForRoute(sniRoute); pool != nil {
+		if !sameHTTPRoute(hostRoute, sniRoute) {
+			return nil, errSecureRouteMisdirected
+		}
+		return sniRoute, nil
+	}
+
+	if pool := srv.resolveInboundMTLSProfileForRoute(hostRoute); pool != nil {
+		return nil, errSecureRouteMisdirected
+	}
+	return hostRoute, nil
+}
+
+func sameHTTPRoute(left, right types.HTTPRoute) bool {
+	switch {
+	case left == nil || right == nil:
+		return left == right
+	case left == right:
+		return true
+	default:
+		return left.Key() == right.Key()
 	}
 }
 

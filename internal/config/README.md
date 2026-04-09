@@ -30,6 +30,7 @@ type Config struct {
     ACL             *acl.Config
     AutoCert        *autocert.Config
     Entrypoint      entrypoint.Config
+    InboundMTLSProfiles map[string]types.InboundMTLSProfile
     Providers       Providers
     MatchDomains    []string
     Homepage        homepage.Config
@@ -70,6 +71,8 @@ type State interface {
     FlushTmpLog()
 }
 ```
+
+`StartAPIServers` starts the authenticated API from `common.APIHTTPAddr` and, when `LOCAL_API_ADDR` is set, an additional **unauthenticated** local listener from `common.LocalAPIHTTPAddr`. That address is validated for loopback binds (with optional DNS resolution); non-loopback requires `LOCAL_API_ALLOW_NON_LOOPBACK` and logs a warning. See [`internal/api/v1/README.md`](../api/v1/README.md#configuration-surface).
 
 ### Exported functions
 
