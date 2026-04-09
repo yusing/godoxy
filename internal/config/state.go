@@ -216,6 +216,15 @@ func (state *state) StartAPIServers() {
 
 	// Local API Handler is used for unauthenticated access.
 	if common.LocalAPIHTTPAddr != "" {
+		if err := validateLocalAPIAddr(common.LocalAPIHTTPAddr, common.LocalAPIAllowNonLoopback); err != nil {
+			log.Err(err).Str("addr", common.LocalAPIHTTPAddr).Msg("refusing to start local API server")
+			return
+		}
+		if common.LocalAPIAllowNonLoopback && !isLoopbackLocalAPIHost(common.LocalAPIHTTPAddr) {
+			log.Warn().
+				Str("addr", common.LocalAPIHTTPAddr).
+				Msg("local API server is allowed to bind to non-loopback addresses")
+		}
 		_, err := server.StartServer(state.task.Subtask("local_api_server", false), server.Options{
 			Name:     "local_api",
 			HTTPAddr: common.LocalAPIHTTPAddr,
@@ -225,6 +234,51 @@ func (state *state) StartAPIServers() {
 			log.Err(err).Msg("failed to start local API server")
 		}
 	}
+}
+
+func validateLocalAPIAddr(addr string, allowNonLoopback bool) error {
+	if isLoopbackLocalAPIHost(addr) {
+		return nil
+	}
+
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+
+	if allowNonLoopback {
+		return nil
+	}
+
+	switch strings.ToLower(host) {
+	case "localhost":
+		return nil
+	case "":
+		return errors.New("local API address must bind to a loopback host, not all interfaces")
+	}
+
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return fmt.Errorf("local API address must use a loopback host: %w", err)
+	}
+	if !ip.IsLoopback() {
+		return fmt.Errorf("local API address must bind to a loopback host, got %q", host)
+	}
+	return nil
+}
+
+func isLoopbackLocalAPIHost(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+
+	ip, err := netip.ParseAddr(host)
+	return err == nil && ip.IsLoopback()
 }
 
 func (state *state) StartMetrics() {

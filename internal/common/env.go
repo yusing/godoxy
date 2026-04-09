@@ -36,6 +36,7 @@ var (
 	LocalAPIHTTPHost,
 	LocalAPIHTTPPort,
 	LocalAPIHTTPURL = env.GetAddrEnv("LOCAL_API_ADDR", "", "http")
+	LocalAPIAllowNonLoopback = env.GetEnvBool("LOCAL_API_ALLOW_NON_LOOPBACK", false)
 
 	APIJWTSecure   = env.GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(env.GetEnvString("API_JWT_SECRET", ""))
