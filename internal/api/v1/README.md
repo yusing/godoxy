@@ -115,7 +115,7 @@ No dedicated metrics exposed by handlers. Request metrics collected by middlewar
 
 - All endpoints (except `/api/v1/version`) require authentication
 - Input validation using Gin binding tags
-- Path traversal prevention in file operations
+- File read/write handlers are rooted per file type (`config/` or `config/middlewares/`) to prevent traversal into sibling paths
 - WebSocket connections use same auth middleware as HTTP
 
 ## Failure Modes and Recovery
@@ -195,5 +195,3 @@ func listContainers() ([]Container, error) {
 ```bash
 curl http://localhost:8888/health
 ```
-
-)

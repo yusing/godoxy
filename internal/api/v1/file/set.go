@@ -43,7 +43,14 @@ func Set(c *gin.Context) {
 		return
 	}
 
-	err = os.WriteFile(request.FileType.GetPath(request.Filename), content, 0o644)
+	f, err := request.FileType.OpenFile(request.Filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to open file"))
+		return
+	}
+	defer f.Close()
+
+	_, err = f.Write(content)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to write file"))
 		return

@@ -45,7 +45,7 @@ func Get(c *gin.Context) {
 		return
 	}
 
-	f, err := os.OpenInRoot(".", request.FileType.GetPath(request.Filename))
+	f, err := request.FileType.OpenFile(request.Filename, os.O_RDONLY, 0)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to open root"))
 		return
@@ -73,9 +73,18 @@ func GetFileType(file string) FileType {
 	return FileTypeProvider
 }
 
-func (t FileType) GetPath(filename string) string {
+func (t FileType) RootPath() string {
 	if t == FileTypeMiddleware {
-		return path.Join(common.MiddlewareComposeBasePath, filename)
+		return common.MiddlewareComposeBasePath
 	}
-	return path.Join(common.ConfigBasePath, filename)
+	return common.ConfigBasePath
+}
+
+func (t FileType) OpenFile(filename string, flag int, perm os.FileMode) (*os.File, error) {
+	root, err := os.OpenRoot(t.RootPath())
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return root.OpenFile(filename, flag, perm)
 }
