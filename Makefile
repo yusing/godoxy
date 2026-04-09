@@ -198,8 +198,8 @@ gen-swagger:
 
 gen-api-types: gen-swagger
 	# --disable-throw-on-error
-	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --axios --add-readonly --route-types \
-		 --responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
+	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --add-readonly --route-types \
+	--responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
 
 .PHONY: gen-cli build-cli update-wiki
 
