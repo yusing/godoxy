@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -727,7 +728,7 @@ func SaveFile[T any](path string, src *T, perm os.FileMode, marshaler marshalFun
 
 // LoadFileIfExist reads a file and unmarshals its contents to a value.
 //   - The unmarshaler function converts the bytes to a value.
-//   - If the file does not exist, nil is returned and dst remains unchanged.
+//   - If the file does not exist or is empty, nil is returned and dst remains unchanged.
 func LoadFileIfExist[T any](path string, dst *T, unmarshaler unmarshalFunc) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -735,6 +736,9 @@ func LoadFileIfExist[T any](path string, dst *T, unmarshaler unmarshalFunc) erro
 			return nil
 		}
 		return err
+	}
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil
 	}
 	return unmarshaler(data, dst)
 }
