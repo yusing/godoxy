@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,18 +49,24 @@ func newFakeHTTPRouteAt(t *testing.T, alias, profile, listenURL string) *fakeHTT
 	}
 }
 
-func (r *fakeHTTPRoute) Key() string                                 { return r.key }
-func (r *fakeHTTPRoute) Name() string                                { return r.name }
-func (r *fakeHTTPRoute) Start(task.Parent) error                     { return nil }
-func (r *fakeHTTPRoute) Task() *task.Task                            { return r.task }
-func (r *fakeHTTPRoute) Finish(any)                                  {}
-func (r *fakeHTTPRoute) MarshalZerologObject(*zerolog.Event)         {}
-func (r *fakeHTTPRoute) ProviderName() string                        { return "" }
-func (r *fakeHTTPRoute) GetProvider() types.RouteProvider            { return nil }
-func (r *fakeHTTPRoute) ListenURL() *nettypes.URL                    { return r.listenURL }
-func (r *fakeHTTPRoute) TargetURL() *nettypes.URL                    { return nil }
-func (r *fakeHTTPRoute) HealthMonitor() types.HealthMonitor          { return nil }
-func (r *fakeHTTPRoute) SetHealthMonitor(types.HealthMonitor)        {}
+func (r *fakeHTTPRoute) Key() string             { return r.key }
+func (r *fakeHTTPRoute) Name() string            { return r.name }
+func (r *fakeHTTPRoute) Start(task.Parent) error { return nil }
+func (r *fakeHTTPRoute) Task() *task.Task        { return r.task }
+func (r *fakeHTTPRoute) Finish(any) {
+	// no-op: test stub
+}
+func (r *fakeHTTPRoute) MarshalZerologObject(*zerolog.Event) {
+	// no-op: test stub
+}
+func (r *fakeHTTPRoute) ProviderName() string               { return "" }
+func (r *fakeHTTPRoute) GetProvider() types.RouteProvider   { return nil }
+func (r *fakeHTTPRoute) ListenURL() *nettypes.URL           { return r.listenURL }
+func (r *fakeHTTPRoute) TargetURL() *nettypes.URL           { return nil }
+func (r *fakeHTTPRoute) HealthMonitor() types.HealthMonitor { return nil }
+func (r *fakeHTTPRoute) SetHealthMonitor(types.HealthMonitor) {
+	// no-op: test stub
+}
 func (r *fakeHTTPRoute) References() []string                        { return nil }
 func (r *fakeHTTPRoute) ShouldExclude() bool                         { return false }
 func (r *fakeHTTPRoute) Started() <-chan struct{}                    { return nil }
@@ -169,6 +176,36 @@ func TestSetInboundMTLSProfilesRejectsBadCAFile(t *testing.T) {
 	require.ErrorContains(t, err, "missing.pem")
 }
 
+func TestMutateServerTLSConfigRejectsUnknownRouteProfile(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	ep.SetFindRouteDomains([]string{".example.com"})
+	srv := newTestHTTPServer(t, ep)
+	srv.AddRoute(newFakeHTTPRoute(t, "secure-app", "missing"))
+
+	base := &tls.Config{MinVersion: tls.VersionTLS12}
+	mutated := srv.mutateServerTLSConfig(base)
+
+	_, err := mutated.GetConfigForClient(&tls.ClientHelloInfo{ServerName: "secure-app.example.com"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `route "secure-app" inbound mTLS profile "missing" not found`)
+}
+
+func TestResolveRequestRouteRejectsUnknownRouteProfile(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	ep.SetFindRouteDomains([]string{".example.com"})
+	srv := newTestHTTPServer(t, ep)
+	srv.AddRoute(newFakeHTTPRoute(t, "secure-app", "missing"))
+
+	req := httptest.NewRequest(http.MethodGet, "https://secure-app.example.com", nil)
+	req.Host = "secure-app.example.com"
+	req.TLS = &tls.ConnectionState{ServerName: "secure-app.example.com"}
+
+	route, err := srv.resolveRequestRoute(req)
+	require.Nil(t, route)
+	require.Error(t, err)
+	require.ErrorContains(t, err, `route "secure-app" inbound mTLS profile "missing" not found`)
+}
+
 func TestInboundMTLSGlobalHandshake(t *testing.T) {
 	ca, srv, client, err := agentcert.NewAgent()
 	require.NoError(t, err)
@@ -182,13 +219,18 @@ func TestInboundMTLSGlobalHandshake(t *testing.T) {
 	provider := &staticCertProvider{cert: serverCert}
 
 	ep := NewTestEntrypoint(t, &Config{InboundMTLSProfile: "global"})
+	t.Cleanup(func() {
+		closeTestServers(t, ep)
+	})
 	autocert.SetCtx(task.GetTestTask(t), provider)
 	require.NoError(t, ep.SetInboundMTLSProfiles(map[string]types.InboundMTLSProfile{
 		"global": {CAFiles: []string{caPath}},
 	}))
 
-	listenAddr := reserveTCPAddr(t)
-	addHTTPRouteAt(t, ep, "app1", "", listenAddr)
+	listener, releaseListener := reserveTCPAddr(t)
+	listenAddr := listener.Addr().String()
+	addHTTPRouteAt(t, ep, "app1", "", listenAddr, listener)
+	releaseListener()
 
 	t.Run("trusted client succeeds", func(t *testing.T) {
 		resp, err := doHTTPSRequest(listenAddr, "app1.example.com", &tls.Config{
@@ -219,8 +261,6 @@ func TestInboundMTLSGlobalHandshake(t *testing.T) {
 		})
 		require.Error(t, err)
 	})
-
-	closeTestServers(t, ep)
 }
 
 func TestInboundMTLSRouteScopedHandshake(t *testing.T) {
@@ -236,15 +276,20 @@ func TestInboundMTLSRouteScopedHandshake(t *testing.T) {
 	provider := &staticCertProvider{cert: serverCert}
 
 	ep := NewTestEntrypoint(t, nil)
+	t.Cleanup(func() {
+		closeTestServers(t, ep)
+	})
 	ep.SetFindRouteDomains([]string{".example.com"})
 	autocert.SetCtx(task.GetTestTask(t), provider)
 	require.NoError(t, ep.SetInboundMTLSProfiles(map[string]types.InboundMTLSProfile{
 		"route": {CAFiles: []string{caPath}},
 	}))
 
-	listenAddr := reserveTCPAddr(t)
-	addHTTPRouteAt(t, ep, "secure-app", "route", listenAddr)
-	addHTTPRouteAt(t, ep, "open-app", "", listenAddr)
+	listener, releaseListener := reserveTCPAddr(t)
+	listenAddr := listener.Addr().String()
+	addHTTPRouteAt(t, ep, "secure-app", "route", listenAddr, listener)
+	releaseListener()
+	addHTTPRouteAt(t, ep, "open-app", "", listenAddr, nil)
 
 	t.Run("secure route requires client cert when sni matches", func(t *testing.T) {
 		_, err := doHTTPSRequest(listenAddr, "secure-app.example.com", &tls.Config{
@@ -302,14 +347,17 @@ func TestInboundMTLSRouteScopedHandshake(t *testing.T) {
 		defer func() { _ = resp.Body.Close() }()
 		require.Equal(t, http.StatusMisdirectedRequest, resp.StatusCode)
 	})
-
-	closeTestServers(t, ep)
 }
 
-func addHTTPRouteAt(t *testing.T, ep *Entrypoint, alias, profile, listenAddr string) {
+func addHTTPRouteAt(t *testing.T, ep *Entrypoint, alias, profile, listenAddr string, listener net.Listener) {
 	t.Helper()
 
-	require.NoError(t, ep.StartAddRoute(newFakeHTTPRouteAt(t, alias, profile, "https://"+listenAddr)))
+	route := newFakeHTTPRouteAt(t, alias, profile, "https://"+listenAddr)
+	if listener == nil {
+		require.NoError(t, ep.StartAddRoute(route))
+		return
+	}
+	require.NoError(t, ep.addHTTPRouteWithListener(route, listenAddr, HTTPProtoHTTPS, listener))
 }
 
 func closeTestServers(t *testing.T, ep *Entrypoint) {
@@ -319,13 +367,21 @@ func closeTestServers(t *testing.T, ep *Entrypoint) {
 	}
 }
 
-func reserveTCPAddr(t *testing.T) string {
+func reserveTCPAddr(t *testing.T) (net.Listener, func()) {
 	t.Helper()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	addr := ln.Addr().String()
-	require.NoError(t, ln.Close())
-	return addr
+
+	owned := true
+	t.Cleanup(func() {
+		if owned {
+			_ = ln.Close()
+		}
+	})
+	return ln, func() {
+		owned = false
+	}
 }
 
 func writeTempFile(t *testing.T, name string, data []byte) string {
@@ -395,7 +451,9 @@ func (p *staticCertProvider) GetCert(*tls.ClientHelloInfo) (*tls.Certificate, er
 	return p.cert, nil
 }
 func (p *staticCertProvider) GetCertInfos() ([]autocert.CertInfo, error) { return nil, nil }
-func (p *staticCertProvider) ScheduleRenewalAll(task.Parent)             {}
-func (p *staticCertProvider) ObtainCertAll() error                       { return nil }
-func (p *staticCertProvider) ForceExpiryAll() bool                       { return false }
-func (p *staticCertProvider) WaitRenewalDone(context.Context) bool       { return true }
+func (p *staticCertProvider) ScheduleRenewalAll(task.Parent) {
+	// no-op: test stub
+}
+func (p *staticCertProvider) ObtainCertAll() error                 { return nil }
+func (p *staticCertProvider) ForceExpiryAll() bool                 { return false }
+func (p *staticCertProvider) WaitRenewalDone(context.Context) bool { return true }

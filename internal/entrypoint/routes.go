@@ -113,10 +113,14 @@ func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
 }
 
 func (ep *Entrypoint) addHTTPRoute(route types.HTTPRoute, addr string, proto HTTPProto) error {
+	return ep.addHTTPRouteWithListener(route, addr, proto, nil)
+}
+
+func (ep *Entrypoint) addHTTPRouteWithListener(route types.HTTPRoute, addr string, proto HTTPProto, listener net.Listener) error {
 	var err error
 	srv, _ := ep.servers.LoadOrCompute(addr, func() (newSrv *httpServer, cancel bool) {
 		newSrv = newHTTPServer(ep)
-		err = newSrv.Listen(addr, proto)
+		err = newSrv.listen(addr, proto, listener)
 		cancel = err != nil
 		return
 	})

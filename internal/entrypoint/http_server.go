@@ -3,6 +3,7 @@ package entrypoint
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -54,6 +55,10 @@ func newHTTPServer(ep *Entrypoint) *httpServer {
 
 // Listen starts the server and stop when entrypoint is stopped.
 func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
+	return srv.listen(addr, proto, nil)
+}
+
+func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listener) error {
 	if srv.addr != "" {
 		return errors.New("server already started")
 	}
@@ -68,8 +73,10 @@ func (srv *httpServer) Listen(addr string, proto HTTPProto) error {
 	switch proto {
 	case HTTPProtoHTTP:
 		opts.HTTPAddr = addr
+		opts.HTTPListener = listener
 	case HTTPProtoHTTPS:
 		opts.HTTPSAddr = addr
+		opts.HTTPSListener = listener
 		opts.CertProvider = autocert.FromCtx(srv.ep.task.Context())
 		opts.TLSConfigMutator = srv.mutateServerTLSConfig
 	}
@@ -119,8 +126,12 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	route, err := srv.resolveRequestRoute(r)
 	switch {
-	case err != nil:
+	case errors.Is(err, errSecureRouteRequiresSNI), errors.Is(err, errSecureRouteMisdirected):
 		http.Error(w, err.Error(), http.StatusMisdirectedRequest)
+		return
+	case err != nil:
+		log.Err(err).Msg("failed to resolve HTTP route")
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	case route != nil:
 		r = routes.WithRouteContext(r, route)
@@ -145,27 +156,39 @@ var (
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {
 	hostRoute := srv.FindRoute(req.Host)
-	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" || len(srv.ep.inboundMTLSProfiles) == 0 {
+	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
 		return hostRoute, nil
 	}
 
 	serverName := req.TLS.ServerName
 	if serverName == "" {
-		if pool := srv.resolveInboundMTLSProfileForRoute(hostRoute); pool != nil {
+		pool, err := srv.resolveInboundMTLSProfileForRoute(hostRoute)
+		if err != nil {
+			return nil, err
+		}
+		if pool != nil {
 			return nil, errSecureRouteRequiresSNI
 		}
 		return hostRoute, nil
 	}
 
 	sniRoute := srv.FindRoute(serverName)
-	if pool := srv.resolveInboundMTLSProfileForRoute(sniRoute); pool != nil {
+	pool, err := srv.resolveInboundMTLSProfileForRoute(sniRoute)
+	if err != nil {
+		return nil, err
+	}
+	if pool != nil {
 		if !sameHTTPRoute(hostRoute, sniRoute) {
 			return nil, errSecureRouteMisdirected
 		}
 		return sniRoute, nil
 	}
 
-	if pool := srv.resolveInboundMTLSProfileForRoute(hostRoute); pool != nil {
+	pool, err = srv.resolveInboundMTLSProfileForRoute(hostRoute)
+	if err != nil {
+		return nil, err
+	}
+	if pool != nil {
 		return nil, errSecureRouteMisdirected
 	}
 	return hostRoute, nil

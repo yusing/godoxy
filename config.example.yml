@@ -160,6 +160,11 @@ providers:
   #     secret: aaaa-bbbb-cccc-dddd
   #     no_tls_verify: true
 
+# To relay the downstream client address to a TCP upstream, set
+# `relay_proxy_protocol_header: true` on that specific TCP route in route
+# configuration (for example, see providers.example.yml). UDP relay is not
+# supported yet.
+
 # Match domains
 # See https://docs.godoxy.dev/Certificates-and-domain-matching
 #
