@@ -231,7 +231,7 @@ func TestMergeLabelMaps(t *testing.T) {
 			"bypass": types.LabelMap{"path": "/private"},
 		})
 
-		require.ErrorContains(t, err, "expect scalar")
+		require.ErrorContains(t, err, "cannot merge mapping into existing scalar")
 	})
 
 	t.Run("rejects nested recursive map conflicts", func(t *testing.T) {

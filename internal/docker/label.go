@@ -21,9 +21,14 @@ const nsProxyDot = NSProxy + "."
 type UnexpectedTypeError struct {
 	Expected string
 	Actual   any
+	// Message, if non-empty, is returned by Error() instead of the default "expect …, got …" form.
+	Message string
 }
 
 func (e UnexpectedTypeError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
 	return fmt.Sprintf("expect %s, got %T", e.Expected, e.Actual)
 }
 
@@ -132,7 +137,14 @@ func mergeLabelMaps(dst, src types.LabelMap) error {
 			return UnexpectedTypeError{Expected: "mapping", Actual: srcValue}
 		}
 		if srcIsMap {
-			return UnexpectedTypeError{Expected: "scalar", Actual: srcValue}
+			return UnexpectedTypeError{
+				Expected: "scalar",
+				Actual:   srcValue,
+				Message: fmt.Sprintf(
+					"cannot merge mapping into existing scalar; merge source is %T",
+					srcValue,
+				),
+			}
 		}
 	}
 	return nil
