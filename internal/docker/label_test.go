@@ -1,6 +1,7 @@
 package docker_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -242,6 +243,14 @@ port: 8080`[1:]
 	})
 }
 
+func requireMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+
+	m, ok := value.(map[string]any)
+	require.True(t, ok, "expected map[string]any, got %T", value)
+	return m
+}
+
 func BenchmarkParseLabels(b *testing.B) {
 	m := map[string]string{
 		"proxy.a.host":   "localhost",
@@ -251,5 +260,41 @@ func BenchmarkParseLabels(b *testing.B) {
 	}
 	for b.Loop() {
 		_, _ = docker.ParseLabels(m, "a", "b")
+	}
+}
+
+func TestParseLabelsMixedObjectAndFlatFields(t *testing.T) {
+	for i := range 100 {
+		labels := map[string]string{
+			"proxy.universal.middlewares.oidc":        "allowed_groups: [everyone]",
+			"proxy.universal.middlewares.oidc.bypass": "- path glob(/geheimenvan/*)",
+		}
+
+		parsed, err := docker.ParseLabels(labels)
+		require.NoError(t, err, fmt.Sprintf("iteration %d", i))
+
+		universal := requireMap(t, parsed["universal"])
+		middlewares := requireMap(t, universal["middlewares"])
+		oidc := requireMap(t, middlewares["oidc"])
+
+		require.Equal(t, []any{"everyone"}, oidc["allowed_groups"])
+		require.Equal(t, "- path glob(/geheimenvan/*)", oidc["bypass"])
+	}
+}
+
+func TestParseLabelsRejectsScalarAndNestedObjectConflict(t *testing.T) {
+	for i := range 100 {
+		parsed, err := docker.ParseLabels(map[string]string{
+			"proxy.universal.middlewares.oidc":             "bypass: skip",
+			"proxy.universal.middlewares.oidc.bypass.path": "/geheimenvan",
+		})
+
+		require.ErrorContains(t, err, "proxy.universal.middlewares.oidc.bypass.path")
+		require.ErrorContains(t, err, "expect mapping, got string")
+
+		universal := requireMap(t, parsed["universal"])
+		middlewares := requireMap(t, universal["middlewares"])
+		oidc := requireMap(t, middlewares["oidc"])
+		require.Equal(t, "skip", oidc["bypass"], "iteration %d", i)
 	}
 }

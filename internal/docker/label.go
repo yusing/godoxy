@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -15,13 +18,19 @@ var ErrInvalidLabel = errors.New("invalid label")
 
 const nsProxyDot = NSProxy + "."
 
-var refPrefixes = func() []string {
-	prefixes := make([]string, 100)
-	for i := range prefixes {
-		prefixes[i] = nsProxyDot + "#" + strconv.Itoa(i+1) + "."
+type UnexpectedTypeError struct {
+	Expected string
+	Actual   any
+	// Message, if non-empty, is returned by Error() instead of the default "expect …, got …" form.
+	Message string
+}
+
+func (e UnexpectedTypeError) Error() string {
+	if e.Message != "" {
+		return e.Message
 	}
-	return prefixes
-}()
+	return fmt.Sprintf("expect %s, got %T", e.Expected, e.Actual)
+}
 
 func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, error) {
 	nestedMap := make(types.LabelMap)
@@ -29,42 +38,123 @@ func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, e
 
 	ExpandWildcard(labels, aliases...)
 
-	for lbl, value := range labels {
-		parts := strings.Split(lbl, ".")
-		if parts[0] != NSProxy {
-			continue
-		}
-		if len(parts) == 1 {
-			errs.AddSubject(ErrInvalidLabel, lbl)
-			continue
-		}
-		parts = parts[1:]
-		currentMap := nestedMap
-
-		for i, k := range parts {
-			if i == len(parts)-1 {
-				// Last element, set the value
-				currentMap[k] = value
-			} else {
-				// If the key doesn't exist, create a new map
-				if _, exists := currentMap[k]; !exists {
-					currentMap[k] = make(types.LabelMap)
-				}
-				// Move deeper into the nested map
-				m, ok := currentMap[k].(types.LabelMap)
-				if !ok && currentMap[k] != "" {
-					errs.AddSubject(fmt.Errorf("expect mapping, got %T", currentMap[k]), lbl)
-					continue
-				} else if !ok {
-					m = make(types.LabelMap)
-					currentMap[k] = m
-				}
-				currentMap = m
-			}
+	keys := slices.SortedFunc(maps.Keys(labels), compareLabelKeys)
+	for _, lbl := range keys {
+		if err := applyLabel(nestedMap, lbl, labels[lbl]); err != nil {
+			errs.AddSubject(err, lbl)
 		}
 	}
 
 	return nestedMap, errs.Error()
+}
+
+func applyLabel(dst types.LabelMap, lbl, value string) error {
+	parts := strings.Split(lbl, ".")
+	if parts[0] != NSProxy {
+		return nil
+	}
+	if len(parts) == 1 {
+		return ErrInvalidLabel
+	}
+
+	currentMap := dst
+	for _, part := range parts[1 : len(parts)-1] {
+		nextMap, err := descendLabelMap(currentMap, part)
+		if err != nil {
+			return err
+		}
+		currentMap = nextMap
+	}
+
+	return setLabelValue(currentMap, parts[len(parts)-1], value)
+}
+
+func descendLabelMap(currentMap types.LabelMap, key string) (types.LabelMap, error) {
+	if next, ok := currentMap[key]; ok {
+		switch typed := next.(type) {
+		case types.LabelMap:
+			return typed, nil
+		case string:
+			objectValue, isObject := parseLabelObject(typed)
+			if !isObject {
+				return nil, UnexpectedTypeError{Expected: "mapping", Actual: next}
+			}
+			currentMap[key] = objectValue
+			return objectValue, nil
+		default:
+			return nil, UnexpectedTypeError{Expected: "mapping", Actual: next}
+		}
+	}
+
+	nextMap := make(types.LabelMap)
+	currentMap[key] = nextMap
+	return nextMap, nil
+}
+
+func setLabelValue(currentMap types.LabelMap, key, value string) error {
+	existing, ok := currentMap[key].(types.LabelMap)
+	if !ok {
+		currentMap[key] = value
+		return nil
+	}
+
+	objectValue, isObject := parseLabelObject(value)
+	if !isObject {
+		return UnexpectedTypeError{Expected: "mapping", Actual: value}
+	}
+	return mergeLabelMaps(existing, objectValue)
+}
+
+func parseLabelObject(value string) (types.LabelMap, bool) {
+	if value == "" {
+		return make(types.LabelMap), true
+	}
+
+	objectValue := make(types.LabelMap)
+	if err := yaml.Unmarshal([]byte(strings.ReplaceAll(value, "\t", "  ")), &objectValue); err != nil {
+		return nil, false
+	}
+	return objectValue, true
+}
+
+func mergeLabelMaps(dst, src types.LabelMap) error {
+	for key, srcValue := range src {
+		existingValue, exists := dst[key]
+		if !exists {
+			dst[key] = srcValue
+			continue
+		}
+
+		existingMap, existingIsMap := existingValue.(types.LabelMap)
+		srcMap, srcIsMap := srcValue.(types.LabelMap)
+		if existingIsMap && srcIsMap {
+			if err := mergeLabelMaps(existingMap, srcMap); err != nil {
+				return err
+			}
+			continue
+		}
+		if existingIsMap {
+			return UnexpectedTypeError{Expected: "mapping", Actual: srcValue}
+		}
+		if srcIsMap {
+			return UnexpectedTypeError{
+				Expected: "scalar",
+				Actual:   srcValue,
+				Message: fmt.Sprintf(
+					"cannot merge mapping into existing scalar; merge source is %T",
+					srcValue,
+				),
+			}
+		}
+	}
+	return nil
+}
+
+func compareLabelKeys(a, b string) int {
+	if parts := cmp.Compare(strings.Count(a, "."), strings.Count(b, ".")); parts != 0 {
+		return parts
+	}
+	return cmp.Compare(a, b)
 }
 
 func ExpandWildcard(labels map[string]string, aliases ...string) {
@@ -77,12 +167,10 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 
 	// First pass: collect wildcards and discover aliases
 	for lbl, value := range labels {
-		if !strings.HasPrefix(lbl, nsProxyDot) {
+		alias, suffix, ok := splitAliasLabel(lbl)
+		if !ok {
 			continue
 		}
-		// lbl is "proxy.X..." where X is alias or wildcard
-		rest := lbl[len(nsProxyDot):] // "X..." or "X.suffix"
-		alias, suffix, _ := strings.Cut(rest, ".")
 		if alias == WildcardAlias {
 			delete(labels, lbl)
 			if suffix == "" || strings.Count(value, "\n") > 1 {
@@ -108,15 +196,10 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 
 	// Second pass: convert explicit labels to #N format
 	for lbl, value := range labels {
-		if !strings.HasPrefix(lbl, nsProxyDot) {
+		alias, suffix, ok := splitAliasLabel(lbl)
+		if !ok || suffix == "" || alias == "" || alias[0] == '#' {
 			continue
 		}
-		rest := lbl[len(nsProxyDot):]
-		alias, suffix, ok := strings.Cut(rest, ".")
-		if !ok || alias == "" || alias[0] == '#' {
-			continue
-		}
-
 		idx, known := aliasSet[alias]
 		if !known {
 			continue
@@ -124,16 +207,25 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 
 		delete(labels, lbl)
 		if _, overridden := wildcardLabels[suffix]; !overridden {
-			labels[refPrefixes[idx]+suffix] = value
+			labels[refPrefix(idx)+suffix] = value
 		}
 	}
 
 	// Expand wildcards for all aliases
 	for suffix, value := range wildcardLabels {
 		for _, idx := range aliasSet {
-			labels[refPrefixes[idx]+suffix] = value
+			labels[refPrefix(idx)+suffix] = value
 		}
 	}
+}
+
+func splitAliasLabel(lbl string) (alias, suffix string, ok bool) {
+	rest, ok := strings.CutPrefix(lbl, nsProxyDot)
+	if !ok {
+		return "", "", false
+	}
+	alias, suffix, _ = strings.Cut(rest, ".")
+	return alias, suffix, true
 }
 
 // expandYamlWildcard parses a YAML document in value, flattens it to dot-notated keys and adds the
@@ -141,7 +233,7 @@ func ExpandWildcard(labels map[string]string, aliases ...string) {
 // representation. The provided YAML is expected to be a mapping.
 func expandYamlWildcard(value string, dest map[string]string) {
 	// replace tab indentation with spaces to make YAML parser happy
-	yamlStr := strings.ReplaceAll(value, "\t", "    ")
+	yamlStr := strings.ReplaceAll(value, "\t", "  ")
 
 	raw := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlStr), &raw); err != nil {
@@ -152,59 +244,53 @@ func expandYamlWildcard(value string, dest map[string]string) {
 	flattenMap("", raw, dest)
 }
 
+// refPrefix returns the prefix for a reference to the Nth alias.
+func refPrefix(n int) string {
+	return nsProxyDot + "#" + strconv.Itoa(n+1) + "."
+}
+
 // flattenMap converts nested maps into a flat map with dot-delimited keys.
 func flattenMap(prefix string, src map[string]any, dest map[string]string) {
 	for k, v := range src {
-		key := k
-		if prefix != "" {
-			key = prefix + "." + k
-		}
-		switch vv := v.(type) {
-		case map[string]any:
-			flattenMap(key, vv, dest)
-		case map[any]any:
-			flattenMapAny(key, vv, dest)
-		case string:
-			dest[key] = vv
-		case int:
-			dest[key] = strconv.Itoa(vv)
-		case bool:
-			dest[key] = strconv.FormatBool(vv)
-		case float64:
-			dest[key] = strconv.FormatFloat(vv, 'f', -1, 64)
-		default:
-			dest[key] = fmt.Sprint(v)
-		}
+		flattenValue(joinLabelKey(prefix, k), v, dest)
 	}
 }
 
 func flattenMapAny(prefix string, src map[any]any, dest map[string]string) {
 	for k, v := range src {
-		var key string
-		switch kk := k.(type) {
-		case string:
-			key = kk
-		default:
-			key = fmt.Sprint(k)
-		}
-		if prefix != "" {
-			key = prefix + "." + key
-		}
-		switch vv := v.(type) {
-		case map[string]any:
-			flattenMap(key, vv, dest)
-		case map[any]any:
-			flattenMapAny(key, vv, dest)
-		case string:
-			dest[key] = vv
-		case int:
-			dest[key] = strconv.Itoa(vv)
-		case bool:
-			dest[key] = strconv.FormatBool(vv)
-		case float64:
-			dest[key] = strconv.FormatFloat(vv, 'f', -1, 64)
-		default:
-			dest[key] = fmt.Sprint(v)
-		}
+		flattenValue(joinLabelKey(prefix, stringifyLabelKey(k)), v, dest)
 	}
+}
+
+func flattenValue(key string, value any, dest map[string]string) {
+	switch typed := value.(type) {
+	case map[string]any:
+		flattenMap(key, typed, dest)
+	case map[any]any:
+		flattenMapAny(key, typed, dest)
+	case string:
+		dest[key] = typed
+	case int:
+		dest[key] = strconv.Itoa(typed)
+	case bool:
+		dest[key] = strconv.FormatBool(typed)
+	case float64:
+		dest[key] = strconv.FormatFloat(typed, 'f', -1, 64)
+	default:
+		dest[key] = fmt.Sprint(value)
+	}
+}
+
+func joinLabelKey(prefix, key string) string {
+	if prefix == "" {
+		return key
+	}
+	return prefix + "." + key
+}
+
+func stringifyLabelKey(key any) string {
+	if typed, ok := key.(string); ok {
+		return typed
+	}
+	return fmt.Sprint(key)
 }
