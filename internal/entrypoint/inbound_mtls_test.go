@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"io"
 	"net"
 	"net/http"
@@ -158,6 +159,33 @@ func TestMutateServerTLSConfigWithRouteProfiles(t *testing.T) {
 	require.Zero(t, unknownCfg.ClientAuth)
 	require.Nil(t, unknownCfg.ClientCAs)
 	require.Nil(t, unknownCfg.GetConfigForClient)
+}
+
+func TestMutateServerTLSConfigFallsBackToRouteProfilesAfterGlobalLookupError(t *testing.T) {
+	ep := NewTestEntrypoint(t, &Config{InboundMTLSProfile: "missing"})
+	ep.SetFindRouteDomains([]string{".example.com"})
+	srv := newTestHTTPServer(t, ep)
+	srv.AddRoute(newFakeHTTPRoute(t, "secure-app", "route"))
+	ep.inboundMTLSProfiles = map[string]*x509.CertPool{
+		"route": x509.NewCertPool(),
+	}
+
+	base := &tls.Config{MinVersion: tls.VersionTLS12}
+	mutated := srv.mutateServerTLSConfig(base)
+
+	require.NotNil(t, mutated.GetConfigForClient)
+
+	secureCfg, err := mutated.GetConfigForClient(&tls.ClientHelloInfo{ServerName: "secure-app.example.com"})
+	require.NoError(t, err)
+	require.Equal(t, tls.RequireAndVerifyClientCert, secureCfg.ClientAuth)
+	require.NotNil(t, secureCfg.ClientCAs)
+	require.Nil(t, secureCfg.GetConfigForClient)
+
+	openCfg, err := mutated.GetConfigForClient(&tls.ClientHelloInfo{ServerName: "open-app.example.com"})
+	require.NoError(t, err)
+	require.Zero(t, openCfg.ClientAuth)
+	require.Nil(t, openCfg.ClientCAs)
+	require.Nil(t, openCfg.GetConfigForClient)
 }
 
 func TestSetInboundMTLSProfilesRejectsUnknownGlobalProfile(t *testing.T) {

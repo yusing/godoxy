@@ -87,9 +87,11 @@ func (srv *httpServer) mutateServerTLSConfig(base *tls.Config) *tls.Config {
 	if base == nil {
 		return base
 	}
+	resolveForServerName := srv.resolveInboundMTLSProfileForServerName
 	pool, err := srv.resolveInboundMTLSProfileForRoute(nil)
 	if err != nil {
 		log.Err(err).Msg("inbound mTLS: failed to resolve global profile, falling back to per-route mTLS")
+		resolveForServerName = srv.resolveInboundMTLSProfileForServerNameWithoutGlobal
 	}
 	if pool != nil && err == nil {
 		return applyInboundMTLSProfile(base, pool)
@@ -97,7 +99,7 @@ func (srv *httpServer) mutateServerTLSConfig(base *tls.Config) *tls.Config {
 
 	cfg := base.Clone()
 	cfg.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-		pool, err := srv.resolveInboundMTLSProfileForServerName(hello.ServerName)
+		pool, err := resolveForServerName(hello.ServerName)
 		if err != nil {
 			return nil, err
 		}
@@ -140,10 +142,25 @@ func (srv *httpServer) resolveInboundMTLSProfileForServerName(serverName string)
 		return nil, nil
 	}
 	route := srv.FindRoute(serverName)
-	if route == nil {
+	return srv.resolveInboundMTLSProfileForRoute(route)
+}
+
+func (srv *httpServer) resolveInboundMTLSProfileForServerNameWithoutGlobal(serverName string) (*x509.CertPool, error) {
+	if serverName == "" || srv.ep.inboundMTLSProfiles == nil {
 		return nil, nil
 	}
-	return srv.resolveInboundMTLSProfileForRoute(route)
+	route := srv.FindRoute(serverName)
+	return srv.resolveRouteInboundMTLSProfile(route)
+}
+
+func (srv *httpServer) resolveRouteInboundMTLSProfile(route types.HTTPRoute) (*x509.CertPool, error) {
+	if srv.ep.inboundMTLSProfiles == nil || route == nil {
+		return nil, nil
+	}
+	if ref := route.InboundMTLSProfileRef(); ref != "" {
+		return srv.lookupInboundMTLSProfile(ref, fmt.Sprintf("route %q", route.Name()))
+	}
+	return nil, nil
 }
 
 func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) (*x509.CertPool, error) {
@@ -153,13 +170,7 @@ func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) 
 	if globalRef := srv.ep.cfg.InboundMTLSProfile; globalRef != "" {
 		return srv.lookupInboundMTLSProfile(globalRef, "entrypoint")
 	}
-	if route == nil {
-		return nil, nil
-	}
-	if ref := route.InboundMTLSProfileRef(); ref != "" {
-		return srv.lookupInboundMTLSProfile(ref, fmt.Sprintf("route %q", route.Name()))
-	}
-	return nil, nil
+	return srv.resolveRouteInboundMTLSProfile(route)
 }
 
 func (srv *httpServer) lookupInboundMTLSProfile(ref, owner string) (*x509.CertPool, error) {
