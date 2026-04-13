@@ -33,7 +33,10 @@ func compileInboundMTLSProfiles(profiles map[string]types.InboundMTLSProfile) (m
 		compiled[name] = pool
 	}
 
-	return compiled, errs.Error()
+	if err := errs.Error(); err != nil {
+		return nil, err
+	}
+	return compiled, nil
 }
 
 func buildInboundMTLSCAPool(profile types.InboundMTLSProfile) (*x509.CertPool, error) {

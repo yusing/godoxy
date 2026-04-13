@@ -80,15 +80,17 @@ func (r *fakeHTTPRoute) DisplayName() string         { return r.name }
 func (r *fakeHTTPRoute) ContainerInfo() *types.Container {
 	return nil
 }
-func (r *fakeHTTPRoute) GetAgent() *agentpool.Agent                   { return nil }
-func (r *fakeHTTPRoute) IsDocker() bool                               { return false }
-func (r *fakeHTTPRoute) IsAgent() bool                                { return false }
-func (r *fakeHTTPRoute) UseLoadBalance() bool                         { return false }
-func (r *fakeHTTPRoute) UseIdleWatcher() bool                         { return false }
-func (r *fakeHTTPRoute) UseHealthCheck() bool                         { return false }
-func (r *fakeHTTPRoute) UseAccessLog() bool                           { return false }
-func (r *fakeHTTPRoute) ServeHTTP(http.ResponseWriter, *http.Request) {}
-func (r *fakeHTTPRoute) InboundMTLSProfileRef() string                { return r.inboundMTLSProfile }
+func (r *fakeHTTPRoute) GetAgent() *agentpool.Agent { return nil }
+func (r *fakeHTTPRoute) IsDocker() bool             { return false }
+func (r *fakeHTTPRoute) IsAgent() bool              { return false }
+func (r *fakeHTTPRoute) UseLoadBalance() bool       { return false }
+func (r *fakeHTTPRoute) UseIdleWatcher() bool       { return false }
+func (r *fakeHTTPRoute) UseHealthCheck() bool       { return false }
+func (r *fakeHTTPRoute) UseAccessLog() bool         { return false }
+func (r *fakeHTTPRoute) ServeHTTP(http.ResponseWriter, *http.Request) {
+	// no-op: test stub
+}
+func (r *fakeHTTPRoute) InboundMTLSProfileRef() string { return r.inboundMTLSProfile }
 
 func newTestHTTPServer(t *testing.T, ep *Entrypoint) *httpServer {
 	t.Helper()
@@ -172,6 +174,16 @@ func TestSetInboundMTLSProfilesRejectsBadCAFile(t *testing.T) {
 	err := ep.SetInboundMTLSProfiles(map[string]types.InboundMTLSProfile{
 		"broken": {CAFiles: []string{filepath.Join(t.TempDir(), "missing.pem")}},
 	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing.pem")
+}
+
+func TestCompileInboundMTLSProfilesReturnsNilMapOnError(t *testing.T) {
+	compiled, err := compileInboundMTLSProfiles(map[string]types.InboundMTLSProfile{
+		"ok":  {UseSystemCAs: true},
+		"bad": {CAFiles: []string{filepath.Join(t.TempDir(), "missing.pem")}},
+	})
+	require.Nil(t, compiled)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing.pem")
 }
