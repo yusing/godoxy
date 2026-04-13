@@ -243,6 +243,14 @@ port: 8080`[1:]
 	})
 }
 
+func requireMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+
+	m, ok := value.(map[string]any)
+	require.True(t, ok, "expected map[string]any, got %T", value)
+	return m
+}
+
 func BenchmarkParseLabels(b *testing.B) {
 	m := map[string]string{
 		"proxy.a.host":   "localhost",
@@ -256,14 +264,6 @@ func BenchmarkParseLabels(b *testing.B) {
 }
 
 func TestParseLabelsMixedObjectAndFlatFields(t *testing.T) {
-	requireMap := func(t *testing.T, value any) map[string]any {
-		t.Helper()
-
-		m, ok := value.(map[string]any)
-		require.True(t, ok, "expected map[string]any, got %T", value)
-		return m
-	}
-
 	for i := range 100 {
 		labels := map[string]string{
 			"proxy.universal.middlewares.oidc":        "allowed_groups: [everyone]",
@@ -283,14 +283,6 @@ func TestParseLabelsMixedObjectAndFlatFields(t *testing.T) {
 }
 
 func TestParseLabelsRejectsScalarAndNestedObjectConflict(t *testing.T) {
-	requireMap := func(t *testing.T, value any) map[string]any {
-		t.Helper()
-
-		m, ok := value.(map[string]any)
-		require.True(t, ok, "expected map[string]any, got %T", value)
-		return m
-	}
-
 	for i := range 100 {
 		parsed, err := docker.ParseLabels(map[string]string{
 			"proxy.universal.middlewares.oidc":             "bypass: skip",

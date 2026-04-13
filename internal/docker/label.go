@@ -18,6 +18,15 @@ var ErrInvalidLabel = errors.New("invalid label")
 
 const nsProxyDot = NSProxy + "."
 
+type UnexpectedTypeError struct {
+	Expected string
+	Actual   any
+}
+
+func (e UnexpectedTypeError) Error() string {
+	return fmt.Sprintf("expect %s, got %T", e.Expected, e.Actual)
+}
+
 func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, error) {
 	nestedMap := make(types.LabelMap)
 	errs := gperr.NewBuilder("labels error")
@@ -63,12 +72,12 @@ func descendLabelMap(currentMap types.LabelMap, key string) (types.LabelMap, err
 		case string:
 			objectValue, isObject := parseLabelObject(typed)
 			if !isObject {
-				return nil, fmt.Errorf("expect mapping, got %T", next)
+				return nil, UnexpectedTypeError{Expected: "mapping", Actual: next}
 			}
 			currentMap[key] = objectValue
 			return objectValue, nil
 		default:
-			return nil, fmt.Errorf("expect mapping, got %T", next)
+			return nil, UnexpectedTypeError{Expected: "mapping", Actual: next}
 		}
 	}
 
@@ -86,7 +95,7 @@ func setLabelValue(currentMap types.LabelMap, key, value string) error {
 
 	objectValue, isObject := parseLabelObject(value)
 	if !isObject {
-		return fmt.Errorf("expect mapping, got %T", value)
+		return UnexpectedTypeError{Expected: "mapping", Actual: value}
 	}
 	return mergeLabelMaps(existing, objectValue)
 }
@@ -120,10 +129,10 @@ func mergeLabelMaps(dst, src types.LabelMap) error {
 			continue
 		}
 		if existingIsMap {
-			return fmt.Errorf("expect mapping, got %T", srcValue)
+			return UnexpectedTypeError{Expected: "mapping", Actual: srcValue}
 		}
 		if srcIsMap {
-			return fmt.Errorf("expect scalar, got %T", srcValue)
+			return UnexpectedTypeError{Expected: "scalar", Actual: srcValue}
 		}
 	}
 	return nil
@@ -212,7 +221,7 @@ func splitAliasLabel(lbl string) (alias, suffix string, ok bool) {
 // representation. The provided YAML is expected to be a mapping.
 func expandYamlWildcard(value string, dest map[string]string) {
 	// replace tab indentation with spaces to make YAML parser happy
-	yamlStr := strings.ReplaceAll(value, "\t", "    ")
+	yamlStr := strings.ReplaceAll(value, "\t", "  ")
 
 	raw := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlStr), &raw); err != nil {
