@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -88,9 +89,9 @@ func (srv *httpServer) mutateServerTLSConfig(base *tls.Config) *tls.Config {
 	}
 	pool, err := srv.resolveInboundMTLSProfileForRoute(nil)
 	if err != nil {
-		panic(err)
+		log.Err(err).Msg("inbound mTLS: failed to resolve global profile, falling back to per-route mTLS")
 	}
-	if pool != nil {
+	if pool != nil && err == nil {
 		return applyInboundMTLSProfile(base, pool)
 	}
 

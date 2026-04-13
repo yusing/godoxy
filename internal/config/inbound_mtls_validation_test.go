@@ -80,14 +80,15 @@ func (s *stubState) AutoCertProvider() server.CertProvider     { return nil }
 func (s *stubState) LoadOrStoreProvider(string, types.RouteProvider) (types.RouteProvider, bool) {
 	return nil, false
 }
-func (s *stubState) DeleteProvider(string) {}
+func (s *stubState) DeleteProvider(string) { /* no-op: test stub */ }
 func (s *stubState) IterProviders() iter.Seq2[string, types.RouteProvider] {
+	// no-op: returns empty iterator
 	return func(func(string, types.RouteProvider) bool) {}
 }
-func (s *stubState) NumProviders() int     { return 0 }
-func (s *stubState) StartProviders() error { return nil }
-func (s *stubState) FlushTmpLog()          {}
-func (s *stubState) StartAPIServers()      {}
-func (s *stubState) StartMetrics()         {}
+func (s *stubState) NumProviders() int     { return 0 }   // no-op: test stub
+func (s *stubState) StartProviders() error { return nil } // no-op: test stub
+func (s *stubState) FlushTmpLog()          { /* no-op: test stub */ }
+func (s *stubState) StartAPIServers()      { /* no-op: test stub */ }
+func (s *stubState) StartMetrics()         { /* no-op: test stub */ }
 
 var _ config.State = (*stubState)(nil)

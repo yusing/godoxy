@@ -3,8 +3,8 @@ package types
 import "errors"
 
 type InboundMTLSProfile struct {
-	UseSystemCAs bool     `json:"use_system_cas,omitempty"`
-	CAFiles      []string `json:"ca_files,omitempty" validate:"omitempty,dive,filepath"`
+	UseSystemCAs bool     `json:"use_system_cas,omitempty" yaml:"use_system_cas,omitempty"`
+	CAFiles      []string `json:"ca_files,omitempty" yaml:"ca_files,omitempty" validate:"omitempty,dive,filepath"`
 }
 
 func (cfg InboundMTLSProfile) Validate() error {
