@@ -48,9 +48,7 @@ func buildInboundMTLSCAPool(profile types.InboundMTLSProfile) (*x509.CertPool, e
 		if err != nil {
 			return nil, err
 		}
-		if systemPool != nil {
-			pool = systemPool
-		}
+		pool = systemPool
 	}
 	if pool == nil {
 		pool = x509.NewCertPool()
@@ -159,8 +157,8 @@ func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) 
 		return nil, false, nil
 	}
 	if ref := route.InboundMTLSProfileRef(); ref != "" {
-		if pool, ok := srv.lookupInboundMTLSProfile(ref); ok {
-			return pool, true, nil
+		if p, ok := srv.lookupInboundMTLSProfile(ref); ok {
+			return p, true, nil
 		}
 		return nil, false, fmt.Errorf("route %q inbound mTLS profile %q not found", route.Name(), ref)
 	}
@@ -169,8 +167,8 @@ func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) 
 
 func (srv *httpServer) resolveInboundMTLSProfileForGlobal() (pool *x509.CertPool, enabled bool, err error) {
 	if globalRef := srv.ep.cfg.InboundMTLSProfile; globalRef != "" {
-		if pool, ok := srv.lookupInboundMTLSProfile(globalRef); ok {
-			return pool, true, nil
+		if p, ok := srv.lookupInboundMTLSProfile(globalRef); ok {
+			return p, true, nil
 		}
 		return nil, false, fmt.Errorf("entrypoint inbound mTLS profile %q not found", globalRef)
 	}

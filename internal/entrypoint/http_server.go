@@ -151,6 +151,7 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {
 	hostRoute := srv.FindRoute(req.Host)
+	// Skip per-route mTLS resolution if no TLS or a global mTLS profile is configured
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
 		return hostRoute, nil
 	}

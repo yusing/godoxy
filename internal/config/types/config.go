@@ -22,7 +22,7 @@ type (
 		ACL                 *acl.Config                         `json:"acl"`
 		AutoCert            *autocert.Config                    `json:"autocert"`
 		Entrypoint          entrypoint.Config                   `json:"entrypoint"`
-		InboundMTLSProfiles map[string]types.InboundMTLSProfile `json:"inbound_mtls_profiles" yaml:"inbound_mtls_profiles,omitempty"`
+		InboundMTLSProfiles map[string]types.InboundMTLSProfile `json:"inbound_mtls_profiles"`
 		Providers           Providers                           `json:"providers"`
 		MatchDomains        []string                            `json:"match_domains" validate:"domain_name"`
 		Homepage            homepage.Config                     `json:"homepage"`

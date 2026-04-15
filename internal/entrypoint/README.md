@@ -110,7 +110,7 @@ type Config struct {
 
 ### Inbound mTLS profiles
 
-Root config provides reusable named inbound mTLS profiles via `config.Config.InboundMTLSProfiles`. Each profile is a [`types.InboundMTLSProfile`](../types/inbound_mtls.go): optional system trust roots plus zero or more PEM CA certificate files on disk (`ca_files`). `SetInboundMTLSProfiles` compiles those profiles into certificate pools, and the TLS server sets `ClientCAs` from the selected pool.
+Root config provides reusable named inbound mTLS profiles via `config.Config.InboundMTLSProfiles`. Each profile is a [`types.InboundMTLSProfile`](internal/types/inbound_mtls.go): optional system trust roots plus zero or more PEM CA certificate files on disk (`ca_files`). `SetInboundMTLSProfiles` compiles those profiles into certificate pools, and the TLS server sets `ClientCAs` from the selected pool.
 
 PEM content is not embedded in YAML: list file paths under `ca_files`; each file should contain one or more PEM-encoded CA certificates.
 

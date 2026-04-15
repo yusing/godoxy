@@ -66,6 +66,7 @@ type Route struct {
 
 - It is only honored when no global `entrypoint.inbound_mtls_profile` is configured.
 - It is only valid for HTTP-based routes.
+- If set on a non-HTTP route (tcp, udp, fileserver), route validation fails.
 - Route-scoped inbound mTLS is selected by TLS SNI.
 - Requests for secured routes must resolve to the same route by both HTTP `Host` and TLS SNI.
 - If the profile name does not exist, route validation fails.
