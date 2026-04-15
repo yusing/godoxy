@@ -42,6 +42,7 @@ type Route struct {
 
     // Route rules and middleware
     HTTPConfig
+    InboundMTLSProfile string
     PathPatterns []string
     Rules        rules.Rules
     RuleFile     string
@@ -59,6 +60,25 @@ type Route struct {
 
     Metadata
 }
+```
+
+`InboundMTLSProfile` references a named root-level inbound mTLS profile for this route.
+
+- It is only honored when no global `entrypoint.inbound_mtls_profile` is configured.
+- It is only valid for HTTP-based routes.
+- If set on a non-HTTP route (tcp, udp, fileserver), route validation fails.
+- Route-scoped inbound mTLS is selected by TLS SNI.
+- Requests for secured routes must resolve to the same route by both HTTP `Host` and TLS SNI.
+- If the profile name does not exist, route validation fails.
+
+Example route fragment:
+
+```yaml
+alias: secure-api
+host: api.example.com
+scheme: https
+port: 443
+inbound_mtls_profile: corp-clients
 ```
 
 ```go

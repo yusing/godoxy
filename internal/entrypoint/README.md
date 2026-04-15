@@ -93,6 +93,7 @@ type RWPoolLike[Route types.Route] interface {
 ```go
 type Config struct {
     SupportProxyProtocol bool                     `json:"support_proxy_protocol"`
+    InboundMTLSProfile   string                   `json:"inbound_mtls_profile,omitempty"`
     Rules                struct {
         NotFound rules.Rules                     `json:"not_found"`
     }                                               `json:"rules"`
@@ -100,6 +101,51 @@ type Config struct {
     AccessLog            *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
 }
 ```
+
+`InboundMTLSProfile` references a named root-level inbound mTLS profile and enables Go's built-in client-certificate verification (`tls.RequireAndVerifyClientCert`) for all HTTPS traffic on the entrypoint.
+
+- When configured, route-level inbound mTLS overrides are not supported.
+- Without a global profile, route-level inbound mTLS may still select profiles by TLS SNI.
+- For a route that enforces client certificates, the route matched from the HTTP `Host` and the route matched from TLS SNI must be the same route (compared by route identity/key after `FindRoute`). That resolution is the entrypoint's route table, not DNS or any external name resolution.
+
+### Inbound mTLS profiles
+
+Root config provides reusable named inbound mTLS profiles via `config.Config.InboundMTLSProfiles`. Each profile is a [`types.InboundMTLSProfile`](internal/types/inbound_mtls.go): optional system trust roots plus zero or more PEM CA certificate files on disk (`ca_files`). `SetInboundMTLSProfiles` compiles those profiles into certificate pools, and the TLS server sets `ClientCAs` from the selected pool.
+
+PEM content is not embedded in YAML: list file paths under `ca_files`; each file should contain one or more PEM-encoded CA certificates.
+
+```yaml
+inbound_mtls_profiles:
+  corp-clients:
+    use_system_cas: false
+    ca_files:
+      - /etc/godoxy/mtls/corp-root-ca.pem
+      - /etc/godoxy/mtls/corp-issuing-ca.pem
+  corp-plus-extra:
+    use_system_cas: true
+    ca_files:
+      - /etc/godoxy/mtls/private-intermediate.pem
+```
+
+Apply one profile to **all** HTTPS listeners by naming it on the entrypoint:
+
+```yaml
+entrypoint:
+  inbound_mtls_profile: corp-clients
+```
+
+#### Security considerations
+
+- **Client certificates and chain verification** — The server requires a client certificate and verifies it with Go's TLS stack. The chain must build to one of the CAs in the selected pool (custom PEMs from `ca_files`, and optionally the OS trust store when `use_system_cas` is true). Leaf validity (time, EKU, and related checks) follows standard Go behavior for client-auth verification.
+- **CA management and rotation** — CA material is read from the filesystem when profiles are compiled during config load / entrypoint setup. Updating trust for a running process requires a config reload or restart so the new PEM files are read.
+- **CRL / OCSP revocation** — Go's standard inbound mTLS verification does not perform CRL or OCSP checks for client certificates, and GoDoxy does not add a custom revocation layer.
+- **Misconfigured trust pools** — A pool that is too broad (for example `use_system_cas: true` with few constraints) can trust far more clients than intended. A pool that omits required intermediates can reject otherwise valid clients.
+
+#### Failure modes
+
+- **Invalid or unreadable CA material** — Missing files, non-PEM content, or PEM that does not parse as CA certificates cause profile compilation to fail. `SetInboundMTLSProfiles` returns collected per-profile errors.
+- **Missing profile referenced by entrypoint** — If `entrypoint.inbound_mtls_profile` names a profile that is not present in `inbound_mtls_profiles`, initialization returns `entrypoint inbound mTLS profile "<name>" not found`.
+- **Client certificate validation failures** — Clients that omit a cert, present a cert that does not chain to the configured pool, or fail other TLS checks see a failed TLS handshake before HTTP handling starts.
 
 ### Context Functions
 

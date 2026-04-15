@@ -37,6 +37,7 @@ type (
 		HomepageItem() homepage.Item
 		DisplayName() string
 		ContainerInfo() *Container
+		InboundMTLSProfileRef() string
 
 		GetAgent() *agentpool.Agent
 

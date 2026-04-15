@@ -1,6 +1,7 @@
 package entrypoint
 
 import (
+	"crypto/x509"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -41,6 +42,8 @@ type Entrypoint struct {
 	httpPoolDisableLog atomic.Bool
 
 	servers *xsync.Map[string, *httpServer] // listen addr -> server
+
+	inboundMTLSProfiles map[string]*x509.CertPool
 }
 
 var _ entrypoint.Entrypoint = &Entrypoint{}
@@ -62,13 +65,14 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 	}
 
 	ep := &Entrypoint{
-		task:             parent.Subtask("entrypoint", false),
-		cfg:              cfg,
-		findRouteFunc:    findRouteAnyDomain,
-		shortLinkMatcher: newShortLinkMatcher(),
-		streamRoutes:     pool.New[types.StreamRoute]("stream_routes", "stream_routes"),
-		excludedRoutes:   pool.New[types.Route]("excluded_routes", "excluded_routes"),
-		servers:          xsync.NewMap[string, *httpServer](),
+		task:                parent.Subtask("entrypoint", false),
+		cfg:                 cfg,
+		findRouteFunc:       findRouteAnyDomain,
+		shortLinkMatcher:    newShortLinkMatcher(),
+		streamRoutes:        pool.New[types.StreamRoute]("stream_routes", "stream_routes"),
+		excludedRoutes:      pool.New[types.Route]("excluded_routes", "excluded_routes"),
+		servers:             xsync.NewMap[string, *httpServer](),
+		inboundMTLSProfiles: make(map[string]*x509.CertPool),
 	}
 	return ep
 }

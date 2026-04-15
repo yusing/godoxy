@@ -324,6 +324,7 @@ func (state *state) initEntrypoint() error {
 	errs := gperr.NewBuilder("entrypoint error")
 	errs.Add(state.entrypoint.SetMiddlewares(epCfg.Middlewares))
 	errs.Add(state.entrypoint.SetAccessLogger(state.task, epCfg.AccessLog))
+	errs.Add(state.entrypoint.SetInboundMTLSProfiles(state.Config.InboundMTLSProfiles))
 	return errs.Error()
 }
 
