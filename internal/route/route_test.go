@@ -206,6 +206,21 @@ func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
 	require.Equal(t, 10*time.Second, hc.Timeout)
 }
 
+func TestRouteMiddlewaresReturnsClone(t *testing.T) {
+	original := types.LabelMap{"bypass": []string{"path /health"}}
+	r := &Route{
+		Middlewares: map[string]types.LabelMap{
+			"redirectHTTP": original,
+		},
+	}
+
+	got := r.RouteMiddlewares()
+	require.Equal(t, r.Middlewares, got)
+
+	delete(got, "redirectHTTP")
+	require.Contains(t, r.Middlewares, "redirectHTTP")
+}
+
 func TestRouteBindField(t *testing.T) {
 	t.Run("TCPSchemeWithCustomBind", func(t *testing.T) {
 		r := &Route{

@@ -3,7 +3,6 @@ package entrypoint
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/http"
 	"strings"
@@ -232,13 +231,10 @@ func (srv *httpServer) resetRouteEntrypointOverlays() {
 }
 
 func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
-	routeMiddlewares := route.RouteMiddlewares()
-	if len(routeMiddlewares) == 0 {
+	routeMiddlewareMap := route.RouteMiddlewares()
+	if len(routeMiddlewareMap) == 0 {
 		return &routeEntrypointOverlay{}, nil
 	}
-
-	routeMiddlewareMap := make(map[string]middleware.OptionsRaw, len(routeMiddlewares))
-	maps.Copy(routeMiddlewareMap, routeMiddlewares)
 
 	compiled, err := middleware.BuildEntrypointRouteOverlay(
 		"entrypoint",

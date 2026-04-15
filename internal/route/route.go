@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"os"
@@ -135,7 +136,7 @@ func (r Routes) Contains(alias string) bool {
 }
 
 func (r *Route) RouteMiddlewares() map[string]types.LabelMap {
-	return r.Middlewares
+	return maps.Clone(r.Middlewares)
 }
 
 func (r *Route) Validate() error {
