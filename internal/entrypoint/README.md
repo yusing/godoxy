@@ -11,6 +11,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - Domain-based route lookup with subdomain support
 - Short link (`go/<alias>` domain) handling
 - Middleware chain application
+- Route-specific promotion of bypass-only middleware overlays into matching entrypoint middleware
 - Access logging for all requests
 - Configurable not-found handling
 - Per-domain route resolution
@@ -101,6 +102,45 @@ type Config struct {
     AccessLog            *accesslog.RequestLoggerConfig `json:"access_log" validate:"omitempty"`
 }
 ```
+
+### Entrypoint middleware bypass overlays
+
+For HTTP routes, the entrypoint can compile a route-specific effective middleware chain when a route contributes a local middleware entry whose name matches an existing entrypoint middleware and whose options include `bypass`.
+
+Behavior is intentionally narrow:
+
+- only `bypass` is promoted in v1
+- promotion is **append-only**
+- the entrypoint middleware must already exist
+- if no matching entrypoint middleware exists, route-local behavior stays unchanged
+- when the route-local middleware entry is bypass-only, it is consumed after promotion so the same middleware is not evaluated twice
+
+Example:
+
+```yaml
+entrypoint:
+  middlewares:
+    - use: oidc
+
+routes:
+  app:
+    middlewares:
+      oidc:
+        bypass:
+          - path glob("/public/*")
+```
+
+This behaves as if the entrypoint middleware for that route had:
+
+```yaml
+entrypoint:
+  middlewares:
+    - use: oidc
+      bypass:
+        - route app & path glob("/public/*")
+```
+
+Pre-existing entrypoint bypass rules remain active; route bypass rules are added on top.
 
 `InboundMTLSProfile` references a named root-level inbound mTLS profile and enables Go's built-in client-certificate verification (`tls.RequireAndVerifyClientCert`) for all HTTPS traffic on the entrypoint.
 

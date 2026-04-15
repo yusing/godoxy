@@ -11,6 +11,7 @@ This package implements a flexible HTTP middleware system for GoDoxy. Middleware
 - **Middleware Chaining**: Compose multiple middleware in priority order
 - **YAML Composition**: Define middleware chains in configuration files
 - **Bypass Rules**: Skip middleware based on request properties
+- **Entrypoint Overlay Promotion**: Promote route-local bypass-only overlays into matching entrypoint middleware for HTTP routes
 - **Dynamic Loading**: Load middleware definitions from files at runtime
 
 Response body rewriting is only applied to unencoded, text-like content types (for example `text/*`, JSON, YAML, XML). Response status and headers can always be modified.
@@ -140,6 +141,42 @@ type Bypass []rules.RuleOn
 func (b Bypass) ShouldBypass(w http.ResponseWriter, r *http.Request) bool
 ```
 
+For HTTP routes, any route-local middleware entry that sets `bypass` and matches an existing entrypoint middleware name contributes an overlay: its bypass rules are promoted into the effective entrypoint middleware for that route.
+
+Semantics:
+
+- promotion is **bypass-only** in v1
+- promoted rules are qualified as `route <alias> & <rule>`
+- existing entrypoint bypass rules are preserved and the route rules are appended
+- if the route-local middleware entry contains only `bypass`, it is consumed so the same middleware is not evaluated twice
+- if the route-local middleware entry contains additional options, only the bypass portion is consumed; the rest of the route-local middleware still executes normally
+- if no matching entrypoint middleware exists, route-local middleware behavior is unchanged
+
+Example:
+
+```yaml
+entrypoint:
+  middlewares:
+    - use: oidc
+
+routes:
+  app:
+    middlewares:
+      oidc:
+        bypass:
+          - path glob("/public/*")
+```
+
+Effective behavior for route `app` is equivalent to:
+
+```yaml
+entrypoint:
+  middlewares:
+    - use: oidc
+      bypass:
+        - route app & path glob("/public/*")
+```
+
 ## Available Middleware
 
 | Name                            | Type     | Description                                |
@@ -246,6 +283,8 @@ if err != nil {
     log.Fatal(err)
 }
 ```
+
+`PatchReverseProxy` still handles route-local middleware in the normal way. Entrypoint overlay promotion happens earlier, at entrypoint request dispatch time, where the server has both the resolved route and the raw entrypoint middleware definitions available.
 
 ### Bypass Rules
 

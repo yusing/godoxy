@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
@@ -36,6 +38,18 @@ type httpServer struct {
 
 	addr   string
 	routes *pool.Pool[types.HTTPRoute]
+
+	routeEntrypointOverlays atomic.Pointer[xsync.Map[string, *routeEntrypointOverlay]]
+}
+
+type routeEntrypointOverlay struct {
+	middleware          *middleware.Middleware
+	consumedBypass      map[string]struct{}
+	consumedMiddlewares map[string]struct{}
+}
+
+func newRouteEntrypointOverlayMap() *xsync.Map[string, *routeEntrypointOverlay] {
+	return xsync.NewMap[string, *routeEntrypointOverlay]()
 }
 
 type HTTPProto string
@@ -50,7 +64,9 @@ func NewHTTPServer(ep *Entrypoint) HTTPServer {
 }
 
 func newHTTPServer(ep *Entrypoint) *httpServer {
-	return &httpServer{ep: ep}
+	srv := &httpServer{ep: ep}
+	srv.resetRouteEntrypointOverlays()
+	return srv
 }
 
 // Listen starts the server and stop when entrypoint is stopped.
@@ -102,10 +118,12 @@ func (srv *httpServer) Close() {
 
 func (srv *httpServer) AddRoute(route types.HTTPRoute) {
 	srv.routes.Add(route)
+	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
 func (srv *httpServer) DelRoute(route types.HTTPRoute) {
 	srv.routes.Del(route)
+	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
 func (srv *httpServer) FindRoute(s string) types.HTTPRoute {
@@ -135,10 +153,32 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case route != nil:
 		r = routes.WithRouteContext(r, route)
-		if srv.ep.middleware != nil {
-			srv.ep.middleware.ServeHTTP(route.ServeHTTP, w, r)
+		entrypointMiddleware := srv.ep.middleware
+		next := route.ServeHTTP
+		if entrypointMiddleware != nil {
+			overlay, err := srv.getRouteEntrypointOverlay(route)
+			if err != nil {
+				log.Err(err).Str("route", route.Name()).Msg("failed to compile route-specific entrypoint middleware")
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+			if overlay != nil {
+				entrypointMiddleware = overlay.middleware
+				if len(overlay.consumedBypass) > 0 || len(overlay.consumedMiddlewares) > 0 {
+					next = func(w http.ResponseWriter, req *http.Request) {
+						route.ServeHTTP(w, middleware.WithConsumedRouteOverlays(
+							req,
+							overlay.consumedBypass,
+							overlay.consumedMiddlewares,
+						))
+					}
+				}
+			}
+		}
+		if entrypointMiddleware != nil {
+			entrypointMiddleware.ServeHTTP(next, w, r)
 		} else {
-			route.ServeHTTP(w, r)
+			next(w, r)
 		}
 	case srv.tryHandleShortLink(w, r):
 		return
@@ -147,6 +187,76 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		serveNotFound(w, r)
 	}
+}
+
+func (srv *httpServer) getRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
+	if srv.ep.middleware == nil || len(srv.ep.cfg.Middlewares) == 0 {
+		return nil, nil
+	}
+	overlays := srv.routeEntrypointOverlayMap()
+	var buildErr error
+	overlay, _ := overlays.LoadOrCompute(route.Key(), func() (*routeEntrypointOverlay, bool) {
+		computed, err := srv.compileRouteEntrypointOverlay(route)
+		if err != nil {
+			buildErr = err
+			return nil, true
+		}
+		return computed, false
+	})
+	if buildErr != nil {
+		return nil, buildErr
+	}
+	if overlay.middleware == nil {
+		return nil, nil
+	}
+	return overlay, nil
+}
+
+func (srv *httpServer) routeEntrypointOverlayMap() *xsync.Map[string, *routeEntrypointOverlay] {
+	overlays := srv.routeEntrypointOverlays.Load()
+	if overlays != nil {
+		return overlays
+	}
+	overlays = newRouteEntrypointOverlayMap()
+	if srv.routeEntrypointOverlays.CompareAndSwap(nil, overlays) {
+		return overlays
+	}
+	return srv.routeEntrypointOverlays.Load()
+}
+
+func (srv *httpServer) resetRouteEntrypointOverlays() {
+	srv.routeEntrypointOverlays.Store(newRouteEntrypointOverlayMap())
+}
+
+func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
+	routeMiddlewares := route.RouteMiddlewares()
+	if len(routeMiddlewares) == 0 {
+		return &routeEntrypointOverlay{}, nil
+	}
+
+	routeMiddlewareMap := make(map[string]middleware.OptionsRaw, len(routeMiddlewares))
+	for name, opts := range routeMiddlewares {
+		routeMiddlewareMap[name] = opts
+	}
+
+	compiled, err := middleware.BuildEntrypointRouteOverlay(
+		"entrypoint",
+		srv.ep.cfg.Middlewares,
+		route.Name(),
+		routeMiddlewareMap,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if compiled == nil {
+		return &routeEntrypointOverlay{}, nil
+	}
+
+	return &routeEntrypointOverlay{
+		middleware:          compiled.Middleware,
+		consumedBypass:      compiled.ConsumedBypass,
+		consumedMiddlewares: compiled.ConsumedMiddlewares,
+	}, nil
 }
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {

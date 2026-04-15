@@ -31,6 +31,8 @@ type fakeHTTPRoute struct {
 	name               string
 	inboundMTLSProfile string
 	listenURL          *nettypes.URL
+	routeMiddlewares   map[string]types.LabelMap
+	handler            http.HandlerFunc
 	task               *task.Task
 }
 
@@ -88,10 +90,13 @@ func (r *fakeHTTPRoute) UseLoadBalance() bool       { return false }
 func (r *fakeHTTPRoute) UseIdleWatcher() bool       { return false }
 func (r *fakeHTTPRoute) UseHealthCheck() bool       { return false }
 func (r *fakeHTTPRoute) UseAccessLog() bool         { return false }
-func (r *fakeHTTPRoute) ServeHTTP(http.ResponseWriter, *http.Request) {
-	// no-op: test stub
+func (r *fakeHTTPRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if r.handler != nil {
+		r.handler(w, req)
+	}
 }
-func (r *fakeHTTPRoute) InboundMTLSProfileRef() string { return r.inboundMTLSProfile }
+func (r *fakeHTTPRoute) InboundMTLSProfileRef() string               { return r.inboundMTLSProfile }
+func (r *fakeHTTPRoute) RouteMiddlewares() map[string]types.LabelMap { return r.routeMiddlewares }
 
 func newTestHTTPServer(t *testing.T, ep *Entrypoint) *httpServer {
 	t.Helper()
@@ -106,6 +111,7 @@ func newTestHTTPServer(t *testing.T, ep *Entrypoint) *httpServer {
 		addr:   common.ProxyHTTPAddr,
 		routes: pool.New[types.HTTPRoute]("test-http-routes", "test-http-routes"),
 	}
+	srv.resetRouteEntrypointOverlays()
 	ep.servers.Store(common.ProxyHTTPAddr, srv)
 	return srv
 }

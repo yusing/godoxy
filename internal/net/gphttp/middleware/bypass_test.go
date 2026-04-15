@@ -14,6 +14,7 @@ import (
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/reverseproxy"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -265,4 +266,148 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	expect.Equal(t, recorder.Code, http.StatusOK, "should bypass http redirect")
 	expect.Equal(t, recorder.Body.String(), "test")
 	expect.Equal(t, recorder.Header().Get("Test-Header"), "test-value")
+}
+
+func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("test"))
+	}))
+	defer srv.Close()
+
+	targetURL, err := url.Parse(srv.URL)
+	expect.NoError(t, err)
+
+	host, port, err := net.SplitHostPort(targetURL.Host)
+	expect.NoError(t, err)
+
+	portInt, err := strconv.Atoi(port)
+	expect.NoError(t, err)
+
+	entry := entrypoint.NewTestEntrypoint(t, nil)
+	_, err = route.NewStartedTestRoute(t, &route.Route{
+		Alias:  "test-route",
+		Scheme: routeTypes.SchemeHTTP,
+		Host:   host,
+		Port: routeTypes.Port{
+			Listening: 1000,
+			Proxy:     portInt,
+		},
+		Middlewares: map[string]types.LabelMap{
+			"redirectHTTP": {
+				"bypass": `
+- path glob(/public/*)
+`[1:],
+			},
+		},
+	})
+	expect.NoError(t, err)
+
+	err = entry.SetMiddlewares([]map[string]any{
+		{
+			"use":    "redirectHTTP",
+			"bypass": []string{"path /health"},
+		},
+	})
+	expect.NoError(t, err)
+
+	server, ok := entry.GetServer(":1000")
+	if !ok {
+		t.Fatal("server not found")
+	}
+
+	tests := []struct {
+		name         string
+		path         string
+		expectStatus int
+		expectBody   string
+		expectLoc    string
+	}{
+		{
+			name:         "existing_entrypoint_bypass_still_applies",
+			path:         "/health",
+			expectStatus: http.StatusOK,
+			expectBody:   "test",
+		},
+		{
+			name:         "route_bypass_is_promoted_to_entrypoint",
+			path:         "/public/index.html",
+			expectStatus: http.StatusOK,
+			expectBody:   "test",
+		},
+		{
+			name:         "non_matching_path_still_redirects",
+			path:         "/private",
+			expectStatus: http.StatusPermanentRedirect,
+			expectLoc:    "https://test-route.example.com/private",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com"+test.path, nil)
+			server.ServeHTTP(recorder, req)
+			expect.Equal(t, recorder.Code, test.expectStatus)
+			if test.expectBody != "" {
+				expect.Equal(t, recorder.Body.String(), test.expectBody)
+			}
+			expect.Equal(t, recorder.Header().Get("Location"), test.expectLoc)
+		})
+	}
+}
+
+func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("test"))
+	}))
+	defer srv.Close()
+
+	targetURL, err := url.Parse(srv.URL)
+	expect.NoError(t, err)
+
+	host, port, err := net.SplitHostPort(targetURL.Host)
+	expect.NoError(t, err)
+
+	portInt, err := strconv.Atoi(port)
+	expect.NoError(t, err)
+
+	entry := entrypoint.NewTestEntrypoint(t, nil)
+	_, err = route.NewStartedTestRoute(t, &route.Route{
+		Alias:  "test-route",
+		Scheme: routeTypes.SchemeHTTP,
+		Host:   host,
+		Port: routeTypes.Port{
+			Listening: 1000,
+			Proxy:     portInt,
+		},
+		Middlewares: map[string]types.LabelMap{
+			"redirectHTTP": {
+				"bypass": `
+- path glob(/public/*)
+`[1:],
+			},
+		},
+	})
+	expect.NoError(t, err)
+
+	server, ok := entry.GetServer(":1000")
+	if !ok {
+		t.Fatal("server not found")
+	}
+
+	t.Run("bypass_still_works_without_matching_entrypoint_middleware", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com/public/index.html", nil)
+		server.ServeHTTP(recorder, req)
+		expect.Equal(t, recorder.Code, http.StatusOK)
+		expect.Equal(t, recorder.Body.String(), "test")
+	})
+
+	t.Run("route_middleware_still_redirects_for_non_matching_paths", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com/private", nil)
+		server.ServeHTTP(recorder, req)
+		expect.Equal(t, recorder.Code, http.StatusPermanentRedirect)
+		expect.Equal(t, recorder.Header().Get("Location"), "https://test-route.example.com/private")
+	})
 }

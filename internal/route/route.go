@@ -134,6 +134,10 @@ func (r Routes) Contains(alias string) bool {
 	return ok
 }
 
+func (r *Route) RouteMiddlewares() map[string]types.LabelMap {
+	return r.Middlewares
+}
+
 func (r *Route) Validate() error {
 	// wait for alias to be set
 	if r.Alias == "" {
