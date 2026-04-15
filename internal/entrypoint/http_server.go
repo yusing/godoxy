@@ -149,46 +149,38 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var (
-	errSecureRouteRequiresSNI = errors.New("secure route requires matching TLS SNI")
-	errSecureRouteMisdirected = errors.New("secure route host must match TLS SNI")
-)
-
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {
 	hostRoute := srv.FindRoute(req.Host)
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
 		return hostRoute, nil
 	}
 
+	hostPool, err := srv.resolveInboundMTLSProfileForRoute(hostRoute)
+	if err != nil {
+		return nil, err
+	}
+
 	serverName := req.TLS.ServerName
 	if serverName == "" {
-		pool, err := srv.resolveInboundMTLSProfileForRoute(hostRoute)
-		if err != nil {
-			return nil, err
-		}
-		if pool != nil {
+		if hostPool != nil {
 			return nil, errSecureRouteRequiresSNI
 		}
 		return hostRoute, nil
 	}
 
 	sniRoute := srv.FindRoute(serverName)
-	pool, err := srv.resolveInboundMTLSProfileForRoute(sniRoute)
+	sniPool, err := srv.resolveInboundMTLSProfileForRoute(sniRoute)
 	if err != nil {
 		return nil, err
 	}
-	if pool != nil {
+	if sniPool != nil {
 		if !sameHTTPRoute(hostRoute, sniRoute) {
 			return nil, errSecureRouteMisdirected
 		}
 		return sniRoute, nil
 	}
 
-	pool, err = srv.resolveInboundMTLSProfileForRoute(hostRoute)
-	if err != nil {
-		return nil, err
-	}
-	if pool != nil {
+	if hostPool != nil {
 		return nil, errSecureRouteMisdirected
 	}
 	return hostRoute, nil

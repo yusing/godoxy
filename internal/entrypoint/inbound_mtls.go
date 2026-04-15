@@ -14,7 +14,7 @@ import (
 
 func compileInboundMTLSProfiles(profiles map[string]types.InboundMTLSProfile) (map[string]*x509.CertPool, error) {
 	if len(profiles) == 0 {
-		return nil, nil
+		return map[string]*x509.CertPool{}, nil
 	}
 
 	compiled := make(map[string]*x509.CertPool, len(profiles))
@@ -87,11 +87,17 @@ func (srv *httpServer) mutateServerTLSConfig(base *tls.Config) *tls.Config {
 	if base == nil {
 		return base
 	}
-	resolveForServerName := srv.resolveInboundMTLSProfileForServerName
-	pool, err := srv.resolveInboundMTLSProfileForRoute(nil)
+	// resolveForServerName could return nil, nil
+	resolveForServerName := func(serverName string) (*x509.CertPool, error) {
+		return srv.resolveInboundMTLSProfileForServerName(serverName, true)
+	}
+
+	pool, err := srv.resolveInboundMTLSProfileForGlobal()
 	if err != nil {
 		log.Err(err).Msg("inbound mTLS: failed to resolve global profile, falling back to per-route mTLS")
-		resolveForServerName = srv.resolveInboundMTLSProfileForServerNameWithoutGlobal
+		resolveForServerName = func(serverName string) (*x509.CertPool, error) {
+			return srv.resolveInboundMTLSProfileForServerName(serverName, false)
+		}
 	}
 	if pool != nil && err == nil {
 		return applyInboundMTLSProfile(base, pool)
@@ -137,46 +143,50 @@ func ValidateInboundMTLSProfileRef(profileRef, globalProfile string, profiles ma
 	return nil
 }
 
-func (srv *httpServer) resolveInboundMTLSProfileForServerName(serverName string) (*x509.CertPool, error) {
-	if serverName == "" || srv.ep.inboundMTLSProfiles == nil {
-		return nil, nil
+func (srv *httpServer) resolveInboundMTLSProfileForServerName(serverName string, allowGlobal bool) (*x509.CertPool, error) {
+	if serverName == "" {
+		return nil, errSecureRouteRequiresSNI
 	}
-	route := srv.FindRoute(serverName)
-	return srv.resolveInboundMTLSProfileForRoute(route)
-}
-
-func (srv *httpServer) resolveInboundMTLSProfileForServerNameWithoutGlobal(serverName string) (*x509.CertPool, error) {
-	if serverName == "" || srv.ep.inboundMTLSProfiles == nil {
-		return nil, nil
+	if len(srv.ep.inboundMTLSProfiles) == 0 {
+		return nil, errMTLSNotEnabled
 	}
-	route := srv.FindRoute(serverName)
-	return srv.resolveRouteInboundMTLSProfile(route)
-}
-
-func (srv *httpServer) resolveRouteInboundMTLSProfile(route types.HTTPRoute) (*x509.CertPool, error) {
-	if srv.ep.inboundMTLSProfiles == nil || route == nil {
-		return nil, nil
-	}
-	if ref := route.InboundMTLSProfileRef(); ref != "" {
-		return srv.lookupInboundMTLSProfile(ref, fmt.Sprintf("route %q", route.Name()))
-	}
-	return nil, nil
-}
-
-func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) (*x509.CertPool, error) {
-	if srv.ep.inboundMTLSProfiles == nil {
-		return nil, nil
-	}
-	if globalRef := srv.ep.cfg.InboundMTLSProfile; globalRef != "" {
-		return srv.lookupInboundMTLSProfile(globalRef, "entrypoint")
-	}
-	return srv.resolveRouteInboundMTLSProfile(route)
-}
-
-func (srv *httpServer) lookupInboundMTLSProfile(ref, owner string) (*x509.CertPool, error) {
-	pool, ok := srv.ep.inboundMTLSProfiles[ref]
-	if !ok {
-		return nil, fmt.Errorf("%s inbound mTLS profile %q not found", owner, ref)
+	pool, err := srv.resolveInboundMTLSProfileForRoute(srv.FindRoute(serverName))
+	if err != nil {
+		if !errors.Is(err, errMTLSNotEnabled) && allowGlobal {
+			return srv.resolveInboundMTLSProfileForGlobal()
+		}
+		return nil, err
 	}
 	return pool, nil
+}
+
+func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) (pool *x509.CertPool, err error) {
+	if route == nil {
+		return nil, errors.New("route is nil")
+	}
+	if ref := route.InboundMTLSProfileRef(); ref != "" {
+		if pool, ok := srv.lookupInboundMTLSProfile(ref); ok {
+			return pool, nil
+		}
+		return nil, fmt.Errorf("route %q inbound mTLS profile %q not found", route.Name(), ref)
+	}
+	return nil, errMTLSNotEnabled
+}
+
+func (srv *httpServer) resolveInboundMTLSProfileForGlobal() (pool *x509.CertPool, err error) {
+	if globalRef := srv.ep.cfg.InboundMTLSProfile; globalRef != "" {
+		if pool, ok := srv.lookupInboundMTLSProfile(globalRef); ok {
+			return pool, nil
+		}
+		return nil, fmt.Errorf("entrypoint inbound mTLS profile %q not found", globalRef)
+	}
+	return nil, errMTLSNotEnabled
+}
+
+func (srv *httpServer) lookupInboundMTLSProfile(ref string) (*x509.CertPool, bool) {
+	if len(srv.ep.inboundMTLSProfiles) == 0 { // nil or empty map
+		return nil, false
+	}
+	pool, ok := srv.ep.inboundMTLSProfiles[ref]
+	return pool, ok
 }
