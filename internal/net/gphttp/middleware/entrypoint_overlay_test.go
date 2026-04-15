@@ -60,3 +60,25 @@ func TestBuildEntrypointRouteOverlayPromotesRouteBypass(t *testing.T) {
 	require.Contains(t, overlay.ConsumedBypass, "redirecthttp")
 	require.Contains(t, overlay.ConsumedMiddlewares, "redirecthttp")
 }
+
+func TestBuildEntrypointRouteOverlayKeepsNonBypassRouteMiddlewareActive(t *testing.T) {
+	overlay, err := BuildEntrypointRouteOverlay(
+		"entrypoint",
+		[]map[string]any{{
+			"use": "redirectHTTP",
+		}},
+		"test-route",
+		map[string]OptionsRaw{
+			"redirectHTTP": {
+				"bypass":       []string{"path /health"},
+				"redirectHTTP": "https://example.com",
+			},
+		},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, overlay)
+	require.NotNil(t, overlay.Middleware)
+	require.Contains(t, overlay.ConsumedBypass, "redirecthttp")
+	require.Empty(t, overlay.ConsumedMiddlewares)
+}

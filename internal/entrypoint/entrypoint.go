@@ -131,17 +131,18 @@ func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 }
 
 func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
-	ep.cfg.Middlewares = nil
 	if len(mws) == 0 {
 		ep.middleware = nil
+		ep.cfg.Middlewares = nil
 		for _, srv := range ep.servers.Range {
 			srv.resetRouteEntrypointOverlays()
 		}
 		return nil
 	}
-	ep.cfg.Middlewares = make([]map[string]any, len(mws))
+
+	tmpMiddlewares := make([]map[string]any, len(mws))
 	for i, mw := range mws {
-		ep.cfg.Middlewares[i] = maps.Clone(mw)
+		tmpMiddlewares[i] = maps.Clone(mw)
 	}
 
 	mid, err := middleware.BuildMiddlewareFromChainRaw("entrypoint", mws)
@@ -149,6 +150,7 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 		return err
 	}
 	ep.middleware = mid
+	ep.cfg.Middlewares = tmpMiddlewares
 	for _, srv := range ep.servers.Range {
 		srv.resetRouteEntrypointOverlays()
 	}

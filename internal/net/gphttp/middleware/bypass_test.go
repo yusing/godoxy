@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
@@ -275,13 +277,13 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 	defer srv.Close()
 
 	targetURL, err := url.Parse(srv.URL)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	host, port, err := net.SplitHostPort(targetURL.Host)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	portInt, err := strconv.Atoi(port)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
 	_, err = route.NewStartedTestRoute(t, &route.Route{
@@ -300,7 +302,7 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 			},
 		},
 	})
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	err = entry.SetMiddlewares([]map[string]any{
 		{
@@ -308,12 +310,10 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 			"bypass": []string{"path /health"},
 		},
 	})
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	server, ok := entry.GetServer(":1000")
-	if !ok {
-		t.Fatal("server not found")
-	}
+	require.True(t, ok, "server not found")
 
 	tests := []struct {
 		name         string
@@ -347,11 +347,11 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com"+test.path, nil)
 			server.ServeHTTP(recorder, req)
-			expect.Equal(t, recorder.Code, test.expectStatus)
+			assert.Equal(t, test.expectStatus, recorder.Code)
 			if test.expectBody != "" {
-				expect.Equal(t, recorder.Body.String(), test.expectBody)
+				assert.Equal(t, test.expectBody, recorder.Body.String())
 			}
-			expect.Equal(t, recorder.Header().Get("Location"), test.expectLoc)
+			assert.Equal(t, test.expectLoc, recorder.Header().Get("Location"))
 		})
 	}
 }
@@ -363,13 +363,13 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 	defer srv.Close()
 
 	targetURL, err := url.Parse(srv.URL)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	host, port, err := net.SplitHostPort(targetURL.Host)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	portInt, err := strconv.Atoi(port)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
 	_, err = route.NewStartedTestRoute(t, &route.Route{
@@ -388,26 +388,31 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 			},
 		},
 	})
-	expect.NoError(t, err)
+	require.NoError(t, err)
+
+	require.NoError(t, entry.SetMiddlewares([]map[string]any{{
+		"use": "response",
+		"set_headers": map[string]string{
+			"X-Entrypoint-Overlay": "true",
+		},
+	}}))
 
 	server, ok := entry.GetServer(":1000")
-	if !ok {
-		t.Fatal("server not found")
-	}
+	require.True(t, ok, "server not found")
 
 	t.Run("bypass_still_works_without_matching_entrypoint_middleware", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com/public/index.html", nil)
 		server.ServeHTTP(recorder, req)
-		expect.Equal(t, recorder.Code, http.StatusOK)
-		expect.Equal(t, recorder.Body.String(), "test")
+		assert.Equal(t, http.StatusOK, recorder.Code)
+		assert.Equal(t, "test", recorder.Body.String())
 	})
 
 	t.Run("route_middleware_still_redirects_for_non_matching_paths", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com/private", nil)
 		server.ServeHTTP(recorder, req)
-		expect.Equal(t, recorder.Code, http.StatusPermanentRedirect)
-		expect.Equal(t, recorder.Header().Get("Location"), "https://test-route.example.com/private")
+		assert.Equal(t, http.StatusPermanentRedirect, recorder.Code)
+		assert.Equal(t, "https://test-route.example.com/private", recorder.Header().Get("Location"))
 	})
 }

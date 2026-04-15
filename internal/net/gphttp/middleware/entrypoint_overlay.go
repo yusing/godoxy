@@ -53,52 +53,29 @@ func BuildEntrypointRouteOverlay(
 	promotedAny := false
 
 	for routeMiddlewareName, routeOpts := range routeMiddlewares {
-		routeBypass, ok, err := parseBypassValue(routeOpts["bypass"])
+		promotedBypass, ok, err := buildPromotedRouteBypass(routeName, routeMiddlewareName, routeOpts)
 		if err != nil {
-			return nil, fmt.Errorf("route middleware %q bypass: %w", routeMiddlewareName, err)
+			return nil, err
 		}
-		if !ok || len(routeBypass) == 0 {
+		if !ok {
 			continue
 		}
 
-		promotedBypass, err := qualifyBypassWithRoute(routeName, routeBypass)
+		matched, err := mergePromotedBypassIntoEffectiveDefs(effectiveDefs, routeMiddlewareName, promotedBypass)
 		if err != nil {
-			return nil, fmt.Errorf("route middleware %q bypass promotion: %w", routeMiddlewareName, err)
-		}
-
-		matched := false
-		for i, def := range effectiveDefs {
-			use, _ := def["use"].(string)
-			if strutils.ToLowerNoSnake(use) != strutils.ToLowerNoSnake(routeMiddlewareName) {
-				continue
-			}
-
-			mergedBypass, err := appendBypassValue(def["bypass"], promotedBypass)
-			if err != nil {
-				return nil, fmt.Errorf("entrypoint middleware %q bypass merge: %w", use, err)
-			}
-
-			def = maps.Clone(def)
-			def["bypass"] = mergedBypass
-			effectiveDefs[i] = def
-			matched = true
+			return nil, err
 		}
 		if !matched {
 			continue
 		}
 
 		promotedAny = true
-		if consumedBypass == nil {
-			consumedBypass = make(map[string]struct{})
-		}
-		normalizedName := strutils.ToLowerNoSnake(routeMiddlewareName)
-		consumedBypass[normalizedName] = struct{}{}
-		if isBypassOnlyOptions(routeOpts) {
-			if consumedMiddlewares == nil {
-				consumedMiddlewares = make(map[string]struct{})
-			}
-			consumedMiddlewares[normalizedName] = struct{}{}
-		}
+		consumedBypass, consumedMiddlewares = recordPromotedRouteOverlayConsumption(
+			consumedBypass,
+			consumedMiddlewares,
+			routeMiddlewareName,
+			routeOpts,
+		)
 	}
 
 	if !promotedAny {
@@ -114,6 +91,66 @@ func BuildEntrypointRouteOverlay(
 		ConsumedBypass:      consumedBypass,
 		ConsumedMiddlewares: consumedMiddlewares,
 	}, nil
+}
+
+func buildPromotedRouteBypass(routeName, routeMiddlewareName string, routeOpts OptionsRaw) (Bypass, bool, error) {
+	routeBypass, ok, err := parseBypassValue(routeOpts["bypass"])
+	if err != nil {
+		return nil, false, fmt.Errorf("route middleware %q bypass: %w", routeMiddlewareName, err)
+	}
+	if !ok || len(routeBypass) == 0 {
+		return nil, false, nil
+	}
+
+	promotedBypass, err := qualifyBypassWithRoute(routeName, routeBypass)
+	if err != nil {
+		return nil, false, fmt.Errorf("route middleware %q bypass promotion: %w", routeMiddlewareName, err)
+	}
+	return promotedBypass, true, nil
+}
+
+func mergePromotedBypassIntoEffectiveDefs(effectiveDefs []map[string]any, routeMiddlewareName string, promotedBypass Bypass) (bool, error) {
+	normalizedRouteMiddlewareName := strutils.ToLowerNoSnake(routeMiddlewareName)
+	matched := false
+	for i, def := range effectiveDefs {
+		use, _ := def["use"].(string)
+		if strutils.ToLowerNoSnake(use) != normalizedRouteMiddlewareName {
+			continue
+		}
+
+		mergedBypass, err := appendBypassValue(def["bypass"], promotedBypass)
+		if err != nil {
+			return false, fmt.Errorf("entrypoint middleware %q bypass merge: %w", use, err)
+		}
+
+		clonedDef := maps.Clone(def)
+		clonedDef["bypass"] = mergedBypass
+		effectiveDefs[i] = clonedDef
+		matched = true
+	}
+	return matched, nil
+}
+
+func recordPromotedRouteOverlayConsumption(
+	consumedBypass map[string]struct{},
+	consumedMiddlewares map[string]struct{},
+	routeMiddlewareName string,
+	routeOpts OptionsRaw,
+) (map[string]struct{}, map[string]struct{}) {
+	normalizedName := strutils.ToLowerNoSnake(routeMiddlewareName)
+	if consumedBypass == nil {
+		consumedBypass = make(map[string]struct{})
+	}
+	consumedBypass[normalizedName] = struct{}{}
+
+	if !isBypassOnlyOptions(routeOpts) {
+		return consumedBypass, consumedMiddlewares
+	}
+	if consumedMiddlewares == nil {
+		consumedMiddlewares = make(map[string]struct{})
+	}
+	consumedMiddlewares[normalizedName] = struct{}{}
+	return consumedBypass, consumedMiddlewares
 }
 
 func cloneMiddlewareDefs(defs []map[string]any) []map[string]any {

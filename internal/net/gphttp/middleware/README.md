@@ -11,7 +11,7 @@ This package implements a flexible HTTP middleware system for GoDoxy. Middleware
 - **Middleware Chaining**: Compose multiple middleware in priority order
 - **YAML Composition**: Define middleware chains in configuration files
 - **Bypass Rules**: Skip middleware based on request properties
-- **Entrypoint Overlay Promotion**: Promote route-local bypass-only overlays into matching entrypoint middleware for HTTP routes
+- **Entrypoint Overlay Promotion**: Promote route-local middleware entries with `bypass` into matching entrypoint middleware for HTTP routes
 - **Dynamic Loading**: Load middleware definitions from files at runtime
 
 Response body rewriting is only applied to unencoded, text-like content types (for example `text/*`, JSON, YAML, XML). Response status and headers can always be modified.
@@ -145,10 +145,10 @@ For HTTP routes, any route-local middleware entry that sets `bypass` and matches
 
 Semantics:
 
-- promotion is **bypass-only** in v1
+- route-local middleware entries may be promoted when they include `bypass`; only the bypass portion is promoted in v1
 - promoted rules are qualified as `route <alias> & <rule>`
 - existing entrypoint bypass rules are preserved and the route rules are appended
-- if the route-local middleware entry contains only `bypass`, it is consumed so the same middleware is not evaluated twice
+- if the route-local middleware entry is **bypass-only**, it is consumed so the same middleware is not evaluated twice
 - if the route-local middleware entry contains additional options, only the bypass portion is consumed; the rest of the route-local middleware still executes normally
 - if no matching entrypoint middleware exists, route-local middleware behavior is unchanged
 
