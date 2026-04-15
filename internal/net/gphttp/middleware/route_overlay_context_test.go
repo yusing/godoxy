@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/homepage"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
-	expect "github.com/yusing/goutils/testing"
 )
 
 func TestWithConsumedRouteOverlaysPreservesExistingRequestContext(t *testing.T) {
@@ -25,20 +25,20 @@ func TestWithConsumedRouteOverlaysPreservesExistingRequestContext(t *testing.T) 
 		"oidc": {},
 	})
 
-	expect.Equal(t, routes.TryGetUpstreamName(req), "test-route")
-	expect.True(t, isRouteBypassPromoted(req, "redirectHTTP"))
-	expect.True(t, isRouteMiddlewareConsumed(req, "oidc"))
-	expect.False(t, isRouteBypassPromoted(req, "forwardauth"))
-	expect.False(t, isRouteMiddlewareConsumed(req, "forwardauth"))
+	require.Equal(t, "test-route", routes.TryGetUpstreamName(req))
+	require.True(t, isRouteBypassPromoted(req, "redirectHTTP"))
+	require.True(t, isRouteMiddlewareConsumed(req, "oidc"))
+	require.False(t, isRouteBypassPromoted(req, "forwardauth"))
+	require.False(t, isRouteMiddlewareConsumed(req, "forwardauth"))
 }
 
 func TestWithConsumedRouteOverlaysReturnsNewRequestWhenOverlayIsPresent(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	updated := WithConsumedRouteOverlays(req, map[string]struct{}{"redirecthttp": {}}, nil)
 
-	expect.NotEqual(t, req, updated)
-	expect.True(t, isRouteBypassPromoted(updated, "redirectHTTP"))
-	expect.False(t, isRouteBypassPromoted(req, "redirectHTTP"))
+	require.NotEqual(t, req, updated)
+	require.True(t, isRouteBypassPromoted(updated, "redirectHTTP"))
+	require.False(t, isRouteBypassPromoted(req, "redirectHTTP"))
 }
 
 type fakeMiddlewareHTTPRoute struct {
