@@ -155,32 +155,32 @@ func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, 
 		return hostRoute, nil
 	}
 
-	hostPool, err := srv.resolveInboundMTLSProfileForRoute(hostRoute)
+	_, hostSecure, err := srv.resolveInboundMTLSProfileForRoute(hostRoute)
 	if err != nil {
 		return nil, err
 	}
 
 	serverName := req.TLS.ServerName
 	if serverName == "" {
-		if hostPool != nil {
+		if hostSecure {
 			return nil, errSecureRouteRequiresSNI
 		}
 		return hostRoute, nil
 	}
 
 	sniRoute := srv.FindRoute(serverName)
-	sniPool, err := srv.resolveInboundMTLSProfileForRoute(sniRoute)
+	_, sniSecure, err := srv.resolveInboundMTLSProfileForRoute(sniRoute)
 	if err != nil {
 		return nil, err
 	}
-	if sniPool != nil {
+	if sniSecure {
 		if !sameHTTPRoute(hostRoute, sniRoute) {
 			return nil, errSecureRouteMisdirected
 		}
 		return sniRoute, nil
 	}
 
-	if hostPool != nil {
+	if hostSecure {
 		return nil, errSecureRouteMisdirected
 	}
 	return hostRoute, nil

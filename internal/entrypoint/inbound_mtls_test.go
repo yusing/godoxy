@@ -125,6 +125,25 @@ func TestMutateServerTLSConfigWithGlobalProfile(t *testing.T) {
 	require.Nil(t, mutated.GetConfigForClient)
 }
 
+func TestMutateServerTLSConfigWithoutProfilesKeepsTLSOpen(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	srv := newTestHTTPServer(t, ep)
+	require.NoError(t, ep.SetInboundMTLSProfiles(nil))
+
+	base := &tls.Config{MinVersion: tls.VersionTLS12}
+	mutated := srv.mutateServerTLSConfig(base)
+
+	require.Zero(t, mutated.ClientAuth)
+	require.Nil(t, mutated.ClientCAs)
+	require.NotNil(t, mutated.GetConfigForClient)
+
+	cfg, err := mutated.GetConfigForClient(&tls.ClientHelloInfo{})
+	require.NoError(t, err)
+	require.Zero(t, cfg.ClientAuth)
+	require.Nil(t, cfg.ClientCAs)
+	require.Nil(t, cfg.GetConfigForClient)
+}
+
 func TestMutateServerTLSConfigWithRouteProfiles(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
 	ep.SetFindRouteDomains([]string{".example.com"})
@@ -244,6 +263,38 @@ func TestResolveRequestRouteRejectsUnknownRouteProfile(t *testing.T) {
 	require.Nil(t, route)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `route "secure-app" inbound mTLS profile "missing" not found`)
+}
+
+func TestResolveRequestRouteLeavesOpenAndUnknownHostsUnchanged(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	ep.SetFindRouteDomains([]string{".example.com"})
+	srv := newTestHTTPServer(t, ep)
+	srv.AddRoute(newFakeHTTPRoute(t, "secure-app", "route"))
+	srv.AddRoute(newFakeHTTPRoute(t, "open-app", ""))
+	require.NoError(t, ep.SetInboundMTLSProfiles(map[string]types.InboundMTLSProfile{
+		"route": {UseSystemCAs: true},
+	}))
+
+	t.Run("open host stays open", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "https://open-app.example.com", nil)
+		req.Host = "open-app.example.com"
+		req.TLS = &tls.ConnectionState{ServerName: "open-app.example.com"}
+
+		route, err := srv.resolveRequestRoute(req)
+		require.NoError(t, err)
+		require.NotNil(t, route)
+		require.Equal(t, "open-app", route.Name())
+	})
+
+	t.Run("unknown host falls through", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "https://unknown.example.com", nil)
+		req.Host = "unknown.example.com"
+		req.TLS = &tls.ConnectionState{ServerName: "unknown.example.com"}
+
+		route, err := srv.resolveRequestRoute(req)
+		require.NoError(t, err)
+		require.Nil(t, route)
+	})
 }
 
 func TestInboundMTLSGlobalHandshake(t *testing.T) {
