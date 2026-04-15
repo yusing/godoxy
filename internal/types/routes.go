@@ -38,6 +38,8 @@ type (
 		DisplayName() string
 		ContainerInfo() *Container
 		InboundMTLSProfileRef() string
+		// RouteMiddlewares returns a copy of the route middlewares
+		RouteMiddlewares() map[string]LabelMap
 
 		GetAgent() *agentpool.Agent
 

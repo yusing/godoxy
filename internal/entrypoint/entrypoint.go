@@ -2,6 +2,7 @@ package entrypoint
 
 import (
 	"crypto/x509"
+	"maps"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -132,7 +133,16 @@ func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	if len(mws) == 0 {
 		ep.middleware = nil
+		ep.cfg.Middlewares = nil
+		for _, srv := range ep.servers.Range {
+			srv.resetRouteEntrypointOverlays()
+		}
 		return nil
+	}
+
+	tmpMiddlewares := make([]map[string]any, len(mws))
+	for i, mw := range mws {
+		tmpMiddlewares[i] = maps.Clone(mw)
 	}
 
 	mid, err := middleware.BuildMiddlewareFromChainRaw("entrypoint", mws)
@@ -140,6 +150,10 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 		return err
 	}
 	ep.middleware = mid
+	ep.cfg.Middlewares = tmpMiddlewares
+	for _, srv := range ep.servers.Range {
+		srv.resetRouteEntrypointOverlays()
+	}
 
 	log.Debug().Msg("entrypoint middleware loaded")
 	return nil

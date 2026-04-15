@@ -196,6 +196,16 @@ labels:
       do: pass
 ```
 
+Route-local middleware bypass overlays use the existing per-route middleware label shape. For example, to add a bypass exception to an entrypoint-level `oidc` middleware for route `app1`:
+
+```yaml
+labels:
+  proxy.app1.middlewares.oidc.bypass: |
+    - path glob("/public/*")
+```
+
+If the entrypoint already has `use: oidc`, the route-local bypass is promoted into the effective entrypoint middleware for `app1`. If the entrypoint does not have `oidc`, this remains a normal route-local middleware definition.
+
 ### File Provider Configuration
 
 ```yaml

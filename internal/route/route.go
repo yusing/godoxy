@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"os"
@@ -132,6 +133,10 @@ const DefaultHost = "localhost"
 func (r Routes) Contains(alias string) bool {
 	_, ok := r[alias]
 	return ok
+}
+
+func (r *Route) RouteMiddlewares() map[string]types.LabelMap {
+	return maps.Clone(r.Middlewares)
 }
 
 func (r *Route) Validate() error {

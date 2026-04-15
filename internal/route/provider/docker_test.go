@@ -135,6 +135,58 @@ func TestApplyLabel(t *testing.T) {
 	expect.Equal(t, a.HealthCheck.Interval, 10*time.Second)
 }
 
+func TestApplyLabelParsesMiddlewareBypassOverlay(t *testing.T) {
+	entries := makeRoutes(&container.Summary{
+		Names: dummyNames,
+		Labels: map[string]string{
+			D.LabelAliases:                    "a",
+			"proxy.a.scheme":                  "http",
+			"proxy.a.port":                    "4567",
+			"proxy.a.middlewares.oidc.bypass": "\n- path glob(/public/*)\n- path /health"[1:],
+		},
+	})
+
+	a, ok := entries["a"]
+	expect.True(t, ok)
+	expect.Equal(t, a.Middlewares, map[string]map[string]any{
+		"oidc": {
+			"bypass": "- path glob(/public/*)\n- path /health",
+		},
+	})
+}
+
+func TestApplyLabelWithMixedObjectAndFlatMiddlewareFields(t *testing.T) {
+	entries := makeRoutes(&container.Summary{
+		Names: dummyNames,
+		State: "running",
+		Labels: map[string]string{
+			"proxy.universal.port":                      "8080",
+			"proxy.universal.middlewares.oidc":          "allowed_groups: [everyone]",
+			"proxy.universal.middlewares.oidc.bypass":   "- path glob(/geheimenvan/*)",
+			"proxy.universal.middlewares.oidc.priority": "5",
+		},
+	})
+
+	universal, ok := entries["universal"]
+	expect.True(t, ok)
+	expect.Equal(t, universal.Port.Proxy, 8080)
+
+	oidc, ok := universal.Middlewares["oidc"]
+	expect.True(t, ok)
+
+	allowedGroups, ok := oidc["allowed_groups"].([]any)
+	expect.True(t, ok)
+	expect.Equal(t, allowedGroups, []any{"everyone"})
+
+	bypass, ok := oidc["bypass"].(string)
+	expect.True(t, ok)
+	expect.Equal(t, bypass, "- path glob(/geheimenvan/*)")
+
+	priority, ok := oidc["priority"].(string)
+	expect.True(t, ok)
+	expect.Equal(t, priority, "5")
+}
+
 func TestApplyLabelWithAlias(t *testing.T) {
 	entries := makeRoutes(&container.Summary{
 		Names: dummyNames,

@@ -82,6 +82,9 @@ func (c *checkBypass) shouldModReqBypass(w http.ResponseWriter, r *http.Request)
 			return true
 		}
 	}
+	if isRouteBypassPromoted(r, c.name) {
+		return false
+	}
 	return c.bypass.ShouldBypass(w, r)
 }
 
@@ -99,6 +102,9 @@ func (c *checkBypass) shouldModResBypass(resp *http.Response) bool {
 			return true
 		}
 	}
+	if isRouteBypassPromoted(resp.Request, c.name) {
+		return false
+	}
 	return c.bypass.ShouldBypass(httputils.ResponseAsRW(resp), resp.Request)
 }
 
@@ -106,6 +112,9 @@ func (c *checkBypass) shouldModResBypass(resp *http.Response) bool {
 //
 // Returns true if the request is not done, false otherwise.
 func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNext bool) {
+	if isRouteMiddlewareConsumed(r, c.name) {
+		return true
+	}
 	if c.modReq == nil || c.shouldModReqBypass(w, r) {
 		return true
 	}
@@ -115,6 +124,9 @@ func (c *checkBypass) before(w http.ResponseWriter, r *http.Request) (proceedNex
 
 // modifyResponse modifies the response if the response should be modified.
 func (c *checkBypass) modifyResponse(resp *http.Response) error {
+	if isRouteMiddlewareConsumed(resp.Request, c.name) {
+		return nil
+	}
 	if c.modRes == nil || c.shouldModResBypass(resp) {
 		return nil
 	}

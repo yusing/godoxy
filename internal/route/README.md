@@ -62,6 +62,17 @@ type Route struct {
 }
 ```
 
+`Middlewares` stores route-local raw middleware options, including Docker-label-derived maps such as:
+
+```yaml
+middlewares:
+  oidc:
+    bypass:
+      - path glob("/public/*")
+```
+
+For HTTP routes, this map is also the source used by entrypoint overlay promotion when a route-local `bypass` targets a middleware already configured on the entrypoint.
+
 `InboundMTLSProfile` references a named root-level inbound mTLS profile for this route.
 
 - It is only honored when no global `entrypoint.inbound_mtls_profile` is configured.
