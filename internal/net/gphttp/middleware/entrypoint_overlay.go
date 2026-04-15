@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -20,6 +21,8 @@ type bypassOnlyField struct {
 	Bypass Bypass `json:"bypass"`
 }
 
+var ErrNoEntrypointRouteOverlay = errors.New("no entrypoint route overlay")
+
 // BuildEntrypointRouteOverlay promotes route-level bypass rules into a copy of the entrypoint middleware
 // chain. For each route middleware entry in routeMiddlewares that sets "bypass", it finds the entrypoint
 // definition with the same "use" name (case-insensitive, snake-agnostic) and appends those rules after
@@ -27,11 +30,11 @@ type bypassOnlyField struct {
 //
 // name is the logical chain name passed to [BuildMiddlewareFromChainRaw].
 //
-// It returns (nil, nil) when entrypointDefs or routeMiddlewares is empty, or when no route bypass was
-// merged into any entrypoint definition. On success, ConsumedBypass lists normalized middleware names
-// whose bypass was applied; ConsumedMiddlewares lists names whose route options contained only "bypass",
-// so downstream handling can treat those overlay-only route entries as fully satisfied. Route middleware
-// entries with additional options still run at route scope after promotion.
+// It returns [ErrNoEntrypointRouteOverlay] when entrypointDefs or routeMiddlewares is empty, or when no
+// route bypass was merged into any entrypoint definition. On success, ConsumedBypass lists normalized
+// middleware names whose bypass was applied; ConsumedMiddlewares lists names whose route options contained
+// only "bypass", so downstream handling can treat those overlay-only route entries as fully satisfied.
+// Route middleware entries with additional options still run at route scope after promotion.
 //
 // Errors wrap parse/merge failures for bypass values or route qualification.
 func BuildEntrypointRouteOverlay(
@@ -41,7 +44,7 @@ func BuildEntrypointRouteOverlay(
 	routeMiddlewares map[string]OptionsRaw,
 ) (*EntrypointRouteOverlay, error) {
 	if len(entrypointDefs) == 0 || len(routeMiddlewares) == 0 {
-		return nil, nil
+		return nil, ErrNoEntrypointRouteOverlay
 	}
 
 	effectiveDefs := cloneMiddlewareDefs(entrypointDefs)
@@ -99,7 +102,7 @@ func BuildEntrypointRouteOverlay(
 	}
 
 	if !promotedAny {
-		return nil, nil
+		return nil, ErrNoEntrypointRouteOverlay
 	}
 
 	mid, err := BuildMiddlewareFromChainRaw(name, effectiveDefs)

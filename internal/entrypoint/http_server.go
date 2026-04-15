@@ -3,6 +3,7 @@ package entrypoint
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"strings"
@@ -47,6 +48,8 @@ type routeEntrypointOverlay struct {
 	consumedBypass      map[string]struct{}
 	consumedMiddlewares map[string]struct{}
 }
+
+var errNoRouteEntrypointOverlay = errors.New("no route entrypoint overlay")
 
 func newRouteEntrypointOverlayMap() *xsync.Map[string, *routeEntrypointOverlay] {
 	return xsync.NewMap[string, *routeEntrypointOverlay]()
@@ -157,7 +160,7 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		next := route.ServeHTTP
 		if entrypointMiddleware != nil {
 			overlay, err := srv.getRouteEntrypointOverlay(route)
-			if err != nil {
+			if err != nil && !errors.Is(err, errNoRouteEntrypointOverlay) {
 				log.Err(err).Str("route", route.Name()).Msg("failed to compile route-specific entrypoint middleware")
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
@@ -191,7 +194,7 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (srv *httpServer) getRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
 	if srv.ep.middleware == nil || len(srv.ep.cfg.Middlewares) == 0 {
-		return nil, nil
+		return nil, errNoRouteEntrypointOverlay
 	}
 	overlays := srv.routeEntrypointOverlayMap()
 	var buildErr error
@@ -207,7 +210,7 @@ func (srv *httpServer) getRouteEntrypointOverlay(route types.HTTPRoute) (*routeE
 		return nil, buildErr
 	}
 	if overlay.middleware == nil {
-		return nil, nil
+		return nil, errNoRouteEntrypointOverlay
 	}
 	return overlay, nil
 }
@@ -235,9 +238,7 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*ro
 	}
 
 	routeMiddlewareMap := make(map[string]middleware.OptionsRaw, len(routeMiddlewares))
-	for name, opts := range routeMiddlewares {
-		routeMiddlewareMap[name] = opts
-	}
+	maps.Copy(routeMiddlewareMap, routeMiddlewares)
 
 	compiled, err := middleware.BuildEntrypointRouteOverlay(
 		"entrypoint",
@@ -246,10 +247,10 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*ro
 		routeMiddlewareMap,
 	)
 	if err != nil {
+		if errors.Is(err, middleware.ErrNoEntrypointRouteOverlay) {
+			return &routeEntrypointOverlay{}, nil
+		}
 		return nil, err
-	}
-	if compiled == nil {
-		return &routeEntrypointOverlay{}, nil
 	}
 
 	return &routeEntrypointOverlay{
