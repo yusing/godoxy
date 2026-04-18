@@ -48,7 +48,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v29.4.0+incompatible // indirect
-	github.com/docker/go-connections v0.6.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -74,7 +74,7 @@ require (
 	github.com/moby/moby/api v1.52.0 // indirect
 	github.com/moby/moby/client v0.2.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.0 // indirect
@@ -95,10 +95,10 @@ require (
 	github.com/valyala/fasthttp v1.70.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
 	github.com/yusing/gointernals v0.2.0 // indirect
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260408062000-d93e9de0157f // indirect
-	github.com/yusing/goutils/http/websocket v0.0.0-20260408062000-d93e9de0157f // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260413102524-db81498d766b // indirect
+	github.com/yusing/goutils/http/websocket v0.0.0-20260413102524-db81498d766b // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0 // indirect
 	go.opentelemetry.io/otel v1.43.0 // indirect
