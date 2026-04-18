@@ -260,6 +260,36 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 	}
 }
 
+func TestMiddlewareHeaderRewriteDoesNotBufferLargeBody(t *testing.T) {
+	headerMid, err := responseHeaderRewrite.New(OptionsRaw{
+		"status_code": http.StatusAccepted,
+		"header_key":  "X-Rewrite",
+		"header_val":  "1",
+	})
+	expect.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+	rw := httptest.NewRecorder()
+
+	next := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("Content-Length", strconv.Itoa(64*1024*1024))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("video"))
+	}
+
+	headerMid.ServeHTTP(next, rw, req)
+
+	resp := rw.Result()
+	defer resp.Body.Close()
+	data, readErr := io.ReadAll(resp.Body)
+	expect.NoError(t, readErr)
+
+	expect.Equal(t, resp.StatusCode, http.StatusAccepted)
+	expect.Equal(t, resp.Header.Get("X-Rewrite"), "1")
+	expect.Equal(t, string(data), "video")
+}
+
 func TestThemedSkipsBodyRewriteWhenRewriteBlocked(t *testing.T) {
 	result, err := newMiddlewareTest(Themed, &testArgs{
 		middlewareOpt: OptionsRaw{

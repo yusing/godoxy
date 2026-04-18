@@ -213,14 +213,13 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		return
 	}
 	isBodyModifier := isBodyResponseModifier(exec)
-
-	shouldBuffer := canBufferAndModifyResponseBody
 	if !isBodyModifier {
-		// Header-only response modifiers do not need body rewrite capability checks.
-		// We still respect max buffer limits and may fall back to passthrough for large bodies.
-		shouldBuffer = func(http.Header) bool { return true }
+		mrw := httputils.NewModifyResponseWriter(w, r, exec.modifyResponse)
+		next(mrw, r)
+		return
 	}
-	lrm := httputils.NewLazyResponseModifier(w, shouldBuffer)
+
+	lrm := httputils.NewLazyResponseModifier(w, canBufferAndModifyResponseBody)
 	lrm.SetMaxBufferedBytes(maxModifiableBody)
 	defer func() {
 		_, err := lrm.FlushRelease()
