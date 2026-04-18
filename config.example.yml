@@ -79,7 +79,6 @@ entrypoint:
         Access-Control-Allow-Headers: "*"
         Access-Control-Allow-Origin: "*"
         Access-Control-Max-Age: 180
-        Vary: "*"
         X-XSS-Protection: 1; mode=block
         Content-Security-Policy: "object-src 'self'; frame-ancestors 'self';"
         X-Content-Type-Options: nosniff
