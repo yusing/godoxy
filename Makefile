@@ -134,13 +134,13 @@ minify-js:
 	elif [ "${socket-proxy}" = "1" ]; then \
 		echo "minify-js: skipped for socket-proxy"; \
 	else \
-		for file in $$(find internal/ -name '*.js' | grep -v -- '-min\.js$$'); do \
+		for file in $$(find internal/ -name '*.js' | grep -v -- '-min\.js$$' | grep -v '^internal/go-proxmox/'); do \
 			ext="$${file##*.}"; \
 			base="$${file%.*}"; \
 			min_file="$${base}-min.$$ext"; \
 			echo "minifying $$file -> $$min_file"; \
-			bunx --bun uglify-js $$file --compress --mangle --output $$min_file; \
-		done \
+			bun --bun build "$$file" --minify --target browser --outfile "$$min_file"; \
+		done; \
 	fi
 
 build:
