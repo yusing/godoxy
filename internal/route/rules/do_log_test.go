@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,13 +71,34 @@ default {
 	assert.Equal(t, "POST /api/users 200 application/json\n", logContent)
 }
 
+type lockedWriteCloser struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *lockedWriteCloser) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *lockedWriteCloser) Close() error {
+	return nil
+}
+
+func (w *lockedWriteCloser) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
 func TestLogCommand_StdoutAndStderr(t *testing.T) {
 	originalStdout := stdout
 	originalStderr := stderr
-	var stdoutBuf bytes.Buffer
-	var stderrBuf bytes.Buffer
-	stdout = noopWriteCloser{&stdoutBuf}
-	stderr = noopWriteCloser{&stderrBuf}
+	stdoutBuf := &lockedWriteCloser{}
+	stderrBuf := &lockedWriteCloser{}
+	stdout = stdoutBuf
+	stderr = stderrBuf
 	defer func() {
 		stdout = originalStdout
 		stderr = originalStderr

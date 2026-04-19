@@ -12,6 +12,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
 
@@ -161,6 +162,10 @@ func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult,
 
 	req := httptest.NewRequest(args.reqMethod, args.reqURL.String(), args.bodyReader())
 	maps.Copy(req.Header, args.headers)
+	req = routes.WithRouteContext(req, fakeMiddlewareHTTPRoute{
+		name:      "test-upstream",
+		targetURL: args.upstreamURL,
+	})
 
 	w := httptest.NewRecorder()
 

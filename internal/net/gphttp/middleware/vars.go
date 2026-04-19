@@ -56,9 +56,15 @@ var staticReqVarSubsMap = map[string]reqVarGetter{
 		if req.TLS != nil {
 			return "https"
 		}
+		if req.URL != nil && req.URL.Scheme != "" {
+			return req.URL.Scheme
+		}
 		return "http"
 	},
 	VarRequestHost: func(req *http.Request) string {
+		if req.Host == "" && req.URL != nil {
+			return req.URL.Hostname()
+		}
 		reqHost, _, err := net.SplitHostPort(req.Host)
 		if err != nil {
 			return req.Host
@@ -66,10 +72,21 @@ var staticReqVarSubsMap = map[string]reqVarGetter{
 		return reqHost
 	},
 	VarRequestPort: func(req *http.Request) string {
+		if req.Host == "" && req.URL != nil {
+			return req.URL.Port()
+		}
 		_, reqPort, _ := net.SplitHostPort(req.Host)
 		return reqPort
 	},
-	VarRequestAddr:        func(req *http.Request) string { return req.Host },
+	VarRequestAddr: func(req *http.Request) string {
+		if req.Host != "" {
+			return req.Host
+		}
+		if req.URL != nil {
+			return req.URL.Host
+		}
+		return ""
+	},
 	VarRequestPath:        func(req *http.Request) string { return req.URL.Path },
 	VarRequestQuery:       func(req *http.Request) string { return req.URL.RawQuery },
 	VarRequestURL:         func(req *http.Request) string { return req.URL.String() },

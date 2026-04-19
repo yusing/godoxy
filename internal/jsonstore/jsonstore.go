@@ -52,10 +52,6 @@ func loadNS[T store](ns namespace) T {
 	store := reflect.New(reflect.TypeFor[T]().Elem()).Interface().(T)
 	store.Initialize()
 
-	if common.IsTest {
-		return store
-	}
-
 	path := filepath.Join(storesPath, string(ns)+".json")
 	file, err := os.Open(path)
 	if err != nil {
@@ -72,7 +68,6 @@ func loadNS[T store](ns namespace) T {
 				Msg("failed to load store")
 		}
 	}
-	stores[ns] = store
 	log.Debug().
 		Str("namespace", string(ns)).
 		Str("path", path).

@@ -42,7 +42,8 @@ func TestWithConsumedRouteOverlaysReturnsNewRequestWhenOverlayIsPresent(t *testi
 }
 
 type fakeMiddlewareHTTPRoute struct {
-	name string
+	name      string
+	targetURL *nettypes.URL
 }
 
 func (r fakeMiddlewareHTTPRoute) Key() string                                 { return r.name }
@@ -54,7 +55,7 @@ func (r fakeMiddlewareHTTPRoute) MarshalZerologObject(*zerolog.Event)         {}
 func (r fakeMiddlewareHTTPRoute) ProviderName() string                        { return "" }
 func (r fakeMiddlewareHTTPRoute) GetProvider() types.RouteProvider            { return nil }
 func (r fakeMiddlewareHTTPRoute) ListenURL() *nettypes.URL                    { return nil }
-func (r fakeMiddlewareHTTPRoute) TargetURL() *nettypes.URL                    { return nil }
+func (r fakeMiddlewareHTTPRoute) TargetURL() *nettypes.URL                    { return r.targetURL }
 func (r fakeMiddlewareHTTPRoute) HealthMonitor() types.HealthMonitor          { return nil }
 func (r fakeMiddlewareHTTPRoute) SetHealthMonitor(types.HealthMonitor)        {}
 func (r fakeMiddlewareHTTPRoute) References() []string                        { return nil }

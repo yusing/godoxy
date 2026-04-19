@@ -216,7 +216,7 @@ func TestOIDCCallbackHandler(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/auth/callback?code="+tt.code+"&state="+tt.state, nil)
 			if tt.state != "" {
 				req.AddCookie(&http.Cookie{
-					Name:  CookieOauthState,
+					Name:  defaultAuth.(*OIDCProvider).getAppScopedCookieName(CookieOauthState),
 					Value: tt.state,
 				})
 			}

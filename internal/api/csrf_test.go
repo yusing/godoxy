@@ -188,12 +188,14 @@ func newAuthenticatedHandler(t *testing.T) *gin.Engine {
 	prevPassword := common.APIPassword
 	prevDisableAuth := common.DebugDisableAuth
 	prevIssuerURL := common.OIDCIssuerURL
+	prevSkipOriginCheck := common.APISkipOriginCheck
 
 	common.APIJWTSecret = []byte("0123456789abcdef0123456789abcdef")
 	common.APIUser = "username"
 	common.APIPassword = "password"
 	common.DebugDisableAuth = false
 	common.OIDCIssuerURL = ""
+	common.APISkipOriginCheck = false
 
 	t.Cleanup(func() {
 		common.APIJWTSecret = prevSecret
@@ -201,6 +203,7 @@ func newAuthenticatedHandler(t *testing.T) *gin.Engine {
 		common.APIPassword = prevPassword
 		common.DebugDisableAuth = prevDisableAuth
 		common.OIDCIssuerURL = prevIssuerURL
+		common.APISkipOriginCheck = prevSkipOriginCheck
 	})
 
 	require.NoError(t, auth.Initialize())

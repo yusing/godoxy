@@ -4,7 +4,18 @@ import (
 	"testing"
 )
 
+func setupTest(t *testing.T) {
+	prevStoresPath := storesPath
+	storesPath = t.TempDir()
+	t.Cleanup(func() {
+		storesPath = prevStoresPath
+		clear(stores)
+	})
+}
+
 func TestNewJSON(t *testing.T) {
+	setupTest(t)
+
 	store := Store[string]("test")
 	store.Store("a", "1")
 	if v, _ := store.Load("a"); v != "1" {
@@ -13,9 +24,8 @@ func TestNewJSON(t *testing.T) {
 }
 
 func TestSaveLoadStore(t *testing.T) {
-	defer clear(stores)
+	setupTest(t)
 
-	storesPath = t.TempDir()
 	store := Store[string]("test")
 	store.Store("a", "1")
 	if err := save(); err != nil {
@@ -44,9 +54,8 @@ type testObject struct {
 func (*testObject) Initialize() {}
 
 func TestSaveLoadObject(t *testing.T) {
-	defer clear(stores)
+	setupTest(t)
 
-	storesPath = t.TempDir()
 	obj := Object[*testObject]("test")
 	obj.I = 1
 	obj.S = "1"

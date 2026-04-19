@@ -106,7 +106,9 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error {
 	} else {
 		cfg.Logger().Info().Msg("MaxMind DB loaded")
 		cfg.db.Reader = reader
-		go cfg.scheduleUpdate(parent)
+		if !common.IsTest {
+			go cfg.scheduleUpdate(parent)
+		}
 	}
 	return nil
 }
