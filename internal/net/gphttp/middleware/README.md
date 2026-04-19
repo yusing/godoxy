@@ -16,6 +16,8 @@ This package implements a flexible HTTP middleware system for GoDoxy. Middleware
 
 Response body rewriting is only applied to unencoded, text-like content types (for example `text/*`, JSON, YAML, XML). Response status and headers can always be modified.
 
+Request-variable substitution reads request fields from the active outbound request. Upstream variables such as `$upstream_host` and `$upstream_url` resolve from the current route context, which is normally attached by the route / reverse-proxy layer before middleware executes.
+
 ## Architecture
 
 ```mermaid
