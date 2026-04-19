@@ -198,7 +198,7 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	legoCfg.Certificate.KeyType = certcrypto.EC256
 
 	if cfg.HTTPClient != nil {
-		legoCfg.HTTPClient = cfg.HTTPClient
+		legoCfg.HTTPClient = cloneHTTPClient(cfg.HTTPClient)
 	}
 
 	if cfg.CADirURL != "" {
@@ -214,6 +214,18 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	}
 
 	return user, legoCfg, nil
+}
+
+func cloneHTTPClient(client *http.Client) *http.Client {
+	if client == nil {
+		return nil
+	}
+
+	clone := *client
+	if transport, ok := client.Transport.(*http.Transport); ok && transport != nil {
+		clone.Transport = transport.Clone()
+	}
+	return &clone
 }
 
 func MergeExtraConfig(mainCfg *Config, extraCfg *ConfigExtra) ConfigExtra {

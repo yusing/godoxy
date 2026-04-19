@@ -62,10 +62,14 @@ func normalizeServerName(s string) string {
 }
 
 func (m *sniMatcher) addProvider(p *Provider) {
-	if p == nil || p.tlsCert == nil || len(p.tlsCert.Certificate) == 0 {
+	if p == nil {
 		return
 	}
-	leaf, err := x509.ParseCertificate(p.tlsCert.Certificate[0])
+	tlsCert := p.getTLSCert()
+	if tlsCert == nil || len(tlsCert.Certificate) == 0 {
+		return
+	}
+	leaf, err := x509.ParseCertificate(tlsCert.Certificate[0])
 	if err != nil {
 		return
 	}

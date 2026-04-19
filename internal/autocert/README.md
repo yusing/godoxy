@@ -151,6 +151,13 @@ flowchart TD
     style U fill:#84261A,color:#fff
 ```
 
+### Concurrency Model
+
+- Certificate obtain / renew work is serialized per provider.
+- Extra providers may still renew in parallel with each other.
+- Each provider uses its own ACME HTTP client instance so parallel renewals do not mutate shared transport state.
+- TLS certificate replacement and SNI matcher rebuilds are synchronized before new state becomes visible to handshakes.
+
 ### SNI Matching Flow
 
 ```mermaid

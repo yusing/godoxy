@@ -32,6 +32,9 @@ import (
 
 type (
 	Provider struct {
+		mu     sync.RWMutex
+		obtain sync.Mutex
+
 		logger zerolog.Logger
 
 		cfg         *Config
@@ -96,32 +99,36 @@ func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, erro
 }
 
 func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	if p.tlsCert == nil {
+	tlsCert := p.getTLSCert()
+	if tlsCert == nil {
 		return nil, ErrNoCertificates
 	}
 	if hello == nil || hello.ServerName == "" {
-		return p.tlsCert, nil
+		return tlsCert, nil
 	}
-	if prov := p.sniMatcher.match(hello.ServerName); prov != nil && prov.tlsCert != nil {
-		return prov.tlsCert, nil
+	if prov := p.getSNIMatcher().match(hello.ServerName); prov != nil {
+		if cert := prov.getTLSCert(); cert != nil {
+			return cert, nil
+		}
 	}
-	return p.tlsCert, nil
+	return tlsCert, nil
 }
 
 func (p *Provider) GetCertInfos() ([]autocert.CertInfo, error) {
 	allProviders := p.allProviders()
 	certInfos := make([]autocert.CertInfo, 0, len(allProviders))
 	for _, provider := range allProviders {
-		if provider.tlsCert == nil {
+		tlsCert := provider.getTLSCert()
+		if tlsCert == nil || tlsCert.Leaf == nil {
 			continue
 		}
 		certInfos = append(certInfos, autocert.CertInfo{
-			Subject:        provider.tlsCert.Leaf.Subject.CommonName,
-			Issuer:         provider.tlsCert.Leaf.Issuer.CommonName,
-			NotBefore:      provider.tlsCert.Leaf.NotBefore.Unix(),
-			NotAfter:       provider.tlsCert.Leaf.NotAfter.Unix(),
-			DNSNames:       provider.tlsCert.Leaf.DNSNames,
-			EmailAddresses: provider.tlsCert.Leaf.EmailAddresses,
+			Subject:        tlsCert.Leaf.Subject.CommonName,
+			Issuer:         tlsCert.Leaf.Issuer.CommonName,
+			NotBefore:      tlsCert.Leaf.NotBefore.Unix(),
+			NotAfter:       tlsCert.Leaf.NotAfter.Unix(),
+			DNSNames:       tlsCert.Leaf.DNSNames,
+			EmailAddresses: tlsCert.Leaf.EmailAddresses,
 		})
 	}
 
@@ -151,7 +158,9 @@ func (p *Provider) GetKeyPath() string {
 }
 
 func (p *Provider) GetExpiries() CertExpiries {
-	return p.certExpiries
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return maps.Clone(p.certExpiries)
 }
 
 func (p *Provider) GetLastFailure() (time.Time, error) {
@@ -159,17 +168,25 @@ func (p *Provider) GetLastFailure() (time.Time, error) {
 		return time.Time{}, nil
 	}
 
-	if p.lastFailure.IsZero() {
+	p.mu.RLock()
+	lastFailure := p.lastFailure
+	p.mu.RUnlock()
+
+	if lastFailure.IsZero() {
 		data, err := os.ReadFile(p.lastFailureFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return time.Time{}, err
 			}
 		} else {
-			p.lastFailure, _ = time.Parse(time.RFC3339, string(data))
+			parsed, _ := time.Parse(time.RFC3339, string(data))
+			p.mu.Lock()
+			p.lastFailure = parsed
+			lastFailure = p.lastFailure
+			p.mu.Unlock()
 		}
 	}
-	return p.lastFailure, nil
+	return lastFailure, nil
 }
 
 func (p *Provider) UpdateLastFailure() error {
@@ -177,7 +194,9 @@ func (p *Provider) UpdateLastFailure() error {
 		return nil
 	}
 	t := time.Now()
+	p.mu.Lock()
 	p.lastFailure = t
+	p.mu.Unlock()
 	return os.WriteFile(p.lastFailureFile, t.AppendFormat(nil, time.RFC3339), 0o600)
 }
 
@@ -185,7 +204,9 @@ func (p *Provider) ClearLastFailure() error {
 	if common.IsTest {
 		return nil
 	}
+	p.mu.Lock()
 	p.lastFailure = time.Time{}
+	p.mu.Unlock()
 	err := os.Remove(p.lastFailureFile)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
@@ -259,6 +280,9 @@ func (p *Provider) ObtainCertAll() error {
 
 // ObtainCert renews existing certificate or obtains a new certificate for this provider.
 func (p *Provider) ObtainCert() error {
+	p.obtain.Lock()
+	defer p.obtain.Unlock()
+
 	if p.cfg.Provider == ProviderLocal {
 		return nil
 	}
@@ -272,10 +296,19 @@ func (p *Provider) ObtainCert() error {
 		return nil
 	}
 
-	if p.client == nil {
+	p.mu.RLock()
+	client := p.client
+	userRegistered := p.user.Registration != nil
+	legoCert := p.legoCert
+	p.mu.RUnlock()
+
+	if client == nil {
 		if err := p.initClient(); err != nil {
 			return err
 		}
+		p.mu.RLock()
+		client = p.client
+		p.mu.RUnlock()
 	}
 
 	// mark it as failed first, clear it later if successful
@@ -285,7 +318,7 @@ func (p *Provider) ObtainCert() error {
 		return fmt.Errorf("failed to update last failure: %w", err)
 	}
 
-	if p.user.Registration == nil {
+	if !userRegistered {
 		if err := p.registerACME(); err != nil {
 			return err
 		}
@@ -294,20 +327,24 @@ func (p *Provider) ObtainCert() error {
 	var cert *certificate.Resource
 	var err error
 
-	if p.legoCert != nil {
-		cert, err = p.client.Certificate.RenewWithOptions(*p.legoCert, &certificate.RenewOptions{
+	if legoCert != nil {
+		cert, err = client.Certificate.RenewWithOptions(*legoCert, &certificate.RenewOptions{
 			Bundle: true,
 		})
 		if err != nil {
+			p.mu.Lock()
 			p.legoCert = nil
+			p.mu.Unlock()
 			log.Err(err).Msg("cert renew failed, fallback to obtain")
 		} else {
+			p.mu.Lock()
 			p.legoCert = cert
+			p.mu.Unlock()
 		}
 	}
 
 	if cert == nil {
-		cert, err = p.client.Certificate.Obtain(certificate.ObtainRequest{
+		cert, err = client.Certificate.Obtain(certificate.ObtainRequest{
 			Domains: p.cfg.Domains,
 			Bundle:  true,
 		})
@@ -329,8 +366,10 @@ func (p *Provider) ObtainCert() error {
 	if err != nil {
 		return err
 	}
+	p.mu.Lock()
 	p.tlsCert = &tlsCert
 	p.certExpiries = expiries
+	p.mu.Unlock()
 	p.rebuildSNIMatcher()
 
 	if err := p.ClearLastFailure(); err != nil {
@@ -361,8 +400,10 @@ func (p *Provider) loadCert() error {
 		return err
 	}
 
+	p.mu.Lock()
 	p.tlsCert = &cert
 	p.certExpiries = expiries
+	p.mu.Unlock()
 
 	return nil
 }
@@ -370,7 +411,7 @@ func (p *Provider) loadCert() error {
 // PrintCertExpiriesAll prints the certificate expiries for this provider and all extra providers.
 func (p *Provider) PrintCertExpiriesAll() {
 	for _, provider := range p.allProviders() {
-		for domain, expiry := range provider.certExpiries {
+		for domain, expiry := range provider.GetExpiries() {
 			p.logger.Info().Str("domain", domain).Msgf("certificate expire on %s", strutils.FormatTime(expiry))
 		}
 	}
@@ -378,6 +419,8 @@ func (p *Provider) PrintCertExpiriesAll() {
 
 // ShouldRenewOn returns the time at which the certificate should be renewed.
 func (p *Provider) ShouldRenewOn() time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	for _, expiry := range p.certExpiries {
 		return expiry.AddDate(0, -1, 0) // 1 month before
 	}
@@ -517,16 +560,22 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
+	p.mu.Lock()
 	p.client = legoClient
+	p.mu.Unlock()
 	return nil
 }
 
 func (p *Provider) registerACME() error {
-	if p.user.Registration != nil {
+	p.mu.RLock()
+	registrationExists := p.user.Registration != nil
+	client := p.client
+	p.mu.RUnlock()
+	if registrationExists {
 		return nil
 	}
 
-	reg, err := p.client.Registration.ResolveAccountByKey()
+	reg, err := client.Registration.ResolveAccountByKey()
 	if err == nil {
 		p.user.Registration = reg
 		log.Info().Msg("reused acme registration from private key")
@@ -534,18 +583,20 @@ func (p *Provider) registerACME() error {
 	}
 
 	if p.cfg.EABKid != "" && p.cfg.EABHmac != "" {
-		reg, err = p.client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
+		reg, err = client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
 			TermsOfServiceAgreed: true,
 			Kid:                  p.cfg.EABKid,
 			HmacEncoded:          p.cfg.EABHmac,
 		})
 	} else {
-		reg, err = p.client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
+		reg, err = client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
 	}
 	if err != nil {
 		return err
 	}
+	p.mu.Lock()
 	p.user.Registration = reg
+	p.mu.Unlock()
 	log.Info().Interface("reg", reg).Msg("acme registered")
 	return nil
 }
@@ -579,6 +630,9 @@ func (p *Provider) saveCert(cert *certificate.Resource) error {
 }
 
 func (p *Provider) certState() CertState {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	if time.Now().After(p.ShouldRenewOn()) {
 		return CertStateExpired
 	}
@@ -666,9 +720,26 @@ func (p *Provider) rebuildSNIMatcher() {
 		return
 	}
 
-	p.sniMatcher = sniMatcher{}
-	p.sniMatcher.addProvider(p)
+	matcher := sniMatcher{}
+	matcher.addProvider(p)
 	for _, ep := range p.extraProviders {
-		p.sniMatcher.addProvider(ep)
+		matcher.addProvider(ep)
 	}
+
+	p.mu.Lock()
+	p.sniMatcher = matcher
+	p.mu.Unlock()
+}
+
+func (p *Provider) getSNIMatcher() *sniMatcher {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	matcher := p.sniMatcher
+	return &matcher
+}
+
+func (p *Provider) getTLSCert() *tls.Certificate {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.tlsCert
 }
