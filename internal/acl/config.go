@@ -1,18 +1,19 @@
 package acl
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net"
 	"time"
 
-	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/goutils/cache"
 	gperr "github.com/yusing/goutils/errs"
 	aclevents "github.com/yusing/goutils/events/acl"
 	strutils "github.com/yusing/goutils/strings"
@@ -41,7 +42,7 @@ const defaultNotifyInterval = 1 * time.Minute
 type config struct {
 	defaultAllow bool
 	allowLocal   bool
-	ipCache      *xsync.Map[string, *checkCache]
+	ipCache      cache.CachedContextKeyFunc[*checkCache, string]
 
 	// will be nil if Notify.To is empty
 	// these are per IP, reset every Notify.Interval
@@ -66,9 +67,8 @@ type config struct {
 
 type checkCache struct {
 	*maxmind.IPInfo
-	allow   bool
-	reason  string
-	created time.Time
+	allow  bool
+	reason string
 }
 
 type ipLog struct {
@@ -78,10 +78,6 @@ type ipLog struct {
 }
 
 const cacheTTL = 1 * time.Minute
-
-func (c *checkCache) Expired() bool {
-	return c.created.Add(cacheTTL).Before(time.Now())
-}
 
 // TODO: add stats
 
@@ -120,7 +116,7 @@ func (c *Config) Validate() error {
 		return c.valErr
 	}
 
-	c.ipCache = xsync.NewMap[string, *checkCache]()
+	c.ipCache = cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL).Build()
 
 	if c.Notify.IncludeAllowed != nil {
 		c.notifyAllowed = *c.Notify.IncludeAllowed
@@ -171,16 +167,36 @@ func (c *Config) Start(parent task.Parent) error {
 	return nil
 }
 
-func (c *Config) cacheRecord(info *maxmind.IPInfo, allow bool, reason string) {
+func (c *Config) newCheckCache(info *maxmind.IPInfo, allow bool, reason string) *checkCache {
 	if common.ForceResolveCountry && info.City == nil {
 		maxmind.LookupCity(info)
 	}
-	c.ipCache.Store(info.Str, &checkCache{
-		IPInfo:  info,
-		allow:   allow,
-		reason:  reason,
-		created: time.Now(),
-	})
+	return &checkCache{
+		IPInfo: info,
+		allow:  allow,
+		reason: reason,
+	}
+}
+
+func (c *Config) evaluateIP(_ context.Context, ipStr string) (*checkCache, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid IP: %q", ipStr)
+	}
+
+	ipInfo := &maxmind.IPInfo{IP: ip, Str: ipStr}
+	if index := c.Deny.MatchedIndex(ipInfo); index != -1 {
+		return c.newCheckCache(ipInfo, false, "blocked by deny rule: "+c.Deny[index].raw), nil
+	}
+	if index := c.Allow.MatchedIndex(ipInfo); index != -1 {
+		return c.newCheckCache(ipInfo, true, "allowed by allow rule: "+c.Allow[index].raw), nil
+	}
+
+	reason := "denied by default"
+	if c.defaultAllow {
+		reason = "allowed by default"
+	}
+	return c.newCheckCache(ipInfo, c.defaultAllow, reason), nil
 }
 
 func (c *Config) needLogOrNotify() bool {
@@ -196,14 +212,16 @@ func (c *Config) needNotify() bool {
 }
 
 func (c *Config) getCachedCity(ip string) string {
-	record, ok := c.ipCache.Load(ip)
-	if ok {
-		if record.City != nil {
-			if record.City.Country.IsoCode != "" {
-				return record.City.Country.IsoCode
-			}
-			return record.City.Location.TimeZone
+	record, err := c.ipCache(context.Background(), ip)
+	if err != nil {
+		return "unknown location"
+	}
+	city := record.IPInfo.City
+	if city != nil {
+		if city.Country.IsoCode != "" {
+			return city.Country.IsoCode
 		}
+		return city.Location.TimeZone
 	}
 	return "unknown location"
 }
@@ -288,31 +306,11 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipStr := ip.String()
-	record, ok := c.ipCache.Load(ipStr)
-	if ok && !record.Expired() {
-		c.logAndNotify(record.IPInfo, record.allow, record.reason)
-		return record.allow
+	record, err := c.ipCache(context.Background(), ipStr)
+	if err != nil {
+		log.Warn().Err(err).Str("ip", ipStr).Msg("unexpected ACL cache lookup error")
+		record = c.newCheckCache(&maxmind.IPInfo{IP: ip, Str: ipStr}, c.defaultAllow, "invalid ACL cache lookup")
 	}
-
-	ipAndStr := &maxmind.IPInfo{IP: ip, Str: ipStr}
-	if index := c.Deny.MatchedIndex(ipAndStr); index != -1 {
-		reason := "blocked by deny rule: " + c.Deny[index].raw
-		c.logAndNotify(ipAndStr, false, reason)
-		c.cacheRecord(ipAndStr, false, reason)
-		return false
-	}
-	if index := c.Allow.MatchedIndex(ipAndStr); index != -1 {
-		reason := "allowed by allow rule: " + c.Allow[index].raw
-		c.logAndNotify(ipAndStr, true, reason)
-		c.cacheRecord(ipAndStr, true, reason)
-		return true
-	}
-
-	reason := "denied by default"
-	if c.defaultAllow {
-		reason = "allowed by default"
-	}
-	c.logAndNotify(ipAndStr, c.defaultAllow, reason)
-	c.cacheRecord(ipAndStr, c.defaultAllow, reason)
-	return c.defaultAllow
+	c.logAndNotify(record.IPInfo, record.allow, record.reason)
+	return record.allow
 }

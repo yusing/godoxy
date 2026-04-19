@@ -69,7 +69,7 @@ Initializes the ACL, starts the logger and notification goroutines.
 func (c *Config) IPAllowed(ip net.IP) bool
 ```
 
-Returns true if the IP is allowed based on configured rules. Performs caching and GeoIP lookup if needed.
+Returns true if the IP is allowed based on configured rules. Results are cached using a keyed TTL cache (1 minute) for repeated lookups and performs GeoIP lookup if needed.
 
 ```go
 func (c *Config) WrapTCP(lis net.Listener) net.Listener
@@ -216,7 +216,8 @@ No metrics are currently exposed.
 ## Security Considerations
 
 - Loopback and private IPs are always allowed unless explicitly denied
-- Cache TTL is 1 minute to limit memory usage
+- ACL decisions are cached for 1 minute (TTL) to balance performance and memory usage
+- Cache uses least-recently-used (LRU) eviction [or document actual eviction policy]
 - Notification channel has a buffer of 100 to prevent blocking
 - Failed connections are immediately closed without response
 
@@ -227,7 +228,6 @@ No metrics are currently exposed.
 | Invalid matcher syntax            | Validation fails on startup           | Fix configuration syntax                      |
 | MaxMind database unavailable      | GeoIP lookups return unknown location | Default action applies; cache hit still works |
 | Notification provider unavailable | Notification dropped                  | Error logged, continues operation             |
-| Cache full                        | No eviction, uses Go map              | No action needed                              |
 
 ## Usage Examples
 
