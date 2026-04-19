@@ -63,9 +63,6 @@ entrypoint:
   # Note that HTTP/3 with proxy protocol is not supported yet.
   support_proxy_protocol: false
 
-  # To relay the client address to a TCP upstream (UDP relay is not supported yet)
-  relay_proxy_protocol_header: false
-
   # Below define an example of middleware config
   # 1. set security headers
   # 2. block non local IP connections
