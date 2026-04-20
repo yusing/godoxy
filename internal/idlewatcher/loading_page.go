@@ -28,6 +28,12 @@ var cssBytes []byte
 //go:embed html/loading-min.js
 var jsBytes []byte
 
+func setNoStoreHeaders(header http.Header) {
+	header.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	header.Set("Pragma", "no-cache")
+	header.Set("Expires", "0")
+}
+
 func (w *Watcher) writeLoadingPage(rw http.ResponseWriter) error {
 	msg := w.cfg.ContainerName() + " is starting..."
 
@@ -40,9 +46,7 @@ func (w *Watcher) writeLoadingPage(rw http.ResponseWriter) error {
 	data.WakeEventsPath = idlewatcher.WakeEventsPath
 
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-	rw.Header().Set("Cache-Control", "no-cache")
-	rw.Header().Add("Cache-Control", "no-store")
-	rw.Header().Add("Cache-Control", "must-revalidate")
+	setNoStoreHeaders(rw.Header())
 	rw.Header().Add("Connection", "close")
 	err := loadingPageTmpl.Execute(rw, data)
 	return err

@@ -16,21 +16,6 @@ import (
 	_ "unsafe"
 )
 
-type ForceCacheControl struct {
-	expires string
-	http.ResponseWriter
-}
-
-func (f *ForceCacheControl) WriteHeader(code int) {
-	f.ResponseWriter.Header().Set("Cache-Control", "must-revalidate")
-	f.ResponseWriter.Header().Set("Expires", f.expires)
-	f.ResponseWriter.WriteHeader(code)
-}
-
-func (f *ForceCacheControl) Unwrap() http.ResponseWriter {
-	return f.ResponseWriter
-}
-
 // ServeHTTP implements http.Handler.
 func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	shouldNext := w.wakeFromHTTP(rw, r)
@@ -41,15 +26,14 @@ func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	case <-r.Context().Done():
 		return
 	default:
-		f := &ForceCacheControl{expires: w.expires().Format(http.TimeFormat), ResponseWriter: rw}
-		w.rp.ServeHTTP(f, r)
+		w.rp.ServeHTTP(rw, r)
 	}
 }
 
 func (w *Watcher) handleWakeEventsSSE(rw http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
 	rw.Header().Set("Content-Type", "text/event-stream")
-	rw.Header().Set("Cache-Control", "no-cache")
+	setNoStoreHeaders(rw.Header())
 	rw.Header().Set("Connection", "keep-alive")
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	rw.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
@@ -127,12 +111,15 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 			fmt.Fprint(rw, err)
 			return false
 		}
+		setNoStoreHeaders(rw.Header())
 		serveStaticContent(rw, result.StatusCode, result.ContentType(), result.Icon)
 		return false
 	case idlewatcher.LoadingPageCSSPath:
+		setNoStoreHeaders(rw.Header())
 		serveStaticContent(rw, http.StatusOK, "text/css", cssBytes)
 		return false
 	case idlewatcher.LoadingPageJSPath:
+		setNoStoreHeaders(rw.Header())
 		serveStaticContent(rw, http.StatusOK, "application/javascript", jsBytes)
 		return false
 	case idlewatcher.WakeEventsPath:
@@ -178,9 +165,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 
 	// Send a loading response to the client
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-	rw.Header().Set("Cache-Control", "no-cache")
-	rw.Header().Add("Cache-Control", "no-store")
-	rw.Header().Add("Cache-Control", "must-revalidate")
+	setNoStoreHeaders(rw.Header())
 	rw.Header().Add("Connection", "close")
 	_ = w.writeLoadingPage(rw)
 	return false
