@@ -375,6 +375,12 @@
               "$ref": "#/definitions/SuccessResponse"
             }
           },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "403": {
             "description": "Forbidden",
             "schema": {
@@ -5435,6 +5441,11 @@
           ],
           "x-nullable": true
         },
+        "inbound_mtls_profile": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "index": {
           "description": "Index file to serve for single-page app mode",
           "type": "string",
@@ -5493,6 +5504,12 @@
         },
         "purl": {
           "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "relay_proxy_protocol_header": {
+          "description": "TCP only: relay PROXY protocol header to the destination",
+          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },

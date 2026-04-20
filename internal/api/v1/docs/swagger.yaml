@@ -1052,6 +1052,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/IdlewatcherConfig'
         x-nullable: true
+      inbound_mtls_profile:
+        type: string
       index:
         description: Index file to serve for single-page app mode
         type: string
@@ -1087,6 +1089,9 @@ definitions:
         x-nullable: true
       purl:
         type: string
+      relay_proxy_protocol_header:
+        description: 'TCP only: relay PROXY protocol header to the destination'
+        type: boolean
       response_header_timeout:
         type: integer
       root:
@@ -2166,6 +2171,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "403":
           description: Forbidden
           schema:
