@@ -21,7 +21,6 @@ import (
 
 const (
 	mimeEventStream   = "text/event-stream"
-	headerContentType = "Content-Type"
 	maxModifiableBody = 4 * 1024 * 1024 // 4MB
 )
 
@@ -294,20 +293,26 @@ func canBufferAndModifyResponseBody(respHeader http.Header) bool {
 	if err != nil { // skip if invalid content type
 		return false
 	}
-	if hasNonIdentityEncoding(respHeader.Values("Transfer-Encoding")) {
-		return false
-	}
 	if hasNonIdentityEncoding(respHeader.Values("Content-Encoding")) {
 		return false
 	}
+	contentLengthKnown := false
 	if contentLengthRaw := respHeader.Get("Content-Length"); contentLengthRaw != "" {
 		contentLength, err := strconv.ParseInt(contentLengthRaw, 10, 64)
 		if err != nil || contentLength >= maxModifiableBody {
 			return false
 		}
+		contentLengthKnown = true
 	}
 	if !isTextLikeMediaType(contentType) {
 		return false
+	}
+	transferEncoding := respHeader.Values("Transfer-Encoding")
+	if hasNonIdentityEncoding(transferEncoding) {
+		return isHTMLLikeMediaType(contentType) && isChunkedTransferEncoding(transferEncoding)
+	}
+	if !contentLengthKnown {
+		return isHTMLLikeMediaType(contentType)
 	}
 	return true
 }
@@ -323,6 +328,24 @@ func hasNonIdentityEncoding(values []string) bool {
 		}
 	}
 	return false
+}
+
+func isChunkedTransferEncoding(values []string) bool {
+	foundChunked := false
+	for _, value := range values {
+		for token := range strings.SplitSeq(value, ",") {
+			token = strings.TrimSpace(token)
+			switch {
+			case token == "", strings.EqualFold(token, "identity"):
+				continue
+			case strings.EqualFold(token, "chunked"):
+				foundChunked = true
+			default:
+				return false
+			}
+		}
+	}
+	return foundChunked
 }
 
 func isTextLikeMediaType(contentType string) bool {
@@ -349,6 +372,10 @@ func isTextLikeMediaType(contentType string) bool {
 		return true
 	}
 	return contentType == "application/x-www-form-urlencoded"
+}
+
+func isHTMLLikeMediaType(contentType string) bool {
+	return contentType == "text/html" || contentType == "application/xhtml+xml"
 }
 
 func (m *Middleware) LogWarn(req *http.Request) *zerolog.Event {

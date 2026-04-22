@@ -51,16 +51,38 @@ func (m *modifyHTML) modifyResponse(resp *http.Response) error {
 		return nil
 	}
 
-	// Skip modification for streaming/chunked responses to avoid blocking reads
-	// Unknown content length or any transfer encoding indicates streaming.
-	// if resp.ContentLength < 0 || len(resp.TransferEncoding) > 0 {
-	// 	log.Debug().Str("url", fullURL(resp.Request)).Strs("transfer-encoding", resp.TransferEncoding).Msg("skipping modification for streaming/chunked response")
-	// 	return nil
-	// }
-
 	// NOTE: do not put it in the defer, it will be used as resp.Body
-	content, release, err := httputils.ReadAllBody(resp)
-	resp.Body.Close()
+	var (
+		content []byte
+		release func([]byte)
+		err     error
+	)
+	if resp.ContentLength >= int64(maxModifiableBody) {
+		return nil
+	}
+
+	originalBody := resp.Body
+	if resp.ContentLength < 0 {
+		// tmp swap Body to LimitedReader
+		limited := io.LimitedReader{R: originalBody, N: int64(maxModifiableBody) + 1}
+		resp.Body = io.NopCloser(&limited)
+		content, release, err = httputils.ReadAllBody(resp)
+		// Successfully read N bytes
+		if err == nil && limited.N == 0 {
+			fullReader := io.NopCloser(io.MultiReader(bytes.NewReader(content), originalBody))
+			onClose := func() {
+				release(content)
+				_ = originalBody.Close()
+			}
+			resp.Body = ioutils.NewHookReadCloser(fullReader, onClose)
+			resp.ContentLength = -1
+			resp.Header.Del("Content-Length")
+			return nil
+		}
+	} else {
+		content, release, err = httputils.ReadAllBody(resp)
+	}
+	_ = originalBody.Close()
 	if err != nil {
 		log.Err(err).Str("url", fullURL(resp.Request)).Msg("failed to read response body")
 		// Fail open: do not abort the response. Return an empty body safely.

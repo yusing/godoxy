@@ -126,10 +126,21 @@ func TestMiddlewareResponseRewriteGate(t *testing.T) {
 			expectBody:   "binary",
 		},
 		{
-			name: "block_body_rewrite_for_transfer_encoded_html",
+			name: "allow_body_rewrite_for_transfer_encoded_html",
 			respHeaders: http.Header{
 				"Content-Type":      []string{"text/html"},
 				"Transfer-Encoding": []string{"chunked"},
+			},
+			respBody:     []byte("<html><body>original</body></html>"),
+			expectStatus: http.StatusTeapot,
+			expectHeader: "1",
+			expectBody:   "rewritten-body",
+		},
+		{
+			name: "block_body_rewrite_for_non_chunked_transfer_encoded_html",
+			respHeaders: http.Header{
+				"Content-Type":      []string{"text/html"},
+				"Transfer-Encoding": []string{"gzip"},
 			},
 			respBody:     []byte("<html><body>original</body></html>"),
 			expectStatus: http.StatusTeapot,
@@ -208,10 +219,21 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 			expectBody:       "binary",
 		},
 		{
-			name: "block_body_rewrite_for_transfer_encoded_html",
+			name: "allow_body_rewrite_for_transfer_encoded_html",
 			respHeaders: http.Header{
 				"Content-Type":      []string{"text/html"},
 				"Transfer-Encoding": []string{"chunked"},
+			},
+			respBody:         "<html><body>original</body></html>",
+			expectStatusCode: http.StatusTeapot,
+			expectHeader:     "1",
+			expectBody:       "rewritten-body",
+		},
+		{
+			name: "block_body_rewrite_for_non_chunked_transfer_encoded_html",
+			respHeaders: http.Header{
+				"Content-Type":      []string{"text/html"},
+				"Transfer-Encoding": []string{"gzip"},
 			},
 			respBody:         "<html><body>original</body></html>",
 			expectStatusCode: http.StatusOK,
@@ -290,10 +312,10 @@ func TestMiddlewareHeaderRewriteDoesNotBufferLargeBody(t *testing.T) {
 	expect.Equal(t, string(data), "video")
 }
 
-func TestThemedSkipsBodyRewriteWhenRewriteBlocked(t *testing.T) {
+func TestThemedRewritesChunkedHTML(t *testing.T) {
 	result, err := newMiddlewareTest(Themed, &testArgs{
 		middlewareOpt: OptionsRaw{
-			"theme": DarkTheme,
+			"css": "https://example.com/theme.css",
 		},
 		respHeaders: http.Header{
 			"Content-Type":      []string{"text/html; charset=utf-8"},
@@ -302,5 +324,22 @@ func TestThemedSkipsBodyRewriteWhenRewriteBlocked(t *testing.T) {
 		respBody: []byte("<html><body>original</body></html>"),
 	})
 	expect.NoError(t, err)
-	expect.Equal(t, string(result.Data), "<html><body>original</body></html>")
+	expect.Equal(t, string(result.Data), `<html><head></head><body>original<link rel="stylesheet" href="https://example.com/theme.css"/></body></html>`)
+}
+
+func TestThemedSkipsOversizedChunkedHTML(t *testing.T) {
+	originalBody := "<html><body>" + strings.Repeat("a", maxModifiableBody) + "</body></html>"
+
+	result, err := newMiddlewareTest(Themed, &testArgs{
+		middlewareOpt: OptionsRaw{
+			"css": "https://example.com/theme.css",
+		},
+		respHeaders: http.Header{
+			"Content-Type":      []string{"text/html; charset=utf-8"},
+			"Transfer-Encoding": []string{"chunked"},
+		},
+		respBody: []byte(originalBody),
+	})
+	expect.NoError(t, err)
+	expect.Equal(t, string(result.Data), originalBody)
 }
