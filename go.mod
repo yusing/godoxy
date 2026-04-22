@@ -29,15 +29,15 @@ require (
 	github.com/coreos/go-oidc/v3 v3.18.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
-	github.com/go-acme/lego/v4 v4.34.0 // acme client
+	github.com/go-acme/lego/v4 v4.35.1 // acme client
 	github.com/go-playground/validator/v10 v10.30.2 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.9.1 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
 	github.com/pires/go-proxyproto v0.12.0 // proxy protocol support
-	github.com/puzpuzpuz/xsync/v4 v4.4.0 // lock free map for concurrent operations
-	github.com/rs/zerolog v1.35.0 // logging
+	github.com/puzpuzpuz/xsync/v4 v4.5.0 // lock free map for concurrent operations
+	github.com/rs/zerolog v1.35.1 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
 	golang.org/x/crypto v0.50.0 // encrypting password with bcrypt
 	golang.org/x/net v0.53.0 // HTTP header utilities
@@ -49,12 +49,12 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.0 // fast json parsing
-	github.com/docker/cli v29.4.0+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.4.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
-	github.com/moby/moby/api v1.52.0 // docker API
-	github.com/moby/moby/client v0.2.1 // docker client
+	github.com/moby/moby/api v1.54.2 // docker API
+	github.com/moby/moby/client v0.4.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.3 // system information
@@ -62,13 +62,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.70.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260418031804-9068beb0ec95
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260418031804-9068beb0ec95
+	github.com/yusing/godoxy/agent v0.0.0-20260420080101-586152911fc6
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260420080101-586152911fc6
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260413102524-db81498d766b
-	github.com/yusing/goutils/http/websocket v0.0.0-20260413102524-db81498d766b
-	github.com/yusing/goutils/server v0.0.0-20260413102524-db81498d766b
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260419063718-bdd71fab358c
+	github.com/yusing/goutils/http/websocket v0.0.0-20260419063718-bdd71fab358c
+	github.com/yusing/goutils/server v0.0.0-20260419063718-bdd71fab358c
 )
 
 require (
@@ -147,7 +147,7 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/api v0.276.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
@@ -186,11 +186,11 @@ require (
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
-	github.com/linode/linodego v1.67.0 // indirect
+	github.com/linode/linodego v1.68.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.112.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.112.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.113.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.113.0 // indirect
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pion/dtls/v3 v3.1.2 // indirect
@@ -204,7 +204,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vultr/govultr/v3 v3.30.0 // indirect
+	github.com/vultr/govultr/v3 v3.31.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	golang.org/x/arch v0.26.0 // indirect
