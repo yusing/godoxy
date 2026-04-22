@@ -3,7 +3,7 @@
   "private": true,
   "devDependencies": {
     "@types/argparse": "^2.0.17",
-    "@types/bun": "^1.3.9"
+    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
