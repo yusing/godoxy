@@ -1053,6 +1053,8 @@ definitions:
         - $ref: '#/definitions/IdlewatcherConfig'
         x-nullable: true
       inbound_mtls_profile:
+        description: 'HTTP-based routes only: must match a configured inbound_mtls_profiles
+          entry and is ignored when entrypoint.inbound_mtls_profile is set'
         type: string
       index:
         description: Index file to serve for single-page app mode
@@ -1838,11 +1840,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_5m:
+        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
-        type: string
-      load_avg_5m:
         type: string
       mem_pct:
         type: string

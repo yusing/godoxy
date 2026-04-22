@@ -56,7 +56,7 @@ type (
 		Index string `json:"index,omitempty"` // Index file to serve for single-page app mode
 
 		route.HTTPConfig
-		InboundMTLSProfile       string                         `json:"inbound_mtls_profile,omitempty"`
+		InboundMTLSProfile       string                         `json:"inbound_mtls_profile,omitempty"` // HTTP-based routes only: must match a configured inbound_mtls_profiles entry and is ignored when entrypoint.inbound_mtls_profile is set
 		PathPatterns             []string                       `json:"path_patterns,omitempty" extensions:"x-nullable"`
 		Rules                    rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 		RuleFile                 string                         `json:"rule_file,omitempty" extensions:"x-nullable"`

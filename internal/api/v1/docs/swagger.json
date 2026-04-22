@@ -5442,6 +5442,7 @@
           "x-nullable": true
         },
         "inbound_mtls_profile": {
+          "description": "HTTP-based routes only: must match a configured inbound_mtls_profiles entry and is ignored when entrypoint.inbound_mtls_profile is set",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
