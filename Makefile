@@ -112,40 +112,36 @@ update-go:
 		sed -i 's|FROM golang:.*-alpine|FROM golang:${go_ver}-alpine|g' $$file; \
 	done
 	for path in ${gomod_paths}; do \
-		echo "go mod tidy $$path"; \
 		cd ${PWD}/$$path && go mod tidy; \
 	done
 
 update-deps:
 	for path in ${gomod_paths}; do \
-		echo "go get -u $$path"; \
 		cd ${PWD}/$$path && go get -u ./... && go mod tidy; \
 	done
 
 mod-tidy:
 	for path in ${gomod_paths}; do \
-		echo "go mod tidy $$path"; \
 		cd ${PWD}/$$path && go mod tidy; \
 	done
 
-minify-js:
+modernize:
+	for path in ${gomod_paths}; do \
+		cd ${PWD}/$$path && go fix ./...; \
+	done
+
+minify:
 	@if [ "${agent}" = "1" ]; then \
-		echo "minify-js: skipped for agent"; \
+		echo "minify: skipped for agent"; \
 	elif [ "${socket-proxy}" = "1" ]; then \
-		echo "minify-js: skipped for socket-proxy"; \
+		echo "minify: skipped for socket-proxy"; \
 	else \
-		for file in $$(find internal/ -name '*.js' | grep -v -- '-min\.js$$' | grep -v '^internal/go-proxmox/'); do \
-			ext="$${file##*.}"; \
-			base="$${file%.*}"; \
-			min_file="$${base}-min.$$ext"; \
-			echo "minifying $$file -> $$min_file"; \
-			bun --bun build "$$file" --minify --target browser --outfile "$$min_file"; \
-		done; \
+		bun --bun scripts/minify; \
 	fi
 
 build:
 	@if [ "${godoxy}" = "1" ]; then \
-		make minify-js; \
+		make minify; \
 	elif [ "${cli}" = "1" ]; then \
 		make gen-cli; \
 	fi
@@ -153,7 +149,7 @@ build:
 	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ${PACKAGE}
 	${POST_BUILD}
 
-run: minify-js
+run: minify
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${PACKAGE}
 
 dev:
@@ -207,4 +203,4 @@ gen-cli:
 	cd cmd/cli && go run ./gen
 
 update-wiki:
-	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki/main.ts
+	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki
