@@ -1,0 +1,16 @@
+{
+  "name": "minify",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@swc/core": "^1.15.30",
+    "@swc/html": "^1.15.30"
+  }
+}
