@@ -21,6 +21,8 @@ import (
 )
 
 type Config struct {
+	config
+
 	Default    string                     `json:"default" validate:"omitempty,oneof=allow deny"` // default: allow
 	AllowLocal *bool                      `json:"allow_local"`                                   // default: true
 	Allow      Matchers                   `json:"allow"`
@@ -33,7 +35,6 @@ type Config struct {
 		IncludeAllowed *bool         `json:"include_allowed,omitzero"` // default: false
 	} `json:"notify"`
 
-	config
 	valErr gperr.Error
 }
 
@@ -67,6 +68,7 @@ type config struct {
 
 type checkCache struct {
 	*maxmind.IPInfo
+
 	allow  bool
 	reason string
 }
