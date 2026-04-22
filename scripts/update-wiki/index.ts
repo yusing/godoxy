@@ -16,10 +16,11 @@ type ImplDoc = {
   dstPathAbs: string;
 };
 
-const skipSubmodules = [
+const excludedReadmeRoots = [
   "internal/go-oidc/",
   "internal/gopsutil/",
   "internal/go-proxmox/",
+  "scripts/",
 ];
 
 function normalizeRepoUrl(raw: string) {
@@ -109,7 +110,7 @@ function rewriteMarkdownLinksOutsideFences(
   return lines.join("\n");
 }
 
-function rewriteImplMarkdown(params: {
+export function rewriteImplMarkdown(params: {
   md: string;
   pkgPath: string;
   readmeRelToDocRoute: Map<string, string>;
@@ -175,7 +176,7 @@ function rewriteImplMarkdown(params: {
         const githubUrl = `${repoUrl}/blob/main/${repoRel}${
           line ? `#L${line}` : ""
         }`;
-        const rewritten = `${githubUrl}${fragment}`;
+        const rewritten = `${githubUrl}${line ? "" : fragment}`;
         return angleWrapped === urlRaw ? rewritten : `<${rewritten}>`;
       }
     }
@@ -199,8 +200,8 @@ async function listRepoReadmes(repoRootAbs: string): Promise<string[]> {
     if (rel.startsWith("node_modules/") || rel.includes("/node_modules/"))
       continue;
     let skip = false;
-    for (const submodule of skipSubmodules) {
-      if (rel.startsWith(submodule)) {
+    for (const excludedRoot of excludedReadmeRoots) {
+      if (rel.startsWith(excludedRoot)) {
         skip = true;
         break;
       }
@@ -212,6 +213,17 @@ async function listRepoReadmes(repoRootAbs: string): Promise<string[]> {
   // Deterministic order.
   readmes.sort((a, b) => a.localeCompare(b));
   return readmes;
+}
+
+async function readFileIfExists(filePath: string): Promise<string> {
+  try {
+    return await readFile(filePath, "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return "";
+    }
+    throw error;
+  }
 }
 
 async function writeImplDocToMdx(params: {
@@ -233,7 +245,7 @@ async function writeImplDocToMdx(params: {
   await mkdir(path.dirname(dstAbs), { recursive: true });
 
   const original = await readFile(srcAbs, "utf8");
-  const current = await readFile(dstAbs, "utf-8");
+  const current = await readFileIfExists(dstAbs);
   const rewritten = md2mdx(
     rewriteImplMarkdown({
       md: original,
@@ -252,7 +264,7 @@ async function writeImplDocToMdx(params: {
   console.log(`[W] ${srcAbs} -> ${dstAbs}`);
 }
 
-async function syncImplDocs(
+export async function syncImplDocs(
   repoRootAbs: string,
   wikiRootAbs: string,
 ): Promise<void> {
@@ -314,7 +326,7 @@ async function syncImplDocs(
   const existing = await readdir(implDirAbs, { withFileTypes: true });
   for (const ent of existing) {
     if (!ent.isFile()) continue;
-    if (!ent.name.endsWith(".md")) continue;
+    if (!ent.name.endsWith(".mdx") && !ent.name.endsWith(".md")) continue;
     if (expectedFileNames.has(ent.name)) continue;
     await rm(path.join(implDirAbs, ent.name), { force: true });
   }
@@ -336,4 +348,6 @@ async function main() {
   await syncImplDocs(repoRootAbs, wikiRootAbs);
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}
