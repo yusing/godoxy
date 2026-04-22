@@ -7,7 +7,7 @@ import (
 	_ "embed"
 )
 
-//go:embed block_page.html
+//go:embed block_page.min.html
 var blockPageHTML string
 
 var blockPageTemplate = template.Must(template.New("block_page").Parse(blockPageHTML))

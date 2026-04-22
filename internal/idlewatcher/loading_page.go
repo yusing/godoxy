@@ -18,14 +18,14 @@ type templateData struct {
 	WakeEventsPath     string
 }
 
-//go:embed html/loading_page.html
+//go:embed html/loading_page.min.html
 var loadingPage []byte
 var loadingPageTmpl = template.Must(template.New("loading_page").Parse(string(loadingPage)))
 
 //go:embed html/style.css
 var cssBytes []byte
 
-//go:embed html/loading-min.js
+//go:embed html/loading.min.js
 var jsBytes []byte
 
 func setNoStoreHeaders(header http.Header) {

@@ -13,7 +13,7 @@ import (
 
 const cookieName = "godoxy_captcha_session"
 
-//go:embed captcha.html
+//go:embed captcha.min.html
 var captchaPageHTML string
 var captchaPage = template.Must(template.New("captcha").Parse(captchaPageHTML))
 
