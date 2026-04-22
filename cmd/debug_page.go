@@ -140,8 +140,9 @@ func listenDebugServer() {
 	mux.Finalize()
 
 	go func() {
+		log.Info().Msgf("debug server started at http://localhost:7778/")
 		//nolint:gosec
-		err := http.ListenAndServe(":7777", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := http.ListenAndServe(":7778", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Expires", "0")
