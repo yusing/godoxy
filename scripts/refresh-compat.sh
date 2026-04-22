@@ -28,13 +28,16 @@ if [ "${#fmt_go_files[@]}" -gt 0 ]; then
 	gofmt -w "${fmt_go_files[@]}"
 fi
 
-# create placeholder files for minified JS files so go vet won't complain
+# create placeholder files for bun-minified assets (see scripts/minify/index.ts) so go vet won't complain
 while IFS= read -r file; do
+	bn=$(basename "$file")
+	[[ $bn == *".min."* ]] && continue
+	case "$file" in internal/go-proxmox/*) continue ;; esac
 	ext="${file##*.}"
 	base="${file%.*}"
-	min_file="${base}-min.${ext}"
+	min_file="${base}.min.${ext}"
 	[ -f "$min_file" ] || : >"$min_file"
-done < <(find internal/ -name '*.js' ! -name '*-min.js')
+done < <(find internal/ goutils/ \( -name '*.js' -o -name '*.html' \) 2>/dev/null)
 
 docker_version="$(
 	git show origin/compat:go.mod |
