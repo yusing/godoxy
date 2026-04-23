@@ -48,10 +48,20 @@ window.onload = async () => {
    * @param {string} type - Console line type (e.g. ready, error, or WakeEventType)
    * @param {string} message
    * @param {string} timestamp - ISO timestamp string
+   * @param {EventLevel} [level]
    */
-  function addConsoleLine(type, message, timestamp) {
+  function addConsoleLine(type, message, timestamp, level) {
+    const lvl =
+      level === "debug" ||
+      level === "info" ||
+      level === "warn" ||
+      level === "error"
+        ? level
+        : type === "error"
+          ? "error"
+          : "info";
     const line = document.createElement("div");
-    line.className = `console-line ${type}`;
+    line.className = `console-line ${type} level-${lvl}`;
 
     const timestampEl = document.createElement("span");
     timestampEl.className = "console-timestamp";
@@ -113,20 +123,25 @@ window.onload = async () => {
       ready = true;
       // Container is ready, hide loading dots and refresh
       loadingDotsEl.style.display = "none";
-      addConsoleLine(type, "Container is ready, refreshing...", timestamp);
+      addConsoleLine(
+        type,
+        "Container is ready, refreshing...",
+        timestamp,
+        evt.level,
+      );
       setTimeout(() => {
         window.location.reload();
       }, 200);
     } else if (type === "error" || evt.level === "error") {
       // Show error message and hide loading dots
       const errorMessage = payload.error || payload.message || "Unknown error";
-      addConsoleLine(type, errorMessage, timestamp);
+      addConsoleLine(type, errorMessage, timestamp, evt.level);
       loadingDotsEl.style.display = "none";
       eventSource.close();
     } else {
       // Show other message types
       const message = payload.message;
-      addConsoleLine(type, message, timestamp);
+      addConsoleLine(type, message, timestamp, evt.level);
     }
   };
 
