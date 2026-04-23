@@ -21,6 +21,7 @@ import (
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	idlewatcherTypes "github.com/yusing/godoxy/internal/idlewatcher/types"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 type debugMux struct {
@@ -133,6 +134,9 @@ func listenDebugServer() {
 	})
 
 	mux.HandleFunc("Auth block page", "GET", "/auth/block", AuthBlockPageHandler)
+	mux.HandleFunc("Origin unreachable page", "GET", "/reverseproxy/origin_unreachable", func(w http.ResponseWriter, r *http.Request) {
+		reverseproxy.WriteDebugOriginUnreachablePage(w)
+	})
 	mux.HandleFunc("Idlewatcher loading page", "GET", idlewatcherTypes.PathPrefix, idlewatcher.DebugHandler)
 	apiHandler := newAPIHandler(mux)
 	mux.mux.HandleFunc("/api/v1/", apiHandler.ServeHTTP)
