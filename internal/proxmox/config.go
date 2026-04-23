@@ -5,14 +5,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"math"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/net/gphttp"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -34,6 +33,9 @@ type Config struct {
 const (
 	ResourcePollInterval   = 3 * time.Second
 	SessionRefreshInterval = 1 * time.Minute
+
+	maxConcurrentResourceLookups = 8
+	proxmoxMaxConnsPerHost       = maxConcurrentResourceLookups
 )
 
 // NodeStatsPollInterval controls how often node stats are streamed when streaming is enabled.
@@ -47,14 +49,21 @@ func (c *Config) Client() *Client {
 }
 
 func (c *Config) Init(ctx context.Context) error {
-	var tr *http.Transport
+	dialer := net.Dialer{
+		Timeout: 10 * time.Second,
+	}
+	tr := http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		DialContext:         dialer.DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	tr.MaxConnsPerHost = proxmoxMaxConnsPerHost
 	if c.NoTLSVerify {
-		// user specified
-		tr = gphttp.NewTransportWithTLSConfig(&tls.Config{
+		tr.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec
-		})
-	} else {
-		tr = gphttp.NewTransport()
+
+		}
 	}
 
 	c.URL = strings.TrimSuffix(c.URL, "/")
@@ -64,7 +73,7 @@ func (c *Config) Init(ctx context.Context) error {
 
 	opts := []proxmox.Option{
 		proxmox.WithHTTPClient(&http.Client{
-			Transport: tr,
+			Transport: &tr,
 		}),
 	}
 	useCredentials := false
@@ -154,10 +163,13 @@ func (c *Config) refreshSessionLoop(ctx context.Context) {
 			err := c.client.RefreshSession(reqCtx)
 			reqCtxCancel()
 			if err != nil {
-				log.Error().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to refresh session")
+				log.Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to refresh session")
 				// exponential backoff
 				numRetries++
-				backoff := time.Duration(min(math.Pow(2, float64(numRetries)), 10)) * time.Second
+				backoff := 10 * time.Second
+				if numRetries <= 3 {
+					backoff = time.Duration(1<<numRetries) * time.Second
+				}
 				ticker.Reset(backoff)
 			} else {
 				numRetries = 0

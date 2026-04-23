@@ -173,6 +173,17 @@ func getIPFromNet(s string) (res []net.IP) { // name:...,bridge:...,gw=..,ip=...
 // it first tries to get the ip addresses from the interfaces
 // if that fails, it gets the ip addresses from the config (offline containers)
 func (n *Node) LXCGetIPs(ctx context.Context, vmid int) (res []net.IP, err error) {
+	return n.LXCGetIPsWithStatus(ctx, vmid, "")
+}
+
+// LXCGetIPsWithStatus returns the ip addresses of the container.
+// Stopped and suspended LXCs skip the interfaces endpoint and go directly to config data.
+func (n *Node) LXCGetIPsWithStatus(ctx context.Context, vmid int, status string) (res []net.IP, err error) {
+	switch LXCStatus(status) {
+	case LXCStatusStopped, LXCStatusSuspended:
+		return n.LXCGetIPsFromConfig(ctx, vmid)
+	}
+
 	ips, err := n.LXCGetIPsFromInterfaces(ctx, vmid)
 	if err != nil {
 		return nil, err

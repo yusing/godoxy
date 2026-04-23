@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/luthermonson/go-proxmox"
@@ -31,13 +33,16 @@ type Client struct {
 type VMResource struct {
 	*proxmox.ClusterResource
 
-	IPs []net.IP
+	IPs          []net.IP
+	IPsFetchedAt time.Time
 }
 
 var (
 	ErrResourceNotFound = errors.New("resource not found")
 	ErrNoResources      = errors.New("no resources")
 )
+
+const lxcIPRefreshInterval = 30 * time.Second
 
 func NewClient(baseURL string, opts ...proxmox.Option) *Client {
 	return &Client{
@@ -80,17 +85,32 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	c.resourcesMu.RLock()
+	oldResources := maps.Clone(c.resources)
+	c.resourcesMu.RUnlock()
+
+	now := time.Now()
 	vmResources := make([]*VMResource, len(resourcesSlice))
 	for i, resource := range resourcesSlice {
+		oldResource := oldResources[resource.ID]
+		var ips []net.IP
+		var fetchedAt time.Time
+		if oldResource != nil {
+			ips = slices.Clone(oldResource.IPs)
+			fetchedAt = oldResource.IPsFetchedAt
+		}
 		vmResources[i] = &VMResource{
 			ClusterResource: resource,
-			IPs:             nil,
+			IPs:             ips,
+			IPsFetchedAt:    fetchedAt,
 		}
 	}
 	var errs errgroup.Group
-	errs.SetLimit(runtime.GOMAXPROCS(0) * 2)
+	limit := min(runtime.GOMAXPROCS(0), maxConcurrentResourceLookups)
+	errs.SetLimit(limit)
 	for i, resource := range resourcesSlice {
 		vmResource := vmResources[i]
+		oldResource := oldResources[resource.ID]
 		errs.Go(func() error {
 			node, ok := Nodes.Get(resource.Node)
 			if !ok {
@@ -104,11 +124,19 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("invalid resource id %s: %w", resource.ID, err)
 			}
-			ips, err := node.LXCGetIPs(ctx, vmidInt)
+
+			if oldResource != nil &&
+				oldResource.Status == resource.Status &&
+				now.Sub(oldResource.IPsFetchedAt) < lxcIPRefreshInterval {
+				return nil
+			}
+
+			ips, err := node.LXCGetIPsWithStatus(ctx, vmidInt, resource.Status)
 			if err != nil {
 				return fmt.Errorf("failed to get ips for resource %s: %w", resource.ID, err)
 			}
 			vmResource.IPs = ips
+			vmResource.IPsFetchedAt = now
 			return nil
 		})
 	}
