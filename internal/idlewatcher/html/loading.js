@@ -51,15 +51,12 @@ window.onload = async () => {
    * @param {EventLevel} [level]
    */
   function addConsoleLine(type, message, timestamp, level) {
-    const lvl =
-      level === "debug" ||
-      level === "info" ||
-      level === "warn" ||
-      level === "error"
-        ? level
-        : type === "error"
-          ? "error"
-          : "info";
+    const validLevels = ["debug", "info", "warn", "error"];
+    const lvl = validLevels.includes(level)
+      ? level
+      : type === "error"
+        ? "error"
+        : "info";
     const line = document.createElement("div");
     line.className = `console-line ${type} level-${lvl}`;
 
@@ -140,7 +137,7 @@ window.onload = async () => {
       eventSource.close();
     } else {
       // Show other message types
-      const message = payload.message;
+      const message = payload.message || "";
       addConsoleLine(type, message, timestamp, evt.level);
     }
   };
