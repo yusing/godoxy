@@ -39,8 +39,5 @@ CLAUDE.md
 
 !.trunk/configs
 
-# minified files
-**/*.min.*
-
 # generated CLI commands
 cmd/cli/generated_commands.go
