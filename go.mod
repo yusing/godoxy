@@ -6,9 +6,11 @@ exclude (
 	github.com/moby/moby/api v1.53.0 // allow older daemon versions
 	github.com/moby/moby/api v1.54.0 // allow older daemon versions
 	github.com/moby/moby/api v1.54.1 // allow older daemon versions
+	github.com/moby/moby/api v1.54.2 // allow older daemon versions
 	github.com/moby/moby/client v0.2.2 // allow older daemon versions
 	github.com/moby/moby/client v0.3.0 // allow older daemon versions
 	github.com/moby/moby/client v0.4.0 // allow older daemon versions
+	github.com/moby/moby/client v0.4.1 // allow older daemon versions
 )
 
 replace (
@@ -53,8 +55,8 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
-	github.com/moby/moby/api v1.54.2 // docker API
-	github.com/moby/moby/client v0.4.1 // docker client
+	github.com/moby/moby/api v1.52.0 // docker API
+	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.3 // system information
@@ -62,13 +64,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.70.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260420080101-586152911fc6
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260420080101-586152911fc6
+	github.com/yusing/godoxy/agent v0.0.0-20260423092340-5699f004c807
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260423092340-5699f004c807
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260419063718-bdd71fab358c
-	github.com/yusing/goutils/http/websocket v0.0.0-20260419063718-bdd71fab358c
-	github.com/yusing/goutils/server v0.0.0-20260419063718-bdd71fab358c
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260423020826-a0d979d1386c
+	github.com/yusing/goutils/http/websocket v0.0.0-20260423020826-a0d979d1386c
+	github.com/yusing/goutils/server v0.0.0-20260423020826-a0d979d1386c
 )
 
 require (

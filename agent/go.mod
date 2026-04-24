@@ -6,9 +6,11 @@ exclude (
 	github.com/moby/moby/api v1.53.0 // allow older daemon versions
 	github.com/moby/moby/api v1.54.0 // allow older daemon versions
 	github.com/moby/moby/api v1.54.1 // allow older daemon versions
+	github.com/moby/moby/api v1.54.2 // allow older daemon versions
 	github.com/moby/moby/client v0.2.2 // allow older daemon versions
 	github.com/moby/moby/client v0.3.0 // allow older daemon versions
 	github.com/moby/moby/client v0.4.0 // allow older daemon versions
+	github.com/moby/moby/client v0.4.1 // allow older daemon versions
 )
 
 replace (
@@ -71,8 +73,8 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/moby/api v1.54.2 // indirect
-	github.com/moby/moby/client v0.4.1 // indirect
+	github.com/moby/moby/api v1.52.0 // indirect
+	github.com/moby/moby/client v0.2.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -95,8 +97,8 @@ require (
 	github.com/valyala/fasthttp v1.70.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
 	github.com/yusing/gointernals v0.2.0 // indirect
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260419063718-bdd71fab358c // indirect
-	github.com/yusing/goutils/http/websocket v0.0.0-20260419063718-bdd71fab358c // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260423020826-a0d979d1386c // indirect
+	github.com/yusing/goutils/http/websocket v0.0.0-20260423020826-a0d979d1386c // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
