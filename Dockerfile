@@ -34,6 +34,7 @@ FROM deps AS builder
 
 WORKDIR /src
 
+COPY scripts/minify ./scripts/minify
 COPY go.mod go.sum ./
 COPY Makefile ./
 COPY cmd ./cmd
