@@ -4,7 +4,7 @@ Discovers and loads routes from Docker containers, YAML files, and remote agents
 
 ## Overview
 
-The `internal/route/provider` package implements route discovery and loading for GoDoxy. It supports multiple provider types (Docker, File, Agent) and manages route lifecycle including validation, start/stop, and event handling.
+The `internal/route/provider` package implements route discovery and loading for GoDoxy. It supports multiple provider types (Docker, File, Agent, and built-in Static) and manages route lifecycle including validation, start/stop, and event handling.
 
 ### Primary Consumers
 
@@ -56,9 +56,16 @@ func NewDockerProvider(name string, dockerCfg types.DockerProviderConfig) *Provi
 
 // Create an agent-based provider
 func NewAgentProvider(cfg *agent.AgentConfig) *Provider
+
+// Create an in-memory static provider for built-in routes
+func NewStaticProvider(name string, routes route.Routes) *Provider
 ```
 
-### Provider Methods
+#### Static Provider
+
+`StaticProvider` is intentionally in-memory and has a no-op watcher. It is used for built-in routes such as the embedded WebUI assets, not for user-editable route files.
+
+## Provider Methods
 
 ```go
 func (p *Provider) GetType() provider.Type
@@ -119,6 +126,7 @@ classDiagram
     ProviderImpl <|-- DockerProviderImpl
     ProviderImpl <|-- FileProviderImpl
     ProviderImpl <|-- AgentProviderImpl
+    ProviderImpl <|-- StaticProvider
 ```
 
 ### Provider Types
