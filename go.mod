@@ -20,7 +20,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.18.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.9.0 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
-	github.com/go-acme/lego/v4 v4.35.1 // acme client
+	github.com/go-acme/lego/v4 v4.35.2 // acme client
 	github.com/go-playground/validator/v10 v10.30.2 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -51,13 +51,13 @@ require (
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.70.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260423092340-5699f004c807
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260423092340-5699f004c807
+	github.com/yusing/godoxy/agent v0.0.0-20260424073328-16e23c55ce30
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260424073328-16e23c55ce30
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260423020826-a0d979d1386c
-	github.com/yusing/goutils/http/websocket v0.0.0-20260423020826-a0d979d1386c
-	github.com/yusing/goutils/server v0.0.0-20260423020826-a0d979d1386c
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260424071437-586f5c382e67
+	github.com/yusing/goutils/http/websocket v0.0.0-20260424071437-586f5c382e67
+	github.com/yusing/goutils/server v0.0.0-20260424071437-586f5c382e67
 )
 
 require (

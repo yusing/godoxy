@@ -22,7 +22,7 @@ require (
 	github.com/pion/transport/v3 v3.1.1
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.11.1
-	github.com/yusing/godoxy v0.28.0
+	github.com/yusing/godoxy v0.28.1
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
 )
@@ -90,8 +90,8 @@ require (
 	github.com/valyala/fasthttp v1.70.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
 	github.com/yusing/gointernals v0.2.0 // indirect
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260423020826-a0d979d1386c // indirect
-	github.com/yusing/goutils/http/websocket v0.0.0-20260423020826-a0d979d1386c // indirect
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260424071437-586f5c382e67 // indirect
+	github.com/yusing/goutils/http/websocket v0.0.0-20260424071437-586f5c382e67 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
