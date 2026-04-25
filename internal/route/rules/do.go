@@ -37,6 +37,7 @@ const (
 
 	CommandRequireAuth      = "require_auth"
 	CommandRewrite          = "rewrite"
+	CommandHandle           = "handle"
 	CommandServe            = "serve"
 	CommandProxy            = "proxy"
 	CommandRedirect         = "redirect"
@@ -161,6 +162,40 @@ var commands = map[string]struct {
 				return nil
 			}
 		},
+	},
+	CommandHandle: {
+		help: Help{
+			command: CommandHandle,
+			description: makeLines(
+				"Serve the request with a registered in-process HTTP handler, e.g.:",
+				helpExample(CommandHandle, "api"),
+			),
+			args: map[string]string{
+				"name": "the registered handler name",
+			},
+		},
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
+			phase = PhasePre
+			if len(args) != 1 {
+				return phase, nil, ErrExpectOneArg
+			}
+			if args[0] == "" {
+				return phase, nil, ErrInvalidArguments.Withf("empty handler name")
+			}
+			return phase, args[0], nil
+		},
+		build: func(args any) HandlerFunc {
+			name := args.(string)
+			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+				handler, ok := GetHandler(name)
+				if !ok {
+					return fmt.Errorf("handler %q not found", name)
+				}
+				handler.ServeHTTP(w, r)
+				return errTerminateRule
+			}
+		},
+		terminate: true,
 	},
 	CommandServe: {
 		help: Help{
