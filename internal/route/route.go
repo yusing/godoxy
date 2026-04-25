@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"net"
 	"net/url"
@@ -81,7 +82,12 @@ type (
 
 		Provider string `json:"provider,omitempty" extensions:"x-nullable"` // for backward compatibility
 
-		// private fields
+		RootFS fs.FS `json:"-" deserialize:"-"`
+
+		// ForceConflictWin lets built-in routes intentionally replace user or
+		// provider-discovered routes that share the same key.
+		ForceConflictWin bool `json:"-" deserialize:"-"`
+
 		LisURL   *nettypes.URL `json:"lurl,omitempty" swaggertype:"string" extensions:"x-nullable"`
 		ProxyURL *nettypes.URL `json:"purl,omitempty" swaggertype:"string"`
 
@@ -367,21 +373,6 @@ func (r *Route) validate() error {
 }
 
 func (r *Route) validateRules() error {
-	// FIXME: hardcoded here as a workaround
-	// there's already a label "proxy.#1.rule_file=embed://webui.yml"
-	// but it's not working as expected sometimes.
-	// TODO: investigate why it's not working and fix it.
-	if cont := r.ContainerInfo(); cont != nil {
-		if cont.Image.Name == "godoxy-frontend" {
-			rules, ok := rulepresets.GetRulePreset("webui.yml")
-			if !ok {
-				return errors.New("rule preset `webui.yml` not found")
-			}
-			r.Rules = rules
-			return nil
-		}
-	}
-
 	if r.RuleFile != "" && len(r.Rules) > 0 {
 		return errors.New("`rule_file` and `rules` cannot be used together")
 	} else if r.RuleFile != "" {
@@ -522,7 +513,7 @@ func (r *Route) start(parent task.Parent) error {
 
 	// skip checking for excluded routes
 	excluded := r.ShouldExclude()
-	if !excluded {
+	if !excluded && !r.ForceConflictWin {
 		if err := checkExists(parent.Context(), r); err != nil {
 			return err
 		}
@@ -773,6 +764,13 @@ func (r *Route) PreferOver(other any) bool {
 		return true
 	}
 	if len(r.Rules) == 0 && len(or.Rules) > 0 {
+		return false
+	}
+
+	if r.ForceConflictWin && !or.ForceConflictWin {
+		return true
+	}
+	if !r.ForceConflictWin && or.ForceConflictWin {
 		return false
 	}
 

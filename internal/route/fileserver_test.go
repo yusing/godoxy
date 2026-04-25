@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	expect "github.com/yusing/goutils/testing"
 )
@@ -117,6 +118,48 @@ func TestPathTraversalAttack(t *testing.T) {
 				t.Errorf("Error making request to %s: %v", u.String(), err)
 			}
 			defer resp.Body.Close()
+		})
+	}
+}
+
+func TestEmbeddedFileServerUsesNginxTryFilesOrder(t *testing.T) {
+	fsys := fstest.MapFS{
+		"_shell.html":     {Data: []byte("shell")},
+		"assets/app.js":   {Data: []byte("app")},
+		"docs/index.html": {Data: []byte("docs-index")},
+		"playground.html": {Data: []byte("playground-html")},
+		"favicon.ico":     {Data: []byte("icon")},
+	}
+
+	fileServer, err := NewFileServer(&Route{
+		Root:     "embed://webui",
+		Metadata: Metadata{RootFS: fsys},
+		SPA:      true,
+		Index:    "_shell.html",
+	})
+	expect.NoError(t, err)
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "exact file", path: "/assets/app.js", want: "app"},
+		{name: "directory index", path: "/docs", want: "docs-index"},
+		{name: "html extension", path: "/playground", want: "playground-html"},
+		{name: "spa fallback", path: "/routes/missing", want: "shell"},
+		{name: "root fallback", path: "/", want: "shell"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+
+			fileServer.handler.ServeHTTP(rec, req)
+
+			expect.Equal(t, http.StatusOK, rec.Code)
+			expect.Equal(t, tt.want, rec.Body.String())
 		})
 	}
 }
