@@ -211,6 +211,7 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 | `error <code> <message>`       | Return HTTP error                     |
 | `redirect <url>`               | Redirect to URL                       |
 | `serve <path>`                 | Serve local files                     |
+| `handle <name>`                | Dispatch to registered in-process handler |
 | `route <name>`                 | Route to another route                |
 | `proxy <url>`                  | Proxy to upstream                     |
 | `require_basic_auth <realm>`   | Return 401 challenge                  |
