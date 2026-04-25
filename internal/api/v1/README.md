@@ -95,7 +95,7 @@ API listening address is configured with `GODOXY_API_ADDR` environment variable.
 | ------------------------------ | --------------------------- |
 | `github.com/gin-gonic/gin`     | HTTP routing and middleware |
 | `github.com/gorilla/websocket` | WebSocket support           |
-| `github.com/moby/moby/client`  | Docker API client           |
+| `github.com/docker/docker/client`  | Docker API client           |
 
 ## Observability
 

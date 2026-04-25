@@ -4,14 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type StopRequest struct {
 	ID string `json:"id" binding:"required"`
-	client.ContainerStopOptions
+	ContainerRestartOptions
 }
 
 // @x-id				"stop"
@@ -48,7 +47,7 @@ func Stop(c *gin.Context) {
 
 	defer client.Close()
 
-	_, err = client.ContainerStop(c.Request.Context(), req.ID, req.ContainerStopOptions)
+	err = client.ContainerStop(c.Request.Context(), req.ID, req.ContainerRestartOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to stop container"))
 		return

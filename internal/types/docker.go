@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/bytedance/sonic"
-	"github.com/moby/moby/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/internal/agentpool"
 	gperr "github.com/yusing/goutils/errs"
@@ -11,7 +11,7 @@ import (
 type (
 	LabelMap = map[string]any
 
-	PortMapping = map[int]container.PortSummary
+	PortMapping = map[int]container.Port
 	Container   struct {
 		DockerCfg     DockerProviderConfig `json:"docker_cfg"`
 		Image         *ContainerImage      `json:"image"`

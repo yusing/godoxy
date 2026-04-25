@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
+	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
@@ -46,7 +45,7 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 	defer cancel()
 
 	// the actual inspect response is intercepted and returned as RequestInterceptedError
-	_, err := state.client.ContainerInspect(ctx, state.containerID, client.ContainerInspectOptions{})
+	_, err := state.client.ContainerInspect(ctx, state.containerID)
 
 	var interceptedErr *httputils.RequestInterceptedError
 	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {

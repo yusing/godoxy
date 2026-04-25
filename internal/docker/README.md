@@ -296,7 +296,7 @@ Those are created by Docker Compose.
 ### External dependencies
 
 - `github.com/docker/cli/cli/connhelper` - Connection helpers
-- `github.com/moby/moby/client` - Docker API client
+- `github.com/docker/docker/client` - Docker API client
 - `github.com/docker/go-connections/nat` - Port parsing
 
 ### Integration points

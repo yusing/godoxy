@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"maps"
 
-	dockerEvents "github.com/moby/moby/api/types/events"
+	dockerEvents "github.com/docker/docker/api/types/events"
 )
 
 type (

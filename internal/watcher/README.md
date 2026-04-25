@@ -198,7 +198,7 @@ Docker watcher is configured via `types.DockerProviderConfig`:
 
 | Dependency                       | Purpose                     |
 | -------------------------------- | --------------------------- |
-| `github.com/moby/moby`           | Docker API types and client |
+| `github.com/docker/docker`           | Docker API types and client |
 | `github.com/rs/zerolog`          | Structured logging          |
 | `github.com/yusing/goutils/errs` | Error handling              |
 

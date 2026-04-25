@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/types"
@@ -19,9 +17,6 @@ import (
 	"github.com/yusing/goutils/task"
 )
 
-type ContainerStatsResponse container.StatsResponse // @name ContainerStatsResponse
-
-// @x-id				"stats"
 // @BasePath		/api/v1
 // @Summary		Get container stats
 // @Description	Get container stats by container id
@@ -68,7 +63,7 @@ func Stats(c *gin.Context) {
 	defer dockerClient.Close()
 
 	if httpheaders.IsWebsocket(c.Request.Header) {
-		stats, err := dockerClient.ContainerStats(c.Request.Context(), id, client.ContainerStatsOptions{Stream: true})
+		stats, err := dockerClient.ContainerStats(c.Request.Context(), id, true)
 		if err != nil {
 			c.Error(apitypes.InternalServerError(err, "failed to get container stats"))
 			return
@@ -102,7 +97,7 @@ func Stats(c *gin.Context) {
 		}
 	}
 
-	stats, err := dockerClient.ContainerStats(c.Request.Context(), id, client.ContainerStatsOptions{Stream: false})
+	stats, err := dockerClient.ContainerStats(c.Request.Context(), id, false)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get container stats"))
 		return

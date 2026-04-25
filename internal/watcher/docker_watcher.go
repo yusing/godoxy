@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	dockerEvents "github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/client"
+	dockerEvents "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
@@ -18,29 +19,22 @@ type (
 	DockerWatcher struct {
 		cfg types.DockerProviderConfig
 	}
-	DockerListOptions = client.EventsListOptions
-	DockerFilters     = client.Filters
+	DockerListOptions = dockerEvents.ListOptions
+
+	dockerStreamResult struct {
+		message    dockerEvents.Message
+		hasMessage bool
+		err        error
+		done       bool
+	}
 )
 
-type DockerFilter struct {
-	Term   string
-	Values []string
-}
+type DockerFilter = filters.KeyValuePair
 
-func NewDockerFilter(term string, values ...string) DockerFilter {
-	return DockerFilter{
-		Term:   term,
-		Values: values,
-	}
-}
-
-func NewDockerFilters(filters ...DockerFilter) client.Filters {
-	f := make(client.Filters, len(filters))
-	for _, filter := range filters {
-		f.Add(filter.Term, filter.Values...)
-	}
-	return f
-}
+var (
+	NewDockerFilter  = filters.Arg
+	NewDockerFilters = filters.NewArgs
+)
 
 // https://docs.docker.com/reference/api/engine/version/v1.47/#tag/System/operation/SystemPingHead
 var (
@@ -62,6 +56,7 @@ var (
 	)}
 
 	dockerWatcherRetryInterval = 3 * time.Second
+	ErrDockerEventStreamClosed = errors.New("docker watcher: event stream closed")
 
 	reloadTrigger = Event{
 		Type:            watcherEvents.EventTypeDocker,
@@ -106,51 +101,77 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 			client.Close()
 		}()
 
-		chs := client.Events(ctx, options)
+		msgCh, dErrCh := client.Events(ctx, options)
 		defer log.Debug().Str("host", client.DaemonHost()).Msg("docker watcher closed")
 		for {
-			select {
-			case <-ctx.Done():
+			result := receiveDockerStreamResult(ctx, msgCh, dErrCh)
+			if result.done {
 				return
-			case msg := <-chs.Messages:
-				w.handleEvent(msg, eventCh)
-			case err := <-chs.Err:
-				if err == nil {
-					continue
-				}
-				errCh <- w.parseError(err)
-				// release the error because reopening event channel may block
-				//nolint:ineffassign,wastedassign
-				err = nil
-				// trigger reload (clear routes)
-				eventCh <- reloadTrigger
+			}
+			if result.hasMessage {
+				w.handleEvent(result.message, eventCh)
+				continue
+			}
 
-				retry := time.NewTicker(dockerWatcherRetryInterval)
-			outer:
-				for {
-					select {
-					case <-ctx.Done():
-						retry.Stop()
-						return
-					case <-retry.C:
-						if checkConnection(ctx, client) {
-							break outer
-						}
+			if result.err == nil {
+				continue
+			}
+
+			errCh <- w.parseError(result.err)
+			// trigger reload (clear routes)
+			eventCh <- reloadTrigger
+
+			retry := time.NewTicker(dockerWatcherRetryInterval)
+		outer:
+			for {
+				select {
+				case <-ctx.Done():
+					retry.Stop()
+					return
+				case <-retry.C:
+					if checkConnection(ctx, client) {
+						break outer
 					}
 				}
-				retry.Stop()
-				// connection successful, trigger reload (reload routes)
-				eventCh <- reloadTrigger
-				// reopen event channel
-				chs = client.Events(ctx, options)
 			}
+			retry.Stop()
+			// connection successful, trigger reload (reload routes)
+			eventCh <- reloadTrigger
+			// reopen event channel
+			msgCh, dErrCh = client.Events(ctx, options)
 		}
 	}()
 
 	return eventCh, errCh
 }
 
+func receiveDockerStreamResult(ctx context.Context, msgCh <-chan dockerEvents.Message, streamErrCh <-chan error) dockerStreamResult {
+	select {
+	case <-ctx.Done():
+		return dockerStreamResult{done: true}
+	case msg, ok := <-msgCh:
+		if !ok {
+			return dockerStreamResult{err: ErrDockerEventStreamClosed}
+		}
+		return dockerStreamResult{
+			message:    msg,
+			hasMessage: true,
+		}
+	case err, ok := <-streamErrCh:
+		if !ok {
+			return dockerStreamResult{err: ErrDockerEventStreamClosed}
+		}
+		return dockerStreamResult{err: err}
+	}
+}
+
 func (w DockerWatcher) parseError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, ErrDockerEventStreamClosed) {
+		return err
+	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return errors.New("docker client connection timeout")
 	}

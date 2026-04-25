@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
@@ -43,22 +42,22 @@ func GetContainer(c *gin.Context) {
 
 	defer dockerClient.Close()
 
-	cont, err := dockerClient.ContainerInspect(c.Request.Context(), id, client.ContainerInspectOptions{})
+	cont, err := dockerClient.ContainerInspect(c.Request.Context(), id)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to inspect container"))
 		return
 	}
 
 	var state ContainerState
-	if cont.Container.State != nil {
-		state = cont.Container.State.Status
+	if cont.State != nil {
+		state = cont.State.Status
 	}
 
 	c.JSON(http.StatusOK, &Container{
 		Server: dockerCfg.URL,
-		Name:   cont.Container.Name,
-		ID:     cont.Container.ID,
-		Image:  cont.Container.Image,
+		Name:   cont.Name,
+		ID:     cont.ID,
+		Image:  cont.Image,
 		State:  state,
 	})
 }

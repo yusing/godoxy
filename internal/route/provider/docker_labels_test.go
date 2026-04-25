@@ -3,8 +3,8 @@ package provider
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/goccy/go-yaml"
-	"github.com/moby/moby/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"

@@ -4,9 +4,8 @@ import (
 	"context"
 	"sort"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 
@@ -41,12 +40,12 @@ func GetContainers(ctx context.Context, dockerClients DockerClients) ([]Containe
 	errs := gperr.NewBuilder("failed to get containers")
 	containers := make([]Container, 0)
 	for name, dockerClient := range dockerClients {
-		conts, err := dockerClient.ContainerList(ctx, client.ContainerListOptions{All: true})
+		conts, err := dockerClient.ContainerList(ctx, ContainerListOptions{All: true})
 		if err != nil {
 			errs.AddSubject(err, name)
 			continue
 		}
-		for _, cont := range conts.Items {
+		for _, cont := range conts {
 			containers = append(containers, Container{
 				Server: name,
 				Name:   cont.Names[0],

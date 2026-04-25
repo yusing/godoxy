@@ -4,14 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
 type RestartRequest struct {
 	ID string `json:"id" binding:"required"`
-	client.ContainerRestartOptions
+	ContainerRestartOptions
 }
 
 // @x-id				"restart"
@@ -48,7 +47,7 @@ func Restart(c *gin.Context) {
 
 	defer client.Close()
 
-	_, err = client.ContainerRestart(c.Request.Context(), req.ID, req.ContainerRestartOptions)
+	err = client.ContainerRestart(c.Request.Context(), req.ID, req.ContainerRestartOptions)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to restart container"))
 		return

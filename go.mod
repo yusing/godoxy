@@ -2,17 +2,6 @@ module github.com/yusing/godoxy
 
 go 1.26.2
 
-exclude (
-	github.com/moby/moby/api v1.53.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.1 // allow older daemon versions
-	github.com/moby/moby/api v1.54.2 // allow older daemon versions
-	github.com/moby/moby/client v0.2.2 // allow older daemon versions
-	github.com/moby/moby/client v0.3.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.1 // allow older daemon versions
-)
-
 replace (
 	github.com/coreos/go-oidc/v3 => ./internal/go-oidc
 	github.com/luthermonson/go-proxmox => ./internal/go-proxmox
@@ -55,8 +44,6 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
-	github.com/moby/moby/api v1.52.0 // docker API
-	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.3 // system information
@@ -157,7 +144,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+require github.com/docker/docker v28.5.2+incompatible
+
 require (
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/akamai/AkamaiOPEN-edgegrid-golang/v13 v13.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
@@ -190,6 +180,7 @@ require (
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/linode/linodego v1.68.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
+	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.113.0 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.113.0 // indirect
@@ -198,6 +189,7 @@ require (
 	github.com/pion/dtls/v3 v3.1.2 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
@@ -209,5 +201,7 @@ require (
 	github.com/vultr/govultr/v3 v3.31.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	golang.org/x/arch v0.26.0 // indirect
 )
