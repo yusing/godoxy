@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/luthermonson/go-proxmox"
 	"golang.org/x/sync/errgroup"
 )
@@ -231,7 +231,7 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return json.Marshal(map[string]any{
 		"version": c.Version,
 		"cluster": map[string]any{
 			"name":    c.Cluster.Name,

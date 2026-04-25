@@ -2,17 +2,6 @@ module github.com/yusing/godoxy
 
 go 1.26.2
 
-exclude (
-	github.com/moby/moby/api v1.53.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.1 // allow older daemon versions
-	github.com/moby/moby/api v1.54.2 // allow older daemon versions
-	github.com/moby/moby/client v0.2.2 // allow older daemon versions
-	github.com/moby/moby/client v0.3.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.1 // allow older daemon versions
-)
-
 replace (
 	github.com/coreos/go-oidc/v3 => ./internal/go-oidc
 	github.com/luthermonson/go-proxmox => ./internal/go-proxmox
@@ -50,13 +39,10 @@ require (
 
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
-	github.com/bytedance/sonic v1.15.0 // fast json parsing
-	github.com/docker/cli v29.4.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/bytedance/sonic v1.15.0 // indirect; fast json parsing
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
-	github.com/moby/moby/api v1.52.0 // docker API
-	github.com/moby/moby/client v0.2.1 // docker client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.3 // system information
@@ -92,8 +78,6 @@ require (
 	github.com/diskfs/go-diskfs v1.9.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
-	github.com/docker/go-connections v0.7.0
-	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
@@ -118,7 +102,6 @@ require (
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/nrdcg/goacmedns v0.2.0 // indirect
@@ -168,6 +151,9 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
+	github.com/docker/cli v29.4.1+incompatible
+	github.com/docker/go-connections v0.7.0
+	github.com/docker/go-units v0.5.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -190,6 +176,9 @@ require (
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/linode/linodego v1.68.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
+	github.com/moby/docker-image-spec v1.3.1
+	github.com/moby/moby/api v1.52.0
+	github.com/moby/moby/client v0.2.1
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.113.0 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.113.0 // indirect
@@ -210,4 +199,18 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.1 // indirect
 	golang.org/x/arch v0.26.0 // indirect
+)
+
+exclude (
+	github.com/moby/moby/api v1.53.0
+	github.com/moby/moby/api v1.54.0
+	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/api v1.54.2
+)
+
+exclude (
+	github.com/moby/moby/client v0.2.2
+	github.com/moby/moby/client v0.3.0
+	github.com/moby/moby/client v0.4.0
+	github.com/moby/moby/client v0.4.1
 )

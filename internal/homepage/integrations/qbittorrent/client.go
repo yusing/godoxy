@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/yusing/godoxy/internal/homepage/widgets"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -71,7 +71,7 @@ func jsonRequest[T any](ctx context.Context, client *Client, endpoint string, qu
 	}
 	defer resp.Body.Close()
 
-	err = sonic.ConfigDefault.NewDecoder(resp.Body).Decode(&result)
+	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return result, err
 	}

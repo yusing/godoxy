@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	gevents "github.com/yusing/goutils/events"
 )
 
@@ -26,7 +26,7 @@ const (
 )
 
 func writeSSE(w io.Writer, v any) error {
-	data, err := sonic.Marshal(v)
+	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -59,7 +59,7 @@ func (s Scheme) MarshalJSON() ([]byte, error) {
 
 func (s *Scheme) UnmarshalJSON(data []byte) error {
 	var v string
-	if err := sonic.Unmarshal(data, &v); err != nil {
+	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
 	return s.Parse(v)

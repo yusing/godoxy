@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/yusing/godoxy/agent/pkg/agent"
@@ -51,7 +51,7 @@ func NewAgentHandler() http.Handler {
 			Runtime: env.Runtime,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		sonic.ConfigDefault.NewEncoder(w).Encode(agentInfo)
+		json.NewEncoder(w).Encode(agentInfo)
 	})
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
 	mux.HandleEndpoint("GET", agent.EndpointSystemInfo, metricsHandler.ServeHTTP)

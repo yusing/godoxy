@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/bytedance/sonic"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
@@ -62,7 +61,7 @@ func loadNS[T store](ns namespace) T {
 		}
 	} else {
 		defer file.Close()
-		if err := sonic.ConfigDefault.NewDecoder(file).Decode(&store); err != nil {
+		if err := json.NewDecoder(file).Decode(&store); err != nil {
 			log.Err(err).
 				Str("path", path).
 				Msg("failed to load store")
@@ -79,7 +78,7 @@ func save() error {
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores {
 		path := filepath.Join(storesPath, string(ns)+".json")
-		if err := serialization.SaveFile(path, &store, 0o644, sonic.Marshal); err != nil {
+		if err := serialization.SaveFile(path, &store, 0o644, json.Marshal); err != nil {
 			errs.Add(err)
 		}
 	}
@@ -109,12 +108,12 @@ func (s *MapStore[VT]) Initialize() {
 }
 
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(xsync.ToPlainMap(s.Map))
+	return json.Marshal(xsync.ToPlainMap(s.Map))
 }
 
 func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 	tmp := make(map[string]VT)
-	if err := sonic.Unmarshal(data, &tmp); err != nil {
+	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
 	s.Map = xsync.NewMap[string, VT](xsync.WithPresize(len(tmp)))
@@ -130,10 +129,10 @@ func (obj *ObjectStore[Ptr]) Initialize() {
 }
 
 func (obj ObjectStore[Ptr]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(obj.ptr)
+	return json.Marshal(obj.ptr)
 }
 
 func (obj *ObjectStore[Ptr]) UnmarshalJSON(data []byte) error {
 	obj.Initialize()
-	return sonic.Unmarshal(data, obj.ptr)
+	return json.Unmarshal(data, obj.ptr)
 }

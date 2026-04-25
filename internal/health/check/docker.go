@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/yusing/godoxy/internal/docker"
@@ -108,7 +108,7 @@ func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err 
 	}
 
 	var state container.State
-	err = sonic.Unmarshal(body, &state)
+	err = json.Unmarshal(body, &state)
 	release(body)
 	if err != nil {
 		return false, err

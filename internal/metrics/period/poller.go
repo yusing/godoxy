@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/synk"
@@ -97,7 +96,7 @@ func (p *Poller[T, AggregateT]) save() error {
 	}
 	defer f.Close()
 
-	err = sonic.ConfigDefault.NewEncoder(f).Encode(p.period)
+	err = json.NewEncoder(f).Encode(p.period)
 	if err != nil {
 		return err
 	}

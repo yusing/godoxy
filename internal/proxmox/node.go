@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
 )
@@ -82,7 +82,7 @@ func (n *Node) String() string {
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return json.Marshal(map[string]any{
 		"name": n.name,
 		"id":   n.id,
 	})

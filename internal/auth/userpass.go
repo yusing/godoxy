@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/godoxy/internal/common"
 	httputils "github.com/yusing/goutils/http"
@@ -107,7 +107,7 @@ type UserPassAuthCallbackRequest struct {
 
 func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var creds UserPassAuthCallbackRequest
-	err := sonic.ConfigDefault.NewDecoder(r.Body).Decode(&creds)
+	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return

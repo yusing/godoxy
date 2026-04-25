@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/bytedance/sonic"
+	"encoding/json"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
@@ -25,7 +25,7 @@ func init() {
 		return
 	}
 	tmp := map[string]string{}
-	err := sonic.Unmarshal(testHeadersRaw, &tmp)
+	err := json.Unmarshal(testHeadersRaw, &tmp)
 	if err != nil {
 		panic(err)
 	}

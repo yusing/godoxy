@@ -2,17 +2,6 @@ module github.com/yusing/godoxy/agent
 
 go 1.26.2
 
-exclude (
-	github.com/moby/moby/api v1.53.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.0 // allow older daemon versions
-	github.com/moby/moby/api v1.54.1 // allow older daemon versions
-	github.com/moby/moby/api v1.54.2 // allow older daemon versions
-	github.com/moby/moby/client v0.2.2 // allow older daemon versions
-	github.com/moby/moby/client v0.3.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.0 // allow older daemon versions
-	github.com/moby/moby/client v0.4.1 // allow older daemon versions
-)
-
 replace (
 	github.com/shirou/gopsutil/v4 => ../internal/gopsutil
 	github.com/yusing/godoxy => ../
@@ -26,7 +15,6 @@ replace (
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
 require (
-	github.com/bytedance/sonic v1.15.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/dtls/v3 v3.1.2
@@ -42,6 +30,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
+	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
@@ -49,9 +38,9 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v29.4.1+incompatible // indirect
-	github.com/docker/go-connections v0.7.0 // indirect
-	github.com/docker/go-units v0.5.0 // indirect
+	github.com/docker/cli v29.4.1+incompatible
+	github.com/docker/go-connections v0.7.0
+	github.com/docker/go-units v0.5.0
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
@@ -72,9 +61,9 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
-	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/moby/api v1.52.0 // indirect
-	github.com/moby/moby/client v0.2.1 // indirect
+	github.com/moby/docker-image-spec v1.3.1
+	github.com/moby/moby/api v1.52.0
+	github.com/moby/moby/client v0.2.1
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -113,4 +102,18 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+exclude (
+	github.com/moby/moby/api v1.53.0
+	github.com/moby/moby/api v1.54.0
+	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/api v1.54.2
+)
+
+exclude (
+	github.com/moby/moby/client v0.2.2
+	github.com/moby/moby/client v0.3.0
+	github.com/moby/moby/client v0.4.0
+	github.com/moby/moby/client v0.4.1
 )
