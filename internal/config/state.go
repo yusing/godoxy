@@ -29,15 +29,19 @@ import (
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	entrypointctx "github.com/yusing/godoxy/internal/entrypoint/types"
-	homepage "github.com/yusing/godoxy/internal/homepage/types"
+	"github.com/yusing/godoxy/internal/homepage"
+	homepagetypes "github.com/yusing/godoxy/internal/homepage/types"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/notif"
-	route "github.com/yusing/godoxy/internal/route/provider"
+	routeimpl "github.com/yusing/godoxy/internal/route"
+	provider "github.com/yusing/godoxy/internal/route/provider"
+	routetypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/webui"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
@@ -92,7 +96,7 @@ func SetState(state config.State) {
 
 	cfg := state.Value()
 	config.ActiveState.Store(state)
-	homepage.ActiveConfig.Store(&cfg.Homepage)
+	homepagetypes.ActiveConfig.Store(&cfg.Homepage)
 }
 
 func HasState() bool {
@@ -448,11 +452,11 @@ func (state *state) loadRouteProviders() error {
 	}
 
 	for _, a := range providers.Agents {
-		registerProvider(route.NewAgentProvider(a))
+		registerProvider(provider.NewAgentProvider(a))
 	}
 
 	for _, filename := range providers.Files {
-		p, err := route.NewFileProvider(filename)
+		p, err := provider.NewFileProvider(filename)
 		if err != nil {
 			errs.Add(gperr.PrependSubject(err, filename))
 			return err
@@ -461,7 +465,7 @@ func (state *state) loadRouteProviders() error {
 	}
 
 	for name, dockerCfg := range providers.Docker {
-		registerProvider(route.NewDockerProvider(name, dockerCfg))
+		registerProvider(provider.NewDockerProvider(name, dockerCfg))
 	}
 
 	lenLongestName := 0
@@ -491,10 +495,75 @@ func (state *state) loadRouteProviders() error {
 		errs.Add(err)
 	}
 
+	errs.Add(state.initWebUIRoute())
+
 	state.tmpLog.Info().Msg(results.String())
 	state.printRoutesByProvider(lenLongestName)
 	state.printState()
 	return errs.Wait().Error()
+}
+
+func (state *state) initWebUIRoute() error {
+	aliases := state.WebUI.Aliases
+	if len(aliases) == 0 {
+		aliases = common.FrontendAliasesLegacy
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+
+	routes := make(routeimpl.Routes, len(aliases))
+	for _, alias := range aliases {
+		alias = strings.ToLower(strings.TrimSpace(alias))
+		if alias == "" {
+			continue
+		}
+		for providerName, p := range state.providers.Range {
+			if providerName == "webui" {
+				continue
+			}
+			if existing, ok := p.GetRoute(alias); ok {
+				state.tmpLog.Warn().
+					Str("alias", alias).
+					Str("existing_provider", existing.ProviderName()).
+					Msg("webui route conflicts with existing route; embedded webui route will be used")
+			}
+		}
+		routes[alias] = &routeimpl.Route{
+			Scheme:      routetypes.SchemeFileServer,
+			Root:        "dist/client",
+			SPA:         true,
+			Index:       "_shell.html",
+			RuleFile:    "embed://webui.yml",
+			HealthCheck: types.HealthCheckConfig{Disable: true},
+			Homepage: &homepage.ItemConfig{
+				Show: false,
+			},
+			Metadata: routeimpl.Metadata{
+				RootFS:           webui.Dist(),
+				ForceConflictWin: true,
+			},
+			InboundMTLSProfile: state.WebUI.InboundMTLSProfile,
+			Middlewares:        state.WebUI.Middlewares,
+			AccessLog:          state.WebUI.AccessLog,
+		}
+	}
+
+	if len(routes) == 0 {
+		return nil
+	}
+
+	webuiProvider := provider.NewStaticProvider("webui", routes)
+	if err := webuiProvider.LoadRoutes(); err != nil {
+		return err
+	}
+	if actual, loaded := state.providers.LoadAndStore(webuiProvider.String(), webuiProvider); loaded {
+		state.tmpLog.Warn().
+			Str("provider", webuiProvider.String()).
+			Str("existing_type", string(actual.GetType())).
+			Msg("webui provider key already exists; replacing it with embedded webui route")
+	}
+	return nil
 }
 
 func (state *state) printRoutesByProvider(lenLongestName int) {
