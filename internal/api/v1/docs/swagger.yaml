@@ -183,81 +183,39 @@ definitions:
   ContainerStatsResponse:
     properties:
       blkio_stats:
-        allOf:
-        - $ref: '#/definitions/container.BlkioStats'
-        description: |-
-          BlkioStats stores all IO service stats for data read and write.
-
-          This type is Linux-specific and holds many fields that are specific
-          to cgroups v1.
-
-          On a cgroup v2 host, all fields other than "io_service_bytes_recursive"
-          are omitted or "null".
-
-          This type is only populated on Linux and omitted for Windows containers.
+        $ref: '#/definitions/container.BlkioStats'
       cpu_stats:
         allOf:
         - $ref: '#/definitions/container.CPUStats'
-        description: CPUStats contains CPU related info of the container.
+        description: Shared stats
       id:
-        description: ID is the ID of the container for which the stats were collected.
         type: string
       memory_stats:
-        allOf:
-        - $ref: '#/definitions/container.MemoryStats'
-        description: |-
-          MemoryStats aggregates all memory stats since container inception on Linux.
-          Windows returns stats for commit and private working set only.
+        $ref: '#/definitions/container.MemoryStats'
       name:
-        description: Name is the name of the container for which the stats were collected.
         type: string
       networks:
         additionalProperties:
           $ref: '#/definitions/container.NetworkStats'
-        description: |-
-          Networks contains Nntwork statistics for the container per interface.
-
-          This field is omitted if the container has no networking enabled.
         type: object
       num_procs:
-        description: |-
-          NumProcs is the number of processors on the system.
-
-          This field is Windows-specific and always zero for Linux containers.
+        description: Windows specific stats, not populated on Linux.
         type: integer
-      os_type:
-        description: |-
-          OSType is the OS of the container ("linux" or "windows") to allow
-          platform-specific handling of stats.
-        type: string
       pids_stats:
         allOf:
         - $ref: '#/definitions/container.PidsStats'
-        description: |-
-          PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).
-
-          This field is Linux-specific and omitted for Windows containers.
+        description: Linux specific stats, not populated on Windows.
       precpu_stats:
         allOf:
         - $ref: '#/definitions/container.CPUStats'
-        description: PreCPUStats contains the CPUStats of the previous sample.
+        description: '"Pre"="Previous"'
       preread:
-        description: |-
-          PreRead is the date and time at which this first sample was collected.
-          This field is not propagated if the "one-shot" option is set. If the
-          "one-shot" option is set, this field may be omitted, empty, or set
-          to a default date (`0001-01-01T00:00:00Z`).
         type: string
       read:
-        description: Read is the date and time at which this sample was collected.
+        description: Common stats
         type: string
       storage_stats:
-        allOf:
-        - $ref: '#/definitions/container.StorageStats'
-        description: |-
-          StorageStats is the disk I/O stats for read/write on Windows.
-
-          This type is Windows-specific and omitted for Linux containers.
+        $ref: '#/definitions/container.StorageStats'
     type: object
   ContainerStopMethod:
     enum:
@@ -1613,12 +1571,11 @@ definitions:
           A "Limit" of 0 means that there is no limit.
         type: integer
     type: object
-  container.PortSummary:
+  container.Port:
     properties:
       IP:
-        allOf:
-        - $ref: '#/definitions/netip.Addr'
         description: Host IP address that the container's port is mapped to
+        type: string
       PrivatePort:
         description: |-
           Port on the container
@@ -1631,7 +1588,6 @@ definitions:
         description: |-
           type
           Required: true
-          Enum: ["tcp","udp","sctp"]
         type: string
     type: object
   container.StorageStats:
@@ -1716,7 +1672,7 @@ definitions:
         description: |-
           Signal (optional) is the signal to send to the container to (gracefully)
           stop it before forcibly terminating the container with SIGKILL after the
-          timeout expires. If no value is set, the default (SIGTERM) is used.
+          timeout expires. If not value is set, the default (SIGTERM) is used.
         type: string
       timeout:
         description: |-
@@ -1751,7 +1707,7 @@ definitions:
         description: |-
           Signal (optional) is the signal to send to the container to (gracefully)
           stop it before forcibly terminating the container with SIGKILL after the
-          timeout expires. If no value is set, the default (SIGTERM) is used.
+          timeout expires. If not value is set, the default (SIGTERM) is used.
         type: string
       timeout:
         description: |-
@@ -1830,8 +1786,6 @@ definitions:
         description: godoxy
         type: number
     type: object
-  netip.Addr:
-    type: object
   proxmox.NodeStats:
     properties:
       cpu_model:
@@ -1840,11 +1794,11 @@ definitions:
         type: string
       kernel_version:
         type: string
-      load_avg_5m:
-        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
+        type: string
+      load_avg_5m:
         type: string
       mem_pct:
         type: string
@@ -1916,7 +1870,7 @@ definitions:
     type: object
   types.PortMapping:
     additionalProperties:
-      $ref: '#/definitions/container.PortSummary'
+      $ref: '#/definitions/container.Port'
     type: object
   widgets.Config:
     properties:
@@ -2443,7 +2397,6 @@ paths:
       tags:
       - docker
       - websocket
-      x-id: stats
   /docker/stop:
     post:
       description: Stop container by container id

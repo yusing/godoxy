@@ -781,9 +781,7 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           }
-        },
-        "x-id": "stats",
-        "operationId": "stats"
+        }
       }
     },
     "/docker/stop": {
@@ -3652,17 +3650,12 @@
       "type": "object",
       "properties": {
         "blkio_stats": {
-          "description": "BlkioStats stores all IO service stats for data read and write.\n\nThis type is Linux-specific and holds many fields that are specific\nto cgroups v1.\n\nOn a cgroup v2 host, all fields other than \"io_service_bytes_recursive\"\nare omitted or \"null\".\n\nThis type is only populated on Linux and omitted for Windows containers.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/container.BlkioStats"
-            }
-          ],
+          "$ref": "#/definitions/container.BlkioStats",
           "x-nullable": false,
           "x-omitempty": false
         },
         "cpu_stats": {
-          "description": "CPUStats contains CPU related info of the container.",
+          "description": "Shared stats",
           "allOf": [
             {
               "$ref": "#/definitions/container.CPUStats"
@@ -3672,29 +3665,21 @@
           "x-omitempty": false
         },
         "id": {
-          "description": "ID is the ID of the container for which the stats were collected.",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
         "memory_stats": {
-          "description": "MemoryStats aggregates all memory stats since container inception on Linux.\nWindows returns stats for commit and private working set only.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/container.MemoryStats"
-            }
-          ],
+          "$ref": "#/definitions/container.MemoryStats",
           "x-nullable": false,
           "x-omitempty": false
         },
         "name": {
-          "description": "Name is the name of the container for which the stats were collected.",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
         "networks": {
-          "description": "Networks contains Nntwork statistics for the container per interface.\n\nThis field is omitted if the container has no networking enabled.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/container.NetworkStats"
@@ -3703,19 +3688,13 @@
           "x-omitempty": false
         },
         "num_procs": {
-          "description": "NumProcs is the number of processors on the system.\n\nThis field is Windows-specific and always zero for Linux containers.",
+          "description": "Windows specific stats, not populated on Linux.",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "os_type": {
-          "description": "OSType is the OS of the container (\"linux\" or \"windows\") to allow\nplatform-specific handling of stats.",
-          "type": "string",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "pids_stats": {
-          "description": "PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).\n\nThis field is Linux-specific and omitted for Windows containers.",
+          "description": "Linux specific stats, not populated on Windows.",
           "allOf": [
             {
               "$ref": "#/definitions/container.PidsStats"
@@ -3725,7 +3704,7 @@
           "x-omitempty": false
         },
         "precpu_stats": {
-          "description": "PreCPUStats contains the CPUStats of the previous sample.",
+          "description": "\"Pre\"=\"Previous\"",
           "allOf": [
             {
               "$ref": "#/definitions/container.CPUStats"
@@ -3735,24 +3714,18 @@
           "x-omitempty": false
         },
         "preread": {
-          "description": "PreRead is the date and time at which this first sample was collected.\nThis field is not propagated if the \"one-shot\" option is set. If the\n\"one-shot\" option is set, this field may be omitted, empty, or set\nto a default date (`0001-01-01T00:00:00Z`).",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
         "read": {
-          "description": "Read is the date and time at which this sample was collected.",
+          "description": "Common stats",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
         "storage_stats": {
-          "description": "StorageStats is the disk I/O stats for read/write on Windows.\n\nThis type is Windows-specific and omitted for Linux containers.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/container.StorageStats"
-            }
-          ],
+          "$ref": "#/definitions/container.StorageStats",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -6512,16 +6485,12 @@
       "x-nullable": false,
       "x-omitempty": false
     },
-    "container.PortSummary": {
+    "container.Port": {
       "type": "object",
       "properties": {
         "IP": {
           "description": "Host IP address that the container's port is mapped to",
-          "allOf": [
-            {
-              "$ref": "#/definitions/netip.Addr"
-            }
-          ],
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -6538,7 +6507,7 @@
           "x-omitempty": false
         },
         "Type": {
-          "description": "type\nRequired: true\nEnum: [\"tcp\",\"udp\",\"sctp\"]",
+          "description": "type\nRequired: true",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
@@ -6699,7 +6668,7 @@
           "x-omitempty": false
         },
         "signal": {
-          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If no value is set, the default (SIGTERM) is used.",
+          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If not value is set, the default (SIGTERM) is used.",
           "type": "string"
         },
         "timeout": {
@@ -6743,7 +6712,7 @@
           "x-omitempty": false
         },
         "signal": {
-          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If no value is set, the default (SIGTERM) is used.",
+          "description": "Signal (optional) is the signal to send to the container to (gracefully)\nstop it before forcibly terminating the container with SIGKILL after the\ntimeout expires. If not value is set, the default (SIGTERM) is used.",
           "type": "string"
         },
         "timeout": {
@@ -6847,20 +6816,6 @@
           "x-omitempty": false
         }
       },
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "netip.Addr": {
-      "anyOf": [
-        {
-          "type": "string",
-          "format": "ipv4"
-        },
-        {
-          "type": "string",
-          "format": "ipv6"
-        }
-      ],
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -7037,7 +6992,7 @@
     "types.PortMapping": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/container.PortSummary"
+        "$ref": "#/definitions/container.Port"
       },
       "x-nullable": false,
       "x-omitempty": false
