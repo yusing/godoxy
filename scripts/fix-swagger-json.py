@@ -7,26 +7,26 @@ path = "internal/api/v1/docs/swagger.json"
 with open(path, "r") as f:
     data = json.load(f)
 
-if isinstance(data["definitions"]["netip.Addr"], dict):
+if "netip.Addr" in data["definitions"] and isinstance(
+    data["definitions"]["netip.Addr"], dict
+):
     # MarshalText()
     data["definitions"]["netip.Addr"] = {
-        "anyOf": [{
-            "type": "string",
-            "format": "ipv4"
-        }, {
-            "type": "string",
-            "format": "ipv6"
-        }],
+        "anyOf": [
+            {"type": "string", "format": "ipv4"},
+            {"type": "string", "format": "ipv6"},
+        ],
         "x-nullable": False,
-        "x-omitempty": False
+        "x-omitempty": False,
     }
+
 
 def set_non_nullable(data):
     if not isinstance(data, dict):
         return
     if "x-nullable" not in data:
         data["x-nullable"] = False
-    if "x-omitempty" not in data and data["x-nullable"] == False:
+    if "x-omitempty" not in data and not data["x-nullable"]:
         data["x-omitempty"] = False
     if "type" not in data:
         return
@@ -42,6 +42,7 @@ def set_non_nullable(data):
         for v in data["items"]:
             set_non_nullable(v)
 
+
 def set_operation_id(data):
     if isinstance(data, dict):
         if "x-id" in data:
@@ -49,6 +50,7 @@ def set_operation_id(data):
             return
         for v in data.values():
             set_operation_id(v)
+
 
 for key, value in data.items():
     if key == "definitions":
