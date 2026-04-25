@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"net/netip"
 	"testing"
 	"time"
 
@@ -328,7 +327,7 @@ func TestPrivateIPLocalhost(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -346,7 +345,7 @@ func TestPrivateIPRemote(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -368,11 +367,11 @@ func TestStreamDefaultValues(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(privIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
-		Ports: []container.PortSummary{
+		Ports: []container.Port{
 			{Type: "udp", PrivatePort: privPort, PublicPort: pubPort},
 		},
 	}
@@ -425,7 +424,7 @@ func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("exposed port detection", func(t *testing.T) {
 		r, ok := makeRoutes(&container.Summary{
 			Names: dummyNames,
-			Ports: []container.PortSummary{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 5432, PublicPort: 5432},
 			},
 		})["a"]
