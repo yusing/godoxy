@@ -20,6 +20,7 @@ import (
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/route/rules"
 	apitypes "github.com/yusing/goutils/apitypes"
 )
 
@@ -164,6 +165,11 @@ func NewHandler(requireAuth bool) *gin.Engine {
 	}
 
 	return r
+}
+
+func init() {
+	rules.RegisterHandler("api", NewHandler(true))
+	rules.RegisterHandler("local_api", NewHandler(false))
 }
 
 func NoCache() gin.HandlerFunc {
