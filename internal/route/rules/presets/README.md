@@ -104,21 +104,22 @@ internal/route/rules/presets/
 
 ### webui Preset
 
-The default preset for GoDoxy WebUI:
+The default preset for GoDoxy WebUI. Preset files use the route-rules block syntax (YAML remains supported by the parser, but built-in presets should prefer block syntax):
 
 **What it does:**
 
+1. Adds long-lived cache headers for TanStack `__tsr` JSON and static asset extensions
 1. Allows unauthenticated access to `/login`
-1. Requires auth for most paths, excluding static assets and auth endpoints
-1. Proxies `/api/v1/*` to backend
-1. Rewrites and proxies `/auth/*` to backend
+1. Requires auth for most app paths, excluding static assets, public metadata, and auth endpoints
+1. Dispatches `/api/v1/*` to the in-process GoDoxy API handler
+1. Rewrites `/auth/*` and dispatches it to the in-process auth API handler
 
 ## Dependency and Integration Map
 
 | Dependency               | Purpose                         |
 | ------------------------ | ------------------------------- |
 | `internal/route/rules`   | Rules engine for preset content |
-| `internal/serialization` | YAML parsing                    |
+| `internal/serialization` | Converts embedded preset text into `rules.Rules` |
 | `sync`                   | One-time initialization         |
 
 ## Observability
@@ -139,7 +140,7 @@ The default preset for GoDoxy WebUI:
 | Failure             | Behavior             | Recovery              |
 | ------------------- | -------------------- | --------------------- |
 | Preset file missing | Returns (nil, false) | Check preset exists   |
-| YAML parse error    | Panic during init    | Fix preset YAML       |
+| Preset parse error  | Preset is skipped and an error is logged | Fix preset block syntax |
 | Unknown preset name | Returns (nil, false) | Use valid preset name |
 
 ## Usage Examples
@@ -149,7 +150,7 @@ The default preset for GoDoxy WebUI:
 ```go
 import "github.com/yusing/godoxy/internal/route/rules/presets"
 
-rules, ok := presets.GetRulePreset("webui")
+rules, ok := presets.GetRulePreset("webui.yml")
 if !ok {
     return fmt.Errorf("preset not found")
 }
@@ -160,18 +161,17 @@ handler := rules.BuildHandler(upstreamHandler)
 
 ### Creating a Custom Preset
 
-```yaml
+```bash
 # internal/route/rules/presets/api-gateway.yml
-- name: cors headers
-  on: method OPTIONS
-  do: |
-    set header Access-Control-Allow-Origin *
-    set header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    error 204 "No Content"
+method OPTIONS {
+  set header Access-Control-Allow-Origin *
+  set header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  error 204 "No Content"
+}
 
-- name: auth required
-  on: !path /health
-  do: require_auth
+!path /health {
+  require_auth
+}
 ```
 
 Then load it:
@@ -183,15 +183,16 @@ rules, ok := presets.GetRulePreset("api-gateway")
 ### Using Preset in Route Config
 
 ```yaml
-routes:
-  webapp:
-    target: http://localhost:3000
-    rules: |
-      - name: include webui preset
-        do: include webui
-      - name: additional rule
-        on: path /custom/*
-        do: proxy http://custom:8080
+webapp:
+  scheme: http
+  host: localhost
+  port: 3000
+  rules: |
+    - name: include webui preset
+      do: include webui
+    - name: additional rule
+      on: path /custom/*
+      do: proxy http://custom:8080
 ```
 
 ## Limitations

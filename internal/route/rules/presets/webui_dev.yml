@@ -19,9 +19,9 @@
   do: require_auth
 - name: proxy to backend
   on: path glob("/api/v1/*")
-  do: proxy http://${API_ADDR}/
+  do: handle api
 - name: proxy to auth api
   on: path glob("/auth/*")
   do: |
     rewrite /auth /api/v1/auth
-    proxy http://${API_ADDR}/
+    handle api

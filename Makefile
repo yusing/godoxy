@@ -6,7 +6,7 @@ export GOOS = linux
 
 REPO_URL ?= https://github.com/yusing/godoxy
 
-WEBUI_DIR ?= $(shell pwd)/../godoxy-webui
+WEBUI_DIR ?= $(shell pwd)/webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
 ifneq ($(BRANCH), compat)
@@ -91,9 +91,14 @@ ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
 
-.PHONY: debug
+.PHONY: debug ensure-webui-dist
 
-test:
+ensure-webui-dist:
+	@if [ "${godoxy}" = "1" ] && [ ! -f webui/dist/client/_shell.html ]; then \
+		$(MAKE) build-webui; \
+	fi
+
+test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 docker-build-test:
@@ -139,7 +144,13 @@ minify:
 		bun --bun scripts/minify; \
 	fi
 
-build:
+build-webui:
+	cd webui && \
+	bun i --frozen-lockfile && \
+	$(MAKE) gen-schema && \
+	node ./node_modules/vite/bin/vite.js build
+
+build: ensure-webui-dist
 	@if [ "${godoxy}" = "1" ]; then \
 		make minify; \
 	elif [ "${cli}" = "1" ]; then \

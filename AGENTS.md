@@ -28,3 +28,7 @@ Update package level `README.md` after making significant changes.
 - Prefer scoped tests
 - Prefer `testify`
 - Use `-ldflags="-checklinkname=0"`
+
+## HTML/JS
+
+- js/html files are minified with bun, so embed the minified output such as `{filename}.min.html` or `{filename}.min.js` instead of the original file; see Makefile.
