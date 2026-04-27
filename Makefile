@@ -9,6 +9,8 @@ REPO_URL ?= https://github.com/yusing/godoxy
 WEBUI_DIR ?= $(shell pwd)/webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
+TEST_REGISTRY ?= reg.i.sh
+
 ifneq ($(BRANCH), compat)
 	GO_TAGS = sonic
 else
@@ -102,9 +104,12 @@ test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 docker-build-test:
-	docker build -t godoxy .
-	docker build --build-arg=MAKE_ARGS=agent=1 -t godoxy-agent .
-	docker build --build-arg=MAKE_ARGS=socket-proxy=1 -t godoxy-socket-proxy .
+	docker build -t ${TEST_REGISTRY}/godoxy .
+	docker build --build-arg=MAKE_ARGS=agent=1 -t ${TEST_REGISTRY}/godoxy-agent .
+	docker build --build-arg=MAKE_ARGS=socket-proxy=1 -t ${TEST_REGISTRY}/godoxy-socket-proxy .
+	docker push ${TEST_REGISTRY}/godoxy
+	docker push ${TEST_REGISTRY}/godoxy-agent
+	docker push ${TEST_REGISTRY}/godoxy-socket-proxy
 
 go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
