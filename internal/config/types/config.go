@@ -10,7 +10,6 @@ import (
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
-	"github.com/yusing/godoxy/internal/logging/accesslog"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
@@ -41,13 +40,6 @@ type (
 		Notification []*notif.NotificationConfig           `json:"notification" yaml:"notification,omitempty"`
 		Proxmox      []*proxmox.Config                     `json:"proxmox" yaml:"proxmox,omitempty"`
 		MaxMind      *maxmind.Config                       `json:"maxmind" yaml:"maxmind,omitempty"`
-	}
-	WebUIConfig struct {
-		InboundMTLSProfile string                         `json:"inbound_mtls_profile,omitempty"`
-		Middlewares        map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
-		AccessLog          *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
-
-		Aliases []string `json:"aliases" validate:"dive,required"`
 	}
 )
 
