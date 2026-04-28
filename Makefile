@@ -96,7 +96,7 @@ endif
 .PHONY: debug ensure-webui-dist
 
 ensure-webui-dist:
-	@if [ "${godoxy}" = "1" ] && [ ! -f webui/dist/client/_shell.html ]; then \
+	@if [ "${godoxy}" = "1" ] && [ ! -f "$(WEBUI_DIR)/dist/client/_shell.html" ]; then \
 		$(MAKE) build-webui; \
 	fi
 
@@ -150,7 +150,7 @@ minify:
 	fi
 
 build-webui:
-	cd webui && \
+	cd "$(WEBUI_DIR)" && \
 	bun i --frozen-lockfile && \
 	$(MAKE) gen-schema && \
 	node ./node_modules/vite/bin/vite.js build
