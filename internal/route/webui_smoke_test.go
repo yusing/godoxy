@@ -1,8 +1,11 @@
 package route
 
 import (
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -45,6 +48,8 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 		Rules:    webuiRules,
 	})
 	require.NoError(t, err)
+
+	underscoredBundlePath := findUnderscoredBundleAssetPath(t)
 
 	tests := []struct {
 		name       string
@@ -90,7 +95,7 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 		},
 		{
 			name:       "underscored bundle asset embedded",
-			path:       "/assets/_-flIoYy1s.js",
+			path:       underscoredBundlePath,
 			wantStatus: http.StatusOK,
 			wantBody:   "import",
 			useRules:   true,
@@ -116,4 +121,28 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 			}
 		})
 	}
+}
+
+// findUnderscoredBundleAssetPath returns an HTTP path like "/assets/_-<hash>.js" by scanning the
+// same embedded FS used at runtime (Vite chunk hashes change between builds).
+func findUnderscoredBundleAssetPath(t *testing.T) string {
+	t.Helper()
+	var found string
+	err := fs.WalkDir(webui.Dist(), ".", func(p string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || path.Dir(p) != "assets" {
+			return nil
+		}
+		base := path.Base(p)
+		if strings.HasPrefix(base, "_-") && strings.HasSuffix(base, ".js") {
+			found = p
+			return fs.SkipAll
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, found, "expected embedded assets/_-*.js")
+	return "/" + found
 }
