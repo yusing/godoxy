@@ -1,11 +1,17 @@
-# Stage 1: utils-deps
-FROM golang:1.26.2-alpine AS utils-deps
+# Stage 1: go-base
+FROM golang:1.26.2-alpine AS go-base
 HEALTHCHECK NONE
 
 # package version does not matter
+# trunk-ignore(hadolint/DL3018)
+RUN apk add --no-cache tzdata make libcap-setcap
+
+# Stage 2: frontend-base
+FROM go-base AS frontend-base
+
 # libgcc and libstdc++ are needed for bun
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make libcap-setcap libgcc libstdc++
+RUN apk add --no-cache libgcc libstdc++
 
 # for minify and webui build
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
@@ -13,9 +19,8 @@ COPY --from=oven/bun:1-alpine /usr/local/bin/bunx /usr/local/bin/bunx
 COPY --from=node:lts-alpine3.22 /usr/local/bin/node /usr/local/bin/node
 COPY --from=node:lts-alpine3.22 /usr/local/bin/npm /usr/local/bin/npm
 
-# Stage 2: godoxy deps
-
-FROM utils-deps AS godoxy-deps
+# Stage 3: godoxy deps
+FROM go-base AS godoxy-deps
 
 ENV GOPATH=/root/go
 ENV GOCACHE=/root/.cache/go-build
@@ -35,9 +40,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
   sed -i '/^module github\.com\/yusing\/goutils/!{/github\.com\/yusing\/goutils/d}' go.mod && \
   go mod download -x
 
-# Stage 3: webui deps
-
-FROM utils-deps AS webui-deps
+# Stage 4: webui deps
+FROM frontend-base AS webui-deps
 
 WORKDIR /src
 
@@ -45,9 +49,8 @@ COPY webui/package.json webui/bun.lock ./
 
 RUN bun install --frozen-lockfile
 
-# Stage 4: webui schema generation
-
-FROM utils-deps AS webui-schema
+# Stage 5: webui schema generation
+FROM frontend-base AS webui-schema
 
 WORKDIR /src
 
@@ -57,9 +60,8 @@ COPY webui/tsconfig.json ./tsconfig.json
 
 RUN --mount=type=cache,target=/root/.bun make gen-schema
 
-# Stage 5: webui build
-
-FROM utils-deps AS webui-build
+# Stage 6: webui build
+FROM frontend-base AS webui-build
 
 WORKDIR /src
 
@@ -70,8 +72,8 @@ COPY --from=webui-schema /src/src/types/godoxy/*.json ./src/types/godoxy/
 ENV NODE_ENV=production
 RUN node ./node_modules/vite/bin/vite.js build
 
-# Stage 6: godoxy builder
-FROM godoxy-deps AS builder
+# Stage 7: binary source
+FROM godoxy-deps AS binary-source
 
 WORKDIR /src
 
@@ -84,9 +86,6 @@ COPY pkg ./pkg
 COPY agent ./agent
 COPY socket-proxy ./socket-proxy
 COPY goutils ./goutils
-COPY webui/embed.go ./webui/embed.go
-COPY --from=webui-build /src/dist/client ./webui/dist/client
-
 ARG VERSION
 ENV VERSION=${VERSION}
 
@@ -99,28 +98,79 @@ ENV BRANCH=${BRANCH}
 ENV GOPATH=/root/go
 ENV GOCACHE=/root/.cache/go-build
 
+# Stage 8: non-main builder
+FROM binary-source AS non-main-builder
+
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
   make ${MAKE_ARGS} docker=1 build
 
-# Stage 3: Final image
-FROM scratch
+# Stage 9: main builder
+FROM binary-source AS main-builder
+
+# libgcc and libstdc++ are needed for bun
+# trunk-ignore(hadolint/DL3018)
+RUN apk add --no-cache libgcc libstdc++
+
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1-alpine /usr/local/bin/bunx /usr/local/bin/bunx
+COPY --from=node:lts-alpine3.22 /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:lts-alpine3.22 /usr/local/bin/npm /usr/local/bin/npm
+COPY webui/embed.go ./webui/embed.go
+COPY --from=webui-build /src/dist/client ./webui/dist/client
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  make ${MAKE_ARGS} docker=1 build
+
+# Stage 10: agent image
+FROM scratch AS agent
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
 LABEL proxy.#1.healthcheck.disable=true
 
-# copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-# copy binary
-COPY --from=builder /app/run /app/run
-
-# copy certs
-COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=non-main-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=non-main-builder /app/run /app/run
+COPY --from=non-main-builder /etc/ssl/certs /etc/ssl/certs
 
 ENV DOCKER_HOST=unix:///var/run/docker.sock
 
 WORKDIR /app
 
 CMD ["/app/run"]
+
+# Stage 11: socket proxy image
+FROM scratch AS socket-proxy
+
+LABEL maintainer="yusing@6uo.me"
+LABEL proxy.exclude=1
+LABEL proxy.#1.healthcheck.disable=true
+
+COPY --from=non-main-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=non-main-builder /app/run /app/run
+COPY --from=non-main-builder /etc/ssl/certs /etc/ssl/certs
+
+ENV LISTEN_ADDR=0.0.0.0:2375
+
+WORKDIR /app
+
+CMD ["/app/run"]
+
+# Stage 12: main image
+FROM scratch AS main
+
+LABEL maintainer="yusing@6uo.me"
+LABEL proxy.exclude=1
+LABEL proxy.#1.healthcheck.disable=true
+
+COPY --from=main-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=main-builder /app/run /app/run
+COPY --from=main-builder /etc/ssl/certs /etc/ssl/certs
+
+ENV DOCKER_HOST=unix:///var/run/docker.sock
+
+WORKDIR /app
+
+CMD ["/app/run"]
+

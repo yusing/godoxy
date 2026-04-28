@@ -104,9 +104,9 @@ test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 docker-build-test:
-	docker build -t ${TEST_REGISTRY}/godoxy .
-	docker build --build-arg=MAKE_ARGS=agent=1 -t ${TEST_REGISTRY}/godoxy-agent .
-	docker build --build-arg=MAKE_ARGS=socket-proxy=1 -t ${TEST_REGISTRY}/godoxy-socket-proxy .
+	docker build --target=main -t ${TEST_REGISTRY}/godoxy .
+	docker build --target=agent --build-arg=MAKE_ARGS=agent=1 -t ${TEST_REGISTRY}/godoxy-agent .
+	docker build --target=socket-proxy --build-arg=MAKE_ARGS=socket-proxy=1 -t ${TEST_REGISTRY}/godoxy-socket-proxy .
 	docker push ${TEST_REGISTRY}/godoxy
 	docker push ${TEST_REGISTRY}/godoxy-agent
 	docker push ${TEST_REGISTRY}/godoxy-socket-proxy

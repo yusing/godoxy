@@ -36,7 +36,7 @@ ENV GOPATH=/root/go
 RUN make ${MAKE_ARGS} docker=1 build
 
 # Stage 3: Final image
-FROM scratch
+FROM scratch AS socket-proxy
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1

@@ -104,6 +104,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           file: ${{ env.DOCKERFILE }}
+          target: ${{ inputs.target }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ inputs.image_name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: |
             type=gha,scope=${{ github.workflow }}-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }}
