@@ -736,6 +736,33 @@ path glob(/api/*) {
 	assert.Equal(t, "upstream-value", w.Header().Get("X-Upstream-Header"))
 }
 
+func TestHTTPFlow_HandleCommand(t *testing.T) {
+	RegisterHandler("test-handle-command", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Handled-By", "rules")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("handled " + r.URL.Path))
+	}))
+
+	var rules Rules
+	err := parseRules(`
+path glob(/api/*) {
+  handle test-handle-command
+}
+`, &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(mockUpstream(http.StatusOK, "should not be called"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, "handled /api/test", w.Body.String())
+	assert.Equal(t, "rules", w.Header().Get("X-Handled-By"))
+}
+
 func TestHTTPFlow_NotifyCommand(t *testing.T) {
 	upstream := mockUpstream(http.StatusOK, "ok")
 

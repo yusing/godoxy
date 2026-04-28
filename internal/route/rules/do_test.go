@@ -60,6 +60,22 @@ func TestParseCommands(t *testing.T) {
 			input:   "serve / / /",
 			wantErr: ErrInvalidArguments,
 		},
+		// handle tests
+		{
+			name:    "handle_valid",
+			input:   "handle api",
+			wantErr: nil,
+		},
+		{
+			name:    "handle_missing_name",
+			input:   "handle",
+			wantErr: ErrInvalidArguments,
+		},
+		{
+			name:    "handle_too_many_args",
+			input:   "handle api extra",
+			wantErr: ErrInvalidArguments,
+		},
 		// redirect tests
 		{
 			name:    "redirect_valid",
