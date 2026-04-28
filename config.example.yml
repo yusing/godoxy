@@ -161,6 +161,20 @@ providers:
 # configuration (for example, see providers.example.yml). UDP relay is not
 # supported yet.
 
+# SNI TLS passthrough example:
+#
+# routes:
+#   site2-tls-passthrough:
+#     scheme: tcp
+#     host: 100.64.0.10
+#     port: 443 # with sni_hosts, omitted listen side defaults to the HTTPS entrypoint port/bind
+#     sni_hosts:
+#       - "*.site2.domain.tld"
+#
+# Matching TLS connections are proxied without certificate termination, so the
+# upstream target serves its own certificate. Non-matching TLS connections keep
+# using normal HTTPS routes on the same listener.
+
 # Match domains
 # See https://docs.godoxy.dev/Certificates-and-domain-matching
 #

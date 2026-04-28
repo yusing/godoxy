@@ -124,6 +124,92 @@ func TestRouteValidate(t *testing.T) {
 		require.NotNil(t, r.ProxyURL, "ProxyURL should be set")
 	})
 
+	t.Run("SNIPassthroughDefaultsHTTPSListenPort", func(t *testing.T) {
+		r := &Route{
+			Alias:    "site2",
+			Scheme:   route.SchemeTCP,
+			Host:     "100.64.0.10",
+			Port:     route.Port{Proxy: 443},
+			SNIHosts: []string{"*.Site2.Domain.TLD", "site2.domain.tld"},
+			HealthCheck: types.HealthCheckConfig{
+				Disable: true,
+			},
+		}
+
+		err := r.Validate()
+		require.NoError(t, err)
+		require.Equal(t, common.ProxyHTTPSPort, r.Port.Listening)
+		require.Equal(t, "tcp://:443", r.ListenURL().String())
+		require.Equal(t, "tcp4://100.64.0.10:443", r.TargetURL().String())
+		require.Equal(t, []string{"*.site2.domain.tld", "site2.domain.tld"}, r.SNIPassthroughHosts())
+		require.NotNil(t, r.impl)
+	})
+
+	t.Run("SNIPassthroughKeepsExplicitListenPortAndUsesHTTPSBindDefault", func(t *testing.T) {
+		r := &Route{
+			Alias:    "site2-alt",
+			Scheme:   route.SchemeTCP,
+			Host:     "100.64.0.10",
+			Port:     route.Port{Listening: 8443, Proxy: 443},
+			SNIHosts: []string{"*.site2.domain.tld"},
+			HealthCheck: types.HealthCheckConfig{
+				Disable: true,
+			},
+		}
+
+		err := r.Validate()
+		require.NoError(t, err)
+		require.Equal(t, 8443, r.Port.Listening)
+		require.Equal(t, "tcp://:8443", r.ListenURL().String())
+	})
+
+	t.Run("SNIPassthroughPreservesExplicitBind", func(t *testing.T) {
+		r := &Route{
+			Alias:    "site2-bind",
+			Scheme:   route.SchemeTCP,
+			Host:     "100.64.0.10",
+			Bind:     "0.0.0.0",
+			Port:     route.Port{Proxy: 443},
+			SNIHosts: []string{"*.site2.domain.tld"},
+			HealthCheck: types.HealthCheckConfig{
+				Disable: true,
+			},
+		}
+
+		err := r.Validate()
+		require.NoError(t, err)
+		require.Equal(t, common.ProxyHTTPSPort, r.Port.Listening)
+		require.Equal(t, "tcp4://0.0.0.0:443", r.ListenURL().String())
+	})
+
+	t.Run("SNIPassthroughTCPOnly", func(t *testing.T) {
+		r := &Route{
+			Alias:    "bad-http-sni",
+			Scheme:   route.SchemeHTTP,
+			Host:     "example.com",
+			Port:     route.Port{Proxy: 80},
+			SNIHosts: []string{"*.example.com"},
+		}
+
+		err := r.Validate()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "sni_hosts is only supported for tcp routes")
+	})
+
+	t.Run("SNIPassthroughRejectsEmptyPattern", func(t *testing.T) {
+		r := &Route{
+			Alias:    "empty-sni",
+			Scheme:   route.SchemeTCP,
+			Host:     "100.64.0.10",
+			Port:     route.Port{Proxy: 443},
+			SNIHosts: []string{"*.site2.domain.tld", " "},
+		}
+
+		err := r.Validate()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "sni_hosts cannot contain empty host patterns")
+	})
+
 	t.Run("InvalidScheme", func(t *testing.T) {
 		r := &Route{
 			Alias:  "test",

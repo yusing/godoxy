@@ -11,4 +11,8 @@ type Stream interface {
 	Close() error
 }
 
+type ConnProxy interface {
+	ProxyConn(ctx context.Context, conn net.Conn)
+}
+
 type HookFunc func(ctx context.Context) error

@@ -81,11 +81,28 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		return errors.New("server already started")
 	}
 
+	listenerOwnedBySNIMux := false
+	if proto == HTTPProtoHTTPS && listener == nil {
+		muxListener, owned, err := srv.ep.sniPassthrough.HTTPSListener(addr)
+		if err != nil {
+			return err
+		}
+		listener = muxListener
+		listenerOwnedBySNIMux = owned
+	}
+
+	aclCfg := acl.FromCtx(srv.ep.task.Context())
+	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
+	if listenerOwnedBySNIMux {
+		aclCfg = nil
+		supportProxyProtocol = false
+	}
+
 	opts := server.Options{
 		Name:                 addr,
 		Handler:              srv,
-		ACL:                  acl.FromCtx(srv.ep.task.Context()),
-		SupportProxyProtocol: srv.ep.cfg.SupportProxyProtocol,
+		ACL:                  aclCfg,
+		SupportProxyProtocol: supportProxyProtocol,
 	}
 
 	switch proto {

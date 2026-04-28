@@ -44,6 +44,8 @@ type Entrypoint struct {
 
 	servers *xsync.Map[string, *httpServer] // listen addr -> server
 
+	sniPassthrough *sniPassthroughManager
+
 	inboundMTLSProfiles map[string]*x509.CertPool
 }
 
@@ -75,6 +77,7 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 		servers:             xsync.NewMap[string, *httpServer](),
 		inboundMTLSProfiles: make(map[string]*x509.CertPool),
 	}
+	ep.sniPassthrough = newSNIPassthroughManager(ep)
 	return ep
 }
 

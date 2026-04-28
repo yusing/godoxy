@@ -179,15 +179,33 @@ const (
 routes:
   ssh-proxy:
     scheme: tcp4
-      bind: 0.0.0.0 # optional
-      port: 2222:22 # listening port: target port
-      relay_proxy_protocol_header: true # optional, tcp only
+    bind: 0.0.0.0 # optional
+    port: 2222:22 # listening port: target port
+    relay_proxy_protocol_header: true # optional, tcp only
 
   dns-proxy:
     scheme: udp4
     bind: 0.0.0.0 # optional
     port: 53:53 # listening port: target port
+
+  site2-tls-passthrough:
+    scheme: tcp
+    host: 100.64.0.10
+    port: 443 # with sni_hosts, omitted listening port defaults to HTTPS entrypoint port 443
+    sni_hosts:
+      - "*.site2.domain.tld"
 ```
+
+### SNI TLS passthrough
+
+TCP routes can share the HTTPS entrypoint listener by setting `sni_hosts`. When the listening port is omitted, it defaults to the HTTPS entrypoint port; when `bind` is omitted, it uses the HTTPS entrypoint bind address. Godoxy reads the TLS ClientHello SNI without decrypting the connection. Matching connections are proxied as raw TCP to the route target, so the upstream site keeps serving its own certificate. Non-matching connections continue through normal HTTPS route handling.
+
+Supported host patterns are exact hosts and `*.` wildcard suffixes:
+
+- `site2.domain.tld` matches only `site2.domain.tld`.
+- `*.site2.domain.tld` matches `app.site2.domain.tld` and `www.site2.domain.tld`, but not the bare `site2.domain.tld`.
+
+Exact matches win over wildcard matches. Among wildcard matches, the longest suffix wins. SNI passthrough is TCP-only and does not support UDP.
 
 ### Docker Labels
 
