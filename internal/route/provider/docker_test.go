@@ -360,7 +360,6 @@ func TestPrivateIPRemote(t *testing.T) {
 func TestStreamDefaultValues(t *testing.T) {
 	privPort := uint16(1234)
 	pubPort := uint16(4567)
-	privIP := "172.17.0.123"
 	cont := &container.Summary{
 		Names: []string{"a"},
 		State: "running",
@@ -381,7 +380,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
 		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
-		expect.Equal(t, r.TargetURL().Hostname(), privIP)
+		expect.Equal(t, r.TargetURL().Hostname(), testDockerIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(privPort))
 	})
