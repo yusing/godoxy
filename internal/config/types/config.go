@@ -47,7 +47,7 @@ type (
 		Middlewares        map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
 		AccessLog          *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
 
-		Aliases []string `json:"aliases"`
+		Aliases []string `json:"aliases" validate:"dive,required"`
 	}
 )
 
