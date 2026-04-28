@@ -12,7 +12,14 @@ import (
 )
 
 func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
-	rules.RegisterHandler("api", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	prevAPI, _ := rules.GetHandler("api")
+	prevAuth := rules.GetAuthHandler()
+	t.Cleanup(func() {
+		rules.ReplaceHandler("api", prevAPI)
+		rules.InitAuthHandler(prevAuth)
+	})
+
+	apiStub := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/version":
 			w.Header().Set("Content-Type", "application/json")
@@ -22,10 +29,10 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 		default:
 			http.NotFound(w, r)
 		}
-	}))
+	})
+	rules.ReplaceHandler("api", apiStub)
 
 	rules.InitAuthHandler(func(http.ResponseWriter, *http.Request) bool { return true })
-	defer rules.InitAuthHandler(nil)
 
 	webuiRules, ok := rulepresets.GetRulePreset("webui.yml")
 	require.True(t, ok)
