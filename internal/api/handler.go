@@ -168,8 +168,12 @@ func NewHandler(requireAuth bool) *gin.Engine {
 }
 
 func init() {
-	rules.RegisterHandler("api", NewHandler(true))
-	rules.RegisterHandler("local_api", NewHandler(false))
+	if !rules.RegisterHandler("api", NewHandler(true)) {
+		panic("failed to register api handler")
+	}
+	if !rules.RegisterHandler("local_api", NewHandler(false)) {
+		panic("failed to register local_api handler")
+	}
 }
 
 func NoCache() gin.HandlerFunc {
