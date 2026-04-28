@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"net/netip"
 	"testing"
 	"time"
 
@@ -328,7 +327,7 @@ func TestPrivateIPLocalhost(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -346,7 +345,7 @@ func TestPrivateIPRemote(t *testing.T) {
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(testDockerIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
@@ -361,18 +360,17 @@ func TestPrivateIPRemote(t *testing.T) {
 func TestStreamDefaultValues(t *testing.T) {
 	privPort := uint16(1234)
 	pubPort := uint16(4567)
-	privIP := "172.17.0.123"
 	cont := &container.Summary{
 		Names: []string{"a"},
 		State: "running",
 		NetworkSettings: &container.NetworkSettingsSummary{
 			Networks: map[string]*network.EndpointSettings{
 				"network": {
-					IPAddress: netip.MustParseAddr(privIP),
+					IPAddress: testDockerIP,
 				},
 			},
 		},
-		Ports: []container.PortSummary{
+		Ports: []container.Port{
 			{Type: "udp", PrivatePort: privPort, PublicPort: pubPort},
 		},
 	}
@@ -382,7 +380,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
 		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
-		expect.Equal(t, r.TargetURL().Hostname(), privIP)
+		expect.Equal(t, r.TargetURL().Hostname(), testDockerIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(privPort))
 	})
@@ -425,7 +423,7 @@ func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("exposed port detection", func(t *testing.T) {
 		r, ok := makeRoutes(&container.Summary{
 			Names: dummyNames,
-			Ports: []container.PortSummary{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 5432, PublicPort: 5432},
 			},
 		})["a"]
