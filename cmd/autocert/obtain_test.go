@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -17,9 +18,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-acme/lego/v4/acme"
 	"github.com/yusing/godoxy/internal/common"
 
 	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v4/registration"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 )
@@ -157,6 +160,65 @@ func TestSaveCertDoesNotOverwriteExistingPairOnInvalidReplacement(t *testing.T) 
 	require.NoError(t, err)
 	require.True(t, bytes.Equal(originalCertOnDisk, currentCert))
 	require.True(t, bytes.Equal(originalKeyOnDisk, currentKey))
+}
+
+func TestSaveCertRollsBackKeyWhenCertRenameFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &autocert.Config{
+		CertPath: filepath.Join(tmpDir, "cert.pem"),
+		KeyPath:  filepath.Join(tmpDir, "key.pem"),
+	}
+
+	originalCert, originalKey := mustCreateCertificatePair(t)
+	require.NoError(t, saveCert(cfg, &certificate.Resource{
+		Certificate: originalCert,
+		PrivateKey:  originalKey,
+	}))
+
+	originalCertOnDisk, err := os.ReadFile(cfg.CertPath)
+	require.NoError(t, err)
+	originalKeyOnDisk, err := os.ReadFile(cfg.KeyPath)
+	require.NoError(t, err)
+
+	replacementCert, replacementKey := mustCreateCertificatePair(t)
+	realRename := osRename
+	renameCalls := 0
+	osRename = func(oldPath, newPath string) error {
+		renameCalls++
+		if renameCalls == 4 {
+			return fmt.Errorf("forced cert rename failure")
+		}
+		return realRename(oldPath, newPath)
+	}
+	t.Cleanup(func() {
+		osRename = realRename
+	})
+
+	err = saveCert(cfg, &certificate.Resource{
+		Certificate: replacementCert,
+		PrivateKey:  replacementKey,
+	})
+	require.Error(t, err)
+
+	currentCert, err := os.ReadFile(cfg.CertPath)
+	require.NoError(t, err)
+	currentKey, err := os.ReadFile(cfg.KeyPath)
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(originalKeyOnDisk, currentKey))
+	require.True(t, bytes.Equal(originalCertOnDisk, currentCert))
+}
+
+func TestSafeACMERegistrationFieldsOmitsContacts(t *testing.T) {
+	uri, status := safeACMERegistrationFields(&registration.Resource{
+		URI: "https://acme.invalid/acct/123",
+		Body: acme.Account{
+			Status:  "valid",
+			Contact: []string{"mailto:secret@example.com"},
+		},
+	})
+
+	require.Equal(t, "https://acme.invalid/acct/123", uri)
+	require.Equal(t, "valid", status)
 }
 
 func mustCreateCertificatePair(t *testing.T) ([]byte, []byte) {

@@ -342,15 +342,14 @@ func (p *Provider) ShouldRenewOn() time.Time {
 //
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
-	doneCh := make(chan struct{})
-	if p.forceRenewalDoneCh.CompareAndSwap(&emptyForceRenewalDoneCh, &doneCh) {
+	doneCh := p.beginForceRenewal()
+	if doneCh != nil {
 		select {
 		case p.forceRenewalCh <- struct{}{}:
 			ok = true
 		default:
+			p.finishForceRenewal(doneCh)
 		}
-	} else { // already in progress
-		close(doneCh)
 	}
 
 	for _, ep := range p.extraProviders {
@@ -383,6 +382,42 @@ func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
 	return true
 }
 
+func (p *Provider) beginForceRenewal() *chan struct{} {
+	for {
+		done := p.forceRenewalDoneCh.Load()
+		switch {
+		case done == nil:
+			return nil
+		case *done == nil:
+			next := make(chan struct{})
+			if p.forceRenewalDoneCh.CompareAndSwap(done, &next) {
+				return &next
+			}
+		default:
+			select {
+			case <-*done:
+				next := make(chan struct{})
+				if p.forceRenewalDoneCh.CompareAndSwap(done, &next) {
+					return &next
+				}
+			default:
+				return nil
+			}
+		}
+	}
+}
+
+func (p *Provider) finishForceRenewal(done *chan struct{}) {
+	if done == nil || *done == nil {
+		return
+	}
+	select {
+	case <-*done:
+	default:
+		close(*done)
+	}
+}
+
 // ScheduleRenewalAll schedules the renewal of the certificate for this provider and all extra providers.
 func (p *Provider) ScheduleRenewalAll(parent task.Parent) {
 	p.scheduleRenewalOnce.Do(func() {
@@ -408,9 +443,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 	renew := func(renewMode RenewMode) {
 		defer func() {
-			if done := p.forceRenewalDoneCh.Swap(&emptyForceRenewalDoneCh); done != nil && *done != nil {
-				close(*done)
-			}
+			p.finishForceRenewal(p.forceRenewalDoneCh.Load())
 		}()
 
 		ctx, cancel := context.WithTimeout(task.Context(), 5*time.Minute)

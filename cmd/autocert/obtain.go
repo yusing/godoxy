@@ -5,7 +5,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +20,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/autocert"
 )
+
+var osRename = os.Rename
 
 func obtainCert(cfg *autocert.Config) error {
 	user, legoCfg, err := getLegoConfig(cfg)
@@ -179,8 +183,23 @@ func register(client *lego.Client, cfg *autocert.Config, user *autocert.User) er
 		return err
 	}
 	user.Registration = reg
-	log.Info().Interface("reg", reg).Msg("acme registered")
+	registrationURI, registrationStatus := safeACMERegistrationFields(reg)
+	event := log.Info()
+	if registrationURI != "" {
+		event = event.Str("registration_uri", registrationURI)
+	}
+	if registrationStatus != "" {
+		event = event.Str("registration_status", registrationStatus)
+	}
+	event.Msg("acme registered")
 	return nil
+}
+
+func safeACMERegistrationFields(reg *registration.Resource) (uri, status string) {
+	if reg == nil {
+		return "", ""
+	}
+	return reg.URI, reg.Body.Status
 }
 
 func renewExistingCert(client *lego.Client, cfg *autocert.Config) (*certificate.Resource, error) {
@@ -224,13 +243,77 @@ func saveCert(cfg *autocert.Config, cert *certificate.Resource) error {
 		return fmt.Errorf("validate certificate and key pair: %w", err)
 	}
 
-	if err := os.Rename(keyTmp, cfg.KeyPath); err != nil {
+	keyBak, err := backupFile(cfg.KeyPath)
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(certTmp, cfg.CertPath); err != nil {
+	certBak, err := backupFile(cfg.CertPath)
+	if err != nil {
+		restoreBackup(keyBak)
+		return err
+	}
+
+	if err := osRename(keyTmp, cfg.KeyPath); err != nil {
+		restoreBackup(certBak)
+		restoreBackup(keyBak)
+		return err
+	}
+	if err := osRename(certTmp, cfg.CertPath); err != nil {
+		_ = os.Remove(cfg.KeyPath)
+		restoreBackup(certBak)
+		restoreBackup(keyBak)
+		return err
+	}
+	if err := cleanupBackup(certBak); err != nil {
+		return err
+	}
+	if err := cleanupBackup(keyBak); err != nil {
 		return err
 	}
 	return nil
+}
+
+type fileBackup struct {
+	livePath   string
+	backupPath string
+}
+
+func backupFile(path string) (*fileBackup, error) {
+	backup := &fileBackup{livePath: path}
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return backup, nil
+		}
+		return nil, err
+	}
+
+	backup.backupPath = filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+".bak")
+	if err := os.Remove(backup.backupPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	if err := osRename(path, backup.backupPath); err != nil {
+		return nil, err
+	}
+	return backup, nil
+}
+
+func restoreBackup(backup *fileBackup) {
+	if backup == nil || backup.backupPath == "" {
+		return
+	}
+	_ = os.Remove(backup.livePath)
+	_ = osRename(backup.backupPath, backup.livePath)
+}
+
+func cleanupBackup(backup *fileBackup) error {
+	if backup == nil || backup.backupPath == "" {
+		return nil
+	}
+	err := os.Remove(backup.backupPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 func writeTempFile(dir, pattern string, data []byte, perm os.FileMode) (string, error) {
