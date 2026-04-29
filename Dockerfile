@@ -13,6 +13,8 @@ ENV GOCACHE=/root/.cache/go-build
 WORKDIR /src
 
 COPY goutils/go.mod goutils/go.sum ./goutils/
+COPY cmd/autocert/go.mod cmd/autocert/go.sum ./cmd/autocert/
+COPY internal/dnsproviders/go.mod internal/dnsproviders/go.sum ./internal/dnsproviders/
 COPY internal/go-oidc/go.mod internal/go-oidc/go.sum ./internal/go-oidc/
 COPY internal/gopsutil/go.mod internal/gopsutil/go.sum ./internal/gopsutil/
 COPY internal/go-proxmox/go.mod internal/go-proxmox/go.sum ./internal/go-proxmox/
@@ -27,7 +29,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
   sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && \
   sed -i '/^module github\.com\/yusing\/goutils/!{/github\.com\/yusing\/goutils/d}' go.mod && \
-  go mod download -x
+  go mod download -x && \
+  (cd /src/internal/dnsproviders && go mod download -x) && \
+  (cd /src/cmd/autocert && go mod download -x)
 
 # Stage 2: builder
 FROM deps AS builder
@@ -67,8 +71,8 @@ LABEL proxy.#1.healthcheck.disable=true
 # copy timezone data
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# copy binary
-COPY --from=builder /app/run /app/run
+# copy binaries
+COPY --from=builder /app/ /app/
 
 # copy certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs

@@ -6,14 +6,11 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
-	"github.com/yusing/godoxy/internal/dnsproviders"
 	"github.com/yusing/godoxy/internal/serialization"
 	strutils "github.com/yusing/goutils/strings"
 )
 
 func TestSetupExtraProviders(t *testing.T) {
-	dnsproviders.InitProviders()
-
 	cfgYAML := `
 email: test@example.com
 domains: [example.com]

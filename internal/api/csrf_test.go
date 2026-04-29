@@ -259,6 +259,8 @@ type stubAutocertProvider struct {
 	forceExpiryCalls int
 }
 
+var _ autocert.Provider = (*stubAutocertProvider)(nil)
+
 func (p *stubAutocertProvider) GetCert(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return nil, nil
 }
@@ -269,7 +271,7 @@ func (p *stubAutocertProvider) GetCertInfos() ([]autocert.CertInfo, error) {
 
 func (p *stubAutocertProvider) ScheduleRenewalAll(task.Parent) {}
 
-func (p *stubAutocertProvider) ObtainCertAll() error {
+func (p *stubAutocertProvider) ObtainCertAll(ctx context.Context) error {
 	return nil
 }
 

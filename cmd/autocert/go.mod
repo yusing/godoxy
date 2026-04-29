@@ -1,17 +1,14 @@
-module github.com/yusing/godoxy/internal/dnsproviders
+module github.com/yusing/godoxy/cmd/autocert
 
 go 1.26.2
-
-replace (
-	github.com/yusing/godoxy => ../..
-	github.com/yusing/goutils => ../../goutils
-)
 
 require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/goccy/go-yaml v1.19.2
+	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.11.1
 	github.com/yusing/godoxy v0.28.1
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260428065453-77f93b8c1c59
 )
 
 require (
@@ -89,7 +86,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.5.0 // indirect
-	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
@@ -120,4 +116,10 @@ require (
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+replace (
+	github.com/yusing/godoxy => ../..
+	github.com/yusing/godoxy/internal/dnsproviders => ../../internal/dnsproviders
+	github.com/yusing/goutils => ../../goutils
 )
