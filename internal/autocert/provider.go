@@ -343,15 +343,14 @@ func (p *Provider) ShouldRenewOn() time.Time {
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
 	doneCh := make(chan struct{})
-	if !p.forceRenewalDoneCh.CompareAndSwap(&emptyForceRenewalDoneCh, &doneCh) { // already in progress
+	if p.forceRenewalDoneCh.CompareAndSwap(&emptyForceRenewalDoneCh, &doneCh) {
+		select {
+		case p.forceRenewalCh <- struct{}{}:
+			ok = true
+		default:
+		}
+	} else { // already in progress
 		close(doneCh)
-		return false
-	}
-
-	select {
-	case p.forceRenewalCh <- struct{}{}:
-		ok = true
-	default:
 	}
 
 	for _, ep := range p.extraProviders {

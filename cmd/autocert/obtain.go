@@ -107,6 +107,9 @@ func loadOrCreateACMEKey(cfg *autocert.Config) (*ecdsa.PrivateKey, error) {
 	if err == nil {
 		return privKey, nil
 	}
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("load ACME key: %w", err)
+	}
 
 	log.Info().Err(err).Msg("failed to load ACME private key, generating a new one")
 	privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -196,16 +199,63 @@ func renewExistingCert(client *lego.Client, cfg *autocert.Config) (*certificate.
 }
 
 func saveCert(cfg *autocert.Config, cert *certificate.Resource) error {
-	if err := os.MkdirAll(filepath.Dir(cfg.CertPath), 0o755); err != nil {
+	certDir := filepath.Dir(cfg.CertPath)
+	keyDir := filepath.Dir(cfg.KeyPath)
+	if err := os.MkdirAll(certDir, 0o755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(cfg.KeyPath), 0o755); err != nil {
+	if err := os.MkdirAll(keyDir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(cfg.KeyPath, cert.PrivateKey, 0o600); err != nil {
+
+	certTmp, err := writeTempFile(certDir, "cert-*.pem", cert.Certificate, 0o644)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(cfg.CertPath, cert.Certificate, 0o644)
+	defer os.Remove(certTmp)
+
+	keyTmp, err := writeTempFile(keyDir, "key-*.pem", cert.PrivateKey, 0o600)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(keyTmp)
+
+	if _, err := tls.X509KeyPair(cert.Certificate, cert.PrivateKey); err != nil {
+		return fmt.Errorf("validate certificate and key pair: %w", err)
+	}
+
+	if err := os.Rename(keyTmp, cfg.KeyPath); err != nil {
+		return err
+	}
+	if err := os.Rename(certTmp, cfg.CertPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeTempFile(dir, pattern string, data []byte, perm os.FileMode) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	closed := false
+	defer func() {
+		if !closed {
+			f.Close()
+		}
+	}()
+
+	if err := f.Chmod(perm); err != nil {
+		return "", err
+	}
+	if _, err := f.Write(data); err != nil {
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		return "", err
+	}
+	closed = true
+	return f.Name(), nil
 }
 
 // ensureHTTPTransportForTLS returns a *http.Transport suitable for mutating TLS settings.
