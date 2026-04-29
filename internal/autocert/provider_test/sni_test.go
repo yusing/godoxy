@@ -78,7 +78,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -110,7 +110,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -142,7 +142,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -168,7 +168,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -194,7 +194,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -226,7 +226,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -258,7 +258,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -290,7 +290,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -316,7 +316,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -352,7 +352,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()
@@ -389,7 +389,7 @@ func TestGetCertBySNI(t *testing.T) {
 
 		require.NoError(t, cfg.Validate())
 
-		p, err := autocert.NewProvider(cfg, nil, nil)
+		p, err := autocert.NewProvider(cfg)
 		require.NoError(t, err)
 
 		err = p.LoadCertAll()

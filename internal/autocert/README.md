@@ -58,23 +58,11 @@ func MergeExtraConfig(mainCfg *Config, extraCfg *ConfigExtra) ConfigExtra
 
 ### Provider (`provider.go`)
 
-```go
-type Provider struct {
-    logger       zerolog.Logger
-    cfg          *Config
-    user         *User
-    legoCfg      *lego.Config
-    client       *lego.Client
-    lastFailure  time.Time
-    legoCert     *certificate.Resource
-    tlsCert      *tls.Certificate
-    certExpiries CertExpiries
-    extraProviders []*Provider
-    sniMatcher   sniMatcher
-}
+The main application links a slim `Provider` that loads certificates from disk and, for non-local DNS providers, runs the separate `autocert` binary (see `internal/autocert/state.go`). Full ACME issuance with lego lives in `cmd/autocert`.
 
-// Create new provider (initializes extras atomically)
-func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, error)
+```go
+// Create new provider (initializes extras)
+func NewProvider(cfg *Config) (*Provider, error)
 
 // TLS certificate getter for SNI
 func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error)
@@ -85,10 +73,17 @@ func (p *Provider) GetCertInfos() ([]CertInfo, error)
 // Provider name ("main" or "extra[N]")
 func (p *Provider) GetName() string
 
-// Obtain certificate if not exists
-func (p *Provider) ObtainCertIfNotExistsAll() error
+// Obtain certificate for each configured cert only when files are missing (startup path)
+func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error
 
-// Force immediate renewal
+// Obtain or renew every configured certificate (e.g. force / batch renew path)
+func (p *Provider) ObtainCertAll(ctx context.Context) error
+
+func (p *Provider) ObtainCert(ctx context.Context) error
+
+// Force immediate renewal. Providers that do not run a renewal worker
+// (`local` and `pseudo`) are skipped, while eligible extra providers are still
+// enqueued.
 func (p *Provider) ForceExpiryAll() bool
 
 // Schedule automatic renewal
@@ -322,17 +317,12 @@ Where hash = SHA256(certPath|keyPath)[:6]
 
 ```go
 autocertCfg := state.AutoCert
-user, legoCfg, err := autocertCfg.GetLegoConfig()
-if err != nil {
-    return err
-}
-
-provider, err := autocert.NewProvider(autocertCfg, user, legoCfg)
+provider, err := autocert.NewProvider(autocertCfg)
 if err != nil {
     return fmt.Errorf("autocert error: %w", err)
 }
 
-if err := provider.ObtainCertIfNotExistsAll(); err != nil {
+if err := provider.ObtainCertIfNotExistsAll(state.Task().Context()); err != nil {
     return fmt.Errorf("failed to obtain certificates: %w", err)
 }
 
@@ -345,15 +335,16 @@ provider.PrintCertExpiriesAll()
 ```go
 // WebSocket endpoint: GET /api/v1/cert/renew
 if provider.ForceExpiryAll() {
-    // Wait for renewal to complete
+    // Wait for renewal to complete. This returns false when no renewal worker
+    // was enqueued, such as for local/pseudo-only providers.
     provider.WaitRenewalDone(ctx)
 }
 ```
 
 ## Testing Notes
 
-- `config_test.go` - Configuration validation
-- `provider_test/` - Provider functionality tests
-- `sni_test.go` - SNI matching tests
-- `multi_cert_test.go` - Extra provider tests
+- `internal/autocert/config_test.go` — configuration validation
+- `cmd/autocert/config_test.go`, `cmd/autocert/custom_test.go`, `cmd/autocert/multi_cert_test.go` — issuance and DNS tests (run in `cmd/autocert` module)
+- `internal/autocert/provider_test/sni_test.go` — SNI matching tests
+- `internal/dnsproviders/ovh_test.go` — DNS provider tests
 - Integration tests require mock DNS provider

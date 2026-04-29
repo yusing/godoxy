@@ -11,15 +11,10 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
@@ -38,14 +33,10 @@ type (
 		logger zerolog.Logger
 
 		cfg         *Config
-		user        *User
-		legoCfg     *lego.Config
-		client      *lego.Client
 		lastFailure time.Time
 
 		lastFailureFile string
 
-		legoCert     *certificate.Resource
 		tlsCert      *tls.Certificate
 		certExpiries CertExpiries
 
@@ -53,7 +44,7 @@ type (
 		sniMatcher     sniMatcher
 
 		forceRenewalCh     chan struct{}
-		forceRenewalDoneCh atomic.Value // chan struct{}
+		forceRenewalDoneCh atomic.Pointer[chan struct{}]
 
 		scheduleRenewalOnce sync.Once
 	}
@@ -77,15 +68,13 @@ const (
 	renewModeIfNeeded
 )
 
-func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, error) {
+func NewProvider(cfg *Config) (*Provider, error) {
 	p := &Provider{
 		cfg:             cfg,
-		user:            user,
-		legoCfg:         legoCfg,
 		lastFailureFile: lastFailureFileFor(cfg.CertPath, cfg.KeyPath),
 		forceRenewalCh:  make(chan struct{}, 1),
 	}
-	p.forceRenewalDoneCh.Store(emptyForceRenewalDoneCh)
+	p.forceRenewalDoneCh.Store(&emptyForceRenewalDoneCh)
 
 	if cfg.idx == 0 {
 		p.logger = log.With().Str("provider", "main").Logger()
@@ -220,12 +209,12 @@ func (p *Provider) allProviders() []*Provider {
 }
 
 // ObtainCertIfNotExistsAll obtains a new certificate for this provider and all extra providers if they do not exist.
-func (p *Provider) ObtainCertIfNotExistsAll() error {
+func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error {
 	errs := gperr.NewGroup("obtain cert error")
 
 	for _, provider := range p.allProviders() {
 		errs.Go(func() error {
-			if err := provider.obtainCertIfNotExists(); err != nil {
+			if err := provider.obtainCertIfNotExists(ctx); err != nil {
 				return gperr.PrependSubject(err, provider.GetName())
 			}
 			return nil
@@ -238,7 +227,7 @@ func (p *Provider) ObtainCertIfNotExistsAll() error {
 }
 
 // obtainCertIfNotExists obtains a new certificate for this provider if it does not exist.
-func (p *Provider) obtainCertIfNotExists() error {
+func (p *Provider) obtainCertIfNotExists(ctx context.Context) error {
 	err := p.loadCert()
 	if err == nil {
 		return nil
@@ -258,16 +247,17 @@ func (p *Provider) obtainCertIfNotExists() error {
 	}
 
 	p.logger.Info().Msg("cert not found, obtaining new cert")
-	return p.ObtainCert()
+	return p.ObtainCert(ctx)
 }
 
 // ObtainCertAll renews existing certificates or obtains new certificates for this provider and all extra providers.
-func (p *Provider) ObtainCertAll() error {
+func (p *Provider) ObtainCertAll(ctx context.Context) error {
 	errs := gperr.NewGroup("obtain cert error")
 	for _, provider := range p.allProviders() {
+		prov := provider
 		errs.Go(func() error {
-			if err := provider.obtainCertIfNotExists(); err != nil {
-				return gperr.PrependSubject(err, provider.GetName())
+			if err := prov.ObtainCert(ctx); err != nil {
+				return gperr.PrependSubject(err, prov.GetName())
 			}
 			return nil
 		})
@@ -279,103 +269,22 @@ func (p *Provider) ObtainCertAll() error {
 }
 
 // ObtainCert renews existing certificate or obtains a new certificate for this provider.
-func (p *Provider) ObtainCert() error {
+func (p *Provider) ObtainCert(ctx context.Context) error {
 	p.obtain.Lock()
 	defer p.obtain.Unlock()
 
-	if p.cfg.Provider == ProviderLocal {
+	if !shouldUseLocalAutocertOperations(p.cfg.Provider) {
+		if err := obtainCertUsingBinary(ctx, p.cfg.CertPath); err != nil {
+			return err
+		}
+		if err := p.loadCert(); err != nil {
+			return err
+		}
+		p.rebuildSNIMatcher()
 		return nil
 	}
 
-	if p.cfg.Provider == ProviderPseudo {
-		p.logger.Info().Msg("init client for pseudo provider")
-		<-time.After(time.Second)
-		p.logger.Info().Msg("registering acme for pseudo provider")
-		<-time.After(time.Second)
-		p.logger.Info().Msg("obtained cert for pseudo provider")
-		return nil
-	}
-
-	p.mu.RLock()
-	client := p.client
-	userRegistered := p.user.Registration != nil
-	legoCert := p.legoCert
-	p.mu.RUnlock()
-
-	if client == nil {
-		if err := p.initClient(); err != nil {
-			return err
-		}
-		p.mu.RLock()
-		client = p.client
-		p.mu.RUnlock()
-	}
-
-	// mark it as failed first, clear it later if successful
-	// in case the process crashed / failed to renew, we put it on a cooldown
-	// this prevents rate limiting by the ACME server
-	if err := p.UpdateLastFailure(); err != nil {
-		return fmt.Errorf("failed to update last failure: %w", err)
-	}
-
-	if !userRegistered {
-		if err := p.registerACME(); err != nil {
-			return err
-		}
-	}
-
-	var cert *certificate.Resource
-	var err error
-
-	if legoCert != nil {
-		cert, err = client.Certificate.RenewWithOptions(*legoCert, &certificate.RenewOptions{
-			Bundle: true,
-		})
-		if err != nil {
-			p.mu.Lock()
-			p.legoCert = nil
-			p.mu.Unlock()
-			log.Err(err).Msg("cert renew failed, fallback to obtain")
-		} else {
-			p.mu.Lock()
-			p.legoCert = cert
-			p.mu.Unlock()
-		}
-	}
-
-	if cert == nil {
-		cert, err = client.Certificate.Obtain(certificate.ObtainRequest{
-			Domains: p.cfg.Domains,
-			Bundle:  true,
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	if err = p.saveCert(cert); err != nil {
-		return err
-	}
-
-	tlsCert, err := tls.X509KeyPair(cert.Certificate, cert.PrivateKey)
-	if err != nil {
-		return err
-	}
-
-	expiries, err := getCertExpiries(&tlsCert)
-	if err != nil {
-		return err
-	}
-	p.mu.Lock()
-	p.tlsCert = &tlsCert
-	p.certExpiries = expiries
-	p.mu.Unlock()
-	p.rebuildSNIMatcher()
-
-	if err := p.ClearLastFailure(); err != nil {
-		return fmt.Errorf("failed to clear last failure: %w", err)
-	}
-	return nil
+	return p.obtainCertLocally(ctx)
 }
 
 func (p *Provider) LoadCertAll() error {
@@ -433,16 +342,16 @@ func (p *Provider) ShouldRenewOn() time.Time {
 //
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
-	doneCh := make(chan struct{})
-	if swapped := p.forceRenewalDoneCh.CompareAndSwap(emptyForceRenewalDoneCh, doneCh); !swapped { // already in progress
-		close(doneCh)
-		return false
-	}
-
-	select {
-	case p.forceRenewalCh <- struct{}{}:
-		ok = true
-	default:
+	if p.cfg.Provider != ProviderLocal && p.cfg.Provider != ProviderPseudo {
+		doneCh := p.beginForceRenewal()
+		if doneCh != nil {
+			select {
+			case p.forceRenewalCh <- struct{}{}:
+				ok = true
+			default:
+				p.finishForceRenewal(doneCh)
+			}
+		}
 	}
 
 	for _, ep := range p.extraProviders {
@@ -457,14 +366,28 @@ func (p *Provider) ForceExpiryAll() (ok bool) {
 // WaitRenewalDone waits for the renewal to complete.
 // Returns false if the renewal was dropped.
 func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
-	done, ok := p.forceRenewalDoneCh.Load().(chan struct{})
-	if !ok || done == nil {
-		return false
+	if p.neverStartsRenewalWorker() {
+		if len(p.extraProviders) == 0 {
+			return false
+		}
+		for _, ep := range p.extraProviders {
+			if !ep.WaitRenewalDone(ctx) {
+				return false
+			}
+		}
+		return true
 	}
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return false
+
+	if p.cfg.Provider != ProviderLocal && p.cfg.Provider != ProviderPseudo {
+		done := p.forceRenewalDoneCh.Load()
+		if done == nil || *done == nil {
+			return false
+		}
+		select {
+		case <-*done:
+		case <-ctx.Done():
+			return false
+		}
 	}
 
 	for _, ep := range p.extraProviders {
@@ -473,6 +396,50 @@ func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
 		}
 	}
 	return true
+}
+
+func (p *Provider) beginForceRenewal() *chan struct{} {
+	if p.neverStartsRenewalWorker() {
+		return nil
+	}
+
+	for {
+		done := p.forceRenewalDoneCh.Load()
+		switch {
+		case done == nil:
+			return nil
+		case *done == nil:
+			next := make(chan struct{})
+			if p.forceRenewalDoneCh.CompareAndSwap(done, &next) {
+				return &next
+			}
+		default:
+			select {
+			case <-*done:
+				next := make(chan struct{})
+				if p.forceRenewalDoneCh.CompareAndSwap(done, &next) {
+					return &next
+				}
+			default:
+				return nil
+			}
+		}
+	}
+}
+
+func (p *Provider) neverStartsRenewalWorker() bool {
+	return p.cfg != nil && (p.cfg.Provider == ProviderLocal || p.cfg.Provider == ProviderPseudo)
+}
+
+func (p *Provider) finishForceRenewal(done *chan struct{}) {
+	if done == nil || *done == nil {
+		return
+	}
+	select {
+	case <-*done:
+	default:
+		close(*done)
+	}
 }
 
 // ScheduleRenewalAll schedules the renewal of the certificate for this provider and all extra providers.
@@ -487,11 +454,11 @@ func (p *Provider) ScheduleRenewalAll(parent task.Parent) {
 	}
 }
 
-var emptyForceRenewalDoneCh any = chan struct{}(nil)
+var emptyForceRenewalDoneCh chan struct{}
 
 // scheduleRenewal schedules the renewal of the certificate for this provider.
 func (p *Provider) scheduleRenewal(parent task.Parent) {
-	if p.GetName() == ProviderLocal || p.GetName() == ProviderPseudo {
+	if p.neverStartsRenewalWorker() {
 		return
 	}
 
@@ -500,12 +467,13 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 	renew := func(renewMode RenewMode) {
 		defer func() {
-			if done, ok := p.forceRenewalDoneCh.Swap(emptyForceRenewalDoneCh).(chan struct{}); ok && done != nil {
-				close(done)
-			}
+			p.finishForceRenewal(p.forceRenewalDoneCh.Load())
 		}()
 
-		renewed, err := p.renew(renewMode)
+		ctx, cancel := context.WithTimeout(task.Context(), 5*time.Minute)
+		defer cancel()
+
+		renewed, err := p.renew(ctx, renewMode)
 		if err != nil {
 			log.Warn().Err(p.fmtError(err)).Msg("autocert: cert renew failed")
 			notif.Notify(&notif.LogMessage{
@@ -547,148 +515,6 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 			}
 		}
 	}()
-}
-
-func (p *Provider) initClient() error {
-	legoClient, err := lego.NewClient(p.legoCfg)
-	if err != nil {
-		return err
-	}
-
-	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider, p.cfg.dns01Options()...)
-	if err != nil {
-		return err
-	}
-
-	p.mu.Lock()
-	p.client = legoClient
-	p.mu.Unlock()
-	return nil
-}
-
-func (p *Provider) registerACME() error {
-	p.mu.RLock()
-	registrationExists := p.user.Registration != nil
-	client := p.client
-	p.mu.RUnlock()
-	if registrationExists {
-		return nil
-	}
-
-	reg, err := client.Registration.ResolveAccountByKey()
-	if err == nil {
-		p.user.Registration = reg
-		log.Info().Msg("reused acme registration from private key")
-		return nil
-	}
-
-	if p.cfg.EABKid != "" && p.cfg.EABHmac != "" {
-		reg, err = client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
-			TermsOfServiceAgreed: true,
-			Kid:                  p.cfg.EABKid,
-			HmacEncoded:          p.cfg.EABHmac,
-		})
-	} else {
-		reg, err = client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
-	}
-	if err != nil {
-		return err
-	}
-	p.mu.Lock()
-	p.user.Registration = reg
-	p.mu.Unlock()
-	log.Info().Interface("reg", reg).Msg("acme registered")
-	return nil
-}
-
-func (p *Provider) saveCert(cert *certificate.Resource) error {
-	if common.IsTest {
-		return nil
-	}
-	/* This should have been done in setup
-	but double check is always a good choice.*/
-	_, err := os.Stat(filepath.Dir(p.cfg.CertPath))
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err = os.MkdirAll(filepath.Dir(p.cfg.CertPath), 0o755); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	err = os.WriteFile(p.cfg.KeyPath, cert.PrivateKey, 0o600) // -rw-------
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(p.cfg.CertPath, cert.Certificate, 0o644) // -rw-r--r--
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *Provider) certState() CertState {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	if time.Now().After(p.ShouldRenewOn()) {
-		return CertStateExpired
-	}
-
-	if len(p.certExpiries) != len(p.cfg.Domains) {
-		return CertStateMismatch
-	}
-
-	for i := range len(p.cfg.Domains) {
-		if _, ok := p.certExpiries[p.cfg.Domains[i]]; !ok {
-			log.Info().Msgf("autocert domains mismatch: cert: %s, wanted: %s",
-				strings.Join(slices.Collect(maps.Keys(p.certExpiries)), ", "),
-				strings.Join(p.cfg.Domains, ", "))
-			return CertStateMismatch
-		}
-	}
-
-	return CertStateValid
-}
-
-func (p *Provider) renew(mode RenewMode) (renewed bool, err error) {
-	if p.cfg.Provider == ProviderLocal {
-		return false, nil
-	}
-
-	if mode != renewModeForce {
-		// Retry after 1 hour on failure
-		lastFailure, err := p.GetLastFailure()
-		if err != nil {
-			return false, fmt.Errorf("failed to get last failure: %w", err)
-		}
-		if !lastFailure.IsZero() && time.Since(lastFailure) < renewalCooldownDuration {
-			until := lastFailure.Add(renewalCooldownDuration).Local()
-			return false, fmt.Errorf("still in cooldown until %s", strutils.FormatTime(until))
-		}
-	}
-
-	if mode == renewModeIfNeeded {
-		switch p.certState() {
-		case CertStateExpired:
-			log.Info().Msg("certs expired, renewing")
-		case CertStateMismatch:
-			log.Info().Msg("cert domains mismatch with config, renewing")
-		default:
-			return false, nil
-		}
-	}
-
-	if mode == renewModeForce {
-		log.Info().Msg("force renewing cert by user request")
-	}
-
-	if err := p.ObtainCert(); err != nil {
-		return false, err
-	}
-	return true, nil
 }
 
 func getCertExpiries(cert *tls.Certificate) (CertExpiries, error) {

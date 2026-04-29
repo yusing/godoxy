@@ -1,5 +1,5 @@
 //nolint:errchkjson,errcheck
-package provider_test
+package main
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/goutils/task"
 )
 
 func buildMultiCertYAML(serverURL string) []byte {
@@ -49,41 +48,26 @@ func TestMultipleCertificatesLifecycle(t *testing.T) {
 	require.Equal(t, []string{"extra1.example.com"}, cfg.Extra[0].Domains)
 	require.Equal(t, []string{"extra2.example.com"}, cfg.Extra[1].Domains)
 
-	var provider *autocert.Provider
-
-	/* initialize autocert with multi-cert config */
-	user, legoCfg, gerr := cfg.GetLegoConfig()
-	require.NoError(t, gerr)
-	provider, err = autocert.NewProvider(&cfg, user, legoCfg)
-	require.NoError(t, err)
-	require.NotNil(t, provider)
-
-	// Start renewal scheduler
-	root := task.RootTask("test", false)
-	defer root.Finish(nil)
-	provider.ScheduleRenewalAll(root)
-
 	require.Equal(t, "custom", cfg.Provider)
 	require.Equal(t, "custom", cfg.Extra[0].Provider)
 	require.Equal(t, "custom", cfg.Extra[1].Provider)
 
 	/* track cert requests for all configs */
-	os.MkdirAll("certs", 0o755)
+	require.NoError(t, os.MkdirAll("certs", 0o755))
 	defer os.RemoveAll("certs")
 
-	err = provider.ObtainCertIfNotExistsAll()
-	require.NoError(t, err)
+	require.NoError(t, obtainCert(&cfg))
+	require.NoError(t, obtainCert(cfg.Extra[0].AsConfig()))
+	require.NoError(t, obtainCert(cfg.Extra[1].AsConfig()))
 
 	require.Equal(t, 1, acmeServer.certRequestCount["main.example.com"])
 	require.Equal(t, 1, acmeServer.certRequestCount["extra1.example.com"])
 	require.Equal(t, 1, acmeServer.certRequestCount["extra2.example.com"])
 
-	/* track renewal scheduling and requests */
-
-	// force renewal for all providers and wait for completion
-	ok := provider.ForceExpiryAll()
-	require.True(t, ok)
-	provider.WaitRenewalDone(t.Context())
+	/* track renewal requests */
+	require.NoError(t, obtainCert(&cfg))
+	require.NoError(t, obtainCert(cfg.Extra[0].AsConfig()))
+	require.NoError(t, obtainCert(cfg.Extra[1].AsConfig()))
 
 	require.Equal(t, 1, acmeServer.renewalRequestCount["main.example.com"])
 	require.Equal(t, 1, acmeServer.renewalRequestCount["extra1.example.com"])
