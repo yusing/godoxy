@@ -161,7 +161,7 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	}
 
 	if cfg.CertificateKeyType != "" {
-		if _, err := parseCertificateKeyType(cfg.CertificateKeyType); err != nil {
+		if _, err := ParseCertificateKeyType(cfg.CertificateKeyType); err != nil {
 			b.Add(err)
 		}
 	}
@@ -179,7 +179,8 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	return b.Error()
 }
 
-func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
+// ParseCertificateKeyType converts the config value into the lego certificate key type.
+func ParseCertificateKeyType(s string) (certcrypto.KeyType, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return certcrypto.EC256, nil

@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/challenge/dns01"
@@ -69,26 +67,15 @@ func obtainCert(cfg *autocert.Config) error {
 }
 
 func getLegoConfig(cfg *autocert.Config) (*autocert.User, *lego.Config, error) {
-	var privKey *ecdsa.PrivateKey
-	var err error
-
-	if cfg.Provider != autocert.ProviderLocal && cfg.Provider != autocert.ProviderPseudo {
-		if privKey, err = cfg.LoadACMEKey(); err != nil {
-			log.Info().Err(err).Msg("failed to load ACME private key, generating a new one")
-			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			if err != nil {
-				return nil, nil, fmt.Errorf("generate ACME private key: %w", err)
-			}
-			if err = cfg.SaveACMEKey(privKey); err != nil {
-				return nil, nil, fmt.Errorf("save ACME private key: %w", err)
-			}
-		}
+	privKey, err := loadOrCreateACMEKey(cfg)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	user := &autocert.User{Email: cfg.Email, Key: privKey}
 	legoCfg := lego.NewConfig(user)
 
-	keyType, err := parseCertificateKeyType(cfg.CertificateKeyType)
+	keyType, err := autocert.ParseCertificateKeyType(cfg.CertificateKeyType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,26 +92,60 @@ func getLegoConfig(cfg *autocert.Config) (*autocert.User, *lego.Config, error) {
 	if cfg.CADirURL != "" {
 		legoCfg.CADirURL = cfg.CADirURL
 	}
-	if len(cfg.CACerts) > 0 {
-		certPool, err := lego.CreateCertPool(cfg.CACerts, true)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create cert pool: %w", err)
-		}
-		rt, err := ensureHTTPTransportForTLS(legoCfg.HTTPClient)
-		if err != nil {
-			return nil, nil, err
-		}
-		var tlsCfg *tls.Config
-		if rt.TLSClientConfig != nil {
-			tlsCfg = rt.TLSClientConfig.Clone()
-		} else {
-			tlsCfg = &tls.Config{}
-		}
-		tlsCfg.RootCAs = certPool
-		rt.TLSClientConfig = tlsCfg
-		legoCfg.HTTPClient.Transport = rt
+	if err := configureCustomCACerts(legoCfg, cfg.CACerts); err != nil {
+		return nil, nil, err
 	}
 	return user, legoCfg, nil
+}
+
+func loadOrCreateACMEKey(cfg *autocert.Config) (*ecdsa.PrivateKey, error) {
+	if cfg.Provider == autocert.ProviderLocal || cfg.Provider == autocert.ProviderPseudo {
+		return nil, nil
+	}
+
+	privKey, err := cfg.LoadACMEKey()
+	if err == nil {
+		return privKey, nil
+	}
+
+	log.Info().Err(err).Msg("failed to load ACME private key, generating a new one")
+	privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate ACME private key: %w", err)
+	}
+	if err := cfg.SaveACMEKey(privKey); err != nil {
+		return nil, fmt.Errorf("save ACME private key: %w", err)
+	}
+	return privKey, nil
+}
+
+func configureCustomCACerts(legoCfg *lego.Config, caCerts []string) error {
+	if len(caCerts) == 0 {
+		return nil
+	}
+
+	certPool, err := lego.CreateCertPool(caCerts, true)
+	if err != nil {
+		return fmt.Errorf("failed to create cert pool: %w", err)
+	}
+	rt, err := ensureHTTPTransportForTLS(legoCfg.HTTPClient)
+	if err != nil {
+		return err
+	}
+
+	tlsCfg := rt.TLSClientConfig
+	if tlsCfg != nil {
+		tlsCfg = tlsCfg.Clone()
+	} else {
+		tlsCfg = &tls.Config{}
+	}
+	if tlsCfg.MinVersion == 0 || tlsCfg.MinVersion < tls.VersionTLS12 {
+		tlsCfg.MinVersion = tls.VersionTLS12
+	}
+	tlsCfg.RootCAs = certPool
+	rt.TLSClientConfig = tlsCfg
+	legoCfg.HTTPClient.Transport = rt
+	return nil
 }
 
 func challengeProvider(cfg *autocert.Config) (challenge.Provider, error) {
@@ -178,6 +199,9 @@ func saveCert(cfg *autocert.Config, cert *certificate.Resource) error {
 	if err := os.MkdirAll(filepath.Dir(cfg.CertPath), 0o755); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(cfg.KeyPath), 0o755); err != nil {
+		return err
+	}
 	if err := os.WriteFile(cfg.KeyPath, cert.PrivateKey, 0o600); err != nil {
 		return err
 	}
@@ -200,27 +224,8 @@ func ensureHTTPTransportForTLS(hc *http.Client) (*http.Transport, error) {
 	default:
 		return nil, fmt.Errorf("HTTPS client transport must be *http.Transport or nil for custom CA certs, got %T", hc.Transport)
 	}
-	return http.DefaultTransport.(*http.Transport).Clone(), nil
-}
-
-func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return certcrypto.EC256, nil
+	if t, ok := http.DefaultTransport.(*http.Transport); ok {
+		return t.Clone(), nil
 	}
-	switch strings.ToLower(s) {
-	case "ec256", "p256":
-		return certcrypto.EC256, nil
-	case "ec384", "p384":
-		return certcrypto.EC384, nil
-	case "rsa2048", "2048":
-		return certcrypto.RSA2048, nil
-	case "rsa3072", "3072":
-		return certcrypto.RSA3072, nil
-	case "rsa4096", "4096":
-		return certcrypto.RSA4096, nil
-	case "rsa8192", "8192":
-		return certcrypto.RSA8192, nil
-	}
-	return "", fmt.Errorf("invalid certificate_key_type %q", s)
+	return nil, fmt.Errorf("default transport is %T, expected *http.Transport", http.DefaultTransport)
 }

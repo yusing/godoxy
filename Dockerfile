@@ -30,8 +30,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
   sed -i '/^module github\.com\/yusing\/godoxy/!{/github\.com\/yusing\/godoxy/d}' go.mod && \
   sed -i '/^module github\.com\/yusing\/goutils/!{/github\.com\/yusing\/goutils/d}' go.mod && \
   go mod download -x && \
-  cd /src/internal/dnsproviders && go mod download -x && \
-  cd /src/cmd/autocert && go mod download -x
+  (cd /src/internal/dnsproviders && go mod download -x) && \
+  (cd /src/cmd/autocert && go mod download -x)
 
 # Stage 2: builder
 FROM deps AS builder
@@ -71,9 +71,8 @@ LABEL proxy.#1.healthcheck.disable=true
 # copy timezone data
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# copy binary
-COPY --from=builder /app/run /app/run
-COPY --from=builder /app/autocert /app/autocert
+# copy binaries
+COPY --from=builder /app/ /app/
 
 # copy certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs

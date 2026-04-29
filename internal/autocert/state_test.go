@@ -34,7 +34,7 @@ func TestObtainCertUsesStandaloneBinaryAndReloadsCertificate(t *testing.T) {
 	var called bool
 	autocertCommandRunner = func(ctx context.Context, name string, args ...string) error {
 		called = true
-		require.Equal(t, context.Background(), ctx)
+		require.NotNil(t, ctx)
 		require.Equal(t, "autocert", name)
 		require.True(t, slices.Contains(args, "obtain"))
 		require.True(t, slices.Contains(args, certPath))

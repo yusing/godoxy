@@ -343,7 +343,7 @@ func (p *Provider) ShouldRenewOn() time.Time {
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
 	doneCh := make(chan struct{})
-	if swapped := p.forceRenewalDoneCh.CompareAndSwap(&emptyForceRenewalDoneCh, &doneCh); !swapped { // already in progress
+	if !p.forceRenewalDoneCh.CompareAndSwap(&emptyForceRenewalDoneCh, &doneCh) { // already in progress
 		close(doneCh)
 		return false
 	}
@@ -400,7 +400,7 @@ var emptyForceRenewalDoneCh chan struct{}
 
 // scheduleRenewal schedules the renewal of the certificate for this provider.
 func (p *Provider) scheduleRenewal(parent task.Parent) {
-	if p.GetName() == ProviderLocal || p.GetName() == ProviderPseudo {
+	if p.cfg.Provider == ProviderLocal || p.cfg.Provider == ProviderPseudo {
 		return
 	}
 

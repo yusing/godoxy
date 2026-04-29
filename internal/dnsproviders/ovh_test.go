@@ -1,6 +1,7 @@
 package dnsproviders_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-acme/lego/v4/providers/dns/ovh"
@@ -28,7 +29,7 @@ oauth2_config:
 		OAuth2Config:      &ovh.OAuth2Config{ClientID: "<client_id>", ClientSecret: "<client_secret>"},
 	}
 
-	testYAML = testYAML[1:]
+	testYAML = strings.TrimPrefix(testYAML, "\n")
 	opt := make(map[string]any)
 	require.NoError(t, yaml.Unmarshal([]byte(testYAML), &opt))
 	require.NoError(t, serialization.MapUnmarshalValidate(opt, cfg))

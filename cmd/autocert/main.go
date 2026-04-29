@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/goccy/go-yaml"
@@ -43,7 +42,6 @@ func run(args []string) error {
 
 func runObtain(args []string) error {
 	fs := flag.NewFlagSet("obtain", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
 
 	configPath := fs.String("config", common.ConfigPath, "")
 	certPath := fs.String("cert-path", "", "")
