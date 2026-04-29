@@ -2,6 +2,7 @@ package certapi
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,10 @@ func Renew(c *gin.Context) {
 
 	manager, err := websocket.NewManagerWithUpgrade(c)
 	if err != nil {
+		if !isWebSocketRequest(c.Request) {
+			renewWithoutWebSocket(c, provider)
+			return
+		}
 		c.Error(apitypes.InternalServerError(err, "failed to create websocket manager"))
 		return
 	}
@@ -69,4 +74,20 @@ func Renew(c *gin.Context) {
 	log.Info().Msg("cert force renewal requested")
 
 	provider.WaitRenewalDone(manager.Context())
+}
+
+func renewWithoutWebSocket(c *gin.Context, provider autocertctx.Provider) {
+	ok := provider.ForceExpiryAll()
+	if !ok {
+		c.JSON(http.StatusConflict, apitypes.Error("cert renewal already in progress"))
+		return
+	}
+	log.Info().Msg("cert force renewal requested")
+	provider.WaitRenewalDone(c.Request.Context())
+	c.JSON(http.StatusOK, apitypes.Success("cert renewal requested"))
+}
+
+func isWebSocketRequest(r *http.Request) bool {
+	return strings.EqualFold(r.Header.Get("Upgrade"), "websocket") &&
+		strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade")
 }

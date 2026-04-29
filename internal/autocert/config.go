@@ -150,7 +150,9 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	}
 
 	if cfg.challengeProvider == nil {
-		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
+		if providerConstructor, ok := Providers[ProviderLocal]; ok {
+			cfg.challengeProvider, _ = providerConstructor(nil)
+		}
 	}
 
 	if len(cfg.Extra) > 0 {

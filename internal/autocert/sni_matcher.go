@@ -1,21 +1,26 @@
 package autocert
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"strings"
 )
 
+type certSource interface {
+	getTLSCert() *tls.Certificate
+}
+
 type sniMatcher struct {
-	exact map[string]*Provider
+	exact map[string]certSource
 	root  sniTreeNode
 }
 
 type sniTreeNode struct {
 	children map[string]*sniTreeNode
-	wildcard *Provider
+	wildcard certSource
 }
 
-func (m *sniMatcher) match(serverName string) *Provider {
+func (m *sniMatcher) match(serverName string) certSource {
 	if m == nil {
 		return nil
 	}
@@ -31,11 +36,11 @@ func (m *sniMatcher) match(serverName string) *Provider {
 	return m.matchSuffixTree(serverName)
 }
 
-func (m *sniMatcher) matchSuffixTree(serverName string) *Provider {
+func (m *sniMatcher) matchSuffixTree(serverName string) certSource {
 	n := &m.root
 	labels := strings.Split(serverName, ".")
 
-	var best *Provider
+	var best certSource
 	for i := len(labels) - 1; i >= 0; i-- {
 		if n.children == nil {
 			break
@@ -61,7 +66,7 @@ func normalizeServerName(s string) string {
 	return strings.ToLower(s)
 }
 
-func (m *sniMatcher) addProvider(p *Provider) {
+func (m *sniMatcher) addProvider(p certSource) {
 	if p == nil {
 		return
 	}
@@ -98,19 +103,19 @@ func (m *sniMatcher) addProvider(p *Provider) {
 	}
 }
 
-func (m *sniMatcher) insertExact(name string, p *Provider) {
+func (m *sniMatcher) insertExact(name string, p certSource) {
 	if name == "" || p == nil {
 		return
 	}
 	if m.exact == nil {
-		m.exact = make(map[string]*Provider)
+		m.exact = make(map[string]certSource)
 	}
 	if _, exists := m.exact[name]; !exists {
 		m.exact[name] = p
 	}
 }
 
-func (m *sniMatcher) insertWildcardSuffix(suffix string, p *Provider) {
+func (m *sniMatcher) insertWildcardSuffix(suffix string, p certSource) {
 	if suffix == "" || p == nil {
 		return
 	}

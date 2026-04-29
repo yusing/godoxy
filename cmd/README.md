@@ -6,6 +6,8 @@ Main entry point package for GoDoxy, a lightweight reverse proxy with WebUI for 
 
 This package contains the `main.go` entry point that initializes and starts the GoDoxy server. It coordinates the initialization of all core components including configuration loading, API server, authentication, and monitoring services.
 
+It also contains `cmd/autocert`, an internal oneshot helper binary spawned by the main process for ACME obtain/renew work.
+
 ## Architecture
 
 ```mermaid

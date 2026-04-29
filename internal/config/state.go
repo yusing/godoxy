@@ -47,7 +47,7 @@ type state struct {
 	config.Config
 
 	providers        *xsync.Map[string, types.RouteProvider]
-	autocertProvider *autocert.Provider
+	autocertProvider autocertctx.Provider
 	entrypoint       *entrypoint.Entrypoint
 
 	task *task.Task
@@ -314,7 +314,7 @@ func (state *state) initEntrypoint() error {
 	}
 
 	if state.autocertProvider != nil {
-		if domain := getAutoCertDefaultDomain(state.autocertProvider); domain != "" {
+		if domain := getAutoCertDefaultDomain(state.AutoCert); domain != "" {
 			state.entrypoint.ShortLinkMatcher().SetDefaultDomainSuffix("." + domain)
 		}
 	}
@@ -328,11 +328,14 @@ func (state *state) initEntrypoint() error {
 	return errs.Error()
 }
 
-func getAutoCertDefaultDomain(p *autocert.Provider) string {
-	if p == nil {
+func getAutoCertDefaultDomain(cfg *autocert.Config) string {
+	if cfg == nil {
 		return ""
 	}
-	cert, err := tls.LoadX509KeyPair(p.GetCertPath(), p.GetKeyPath())
+	clone := *cfg
+	clone.Extra = nil
+	_ = clone.Validate()
+	cert, err := tls.LoadX509KeyPair(clone.CertPath, clone.KeyPath)
 	if err != nil || len(cert.Certificate) == 0 {
 		return ""
 	}
@@ -378,28 +381,21 @@ func (state *state) initAutoCert() error {
 	if autocertCfg == nil {
 		autocertCfg = new(autocert.Config)
 		_ = autocertCfg.Validate()
+		state.AutoCert = autocertCfg
 	}
 
-	user, legoCfg, err := autocertCfg.GetLegoConfig()
+	p, err := newAutoCertService(state.task, autocertCfg)
 	if err != nil {
 		return err
 	}
-
-	p, err := autocert.NewProvider(autocertCfg, user, legoCfg)
-	if err != nil {
-		return err
-	}
-
-	if err := p.ObtainCertIfNotExistsAll(); err != nil {
-		return err
-	}
-
-	p.ScheduleRenewalAll(state.task)
-	p.PrintCertExpiriesAll()
 
 	state.autocertProvider = p
 	autocertctx.SetCtx(state.task, p)
 	return nil
+}
+
+var newAutoCertService = func(parent task.Parent, cfg *autocert.Config) (autocertctx.Provider, error) {
+	return autocert.NewService(parent, cfg, autocert.DefaultHelperBinary())
 }
 
 func (state *state) initProxmox() error {

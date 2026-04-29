@@ -31,6 +31,10 @@ else ifeq ($(cli), 1)
 	NAME = godoxy-cli
 	PWD = ${shell pwd}/cmd/cli
 	PACKAGE = .
+else ifeq ($(autocert), 1)
+	NAME = godoxy-autocert
+	PWD = ${shell pwd}
+	PACKAGE = ./cmd/autocert
 else
 	NAME = godoxy
 	PWD = ${shell pwd}

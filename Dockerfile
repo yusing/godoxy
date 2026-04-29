@@ -55,7 +55,9 @@ ENV BRANCH=${BRANCH}
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
-  make ${MAKE_ARGS} docker=1 build
+  make ${MAKE_ARGS} docker=1 build && \
+  make autocert=1 build && \
+  mv /src/bin/godoxy-autocert /app/autocert
 
 # Stage 3: Final image
 FROM scratch
@@ -69,6 +71,7 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # copy binary
 COPY --from=builder /app/run /app/run
+COPY --from=builder /app/autocert /app/autocert
 
 # copy certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs

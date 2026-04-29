@@ -106,8 +106,8 @@ func (p *Provider) GetCert(hello *tls.ClientHelloInfo) (*tls.Certificate, error)
 	if hello == nil || hello.ServerName == "" {
 		return tlsCert, nil
 	}
-	if prov := p.getSNIMatcher().match(hello.ServerName); prov != nil {
-		if cert := prov.getTLSCert(); cert != nil {
+	if src := p.getSNIMatcher().match(hello.ServerName); src != nil {
+		if cert := src.getTLSCert(); cert != nil {
 			return cert, nil
 		}
 	}

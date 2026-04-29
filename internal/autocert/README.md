@@ -8,6 +8,11 @@ Automated SSL certificate management using the ACME protocol (Let's Encrypt and 
 
 This package provides complete SSL certificate lifecycle management:
 
+This package is split between proxy-side certificate serving and helper-side ACME work:
+
+- **Proxy role:** file-backed certificate cache + scheduler in the main process
+- **Helper role:** spawned oneshot binary that performs obtain/renew work and exits
+
 - ACME account registration and management
 - Certificate issuance via DNS-01 challenge
 - Automatic renewal scheduling (1 month before expiry)
