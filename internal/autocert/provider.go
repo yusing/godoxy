@@ -342,13 +342,15 @@ func (p *Provider) ShouldRenewOn() time.Time {
 //
 // If at least one renewal is triggered, returns true.
 func (p *Provider) ForceExpiryAll() (ok bool) {
-	doneCh := p.beginForceRenewal()
-	if doneCh != nil {
-		select {
-		case p.forceRenewalCh <- struct{}{}:
-			ok = true
-		default:
-			p.finishForceRenewal(doneCh)
+	if p.cfg.Provider != ProviderLocal && p.cfg.Provider != ProviderPseudo {
+		doneCh := p.beginForceRenewal()
+		if doneCh != nil {
+			select {
+			case p.forceRenewalCh <- struct{}{}:
+				ok = true
+			default:
+				p.finishForceRenewal(doneCh)
+			}
 		}
 	}
 
@@ -376,14 +378,16 @@ func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
 		return true
 	}
 
-	done := p.forceRenewalDoneCh.Load()
-	if done == nil || *done == nil {
-		return false
-	}
-	select {
-	case <-*done:
-	case <-ctx.Done():
-		return false
+	if p.cfg.Provider != ProviderLocal && p.cfg.Provider != ProviderPseudo {
+		done := p.forceRenewalDoneCh.Load()
+		if done == nil || *done == nil {
+			return false
+		}
+		select {
+		case <-*done:
+		case <-ctx.Done():
+			return false
+		}
 	}
 
 	for _, ep := range p.extraProviders {
