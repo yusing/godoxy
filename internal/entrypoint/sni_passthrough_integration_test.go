@@ -19,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
+	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	epctx "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/route"
@@ -34,7 +35,7 @@ func (p staticCertProvider) GetCert(*tls.ClientHelloInfo) (*tls.Certificate, err
 }
 func (p staticCertProvider) GetCertInfos() ([]autocert.CertInfo, error) { return nil, nil }
 func (p staticCertProvider) ScheduleRenewalAll(task.Parent)             {}
-func (p staticCertProvider) ObtainCertAll() error                       { return nil }
+func (p staticCertProvider) ObtainCertAll(context.Context) error        { return nil }
 func (p staticCertProvider) ForceExpiryAll() bool                       { return false }
 func (p staticCertProvider) WaitRenewalDone(context.Context) bool       { return true }
 
@@ -46,6 +47,7 @@ func TestSNIPassthroughSharesHTTPSListener(t *testing.T) {
 	epctx.SetCtx(parent, ep)
 
 	listenPort := freeTCPPort(t)
+	setTestHTTPSAddr(t, listenPort)
 
 	defaultBindUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("default bind route"))
@@ -77,12 +79,11 @@ func TestSNIPassthroughSharesHTTPSListener(t *testing.T) {
 		Scheme:      routetypes.SchemeTCP,
 		Host:        upstreamHost,
 		Port:        route.Port{Listening: listenPort, Proxy: upstreamPort},
-		SNIHosts:    []string{"*.site2.domain.tld"},
 		HealthCheck: typespkg.HealthCheckConfig{Disable: true},
 	})
 	require.NoError(t, err)
 
-	passthroughBody := tlsRoundTrip(t, listenPort, "www.site2.domain.tld", "passthrough")
+	passthroughBody := tlsRoundTrip(t, listenPort, "site2.domain.tld", "passthrough")
 	require.Equal(t, "passthrough", passthroughBody)
 
 	transport := &http.Transport{TLSClientConfig: &tls.Config{
@@ -115,6 +116,22 @@ func freeTCPPort(t *testing.T) int {
 	require.NoError(t, err)
 	defer ln.Close()
 	return ln.Addr().(*net.TCPAddr).Port
+}
+
+func setTestHTTPSAddr(t *testing.T, port int) {
+	t.Helper()
+
+	originalAddr := common.ProxyHTTPSAddr
+	originalHost := common.ProxyHTTPSHost
+	originalPort := common.ProxyHTTPSPort
+	common.ProxyHTTPSAddr = ":" + strconv.Itoa(port)
+	common.ProxyHTTPSHost = ""
+	common.ProxyHTTPSPort = port
+	t.Cleanup(func() {
+		common.ProxyHTTPSAddr = originalAddr
+		common.ProxyHTTPSHost = originalHost
+		common.ProxyHTTPSPort = originalPort
+	})
 }
 
 func splitHostPort(t *testing.T, addr string) (string, int) {
@@ -171,8 +188,14 @@ func startTLSEchoServer(t *testing.T, response string) *tlsEchoServer {
 			go func() {
 				defer conn.Close()
 				buf := make([]byte, len(response))
-				_, _ = conn.Read(buf)
-				_, _ = conn.Write([]byte(response))
+				n, err := io.ReadFull(conn, buf)
+				if err != nil {
+					t.Errorf("read upstream request: read %d/%d bytes: %v", n, len(buf), err)
+					return
+				}
+				if _, err := conn.Write([]byte(response)); err != nil {
+					t.Errorf("write upstream response: %v", err)
+				}
 			}()
 		}
 	}()
@@ -193,7 +216,8 @@ func tlsRoundTrip(t *testing.T, port int, serverName, payload string) string {
 	_, err = conn.Write([]byte(payload))
 	require.NoError(t, err)
 	buf := make([]byte, len(payload))
-	_, err = conn.Read(buf)
+	n, err := io.ReadFull(conn, buf)
 	require.NoError(t, err)
+	require.Equal(t, len(payload), n)
 	return string(buf)
 }

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +18,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
+	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -27,11 +28,6 @@ var errClientHelloCaptured = errors.New("client hello captured")
 const defaultClientHelloTimeout = 5 * time.Second
 
 var clientHelloTimeout = defaultClientHelloTimeout
-
-type sniPassthroughRoute interface {
-	types.StreamRoute
-	SNIPassthroughHosts() []string
-}
 
 type sniPassthroughManager struct {
 	ep    *Entrypoint
@@ -45,12 +41,38 @@ func newSNIPassthroughManager(ep *Entrypoint) *sniPassthroughManager {
 	}
 }
 
-func asSNIPassthroughRoute(route types.StreamRoute) (sniPassthroughRoute, bool) {
-	routeWithSNI, ok := route.(sniPassthroughRoute)
-	if !ok || len(routeWithSNI.SNIPassthroughHosts()) == 0 {
-		return nil, false
+func asSNIPassthroughRoute(route types.StreamRoute) (types.StreamRoute, bool) {
+	if routeListensOnHTTPSAddr(route.ListenURL()) {
+		return route, true
 	}
-	return routeWithSNI, true
+	return nil, false
+}
+
+func routeListensOnHTTPSAddr(listenURL *nettypes.URL) bool {
+	if listenURL == nil {
+		return false
+	}
+	switch listenURL.Scheme {
+	case "tcp", "tcp4", "tcp6":
+	default:
+		return false
+	}
+	return listenAddrMatchesHTTPSAddr(listenURL.Host)
+}
+
+func listenAddrMatchesHTTPSAddr(addr string) bool {
+	if addr == common.ProxyHTTPSAddr {
+		return true
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil || port != strconv.Itoa(common.ProxyHTTPSPort) {
+		return false
+	}
+	if common.ProxyHTTPSHost != "" {
+		return host == common.ProxyHTTPSHost
+	}
+	return host == "" || host == "0.0.0.0" || host == "::"
 }
 
 func (m *sniPassthroughManager) HTTPSListener(addr string) (net.Listener, bool, error) {
@@ -61,20 +83,20 @@ func (m *sniPassthroughManager) HTTPSListener(addr string) (net.Listener, bool, 
 	return mux.httpsListener(), true, nil
 }
 
-func (m *sniPassthroughManager) AddRoute(route sniPassthroughRoute) error {
-	mux, err := m.getOrStart(newSNIListenKey(route.ListenURL().Scheme, route.ListenURL().Host))
-	if err != nil {
-		return err
-	}
+func (m *sniPassthroughManager) AddRoute(route types.StreamRoute) error {
 	proxy, ok := route.Stream().(nettypes.ConnProxy)
 	if !ok {
 		return fmt.Errorf("route %q stream does not support accepted connection proxying", route.Name())
 	}
-	return mux.addRoute(route.Key(), route.SNIPassthroughHosts(), proxy, route.Task().Context())
+	mux, err := m.getOrStart(newSNIListenKeyForAddr(common.ProxyHTTPSAddr))
+	if err != nil {
+		return err
+	}
+	return mux.addRoute(route.Key(), proxy, route.Task().Context())
 }
 
-func (m *sniPassthroughManager) DelRoute(route sniPassthroughRoute) {
-	if mux, ok := m.muxes.Load(newSNIListenKey(route.ListenURL().Scheme, route.ListenURL().Host).String()); ok {
+func (m *sniPassthroughManager) DelRoute(route types.StreamRoute) {
+	if mux, ok := m.muxes.Load(newSNIListenKeyForAddr(common.ProxyHTTPSAddr).String()); ok {
 		mux.delRoute(route.Key())
 	}
 }
@@ -136,20 +158,17 @@ func (m *sniPassthroughManager) getOrStart(key sniListenKey) (*sniPassthroughMux
 }
 
 type sniPassthroughMux struct {
-	ep       *Entrypoint
-	key      sniListenKey
-	base     net.Listener
-	httpsMu  sync.Mutex
-	https    *queuedListener
-	routesMu sync.Mutex
-	routes   *xsync.Map[string, *sniPassthroughTarget]
-	matcher  atomic.Pointer[sniPatternMatcher]
-	closed   atomic.Bool
+	ep      *Entrypoint
+	key     sniListenKey
+	base    net.Listener
+	httpsMu sync.Mutex
+	https   *queuedListener
+	routes  *xsync.Map[string, *sniPassthroughTarget]
+	closed  atomic.Bool
 }
 
 type sniPassthroughTarget struct {
 	key   string
-	hosts []string
 	proxy nettypes.ConnProxy
 	ctx   context.Context
 }
@@ -171,7 +190,6 @@ func newSNIPassthroughMux(ep *Entrypoint, key sniListenKey) (*sniPassthroughMux,
 		base:   base,
 		routes: xsync.NewMap[string, *sniPassthroughTarget](),
 	}
-	mux.matcher.Store(newSNIPatternMatcher())
 	ep.task.OnCancel("sni_passthrough_mux:"+key.String(), func() {
 		mux.close()
 	})
@@ -200,31 +218,18 @@ func (m *sniPassthroughMux) existingHTTPSListener() *queuedListener {
 	return m.https
 }
 
-func (m *sniPassthroughMux) addRoute(key string, hosts []string, proxy nettypes.ConnProxy, ctx context.Context) error {
-	if len(hosts) == 0 {
-		return errors.New("sni passthrough route requires at least one host pattern")
+func (m *sniPassthroughMux) addRoute(key string, proxy nettypes.ConnProxy, ctx context.Context) error {
+	key = normalizeSNIName(key)
+	if key == "" {
+		return errors.New("sni passthrough route requires a non-empty alias")
 	}
-	target := &sniPassthroughTarget{key: key, hosts: slices.Clone(hosts), proxy: proxy, ctx: ctx}
-	m.routesMu.Lock()
-	defer m.routesMu.Unlock()
+	target := &sniPassthroughTarget{key: key, proxy: proxy, ctx: ctx}
 	m.routes.Store(key, target)
-	m.rebuildMatcherLocked()
 	return nil
 }
 
 func (m *sniPassthroughMux) delRoute(key string) {
-	m.routesMu.Lock()
-	defer m.routesMu.Unlock()
-	m.routes.Delete(key)
-	m.rebuildMatcherLocked()
-}
-
-func (m *sniPassthroughMux) rebuildMatcherLocked() {
-	matcher := newSNIPatternMatcher()
-	for _, target := range m.routes.Range {
-		matcher.add(target.key, target.hosts)
-	}
-	m.matcher.Store(matcher)
+	m.routes.Delete(normalizeSNIName(key))
 }
 
 func (m *sniPassthroughMux) acceptLoop(ctx context.Context) {
@@ -252,14 +257,9 @@ func (m *sniPassthroughMux) handleConn(ctx context.Context, conn net.Conn) {
 		m.forwardHTTPS(replayConn)
 		return
 	}
-	matcher := m.matcher.Load()
-	if matcher != nil {
-		if key, ok := matcher.match(serverName); ok {
-			if target, found := m.routes.Load(key); found {
-				target.proxy.ProxyConn(target.ctx, replayConn)
-				return
-			}
-		}
+	if target, ok := m.matchRoute(serverName); ok {
+		target.proxy.ProxyConn(target.ctx, replayConn)
+		return
 	}
 	m.forwardHTTPS(replayConn)
 }
@@ -308,12 +308,16 @@ func (l *queuedListener) Accept() (net.Conn, error) {
 
 func (l *queuedListener) Close() error {
 	l.closedMu.Lock()
-	defer l.closedMu.Unlock()
 	if l.closed {
+		l.closedMu.Unlock()
 		return nil
 	}
 	l.closed = true
 	close(l.ch)
+	l.closedMu.Unlock()
+	for conn := range l.ch {
+		_ = conn.Close()
+	}
 	return nil
 }
 
@@ -338,52 +342,23 @@ func (l *queuedListener) Enqueue(conn net.Conn) error {
 	}
 }
 
-type sniPatternMatcher struct {
-	exact     map[string]string
-	wildcards []sniWildcardPattern
-}
-
-type sniWildcardPattern struct {
-	suffix string
-	key    string
-}
-
-func newSNIPatternMatcher() *sniPatternMatcher {
-	return &sniPatternMatcher{exact: make(map[string]string)}
-}
-
-func (m *sniPatternMatcher) add(key string, hosts []string) {
-	for _, host := range hosts {
-		host = strings.ToLower(strings.TrimSpace(host))
-		if strings.HasPrefix(host, "*.") {
-			m.wildcards = append(m.wildcards, sniWildcardPattern{suffix: strings.TrimPrefix(host, "*"), key: key})
-			continue
-		}
-		m.exact[host] = key
-	}
-	slices.SortFunc(m.wildcards, func(a, b sniWildcardPattern) int {
-		return len(b.suffix) - len(a.suffix)
-	})
-}
-
-func (m *sniPatternMatcher) match(serverName string) (string, bool) {
-	serverName = strings.ToLower(strings.TrimSpace(serverName))
+func (m *sniPassthroughMux) matchRoute(serverName string) (*sniPassthroughTarget, bool) {
+	serverName = normalizeSNIName(serverName)
 	if serverName == "" {
-		return "", false
+		return nil, false
 	}
-	if key, ok := m.exact[serverName]; ok {
-		return key, true
-	}
-	for _, wildcard := range m.wildcards {
-		bareSuffix, _ := strings.CutPrefix(wildcard.suffix, ".")
-		if serverName == bareSuffix {
-			continue
-		}
-		if strings.HasSuffix(serverName, wildcard.suffix) && len(serverName) > len(wildcard.suffix) {
-			return wildcard.key, true
+	if alias, _, ok := strings.Cut(serverName, "."); ok {
+		if target, found := m.routes.Load(alias); found {
+			return target, true
 		}
 	}
-	return "", false
+	return m.routes.Load(serverName)
+}
+
+func normalizeSNIName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name, _, _ = strings.Cut(name, ":")
+	return name
 }
 
 type clientHelloReadConn struct {

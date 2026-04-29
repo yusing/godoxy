@@ -165,16 +165,16 @@ providers:
 # SNI TLS passthrough example:
 #
 # routes:
-#   site2-tls-passthrough:
+#   site2:
 #     scheme: tcp
 #     host: 100.64.0.10
-#     port: 443 # with sni_hosts, omitted listen side defaults to the HTTPS entrypoint port/bind
-#     sni_hosts:
-#       - "*.site2.domain.tld"
+#     port: 443:443 # listen on HTTPS_ADDR and proxy to upstream TLS port
 #
-# Matching TLS connections are proxied without certificate termination, so the
-# upstream target serves its own certificate. Non-matching TLS connections keep
-# using normal HTTPS routes on the same listener.
+# A TCP route listening on HTTPS_ADDR is matched by TLS SNI using the route
+# alias, just like HTTP routes. Matching TLS connections are proxied without
+# certificate termination, so the upstream target serves its own certificate.
+# Non-matching TLS connections keep using normal HTTPS routes on the same
+# listener. TCP routes listening anywhere else run as normal TCP routes.
 
 # Match domains
 # See https://docs.godoxy.dev/Certificates-and-domain-matching

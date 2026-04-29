@@ -10,7 +10,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,8 +65,7 @@ type (
 		Middlewares              map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
 		Homepage                 *homepage.ItemConfig           `json:"homepage"`
 		AccessLog                *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
-		RelayProxyProtocolHeader bool                           `json:"relay_proxy_protocol_header,omitempty"`       // TCP only: relay PROXY protocol header to the destination
-		SNIHosts                 []string                       `json:"sni_hosts,omitempty" extensions:"x-nullable"` // TCP only: TLS passthrough host patterns; exact hosts and *.suffix wildcards
+		RelayProxyProtocolHeader bool                           `json:"relay_proxy_protocol_header,omitempty"` // TCP only: relay PROXY protocol header to the destination
 		Agent                    string                         `json:"agent,omitempty"`
 
 		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty" extensions:"x-nullable"`
@@ -139,17 +137,6 @@ func (r Routes) Contains(alias string) bool {
 
 func (r *Route) RouteMiddlewares() map[string]types.LabelMap {
 	return maps.Clone(r.Middlewares)
-}
-
-func (r *Route) SNIPassthroughHosts() []string {
-	if len(r.SNIHosts) == 0 {
-		return nil
-	}
-	return slices.Clone(r.SNIHosts)
-}
-
-func (r *Route) usesSNIPassthrough() bool {
-	return len(r.SNIHosts) > 0
 }
 
 func (r *Route) Validate() error {
@@ -348,17 +335,6 @@ func (r *Route) validate() error {
 	}
 	if r.RelayProxyProtocolHeader && r.Scheme != route.SchemeTCP {
 		errs.Adds("relay_proxy_protocol_header is only supported for tcp routes")
-	}
-	if r.usesSNIPassthrough() {
-		if r.Scheme != route.SchemeTCP {
-			errs.Adds("sni_hosts is only supported for tcp routes")
-		}
-		for _, host := range r.SNIHosts {
-			if host == "" {
-				errs.Adds("sni_hosts cannot contain empty host patterns")
-				break
-			}
-		}
 	}
 
 	if errs.HasError() {
@@ -942,9 +918,6 @@ func (r *Route) UseAccessLog() bool {
 func (r *Route) Finalize() {
 	r.Alias = strings.ToLower(strings.TrimSpace(r.Alias))
 	r.Host = strings.ToLower(strings.TrimSpace(r.Host))
-	for i, host := range r.SNIHosts {
-		r.SNIHosts[i] = strings.ToLower(strings.TrimSpace(host))
-	}
 
 	isDocker := r.Container != nil
 	cont := r.Container
@@ -1033,15 +1006,8 @@ func (r *Route) Finalize() {
 
 	switch r.Scheme {
 	case route.SchemeTCP, route.SchemeUDP:
-		if r.Scheme == route.SchemeTCP && r.usesSNIPassthrough() && lp == 0 {
-			lp = common.ProxyHTTPSPort
-		}
 		if r.Bind == "" {
-			if r.Scheme == route.SchemeTCP && r.usesSNIPassthrough() {
-				r.Bind = common.ProxyHTTPSHost
-			} else {
-				r.Bind = "0.0.0.0"
-			}
+			r.Bind = "0.0.0.0"
 		}
 	}
 

@@ -12,6 +12,8 @@ import (
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 
 type noopConnProxy struct{}
@@ -21,6 +23,48 @@ func (noopConnProxy) ProxyConn(context.Context, net.Conn) {}
 type contextRecordingProxy struct {
 	ctxCh chan context.Context
 }
+
+type fakeStream struct{}
+
+func (fakeStream) ListenAndServe(context.Context, nettypes.HookFunc, nettypes.HookFunc) error {
+	return nil
+}
+func (fakeStream) LocalAddr() net.Addr { return &net.TCPAddr{} }
+func (fakeStream) Close() error        { return nil }
+
+type fakeSNIStreamRoute struct {
+	*fakeHTTPRoute
+	stream nettypes.Stream
+}
+
+func newFakeSNIStreamRoute(t *testing.T, alias, listenURL string, stream nettypes.Stream) *fakeSNIStreamRoute {
+	t.Helper()
+
+	return &fakeSNIStreamRoute{
+		fakeHTTPRoute: newFakeHTTPRouteAt(t, alias, "", listenURL),
+		stream:        stream,
+	}
+}
+
+func (r *fakeSNIStreamRoute) Stream() nettypes.Stream { return r.stream }
+func (r *fakeSNIStreamRoute) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
+	return r.stream.ListenAndServe(ctx, preDial, onRead)
+}
+func (r *fakeSNIStreamRoute) LocalAddr() net.Addr { return r.stream.LocalAddr() }
+func (r *fakeSNIStreamRoute) Close() error        { return r.stream.Close() }
+
+type trackingConn struct {
+	closed bool
+}
+
+func (c *trackingConn) Read([]byte) (int, error)         { return 0, io.EOF }
+func (c *trackingConn) Write(b []byte) (int, error)      { return len(b), nil }
+func (c *trackingConn) Close() error                     { c.closed = true; return nil }
+func (c *trackingConn) LocalAddr() net.Addr              { return &net.TCPAddr{} }
+func (c *trackingConn) RemoteAddr() net.Addr             { return &net.TCPAddr{} }
+func (c *trackingConn) SetDeadline(time.Time) error      { return nil }
+func (c *trackingConn) SetReadDeadline(time.Time) error  { return nil }
+func (c *trackingConn) SetWriteDeadline(time.Time) error { return nil }
 
 func (p *contextRecordingProxy) ProxyConn(ctx context.Context, conn net.Conn) {
 	p.ctxCh <- ctx
@@ -45,8 +89,7 @@ func TestSNIPassthroughMuxUsesRouteContextForMatchedProxy(t *testing.T) {
 	mux := &sniPassthroughMux{
 		routes: xsync.NewMap[string, *sniPassthroughTarget](),
 	}
-	mux.matcher.Store(newSNIPatternMatcher())
-	require.NoError(t, mux.addRoute("site2", []string{"site2.localhost"}, proxy, routeCtx))
+	require.NoError(t, mux.addRoute("site2", proxy, routeCtx))
 
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
@@ -87,36 +130,23 @@ func TestSNIPassthroughMuxUsesRouteContextForMatchedProxy(t *testing.T) {
 	<-done
 }
 
-func TestSNIPatternMatcherPrefersExactThenLongestWildcard(t *testing.T) {
-	matcher := newSNIPatternMatcher()
-	matcher.add("wild-short", []string{"*.domain.tld"})
-	matcher.add("wild-long", []string{"*.site2.domain.tld"})
-	matcher.add("exact", []string{"api.site2.domain.tld"})
+func TestSNIPassthroughMuxMatchesAliasLikeHTTPRoutes(t *testing.T) {
+	mux := &sniPassthroughMux{
+		routes: xsync.NewMap[string, *sniPassthroughTarget](),
+	}
+	require.NoError(t, mux.addRoute("site2", noopConnProxy{}, t.Context()))
+	require.NoError(t, mux.addRoute("fqdn.example.test", noopConnProxy{}, t.Context()))
 
-	name, ok := matcher.match("api.site2.domain.tld")
+	target, ok := mux.matchRoute("site2.example.test")
 	require.True(t, ok)
-	require.Equal(t, "exact", name)
+	require.Equal(t, "site2", target.key)
 
-	name, ok = matcher.match("www.site2.domain.tld")
+	target, ok = mux.matchRoute("fqdn.example.test")
 	require.True(t, ok)
-	require.Equal(t, "wild-long", name)
+	require.Equal(t, "fqdn.example.test", target.key)
 
-	name, ok = matcher.match("other.domain.tld")
-	require.True(t, ok)
-	require.Equal(t, "wild-short", name)
-
-	name, ok = matcher.match("site2.domain.tld")
-	require.True(t, ok, "*.site2.domain.tld bare suffix should fall back to less-specific wildcard")
-	require.Equal(t, "wild-short", name)
-}
-
-func TestSNIPatternMatcherBareSuffixFallsBackToLessSpecificWildcard(t *testing.T) {
-	matcher := newSNIPatternMatcher()
-	matcher.add("less-specific", []string{"*.domain.tld"})
-	matcher.add("more-specific", []string{"*.site2.domain.tld"})
-	name, ok := matcher.match("site2.domain.tld")
-	require.True(t, ok)
-	require.Equal(t, "less-specific", name)
+	_, ok = mux.matchRoute("other.example.test")
+	require.False(t, ok)
 }
 
 func TestQueuedListenerEnqueueCloseConcurrentDoesNotPanic(t *testing.T) {
@@ -150,12 +180,50 @@ func TestQueuedListenerEnqueueCloseConcurrentDoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestSNIPassthroughMuxConcurrentAddsRebuildMatcherAtomically(t *testing.T) {
+func TestQueuedListenerCloseClosesBufferedConnections(t *testing.T) {
+	listener := newQueuedListener(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 443})
+	conn1 := &trackingConn{}
+	conn2 := &trackingConn{}
+
+	require.NoError(t, listener.Enqueue(conn1))
+	require.NoError(t, listener.Enqueue(conn2))
+	require.NoError(t, listener.Close())
+	require.True(t, conn1.closed)
+	require.True(t, conn2.closed)
+}
+
+func TestAsSNIPassthroughRouteOnlyMatchesHTTPSAddr(t *testing.T) {
+	httpsRoute := newFakeSNIStreamRoute(t, "site2", "tcp://"+common.ProxyHTTPSAddr, fakeStream{})
+	sniRoute, ok := asSNIPassthroughRoute(httpsRoute)
+	require.True(t, ok)
+	require.Equal(t, httpsRoute, sniRoute)
+
+	normalTCPRoute := newFakeSNIStreamRoute(t, "ssh", "tcp://127.0.0.1:2222", fakeStream{})
+	_, ok = asSNIPassthroughRoute(normalTCPRoute)
+	require.False(t, ok)
+}
+
+func TestSNIPassthroughManagerAddRouteRejectsNonProxyStreamBeforeBinding(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	manager := newSNIPassthroughManager(ep)
+	route := newFakeSNIStreamRoute(t, "site2", "tcp://"+common.ProxyHTTPSAddr, fakeStream{})
+
+	err := manager.AddRoute(route)
+	require.ErrorContains(t, err, `route "site2" stream does not support accepted connection proxying`)
+
+	key := newSNIListenKey(route.ListenURL().Scheme, route.ListenURL().Host)
+	mux, ok := manager.muxes.Load(key.String())
+	if ok {
+		mux.close()
+	}
+	require.False(t, ok, "AddRoute must not bind the shared SNI listener before validating the proxy stream")
+}
+
+func TestSNIPassthroughMuxConcurrentAddsMatchByAlias(t *testing.T) {
 	mux := &sniPassthroughMux{
 		routes: xsync.NewMap[string, *sniPassthroughTarget](),
 		https:  newQueuedListener(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 443}),
 	}
-	mux.matcher.Store(newSNIPatternMatcher())
 
 	const routeCount = 64
 	var wg sync.WaitGroup
@@ -163,7 +231,7 @@ func TestSNIPassthroughMuxConcurrentAddsRebuildMatcherAtomically(t *testing.T) {
 	for i := range routeCount {
 		wg.Go(func() {
 			host := fmt.Sprintf("host-%d.example.test", i)
-			errs <- mux.addRoute(host, []string{host}, noopConnProxy{}, t.Context())
+			errs <- mux.addRoute(host, noopConnProxy{}, t.Context())
 		})
 	}
 	wg.Wait()
@@ -172,13 +240,11 @@ func TestSNIPassthroughMuxConcurrentAddsRebuildMatcherAtomically(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	matcher := mux.matcher.Load()
-	require.NotNil(t, matcher)
 	for i := range routeCount {
 		host := fmt.Sprintf("host-%d.example.test", i)
-		name, ok := matcher.match(host)
+		target, ok := mux.matchRoute(host)
 		require.True(t, ok, "matcher missed %s", host)
-		require.Equal(t, host, name)
+		require.Equal(t, host, target.key)
 	}
 }
 
@@ -193,7 +259,6 @@ func TestSNIPassthroughMuxHandleConnTimesOutIdleClientHello(t *testing.T) {
 		routes: xsync.NewMap[string, *sniPassthroughTarget](),
 		https:  newQueuedListener(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 443}),
 	}
-	mux.matcher.Store(newSNIPatternMatcher())
 
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
@@ -235,7 +300,6 @@ func TestSNIPassthroughMuxForwardHTTPSWithoutListenerClosesConn(t *testing.T) {
 		base:   base,
 		routes: xsync.NewMap[string, *sniPassthroughTarget](),
 	}
-	mux.matcher.Store(newSNIPatternMatcher())
 
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()

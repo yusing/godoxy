@@ -188,24 +188,22 @@ routes:
     bind: 0.0.0.0 # optional
     port: 53:53 # listening port: target port
 
-  site2-tls-passthrough:
+  site2:
     scheme: tcp
     host: 100.64.0.10
-    port: 443 # with sni_hosts, omitted listening port defaults to HTTPS entrypoint port 443
-    sni_hosts:
-      - "*.site2.domain.tld"
+    port: 443:443 # listen on HTTPS_ADDR and proxy to upstream TLS port
 ```
 
 ### SNI TLS passthrough
 
-TCP routes can share the HTTPS entrypoint listener by setting `sni_hosts`. When the listening port is omitted, it defaults to the HTTPS entrypoint port; when `bind` is omitted, it uses the HTTPS entrypoint bind address. Godoxy reads the TLS ClientHello SNI without decrypting the connection. Matching connections are proxied as raw TCP to the route target, so the upstream site keeps serving its own certificate. Non-matching connections continue through normal HTTPS route handling.
-
-Supported host patterns are exact hosts and `*.` wildcard suffixes:
-
-- `site2.domain.tld` matches only `site2.domain.tld`.
-- `*.site2.domain.tld` matches `app.site2.domain.tld` and `www.site2.domain.tld`, but not the bare `site2.domain.tld`.
-
-Exact matches win over wildcard matches. Among wildcard matches, the longest suffix wins. SNI passthrough is TCP-only and does not support UDP.
+TCP routes share the HTTPS entrypoint listener when they listen on `HTTPS_ADDR`.
+Godoxy reads the TLS ClientHello SNI without decrypting the connection and
+matches the SNI name to the route alias, using the same convention as HTTP
+routes: alias `site2` matches `site2.example.test`, and alias
+`site2.example.test` matches that exact FQDN. Matching connections are proxied as
+raw TCP to the route target, so the upstream site keeps serving its own
+certificate. Non-matching connections continue through normal HTTPS route
+handling. TCP routes listening anywhere else run as normal TCP routes.
 
 ### Docker Labels
 
