@@ -81,7 +81,9 @@ func (p *Provider) ObtainCertAll(ctx context.Context) error
 
 func (p *Provider) ObtainCert(ctx context.Context) error
 
-// Force immediate renewal
+// Force immediate renewal. Providers that do not run a renewal worker
+// (`local` and `pseudo`) are skipped, while eligible extra providers are still
+// enqueued.
 func (p *Provider) ForceExpiryAll() bool
 
 // Schedule automatic renewal
@@ -333,7 +335,8 @@ provider.PrintCertExpiriesAll()
 ```go
 // WebSocket endpoint: GET /api/v1/cert/renew
 if provider.ForceExpiryAll() {
-    // Wait for renewal to complete
+    // Wait for renewal to complete. This returns false when no renewal worker
+    // was enqueued, such as for local/pseudo-only providers.
     provider.WaitRenewalDone(ctx)
 }
 ```

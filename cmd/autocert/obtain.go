@@ -19,11 +19,16 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/autocert"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 var osRename = os.Rename
 
 func obtainCert(cfg *autocert.Config) error {
+	if cfg.Provider == autocert.ProviderLocal || cfg.Provider == autocert.ProviderPseudo {
+		return fmt.Errorf("cannot obtain ACME certificate with provider %q", cfg.Provider)
+	}
+
 	user, legoCfg, err := getLegoConfig(cfg)
 	if err != nil {
 		return err
@@ -249,20 +254,35 @@ func saveCert(cfg *autocert.Config, cert *certificate.Resource) error {
 	}
 	certBak, err := backupFile(cfg.CertPath)
 	if err != nil {
-		restoreBackup(keyBak)
+		if restoreErr := restoreBackup(keyBak); restoreErr != nil {
+			return rollbackError("backup certificate", err, restoreErr)
+		}
 		return err
 	}
 
 	if err := osRename(keyTmp, cfg.KeyPath); err != nil {
-		restoreBackup(certBak)
-		restoreBackup(keyBak)
-		return err
+		return rollbackError(
+			"rename key",
+			err,
+			restoreBackup(certBak),
+			restoreBackup(keyBak),
+		)
 	}
 	if err := osRename(certTmp, cfg.CertPath); err != nil {
-		_ = os.Remove(cfg.KeyPath)
-		restoreBackup(certBak)
-		restoreBackup(keyBak)
-		return err
+		removeErr := os.Remove(cfg.KeyPath)
+		if errors.Is(removeErr, fs.ErrNotExist) {
+			removeErr = nil
+		}
+		if removeErr != nil {
+			removeErr = gperr.PrependSubject(removeErr, "remove incomplete key")
+		}
+		return rollbackError(
+			"rename certificate",
+			err,
+			removeErr,
+			restoreBackup(certBak),
+			restoreBackup(keyBak),
+		)
 	}
 	if err := cleanupBackup(certBak); err != nil {
 		return err
@@ -271,6 +291,15 @@ func saveCert(cfg *autocert.Config, cert *certificate.Resource) error {
 		return err
 	}
 	return nil
+}
+
+func rollbackError(subject string, original error, rollbackErrs ...error) error {
+	errs := gperr.NewBuilder("save certificate rollback failed")
+	errs.Add(gperr.PrependSubject(original, subject))
+	for _, err := range rollbackErrs {
+		errs.Add(err)
+	}
+	return errs.Error()
 }
 
 type fileBackup struct {
@@ -297,12 +326,17 @@ func backupFile(path string) (*fileBackup, error) {
 	return backup, nil
 }
 
-func restoreBackup(backup *fileBackup) {
+func restoreBackup(backup *fileBackup) error {
 	if backup == nil || backup.backupPath == "" {
-		return
+		return nil
 	}
-	_ = os.Remove(backup.livePath)
-	_ = osRename(backup.backupPath, backup.livePath)
+	if err := os.Remove(backup.livePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("remove %s before restore: %w", backup.livePath, err)
+	}
+	if err := osRename(backup.backupPath, backup.livePath); err != nil {
+		return fmt.Errorf("restore backup %s to %s: %w", backup.backupPath, backup.livePath, err)
+	}
+	return nil
 }
 
 func cleanupBackup(backup *fileBackup) error {

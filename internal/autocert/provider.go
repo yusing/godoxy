@@ -364,6 +364,18 @@ func (p *Provider) ForceExpiryAll() (ok bool) {
 // WaitRenewalDone waits for the renewal to complete.
 // Returns false if the renewal was dropped.
 func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
+	if p.neverStartsRenewalWorker() {
+		if len(p.extraProviders) == 0 {
+			return false
+		}
+		for _, ep := range p.extraProviders {
+			if !ep.WaitRenewalDone(ctx) {
+				return false
+			}
+		}
+		return true
+	}
+
 	done := p.forceRenewalDoneCh.Load()
 	if done == nil || *done == nil {
 		return false
@@ -383,6 +395,10 @@ func (p *Provider) WaitRenewalDone(ctx context.Context) bool {
 }
 
 func (p *Provider) beginForceRenewal() *chan struct{} {
+	if p.neverStartsRenewalWorker() {
+		return nil
+	}
+
 	for {
 		done := p.forceRenewalDoneCh.Load()
 		switch {
@@ -405,6 +421,10 @@ func (p *Provider) beginForceRenewal() *chan struct{} {
 			}
 		}
 	}
+}
+
+func (p *Provider) neverStartsRenewalWorker() bool {
+	return p.cfg != nil && (p.cfg.Provider == ProviderLocal || p.cfg.Provider == ProviderPseudo)
 }
 
 func (p *Provider) finishForceRenewal(done *chan struct{}) {
@@ -434,7 +454,7 @@ var emptyForceRenewalDoneCh chan struct{}
 
 // scheduleRenewal schedules the renewal of the certificate for this provider.
 func (p *Provider) scheduleRenewal(parent task.Parent) {
-	if p.cfg.Provider == ProviderLocal || p.cfg.Provider == ProviderPseudo {
+	if p.neverStartsRenewalWorker() {
 		return
 	}
 
