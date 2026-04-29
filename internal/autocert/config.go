@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/challenge"
@@ -45,6 +46,10 @@ type (
 		EABKid  string `json:"eab_kid,omitempty" validate:"required_with=EABHmac"`
 		EABHmac string `json:"eab_hmac,omitempty" validate:"required_with=EABKid"` // base64 encoded
 
+		// CertificateKeyType is the private key algorithm for ACME-issued TLS certificates (lego Certificate.KeyType).
+		// Default is EC256. Use RSA2048 (or rsa2048) for clients that do not support ECDSA certificates.
+		CertificateKeyType string `json:"certificate_key_type,omitempty"`
+
 		HTTPClient *http.Client `json:"-"` // for tests only
 
 		challengeProvider challenge.Provider
@@ -54,11 +59,18 @@ type (
 )
 
 var (
-	ErrMissingField    = gperr.New("missing field")
-	ErrDuplicatedPath  = gperr.New("duplicated path")
-	ErrInvalidDomain   = gperr.New("invalid domain")
-	ErrUnknownProvider = gperr.New("unknown provider")
+	ErrMissingField              = gperr.New("missing field")
+	ErrDuplicatedPath            = gperr.New("duplicated path")
+	ErrInvalidDomain             = gperr.New("invalid domain")
+	ErrUnknownProvider           = gperr.New("unknown provider")
+	ErrInvalidCertificateKeyType = gperr.New("invalid certificate_key_type")
 )
+
+// Allowed certificate_key_type values (ACME-issued cert key): EC256, EC384, RSA2048, RSA3072, RSA4096, RSA8192,
+// lowercase forms, and lego's curve/size tokens (P256, P384, 2048, 3072, 4096, 8192).
+var certificateKeyTypeExamples = []string{
+	"EC256", "EC384", "RSA2048", "RSA3072", "RSA4096", "RSA8192",
+}
 
 const (
 	ProviderLocal  = "local"
@@ -153,6 +165,12 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
 	}
 
+	if cfg.CertificateKeyType != "" {
+		if _, err := parseCertificateKeyType(cfg.CertificateKeyType); err != nil {
+			b.Add(err)
+		}
+	}
+
 	if len(cfg.Extra) > 0 {
 		for i := range cfg.Extra {
 			cfg.Extra[i] = MergeExtraConfig(cfg, &cfg.Extra[i])
@@ -169,6 +187,36 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 func (cfg *Config) dns01Options() []dns01.ChallengeOption {
 	return []dns01.ChallengeOption{
 		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
+	}
+}
+
+func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return certcrypto.EC256, nil
+	}
+	switch strings.ToLower(s) {
+	case "ec256", "p256":
+		return certcrypto.EC256, nil
+	case "ec384", "p384":
+		return certcrypto.EC384, nil
+	case "rsa2048", "2048":
+		return certcrypto.RSA2048, nil
+	case "rsa3072", "3072":
+		return certcrypto.RSA3072, nil
+	case "rsa4096", "4096":
+		return certcrypto.RSA4096, nil
+	case "rsa8192", "8192":
+		return certcrypto.RSA8192, nil
+	}
+	kt := certcrypto.KeyType(s)
+	switch kt {
+	case certcrypto.EC256, certcrypto.EC384, certcrypto.RSA2048, certcrypto.RSA3072, certcrypto.RSA4096, certcrypto.RSA8192:
+		return kt, nil
+	default:
+		return "", ErrInvalidCertificateKeyType.
+			Subject(s).
+			Withf("use one of %v", certificateKeyTypeExamples)
 	}
 }
 
@@ -195,7 +243,11 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	}
 
 	legoCfg := lego.NewConfig(user)
-	legoCfg.Certificate.KeyType = certcrypto.EC256
+	keyType, err := parseCertificateKeyType(cfg.CertificateKeyType)
+	if err != nil {
+		return nil, nil, err
+	}
+	legoCfg.Certificate.KeyType = keyType
 
 	if cfg.HTTPClient != nil {
 		legoCfg.HTTPClient = cloneHTTPClient(cfg.HTTPClient)
@@ -264,6 +316,9 @@ func MergeExtraConfig(mainCfg *Config, extraCfg *ConfigExtra) ConfigExtra {
 	}
 	if extraCfg.HTTPClient != nil {
 		merged.HTTPClient = extraCfg.HTTPClient
+	}
+	if extraCfg.CertificateKeyType != "" {
+		merged.CertificateKeyType = extraCfg.CertificateKeyType
 	}
 	return merged
 }
