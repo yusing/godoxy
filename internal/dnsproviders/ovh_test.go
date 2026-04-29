@@ -1,4 +1,4 @@
-package provider_test
+package dnsproviders_test
 
 import (
 	"testing"
@@ -9,24 +9,9 @@ import (
 	"github.com/yusing/godoxy/internal/serialization"
 )
 
-// type Config struct {
-// 	APIEndpoint string
-
-// 	ApplicationKey    string
-// 	ApplicationSecret string
-// 	ConsumerKey       string
-
-// 	OAuth2Config *OAuth2Config
-
-// 	PropagationTimeout time.Duration
-// 	PollingInterval    time.Duration
-// 	TTL                int
-// 	HTTPClient         *http.Client
-// }
-
-func TestOVH(t *testing.T) {
+func TestOVHConfigDecode(t *testing.T) {
 	cfg := &ovh.Config{}
-	testYaml := `
+	testYAML := `
 api_endpoint: https://eu.api.ovh.com
 application_key: <application_key>
 application_secret: <application_secret>
@@ -42,9 +27,10 @@ oauth2_config:
 		ConsumerKey:       "<consumer_key>",
 		OAuth2Config:      &ovh.OAuth2Config{ClientID: "<client_id>", ClientSecret: "<client_secret>"},
 	}
-	testYaml = testYaml[1:] // remove first \n
+
+	testYAML = testYAML[1:]
 	opt := make(map[string]any)
-	require.NoError(t, yaml.Unmarshal([]byte(testYaml), &opt))
+	require.NoError(t, yaml.Unmarshal([]byte(testYAML), &opt))
 	require.NoError(t, serialization.MapUnmarshalValidate(opt, cfg))
 	require.Equal(t, cfgExpected, cfg)
 }

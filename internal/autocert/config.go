@@ -2,8 +2,6 @@ package autocert
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -16,9 +14,6 @@ import (
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/challenge"
-	"github.com/go-acme/lego/v4/challenge/dns01"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
@@ -184,12 +179,6 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	return b.Error()
 }
 
-func (cfg *Config) dns01Options() []dns01.ChallengeOption {
-	return []dns01.ChallengeOption{
-		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
-	}
-}
-
 func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -218,66 +207,6 @@ func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
 			Subject(s).
 			Withf("use one of %v", certificateKeyTypeExamples)
 	}
-}
-
-func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
-	var privKey *ecdsa.PrivateKey
-	var err error
-
-	if cfg.Provider != ProviderLocal && cfg.Provider != ProviderPseudo {
-		if privKey, err = cfg.LoadACMEKey(); err != nil {
-			log.Info().Err(err).Msg("failed to load ACME private key, generating a now one")
-			privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			if err != nil {
-				return nil, nil, fmt.Errorf("generate ACME private key: %w", err)
-			}
-			if err = cfg.SaveACMEKey(privKey); err != nil {
-				return nil, nil, fmt.Errorf("save ACME private key: %w", err)
-			}
-		}
-	}
-
-	user := &User{
-		Email: cfg.Email,
-		Key:   privKey,
-	}
-
-	legoCfg := lego.NewConfig(user)
-	keyType, err := parseCertificateKeyType(cfg.CertificateKeyType)
-	if err != nil {
-		return nil, nil, err
-	}
-	legoCfg.Certificate.KeyType = keyType
-
-	if cfg.HTTPClient != nil {
-		legoCfg.HTTPClient = cloneHTTPClient(cfg.HTTPClient)
-	}
-
-	if cfg.CADirURL != "" {
-		legoCfg.CADirURL = cfg.CADirURL
-	}
-
-	if len(cfg.CACerts) > 0 {
-		certPool, err := lego.CreateCertPool(cfg.CACerts, true)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create cert pool: %w", err)
-		}
-		legoCfg.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = certPool
-	}
-
-	return user, legoCfg, nil
-}
-
-func cloneHTTPClient(client *http.Client) *http.Client {
-	if client == nil {
-		return nil
-	}
-
-	clone := *client
-	if transport, ok := client.Transport.(*http.Transport); ok && transport != nil {
-		clone.Transport = transport.Clone()
-	}
-	return &clone
 }
 
 func MergeExtraConfig(mainCfg *Config, extraCfg *ConfigExtra) ConfigExtra {

@@ -29,6 +29,7 @@ services:
     network_mode: host
     volumes:
       - ./bin/godoxy:/app/run:ro
+      - ./bin/autocert:/app/autocert:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./dev-data/config:/app/config
       - ./dev-data/certs:/app/certs
