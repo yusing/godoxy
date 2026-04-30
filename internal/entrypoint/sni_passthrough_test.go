@@ -4,10 +4,12 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
 	netutils "github.com/yusing/godoxy/internal/net"
 )
 
@@ -67,11 +69,26 @@ func TestSNIRouterListensPerHTTPSAddress(t *testing.T) {
 	require.Same(t, listener1, again)
 }
 
-func TestSharedHTTPSListenAddrMatchesWildcardDefault(t *testing.T) {
-	require.True(t, netutils.IsSharedHTTPSListenAddr("0.0.0.0:443"))
-	require.True(t, netutils.IsSharedHTTPSListenAddr("[::]:443"))
-	require.False(t, netutils.IsSharedHTTPSListenAddr("0.0.0.0:8443"))
-	require.False(t, netutils.IsSharedHTTPSListenAddr("127.0.0.1:443"))
+func TestSharedHTTPSListenAddrMatchesConfiguredWildcard(t *testing.T) {
+	port := strconv.Itoa(common.ProxyHTTPSPort)
+	require.True(t, netutils.IsSharedHTTPSListenAddr(common.ProxyHTTPSAddr))
+
+	isConfiguredWildcard := netutils.IsWildcardListenHost(common.ProxyHTTPSAddr)
+	for _, addr := range []string{
+		net.JoinHostPort("0.0.0.0", port),
+		net.JoinHostPort("::", port),
+		net.JoinHostPort("0:0:0:0:0:0:0:0", port),
+	} {
+		require.Equal(t, isConfiguredWildcard, netutils.IsSharedHTTPSListenAddr(addr), addr)
+		require.True(t, netutils.IsWildcardListenHost(addr), addr)
+	}
+
+	otherPort := "1"
+	if port == otherPort {
+		otherPort = "2"
+	}
+	require.False(t, netutils.IsSharedHTTPSListenAddr(net.JoinHostPort("0.0.0.0", otherPort)))
+	require.False(t, netutils.IsWildcardListenHost(net.JoinHostPort("127.0.0.1", port)))
 }
 
 func TestReadClientHelloServerNameReplaysBytes(t *testing.T) {

@@ -2,6 +2,7 @@ package netutils
 
 import (
 	"net"
+	"strings"
 
 	"github.com/yusing/godoxy/internal/common"
 )
@@ -38,5 +39,18 @@ func listenAddrsEqual(addr, other string) bool {
 
 // IsWildcardListenHost reports whether host means all local interfaces.
 func IsWildcardListenHost(host string) bool {
-	return host == "" || host == "0.0.0.0" || host == "::"
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return true
+	}
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+	if host == "" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsUnspecified()
 }

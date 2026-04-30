@@ -34,6 +34,9 @@ func IsSharedHTTPSListenAddr(addr string) bool
 func IsWildcardListenHost(host string) bool
 ```
 
+`IsWildcardListenHost` accepts bare hosts and host:port inputs, including
+bracketed IPv6, and treats unspecified IPv4/IPv6 addresses as wildcard binds.
+
 ## Usage
 
 ### Basic Usage

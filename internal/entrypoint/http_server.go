@@ -85,7 +85,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
 	certProvider := autocert.FromCtx(srv.ep.task.Context())
 	var sniListener net.Listener
-	if proto == HTTPProtoHTTPS && listener == nil && certProvider != nil {
+	if proto == HTTPProtoHTTPS && listener == nil {
 		var err error
 		sniListener, err = srv.ep.sni.Listen(addr)
 		if err != nil {
