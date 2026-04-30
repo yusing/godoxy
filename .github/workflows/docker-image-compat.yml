@@ -1,5 +1,7 @@
 name: Docker Image CI (nightly)
 
+# Skip redundant push runs when an open same-repo PR exists; pull_request keeps CI on updates.
+
 on:
   push:
     branches:
@@ -9,15 +11,75 @@ on:
       - "!dependabot/*"
       - "!main" # excludes main
       - "!compat" # excludes compat branch
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Decide whether to run image build
+        id: decide
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'pull_request') {
+              const pr = context.payload.pull_request;
+              if (pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+                core.setOutput('run', 'false');
+                return;
+              }
+              if (pr.head.ref.startsWith('dependabot/')) {
+                core.setOutput('run', 'false');
+                return;
+              }
+              core.setOutput('run', 'true');
+              return;
+            }
+
+            const branch = context.ref.replace('refs/heads/', '');
+            if (branch.startsWith('dependabot/') || branch === 'main' || branch === 'compat') {
+              core.setOutput('run', 'false');
+              return;
+            }
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`,
+            });
+            core.setOutput('run', prs.length === 0 ? 'true' : 'false');
+
   build-nightly:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy
       tag: nightly
       target: main
   build-nightly-agent:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/docker-image.yml
     with:
       image_name: ${{ github.repository_owner }}/godoxy-agent
