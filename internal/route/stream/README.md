@@ -188,15 +188,17 @@ routes:
     bind: 0.0.0.0 # optional
     port: 53:53 # listening port: target port
 
+  # The 443 listening ports below assume the default HTTPS_ADDR=:443.
+  # If HTTPS_ADDR uses a different port, use that listening port instead.
   site2:
     scheme: tcp
     host: 100.64.0.10
-    port: 443:443 # listen on HTTPS_ADDR and proxy to upstream TLS port
+    port: 443:443 # listen on HTTPS_ADDR port and proxy to upstream TLS port
 
   mqtt:
     scheme: tcp
     host: 100.64.0.20
-    port: 443:1883 # listen on HTTPS_ADDR and proxy plaintext to upstream MQTT
+    port: 443:1883 # listen on HTTPS_ADDR port and proxy plaintext to upstream MQTT
     tls_termination: true
 ```
 
@@ -206,6 +208,11 @@ TCP routes on `HTTPS_ADDR` match TLS SNI by alias, same as HTTP routes: `site2`
 matches `site2.example.test`; `site2.example.test` matches that FQDN. Matches
 proxy raw TCP by default. Set `tls_termination: true` to terminate TLS with the
 configured autocert provider and proxy plaintext upstream.
+
+The `site2` and `mqtt` examples use listening port `443` because the default
+`HTTPS_ADDR` is `:443`. `tls_termination` is validated against the configured
+shared HTTPS listener, not the literal value `443`, and is rejected unless the
+TCP route listens on `HTTPS_ADDR`.
 
 ### Docker Labels
 
@@ -243,7 +250,7 @@ Log context includes: `protocol`, `listen`, `dst`, `action`
 - ACL wrapping available for TCP and UDP listeners
 - PROXY protocol support for original client IP
 - TCP routes can optionally emit a fresh upstream PROXY v2 header with `relay_proxy_protocol_header: true`
-- TCP routes on the HTTPS listener can either passthrough TLS or terminate TLS and proxy plaintext with `tls_termination: true`
+- TCP routes on the configured HTTPS listener can passthrough TLS, or terminate TLS with autocert and proxy plaintext with `tls_termination: true`
 - No protocol validation (relies on upstream)
 - Connection limits managed by OS
 

@@ -84,8 +84,10 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	aclCfg := acl.FromCtx(srv.ep.task.Context())
 	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
 	certProvider := autocert.FromCtx(srv.ep.task.Context())
+	var sniListener net.Listener
 	if proto == HTTPProtoHTTPS && listener == nil && certProvider != nil {
-		sniListener, err := srv.ep.sni.Listen(addr)
+		var err error
+		sniListener, err = srv.ep.sni.Listen(addr)
 		if err != nil {
 			return err
 		}
@@ -115,6 +117,10 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	task := srv.ep.task.Subtask("http_server", false)
 	_, err := server.StartServer(task, opts)
 	if err != nil {
+		task.Finish(err)
+		if sniListener != nil {
+			err = errors.Join(err, sniListener.Close())
+		}
 		return err
 	}
 	srv.stopFunc = task.FinishAndWait

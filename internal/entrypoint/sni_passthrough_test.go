@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	netutils "github.com/yusing/godoxy/internal/net"
 )
 
 func TestSNIMatchUsesAliasOrFQDN(t *testing.T) {
@@ -67,10 +68,10 @@ func TestSNIRouterListensPerHTTPSAddress(t *testing.T) {
 }
 
 func TestSharedHTTPSListenAddrMatchesWildcardDefault(t *testing.T) {
-	require.True(t, listenAddrsEqual("0.0.0.0:443", ":443"))
-	require.True(t, listenAddrsEqual("[::]:443", ":443"))
-	require.False(t, listenAddrsEqual("0.0.0.0:8443", ":443"))
-	require.False(t, listenAddrsEqual("127.0.0.1:443", ":443"))
+	require.True(t, netutils.IsSharedHTTPSListenAddr("0.0.0.0:443"))
+	require.True(t, netutils.IsSharedHTTPSListenAddr("[::]:443"))
+	require.False(t, netutils.IsSharedHTTPSListenAddr("0.0.0.0:8443"))
+	require.False(t, netutils.IsSharedHTTPSListenAddr("127.0.0.1:443"))
 }
 
 func TestReadClientHelloServerNameReplaysBytes(t *testing.T) {

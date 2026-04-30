@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
-	"github.com/yusing/godoxy/internal/common"
+	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -186,41 +186,14 @@ func asSNIRoute(route types.StreamRoute) bool {
 	listenURL := route.ListenURL()
 	switch listenURL.Scheme {
 	case "tcp", "tcp4", "tcp6":
-		return isSharedHTTPSListenAddr(listenURL.Host)
+		return netutils.IsSharedHTTPSListenAddr(listenURL.Host)
 	default:
 		return false
 	}
 }
 
 func sniListenAddr(route types.StreamRoute) string {
-	addr := route.ListenURL().Host
-	if isSharedHTTPSListenAddr(addr) {
-		return common.ProxyHTTPSAddr
-	}
-	return addr
-}
-
-func isSharedHTTPSListenAddr(addr string) bool {
-	return listenAddrsEqual(addr, common.ProxyHTTPSAddr)
-}
-
-func listenAddrsEqual(addr, other string) bool {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return addr == other
-	}
-	otherHost, otherPort, err := net.SplitHostPort(other)
-	if err != nil {
-		return addr == other
-	}
-	if port != otherPort {
-		return false
-	}
-	return host == otherHost || isWildcardListenHost(host) && isWildcardListenHost(otherHost)
-}
-
-func isWildcardListenHost(host string) bool {
-	return host == "" || host == "0.0.0.0" || host == "::"
+	return netutils.SharedHTTPSListenAddr(route.ListenURL().Host)
 }
 
 func routeTerminatesTLS(route types.StreamRoute) bool {

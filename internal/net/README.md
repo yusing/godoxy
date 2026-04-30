@@ -10,6 +10,7 @@ The net package implements network utility functions that are used throughout Go
 
 - TCP connection testing (ping)
 - Connection utilities
+- Shared HTTPS listener address matching helpers
 
 ## Core Functions
 
@@ -18,6 +19,19 @@ The net package implements network utility functions that are used throughout Go
 ```go
 // PingTCP pings a TCP endpoint by attempting a connection.
 func PingTCP(ctx context.Context, ip net.IP, port int) error
+```
+
+### Shared HTTPS Listener Matching
+
+```go
+// SharedHTTPSListenAddr canonicalizes wildcard-equivalent HTTPS listener addrs.
+func SharedHTTPSListenAddr(addr string) string
+
+// IsSharedHTTPSListenAddr reports whether addr matches configured HTTPS_ADDR.
+func IsSharedHTTPSListenAddr(addr string) bool
+
+// IsWildcardListenHost reports whether host means all interfaces.
+func IsWildcardListenHost(host string) bool
 ```
 
 ## Usage
