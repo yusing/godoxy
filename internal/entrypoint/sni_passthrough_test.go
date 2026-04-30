@@ -79,8 +79,11 @@ func TestSharedHTTPSListenAddrMatchesConfiguredWildcard(t *testing.T) {
 		net.JoinHostPort("::", port),
 		net.JoinHostPort("0:0:0:0:0:0:0:0", port),
 	} {
-		require.Equal(t, isConfiguredWildcard, netutils.IsSharedHTTPSListenAddr(addr), addr)
-		require.True(t, netutils.IsWildcardListenHost(addr), addr)
+		a := addr
+		t.Run(a, func(t *testing.T) {
+			require.Equal(t, isConfiguredWildcard, netutils.IsSharedHTTPSListenAddr(a), a)
+			require.True(t, netutils.IsWildcardListenHost(a), a)
+		})
 	}
 
 	otherPort := "1"

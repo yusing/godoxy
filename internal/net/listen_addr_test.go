@@ -17,7 +17,10 @@ func TestIsWildcardListenHost(t *testing.T) {
 		net.JoinHostPort("::", "443"),
 		net.JoinHostPort("0:0:0:0:0:0:0:0", "443"),
 	} {
-		require.True(t, IsWildcardListenHost(host), host)
+		h := host
+		t.Run(h, func(t *testing.T) {
+			require.True(t, IsWildcardListenHost(h), h)
+		})
 	}
 
 	for _, host := range []string{
@@ -25,6 +28,9 @@ func TestIsWildcardListenHost(t *testing.T) {
 		net.JoinHostPort("127.0.0.1", "443"),
 		"localhost",
 	} {
-		require.False(t, IsWildcardListenHost(host), host)
+		h := host
+		t.Run(h, func(t *testing.T) {
+			require.False(t, IsWildcardListenHost(h), h)
+		})
 	}
 }
