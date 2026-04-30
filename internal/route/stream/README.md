@@ -179,15 +179,33 @@ const (
 routes:
   ssh-proxy:
     scheme: tcp4
-      bind: 0.0.0.0 # optional
-      port: 2222:22 # listening port: target port
-      relay_proxy_protocol_header: true # optional, tcp only
+    bind: 0.0.0.0 # optional
+    port: 2222:22 # listening port: target port
+    relay_proxy_protocol_header: true # optional, tcp only
 
   dns-proxy:
     scheme: udp4
     bind: 0.0.0.0 # optional
     port: 53:53 # listening port: target port
+
+  site2:
+    scheme: tcp
+    host: 100.64.0.10
+    port: 443:443 # listen on HTTPS_ADDR and proxy to upstream TLS port
+
+  mqtt:
+    scheme: tcp
+    host: 100.64.0.20
+    port: 443:1883 # listen on HTTPS_ADDR and proxy plaintext to upstream MQTT
+    tls_termination: true
 ```
+
+### SNI TLS passthrough and termination
+
+TCP routes on `HTTPS_ADDR` match TLS SNI by alias, same as HTTP routes: `site2`
+matches `site2.example.test`; `site2.example.test` matches that FQDN. Matches
+proxy raw TCP by default. Set `tls_termination: true` to terminate TLS with the
+configured autocert provider and proxy plaintext upstream.
 
 ### Docker Labels
 
@@ -225,6 +243,7 @@ Log context includes: `protocol`, `listen`, `dst`, `action`
 - ACL wrapping available for TCP and UDP listeners
 - PROXY protocol support for original client IP
 - TCP routes can optionally emit a fresh upstream PROXY v2 header with `relay_proxy_protocol_header: true`
+- TCP routes on the HTTPS listener can either passthrough TLS or terminate TLS and proxy plaintext with `tls_termination: true`
 - No protocol validation (relies on upstream)
 - Connection limits managed by OS
 

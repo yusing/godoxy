@@ -91,6 +91,19 @@ func TestRouteValidate(t *testing.T) {
 		require.ErrorContains(t, err, "relay_proxy_protocol_header is only supported for tcp routes")
 	})
 
+	t.Run("TLSTerminationTCPOnly", func(t *testing.T) {
+		r := &Route{
+			Alias:          "test-udp-tls",
+			Scheme:         route.SchemeUDP,
+			Host:           "127.0.0.1",
+			Port:           route.Port{Proxy: 53, Listening: 53},
+			TLSTermination: true,
+		}
+		err := r.Validate()
+		require.Error(t, err, "Validate should reject TLS termination on UDP routes")
+		require.ErrorContains(t, err, "tls_termination is only supported for tcp routes")
+	})
+
 	t.Run("InboundMTLSProfileHTTPOnly", func(t *testing.T) {
 		r := &Route{
 			Alias:              "test-udp-mtls",

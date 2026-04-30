@@ -81,11 +81,24 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		return errors.New("server already started")
 	}
 
+	aclCfg := acl.FromCtx(srv.ep.task.Context())
+	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
+	certProvider := autocert.FromCtx(srv.ep.task.Context())
+	if proto == HTTPProtoHTTPS && listener == nil && certProvider != nil {
+		sniListener, err := srv.ep.sni.Listen(addr)
+		if err != nil {
+			return err
+		}
+		listener = sniListener
+		aclCfg = nil
+		supportProxyProtocol = false
+	}
+
 	opts := server.Options{
 		Name:                 addr,
 		Handler:              srv,
-		ACL:                  acl.FromCtx(srv.ep.task.Context()),
-		SupportProxyProtocol: srv.ep.cfg.SupportProxyProtocol,
+		ACL:                  aclCfg,
+		SupportProxyProtocol: supportProxyProtocol,
 	}
 
 	switch proto {
@@ -95,7 +108,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	case HTTPProtoHTTPS:
 		opts.HTTPSAddr = addr
 		opts.HTTPSListener = listener
-		opts.CertProvider = autocert.FromCtx(srv.ep.task.Context())
+		opts.CertProvider = certProvider
 		opts.TLSConfigMutator = srv.mutateServerTLSConfig
 	}
 

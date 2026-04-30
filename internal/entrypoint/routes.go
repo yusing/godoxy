@@ -64,6 +64,19 @@ func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 			ep.shortLinkMatcher.DelRoute(r.Key())
 		})
 	case types.StreamRoute:
+		if asSNIRoute(r) {
+			if err := ep.sni.AddRoute(r); err != nil {
+				return err
+			}
+			ep.streamRoutes.Add(r)
+			r.Task().OnCancel("remove_sni_route", func() {
+				ep.sni.DelRoute(r)
+				_ = r.Stream().Close()
+				ep.streamRoutes.Del(r)
+			})
+			return nil
+		}
+
 		err := r.ListenAndServe(r.Task().Context(), nil, nil)
 		if err != nil {
 			return err

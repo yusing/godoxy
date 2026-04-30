@@ -55,6 +55,7 @@ type Route struct {
     Middlewares map[string]types.LabelMap
     Homepage    *homepage.ItemConfig
     AccessLog   *accesslog.RequestLoggerConfig
+    TLSTermination bool
     Agent       string
     Idlewatcher *types.IdlewatcherConfig
 
@@ -91,6 +92,12 @@ scheme: https
 port: 443
 inbound_mtls_profile: corp-clients
 ```
+
+`TLSTermination` is valid only for TCP routes on the shared HTTPS listener. When
+enabled, Godoxy matches the TLS ClientHello SNI to the TCP route alias, completes
+TLS with the configured autocert provider, and proxies decrypted plaintext to the
+TCP target. Without it, matching HTTPS-listener TCP routes use SNI passthrough
+and the upstream target keeps serving its own certificate.
 
 ```go
 type Scheme string
