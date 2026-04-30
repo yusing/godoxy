@@ -59,15 +59,16 @@ func (r *sniRouter) AddRoute(route types.StreamRoute) error {
 	if routeTerminatesTLS(route) && autocert.FromCtx(r.ep.task.Context()) == nil {
 		return fmt.Errorf("route %q tls_termination requires an autocert provider", route.Name())
 	}
-	if _, err := r.Listen(route.ListenURL().Host); err != nil {
+	addr := sniListenAddr(route)
+	if _, err := r.Listen(addr); err != nil {
 		return err
 	}
-	r.routes.Store(sniRouteKey(route.ListenURL().Host, route.Key()), route)
+	r.routes.Store(sniRouteKey(addr, route.Key()), route)
 	return nil
 }
 
 func (r *sniRouter) DelRoute(route types.StreamRoute) {
-	r.routes.Delete(sniRouteKey(route.ListenURL().Host, route.Key()))
+	r.routes.Delete(sniRouteKey(sniListenAddr(route), route.Key()))
 }
 
 func (r *sniRouter) Listen(addr string) (net.Listener, error) {
@@ -185,10 +186,41 @@ func asSNIRoute(route types.StreamRoute) bool {
 	listenURL := route.ListenURL()
 	switch listenURL.Scheme {
 	case "tcp", "tcp4", "tcp6":
-		return listenURL.Host == common.ProxyHTTPSAddr
+		return isSharedHTTPSListenAddr(listenURL.Host)
 	default:
 		return false
 	}
+}
+
+func sniListenAddr(route types.StreamRoute) string {
+	addr := route.ListenURL().Host
+	if isSharedHTTPSListenAddr(addr) {
+		return common.ProxyHTTPSAddr
+	}
+	return addr
+}
+
+func isSharedHTTPSListenAddr(addr string) bool {
+	return listenAddrsEqual(addr, common.ProxyHTTPSAddr)
+}
+
+func listenAddrsEqual(addr, other string) bool {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr == other
+	}
+	otherHost, otherPort, err := net.SplitHostPort(other)
+	if err != nil {
+		return addr == other
+	}
+	if port != otherPort {
+		return false
+	}
+	return host == otherHost || isWildcardListenHost(host) && isWildcardListenHost(otherHost)
+}
+
+func isWildcardListenHost(host string) bool {
+	return host == "" || host == "0.0.0.0" || host == "::"
 }
 
 func routeTerminatesTLS(route types.StreamRoute) bool {

@@ -104,6 +104,19 @@ func TestRouteValidate(t *testing.T) {
 		require.ErrorContains(t, err, "tls_termination is only supported for tcp routes")
 	})
 
+	t.Run("TLSTerminationSharedHTTPSOnly", func(t *testing.T) {
+		r := &Route{
+			Alias:          "test-tcp-tls",
+			Scheme:         route.SchemeTCP,
+			Host:           "127.0.0.1",
+			Port:           route.Port{Proxy: 1883, Listening: common.ProxyHTTPSPort + 1},
+			TLSTermination: true,
+		}
+		err := r.Validate()
+		require.Error(t, err, "Validate should reject TLS termination outside shared HTTPS listener")
+		require.ErrorContains(t, err, "tls_termination is only supported on the shared HTTPS listener")
+	})
+
 	t.Run("InboundMTLSProfileHTTPOnly", func(t *testing.T) {
 		r := &Route{
 			Alias:              "test-udp-mtls",

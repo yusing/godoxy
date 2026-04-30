@@ -66,6 +66,13 @@ func TestSNIRouterListensPerHTTPSAddress(t *testing.T) {
 	require.Same(t, listener1, again)
 }
 
+func TestSharedHTTPSListenAddrMatchesWildcardDefault(t *testing.T) {
+	require.True(t, listenAddrsEqual("0.0.0.0:443", ":443"))
+	require.True(t, listenAddrsEqual("[::]:443", ":443"))
+	require.False(t, listenAddrsEqual("0.0.0.0:8443", ":443"))
+	require.False(t, listenAddrsEqual("127.0.0.1:443", ":443"))
+}
+
 func TestReadClientHelloServerNameReplaysBytes(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()

@@ -340,6 +340,9 @@ func (r *Route) validate() error {
 	if r.TLSTermination && r.Scheme != route.SchemeTCP {
 		errs.Adds("tls_termination is only supported for tcp routes")
 	}
+	if r.TLSTermination && r.Scheme == route.SchemeTCP && r.LisURL != nil && !isSharedHTTPSListenAddr(r.LisURL.Host) {
+		errs.Adds("tls_termination is only supported on the shared HTTPS listener")
+	}
 
 	if errs.HasError() {
 		return errs.Error()
@@ -368,6 +371,25 @@ func (r *Route) validate() error {
 		r.ExcludedReason = r.findExcludedReason()
 	}
 	return nil
+}
+
+func isSharedHTTPSListenAddr(addr string) bool {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr == common.ProxyHTTPSAddr
+	}
+	httpsHost, httpsPort, err := net.SplitHostPort(common.ProxyHTTPSAddr)
+	if err != nil {
+		return addr == common.ProxyHTTPSAddr
+	}
+	if port != httpsPort {
+		return false
+	}
+	return host == httpsHost || isWildcardListenHost(host) && isWildcardListenHost(httpsHost)
+}
+
+func isWildcardListenHost(host string) bool {
+	return host == "" || host == "0.0.0.0" || host == "::"
 }
 
 func (r *Route) validateRules() error {
