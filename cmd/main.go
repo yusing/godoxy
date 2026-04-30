@@ -10,6 +10,7 @@ import (
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
+	"github.com/yusing/godoxy/internal/dnsproviders"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
@@ -44,6 +45,7 @@ func main() {
 	log.Info().Msgf("GoDoxy version %s", version.Get())
 	log.Trace().Msg("trace enabled")
 	parallel(
+		dnsproviders.InitProviders,
 		iconlist.InitCache,
 		middleware.LoadComposeFiles,
 	)

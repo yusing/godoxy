@@ -1,5 +1,5 @@
 //nolint:errchkjson,errcheck
-package main
+package provider_test
 
 import (
 	"crypto/rand"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
+	"github.com/yusing/godoxy/internal/dnsproviders"
 )
 
 // TestACMEServer implements a minimal ACME server for testing with request tracking.
@@ -389,6 +390,7 @@ func (s *TestACMEServer) handleCertificate(w http.ResponseWriter, r *http.Reques
 }
 
 func TestMain(m *testing.M) {
+	dnsproviders.InitProviders()
 	m.Run()
 }
 
@@ -407,10 +409,12 @@ func TestCustomProvider(t *testing.T) {
 		err := error(cfg.Validate())
 		require.NoError(t, err)
 
-		_, legoCfg, err := getLegoConfig(cfg)
+		user, legoCfg, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
+		require.NotNil(t, user)
 		require.NotNil(t, legoCfg)
 		require.Equal(t, "https://ca.example.com:9000/acme/acme/directory", legoCfg.CADirURL)
+		require.Equal(t, "test@example.com", user.Email)
 	})
 
 	t.Run("custom provider missing CADirURL", func(t *testing.T) {
@@ -441,12 +445,14 @@ func TestCustomProvider(t *testing.T) {
 		err := error(cfg.Validate())
 		require.NoError(t, err)
 
-		_, legoCfg, err := getLegoConfig(cfg)
+		user, legoCfg, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
+		require.NotNil(t, user)
 		require.NotNil(t, legoCfg)
 		require.Equal(t, "https://step-ca.internal:443/acme/acme/directory", legoCfg.CADirURL)
+		require.Equal(t, "admin@internal.com", user.Email)
 
-		provider, err := autocert.NewProvider(cfg)
+		provider, err := autocert.NewProvider(cfg, user, legoCfg)
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 		require.Equal(t, "main", provider.GetName())
@@ -475,15 +481,23 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 		err := error(cfg.Validate())
 		require.NoError(t, err)
 
-		_, legoCfg, err := getLegoConfig(cfg)
+		user, legoCfg, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
+		require.NotNil(t, user)
 		require.NotNil(t, legoCfg)
 
-		err = obtainCert(cfg)
+		provider, err := autocert.NewProvider(cfg, user, legoCfg)
+		require.NoError(t, err)
+		require.NotNil(t, provider)
+
+		// Test obtaining certificate
+		err = provider.ObtainCert()
 		require.NoError(t, err)
 
-		cert, err := tls.LoadX509KeyPair(cfg.CertPath, cfg.KeyPath)
+		// Verify certificate was obtained
+		cert, err := provider.GetCert(nil)
 		require.NoError(t, err)
+		require.NotNil(t, cert)
 
 		// Verify certificate properties
 		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
@@ -510,15 +524,21 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 		err := error(cfg.Validate())
 		require.NoError(t, err)
 
-		_, legoCfg, err := getLegoConfig(cfg)
+		user, legoCfg, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
+		require.NotNil(t, user)
 		require.NotNil(t, legoCfg)
 
-		err = obtainCert(cfg)
+		provider, err := autocert.NewProvider(cfg, user, legoCfg)
+		require.NoError(t, err)
+		require.NotNil(t, provider)
+
+		err = provider.ObtainCert()
 		require.NoError(t, err)
 
-		cert, err := tls.LoadX509KeyPair(cfg.CertPath, cfg.KeyPath)
+		cert, err := provider.GetCert(nil)
 		require.NoError(t, err)
+		require.NotNil(t, cert)
 
 		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 		require.NoError(t, err)

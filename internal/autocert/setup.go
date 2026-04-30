@@ -14,7 +14,12 @@ func (p *Provider) setupExtraProviders() error {
 
 	errs := gperr.NewBuilder("setup extra providers error")
 	for _, extra := range p.cfg.Extra {
-		ep, err := NewProvider(extra.AsConfig())
+		user, legoCfg, err := extra.AsConfig().GetLegoConfig()
+		if err != nil {
+			errs.Add(p.fmtError(err))
+			continue
+		}
+		ep, err := NewProvider(extra.AsConfig(), user, legoCfg)
 		if err != nil {
 			errs.Add(p.fmtError(err))
 			continue

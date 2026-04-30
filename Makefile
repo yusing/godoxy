@@ -67,7 +67,6 @@ endif
 
 BUILD_FLAGS += -tags '$(GO_TAGS)' -ldflags='$(LDFLAGS)'
 BIN_PATH := $(shell pwd)/bin/${NAME}
-AUTOCERT_BIN_PATH := $(shell pwd)/bin/autocert
 
 export NAME
 export CGO_ENABLED
@@ -92,9 +91,6 @@ ifeq ($(godoxy), 1)
 endif
 ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
-	ifeq ($(godoxy), 1)
-		POST_BUILD += mv ${AUTOCERT_BIN_PATH} /app/autocert;
-	endif
 endif
 
 .PHONY: debug
@@ -156,9 +152,6 @@ build:
 	fi
 	mkdir -p $(shell dirname ${BIN_PATH})
 	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ${PACKAGE}
-	@if [ "${godoxy}" = "1" ]; then \
-		go build -C ${shell pwd}/cmd/autocert ${BUILD_FLAGS} -o ${AUTOCERT_BIN_PATH} .; \
-	fi
 	${POST_BUILD}
 
 run: minify

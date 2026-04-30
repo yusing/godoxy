@@ -380,12 +380,17 @@ func (state *state) initAutoCert() error {
 		_ = autocertCfg.Validate()
 	}
 
-	p, err := autocert.NewProvider(autocertCfg)
+	user, legoCfg, err := autocertCfg.GetLegoConfig()
 	if err != nil {
 		return err
 	}
 
-	if err := p.ObtainCertIfNotExistsAll(state.task.Context()); err != nil {
+	p, err := autocert.NewProvider(autocertCfg, user, legoCfg)
+	if err != nil {
+		return err
+	}
+
+	if err := p.ObtainCertIfNotExistsAll(); err != nil {
 		return err
 	}
 
