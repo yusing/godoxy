@@ -26,7 +26,7 @@ func TestParseDockerLabels(t *testing.T) {
 			Names:  []string{"container"},
 			Labels: labels,
 			State:  "running",
-			Ports: []container.PortSummary{
+			Ports: []container.Port{
 				{Type: "tcp", PrivatePort: 1234, PublicPort: 1234},
 			},
 		}, types.DockerProviderConfig{URL: "unix:///var/run/docker.sock"}),
