@@ -95,6 +95,21 @@ services:
     labels:
       proxy.#1.scheme: h2c
       proxy.#1.port: 80
+  tcp_echo_server: # issue #230 TLS passthrough / termination
+    build:
+      context: cmd/tcp_echo_server
+      dockerfile: Dockerfile
+    container_name: tcp_echo_test
+    restart: unless-stopped
+    labels:
+      proxy.aliases: tcp-echo-passthrough,tcp-echo-termination
+      proxy.#1.scheme: tcp
+      proxy.#1.port: 443:9443
+      proxy.#1.healthcheck.disable: true
+      proxy.#2.scheme: tcp
+      proxy.#2.port: 443:9000
+      proxy.#2.tls_termination: true
+      proxy.#2.healthcheck.disable: true
   bench: # returns 4096 bytes of random data
     <<: *benchmark
     build:

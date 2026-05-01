@@ -93,10 +93,13 @@ ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
 
-.PHONY: debug
+.PHONY: debug test tcp-echo-test
 
 test:
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
+
+tcp-echo-test:
+	bun --bun scripts/tcp_echo_test.ts
 
 docker-build-test:
 	docker build -t ${TEST_REGISTRY}/godoxy .
