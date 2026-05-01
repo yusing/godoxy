@@ -105,6 +105,25 @@ func (rule Rule) doesTerminateInPre() bool {
 	return commandsTerminateInPre(rule.Do.pre)
 }
 
+func (rule Rule) canUsePassthrough() bool {
+	return !rule.On.phase.IsPostRule() && len(rule.Do.post) == 0
+}
+
+func rulesCanUsePassthrough(nonDefaultRules Rules, defaultRule *Rule) bool {
+	if len(nonDefaultRules) == 0 && defaultRule == nil {
+		return false
+	}
+	if defaultRule != nil && !defaultRule.canUsePassthrough() {
+		return false
+	}
+	for _, rule := range nonDefaultRules {
+		if !rule.canUsePassthrough() {
+			return false
+		}
+	}
+	return true
+}
+
 func commandsTerminateInPre(cmds []CommandHandler) bool {
 	return slices.ContainsFunc(cmds, commandTerminatesInPre)
 }
@@ -318,6 +337,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 			return up
 		}
 	}
+	usePassthrough := rulesCanUsePassthrough(nonDefaultRules, defaultRule)
 
 	execPreCommand := func(cmd Command, w *httputils.ResponseModifier, r *http.Request) error {
 		return cmd.pre.ServeHTTP(w, r, up)
@@ -328,7 +348,10 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		rm := httputils.NewResponseModifier(w)
+		rm := httputils.GetInitResponseModifier(w)
+		if usePassthrough {
+			rm = httputils.NewPassthroughResponseModifier(w)
+		}
 		defer func() {
 			if _, err := rm.FlushRelease(); err != nil {
 				logFlushError(err, r)

@@ -14,6 +14,10 @@ func (phase PhaseFlag) IsPostRule() bool {
 	return phase&PhasePost != 0
 }
 
+func (phase PhaseFlag) IsPreOnly() bool {
+	return phase == PhaseNone || phase == PhasePre
+}
+
 func (phase PhaseFlag) String() string {
 	if phase == PhaseNone {
 		return "none"
