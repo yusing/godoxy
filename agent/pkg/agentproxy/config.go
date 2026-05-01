@@ -53,7 +53,7 @@ func proxyConfigFromHeaders(h http.Header) (cfg Config, err error) {
 		return cfg, err
 	}
 
-	err = sonic.Unmarshal(cfgJSON, &cfg)
+	err = sonic.Unmarshal(cfgJSON, &cfg.HTTPConfig)
 	return cfg, err
 }
 

@@ -26,6 +26,8 @@ require (
 	github.com/yusing/godoxy v0.28.1
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260430182405-42e6b2fc1dde
+	golang.org/x/net v0.53.0
 )
 
 require (
@@ -91,7 +93,6 @@ require (
 	github.com/valyala/fasthttp v1.70.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
 	github.com/yusing/gointernals v0.2.0 // indirect
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260430182405-42e6b2fc1dde // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20260430182405-42e6b2fc1dde // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.6.0 // indirect
@@ -103,7 +104,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	golang.org/x/arch v0.26.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
