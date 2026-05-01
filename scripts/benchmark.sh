@@ -1,6 +1,6 @@
 #!/bin/bash
 # Benchmark script to compare GoDoxy, Traefik, Caddy, and Nginx
-# Uses wrk for HTTP/1.1, h2load for HTTP/2, and h2load/h3bench for HTTP/3 load testing
+# Uses h2load for HTTP/1.1, HTTP/2, and HTTP/3 load testing, with h3bench as an HTTP/3 fallback
 
 set -e
 
@@ -9,10 +9,13 @@ HOST="bench.domain.com"
 DURATION="${DURATION:-10s}"
 THREADS="${THREADS:-4}"
 CONNECTIONS="${CONNECTIONS:-100}"
+REQUESTS="${REQUESTS:-1000}"
+STREAMS="${STREAMS:-100}"
 TARGET="${TARGET-}"
 H1="${H1:-1}"
 H2="${H2:-1}"
 H3="${H3:-1}"
+CONNECTION_MODE="${CONNECTION_MODE:-both}"
 H3_TOOL="${H3_TOOL:-auto}"
 
 # Color functions for output
@@ -29,12 +32,19 @@ Options:
   --h1 / --no-h1        Enable/disable HTTP/1.1 checks and benchmark (default: enabled)
   --h2 / --no-h2        Enable/disable HTTP/2 checks and benchmark (default: enabled)
   --h3 / --no-h3        Enable/disable HTTP/3 checks and benchmark (default: enabled)
+  --reused              Run duration-based reused-connection benchmarks only
+  --fresh               Run fixed-request fresh-connection benchmarks only
+  --both                Run both reused and fresh modes (default)
   -h, --help            Show this help
 
 Environment:
   H1=0|1                Enable/disable HTTP/1.1 (default: 1)
   H2=0|1                Enable/disable HTTP/2 (default: 1)
   H3=0|1                Enable/disable HTTP/3 (default: 1)
+  CONNECTION_MODE=both|reused|fresh
+  STREAMS=100           Concurrent streams per H2/H3 session in reused mode
+  REQUESTS=1000         Requests per protocol in fresh mode
+                         Fresh mode uses -c REQUESTS to force one request per connection.
   H3_TOOL=auto|h2load|h3bench
   TARGET=<service>      Limit benchmark to GoDoxy, Traefik, Caddy, or Nginx
   DURATION=10s THREADS=4 CONNECTIONS=100
@@ -49,6 +59,9 @@ for arg in "$@"; do
 	--no-h2) H2=0 ;;
 	--h3) H3=1 ;;
 	--no-h3) H3=0 ;;
+	--reused) CONNECTION_MODE=reused ;;
+	--fresh) CONNECTION_MODE=fresh ;;
+	--both) CONNECTION_MODE=both ;;
 	-h | --help)
 		usage
 		exit 0
@@ -78,6 +91,16 @@ H1=$(normalize_protocol_flag H1 "$H1")
 H2=$(normalize_protocol_flag H2 "$H2")
 H3=$(normalize_protocol_flag H3 "$H3")
 
+case "${CONNECTION_MODE,,}" in
+reused | reuse) CONNECTION_MODE=reused ;;
+fresh | new) CONNECTION_MODE=fresh ;;
+both | all) CONNECTION_MODE=both ;;
+*)
+	red "Error: CONNECTION_MODE must be reused, fresh, or both (got $CONNECTION_MODE)"
+	exit 2
+	;;
+esac
+
 if [ "$H1" = "0" ] && [ "$H2" = "0" ] && [ "$H3" = "0" ]; then
 	red "Error: at least one protocol must be enabled"
 	exit 2
@@ -85,17 +108,8 @@ fi
 
 ./scripts/ensure_benchmark_cert.sh
 
-if [ "$H1" = "1" ] && ! command -v wrk &>/dev/null; then
-	red "Error: wrk is not installed (required for HTTP/1.1; use --no-h1 to skip)"
-	echo "Please install wrk:"
-	echo "  Ubuntu/Debian: sudo apt-get install wrk"
-	echo "  macOS: brew install wrk"
-	echo "  Or build from source: https://github.com/wg/wrk"
-	exit 1
-fi
-
-if [ "$H2" = "1" ] && ! command -v h2load &>/dev/null; then
-	red "Error: h2load is not installed (required for HTTP/2; use --no-h2 to skip)"
+if { [ "$H1" = "1" ] || [ "$H2" = "1" ]; } && ! command -v h2load &>/dev/null; then
+	red "Error: h2load is not installed (required for HTTP/1.1 and HTTP/2; use --no-h1/--no-h2 to skip)"
 	echo "Please install nghttp2-client:"
 	echo "  Ubuntu/Debian: sudo apt-get install nghttp2-client"
 	echo "  macOS: brew install nghttp2"
@@ -155,6 +169,9 @@ echo "Target: $HOST"
 echo "Duration: $DURATION"
 echo "Threads: $THREADS"
 echo "Connections: $CONNECTIONS"
+echo "Requests: $REQUESTS"
+echo "Streams: $STREAMS"
+echo "Connection mode: $CONNECTION_MODE"
 echo "HTTP/1.1: $H1"
 echo "HTTP/2: $H2"
 echo "HTTP/3: $H3"
@@ -183,30 +200,43 @@ h3_port() {
 	esac
 }
 
-h3_url() {
+https_url() {
 	echo "https://$HOST:$(h3_port "$1")/"
+}
+
+h3_url() {
+	https_url "$1"
 }
 
 h3_dial_addr() {
 	echo "127.0.0.1:$(h3_port "$1")"
 }
 
+h2load_tls_connect_arg() {
+	echo "--connect-to=127.0.0.1:$(h3_port "$1")"
+}
+
+curl_resolve_arg() {
+	echo "$HOST:$(h3_port "$1"):127.0.0.1"
+}
+
 
 read_response_with_retry() {
-	local curl_proto=$1
-	local url=$2
+	local url=$1
+	shift
+	local curl_args=("$@")
 	local attempt
 	local res
 
 	for attempt in {1..30}; do
-		if res=$(curl -sS -w "\n%{http_code}" "$curl_proto" -H "Host: $HOST" --max-time 5 "$url" 2>/dev/null); then
+		if res=$(curl -sS -w "\n%{http_code}" "${curl_args[@]}" -H "Host: $HOST" --max-time 5 "$url" 2>/dev/null); then
 			echo "$res"
 			return 0
 		fi
 		sleep 1
 	done
 
-	curl -sS -w "\n%{http_code}" "$curl_proto" -H "Host: $HOST" --max-time 5 "$url"
+	curl -sS -w "\n%{http_code}" "${curl_args[@]}" -H "Host: $HOST" --max-time 5 "$url"
 }
 
 h3_check_with_retry() {
@@ -214,12 +244,14 @@ h3_check_with_retry() {
 	local url=$2
 	local dial_addr
 	dial_addr=$(h3_dial_addr "$name")
+	local tls_connect_arg
+	tls_connect_arg=$(h2load_tls_connect_arg "$name")
 	local attempt
 
 	for attempt in {1..30}; do
 		case "$H3_TOOL" in
 		h2load)
-			if h2load -k -n1 -c1 -m1 --h3 -H ":authority: $HOST" "$url" >/dev/null 2>&1; then
+			if h2load -n1 -c1 -m1 --h3 "$tls_connect_arg" -H ":authority: $HOST" "$url" >/dev/null 2>&1; then
 				return 0
 			fi
 			;;
@@ -233,7 +265,7 @@ h3_check_with_retry() {
 	done
 
 	case "$H3_TOOL" in
-	h2load) h2load -k -n1 -c1 -m1 --h3 -H ":authority: $HOST" "$url" >/dev/null 2>&1 ;;
+	h2load) h2load -n1 -c1 -m1 --h3 "$tls_connect_arg" -H ":authority: $HOST" "$url" >/dev/null 2>&1 ;;
 	h3bench) "$H3BENCH_CMD" -d 1s -c 1 -dial "$dial_addr" -k "$url" >/dev/null 2>&1 ;;
 	esac
 }
@@ -258,12 +290,14 @@ test_connection() {
 
 	yellow "Testing connection to $name..."
 
-	local h3_url
-	h3_url=$(h3_url "$name")
+	local https_url
+	https_url=$(https_url "$name")
+	local curl_resolve
+	curl_resolve=$(curl_resolve_arg "$name")
 
 	local failed=false
 	if [ "$H1" = "1" ]; then
-		local res1=$(read_response_with_retry --http1.1 "$url")
+		local res1=$(read_response_with_retry "$https_url" --http1.1 --insecure --resolve "$curl_resolve")
 		local body1=$(echo "$res1" | head -n -1)
 		local status1=$(echo "$res1" | tail -n 1)
 
@@ -274,7 +308,7 @@ test_connection() {
 	fi
 
 	if [ "$H2" = "1" ]; then
-		local res2=$(read_response_with_retry --http2-prior-knowledge "$url")
+		local res2=$(read_response_with_retry "$https_url" --http2 --insecure --resolve "$curl_resolve")
 		local body2=$(echo "$res2" | head -n -1)
 		local status2=$(echo "$res2" | tail -n 1)
 
@@ -284,9 +318,9 @@ test_connection() {
 		fi
 	fi
 
-	if [ "$H3" = "1" ] && [ -n "$h3_url" ]; then
-		if ! h3_check_with_retry "$name" "$h3_url"; then
-			red "✗ $name failed HTTP/3 connection test (URL: $h3_url)"
+	if [ "$H3" = "1" ] && [ -n "$https_url" ]; then
+		if ! h3_check_with_retry "$name" "$https_url"; then
+			red "✗ $name failed HTTP/3 connection test (URL: $https_url)"
 			failed=true
 		fi
 	fi
@@ -342,62 +376,132 @@ restart_bench() {
 }
 
 # Function to run benchmark
-run_benchmark() {
+filter_h2load_noise() {
+	grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients|Process Request Failure)"
+}
+
+run_reused_benchmark() {
 	local name=$1
 	local url=$2
-	local h3_url
-	h3_url=$(h3_url "$name")
-	local h3_dial_addr
-	h3_dial_addr=$(h3_dial_addr "$name")
+	local https_url=$3
+	local tls_connect_arg=$4
+	local h3_dial_addr=$5
 	local h2_duration="${DURATION%s}"
 
-	restart_bench "$name"
-
-	yellow "Testing $name..."
-
-	echo "========================================"
-	echo "$name"
-	echo "URL: $url"
-	echo "========================================"
 	echo ""
-	if [ "$H1" = "1" ]; then
-		echo "[HTTP/1.1] wrk"
+	blue "[Reused connections] duration=$DURATION connections=$CONNECTIONS streams=$STREAMS"
 
-		wrk -t"$THREADS" -c"$CONNECTIONS" -d"$DURATION" \
+	restart_bench "$name"
+	if [ "$H1" = "1" ]; then
+		echo ""
+		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
+		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$h2_duration" \
+			"$tls_connect_arg" \
 			-H "Host: $HOST" \
-			"$url"
+			"$https_url" | filter_h2load_noise
 	fi
 
 	if [ "$H2" = "1" ]; then
 		echo ""
 		restart_bench "$name"
-
-		echo "[HTTP/2] h2load"
-
-		h2load -t"$THREADS" -c"$CONNECTIONS" --duration="$h2_duration" \
-			-H "Host: $HOST" \
+		echo "[HTTP/2 reused TLS] h2load -m$STREAMS"
+		h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$h2_duration" \
+			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
-			"$url" | grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients|Process Request Failure)"
+			"$https_url" | filter_h2load_noise
 	fi
 
 	if [ "$H3" = "1" ]; then
 		echo ""
-		echo "[HTTP/3] $H3_TOOL"
 		restart_bench "$name"
-
+		echo "[HTTP/3 reused] $H3_TOOL"
 		case "$H3_TOOL" in
 			h2load)
-				h2load -t"$THREADS" -c"$CONNECTIONS" --duration="$h2_duration" \
-					-k \
+				h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$h2_duration" \
 					--h3 \
+					"$tls_connect_arg" \
 					-H ":authority: $HOST" \
-					"$h3_url" | grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients|Process Request Failure)"
+					"$https_url" | filter_h2load_noise
 				;;
 			h3bench)
-				"$H3BENCH_CMD" -d "$DURATION" -c "$CONNECTIONS" -dial "$h3_dial_addr" -k "$h3_url"
+				"$H3BENCH_CMD" -d "$DURATION" -c "$CONNECTIONS" -dial "$h3_dial_addr" -k "$https_url"
 				;;
 		esac
 	fi
+}
+
+run_fresh_benchmark() {
+	local name=$1
+	local url=$2
+	local https_url=$3
+	local tls_connect_arg=$4
+
+	echo ""
+	blue "[Fresh connections] requests=$REQUESTS one-request-per-connection"
+
+	if [ "$H1" = "1" ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/1.1 fresh TLS] h2load --h1 -m1"
+		h2load --h1 -t"$THREADS" -c"$REQUESTS" -n"$REQUESTS" -m1 \
+			"$tls_connect_arg" \
+			-H "Host: $HOST" \
+			"$https_url" | filter_h2load_noise
+	fi
+
+	if [ "$H2" = "1" ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/2 fresh TLS] h2load -m1"
+		h2load -t"$THREADS" -c"$REQUESTS" -n"$REQUESTS" -m1 \
+			"$tls_connect_arg" \
+			-H ":authority: $HOST" \
+			"$https_url" | filter_h2load_noise
+	fi
+
+	if [ "$H3" = "1" ]; then
+		if [ "$H3_TOOL" != "h2load" ]; then
+			yellow "Skipping HTTP/3 fresh benchmark: H3_TOOL=$H3_TOOL does not support fixed-request fresh mode"
+			return
+		fi
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/3 fresh] h2load --h3 -m1"
+		h2load -t"$THREADS" -c"$REQUESTS" -n"$REQUESTS" -m1 \
+			--h3 \
+			"$tls_connect_arg" \
+			-H ":authority: $HOST" \
+			"$https_url" | filter_h2load_noise
+	fi
+}
+
+# Function to run benchmark
+run_benchmark() {
+	local name=$1
+	local url=$2
+	local https_url
+	https_url=$(https_url "$name")
+	local tls_connect_arg
+	tls_connect_arg=$(h2load_tls_connect_arg "$name")
+	local h3_dial_addr
+	h3_dial_addr=$(h3_dial_addr "$name")
+
+	yellow "Testing $name..."
+
+	echo "========================================"
+	echo "$name"
+	echo "Benchmark URL: $https_url ($tls_connect_arg)"
+	echo "Cleartext URL: $url (not used for protocol benchmarks)"
+	echo "========================================"
+
+	case "$CONNECTION_MODE" in
+	reused) run_reused_benchmark "$name" "$url" "$https_url" "$tls_connect_arg" "$h3_dial_addr" ;;
+	fresh) run_fresh_benchmark "$name" "$url" "$https_url" "$tls_connect_arg" ;;
+	both)
+		run_reused_benchmark "$name" "$url" "$https_url" "$tls_connect_arg" "$h3_dial_addr"
+		run_fresh_benchmark "$name" "$url" "$https_url" "$tls_connect_arg"
+		;;
+	esac
 
 	echo ""
 	green "✓ $name benchmark completed"
@@ -419,6 +523,7 @@ echo ""
 echo "All benchmark output saved to: $OUTFILE"
 echo ""
 echo "Enabled protocols: $(enabled_protocols_label)"
+echo "Connection mode: $CONNECTION_MODE"
 echo "Key metrics to compare:"
 echo "  - Requests/sec (throughput)"
 echo "  - Latency (mean, stdev)"

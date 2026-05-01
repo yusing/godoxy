@@ -313,17 +313,33 @@ configs:
         default_bind 0.0.0.0
 
         servers {
-          protocols h1 h2c h3 h2
+          protocols h1 h2 h3
+        }
+      }
+
+      (bench_proxy) {
+        reverse_proxy bench:80 {
+          lb_try_duration 2s
+          lb_try_interval 10ms
+
+          transport http {
+            keepalive 2m
+            keepalive_idle_conns 10000
+            keepalive_idle_conns_per_host 1000
+            compression off
+            dial_timeout 1s
+            dial_fallback_delay -1s
+          }
         }
       }
 
       http://bench.domain.com {
-        reverse_proxy bench:80
+        import bench_proxy
       }
 
       https://bench.domain.com {
         tls /etc/caddy/bench.crt /etc/caddy/bench.key
-        reverse_proxy bench:80
+        import bench_proxy
       }
   nginx_config:
     content: |
@@ -361,7 +377,6 @@ configs:
         server {
           listen 80 default_server;
           server_name _;
-          http2 on;
 
           return 404;
         }
@@ -369,7 +384,6 @@ configs:
         server {
           listen 80;
           server_name bench.domain.com;
-          http2 on;
 
           location / {
             proxy_pass http://backend;
