@@ -11,7 +11,7 @@ services:
       dockerfile: dev.Dockerfile
     container_name: godoxy-proxy-dev
     restart: unless-stopped
-    env_file: dev.env
+    env_file: .env
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       TZ: Asia/Hong_Kong
@@ -20,7 +20,6 @@ services:
       API_PASSWORD: 1234
       API_SKIP_ORIGIN_CHECK: true
       API_JWT_TTL: 24h
-      DEBUG: true
       API_JWT_SECRET: 1234567891234567
     labels:
       proxy.exclude: true
@@ -36,6 +35,40 @@ services:
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
       - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
+  app-test:
+    image: godoxy-dev
+    build: .
+    container_name: godoxy-proxy-dev-test
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TZ: Asia/Hong_Kong
+      API_ADDR: 127.0.0.1:8999
+      API_USER: dev
+      API_PASSWORD: 1234
+      API_SKIP_ORIGIN_CHECK: true
+      API_JWT_TTL: 24h
+      DEBUG: true
+      API_JWT_SECRET: 1234567891234567
+    volumes:
+      - /etc/ssl/certs/myCA.pem:/etc/ssl/certs/myCA.pem:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dev-data/config:/app/config
+      - ./dev-data/certs:/app/certs
+      - ./dev-data/error_pages:/app/error_pages:ro
+      - ./dev-data/data:/app/data
+      - ./dev-data/logs:/app/logs
+  idlewatcher-test:
+    image: nginx:latest
+    container_name: idlewatcher-test
+    command: sh -c 'sleep 3 && nginx -g "daemon off;" -c /etc/nginx/nginx.conf'
+    restart: no
+    labels:
+      proxy.#1.port: "80"
+      proxy.idle_timeout: 10s
+      proxy.wake_timeout: 5s
   parca:
     image: ghcr.io/parca-dev/parca:v0.24.2
     container_name: godoxy-parca
@@ -72,6 +105,32 @@ services:
       - NODE_ENV=production
     labels:
       proxy.aliases: "jotty.my.app"
+  stash: # issue 222
+    image: stashapp/stash:latest
+    container_name: stash
+    restart: no
+    environment:
+      - STASH_STASH=/data/
+      - STASH_GENERATED=/generated/
+      - STASH_METADATA=/metadata/
+      - STASH_CACHE=/cache/
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./dev-data/stash/config:/root/.stash
+      - ./dev-data/stash/data:/data
+    labels:
+      - proxy.#1.middlewares.themed.css="https://css.i.sh/nonexists.css"
+    tmpfs:
+      - /metadata
+      - /cache
+      - /blobs
+      - /generated
+  bentopdf:
+    image: ghcr.io/alam00000/bentopdf-simple:latest
+    container_name: bentopdf
+    restart: unless-stopped
+    expose:
+      - 8080
   postgres-test:
     image: postgres:18-alpine
     container_name: postgres-test
@@ -220,15 +279,15 @@ configs:
       http {
         include /etc/nginx/mime.types;
         default_type application/octet-stream;
-        
+
         access_log off;
-        
+
         sendfile on;
         tcp_nopush on;
         tcp_nodelay on;
         keepalive_timeout 65;
         keepalive_requests 10000;
-        
+
         upstream backend {
           server bench:80;
           keepalive 128;
@@ -246,7 +305,7 @@ configs:
           listen 80;
           server_name bench.domain.com;
           http2 on;
-          
+
           location / {
             proxy_pass http://backend;
             proxy_http_version 1.1;

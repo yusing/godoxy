@@ -114,28 +114,28 @@ files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
 gomod_paths := $(shell find . -name go.mod -type f | grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' | xargs dirname)
 
 update-go:
-	for file in ${files}; do \
+	@for file in ${files}; do \
 		echo "updating $$file"; \
 		sed -i 's|go \([0-9]\+\.[0-9]\+\.[0-9]\+\)|go ${go_ver}|g' $$file; \
 		sed -i 's|FROM golang:.*-alpine|FROM golang:${go_ver}-alpine|g' $$file; \
 	done
-	for path in ${gomod_paths}; do \
-		cd ${PWD}/$$path && go mod tidy; \
+	@for path in ${gomod_paths}; do \
+		echo ${PWD}/$$path && cd ${PWD}/$$path && go mod tidy; \
 	done
 
 update-deps:
-	for path in ${gomod_paths}; do \
-		cd ${PWD}/$$path && go get -u ./... && go mod tidy; \
+	@for path in ${gomod_paths}; do \
+		echo ${PWD}/$$path && cd ${PWD}/$$path && go get -u ./... && go mod tidy; \
 	done
 
 mod-tidy:
-	for path in ${gomod_paths}; do \
-		cd ${PWD}/$$path && go mod tidy; \
+	@for path in ${gomod_paths}; do \
+		echo ${PWD}/$$path && cd ${PWD}/$$path && go mod tidy; \
 	done
 
 modernize:
-	for path in ${gomod_paths}; do \
-		cd ${PWD}/$$path && go fix ./...; \
+	@for path in ${gomod_paths}; do \
+		echo ${PWD}/$$path && cd ${PWD}/$$path && go fix ./...; \
 	done
 
 minify:
