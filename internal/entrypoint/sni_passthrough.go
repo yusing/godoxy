@@ -25,6 +25,7 @@ import (
 var errClientHelloRead = errors.New("client hello read")
 
 const clientHelloTimeout = 5 * time.Second
+const httpsForwardBacklog = 4096
 
 type sniRouter struct {
 	ep        *Entrypoint
@@ -91,7 +92,7 @@ func (r *sniRouter) Listen(addr string) (net.Listener, error) {
 		Listener: ln,
 		router:   r,
 		addr:     addr,
-		https:    make(chan net.Conn, 128),
+		https:    make(chan net.Conn, httpsForwardBacklog),
 	}
 	r.listeners.Store(addr, listener)
 	go r.accept(addr, listener)

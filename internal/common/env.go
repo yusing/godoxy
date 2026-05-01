@@ -66,4 +66,6 @@ var (
 	MetricsDisableSensors = env.GetEnvBool("METRICS_DISABLE_SENSORS", false)
 
 	ForceResolveCountry = env.GetEnvBool("FORCE_RESOLVE_COUNTRY", false)
+
+	SNIRoutingForTCPRoutes = env.GetEnvBool("SNI_ROUTING_FOR_TCP_ROUTES", true)
 )

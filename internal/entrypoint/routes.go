@@ -65,6 +65,9 @@ func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 		})
 	case types.StreamRoute:
 		if asSNIRoute(r) {
+			if !common.SNIRoutingForTCPRoutes {
+				return fmt.Errorf("route %q listens on the shared HTTPS listener, but TCP SNI routing is disabled", r.Name())
+			}
 			if err := ep.sni.AddRoute(r); err != nil {
 				return err
 			}

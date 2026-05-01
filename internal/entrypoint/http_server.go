@@ -85,13 +85,16 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
 	certProvider := autocert.FromCtx(srv.ep.task.Context())
 	var sniListener net.Listener
-	if proto == HTTPProtoHTTPS && listener == nil {
+	if proto == HTTPProtoHTTPS && listener == nil && common.SNIRoutingForTCPRoutes {
 		var err error
 		sniListener, err = srv.ep.sni.Listen(addr)
 		if err != nil {
 			return err
 		}
 		listener = sniListener
+		// sniRouter.Listen owns the raw TCP listener for shared-HTTPS SNI routing
+		// and applies ACL / PROXY protocol wrappers before ClientHello sniffing.
+		// Do not apply them again around the forwarded HTTPS listener.
 		aclCfg = nil
 		supportProxyProtocol = false
 	}
