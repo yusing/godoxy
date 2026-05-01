@@ -177,56 +177,96 @@ services:
     container_name: bench
   godoxy:
     <<: *benchmark
+    depends_on:
+      - bench
     build: .
     container_name: godoxy-benchmark
+    environment:
+      HTTP3_ENABLED: "true"
     ports:
       - 8080:80
+      - 8440:443
+      - 8440:443/udp
     configs:
       - source: godoxy_config
         target: /app/config/config.yml
       - source: godoxy_provider
         target: /app/config/providers.yml
+      - source: benchmark_cert
+        target: /app/certs/bench.crt
+      - source: benchmark_key
+        target: /app/certs/bench.key
   traefik:
     <<: *benchmark
+    depends_on:
+      - bench
     image: traefik:latest
     container_name: traefik
     command:
       - --api.insecure=true
       - --entrypoints.web.address=:8081
+      - --entrypoints.websecure.address=:8441
+      - --entrypoints.websecure.http3=true
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
       - --log.level=ERROR
     ports:
       - 8081:8081
+      - 8441:8441
+      - 8441:8441/udp
     configs:
       - source: traefik_config
         target: /etc/traefik/dynamic/routes.yml
+      - source: benchmark_cert
+        target: /etc/traefik/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/traefik/certs/bench.key
   caddy:
     <<: *benchmark
+    depends_on:
+      - bench
     image: caddy:latest
     container_name: caddy
     ports:
       - 8082:80
+      - 8442:443
+      - 8442:443/udp
     configs:
       - source: caddy_config
         target: /etc/caddy/Caddyfile
+      - source: benchmark_cert
+        target: /etc/caddy/bench.crt
+      - source: benchmark_key
+        target: /etc/caddy/bench.key
     tmpfs:
       - /data
       - /config
   nginx:
     <<: *benchmark
+    depends_on:
+      - bench
     image: nginx:latest
     container_name: nginx
     command: nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
     ports:
       - 8083:80
+      - 8443:443
+      - 8443:443/udp
     configs:
       - source: nginx_config
         target: /etc/nginx/nginx.conf
+      - source: benchmark_cert
+        target: /etc/nginx/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/nginx/certs/bench.key
 
 configs:
   godoxy_config:
     content: |
+      autocert:
+        provider: local
+        cert_path: /app/certs/bench.crt
+        key_path: /app/certs/bench.key
       providers:
         include:
           - providers.yml
@@ -234,14 +274,31 @@ configs:
     content: |
       bench.domain.com:
         host: bench
+        port: 80
+        healthcheck:
+          disable: true
+  benchmark_cert:
+    file: ./dev-data/certs/bench.domain.com.crt
+  benchmark_key:
+    file: ./dev-data/certs/bench.domain.com.key
   traefik_config:
     content: |
+      tls:
+        certificates:
+          - certFile: /etc/traefik/certs/bench.crt
+            keyFile: /etc/traefik/certs/bench.key
       http:
         routers:
           bench:
             rule: "Host(`bench.domain.com`)"
             entryPoints:
               - web
+            service: bench
+          bench-h3:
+            rule: "Host(`bench.domain.com`)"
+            entryPoints:
+              - websecure
+            tls: {}
             service: bench
         services:
           bench:
@@ -256,11 +313,16 @@ configs:
         default_bind 0.0.0.0
 
         servers {
-          protocols h1 h2c
+          protocols h1 h2c h3 h2
         }
       }
 
       http://bench.domain.com {
+        reverse_proxy bench:80
+      }
+
+      https://bench.domain.com {
+        tls /etc/caddy/bench.crt /etc/caddy/bench.key
         reverse_proxy bench:80
       }
   nginx_config:
@@ -286,7 +348,10 @@ configs:
         tcp_nopush on;
         tcp_nodelay on;
         keepalive_timeout 65;
-        keepalive_requests 10000;
+        # HTTP/3 benchmarks reuse QUIC connections heavily. The default/low
+        # keepalive request cap makes Nginx send a graceful H3 close after the
+        # cap is reached, which benchmark clients report as H3_NO_ERROR.
+        keepalive_requests 1000000;
 
         upstream backend {
           server bench:80;
@@ -305,6 +370,27 @@ configs:
           listen 80;
           server_name bench.domain.com;
           http2 on;
+
+          location / {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+        }
+
+        server {
+          listen 443 ssl;
+          listen 443 quic reuseport;
+          http2 on;
+          http3 on;
+          server_name bench.domain.com;
+          ssl_certificate /etc/nginx/certs/bench.crt;
+          ssl_certificate_key /etc/nginx/certs/bench.key;
+          add_header Alt-Svc 'h3=":443"; ma=86400';
 
           location / {
             proxy_pass http://backend;

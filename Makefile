@@ -169,10 +169,11 @@ dev-build: build
 benchmark:
 	@TARGETS="$(TARGET)"; \
 	if [ -z "$$TARGETS" ]; then TARGETS="godoxy traefik caddy nginx"; fi; \
-	trap 'docker compose -f dev.compose.yml down $$TARGETS' EXIT; \
-	docker compose -f dev.compose.yml up -d --force-recreate $$TARGETS; \
+	./scripts/ensure_benchmark_cert.sh; \
+	trap 'docker compose -f dev.compose.yml down $$TARGETS bench' EXIT; \
+	docker compose -f dev.compose.yml up -d --force-recreate -t 0 bench $$TARGETS; \
 	sleep 1; \
-	./scripts/benchmark.sh
+	./scripts/benchmark.sh $(args)
 
 rapid-crash:
 	docker run --restart=always --name test_crash -p 80 debian:bookworm-slim /bin/cat &&\
