@@ -24,6 +24,7 @@ type HTTPRoutes interface {
 }
 
 type findRouteFunc func(HTTPRoutes, string) types.HTTPRoute
+type findRouteKeyFunc func(string, func(string) bool) (string, bool)
 
 type Entrypoint struct {
 	task *task.Task
@@ -34,6 +35,7 @@ type Entrypoint struct {
 	notFoundHandler  http.Handler
 	accessLogger     accesslog.AccessLogger
 	findRouteFunc    findRouteFunc
+	findRouteKeyFunc findRouteKeyFunc
 	shortLinkMatcher *ShortLinkMatcher
 
 	streamRoutes   *pool.Pool[types.StreamRoute]
@@ -43,6 +45,8 @@ type Entrypoint struct {
 	httpPoolDisableLog atomic.Bool
 
 	servers *xsync.Map[string, *httpServer] // listen addr -> server
+
+	sni *sniRouter
 
 	inboundMTLSProfiles map[string]*x509.CertPool
 }
@@ -69,12 +73,14 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 		task:                parent.Subtask("entrypoint", false),
 		cfg:                 cfg,
 		findRouteFunc:       findRouteAnyDomain,
+		findRouteKeyFunc:    findRouteKeyAnyDomain,
 		shortLinkMatcher:    newShortLinkMatcher(),
 		streamRoutes:        pool.New[types.StreamRoute]("stream_routes", "stream_routes"),
 		excludedRoutes:      pool.New[types.Route]("excluded_routes", "excluded_routes"),
 		servers:             xsync.NewMap[string, *httpServer](),
 		inboundMTLSProfiles: make(map[string]*x509.CertPool),
 	}
+	ep.sni = newSNIRouter(ep)
 	return ep
 }
 
@@ -120,6 +126,7 @@ func (ep *Entrypoint) GetServer(addr string) (HTTPServer, bool) {
 func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 	if len(domains) == 0 {
 		ep.findRouteFunc = findRouteAnyDomain
+		ep.findRouteKeyFunc = findRouteKeyAnyDomain
 	} else {
 		for i, domain := range domains {
 			if !strings.HasPrefix(domain, ".") {
@@ -127,6 +134,7 @@ func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 			}
 		}
 		ep.findRouteFunc = findRouteByDomains(domains)
+		ep.findRouteKeyFunc = findRouteKeyByDomains(domains)
 	}
 }
 
@@ -199,6 +207,23 @@ func findRouteAnyDomain(routes HTTPRoutes, host string) types.HTTPRoute {
 	return nil
 }
 
+func findRouteKeyAnyDomain(host string, exists func(string) bool) (string, bool) {
+	before, _, ok := strings.Cut(host, ".")
+	if ok && exists(before) {
+		return before, true
+	}
+	if exists(host) {
+		return host, true
+	}
+	// try striping the trailing :port from the host
+	if before, _, ok := strings.Cut(host, ":"); ok {
+		if exists(before) {
+			return before, true
+		}
+	}
+	return "", false
+}
+
 func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) types.HTTPRoute {
 	return func(routes HTTPRoutes, host string) types.HTTPRoute {
 		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
@@ -215,5 +240,21 @@ func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) t
 			return r
 		}
 		return nil
+	}
+}
+
+func findRouteKeyByDomains(domains []string) findRouteKeyFunc {
+	return func(host string, exists func(string) bool) (string, bool) {
+		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
+		for _, domain := range domains {
+			if target, ok := strings.CutSuffix(host, domain); ok && exists(target) {
+				return target, true
+			}
+		}
+
+		if exists(host) {
+			return host, true
+		}
+		return "", false
 	}
 }

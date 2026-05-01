@@ -1,6 +1,7 @@
 package entrypoint_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,8 @@ import (
 	expect "github.com/yusing/goutils/testing"
 )
 
+const testHTTPRouteListenPort = 18080
+
 func addRoute(t *testing.T, alias string) {
 	t.Helper()
 
@@ -24,7 +27,7 @@ func addRoute(t *testing.T, alias string) {
 		Alias:  alias,
 		Scheme: routeTypes.SchemeHTTP,
 		Port: route.Port{
-			Listening: 1000,
+			Listening: testHTTPRouteListenPort,
 			Proxy:     8080,
 		},
 		HealthCheck: types.HealthCheckConfig{
@@ -43,7 +46,7 @@ func addRoute(t *testing.T, alias string) {
 func run(t *testing.T, ep *Entrypoint, match []string, noMatch []string) {
 	t.Helper()
 
-	server, ok := ep.GetServer(":1000")
+	server, ok := ep.GetServer(":" + strconv.Itoa(testHTTPRouteListenPort))
 	require.True(t, ok, "server not found")
 	require.NotNil(t, server)
 

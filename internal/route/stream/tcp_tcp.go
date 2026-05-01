@@ -126,12 +126,12 @@ func (s *TCPTCPStream) listen(ctx context.Context) {
 					continue
 				}
 			}
-			go s.handle(ctx, conn)
+			go s.ProxyConn(ctx, conn)
 		}
 	}
 }
 
-func (s *TCPTCPStream) handle(ctx context.Context, conn net.Conn) {
+func (s *TCPTCPStream) ProxyConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
 	if s.preDial != nil {

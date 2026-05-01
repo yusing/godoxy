@@ -162,6 +162,20 @@ providers:
 # configuration (for example, see providers.example.yml). UDP relay is not
 # supported yet.
 
+# TCP routes on HTTPS_ADDR match TLS SNI by alias, same as HTTP routes.
+# Default is passthrough; set tls_termination to proxy plaintext upstream.
+#
+# routes:
+#   site2:
+#     scheme: tcp
+#     host: 100.64.0.10
+#     port: 443:443
+#   mqtt:
+#     scheme: tcp
+#     host: 100.64.0.20
+#     port: 443:1883
+#     tls_termination: true
+
 # Match domains
 # See https://docs.godoxy.dev/Certificates-and-domain-matching
 #
