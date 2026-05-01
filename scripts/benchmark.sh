@@ -1,6 +1,7 @@
 #!/bin/bash
 # Benchmark script to compare GoDoxy, Traefik, Caddy, and Nginx
-# Uses h2load for HTTP/1.1, HTTP/2, and HTTP/3 load testing, with h3bench as an HTTP/3 fallback
+# Uses h2load for throughput benchmarks and a custom probe client from cmd/bench_server
+# for real-world latency scenarios such as JSON APIs, uploads, streaming, SSE, and WebSocket.
 
 set -e
 
@@ -17,6 +18,10 @@ H2="${H2:-1}"
 H3="${H3:-1}"
 CONNECTION_MODE="${CONNECTION_MODE:-both}"
 H3_TOOL="${H3_TOOL:-auto}"
+LATENCY_SAMPLES="${LATENCY_SAMPLES:-5}"
+UPLOAD_BODY_BYTES="${UPLOAD_BODY_BYTES:-262144}"
+PROBE_BUILD_CMD="${PROBE_BUILD_CMD:-go build -C cmd/bench_server -o $PWD/bin/bench_probe .}"
+PROBE_CMD="${PROBE_CMD:-$PWD/bin/bench_probe}"
 
 # Color functions for output
 red() { echo -e "\033[0;31m$*\033[0m"; }
@@ -25,7 +30,7 @@ yellow() { echo -e "\033[1;33m$*\033[0m"; }
 blue() { echo -e "\033[0;34m$*\033[0m"; }
 
 usage() {
-	cat <<EOF
+	cat <<EOF2
 Usage: $0 [options]
 
 Options:
@@ -46,9 +51,11 @@ Environment:
   REQUESTS=1000         Requests per protocol in fresh mode
                          Fresh mode uses -c REQUESTS to force one request per connection.
   H3_TOOL=auto|h2load|h3bench
+  LATENCY_SAMPLES=5     Samples per real-world latency scenario
+  UPLOAD_BODY_BYTES=262144  Request body size for upload latency probe
   TARGET=<service>      Limit benchmark to GoDoxy, Traefik, Caddy, or Nginx
   DURATION=10s THREADS=4 CONNECTIONS=100
-EOF
+EOF2
 }
 
 for arg in "$@"; do
@@ -124,6 +131,13 @@ build_h3bench() {
 	fi
 }
 
+build_probe_client() {
+	if [ ! -x "$PROBE_CMD" ] || [ cmd/bench_server/main.go -nt "$PROBE_CMD" ] || [ cmd/bench_server/handler.go -nt "$PROBE_CMD" ] || [ cmd/bench_server/probe.go -nt "$PROBE_CMD" ]; then
+		yellow "Building local bench probe client..."
+		eval "$PROBE_BUILD_CMD"
+	fi
+}
+
 H3BENCH_CMD=""
 if [ "$H3" = "1" ]; then
 	case "$H3_TOOL" in
@@ -157,6 +171,8 @@ if [ "$H3" = "1" ]; then
 	esac
 fi
 
+build_probe_client
+
 OUTFILE="/tmp/reverse_proxy_benchmark_$(date +%Y%m%d_%H%M%S).log"
 : >"$OUTFILE"
 exec > >(tee -a "$OUTFILE") 2>&1
@@ -172,6 +188,8 @@ echo "Connections: $CONNECTIONS"
 echo "Requests: $REQUESTS"
 echo "Streams: $STREAMS"
 echo "Connection mode: $CONNECTION_MODE"
+echo "Latency samples: $LATENCY_SAMPLES"
+echo "Upload probe bytes: $UPLOAD_BODY_BYTES"
 echo "HTTP/1.1: $H1"
 echo "HTTP/2: $H2"
 echo "HTTP/3: $H3"
@@ -219,7 +237,6 @@ h2load_tls_connect_arg() {
 curl_resolve_arg() {
 	echo "$HOST:$(h3_port "$1"):127.0.0.1"
 }
-
 
 read_response_with_retry() {
 	local url=$1
@@ -280,6 +297,72 @@ enabled_protocols_label() {
 	echo ""
 }
 
+proto_enabled() {
+	case "$1" in
+	h1) [ "$H1" = "1" ] ;;
+	h2) [ "$H2" = "1" ] ;;
+	h3) [ "$H3" = "1" ] ;;
+	*) return 1 ;;
+	esac
+}
+
+proto_label() {
+	case "$1" in
+	h1) echo "HTTP/1.1" ;;
+	h2) echo "HTTP/2" ;;
+	h3) echo "HTTP/3" ;;
+	esac
+}
+
+probe_base_url() {
+	echo "https://$HOST:$(h3_port "$1")"
+}
+
+run_probe() {
+	local kind=$1
+	local proto=$2
+	local url=$3
+	local name=$4
+	shift 4
+	local args=("$@")
+	local dial_addr
+	dial_addr=$(h3_dial_addr "$name")
+
+	if ! proto_enabled "$proto"; then
+		return 0
+	fi
+
+	echo ""
+	echo "[$(proto_label "$proto") $kind] $url"
+	"$PROBE_CMD" \
+		-probe "$kind" \
+		-proto "$proto" \
+		-url "$url" \
+		-dial-addr "$dial_addr" \
+		-samples "$LATENCY_SAMPLES" \
+		-timeout 15s \
+		"${args[@]}"
+}
+
+run_real_world_probes() {
+	local name=$1
+	local base_url
+	base_url=$(probe_base_url "$name")
+
+	echo ""
+	blue "[Real-world latency probes] samples=$LATENCY_SAMPLES"
+
+	for proto in h1 h2 h3; do
+		run_probe http "$proto" "$base_url/json" "$name"
+		run_probe http "$proto" "$base_url/upload" "$name" -method POST -body-bytes "$UPLOAD_BODY_BYTES"
+		run_probe http "$proto" "$base_url/stream?chunks=8&chunk_bytes=4096&interval_ms=15" "$name"
+		run_probe sse "$proto" "$base_url/sse?count=3&interval_ms=150" "$name"
+	done
+
+	# WebSocket upgrade is still the most common deployment shape and maps cleanly to gorilla/websocket.
+	run_probe ws h1 "wss://$HOST:$(h3_port "$name")/ws" "$name"
+}
+
 # Array to store connection errors
 declare -a connection_errors=()
 
@@ -297,9 +380,12 @@ test_connection() {
 
 	local failed=false
 	if [ "$H1" = "1" ]; then
-		local res1=$(read_response_with_retry "$https_url" --http1.1 --insecure --resolve "$curl_resolve")
-		local body1=$(echo "$res1" | head -n -1)
-		local status1=$(echo "$res1" | tail -n 1)
+		local res1
+		res1=$(read_response_with_retry "$https_url" --http1.1 --insecure --resolve "$curl_resolve")
+		local body1
+		body1=$(echo "$res1" | head -n -1)
+		local status1
+		status1=$(echo "$res1" | tail -n 1)
 
 		if [ "$status1" != "200" ] || [ ${#body1} -ne 4096 ]; then
 			red "✗ $name failed HTTP/1.1 connection test (Status: $status1, Body length: ${#body1})"
@@ -308,9 +394,12 @@ test_connection() {
 	fi
 
 	if [ "$H2" = "1" ]; then
-		local res2=$(read_response_with_retry "$https_url" --http2 --insecure --resolve "$curl_resolve")
-		local body2=$(echo "$res2" | head -n -1)
-		local status2=$(echo "$res2" | tail -n 1)
+		local res2
+		res2=$(read_response_with_retry "$https_url" --http2 --insecure --resolve "$curl_resolve")
+		local body2
+		body2=$(echo "$res2" | head -n -1)
+		local status2
+		status2=$(echo "$res2" | tail -n 1)
 
 		if [ "$status2" != "200" ] || [ ${#body2} -ne 4096 ]; then
 			red "✗ $name failed HTTP/2 connection test (Status: $status2, Body length: ${#body2})"
@@ -375,7 +464,6 @@ restart_bench() {
 	sleep 1
 }
 
-# Function to run benchmark
 filter_h2load_noise() {
 	grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients|Process Request Failure)"
 }
@@ -475,7 +563,6 @@ run_fresh_benchmark() {
 	fi
 }
 
-# Function to run benchmark
 run_benchmark() {
 	local name=$1
 	local url=$2
@@ -503,13 +590,15 @@ run_benchmark() {
 		;;
 	esac
 
+	restart_bench "$name"
+	run_real_world_probes "$name"
+
 	echo ""
 	green "✓ $name benchmark completed"
 	blue "----------------------------------------"
 	echo ""
 }
 
-# Run benchmarks for each service
 for name in "${!services[@]}"; do
 	if [ -z "$TARGET" ] || [ "${name,,}" = "${TARGET,,}" ]; then
 		run_benchmark "$name" "${services[$name]}"
@@ -528,6 +617,8 @@ echo "Key metrics to compare:"
 echo "  - Requests/sec (throughput)"
 echo "  - Latency (mean, stdev)"
 echo "  - Transfer/sec"
+echo "  - Real-world latency probes: dial, TTFB, total, payload bytes"
+echo "  - Scenarios: JSON API, upload, streaming body, SSE, WebSocket"
 if [ "$H3" = "1" ]; then
 	echo "  - HTTP/3 QUIC stats (RTT, packets sent/recv/lost)"
 fi
