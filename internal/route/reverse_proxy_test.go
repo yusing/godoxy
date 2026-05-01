@@ -2,22 +2,32 @@ package route
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/route/rules"
 	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/task"
+	"github.com/yusing/goutils/version"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 type testPool[T interface{ Key() string }] struct {
@@ -256,4 +266,155 @@ func TestReverseProxyRoute(t *testing.T) {
 		assert.Zero(t, lb.Port.Proxy)
 		assert.Equal(t, "3/3 servers are healthy", lb.HealthMonitor().Detail())
 	})
+}
+
+func TestReverseProxyRoute_RulesRouteCommandPreservesH2CUpstream(t *testing.T) {
+	testTask := task.GetTestTask(t)
+	entrypoint.SetCtx(testTask, newTestEntrypoint())
+
+	gotBackendProto := make(chan int, 1)
+	backend := httptest.NewUnstartedServer(h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBackendProto <- r.ProtoMajor
+		w.Header().Set("Content-Type", "application/grpc")
+		w.Header().Set("Trailer", "Grpc-Status")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte{0, 0, 0, 0, 0})
+		w.Header().Set("Grpc-Status", "0")
+	}), &http2.Server{}))
+	backend.Start()
+	t.Cleanup(backend.Close)
+
+	backendURL, err := url.Parse(backend.URL)
+	require.NoError(t, err)
+	backendPort, err := strconv.Atoi(backendURL.Port())
+	require.NoError(t, err)
+
+	grpcRoute, err := NewStartedTestRoute(t, &Route{
+		Alias:       "netbird-grpc",
+		Scheme:      route.SchemeH2C,
+		Host:        backendURL.Hostname(),
+		Port:        Port{Proxy: backendPort},
+		HealthCheck: types.HealthCheckConfig{Disable: true},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, grpcRoute)
+
+	var frontendRules rules.Rules
+	_, err = serialization.ConvertString(strings.TrimSpace(`
+header Content-Type glob(application/grpc*) {
+  route netbird-grpc
+}
+default {
+  pass
+}
+`), reflect.ValueOf(&frontendRules))
+	require.NoError(t, err)
+
+	frontend, err := NewStartedTestRoute(t, &Route{
+		Alias:       "netbird",
+		Scheme:      route.SchemeHTTP,
+		Host:        "example.com",
+		Port:        Port{Proxy: 80},
+		Rules:       frontendRules,
+		HealthCheck: types.HealthCheckConfig{Disable: true},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequestWithContext(testTask.Context(), http.MethodPost, "http://netbird.local/management.ManagementService/GetServerKey", strings.NewReader("grpc-body"))
+	req.Header.Set("Content-Type", "application/grpc+proto")
+	rec := httptest.NewRecorder()
+
+	frontend.(types.HTTPRoute).ServeHTTP(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	_, _ = io.ReadAll(res.Body)
+
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, "application/grpc", res.Header.Get("Content-Type"))
+	require.Equal(t, "0", res.Trailer.Get("Grpc-Status"))
+
+	select {
+	case proto := <-gotBackendProto:
+		require.Equal(t, 2, proto)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for backend request")
+	}
+}
+
+func TestReverseProxyRoute_AgentProxyConfigHeadersPreserveH2CScheme(t *testing.T) {
+	targetURL, err := url.Parse("h2c://netbird-server:80")
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		name       string
+		agentVer   version.Version
+		wantScheme string
+		wantHost   string
+		wantLegacy bool
+		wantModern bool
+	}{
+		{
+			name:       "legacy agents only support http/https header",
+			agentVer:   version.New(0, 18, 5),
+			wantScheme: "http",
+			wantHost:   "netbird-server:80",
+			wantLegacy: true,
+		},
+		{
+			name:       "modern agents receive full scheme header",
+			agentVer:   version.New(0, 28, 1),
+			wantScheme: "h2c",
+			wantHost:   "netbird-server:80",
+			wantModern: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				cfg, err := agentproxy.ConfigFromHeaders(req.Header)
+				require.NoError(t, err)
+				require.Equal(t, tt.wantScheme, cfg.Scheme)
+				require.Equal(t, tt.wantHost, cfg.Host)
+				require.Equal(t, tt.wantLegacy, req.Header.Get(agentproxy.HeaderXProxyHTTPS) != "")
+				require.Equal(t, tt.wantModern, req.Header.Get(agentproxy.HeaderXProxyScheme) != "")
+
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader("ok")),
+					Request:    req,
+				}, nil
+			})
+			agentURL, err := url.Parse("https://agent.local/godoxy/agent/proxy/http")
+			require.NoError(t, err)
+
+			rp := reverseproxy.NewReverseProxy("agent-h2c", agentURL, transport)
+			cfg := agentproxy.Config{
+				Scheme: "h2c",
+				Host:   targetURL.Host,
+			}
+			setHeaderFunc := cfg.SetAgentProxyConfigHeadersLegacy
+			if !tt.agentVer.IsOlderThan(version.New(0, 18, 6)) {
+				setHeaderFunc = cfg.SetAgentProxyConfigHeaders
+			}
+
+			ori := rp.HandlerFunc
+			rp.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+				setHeaderFunc(r.Header)
+				ori(w, r)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "http://proxy.local/management.ManagementService/GetServerKey", strings.NewReader("grpc-body"))
+			rec := httptest.NewRecorder()
+			rp.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+		})
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }

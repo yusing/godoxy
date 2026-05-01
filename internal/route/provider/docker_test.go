@@ -241,6 +241,36 @@ func TestApplyLabelWithRef(t *testing.T) {
 	expect.Equal(t, c.Port.Proxy, 1111)
 }
 
+func TestApplyLabelWithRefH2C(t *testing.T) {
+	entries := makeRoutes(&container.Summary{
+		Names: []string{"/netbird-server"},
+		State: "running",
+		NetworkSettings: &container.NetworkSettingsSummary{
+			Networks: map[string]*network.EndpointSettings{
+				"network": {
+					IPAddress: testDockerIP,
+				},
+			},
+		},
+		Labels: map[string]string{
+			D.LabelAliases:    "netbird-api, netbird-grpc",
+			"proxy.#1.port":   "80",
+			"proxy.#1.scheme": "http",
+			"proxy.#2.port":   "80",
+			"proxy.#2.scheme": "h2c",
+		},
+	})
+	api, ok := entries["netbird-api"]
+	expect.True(t, ok)
+	grpc, ok := entries["netbird-grpc"]
+	expect.True(t, ok)
+
+	expect.Equal(t, api.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, grpc.Scheme, routeTypes.SchemeH2C)
+	expect.NoError(t, grpc.Validate())
+	expect.Equal(t, grpc.TargetURL().Scheme, "h2c")
+}
+
 func TestApplyLabelWithRefIndexError(t *testing.T) {
 	c := D.FromDocker(&container.Summary{
 		Names: dummyNames,
