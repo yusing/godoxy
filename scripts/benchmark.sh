@@ -292,9 +292,8 @@ enabled_protocols_label() {
 	[ "$H1" = "1" ] && protocols+=("HTTP/1.1")
 	[ "$H2" = "1" ] && protocols+=("HTTP/2")
 	[ "$H3" = "1" ] && protocols+=("HTTP/3")
-	printf "%s" "${protocols[0]}"
-	printf ", %s" "${protocols[@]:1}"
-	echo ""
+	local IFS=", "
+	echo "${protocols[*]}"
 }
 
 proto_enabled() {
@@ -315,7 +314,11 @@ proto_label() {
 }
 
 probe_base_url() {
-	echo "https://$HOST:$(h3_port "$1")"
+	echo "https://$HOST"
+}
+
+probe_ws_url() {
+	echo "wss://$HOST/ws"
 }
 
 run_probe() {
@@ -360,7 +363,7 @@ run_real_world_probes() {
 	done
 
 	# WebSocket upgrade is still the most common deployment shape and maps cleanly to gorilla/websocket.
-	run_probe ws h1 "wss://$HOST:$(h3_port "$name")/ws" "$name"
+	run_probe ws h1 "$(probe_ws_url)" "$name"
 }
 
 # Array to store connection errors
@@ -523,7 +526,6 @@ run_fresh_benchmark() {
 	local url=$2
 	local https_url=$3
 	local tls_connect_arg=$4
-
 	echo ""
 	blue "[Fresh connections] requests=$REQUESTS one-request-per-connection"
 
