@@ -646,7 +646,7 @@ func (r *Route) Key() string {
 
 func (r *Route) Type() route.RouteType {
 	switch r.Scheme {
-	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeFileServer:
+	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C, route.SchemeFileServer:
 		return route.RouteTypeHTTP
 	case route.SchemeTCP, route.SchemeUDP:
 		return route.RouteTypeStream
