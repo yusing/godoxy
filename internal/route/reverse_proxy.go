@@ -99,9 +99,9 @@ func NewReverseProxyRoute(base *Route) (*ReverseProxyRoute, error) {
 			Host:       base.ProxyURL.Host,
 			HTTPConfig: httpConfig,
 		}
-		setHeaderFunc := cfg.SetAgentProxyConfigHeaders
+		setHeaderFunc := cfg.SetAgentProxyConfigHeadersLegacy
 		if !a.Version.IsOlderThan(version.New(0, 18, 6)) {
-			setHeaderFunc = cfg.SetAgentProxyConfigHeadersLegacy
+			setHeaderFunc = cfg.SetAgentProxyConfigHeaders
 		}
 
 		ori := rp.HandlerFunc

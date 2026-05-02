@@ -1,5 +1,9 @@
 x-benchmark: &benchmark
   restart: no
+  ulimits:
+    nofile:
+      soft: 65535
+      hard: 65535
   labels:
     proxy.exclude: true
     proxy.#1.healthcheck.disable: true
@@ -11,7 +15,7 @@ services:
       dockerfile: dev.Dockerfile
     container_name: godoxy-proxy-dev
     restart: unless-stopped
-    env_file: dev.env
+    env_file: .env
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       TZ: Asia/Hong_Kong
@@ -20,7 +24,6 @@ services:
       API_PASSWORD: 1234
       API_SKIP_ORIGIN_CHECK: true
       API_JWT_TTL: 24h
-      DEBUG: true
       API_JWT_SECRET: 1234567891234567
     labels:
       proxy.exclude: true
@@ -36,6 +39,40 @@ services:
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
       - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
+  app-test:
+    image: godoxy-dev
+    build: .
+    container_name: godoxy-proxy-dev-test
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TZ: Asia/Hong_Kong
+      API_ADDR: 127.0.0.1:8999
+      API_USER: dev
+      API_PASSWORD: 1234
+      API_SKIP_ORIGIN_CHECK: true
+      API_JWT_TTL: 24h
+      DEBUG: true
+      API_JWT_SECRET: 1234567891234567
+    volumes:
+      - /etc/ssl/certs/myCA.pem:/etc/ssl/certs/myCA.pem:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dev-data/config:/app/config
+      - ./dev-data/certs:/app/certs
+      - ./dev-data/error_pages:/app/error_pages:ro
+      - ./dev-data/data:/app/data
+      - ./dev-data/logs:/app/logs
+  idlewatcher-test:
+    image: nginx:latest
+    container_name: idlewatcher-test
+    command: sh -c 'sleep 3 && nginx -g "daemon off;" -c /etc/nginx/nginx.conf'
+    restart: no
+    labels:
+      proxy.#1.port: "80"
+      proxy.idle_timeout: 10s
+      proxy.wake_timeout: 5s
   parca:
     image: ghcr.io/parca-dev/parca:v0.24.2
     container_name: godoxy-parca
@@ -72,6 +109,32 @@ services:
       - NODE_ENV=production
     labels:
       proxy.aliases: "jotty.my.app"
+  stash: # issue 222
+    image: stashapp/stash:latest
+    container_name: stash
+    restart: no
+    environment:
+      - STASH_STASH=/data/
+      - STASH_GENERATED=/generated/
+      - STASH_METADATA=/metadata/
+      - STASH_CACHE=/cache/
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./dev-data/stash/config:/root/.stash
+      - ./dev-data/stash/data:/data
+    labels:
+      - proxy.#1.middlewares.themed.css="https://css.i.sh/nonexists.css"
+    tmpfs:
+      - /metadata
+      - /cache
+      - /blobs
+      - /generated
+  bentopdf:
+    image: ghcr.io/alam00000/bentopdf-simple:latest
+    container_name: bentopdf
+    restart: unless-stopped
+    expose:
+      - 8080
   postgres-test:
     image: postgres:18-alpine
     container_name: postgres-test
@@ -95,6 +158,21 @@ services:
     labels:
       proxy.#1.scheme: h2c
       proxy.#1.port: 80
+  tcp_echo_server: # issue #230 TLS passthrough / termination
+    build:
+      context: cmd/tcp_echo_server
+      dockerfile: Dockerfile
+    container_name: tcp_echo_test
+    restart: unless-stopped
+    labels:
+      proxy.aliases: tcp-echo-passthrough,tcp-echo-termination
+      proxy.#1.scheme: tcp
+      proxy.#1.port: 443:9443
+      proxy.#1.healthcheck.disable: true
+      proxy.#2.scheme: tcp
+      proxy.#2.port: 443:9000
+      proxy.#2.tls_termination: true
+      proxy.#2.healthcheck.disable: true
   bench: # returns 4096 bytes of random data
     <<: *benchmark
     build:
@@ -103,56 +181,96 @@ services:
     container_name: bench
   godoxy:
     <<: *benchmark
+    depends_on:
+      - bench
     build: .
     container_name: godoxy-benchmark
+    environment:
+      HTTP3_ENABLED: "true"
     ports:
       - 8080:80
+      - 8440:443
+      - 8440:443/udp
     configs:
       - source: godoxy_config
         target: /app/config/config.yml
       - source: godoxy_provider
         target: /app/config/providers.yml
+      - source: benchmark_cert
+        target: /app/certs/bench.crt
+      - source: benchmark_key
+        target: /app/certs/bench.key
   traefik:
     <<: *benchmark
+    depends_on:
+      - bench
     image: traefik:latest
     container_name: traefik
     command:
       - --api.insecure=true
       - --entrypoints.web.address=:8081
+      - --entrypoints.websecure.address=:8441
+      - --entrypoints.websecure.http3=true
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
       - --log.level=ERROR
     ports:
       - 8081:8081
+      - 8441:8441
+      - 8441:8441/udp
     configs:
       - source: traefik_config
         target: /etc/traefik/dynamic/routes.yml
+      - source: benchmark_cert
+        target: /etc/traefik/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/traefik/certs/bench.key
   caddy:
     <<: *benchmark
+    depends_on:
+      - bench
     image: caddy:latest
     container_name: caddy
     ports:
       - 8082:80
+      - 8442:443
+      - 8442:443/udp
     configs:
       - source: caddy_config
         target: /etc/caddy/Caddyfile
+      - source: benchmark_cert
+        target: /etc/caddy/bench.crt
+      - source: benchmark_key
+        target: /etc/caddy/bench.key
     tmpfs:
       - /data
       - /config
   nginx:
     <<: *benchmark
+    depends_on:
+      - bench
     image: nginx:latest
     container_name: nginx
     command: nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
     ports:
       - 8083:80
+      - 8443:443
+      - 8443:443/udp
     configs:
       - source: nginx_config
         target: /etc/nginx/nginx.conf
+      - source: benchmark_cert
+        target: /etc/nginx/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/nginx/certs/bench.key
 
 configs:
   godoxy_config:
     content: |
+      autocert:
+        provider: local
+        cert_path: /app/certs/bench.crt
+        key_path: /app/certs/bench.key
       providers:
         include:
           - providers.yml
@@ -160,14 +278,31 @@ configs:
     content: |
       bench.domain.com:
         host: bench
+        port: 80
+        healthcheck:
+          disable: true
+  benchmark_cert:
+    file: ./dev-data/certs/bench.domain.com.crt
+  benchmark_key:
+    file: ./dev-data/certs/bench.domain.com.key
   traefik_config:
     content: |
+      tls:
+        certificates:
+          - certFile: /etc/traefik/certs/bench.crt
+            keyFile: /etc/traefik/certs/bench.key
       http:
         routers:
           bench:
             rule: "Host(`bench.domain.com`)"
             entryPoints:
               - web
+            service: bench
+          bench-h3:
+            rule: "Host(`bench.domain.com`)"
+            entryPoints:
+              - websecure
+            tls: {}
             service: bench
         services:
           bench:
@@ -182,12 +317,33 @@ configs:
         default_bind 0.0.0.0
 
         servers {
-          protocols h1 h2c
+          protocols h1 h2 h3
+        }
+      }
+
+      (bench_proxy) {
+        reverse_proxy bench:80 {
+          lb_try_duration 2s
+          lb_try_interval 10ms
+
+          transport http {
+            keepalive 2m
+            keepalive_idle_conns 10000
+            keepalive_idle_conns_per_host 1000
+            compression off
+            dial_timeout 1s
+            dial_fallback_delay -1s
+          }
         }
       }
 
       http://bench.domain.com {
-        reverse_proxy bench:80
+        import bench_proxy
+      }
+
+      https://bench.domain.com {
+        tls /etc/caddy/bench.crt /etc/caddy/bench.key
+        import bench_proxy
       }
   nginx_config:
     content: |
@@ -205,15 +361,23 @@ configs:
       http {
         include /etc/nginx/mime.types;
         default_type application/octet-stream;
-        
+
         access_log off;
-        
+
+        map $$http_upgrade $$connection_upgrade {
+          default upgrade;
+          '' close;
+        }
+
         sendfile on;
         tcp_nopush on;
         tcp_nodelay on;
         keepalive_timeout 65;
-        keepalive_requests 10000;
-        
+        # HTTP/3 benchmarks reuse QUIC connections heavily. The default/low
+        # keepalive request cap makes Nginx send a graceful H3 close after the
+        # cap is reached, which benchmark clients report as H3_NO_ERROR.
+        keepalive_requests 1000000;
+
         upstream backend {
           server bench:80;
           keepalive 128;
@@ -222,7 +386,6 @@ configs:
         server {
           listen 80 default_server;
           server_name _;
-          http2 on;
 
           return 404;
         }
@@ -230,12 +393,34 @@ configs:
         server {
           listen 80;
           server_name bench.domain.com;
-          http2 on;
-          
+
           location / {
             proxy_pass http://backend;
             proxy_http_version 1.1;
-            proxy_set_header Connection "";
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Connection $$connection_upgrade;
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+        }
+
+        server {
+          listen 443 ssl;
+          listen 443 quic reuseport;
+          http2 on;
+          http3 on;
+          server_name bench.domain.com;
+          ssl_certificate /etc/nginx/certs/bench.crt;
+          ssl_certificate_key /etc/nginx/certs/bench.key;
+          add_header Alt-Svc 'h3=":443"; ma=86400';
+
+          location / {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Connection $$connection_upgrade;
             proxy_set_header Host $$host;
             proxy_set_header X-Real-IP $$remote_addr;
             proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;

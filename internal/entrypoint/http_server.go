@@ -81,11 +81,29 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		return errors.New("server already started")
 	}
 
+	aclCfg := acl.FromCtx(srv.ep.task.Context())
+	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
+	certProvider := autocert.FromCtx(srv.ep.task.Context())
+	var sniListener net.Listener
+	if proto == HTTPProtoHTTPS && listener == nil && common.SNIRoutingForTCPRoutes {
+		var err error
+		sniListener, err = srv.ep.sni.Listen(addr)
+		if err != nil {
+			return err
+		}
+		listener = sniListener
+		// sniRouter.Listen owns the raw TCP listener for shared-HTTPS SNI routing
+		// and applies ACL / PROXY protocol wrappers before ClientHello sniffing.
+		// Do not apply them again around the forwarded HTTPS listener.
+		aclCfg = nil
+		supportProxyProtocol = false
+	}
+
 	opts := server.Options{
 		Name:                 addr,
 		Handler:              srv,
-		ACL:                  acl.FromCtx(srv.ep.task.Context()),
-		SupportProxyProtocol: srv.ep.cfg.SupportProxyProtocol,
+		ACL:                  aclCfg,
+		SupportProxyProtocol: supportProxyProtocol,
 	}
 
 	switch proto {
@@ -95,13 +113,17 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	case HTTPProtoHTTPS:
 		opts.HTTPSAddr = addr
 		opts.HTTPSListener = listener
-		opts.CertProvider = autocert.FromCtx(srv.ep.task.Context())
+		opts.CertProvider = certProvider
 		opts.TLSConfigMutator = srv.mutateServerTLSConfig
 	}
 
 	task := srv.ep.task.Subtask("http_server", false)
 	_, err := server.StartServer(task, opts)
 	if err != nil {
+		task.Finish(err)
+		if sniListener != nil {
+			err = errors.Join(err, sniListener.Close())
+		}
 		return err
 	}
 	srv.stopFunc = task.FinishAndWait

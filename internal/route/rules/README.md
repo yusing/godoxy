@@ -153,6 +153,7 @@ Rules run in two phases:
 
 2. **Upstream phase**
    - Upstream is called only if pre phase did not terminate.
+   - Rule sets that only perform pre-phase work use a passthrough response writer so long-lived streams (gRPC, WebSocket-adjacent HTTP streams, server streaming) can flush immediately instead of waiting for the upstream response to complete.
 
 3. **Post phase**
    - Run post-commands for rules whose pre phase executed, except rules that terminated in pre.

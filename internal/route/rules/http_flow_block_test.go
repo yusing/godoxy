@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1298,6 +1299,94 @@ func TestHTTPFlow_ResponseModifier_PreservesUpstreamStatus(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Equal(t, "overridden\n", w.Body.String())
+}
+
+func TestHTTPFlow_PreOnlyRulesPassThroughStreamingResponses(t *testing.T) {
+	release := make(chan struct{})
+	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/grpc")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte{0, 0, 0, 0, 0})
+		_ = http.NewResponseController(w).Flush()
+		<-release
+	})
+
+	var rules Rules
+	err := parseRules(`
+header Content-Type glob(application/grpc*) {
+  set header X-Proxied yes
+}
+default {
+  pass
+}
+`, &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(upstream)
+	req := httptest.NewRequest(http.MethodPost, "/test.Service/Stream", nil)
+	req.Header.Set("Content-Type", "application/grpc+proto")
+	w := newStreamingProbeResponseWriter()
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		handler.ServeHTTP(w, req)
+	}()
+
+	select {
+	case <-w.wrote:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for streaming write passthrough")
+	}
+
+	select {
+	case <-w.flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for streaming flush passthrough")
+	}
+
+	close(release)
+	<-done
+	assert.Equal(t, http.StatusOK, w.statusCode)
+	assert.Equal(t, "yes", req.Header.Get("X-Proxied"))
+}
+
+type streamingProbeResponseWriter struct {
+	header     http.Header
+	wrote      chan struct{}
+	flushed    chan struct{}
+	statusCode int
+}
+
+func newStreamingProbeResponseWriter() *streamingProbeResponseWriter {
+	return &streamingProbeResponseWriter{
+		header:  make(http.Header),
+		wrote:   make(chan struct{}, 1),
+		flushed: make(chan struct{}, 1),
+	}
+}
+
+func (w *streamingProbeResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *streamingProbeResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+}
+
+func (w *streamingProbeResponseWriter) Write(p []byte) (int, error) {
+	select {
+	case w.wrote <- struct{}{}:
+	default:
+	}
+	return len(p), nil
+}
+
+func (w *streamingProbeResponseWriter) Flush() {
+	select {
+	case w.flushed <- struct{}{}:
+	default:
+	}
 }
 
 func TestHTTPFlow_PreTermination_SkipsLaterPreCommands_ButRunsPostOnlyAndPostMatchers(t *testing.T) {

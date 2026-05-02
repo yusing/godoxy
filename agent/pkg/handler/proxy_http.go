@@ -3,12 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 	"time"
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
+	"github.com/yusing/goutils/http/reverseproxy"
 )
 
 func NewTransport() *http.Transport {
@@ -38,12 +38,6 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 		transport.DisableCompression = true
 	}
 
-	transport.TLSClientConfig, err = cfg.BuildTLSConfig(r.URL)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to build TLS client config: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
 	// Strip the {API_BASE}/proxy/http prefix while preserving URL escaping.
 	//
 	// NOTE: `r.URL.Path` is decoded. If we rewrite it without keeping `RawPath`
@@ -61,12 +55,19 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r.RequestURI = ""
 
-	rp := &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-			r.URL.Scheme = cfg.Scheme
-			r.URL.Host = cfg.Host
-		},
-		Transport: transport,
+	targetURL := *r.URL
+	targetURL.Scheme = cfg.Scheme
+	targetURL.Host = cfg.Host
+	targetURL.Path = ""
+	targetURL.RawPath = ""
+	targetURL.RawQuery = ""
+
+	transport.TLSClientConfig, err = cfg.BuildTLSConfig(&targetURL)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to build TLS client config: %s", err.Error()), http.StatusInternalServerError)
+		return
 	}
+
+	rp := reverseproxy.NewReverseProxy(cfg.Host, &targetURL, transport)
 	rp.ServeHTTP(w, r)
 }

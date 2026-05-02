@@ -8,6 +8,7 @@ import (
 )
 
 var _ nettypes.Stream = (*Watcher)(nil)
+var _ nettypes.ConnProxy = (*Watcher)(nil)
 
 // ListenAndServe implements nettypes.Stream.
 func (w *Watcher) ListenAndServe(ctx context.Context, predial, onRead nettypes.HookFunc) error {
@@ -26,6 +27,24 @@ func (w *Watcher) Close() error {
 // LocalAddr implements nettypes.Stream.
 func (w *Watcher) LocalAddr() net.Addr {
 	return w.stream.LocalAddr()
+}
+
+// ProxyConn implements nettypes.ConnProxy.
+func (w *Watcher) ProxyConn(ctx context.Context, conn net.Conn) {
+	proxy, ok := w.stream.(nettypes.ConnProxy)
+	if !ok {
+		_ = conn.Close()
+		return
+	}
+	if err := w.preDial(ctx, nil); err != nil {
+		_ = conn.Close()
+		return
+	}
+	proxy.ProxyConn(ctx, &readWatcherConn{
+		Conn:   conn,
+		ctx:    ctx,
+		onRead: func(ctx context.Context) error { return w.onRead(ctx, nil) },
+	})
 }
 
 func (w *Watcher) preDial(ctx context.Context, predial nettypes.HookFunc) error {
@@ -76,4 +95,23 @@ func (w *Watcher) wakeFromStream(ctx context.Context) error {
 	w.resetIdleTimer()
 	w.l.Debug().Stringer("url", w.hc.URL()).Msg("container is ready, passing through")
 	return nil
+}
+
+type readWatcherConn struct {
+	net.Conn
+	ctx    context.Context
+	onRead nettypes.HookFunc
+}
+
+func (c *readWatcherConn) Read(b []byte) (n int, err error) {
+	n, err = c.Conn.Read(b)
+	if err != nil {
+		return n, err
+	}
+	if c.onRead != nil {
+		if err = c.onRead(c.ctx); err != nil {
+			return n, err
+		}
+	}
+	return n, err
 }

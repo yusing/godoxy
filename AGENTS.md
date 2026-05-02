@@ -1,27 +1,37 @@
 # AGENTS.md
 
-## Principles
+## Repo Map: Proxy / Route Debugging
 
-DO NOT run build command.
+Start from these anchors before broad repo search:
+
+- Route lifecycle/finalization: `internal/route/route.go`
+- Reverse proxy route construction/start: `internal/route/reverse_proxy.go`
+- Entrypoint route resolution/context: `internal/entrypoint/http_server.go`, `internal/route/routes/context.go`
+- Rule commands/matchers: `internal/route/rules/do.go`, `internal/route/rules/on.go`, `internal/route/rules/validate.go`
+- Docker labels -> routes: `internal/docker/label.go`, `internal/docker/container.go`, `internal/route/provider/docker.go`
+- Shared reverse proxy implementation: `goutils/http/reverseproxy/reverse_proxy.go`
+- Response buffering/trailers used by rules: `goutils/http/response_modifier.go`
+- Agent proxy headers/handler: `agent/pkg/agentproxy/config.go`, `agent/pkg/handler/proxy_http.go`
+
+Module boundaries matter: root, `agent/`, and `goutils/` are separate Go modules; run scoped tests from the owning module directory.
 
 ## Documentation
 
-Update package level `README.md` after making significant changes.
+Update package level `README.md`, wiki and webui types after making significant changes.
 
-## Go Guidelines
+## Go Patterns
 
-1. Use `golang-best-practices` skill.
-2. Use `internal/task/task.go` for lifetime management:
+1. `internal/task/task.go` for lifetime management:
    - `task.RootTask()` for background operations
    - `parent.Subtask()` for nested tasks
    - `OnFinished()` and `OnCancel()` callbacks for cleanup
-3. Use `gperr "goutils/errs"` to build pretty nested errors:
+2. `gperr "goutils/errs"` to build pretty nested errors:
    - `gperr.Multiline()` for multiple operation attempts
    - `gperr.NewBuilder()` to collect errors
    - `gperr.NewGroup() + group.Go()` to collect errors of multiple concurrent operations
    - `gperr.PrependSubject()` to prepend subject to errors
-4. Use `github.com/puzpuzpuz/xsync/v4` for lock-free thread safe maps
-5. Use `goutils/synk` to retrieve and put byte buffer
+3. `github.com/puzpuzpuz/xsync/v4` for lock-free thread safe maps
+4. `goutils/synk` to retrieve and put byte buffer
 
 ## Testing
 

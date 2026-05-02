@@ -49,6 +49,7 @@ type Config struct {
     CACerts     []string                     // Custom CA certificates
     EABKid      string                       // External Account Binding Key ID
     EABHmac     string                       // External Account Binding HMAC
+    CertificateKeyType string                // ACME-issued cert key: EC256 (default), EC384, RSA2048, …
 }
 
 // Merge extra config with main provider
@@ -229,6 +230,8 @@ autocert:
   domains:
     - example.com
     - "*.example.com"
+  # Optional: RSA leaf certs for clients without ECDSA support (e.g. some embedded MQTT stacks)
+  # certificate_key_type: RSA2048
   options:
     auth_token: ${CF_API_TOKEN}
   resolvers:

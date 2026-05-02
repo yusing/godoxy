@@ -5,7 +5,7 @@ HEALTHCHECK NONE
 WORKDIR /src
 
 COPY go.mod go.sum ./
-COPY main.go ./
+COPY *.go ./
 
 RUN go build -o bench_server main.go
 

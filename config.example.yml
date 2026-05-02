@@ -14,6 +14,7 @@
 #   domains: # a list of domains for cert registration
 #     - "*.domain.com"
 #     - "domain.com"
+#   # certificate_key_type: RSA2048 # optional; default EC256. Use RSA* for clients that lack ECDSA (e.g. some IoT TLS stacks)
 #   options:
 #     auth_token: c1234565789-abcdefghijklmnopqrst # your zone API token
 
@@ -174,6 +175,20 @@ webui:
 # `relay_proxy_protocol_header: true` on that specific TCP route in route
 # configuration (for example, see providers.example.yml). UDP relay is not
 # supported yet.
+
+# TCP routes on HTTPS_ADDR match TLS SNI by alias, same as HTTP routes.
+# Default is passthrough; set tls_termination to proxy plaintext upstream.
+#
+# routes:
+#   site2:
+#     scheme: tcp
+#     host: 100.64.0.10
+#     port: 443:443
+#   mqtt:
+#     scheme: tcp
+#     host: 100.64.0.20
+#     port: 443:1883
+#     tls_termination: true
 
 # Match domains
 # See https://docs.godoxy.dev/Certificates-and-domain-matching

@@ -13,24 +13,23 @@ services:
       proxy.#1.homepage.icon: "@selfhst/netbird.svg"
       proxy.#1.homepage.category: networking
       proxy.#1.rules: | # https://docs.netbird.io/selfhosted/configuration-files
-        path glob(/signalexchange.SignalExchange/**) | path glob(/management.ManagementService/**) | path glob(/management.ProxyService/**) {
+        path glob(/signalexchange.SignalExchange/*) | path glob(/management.ManagementService/*) | path glob(/management.ProxyService/*) {
           route netbird-grpc
         }
-        path glob(/relay*) | path glob(/ws-proxy/**) | path glob(/api*) | path glob(/oauth2*) {
-          route netbird-api
+        header Content-Type glob(application/grpc*) {
+          route netbird-grpc
         }
-        default {
-          pass
+        path glob(/relay*) | path glob(/ws-proxy/*) | path glob(/api/*) | path glob(/oauth2/*) {
+          route netbird-api
         }
   netbird-server:
     image: netbirdio/netbird-server:latest
     container_name: netbird-server
     restart: unless-stopped
-    networks:
-      - netbird-net
+    networks: [netbird-net]
     volumes:
       - netbird_data:/var/lib/netbird
-      - ./config.yaml:/etc/netbird/config.yaml
+
     command: ["--config", "/etc/netbird/config.yaml"]
     labels:
       proxy.aliases: netbird-api, netbird-grpc
@@ -39,8 +38,81 @@ services:
       proxy.#1.scheme: http
       proxy.#2.scheme: h2c
 
+    configs:
+      - source: netbird-config
+        target: /etc/netbird/config.yaml
+
 networks:
   netbird-net:
 
 volumes:
   netbird_data:
+
+configs:
+  netbird-config: |
+    server:
+      listenAddress: ":80"
+      exposedAddress: "https://netbird.my.app:443"
+      stunPorts:
+        - 3478
+      metricsPort: 9090
+      healthcheckAddress: ":9000"
+      logLevel: "info"    # Default log level for all components: panic, fatal, error, warn, info, debug, trace
+      logFile: "console"  # "console" or path to log file
+
+      # Shared secret for relay authentication (required when running local relay)
+      authSecret: ""
+
+      # Data directory for all services
+      dataDir: "/var/lib/netbird/"
+
+      # ============================================================================
+      # Management Settings
+      # ============================================================================
+
+      # Metrics and updates
+      disableAnonymousMetrics: false
+      disableGeoliteUpdate: false
+
+      # Embedded authentication/identity provider (Dex) configuration (always enabled)
+      auth:
+        # OIDC issuer URL - must be publicly accessible
+        issuer: "https://netbird.my.app/oauth2"
+        localAuthDisabled: false
+        signKeyRefreshEnabled: true
+        # OAuth2 redirect URIs for dashboard
+        dashboardRedirectURIs:
+          - "https://netbird.my.app/nb-auth"
+          - "https://netbird.my.app/nb-silent-auth"
+        # OAuth2 redirect URIs for CLI
+        cliRedirectURIs:
+          - "http://localhost:53000/"
+
+      # Store configuration
+      store:
+        engine: "sqlite"  # sqlite, postgres, or mysql
+        encryptionKey: ""
+
+      # Auth (embedded IdP) store configuration (optional, defaults to sqlite3 in dataDir/idp.db)
+      authStore:
+        engine: "sqlite3"  # sqlite3 or postgres
+
+      # Reverse proxy settings (optional)
+      reverseProxy:
+        trustedHTTPProxies: ["10.0.0.0/16"]           # CIDRs of trusted reverse proxies (e.g. ["10.0.0.0/8"])
+        trustedHTTPProxiesCount: 0       # Number of trusted proxies in front of the server (alternative to trustedHTTPProxies)
+
+# dashboard.env
+# # Endpoints
+# NETBIRD_MGMT_API_ENDPOINT=https://netbird.my.app
+# NETBIRD_MGMT_GRPC_API_ENDPOINT=https://netbird.my.app
+
+# # OIDC - using embedded IdP
+# AUTH_AUDIENCE=netbird-dashboard
+# AUTH_CLIENT_ID=netbird-dashboard
+# #AUTH_CLIENT_SECRET=
+# AUTH_AUTHORITY=https://netbird.my.app/oauth2
+# USE_AUTH0=false
+# AUTH_SUPPORTED_SCOPES=openid profile email groups
+# AUTH_REDIRECT_URI=/nb-auth
+# AUTH_SILENT_REDIRECT_URI=/nb-silent-auth

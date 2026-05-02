@@ -146,3 +146,36 @@ func TestTCPTCPStreamRelayProxyProtocolUsesIncomingProxyHeader(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("pong"), payload)
 }
+
+func TestTCPTCPStreamProxyConnRelaysAcceptedConnection(t *testing.T) {
+	upstreamLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer upstreamLn.Close()
+
+	s, err := NewTCPTCPStream("tcp", "tcp", "127.0.0.1:0", upstreamLn.Addr().String(), nil, false)
+	require.NoError(t, err)
+
+	proxy, ok := s.(interface {
+		ProxyConn(context.Context, net.Conn)
+	})
+	require.True(t, ok)
+
+	clientConn, muxConn := net.Pipe()
+	defer clientConn.Close()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go proxy.ProxyConn(ctx, muxConn)
+
+	_, err = clientConn.Write([]byte("hello"))
+	require.NoError(t, err)
+
+	upstreamConn, err := upstreamLn.Accept()
+	require.NoError(t, err)
+	defer upstreamConn.Close()
+
+	payload := make([]byte, 5)
+	_, err = io.ReadFull(upstreamConn, payload)
+	require.NoError(t, err)
+	require.Equal(t, []byte("hello"), payload)
+}

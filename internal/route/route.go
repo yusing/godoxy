@@ -67,6 +67,7 @@ type (
 		Homepage                 *homepage.ItemConfig           `json:"homepage"`
 		AccessLog                *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
 		RelayProxyProtocolHeader bool                           `json:"relay_proxy_protocol_header,omitempty"` // TCP only: relay PROXY protocol header to the destination
+		TLSTermination           bool                           `json:"tls_termination,omitempty"`             // TCP only: terminate inbound TLS on the shared HTTPS listener before proxying plaintext to the destination
 		Agent                    string                         `json:"agent,omitempty"`
 
 		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty" extensions:"x-nullable"`
@@ -341,6 +342,12 @@ func (r *Route) validate() error {
 	}
 	if r.RelayProxyProtocolHeader && r.Scheme != route.SchemeTCP {
 		errs.Adds("relay_proxy_protocol_header is only supported for tcp routes")
+	}
+	if r.TLSTermination && r.Scheme != route.SchemeTCP {
+		errs.Adds("tls_termination is only supported for tcp routes")
+	}
+	if r.TLSTermination && r.Scheme == route.SchemeTCP && r.LisURL != nil && !netutils.IsSharedHTTPSListenAddr(r.LisURL.Host) {
+		errs.Adds("tls_termination is only supported on the shared HTTPS listener")
 	}
 
 	if errs.HasError() {
@@ -637,7 +644,7 @@ func (r *Route) Key() string {
 
 func (r *Route) Type() route.RouteType {
 	switch r.Scheme {
-	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeFileServer:
+	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C, route.SchemeFileServer:
 		return route.RouteTypeHTTP
 	case route.SchemeTCP, route.SchemeUDP:
 		return route.RouteTypeStream
@@ -789,6 +796,10 @@ func (r *Route) ContainerInfo() *types.Container {
 
 func (r *Route) InboundMTLSProfileRef() string {
 	return r.InboundMTLSProfile
+}
+
+func (r *Route) TerminatesTLS() bool {
+	return r.TLSTermination
 }
 
 func (r *Route) IsDocker() bool {
