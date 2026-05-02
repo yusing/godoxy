@@ -171,16 +171,18 @@ From the WebUI, you can:
 
 ## Update / Uninstall system agent
 
+Installer supports both systemd and Alpine/OpenRC (`rc-service`) hosts.
+
 Update:
 
 ```bash
-bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
+sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
 ```
 
 Uninstall:
 
 ```bash
-bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
+sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
 ```
 
 ## Screenshots

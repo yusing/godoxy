@@ -187,16 +187,18 @@ routes:
 
 ## 更新 / 卸載系統代理 (System Agent)
 
+安裝腳本同時支援 systemd 與 Alpine/OpenRC（`rc-service`）主機。
+
 更新：
 
 ```bash
-sudo /bin/bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
+sudo /bin/sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- update
 ```
 
 卸載：
 
 ```bash
-sudo /bin/bash -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
+sudo /bin/sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
 ```
 
 ## 截圖

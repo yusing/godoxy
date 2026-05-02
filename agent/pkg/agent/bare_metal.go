@@ -20,7 +20,7 @@ var (
 	DOCKER_SOCKET="/var/run/docker.sock" \
 	RUNTIME="docker" \
 	{{ end -}}
-	bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/install-agent.sh)"`
+	sh -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/install-agent.sh)"`
 	installScriptTemplate = template.Must(template.New("install.sh").Parse(installScript))
 )
 
