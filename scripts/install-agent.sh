@@ -36,6 +36,17 @@ read_installed_release_timestamp() {
 	echo ""
 }
 
+is_nonnegative_integer() {
+	case "$1" in
+		'' | *[!0-9]*)
+			return 1
+			;;
+		*)
+			return 0
+			;;
+	esac
+}
+
 write_installed_release_timestamp() {
 	mkdir -p "$data_path"
 	printf '%s\n' "$bin_last_updated" >"$version_file"
@@ -147,7 +158,7 @@ check_pkg curl
 check_pkg jq
 
 # check if running user is root
-if [ "$EUID" -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
 	echo "Please run the script as root"
 	exit 1
 fi
@@ -249,7 +260,7 @@ asset=$(echo "$api_response" | jq -r '.assets[] | select(.name | contains("'$fil
 bin_last_updated=$(echo "$asset" | jq -r '.updated_at | fromdateiso8601')
 # check if last_updated == mod time of bin_path
 installed_release_timestamp=$(read_installed_release_timestamp)
-if [ -n "$installed_release_timestamp" ]; then
+if is_nonnegative_integer "$installed_release_timestamp"; then
 	if [ "$bin_last_updated" -eq "$installed_release_timestamp" ]; then
 		echo "Binary is already up to date, continue? (y/n)"
 		IFS= read -r REPLY
