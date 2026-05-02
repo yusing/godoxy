@@ -596,7 +596,7 @@ compose_down() {
 	targets=$(compose_target_services)
 	yellow "Stopping benchmark compose services: $targets"
 	# shellcheck disable=SC2086 # targets are an intentional word list.
-	docker compose -f "$BENCH_COMPOSE_FILE" down $targets
+	docker compose -f "$BENCH_COMPOSE_FILE" down $targets -t 0
 }
 
 compose_up
@@ -636,13 +636,33 @@ echo ""
 restart_bench() {
 	local name=$1
 	echo ""
-	yellow "Restarting bench service before benchmarking $name..."
+	yellow "Restarting benchmark services before benchmarking $name..."
 	local recreate_args=()
 	if [ "$BENCH_COMPOSE_RECREATE" = "1" ]; then
 		recreate_args+=(--force-recreate)
 	fi
-	docker compose -f "$BENCH_COMPOSE_FILE" up -d -t 0 "${recreate_args[@]}" bench >/dev/null 2>&1
-	sleep 1
+	local targets=(bench)
+	if [ -n "${compose_services[$name]:-}" ]; then
+		targets+=("${compose_services[$name]}")
+	fi
+	docker compose -f "$BENCH_COMPOSE_FILE" up -d -t 0 "${recreate_args[@]}" "${targets[@]}" >/dev/null 2>&1
+	sleep "$BENCH_STARTUP_WAIT"
+}
+
+wait_for_reused_benchmark_ready() {
+	local name=$1
+	local proto=$2
+	case "$proto" in
+	h1)
+		read_response_with_retry "$(https_url "$name")" 			--insecure --http1.1 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		;;
+	h2)
+		read_response_with_retry "$(https_url "$name")" 			--insecure --http2 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		;;
+	h3)
+		h3_check_with_retry "$name" "$(https_url "$name")" >/dev/null
+		;;
+	esac
 }
 
 filter_h2load_noise() {
@@ -662,6 +682,7 @@ run_reused_benchmark() {
 
 	if [ "$H1C" = "1" ]; then
 		restart_bench "$name"
+		read_response_with_retry "$(http_url "$name")" 			--http1.1 >/dev/null
 		echo ""
 		echo "[HTTP/1.1 cleartext reused] h2load --h1 -m1"
 		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
@@ -672,6 +693,7 @@ run_reused_benchmark() {
 
 	if [ "$H1" = "1" ]; then
 		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h1
 		echo ""
 		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
 		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
@@ -683,6 +705,7 @@ run_reused_benchmark() {
 	if [ "$H2" = "1" ]; then
 		echo ""
 		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h2
 		echo "[HTTP/2 reused TLS] h2load -m$STREAMS"
 		h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
 			"$tls_connect_arg" \
@@ -693,6 +716,7 @@ run_reused_benchmark() {
 	if [ "$H3" = "1" ]; then
 		echo ""
 		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h3
 		echo "[HTTP/3 reused] $H3_TOOL"
 		case "$H3_TOOL" in
 			h2load)

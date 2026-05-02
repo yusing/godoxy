@@ -173,7 +173,7 @@ services:
       proxy.#2.port: 443:9000
       proxy.#2.tls_termination: true
       proxy.#2.healthcheck.disable: true
-  bench: # returns 4096 bytes of random data
+  bench: # raw TCP HTTP/1.1 responder for all benchmark endpoints
     <<: *benchmark
     build:
       context: cmd/bench_server

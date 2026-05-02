@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,7 +9,7 @@ import (
 
 func main() {
 	var (
-		addr      = flag.String("addr", ":80", "HTTP listen address")
+		addr      = flag.String("addr", ":80", "TCP listen address")
 		probe     = flag.String("probe", "", "probe type: http, sse, ws")
 		probeURL  = flag.String("url", "", "probe URL")
 		dialAddr  = flag.String("dial-addr", "", "dial target in host:port form")
@@ -48,18 +47,7 @@ func main() {
 		return
 	}
 
-	handler := newBenchHandler()
-	server := &http.Server{
-		Addr:    *addr,
-		Handler: handler,
+	if err := serveTCP(*addr); err != nil {
+		log.Fatalf("serve tcp: %v", err)
 	}
-
-	log.Printf("Bench server listening on %s", *addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("ListenAndServe: %v", err)
-	}
-}
-
-func unsupportedResponseWriter(w http.ResponseWriter, feature string) {
-	http.Error(w, fmt.Sprintf("%s is not supported by this response writer", feature), http.StatusInternalServerError)
 }

@@ -1,5 +1,6 @@
 compose.yml
 *.compose.yml
+!dev.compose.yml
 
 config
 certs
