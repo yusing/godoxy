@@ -1093,6 +1093,10 @@ definitions:
       ssl_trusted_certificate:
         description: Path to trusted CA certificates
         type: string
+      tls_termination:
+        description: 'TCP only: terminate inbound TLS on the shared HTTPS listener
+          before proxying plaintext to the destination'
+        type: boolean
     type: object
   RouteProvider:
     properties:
@@ -1274,6 +1278,8 @@ definitions:
     type: object
   VerifyNewAgentRequest:
     properties:
+      add_to_config:
+        type: boolean
       ca:
         $ref: '#/definitions/PEMPairResponse'
       client:
@@ -1281,6 +1287,15 @@ definitions:
       container_runtime:
         $ref: '#/definitions/agent.ContainerRuntime'
       host:
+        type: string
+    type: object
+  VerifyNewAgentResponse:
+    properties:
+      agents:
+        items:
+          $ref: '#/definitions/Agent'
+        type: array
+      message:
         type: string
     type: object
   accesslog.FieldConfig:
@@ -1794,11 +1809,11 @@ definitions:
         type: string
       kernel_version:
         type: string
-      load_avg_15m:
-        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
+        type: string
+      load_avg_15m:
         type: string
       mem_pct:
         type: string
@@ -1975,7 +1990,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/SuccessResponse'
+            $ref: '#/definitions/VerifyNewAgentResponse'
         "400":
           description: Bad Request
           schema:

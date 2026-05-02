@@ -23,6 +23,8 @@ import (
 var (
 	cfgWatcher watcher.Watcher
 	reloadMu   sync.Mutex
+
+	reloadConfig = Reload
 )
 
 const configEventFlushInterval = 500 * time.Millisecond
@@ -141,6 +143,13 @@ func WatchChanges() {
 }
 
 func OnConfigChange(ev []watcherEvents.Event) {
+	if len(ev) == 0 {
+		return
+	}
+	if config.ConsumeSuppressedConfigReload(ev, common.ConfigFileName) {
+		return
+	}
+
 	// no matter how many events during the interval
 	// just reload once and check the last event
 	switch ev[len(ev)-1].Action {
@@ -152,7 +161,7 @@ func OnConfigChange(ev []watcherEvents.Event) {
 		return
 	}
 
-	if err := Reload(); err != nil {
+	if err := reloadConfig(); err != nil {
 		// recovered in event queue
 		panic(err)
 	}
