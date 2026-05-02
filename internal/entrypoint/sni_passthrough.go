@@ -244,10 +244,6 @@ func normalizeSNIName(name string) string {
 	return name
 }
 
-func sniRouteKey(addr, name string) string {
-	return addr + "\x00" + normalizeSNIName(name)
-}
-
 type clientHelloReadConn struct {
 	net.Conn
 	reader io.Reader

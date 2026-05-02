@@ -1,11 +1,8 @@
-module github.com/yusing/godoxy/cmd/bench_server
+module h3bench
 
 go 1.26.2
 
-require (
-	github.com/gorilla/websocket v1.5.3
-	github.com/quic-go/quic-go v0.59.0
-)
+require github.com/quic-go/quic-go v0.59.0
 
 require (
 	github.com/quic-go/qpack v0.6.0 // indirect

@@ -1,4 +1,5 @@
-shell := /bin/sh
+# POSIX sh for recipes; ignore login $SHELL (e.g. fish) — recipes use sh syntax.
+SHELL := /bin/sh
 export VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
 export BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
@@ -93,7 +94,50 @@ ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
 
-.PHONY: debug test tcp-echo-test
+.PHONY: benchmark build build-cli ci-test cloc debug debug-list-containers \
+	dev dev-build docker-build-test gen-api-types gen-cli gen-swagger help \
+	minify mod-tidy modernize push-github rapid-crash run tcp-echo-test test \
+	update-deps update-go update-wiki
+
+# Show usage (like CLI --help). Run: make help
+help:
+	@printf '%s\n' \
+		'Godoxy Makefile' '' \
+		'Usage: make <target> [VAR=value ...]' '' \
+		'Build which binary (default: godoxy main server):' \
+		'  agent=1          godoxy-agent (agent/)' \
+		'  socket-proxy=1   godoxy-socket-proxy (socket-proxy/)' \
+		'  cli=1            godoxy-cli (cmd/cli/)' '' \
+		'Build / run flags (combine as needed):' \
+		'  debug=1          debug build (CGO, GODOXY_DEBUG)' \
+		'  race=1           -race tests/build' \
+		'  pprof=1          pprof tag + GORACE settings' \
+		'  trace=1          trace + gctrace (implies debug=1)' \
+		'  docker=1         post-build: move binary into /app for image' '' \
+		'Targets:' \
+		'  help             Show this message' \
+		'  test             go test -race internal/...' \
+		'  tcp-echo-test    scripts/tcp_echo_test.ts' \
+		'  docker-build-test  Build/push godoxy docker images' \
+		'  update-go        Bump Go version in mods + Dockerfiles + tidy' \
+		'  update-deps      go get -u + tidy across modules' \
+		'  mod-tidy         go mod tidy across modules' \
+		'  modernize        go fix ./... across modules' \
+		'  minify           Frontend minify (skipped for agent/socket-proxy)' \
+		"  build            Produce bin/$(NAME)" \
+		'  run              godotenv + go run main package' \
+		'  dev              docker compose -f dev.compose.yml $$(args)' \
+		'  dev-build        build then compose up app --force-recreate' \
+		'  benchmark        Run scripts/benchmark.sh; TARGET/compose handled by script; extra args via args=' \
+		'  rapid-crash      Short docker restart loop sanity check' \
+		'  debug-list-containers  Docker socket GET /containers/json via netcat+jq' \
+		'  ci-test          act dry-run with artifacts path' \
+		'  cloc             scc on Go sources' \
+		"  push-github      git push origin $(BRANCH)" \
+		'  gen-swagger      swag init + scripts into internal/api docs' \
+		'  gen-api-types    gen-swagger + swagger-typescript-api for webui' \
+		'  gen-cli          Regenerate CLI (cmd/cli gen)' \
+		'  update-wiki      bun scripts/update-wiki (WEBUI_DIR, REPO_URL)'
 
 test:
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
@@ -111,7 +155,7 @@ docker-build-test:
 
 go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
-gomod_paths := $(shell find . -name go.mod -type f | grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' | xargs dirname)
+gomod_paths := $(shell find . -name go.mod -type f | grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' | sed 's#/go\.mod$$##')
 
 update-go:
 	@for file in ${files}; do \
@@ -167,12 +211,7 @@ dev-build: build
 	docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 
 benchmark:
-	@TARGETS="$(TARGET)"; \
-	if [ -z "$$TARGETS" ]; then TARGETS="godoxy traefik caddy nginx"; fi; \
-	trap 'docker compose -f dev.compose.yml down $$TARGETS' EXIT; \
-	docker compose -f dev.compose.yml up -d --force-recreate $$TARGETS; \
-	sleep 1; \
-	./scripts/benchmark.sh
+	./scripts/benchmark.sh $(args)
 
 rapid-crash:
 	docker run --restart=always --name test_crash -p 80 debian:bookworm-slim /bin/cat &&\
@@ -204,8 +243,6 @@ gen-api-types: gen-swagger
 	# --disable-throw-on-error
 	bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --add-readonly --route-types \
 	--responses -o ${WEBUI_DIR}/src/lib -n api.ts -p internal/api/v1/docs/swagger.json
-
-.PHONY: gen-cli build-cli update-wiki
 
 gen-cli:
 	cd cmd/cli && go run ./gen

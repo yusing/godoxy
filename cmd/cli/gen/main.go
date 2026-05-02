@@ -257,7 +257,7 @@ func betterEndpoint(a, b endpoint) bool {
 
 func countPathParams(path string) int {
 	count := 0
-	for _, seg := range strings.Split(path, "/") {
+	for seg := range strings.SplitSeq(path, "/") {
 		if strings.HasPrefix(seg, "{") || strings.HasPrefix(seg, ":") {
 			count++
 		}

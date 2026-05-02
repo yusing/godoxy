@@ -1,5 +1,9 @@
 x-benchmark: &benchmark
   restart: no
+  ulimits:
+    nofile:
+      soft: 65535
+      hard: 65535
   labels:
     proxy.exclude: true
     proxy.#1.healthcheck.disable: true
@@ -177,56 +181,96 @@ services:
     container_name: bench
   godoxy:
     <<: *benchmark
+    depends_on:
+      - bench
     build: .
     container_name: godoxy-benchmark
+    environment:
+      HTTP3_ENABLED: "true"
     ports:
       - 8080:80
+      - 8440:443
+      - 8440:443/udp
     configs:
       - source: godoxy_config
         target: /app/config/config.yml
       - source: godoxy_provider
         target: /app/config/providers.yml
+      - source: benchmark_cert
+        target: /app/certs/bench.crt
+      - source: benchmark_key
+        target: /app/certs/bench.key
   traefik:
     <<: *benchmark
-    image: traefik:latest
+    depends_on:
+      - bench
+    image: traefik:v3.6.15
     container_name: traefik
     command:
       - --api.insecure=true
       - --entrypoints.web.address=:8081
+      - --entrypoints.websecure.address=:8441
+      - --entrypoints.websecure.http3=true
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
       - --log.level=ERROR
     ports:
       - 8081:8081
+      - 8441:8441
+      - 8441:8441/udp
     configs:
       - source: traefik_config
         target: /etc/traefik/dynamic/routes.yml
+      - source: benchmark_cert
+        target: /etc/traefik/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/traefik/certs/bench.key
   caddy:
     <<: *benchmark
-    image: caddy:latest
+    depends_on:
+      - bench
+    image: caddy:2.11.2
     container_name: caddy
     ports:
       - 8082:80
+      - 8442:443
+      - 8442:443/udp
     configs:
       - source: caddy_config
         target: /etc/caddy/Caddyfile
+      - source: benchmark_cert
+        target: /etc/caddy/bench.crt
+      - source: benchmark_key
+        target: /etc/caddy/bench.key
     tmpfs:
       - /data
       - /config
   nginx:
     <<: *benchmark
-    image: nginx:latest
+    depends_on:
+      - bench
+    image: nginx:1.29.8
     container_name: nginx
     command: nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
     ports:
       - 8083:80
+      - 8443:443
+      - 8443:443/udp
     configs:
       - source: nginx_config
         target: /etc/nginx/nginx.conf
+      - source: benchmark_cert
+        target: /etc/nginx/certs/bench.crt
+      - source: benchmark_key
+        target: /etc/nginx/certs/bench.key
 
 configs:
   godoxy_config:
     content: |
+      autocert:
+        provider: local
+        cert_path: /app/certs/bench.crt
+        key_path: /app/certs/bench.key
       providers:
         include:
           - providers.yml
@@ -234,14 +278,31 @@ configs:
     content: |
       bench.domain.com:
         host: bench
+        port: 80
+        healthcheck:
+          disable: true
+  benchmark_cert:
+    file: ./dev-data/certs/bench.domain.com.crt
+  benchmark_key:
+    file: ./dev-data/certs/bench.domain.com.key
   traefik_config:
     content: |
+      tls:
+        certificates:
+          - certFile: /etc/traefik/certs/bench.crt
+            keyFile: /etc/traefik/certs/bench.key
       http:
         routers:
           bench:
             rule: "Host(`bench.domain.com`)"
             entryPoints:
               - web
+            service: bench
+          bench-h3:
+            rule: "Host(`bench.domain.com`)"
+            entryPoints:
+              - websecure
+            tls: {}
             service: bench
         services:
           bench:
@@ -256,12 +317,33 @@ configs:
         default_bind 0.0.0.0
 
         servers {
-          protocols h1 h2c
+          protocols h1 h2 h3
+        }
+      }
+
+      (bench_proxy) {
+        reverse_proxy bench:80 {
+          lb_try_duration 2s
+          lb_try_interval 10ms
+
+          transport http {
+            keepalive 2m
+            keepalive_idle_conns 10000
+            keepalive_idle_conns_per_host 1000
+            compression off
+            dial_timeout 1s
+            dial_fallback_delay -1s
+          }
         }
       }
 
       http://bench.domain.com {
-        reverse_proxy bench:80
+        import bench_proxy
+      }
+
+      https://bench.domain.com {
+        tls /etc/caddy/bench.crt /etc/caddy/bench.key
+        import bench_proxy
       }
   nginx_config:
     content: |
@@ -282,11 +364,19 @@ configs:
 
         access_log off;
 
+        map $$http_upgrade $$connection_upgrade {
+          default upgrade;
+          '' '';
+        }
+
         sendfile on;
         tcp_nopush on;
         tcp_nodelay on;
         keepalive_timeout 65;
-        keepalive_requests 10000;
+        # HTTP/3 benchmarks reuse QUIC connections heavily. The default/low
+        # keepalive request cap makes Nginx send a graceful H3 close after the
+        # cap is reached, which benchmark clients report as H3_NO_ERROR.
+        keepalive_requests 1000000;
 
         upstream backend {
           server bench:80;
@@ -296,7 +386,6 @@ configs:
         server {
           listen 80 default_server;
           server_name _;
-          http2 on;
 
           return 404;
         }
@@ -304,12 +393,112 @@ configs:
         server {
           listen 80;
           server_name bench.domain.com;
-          http2 on;
 
           location / {
             proxy_pass http://backend;
             proxy_http_version 1.1;
             proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+          }
+
+          location /upload {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_request_buffering off;
+          }
+
+          location /stream {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+
+          location /sse {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+
+          location /ws {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Connection $$connection_upgrade;
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+        }
+
+        server {
+          listen 443 ssl;
+          listen 443 quic reuseport;
+          http2 on;
+          http3 on;
+          server_name bench.domain.com;
+          ssl_certificate /etc/nginx/certs/bench.crt;
+          ssl_certificate_key /etc/nginx/certs/bench.key;
+          add_header Alt-Svc 'h3=":443"; ma=86400';
+
+          location / {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+          }
+
+          location /upload {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_request_buffering off;
+          }
+
+          location /stream {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+
+          location /sse {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_buffering off;
+          }
+
+          location /ws {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Connection $$connection_upgrade;
             proxy_set_header Host $$host;
             proxy_set_header X-Real-IP $$remote_addr;
             proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
