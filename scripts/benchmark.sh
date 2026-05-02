@@ -9,6 +9,7 @@ set -euo pipefail
 HOST="bench.domain.com"
 DURATION="${DURATION:-10s}"
 H2LOAD_DURATION="${H2LOAD_DURATION:-}"
+H2LOAD_WARM_UP_TIME="${H2LOAD_WARM_UP_TIME:-3s}"
 THREADS="${THREADS:-4}"
 CONNECTIONS="${CONNECTIONS:-100}"
 REQUESTS="${REQUESTS:-1000}"
@@ -61,6 +62,7 @@ Environment:
   REQUESTS=1000         Requests per protocol in fresh mode
   FRESH_CONNECTIONS=100 Concurrent connections in fresh mode (default: CONNECTIONS)
   H2LOAD_DURATION=<N>   h2load duration value without unit (derived from DURATION=Ns by default)
+  H2LOAD_WARM_UP_TIME=<DURATION>  h2load warm-up before reused duration measurements (default: 3s; 0 disables)
   H3_TOOL=auto|h2load|h3bench
   BENCH_COMPOSE_MANAGE=0|1   Start selected proxy services and bench (default: 1)
   BENCH_COMPOSE_CLEANUP=0|1  Stop selected proxy services and bench on exit (default: 1)
@@ -119,6 +121,31 @@ BENCH_COMPOSE_MANAGE=$(normalize_protocol_flag BENCH_COMPOSE_MANAGE "$BENCH_COMP
 BENCH_COMPOSE_CLEANUP=$(normalize_protocol_flag BENCH_COMPOSE_CLEANUP "$BENCH_COMPOSE_CLEANUP")
 BENCH_COMPOSE_RECREATE=$(normalize_protocol_flag BENCH_COMPOSE_RECREATE "$BENCH_COMPOSE_RECREATE")
 
+normalize_h2load_duration_arg() {
+	local name=$1
+	local value=$2
+
+	case "$value" in
+	0)
+		return
+		;;
+	'' | *[!0-9hms]*)
+		red "Error: $name must be a h2load duration like 3s, 500ms, 1m, or 0 to disable (got $value)"
+		exit 2
+		;;
+	esac
+
+	if ! [[ "$value" =~ ^[0-9]+(ms|s|m|h)?$ ]]; then
+		red "Error: $name must be a h2load duration like 3s, 500ms, 1m, or 0 to disable (got $value)"
+		exit 2
+	fi
+
+	if [[ "$value" =~ ^0+(ms|s|m|h)?$ ]]; then
+		red "Error: $name must be positive, or exactly 0 to disable (got $value)"
+		exit 2
+	fi
+}
+
 normalize_duration() {
 	if [ -n "$H2LOAD_DURATION" ]; then
 		case "$H2LOAD_DURATION" in
@@ -163,6 +190,11 @@ normalize_positive_int() {
 }
 
 normalize_duration
+normalize_h2load_duration_arg H2LOAD_WARM_UP_TIME "$H2LOAD_WARM_UP_TIME"
+H2LOAD_WARM_UP_ARGS=()
+if [ "$H2LOAD_WARM_UP_TIME" != "0" ]; then
+	H2LOAD_WARM_UP_ARGS=(--warm-up-time="$H2LOAD_WARM_UP_TIME")
+fi
 normalize_positive_int THREADS "$THREADS"
 normalize_positive_int CONNECTIONS "$CONNECTIONS"
 normalize_positive_int REQUESTS "$REQUESTS"
@@ -272,6 +304,7 @@ echo "Compose file: $BENCH_COMPOSE_FILE"
 echo "Compose manage: $BENCH_COMPOSE_MANAGE"
 echo "Compose cleanup: $BENCH_COMPOSE_CLEANUP"
 echo "h2load duration seconds: $H2LOAD_DURATION"
+echo "h2load warm-up time: $H2LOAD_WARM_UP_TIME"
 echo "Latency samples: $LATENCY_SAMPLES"
 echo "Upload probe bytes: $UPLOAD_BODY_BYTES"
 echo "HTTP/1.1: $H1"
@@ -602,33 +635,8 @@ compose_down() {
 compose_up
 trap compose_down EXIT
 
-blue "========================================"
-blue "Connection Tests"
-blue "========================================"
 echo ""
-
-# Run connection tests for all services
-for name in "${matched_services[@]}"; do
-	test_connection "$name" "${services[$name]}"
-done
-
-echo ""
-blue "========================================"
-
-# Exit if any connection test failed
-if [ ${#connection_errors[@]} -gt 0 ]; then
-	echo ""
-	red "Connection test failed for the following services:"
-	for error in "${connection_errors[@]}"; do
-		red "  - $error"
-	done
-	echo ""
-	red "Please ensure benchmark services are running, or leave BENCH_COMPOSE_MANAGE=1 so this script can start them"
-	exit 1
-fi
-
-echo ""
-green "All services are reachable. Starting benchmarks..."
+green "Compose services ready. Starting benchmarks..."
 echo ""
 blue "========================================"
 echo ""
@@ -647,6 +655,18 @@ restart_bench() {
 	fi
 	docker compose -f "$BENCH_COMPOSE_FILE" up -d -t 0 "${recreate_args[@]}" "${targets[@]}" >/dev/null 2>&1
 	sleep "$BENCH_STARTUP_WAIT"
+
+	connection_errors=()
+	if ! test_connection "$name" "${services[$name]}"; then
+		echo ""
+		red "Connection test failed for $name:"
+		for error in "${connection_errors[@]}"; do
+			red "  - $error"
+		done
+		echo ""
+		red "Please ensure benchmark services are running, or leave BENCH_COMPOSE_MANAGE=1 so this script can start them"
+		exit 1
+	fi
 }
 
 wait_for_reused_benchmark_ready() {
@@ -678,7 +698,7 @@ run_reused_benchmark() {
 	local h3_dial_addr=$6
 
 	echo ""
-	blue "[Reused connections] duration=$DURATION connections=$CONNECTIONS streams=$STREAMS"
+	blue "[Reused connections] duration=$DURATION warm-up=$H2LOAD_WARM_UP_TIME connections=$CONNECTIONS streams=$STREAMS"
 
 	if [ "$H1C" = "1" ]; then
 		restart_bench "$name"
@@ -686,6 +706,7 @@ run_reused_benchmark() {
 		echo ""
 		echo "[HTTP/1.1 cleartext reused] h2load --h1 -m1"
 		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$cleartext_connect_arg" \
 			-H "Host: $HOST" \
 			"$http_url" | filter_h2load_noise
@@ -697,6 +718,7 @@ run_reused_benchmark() {
 		echo ""
 		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
 		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H "Host: $HOST" \
 			"$https_url" | filter_h2load_noise
@@ -708,6 +730,7 @@ run_reused_benchmark() {
 		wait_for_reused_benchmark_ready "$name" h2
 		echo "[HTTP/2 reused TLS] h2load -m$STREAMS"
 		h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
 			"$https_url" | filter_h2load_noise
@@ -721,6 +744,7 @@ run_reused_benchmark() {
 		case "$H3_TOOL" in
 			h2load)
 				h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+					"${H2LOAD_WARM_UP_ARGS[@]}" \
 					--h3 \
 					"$tls_connect_arg" \
 					-H ":authority: $HOST" \
