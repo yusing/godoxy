@@ -21,6 +21,10 @@ import (
 	expect "github.com/yusing/goutils/testing"
 )
 
+const (
+	testPort = 18000
+)
+
 func noOpHandler(w http.ResponseWriter, r *http.Request) {}
 
 func TestBypassCIDR(t *testing.T) {
@@ -233,12 +237,12 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	expect.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	_, err = route.NewStartedTestRoute(t, &route.Route{
+	r, err := route.NewStartedTestRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   host,
 		Port: routeTypes.Port{
-			Listening: 1000,
+			Listening: testPort,
 			Proxy:     portInt,
 		},
 	})
@@ -260,7 +264,7 @@ func TestEntrypointBypassRoute(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://test-route.example.com", nil)
-	server, ok := entry.GetServer(":1000")
+	server, ok := entry.GetServer(":" + r.ListenURL().Port())
 	if !ok {
 		t.Fatal("server not found")
 	}
@@ -286,12 +290,12 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	_, err = route.NewStartedTestRoute(t, &route.Route{
+	r, err := route.NewStartedTestRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   host,
 		Port: routeTypes.Port{
-			Listening: 1000,
+			Listening: testPort,
 			Proxy:     portInt,
 		},
 		Middlewares: map[string]types.LabelMap{
@@ -312,7 +316,7 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	server, ok := entry.GetServer(":1000")
+	server, ok := entry.GetServer(":" + r.ListenURL().Port())
 	require.True(t, ok, "server not found")
 
 	tests := []struct {
@@ -372,12 +376,12 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	_, err = route.NewStartedTestRoute(t, &route.Route{
+	r, err := route.NewStartedTestRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   host,
 		Port: routeTypes.Port{
-			Listening: 1000,
+			Listening: testPort,
 			Proxy:     portInt,
 		},
 		Middlewares: map[string]types.LabelMap{
@@ -397,7 +401,7 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 		},
 	}}))
 
-	server, ok := entry.GetServer(":1000")
+	server, ok := entry.GetServer(":" + r.ListenURL().Port())
 	require.True(t, ok, "server not found")
 
 	t.Run("bypass_still_works_without_matching_entrypoint_middleware", func(t *testing.T) {
