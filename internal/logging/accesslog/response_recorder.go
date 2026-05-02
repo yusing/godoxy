@@ -2,7 +2,6 @@ package accesslog
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -11,7 +10,9 @@ import (
 type ResponseRecorder struct {
 	w http.ResponseWriter
 
-	resp http.Response
+	resp        http.Response
+	wroteHeader bool
+	hijacked    bool
 }
 
 var recorderPool = sync.Pool{
@@ -27,12 +28,16 @@ func GetResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
 		StatusCode: http.StatusOK,
 		Header:     w.Header(),
 	}
+	r.wroteHeader = false
+	r.hijacked = false
 	return r
 }
 
 func PutResponseRecorder(r *ResponseRecorder) {
 	r.w = nil
 	r.resp = http.Response{}
+	r.wroteHeader = false
+	r.hijacked = false
 	recorderPool.Put(r)
 }
 
@@ -53,32 +58,60 @@ func (w *ResponseRecorder) Header() http.Header {
 }
 
 func (w *ResponseRecorder) Write(b []byte) (int, error) {
+	if w.hijacked {
+		return 0, http.ErrHijacked
+	}
+	if !w.wroteHeader {
+		w.recordStatus(http.StatusOK)
+	}
 	n, err := w.w.Write(b)
 	w.resp.ContentLength += int64(n)
 	return n, err
 }
 
 func (w *ResponseRecorder) WriteHeader(code int) {
+	if w.hijacked {
+		return
+	}
 	w.w.WriteHeader(code)
+	w.recordStatus(code)
+}
 
-	if code >= http.StatusContinue && code < http.StatusOK {
+func (w *ResponseRecorder) recordStatus(code int) {
+	if code >= http.StatusContinue && code < http.StatusOK && code != http.StatusSwitchingProtocols {
+		return
+	}
+	if w.wroteHeader {
 		return
 	}
 	w.resp.StatusCode = code
+	w.wroteHeader = true
 }
 
 // Hijack hijacks the connection.
 func (w *ResponseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if h, ok := w.w.(http.Hijacker); ok {
-		return h.Hijack()
+	conn, rw, err := http.NewResponseController(w.w).Hijack()
+	if err != nil {
+		return nil, nil, err
 	}
-
-	return nil, nil, fmt.Errorf("not a hijacker: %T", w.w)
+	w.hijacked = true
+	if !w.wroteHeader {
+		w.recordStatus(http.StatusSwitchingProtocols)
+	}
+	return conn, rw, nil
 }
 
 // Flush sends any buffered data to the client.
 func (w *ResponseRecorder) Flush() {
-	if flusher, ok := w.w.(http.Flusher); ok {
-		flusher.Flush()
+	_ = w.FlushError()
+}
+
+func (w *ResponseRecorder) FlushError() error {
+	if w.hijacked {
+		return http.ErrHijacked
 	}
+	if !w.wroteHeader {
+		w.recordStatus(http.StatusOK)
+	}
+	return http.NewResponseController(w.w).Flush()
 }

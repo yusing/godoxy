@@ -689,6 +689,32 @@ filter_h2load_noise() {
 	grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients)" || true
 }
 
+run_h2load() {
+	local h2load_status
+
+	set +e
+	h2load "$@" | filter_h2load_noise
+	h2load_status=${PIPESTATUS[0]}
+	set -e
+
+	if [ "$h2load_status" -ne 0 ]; then
+		yellow "h2load exited with status $h2load_status; continuing so non-2xx/stream failures remain visible in benchmark output"
+	fi
+}
+
+run_h3bench() {
+	local h3bench_status
+
+	set +e
+	"$H3BENCH_CMD" "$@"
+	h3bench_status=$?
+	set -e
+
+	if [ "$h3bench_status" -ne 0 ]; then
+		yellow "h3bench exited with status $h3bench_status; continuing so failures remain visible in benchmark output"
+	fi
+}
+
 run_reused_benchmark() {
 	local name=$1
 	local http_url=$2
@@ -705,11 +731,11 @@ run_reused_benchmark() {
 		read_response_with_retry "$(http_url "$name")" 			--http1.1 >/dev/null
 		echo ""
 		echo "[HTTP/1.1 cleartext reused] h2load --h1 -m1"
-		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+		run_h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$cleartext_connect_arg" \
 			-H "Host: $HOST" \
-			"$http_url" | filter_h2load_noise
+			"$http_url"
 	fi
 
 	if [ "$H1" = "1" ]; then
@@ -717,11 +743,11 @@ run_reused_benchmark() {
 		wait_for_reused_benchmark_ready "$name" h1
 		echo ""
 		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
-		h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+		run_h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H "Host: $HOST" \
-			"$https_url" | filter_h2load_noise
+			"$https_url"
 	fi
 
 	if [ "$H2" = "1" ]; then
@@ -729,11 +755,11 @@ run_reused_benchmark() {
 		restart_bench "$name"
 		wait_for_reused_benchmark_ready "$name" h2
 		echo "[HTTP/2 reused TLS] h2load -m$STREAMS"
-		h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+		run_h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
-			"$https_url" | filter_h2load_noise
+			"$https_url"
 	fi
 
 	if [ "$H3" = "1" ]; then
@@ -743,15 +769,15 @@ run_reused_benchmark() {
 		echo "[HTTP/3 reused] $H3_TOOL"
 		case "$H3_TOOL" in
 			h2load)
-				h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+				run_h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
 					"${H2LOAD_WARM_UP_ARGS[@]}" \
 					--h3 \
 					"$tls_connect_arg" \
 					-H ":authority: $HOST" \
-					"$https_url" | filter_h2load_noise
+					"$https_url"
 				;;
 			h3bench)
-				"$H3BENCH_CMD" -d "$DURATION" -c "$CONNECTIONS" -m "$STREAMS" -dial "$h3_dial_addr" -k "$https_url"
+				run_h3bench -d "$DURATION" -c "$CONNECTIONS" -m "$STREAMS" -dial "$h3_dial_addr" -k "$https_url"
 				;;
 		esac
 	fi
@@ -771,30 +797,30 @@ run_fresh_benchmark() {
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/1.1 cleartext fresh] h2load --h1 -m1"
-		h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$cleartext_connect_arg" \
 			-H "Host: $HOST" \
-			"$http_url" | filter_h2load_noise
+			"$http_url"
 	fi
 
 	if [ "$H1" = "1" ]; then
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/1.1 fresh TLS] h2load --h1 -m1"
-		h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$tls_connect_arg" \
 			-H "Host: $HOST" \
-			"$https_url" | filter_h2load_noise
+			"$https_url"
 	fi
 
 	if [ "$H2" = "1" ]; then
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/2 fresh TLS] h2load -m1"
-		h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
-			"$https_url" | filter_h2load_noise
+			"$https_url"
 	fi
 
 	if [ "$H3" = "1" ]; then
@@ -803,14 +829,14 @@ run_fresh_benchmark() {
 		echo "[HTTP/3 fresh] $H3_TOOL -m1"
 		case "$H3_TOOL" in
 			h2load)
-				h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+				run_h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 					--h3 \
 					"$tls_connect_arg" \
 					-H ":authority: $HOST" \
-					"$https_url" | filter_h2load_noise
+					"$https_url"
 				;;
 			h3bench)
-				"$H3BENCH_CMD" -n "$REQUESTS" -c "$FRESH_CONNECTIONS" -m 1 -dial "$h3_dial_addr" -k "$https_url"
+				run_h3bench -n "$REQUESTS" -c "$FRESH_CONNECTIONS" -m 1 -dial "$h3_dial_addr" -k "$https_url"
 				;;
 		esac
 	fi
