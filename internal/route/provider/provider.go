@@ -210,6 +210,10 @@ func (p *Provider) loadRoutes() (routes route.Routes, err error) {
 	// check for exclusion
 	// set alias and provider, then validate
 	for alias, r := range routes {
+		if r == nil {
+			r = new(route.Route)
+			routes[alias] = r
+		}
 		r.Alias = alias
 		r.SetProvider(p)
 		if err := r.Validate(); err != nil {
