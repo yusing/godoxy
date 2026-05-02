@@ -23,6 +23,8 @@ import (
 	strutils "github.com/yusing/goutils/strings"
 )
 
+var EnvUseSonic = env.GetEnvBool("USE_SONIC_JSON", true)
+
 type SerializedObject = map[string]any
 
 // ToSerializedObject converts a map[string]VT to a SerializedObject.
@@ -35,6 +37,12 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
 }
 
 func init() {
+	if EnvUseSonic {
+		setupSonic()
+	}
+}
+
+func setupSonic() {
 	strutils.SetJSONMarshaler(sonic.Marshal)
 	strutils.SetJSONUnmarshaler(sonic.Unmarshal)
 	strutils.SetJSONMarshalIndent(sonic.MarshalIndent)

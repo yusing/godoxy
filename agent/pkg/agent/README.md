@@ -87,8 +87,7 @@ The [`Init`](config.go:231) and [`InitWithCerts`](config.go:110) methods allow t
 The package provides interfaces and implementations for generating deployment artifacts:
 
 - **Docker Compose**: Generates a `docker-compose.yml` for running the agent as a container via [`AgentComposeConfig.Generate()`](docker_compose.go:21).
-- **Bare Metal**: Generates a shell script to install and run the agent as a systemd service via [`AgentEnvConfig.Generate()`](bare_metal.go:27).
-
+- **Bare Metal**: Generates a one-liner that downloads and runs [`scripts/install-agent.sh`](https://github.com/yusing/godoxy/blob/main/scripts/install-agent.sh) via [`AgentEnvConfig.Generate()`](bare_metal.go:27).
 ### 4. Fake Docker Host
 
 The package supports a "fake" Docker host scheme (`agent://<addr>`) to identify containers managed by an agent, allowing the GoDoxy server to route requests appropriately. See [`IsDockerHostAgent`](config.go:90) and [`GetAgentAddrFromDockerHost`](config.go:94).

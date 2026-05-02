@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/handler"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	"github.com/yusing/godoxy/internal/serialization"
 	_ "github.com/yusing/godoxy/internal/serialization"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 	strutils "github.com/yusing/goutils/strings"
@@ -58,11 +59,13 @@ func main() {
 	log.Info().Msgf("Agent name: %s", env.AgentName)
 	log.Info().Msgf("Agent port: %d", env.AgentPort)
 	log.Info().Msgf("Agent runtime: %s", env.Runtime)
+	log.Info().Msgf("Sonic enabled: %v", serialization.EnvUseSonic)
 
 	log.Info().Msg(`
 Tips:
 1. To change the agent name, you can set the AGENT_NAME environment variable.
 2. To change the agent port, you can set the AGENT_PORT environment variable.
+3. Set USE_SONIC_JSON to false when you see "SIGILL: illegal instructions" error.
 	`)
 
 	t := task.RootTask("agent", false)

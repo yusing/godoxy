@@ -25,6 +25,8 @@ services:
       AGENT_PORT: "{{.Port}}"
       AGENT_CA_CERT: "{{.CACert}}"
       AGENT_SSL_CERT: "{{.SSLCert}}"
+      # use bytedance/sonic library for efficient json handling, disable if you see "SIGILL: illegal instructions"
+      USE_SONIC_JSON: true
       # use agent as a docker socket proxy: [host]:port
       # set LISTEN_ADDR to enable (e.g. 127.0.0.1:2375)
       LISTEN_ADDR:

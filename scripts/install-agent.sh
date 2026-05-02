@@ -210,6 +210,8 @@ AGENT_CA_CERT="${AGENT_CA_CERT}"
 AGENT_SSL_CERT="${AGENT_SSL_CERT}"
 DOCKER_SOCKET="${DOCKER_SOCKET}"
 RUNTIME="${RUNTIME}"
+# use bytedance/sonic library for efficient json handling, disable if you see "SIGILL: illegal instructions"
+USE_SONIC_JSON=true
 EOF
 chmod 600 $env_file
 

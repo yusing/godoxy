@@ -12,11 +12,7 @@ DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
 TEST_REGISTRY ?= reg.i.sh
 
-ifneq ($(BRANCH), compat)
-	GO_TAGS = sonic
-else
-	GO_TAGS =
-endif
+GO_TAGS =
 
 LDFLAGS = -X github.com/yusing/goutils/version.version=${VERSION} -checklinkname=0
 
