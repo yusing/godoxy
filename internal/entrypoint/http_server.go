@@ -87,7 +87,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	var sniListener net.Listener
 	if proto == HTTPProtoHTTPS && listener == nil && common.SNIRoutingForTCPRoutes {
 		var err error
-		sniListener, err = srv.ep.sni.Listen(addr)
+		sniListener, err = srv.ep.sni.Listen(srv.ep.task.Context(), addr)
 		if err != nil {
 			return err
 		}

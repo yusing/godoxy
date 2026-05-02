@@ -54,9 +54,9 @@ func TestSNIRouterListensPerHTTPSAddress(t *testing.T) {
 	addr1 := reserveSNIListenAddr(t)
 	addr2 := reserveSNIListenAddr(t)
 
-	listener1, err := ep.sni.Listen(addr1)
+	listener1, err := ep.sni.Listen(t.Context(), addr1)
 	require.NoError(t, err)
-	listener2, err := ep.sni.Listen(addr2)
+	listener2, err := ep.sni.Listen(t.Context(), addr2)
 	require.NoError(t, err)
 
 	require.NotSame(t, listener1, listener2)
@@ -64,7 +64,7 @@ func TestSNIRouterListensPerHTTPSAddress(t *testing.T) {
 	require.Equal(t, addr2, listener2.Addr().String())
 	require.Equal(t, 2, ep.sni.listeners.Size())
 
-	again, err := ep.sni.Listen(addr1)
+	again, err := ep.sni.Listen(t.Context(), addr1)
 	require.NoError(t, err)
 	require.Same(t, listener1, again)
 }
@@ -123,12 +123,12 @@ func TestReadClientHelloServerNameReplaysBytes(t *testing.T) {
 	require.Error(t, <-clientErr)
 }
 
-func reserveSNIListenAddr(t *testing.T) string {
-	t.Helper()
+func reserveSNIListenAddr(tb testing.TB) string {
+	tb.Helper()
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	addr := listener.Addr().String()
-	require.NoError(t, listener.Close())
+	require.NoError(tb, listener.Close())
 	return addr
 }

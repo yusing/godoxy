@@ -16,6 +16,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - Configurable not-found handling
 - Per-domain route resolution
 - HTTP server management (HTTP/HTTPS)
+- Shared HTTPS listener support for TCP routes selected by TLS SNI
 - Route pool abstractions via [`PoolLike`](internal/entrypoint/types/entrypoint.go:27) and [`RWPoolLike`](internal/entrypoint/types/entrypoint.go:33) interfaces
 
 ### Primary Consumers
@@ -23,13 +24,14 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - **HTTP servers**: Per-listen-addr servers dispatch requests to routes
 - **Route providers**: Register routes via [`StartAddRoute`](internal/entrypoint/routes.go:48)
 - **Configuration layer**: Validates and applies middleware/access-logging config
+- **Stream routes on HTTPS**: Register shared-listener TCP routes through the SNI router when `SNI_ROUTING_FOR_TCP_ROUTES` is enabled
 
 ### Non-goals
 
 - Does not implement route discovery (delegates to providers)
 - Does not handle TLS certificate management (delegates to autocert)
 - Does not implement health checks (delegates to `internal/health/monitor`)
-- Does not manage TCP/UDP listeners directly (only HTTP/HTTPS via `goutils/server`)
+- Does not implement standalone TCP/UDP stream proxying (delegates stream transport to `internal/route/stream`; only shared-HTTPS TCP SNI demultiplexing lives here)
 
 ### Stability
 
@@ -142,6 +144,24 @@ entrypoint:
 
 Pre-existing entrypoint bypass rules remain active; route bypass rules are added on top.
 
+### Shared HTTPS TCP SNI routing
+
+TCP stream routes whose listen URL resolves to the configured shared HTTPS address are handled by `sniRouter` instead of creating their own TCP listener. This lets HTTP/HTTPS routes and selected TCP passthrough routes share one socket. The router is created with each `Entrypoint` and is cancelled with the entrypoint task.
+
+Registration flow:
+
+1. `StartAddRoute` detects stream routes with `asSNIRoute`.
+2. `sniRouter.AddRoute` requires the stream to implement `nettypes.ConnProxy`, because the router hands it an already-accepted connection.
+3. If the route requests `tls_termination`, registration requires an active autocert provider.
+4. The route is stored in a per-listener atomic route table keyed by normalized route key.
+
+Runtime behavior is optimized for the common no-stream-route case:
+
+- Before any SNI TCP route is registered for a listener, `sniListener.Accept` delegates directly to the underlying `net.Listener.Accept`. Normal HTTPS routes therefore avoid ClientHello sniffing, queueing, goroutine handoff, and eventfd wakeups.
+- On the first SNI TCP route, the listener flips to sniffing mode once and starts an accept loop. New raw TCP connections are inspected for TLS ClientHello SNI.
+- A matching SNI route receives the original connection through `ConnProxy`; when `tls_termination` is enabled, GoDoxy completes the server-side TLS handshake first and passes plaintext upstream.
+- Non-matching connections are replayed to the HTTPS server through an unbounded lock-free MPSC queue. The queue uses atomic linked nodes and an `eventfd` wake path for the blocking `Accept` side; it intentionally has no default capacity bound.
+
 `InboundMTLSProfile` references a named root-level inbound mTLS profile and enables Go's built-in client-certificate verification (`tls.RequireAndVerifyClientCert`) for all HTTPS traffic on the entrypoint.
 
 - When configured, route-level inbound mTLS overrides are not supported.
@@ -211,6 +231,7 @@ classDiagram
         +streamRoutes *pool.Pool\[types.StreamRoute\]
         +excludedRoutes *pool.Pool\[types.Route\]
         +servers *xsync.Map\[string, *httpServer\]
+        +sni *sniRouter
         +SupportProxyProtocol() bool
         +StartAddRoute(r) error
         +IterRoutes(yield)
@@ -248,8 +269,24 @@ classDiagram
         +SetDefaultDomainSuffix(suffix)
     }
 
+    class sniRouter {
+        +listeners *xsync.Map\[string, *sniListener\]
+        +Listen(addr) net.Listener
+        +AddRoute(route) error
+        +DelRoute(route)
+    }
+
+    class sniListener {
+        +routes atomic.Pointer
+        +sniffing atomic.Bool
+        +queue sniConnQueue
+        +Accept() net.Conn
+    }
+
     Entrypoint --> httpServer : manages
     Entrypoint --> ShortLinkMatcher : owns
+    Entrypoint --> sniRouter : owns
+    sniRouter --> sniListener : per HTTPS addr
     Entrypoint --> PoolLike : HTTPRoutes()
     Entrypoint --> RWPoolLike : ExcludedRoutes()
     httpServer --> PoolLike : routes pool
@@ -280,6 +317,33 @@ flowchart TD
     I --> N
 ```
 
+### Shared HTTPS SNI TCP Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Listener as sniListener
+    participant Router as sniRouter
+    participant HTTPS as HTTPS http.Server
+    participant TCP as Stream ConnProxy
+
+    alt No SNI TCP routes registered
+        HTTPS->>Listener: Accept()
+        Listener->>Listener: raw Listener.Accept()
+        Listener-->>HTTPS: net.Conn
+    else SNI TCP routes active
+        Client->>Router: TCP connect + TLS ClientHello
+        Router->>Router: read/replay ClientHello SNI
+        alt SNI matches TCP route
+            Router->>TCP: ProxyConn(replayConn or terminated plaintext conn)
+        else No SNI match / not TLS
+            Router->>Listener: enqueue replayConn
+            HTTPS->>Listener: Accept()
+            Listener-->>HTTPS: replayConn
+        end
+    end
+```
+
 ### Server Lifecycle
 
 ```mermaid
@@ -298,6 +362,7 @@ stateDiagram-v2
         servers map: addr -> httpServer
         For HTTPS, routes are added to ProxyHTTPSAddr
         Default routes added to both HTTP and HTTPS
+        TCP routes on the shared HTTPS addr activate sniRouter sniffing
     end note
 ```
 
@@ -391,10 +456,11 @@ entrypoint:
 | `internal/logging/accesslog`       | Request logging             |
 | `internal/net/gphttp/middleware`   | Middleware chain            |
 | `internal/types`                   | Route and health types      |
-| `github.com/puzpuzpuz/xsync/v4`    | Concurrent server map       |
+| `github.com/puzpuzpuz/xsync/v4`    | Concurrent server/listener maps |
 | `github.com/yusing/goutils/pool`   | Route pool implementations  |
 | `github.com/yusing/goutils/task`   | Lifecycle management        |
 | `github.com/yusing/goutils/server` | HTTP/HTTPS server lifecycle |
+| `golang.org/x/sys/unix`            | `eventfd`/poll wake path for SNI fallback queue |
 
 ## Observability
 
@@ -426,6 +492,8 @@ healthMap := ep.GetHealthInfo()
 - Proxy protocol support must be explicitly enabled
 - Access logger captures request metadata before processing
 - Short link matching is limited to configured domains
+- Shared HTTPS TCP routes are selected only from TLS ClientHello SNI and normalized through the same route-key matching rules as HTTP host lookup
+- TLS termination for TCP SNI routes requires autocert and is rejected during route registration if no provider is available
 
 ## Failure Modes and Recovery
 
@@ -434,6 +502,8 @@ healthMap := ep.GetHealthInfo()
 | Server bind fails     | Error returned, route not added | Fix port/address conflict    |
 | Route start fails     | Route excluded, error logged    | Fix route configuration      |
 | Middleware load fails | SetMiddlewares returns error    | Fix middleware configuration |
+| SNI route registration fails | Route not added to shared HTTPS listener | Ensure stream implements `ConnProxy`; configure autocert for TLS termination |
+| SNI fallback consumer stalls | Unbounded queue may grow until HTTPS accepts or listener closes | Fix HTTPS server/backpressure source |
 | Context cancelled     | All servers stopped gracefully  | Restart entrypoint           |
 
 ## Usage Examples
@@ -512,7 +582,8 @@ if ep := entrypoint.FromCtx(r.Context()); ep != nil {
 
 ## Testing Notes
 
-- Benchmark tests in [`entrypoint_benchmark_test.go`](internal/entrypoint/entrypoint_benchmark_test.go)
+- Benchmark tests in [`entrypoint_benchmark_test.go`](internal/entrypoint/entrypoint_benchmark_test.go) and SNI router benchmark files (`sni_passthrough*_benchmark_test.go`)
 - Integration tests in [`entrypoint_test.go`](internal/entrypoint/entrypoint_test.go)
 - Mock route pools for unit testing
 - Short link tests in [`shortlink_test.go`](internal/entrypoint/shortlink_test.go)
+- SNI passthrough tests in `sni_passthrough_test.go` and fast-path coverage in `sni_passthrough_fastpath_test.go`

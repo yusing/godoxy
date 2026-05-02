@@ -230,7 +230,7 @@ services:
 | Dependency                       | Purpose                      |
 | -------------------------------- | ---------------------------- |
 | `internal/acl`                   | Access control for listeners |
-| `internal/entrypoint`            | Proxy protocol support       |
+| `internal/entrypoint`            | Proxy protocol support; shared HTTPS SNI handoff for TCP routes |
 | `internal/net/types`             | Stream interface definitions |
 | `github.com/pires/go-proxyproto` | PROXY protocol header        |
 | `github.com/yusing/goutils/errs` | Error handling               |
@@ -251,6 +251,7 @@ Log context includes: `protocol`, `listen`, `dst`, `action`
 - PROXY protocol support for original client IP
 - TCP routes can optionally emit a fresh upstream PROXY v2 header with `relay_proxy_protocol_header: true`
 - TCP routes on the configured HTTPS listener can passthrough TLS, or terminate TLS with autocert and proxy plaintext with `tls_termination: true`
+- TCP routes on the shared HTTPS listener are accepted by `internal/entrypoint` and injected through `ConnProxy` instead of owning their own listener
 - No protocol validation (relies on upstream)
 - Connection limits managed by OS
 

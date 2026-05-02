@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pires/go-proxyproto"
@@ -20,6 +24,7 @@ import (
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/types"
+	"golang.org/x/sys/unix"
 )
 
 var errClientHelloRead = errors.New("client hello read")
@@ -28,96 +33,127 @@ const clientHelloTimeout = 5 * time.Second
 
 type sniRouter struct {
 	ep        *Entrypoint
-	mu        sync.Mutex
 	listeners *xsync.Map[string, *sniListener]
-	routes    *xsync.Map[string, types.StreamRoute]
 }
 
 type sniListener struct {
 	net.Listener
 	router *sniRouter
 	addr   string
-	mu     sync.Mutex
-	https  chan net.Conn
-	closed bool
+
+	routes   atomic.Pointer[sniRouteTable]
+	state    atomic.Uint32
+	sniffing atomic.Bool
+
+	queue sniConnQueue
+}
+
+type sniRouteTable struct {
+	byKey map[string]*sniRouteEntry
+}
+
+func (t *sniRouteTable) exists(key string) bool {
+	_, ok := t.byKey[normalizeSNIName(key)]
+	return ok
+}
+
+type sniRouteEntry struct {
+	route         types.StreamRoute
+	proxy         nettypes.ConnProxy
+	terminatesTLS bool
 }
 
 func newSNIRouter(ep *Entrypoint) *sniRouter {
 	r := &sniRouter{
 		ep:        ep,
 		listeners: xsync.NewMap[string, *sniListener](),
-		routes:    xsync.NewMap[string, types.StreamRoute](),
 	}
 	ep.task.OnCancel("sni_router", func() { _ = r.Close() })
 	return r
 }
 
 func (r *sniRouter) AddRoute(route types.StreamRoute) error {
-	if _, ok := route.Stream().(nettypes.ConnProxy); !ok {
+	proxy, ok := route.Stream().(nettypes.ConnProxy)
+	if !ok {
 		return fmt.Errorf("route %q stream does not support accepted connection proxying", route.Name())
 	}
-	if routeTerminatesTLS(route) && autocert.FromCtx(r.ep.task.Context()) == nil {
+	ctx := r.ep.task.Context()
+	terminatesTLS := routeTerminatesTLS(route)
+	if terminatesTLS && autocert.FromCtx(ctx) == nil {
 		return fmt.Errorf("route %q tls_termination requires an autocert provider", route.Name())
 	}
 	addr := sniListenAddr(route)
-	if _, err := r.Listen(addr); err != nil {
+	listener, err := r.Listen(ctx, addr)
+	if err != nil {
 		return err
 	}
-	r.routes.Store(sniRouteKey(addr, route.Key()), route)
+	sniListener := listener.(*sniListener)
+	sniListener.addRoute(route, proxy, terminatesTLS)
+	sniListener.ensureSniffing()
 	return nil
 }
 
 func (r *sniRouter) DelRoute(route types.StreamRoute) {
-	r.routes.Delete(sniRouteKey(sniListenAddr(route), route.Key()))
+	if listener, ok := r.listeners.Load(sniListenAddr(route)); ok {
+		listener.delRoute(route)
+	}
 }
 
-func (r *sniRouter) Listen(addr string) (net.Listener, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if listener, ok := r.listeners.Load(addr); ok {
-		return listener, nil
+func (r *sniRouter) Listen(ctx context.Context, addr string) (net.Listener, error) {
+	var listenErr error
+	listener, loaded := r.listeners.LoadOrCompute(addr, func() (*sniListener, bool) {
+		var lc net.ListenConfig
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			listenErr = err
+			return nil, true
+		}
+		if r.ep.cfg.SupportProxyProtocol {
+			ln = &proxyproto.Listener{Listener: ln}
+		}
+		if aclCfg := acl.FromCtx(r.ep.task.Context()); aclCfg != nil {
+			ln = aclCfg.WrapTCP(ln)
+		}
+		listener := &sniListener{
+			Listener: ln,
+			router:   r,
+			addr:     addr,
+		}
+		listener.routes.Store(&sniRouteTable{byKey: map[string]*sniRouteEntry{}})
+		listener.queue.init()
+		return listener, false
+	})
+	if listenErr != nil {
+		return nil, listenErr
 	}
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, err
+	if !loaded && listener == nil {
+		return nil, net.ErrClosed
 	}
-	if r.ep.cfg.SupportProxyProtocol {
-		ln = &proxyproto.Listener{Listener: ln}
-	}
-	if aclCfg := acl.FromCtx(r.ep.task.Context()); aclCfg != nil {
-		ln = aclCfg.WrapTCP(ln)
-	}
-	listener := &sniListener{
-		Listener: ln,
-		router:   r,
-		addr:     addr,
-		https:    make(chan net.Conn, 128),
-	}
-	r.listeners.Store(addr, listener)
-	go r.accept(addr, listener)
 	return listener, nil
 }
 
 func (r *sniRouter) Close() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	var err error
-	for addr, listener := range r.listeners.Range {
+	for addr, listener := range r.listeners.AllRelaxed() {
 		err = errors.Join(err, listener.Close())
 		r.listeners.Delete(addr)
 	}
 	return err
 }
 
-func (r *sniRouter) accept(addr string, listener *sniListener) {
+func (r *sniRouter) accept(listener *sniListener) {
 	for {
 		conn, err := listener.Listener.Accept()
 		if err != nil {
-			current, ok := r.listeners.Load(addr)
+			current, ok := r.listeners.Load(listener.addr)
 			if !ok || current != listener || errors.Is(err, net.ErrClosed) {
 				return
 			}
 			log.Err(err).Msg("failed to accept sni-routed connection")
+			continue
+		}
+		if listener.emptyRoutes() {
+			r.forwardHTTPS(listener, conn)
 			continue
 		}
 		go r.handle(listener, conn)
@@ -125,6 +161,11 @@ func (r *sniRouter) accept(addr string, listener *sniListener) {
 }
 
 func (r *sniRouter) handle(listener *sniListener, conn net.Conn) {
+	if listener.emptyRoutes() {
+		r.forwardHTTPS(listener, conn)
+		return
+	}
+
 	_ = conn.SetReadDeadline(time.Now().Add(clientHelloTimeout))
 	serverName, replayConn, err := readClientHelloServerName(conn)
 	_ = conn.SetReadDeadline(time.Time{})
@@ -132,14 +173,13 @@ func (r *sniRouter) handle(listener *sniListener, conn net.Conn) {
 		r.forwardHTTPS(listener, replayConn)
 		return
 	}
-	route, ok := r.match(listener, serverName)
+	entry, ok := listener.match(serverName, r.ep.findRouteKeyFunc)
 	if !ok {
 		r.forwardHTTPS(listener, replayConn)
 		return
 	}
-	proxy := route.Stream().(nettypes.ConnProxy)
-	if routeTerminatesTLS(route) {
-		terminatedConn, err := r.terminateTLS(route.Task().Context(), replayConn)
+	if entry.terminatesTLS {
+		terminatedConn, err := r.terminateTLS(entry.route.Task().Context(), replayConn)
 		if err != nil {
 			log.Debug().Err(err).Str("server_name", serverName).Msg("failed to terminate tls for tcp route")
 			_ = replayConn.Close()
@@ -147,7 +187,7 @@ func (r *sniRouter) handle(listener *sniListener, conn net.Conn) {
 		}
 		replayConn = terminatedConn
 	}
-	proxy.ProxyConn(route.Task().Context(), replayConn)
+	entry.proxy.ProxyConn(entry.route.Task().Context(), replayConn)
 }
 
 func (r *sniRouter) forwardHTTPS(listener *sniListener, conn net.Conn) {
@@ -163,15 +203,60 @@ func (r *sniRouter) terminateTLS(ctx context.Context, conn net.Conn) (net.Conn, 
 	return tlsConn, err
 }
 
-func (r *sniRouter) match(listener *sniListener, serverName string) (types.StreamRoute, bool) {
-	key, ok := matchSNI(serverName, r.ep.findRouteKeyFunc, func(key string) bool {
-		_, ok := r.routes.Load(sniRouteKey(listener.addr, key))
-		return ok
-	})
+func (l *sniListener) addRoute(route types.StreamRoute, proxy nettypes.ConnProxy, terminatesTLS bool) {
+	key := normalizeSNIName(route.Key())
+	entry := &sniRouteEntry{route: route, proxy: proxy, terminatesTLS: terminatesTLS}
+	for {
+		old := l.routes.Load()
+		if old == nil {
+			old = &sniRouteTable{byKey: map[string]*sniRouteEntry{}}
+		}
+		next := &sniRouteTable{byKey: make(map[string]*sniRouteEntry, len(old.byKey)+1)}
+		maps.Copy(next.byKey, old.byKey)
+		next.byKey[key] = entry
+		if l.routes.CompareAndSwap(old, next) {
+			return
+		}
+		runtime.Gosched()
+	}
+}
+
+func (l *sniListener) delRoute(route types.StreamRoute) {
+	key := normalizeSNIName(route.Key())
+	for {
+		old := l.routes.Load()
+		if old == nil || old.byKey[key] == nil {
+			return
+		}
+		next := &sniRouteTable{byKey: make(map[string]*sniRouteEntry, len(old.byKey)-1)}
+		for k, v := range old.byKey {
+			if k != key {
+				next.byKey[k] = v
+			}
+		}
+		if l.routes.CompareAndSwap(old, next) {
+			return
+		}
+		runtime.Gosched()
+	}
+}
+
+func (l *sniListener) emptyRoutes() bool {
+	table := l.routes.Load()
+	return table == nil || len(table.byKey) == 0
+}
+
+func (l *sniListener) match(serverName string, findKey findRouteKeyFunc) (*sniRouteEntry, bool) {
+	table := l.routes.Load()
+	if table == nil || len(table.byKey) == 0 {
+		return nil, false
+	}
+	key, ok := matchSNI(serverName, findKey, table.exists)
 	if !ok {
 		return nil, false
 	}
-	return r.routes.Load(sniRouteKey(listener.addr, key))
+	entry, ok := table.byKey[normalizeSNIName(key)]
+	return entry, ok
 }
 
 func matchSNI(serverName string, findKey findRouteKeyFunc, exists func(string) bool) (string, bool) {
@@ -201,39 +286,48 @@ func routeTerminatesTLS(route types.StreamRoute) bool {
 	return ok && terminatingRoute.TerminatesTLS()
 }
 
-func (l *sniListener) Accept() (net.Conn, error) {
-	conn, ok := <-l.https
-	if !ok {
-		return nil, net.ErrClosed
+func (l *sniListener) ensureSniffing() {
+	// Keep the shared HTTPS listener on the queue-backed dispatch loop once it is
+	// used so a late-added TCP SNI route cannot be bypassed by an older raw
+	// Accept call that was already blocked on the underlying listener.
+	if l.sniffing.CompareAndSwap(false, true) {
+		go l.router.accept(l)
 	}
-	return conn, nil
+}
+
+func (l *sniListener) Accept() (net.Conn, error) {
+	for {
+		if !l.sniffing.Load() {
+			conn, err := l.Listener.Accept()
+			if err != nil {
+				return nil, err
+			}
+			if l.sniffing.Load() {
+				go l.router.handle(l, conn)
+				continue
+			}
+			return conn, nil
+		}
+		conn, ok := l.queue.pop()
+		if !ok {
+			return nil, net.ErrClosed
+		}
+		return conn, nil
+	}
 }
 
 func (l *sniListener) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.closed {
+	if !l.state.CompareAndSwap(0, 1) {
 		return nil
 	}
-	l.closed = true
 	err := l.Listener.Close()
-	close(l.https)
-	if l.router != nil {
-		l.router.listeners.Delete(l.addr)
-	}
+	l.router.listeners.Delete(l.addr)
+	l.queue.close()
 	return err
 }
 
 func (l *sniListener) forwardHTTPS(conn net.Conn) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.closed {
-		_ = conn.Close()
-		return
-	}
-	select {
-	case l.https <- conn:
-	default:
+	if !l.queue.push(conn) {
 		_ = conn.Close()
 	}
 }
@@ -275,4 +369,159 @@ func readClientHelloServerName(conn net.Conn) (string, net.Conn, error) {
 		return serverName, replayed, nil
 	}
 	return serverName, replayed, err
+}
+
+type sniConnQueue struct {
+	stub    sniConnQueueNode
+	head    atomic.Pointer[sniConnQueueNode]
+	tail    *sniConnQueueNode
+	popMu   sync.Mutex
+	waiting atomic.Bool
+	closed  atomic.Bool
+	pushers atomic.Int64
+	notify  int
+}
+
+type sniConnQueueNode struct {
+	next atomic.Pointer[sniConnQueueNode]
+	conn net.Conn
+}
+
+var sniConnQueueNodePool = sync.Pool{
+	New: func() any { return new(sniConnQueueNode) },
+}
+
+func acquireSNIConnQueueNode(conn net.Conn) *sniConnQueueNode {
+	node := sniConnQueueNodePool.Get().(*sniConnQueueNode)
+	node.next.Store(nil)
+	node.conn = conn
+	return node
+}
+
+func releaseSNIConnQueueNode(node *sniConnQueueNode) {
+	if node == nil {
+		return
+	}
+	node.next.Store(nil)
+	node.conn = nil
+	sniConnQueueNodePool.Put(node)
+}
+
+func (q *sniConnQueue) init() {
+	q.notify = -1
+	q.head.Store(&q.stub)
+	q.tail = &q.stub
+	fd, err := unix.Eventfd(0, unix.EFD_CLOEXEC|unix.EFD_NONBLOCK)
+	if err == nil {
+		q.notify = fd
+	}
+}
+
+func (q *sniConnQueue) push(conn net.Conn) bool {
+	for {
+		if q.closed.Load() {
+			return false
+		}
+		q.pushers.Add(1)
+		if !q.closed.Load() {
+			break
+		}
+		q.pushers.Add(-1)
+	}
+	node := acquireSNIConnQueueNode(conn)
+	prev := q.head.Swap(node)
+	prev.next.Store(node)
+	q.pushers.Add(-1)
+	if q.waiting.Swap(false) {
+		q.wake()
+	}
+	return true
+}
+
+func (q *sniConnQueue) pop() (net.Conn, bool) {
+	q.popMu.Lock()
+	defer q.popMu.Unlock()
+	for {
+		if conn, ok := q.tryPopLocked(); ok {
+			q.waiting.Store(false)
+			return conn, true
+		}
+		if q.closed.Load() {
+			q.waiting.Store(false)
+			return nil, false
+		}
+		q.waiting.Store(true)
+		if conn, ok := q.tryPopLocked(); ok {
+			q.waiting.Store(false)
+			return conn, true
+		}
+		if q.closed.Load() {
+			q.waiting.Store(false)
+			return nil, false
+		}
+		q.wait()
+	}
+}
+
+func (q *sniConnQueue) close() {
+	if q.closed.Swap(true) {
+		return
+	}
+	q.wake()
+	for q.pushers.Load() != 0 {
+		runtime.Gosched()
+	}
+	q.popMu.Lock()
+	defer q.popMu.Unlock()
+	for {
+		conn, ok := q.tryPopLocked()
+		if !ok {
+			break
+		}
+		_ = conn.Close()
+	}
+	if q.notify >= 0 {
+		_ = unix.Close(q.notify)
+		q.notify = -1
+	}
+}
+
+func (q *sniConnQueue) tryPopLocked() (net.Conn, bool) {
+	tail := q.tail
+	next := tail.next.Load()
+	if next == nil {
+		return nil, false
+	}
+	q.tail = next
+	conn := next.conn
+	next.conn = nil
+	if tail != &q.stub {
+		releaseSNIConnQueueNode(tail)
+	}
+	return conn, true
+}
+
+func (q *sniConnQueue) wake() {
+	if q.notify < 0 {
+		return
+	}
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], 1)
+	_, _ = unix.Write(q.notify, buf[:])
+}
+
+func (q *sniConnQueue) wait() {
+	if q.notify < 0 {
+		time.Sleep(50 * time.Microsecond)
+		return
+	}
+	pollFds := []unix.PollFd{{Fd: int32(q.notify), Events: unix.POLLIN}}
+	_, _ = unix.Poll(pollFds, -1)
+	var buf [8]byte
+	for {
+		_, err := unix.Read(q.notify, buf[:])
+		if err != nil {
+			return
+		}
+	}
 }
