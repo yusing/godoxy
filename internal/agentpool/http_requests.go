@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/valyala/fasthttp"
 	agentPkg "github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func (agent *Agent) Do(ctx context.Context, method, endpoint string, body io.Reader) (*http.Response, error) {
@@ -63,7 +63,7 @@ func (agent *Agent) DoHealthCheck(timeout time.Duration, query string) (ret Heal
 		ret.Detail = fmt.Sprintf("HTTP %d %s", status, resp.Body())
 		return ret, nil
 	} else {
-		err = sonic.Unmarshal(resp.Body(), &ret)
+		err = strutils.UnmarshalJSON(resp.Body(), &ret)
 		if err != nil {
 			return ret, err
 		}

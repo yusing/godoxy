@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bytedance/sonic"
 	gevents "github.com/yusing/goutils/events"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type WakeEvent struct {
@@ -26,7 +26,7 @@ const (
 )
 
 func writeSSE(w io.Writer, v any) error {
-	data, err := sonic.Marshal(v)
+	data, err := strutils.MarshalJSON(v)
 	if err != nil {
 		return err
 	}

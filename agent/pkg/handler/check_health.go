@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	healthcheck "github.com/yusing/godoxy/internal/health/check"
 	"github.com/yusing/godoxy/internal/types"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	sonic.ConfigDefault.NewEncoder(w).Encode(result)
+	strutils.NewJSONEncoder(w).Encode(result)
 }
 
 func parseMsOrDefault(msStr string) time.Duration {

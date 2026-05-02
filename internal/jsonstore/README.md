@@ -261,11 +261,10 @@ func loadNS[T store](ns namespace) T {
     }
     defer file.Close()
 
-    if err := sonic.ConfigDefault.NewDecoder(file).Decode(&store); err != nil {
+    if err := strutils.NewJSONDecoder(file).Decode(&store); err != nil {
         log.Err(err).Msg("failed to decode store")
     }
 
-    stores[ns] = store
     return store
 }
 ```
@@ -286,7 +285,7 @@ func init() {
 func save() error {
     for ns, store := range stores {
         path := filepath.Join(storesPath, string(ns)+".json")
-        if err := serialization.SaveJSON(path, &store, 0644); err != nil {
+        if err := serialization.SaveFile(path, &store, 0o644, strutils.MarshalJSON); err != nil {
             return err
         }
     }
@@ -316,7 +315,7 @@ type MapStore[VT any] struct {
 
 ```go
 func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
-    return sonic.Marshal(xsync.ToPlainMap(s.Map))
+    return strutils.MarshalJSON(xsync.ToPlainMap(s.Map))
 }
 ```
 
@@ -325,7 +324,7 @@ func (s MapStore[VT]) MarshalJSON() ([]byte, error) {
 ```go
 func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
     tmp := make(map[string]VT)
-    if err := sonic.Unmarshal(data, &tmp); err != nil {
+    if err := strutils.UnmarshalJSON(data, &tmp); err != nil {
         return err
     }
     s.Map = xsync.NewMap[string, VT](xsync.WithPresize(len(tmp)))
@@ -349,7 +348,7 @@ The jsonstore package integrates with:
 Errors are logged but don't prevent store usage:
 
 ```go
-if err := sonic.Unmarshal(data, &tmp); err != nil {
+if err := strutils.UnmarshalJSON(data, &tmp); err != nil {
     log.Err(err).
         Str("path", path).
         Msg("failed to load store")
@@ -360,5 +359,5 @@ if err := sonic.Unmarshal(data, &tmp); err != nil {
 
 - Uses `xsync.Map` for lock-free reads
 - Presizes maps based on input data
-- Sonic library for fast JSON parsing
+- JSON via `github.com/yusing/goutils/strings` helpers (in godoxy, sonic is registered as the backend from `internal/serialization`)
 - Background save on program exit (non-blocking)

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bytedance/sonic"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 )
 
@@ -175,7 +175,7 @@ func (s HealthStatus) MarshalJSON() ([]byte, error) {
 
 func (s *HealthStatus) UnmarshalJSON(data []byte) error {
 	var v string
-	if err := sonic.Unmarshal(data, &v); err != nil {
+	if err := strutils.UnmarshalJSON(data, &v); err != nil {
 		return fmt.Errorf("failed to unmarshal health status: %w", err)
 	}
 
@@ -191,7 +191,7 @@ func (jsonRepr *HealthJSONRepr) MarshalJSON() ([]byte, error) {
 	if url == "http://:0" {
 		url = ""
 	}
-	return sonic.Marshal(HealthJSON{
+	return strutils.MarshalJSON(HealthJSON{
 		Name:     jsonRepr.Name,
 		Config:   jsonRepr.Config,
 		Started:  jsonRepr.Started.Unix(),

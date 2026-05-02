@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type NodeConfig struct {
@@ -82,7 +82,7 @@ func (n *Node) String() string {
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return strutils.MarshalJSON(map[string]any{
 		"name": n.name,
 		"id":   n.id,
 	})

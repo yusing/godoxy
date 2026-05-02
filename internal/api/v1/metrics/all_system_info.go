@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/cenkalti/backoff/v5"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -21,6 +20,7 @@ import (
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 )
 
@@ -241,7 +241,7 @@ func marshalSystemInfo(ws *websocket.Manager, agentName string, systemInfo any) 
 		defer bufFromPool.release(bufFromPool.RawMessage)
 	}
 
-	err := sonic.ConfigDefault.NewEncoder(buf).Encode(map[string]any{
+	err := strutils.NewJSONEncoder(buf).Encode(map[string]any{
 		agentName: systemInfo,
 	})
 	if err != nil {

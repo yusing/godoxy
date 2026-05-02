@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	httputils "github.com/yusing/goutils/http"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type DockerHealthcheckState struct {
@@ -107,7 +107,7 @@ func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err 
 	}
 
 	var state container.State
-	err = sonic.Unmarshal(body, &state)
+	err = strutils.UnmarshalJSON(body, &state)
 	release(body)
 	if err != nil {
 		return false, err

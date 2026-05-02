@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bytedance/sonic"
 	route "github.com/yusing/godoxy/internal/route/types"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type Config struct {
@@ -53,7 +53,7 @@ func proxyConfigFromHeaders(h http.Header) (cfg Config, err error) {
 		return cfg, err
 	}
 
-	err = sonic.Unmarshal(cfgJSON, &cfg.HTTPConfig)
+	err = strutils.UnmarshalJSON(cfgJSON, &cfg.HTTPConfig)
 	return cfg, err
 }
 
@@ -67,7 +67,7 @@ func (cfg *Config) SetAgentProxyConfigHeadersLegacy(h http.Header) {
 func (cfg *Config) SetAgentProxyConfigHeaders(h http.Header) {
 	h.Set(HeaderXProxyHost, cfg.Host)
 	h.Set(HeaderXProxyScheme, string(cfg.Scheme))
-	cfgJSON, _ := sonic.Marshal(cfg.HTTPConfig)
+	cfgJSON, _ := strutils.MarshalJSON(cfg.HTTPConfig)
 	cfgBase64 := base64.StdEncoding.EncodeToString(cfgJSON)
 	h.Set(HeaderXProxyConfig, cfgBase64)
 }

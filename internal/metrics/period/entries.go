@@ -1,10 +1,9 @@
 package period
 
 import (
-	"encoding/json"
 	"time"
 
-	"github.com/bytedance/sonic"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type Entries[T any] struct {
@@ -75,7 +74,7 @@ type entriesJSON[T any] struct {
 }
 
 func (e *Entries[T]) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(entriesJSON[T]{
+	return strutils.MarshalJSON(entriesJSON[T]{
 		Entries:  e.Get(),
 		Interval: e.interval,
 	})
@@ -84,7 +83,7 @@ func (e *Entries[T]) MarshalJSON() ([]byte, error) {
 func (e *Entries[T]) UnmarshalJSON(data []byte) error {
 	var v entriesJSON[T]
 	v.Entries = make([]T, 0, maxEntries)
-	if err := json.Unmarshal(data, &v); err != nil {
+	if err := strutils.UnmarshalJSON(data, &v); err != nil {
 		return err
 	}
 	if len(v.Entries) == 0 {

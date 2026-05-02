@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type DockerProviderConfig struct {
@@ -33,7 +33,7 @@ type DockerTLSConfig struct {
 } // @name DockerTLSConfig
 
 func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(cfg.URL)
+	return strutils.MarshalJSON(cfg.URL)
 }
 
 func (cfg *DockerProviderConfig) Parse(value string) error {

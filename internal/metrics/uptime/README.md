@@ -220,7 +220,7 @@ No explicit configuration. The poller uses period package defaults:
 | Dependency                               | Purpose          |
 | ---------------------------------------- | ---------------- |
 | `github.com/lithammer/fuzzysearch/fuzzy` | Keyword matching |
-| `github.com/bytedance/sonic`             | JSON marshaling  |
+| `github.com/yusing/goutils/strings`      | JSON marshaling (backend: sonic via `internal/serialization`) |
 
 ### Integration Points
 

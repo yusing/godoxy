@@ -6,12 +6,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bytedance/sonic"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
+	strutils "github.com/yusing/goutils/strings"
 	expect "github.com/yusing/goutils/testing"
+
+	_ "github.com/yusing/godoxy/internal/serialization"
 )
 
 // Create test data
@@ -81,12 +83,12 @@ var (
 
 func TestSystemInfo(t *testing.T) {
 	// Test marshaling
-	data, err := sonic.Marshal(testInfo)
+	data, err := strutils.MarshalJSON(testInfo)
 	expect.NoError(t, err)
 
 	// Test unmarshaling back
 	var decoded SystemInfo
-	err = sonic.Unmarshal(data, &decoded)
+	err = strutils.UnmarshalJSON(data, &decoded)
 	expect.NoError(t, err)
 
 	// Compare original and decoded
@@ -138,7 +140,7 @@ func TestSerialize(t *testing.T) {
 	for _, query := range allQueries {
 		t.Run(string(query), func(t *testing.T) {
 			_, result := aggregate(entries, url.Values{"aggregate": []string{string(query)}})
-			s, err := sonic.Marshal(result)
+			s, err := strutils.MarshalJSON(result)
 			expect.NoError(t, err)
 			var v []map[string]any
 			expect.NoError(t, json.Unmarshal(s, &v))

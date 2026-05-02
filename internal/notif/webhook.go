@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type Webhook struct {
@@ -101,7 +101,7 @@ func (webhook *Webhook) fmtError(respBody io.Reader) error {
 }
 
 func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
-	title, err := sonic.Marshal(logMsg.Title)
+	title, err := strutils.MarshalJSON(logMsg.Title)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 		return nil, err
 	}
 	if webhook.MIMEType == MimeTypeJSON {
-		message, err = sonic.Marshal(string(message))
+		message, err = strutils.MarshalJSON(string(message))
 		if err != nil {
 			return nil, err
 		}
@@ -149,5 +149,5 @@ func validateJSONPayload(payload string) bool {
 		"$color", "",
 	)
 	payload = replacer.Replace(payload)
-	return sonic.Valid([]byte(payload))
+	return strutils.ValidJSON([]byte(payload))
 }

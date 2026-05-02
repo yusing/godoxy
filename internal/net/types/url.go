@@ -3,7 +3,7 @@ package nettypes
 import (
 	urlPkg "net/url"
 
-	"github.com/bytedance/sonic"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type URL struct {
@@ -47,7 +47,7 @@ func (u *URL) MarshalJSON() (text []byte, err error) {
 	if u == nil {
 		return []byte("null"), nil
 	}
-	return sonic.Marshal(u.URL.String())
+	return strutils.MarshalJSON(u.URL.String())
 }
 
 func (u *URL) Equals(other *URL) bool {

@@ -97,7 +97,7 @@ No explicit configuration. Pollers respect `common.MetricsDisable*` flags:
 
 - `github.com/shirou/gopsutil/v4` - System metrics collection
 - `github.com/puzpuzpuz/xsync/v4` - Atomic value storage
-- `github.com/bytedance/sonic` - JSON serialization
+- `github.com/yusing/goutils/strings` - JSON serialization helpers (backend: sonic via `internal/serialization`)
 
 ## Observability
 

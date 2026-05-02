@@ -294,7 +294,7 @@ None.
 | ------------------------------------------ | ------------------------ |
 | `github.com/gin-gonic/gin`                 | HTTP handling            |
 | `github.com/yusing/goutils/http/websocket` | WebSocket streaming      |
-| `github.com/bytedance/sonic`               | JSON serialization       |
+| `github.com/yusing/goutils/strings`        | JSON serialization (backend: sonic via `internal/serialization`) |
 | `github.com/yusing/goutils/task`           | Lifetime management      |
 | `github.com/puzpuzpuz/xsync/v4`            | Concurrent value storage |
 

@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/handler"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
+	_ "github.com/yusing/godoxy/internal/serialization"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"

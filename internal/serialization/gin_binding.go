@@ -3,8 +3,8 @@ package serialization
 import (
 	"net/http"
 
-	"github.com/bytedance/sonic"
 	"github.com/goccy/go-yaml"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
@@ -18,7 +18,7 @@ func (b GinJSONBinding) Name() string {
 
 func (b GinJSONBinding) Bind(req *http.Request, obj any) error {
 	m := make(map[string]any)
-	if err := sonic.ConfigDefault.NewDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {
+	if err := strutils.NewJSONDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {
 		return err
 	}
 	return MapUnmarshalValidate(m, obj)

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bytedance/sonic"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const endpointLogs = "/api/v2/log/main"
@@ -45,7 +45,7 @@ func (l *LogEntry) Level() string {
 }
 
 func (l *LogEntry) MarshalJSON() ([]byte, error) {
-	return sonic.Marshal(map[string]any{
+	return strutils.MarshalJSON(map[string]any{
 		"id":        l.ID,
 		"timestamp": l.Timestamp,
 		"level":     l.Level(),

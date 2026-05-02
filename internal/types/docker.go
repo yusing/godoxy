@@ -1,11 +1,11 @@
 package types
 
 import (
-	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
 	"github.com/yusing/godoxy/internal/agentpool"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
@@ -69,5 +69,5 @@ func (e *ContainerError) Unwrap() error {
 
 func (e *ContainerError) MarshalJSON() ([]byte, error) {
 	err := e.errs.Error().(gperr.PlainError)
-	return sonic.Marshal(string(err.Plain()))
+	return strutils.MarshalJSON(string(err.Plain()))
 }

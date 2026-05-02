@@ -9,11 +9,11 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/internal/common"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 //go:embed test_data/sample_headers.json
@@ -25,7 +25,7 @@ func init() {
 		return
 	}
 	tmp := map[string]string{}
-	err := sonic.Unmarshal(testHeadersRaw, &tmp)
+	err := strutils.UnmarshalJSON(testHeadersRaw, &tmp)
 	if err != nil {
 		panic(err)
 	}

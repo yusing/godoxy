@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
@@ -70,7 +70,7 @@ func (f FieldsBody) Format(format LogFormat) ([]byte, error) {
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
-		return sonic.Marshal(f)
+		return strutils.MarshalJSON(f)
 	}
 	return f.Format(LogFormatMarkdown)
 }
@@ -88,7 +88,7 @@ func (l ListBody) Format(format LogFormat) ([]byte, error) {
 		}
 		return msg.Bytes(), nil
 	case LogFormatRawJSON:
-		return sonic.Marshal(l)
+		return strutils.MarshalJSON(l)
 	}
 	return l.Format(LogFormatMarkdown)
 }
@@ -98,7 +98,7 @@ func (m MessageBody) Format(format LogFormat) ([]byte, error) {
 	case LogFormatPlain, LogFormatMarkdown:
 		return []byte(m), nil
 	case LogFormatRawJSON:
-		return sonic.Marshal(m)
+		return strutils.MarshalJSON(m)
 	}
 	return []byte(m), nil
 }
@@ -106,7 +106,7 @@ func (m MessageBody) Format(format LogFormat) ([]byte, error) {
 func (m MessageBodyBytes) Format(format LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
-		return sonic.Marshal(string(m))
+		return strutils.MarshalJSON(string(m))
 	default:
 	}
 	return m, nil
@@ -115,7 +115,7 @@ func (m MessageBodyBytes) Format(format LogFormat) ([]byte, error) {
 func (e errorBody) Format(format LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
-		return sonic.Marshal(e.Error)
+		return strutils.MarshalJSON(e.Error)
 	case LogFormatPlain:
 		return gperr.Plain(e.Error), nil
 	case LogFormatMarkdown:

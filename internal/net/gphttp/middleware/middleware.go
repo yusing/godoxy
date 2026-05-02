@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/serialization"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const (
@@ -162,7 +162,7 @@ func (m *Middleware) MarshalJSON() ([]byte, error) {
 		commonOptions
 		any
 	}
-	return sonic.MarshalIndent(map[string]any{
+	return strutils.MarshalJSONIndent(map[string]any{
 		"name": m.name,
 		"options": allOptions{
 			commonOptions: m.commonOptions,

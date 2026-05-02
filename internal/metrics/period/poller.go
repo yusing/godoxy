@@ -2,16 +2,15 @@ package period
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
@@ -81,7 +80,7 @@ func (p *Poller[T, AggregateT]) load() error {
 		return nil
 	}
 
-	if err := json.Unmarshal(content, p.period); err != nil {
+	if err := strutils.UnmarshalJSON(content, p.period); err != nil {
 		return err
 	}
 	// Validate and fix intervals after loading to ensure data integrity.
@@ -97,7 +96,7 @@ func (p *Poller[T, AggregateT]) save() error {
 	}
 	defer f.Close()
 
-	err = sonic.ConfigDefault.NewEncoder(f).Encode(p.period)
+	err = strutils.NewJSONEncoder(f).Encode(p.period)
 	if err != nil {
 		return err
 	}

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/bytedance/sonic"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 //nolint:recvcheck
@@ -59,7 +59,7 @@ func (s Scheme) MarshalJSON() ([]byte, error) {
 
 func (s *Scheme) UnmarshalJSON(data []byte) error {
 	var v string
-	if err := sonic.Unmarshal(data, &v); err != nil {
+	if err := strutils.UnmarshalJSON(data, &v); err != nil {
 		return err
 	}
 	return s.Parse(v)

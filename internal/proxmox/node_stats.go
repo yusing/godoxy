@@ -3,11 +3,12 @@ package proxmox
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"time"
+
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type NodeStats struct {
@@ -121,7 +122,7 @@ func (n *Node) writeNodeStatsLine(ctx context.Context, w io.Writer) error {
 		LoadAvg15m:    node.LoadAvg[2],
 	}
 
-	err = json.NewEncoder(w).Encode(nodeStats)
+	err = strutils.NewJSONEncoder(w).Encode(nodeStats)
 	return err
 }
 

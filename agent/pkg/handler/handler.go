@@ -3,13 +3,13 @@ package handler
 import (
 	"net/http"
 
-	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/version"
 )
 
@@ -51,7 +51,7 @@ func NewAgentHandler() http.Handler {
 			Runtime: env.Runtime,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		sonic.ConfigDefault.NewEncoder(w).Encode(agentInfo)
+		strutils.NewJSONEncoder(w).Encode(agentInfo)
 	})
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
 	mux.HandleEndpoint("GET", agent.EndpointSystemInfo, metricsHandler.ServeHTTP)

@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/agent/pkg/agent/common"
@@ -23,6 +22,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/certs"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
+	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/version"
 )
 
@@ -366,7 +366,7 @@ func (cfg *AgentConfig) fetchJSON(ctx context.Context, endpoint string, out any)
 		return resp.StatusCode, nil
 	}
 
-	err = sonic.Unmarshal(data, out)
+	err = strutils.UnmarshalJSON(data, out)
 	if err != nil {
 		return 0, err
 	}

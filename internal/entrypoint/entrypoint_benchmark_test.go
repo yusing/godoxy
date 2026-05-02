@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yusing/godoxy/internal/common"
 	. "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
 	routeTypes "github.com/yusing/godoxy/internal/route/types"
@@ -81,7 +80,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		Alias:       "test",
 		Scheme:      routeTypes.SchemeHTTP,
 		Host:        host,
-		Port:        route.Port{Listening: 1000, Proxy: portInt},
+		Port:        route.Port{Listening: 18080, Proxy: portInt},
 		HealthCheck: types.HealthCheckConfig{Disable: true},
 	})
 
@@ -90,7 +89,7 @@ func BenchmarkEntrypointReal(b *testing.B) {
 
 	var w noopResponseWriter
 
-	server, ok := ep.GetServer(":1000")
+	server, ok := ep.GetServer(":18080")
 	if !ok {
 		b.Fatal("server not found")
 	}
@@ -123,7 +122,8 @@ func BenchmarkEntrypoint(b *testing.B) {
 		Scheme: routeTypes.SchemeHTTP,
 		Host:   "localhost",
 		Port: route.Port{
-			Proxy: 8080,
+			Listening: 18080,
+			Proxy:     8080,
 		},
 		HealthCheck: types.HealthCheckConfig{
 			Disable: true,
@@ -137,7 +137,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 
 	var w noopResponseWriter
 
-	server, ok := ep.GetServer(common.ProxyHTTPAddr)
+	server, ok := ep.GetServer(":18080")
 	if !ok {
 		b.Fatal("server not found")
 	}

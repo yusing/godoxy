@@ -222,7 +222,8 @@ autocert:
 - `github.com/goccy/go-yaml` - YAML parsing
 - `github.com/go-playground/validator/v10` - Validation
 - `github.com/puzpuzpuz/xsync/v4` - Type cache
-- `github.com/bytedance/sonic` - JSON operations
+- `github.com/yusing/goutils/strings` - Pluggable JSON marshal/unmarshal/streaming API used across godoxy
+- `github.com/bytedance/sonic` - Default JSON backend for that API (wired in this package’s `init`)
 
 ### Internal Dependencies
 

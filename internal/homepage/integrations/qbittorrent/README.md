@@ -223,5 +223,4 @@ if resp.StatusCode != http.StatusOK {
 ## Related Packages
 
 - `internal/homepage/widgets` - Widget framework and interface
-- `github.com/bytedance/sonic` - JSON serialization
-- `github.com/yusing/goutils/strings` - String utilities for formatting
+- `github.com/yusing/goutils/strings` - String utilities and JSON helpers (`MarshalJSON`, `NewJSONDecoder`; backend: sonic via `internal/serialization`)
