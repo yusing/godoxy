@@ -1,8 +1,10 @@
 # AGENTS.md
 
-## Repo Map: Proxy / Route Debugging
+## Repo Map
 
-Start from these anchors before broad repo search:
+### Proxy / route debugging
+
+Anchors before broad repo search:
 
 - Route lifecycle/finalization: `internal/route/route.go`
 - Reverse proxy route construction/start: `internal/route/reverse_proxy.go`
@@ -13,28 +15,43 @@ Start from these anchors before broad repo search:
 - Response buffering/trailers used by rules: `goutils/http/response_modifier.go`
 - Agent proxy headers/handler: `agent/pkg/agentproxy/config.go`, `agent/pkg/handler/proxy_http.go`
 
-Module boundaries matter: root, `agent/`, and `goutils/` are separate Go modules; run scoped tests from the owning module directory.
+Root, `agent/`, `goutils/` = separate Go modules; run scoped tests from owning module dir.
+
+### Wiki
+
+- MDX: `webui/wiki/content/docs/` — **godoxy/** user/guide, **impl/** package map (`impl/index.mdx`).
+- Fumadocs `defineDocs` + collections: `webui/source.config.ts`; main Vite app content path.
+- In-app docs: `/docs`; `webui/src/lib/wiki/`, `webui/src/components/wiki/`.
+- Standalone wiki: `webui/wiki/` — docs-only layout, OG/search.
+- Impl wiki: `docs/impl` - synced from package READMEs
+
+### Web frontend (`webui/`)
+
+- Vite, TanStack Router/Start — `webui/src/router.tsx`, `webui/src/routes/`, generated `routeTree.gen.ts`.
+- API: generated `webui/src/lib/api.ts`; CSRF/session in `webui/src/lib/`.
+- `webui/src/types/godoxy/` mirrors backend config/providers — bump on RPC/schema change. `*/schema.json` generated, no edit.
+- Config editor: `webui/src/components/config_editor/`, `sections.ts`; CodeMirror/yaml/rules `webui/src/lib/codemirror/`.
 
 ## Documentation
 
-Update package level `README.md`, wiki and webui types after making significant changes.
+Significant change → refresh package `README.md`, wiki, webui types. Skip for ephemeral tasks (debug, repro).
 
 ## Go Patterns
 
-1. `internal/task/task.go` for lifetime management:
-   - `task.RootTask()` for background operations
-   - `parent.Subtask()` for nested tasks
-   - `OnFinished()` and `OnCancel()` callbacks for cleanup
-2. `gperr "goutils/errs"` to build pretty nested errors:
-   - `gperr.Multiline()` for multiple operation attempts
-   - `gperr.NewBuilder()` to collect errors
-   - `gperr.NewGroup() + group.Go()` to collect errors of multiple concurrent operations
-   - `gperr.PrependSubject()` to prepend subject to errors
-3. `github.com/puzpuzpuz/xsync/v4` for lock-free thread safe maps
-4. `goutils/synk` to retrieve and put byte buffer
+1. `internal/task/task.go` lifetime:
+   - `task.RootTask()` background ops
+   - `parent.Subtask()` nesting
+   - `OnFinished()`, `OnCancel()` cleanup
+2. `gperr "goutils/errs"` nested errors:
+   - `gperr.Multiline()` multi attempts
+   - `gperr.NewBuilder()` collect
+   - `gperr.NewGroup() + group.Go()` concurrent collect
+   - `gperr.PrependSubject()` prepend subject
+3. `github.com/puzpuzpuz/xsync/v4` lock-free concurrent maps
+4. `goutils/synk` byte buffer get/put
 
 ## Testing
 
-- Prefer scoped tests
-- Prefer `testify`
-- Use `-ldflags="-checklinkname=0"`
+- Scoped tests preferred
+- `testify`
+- `-ldflags="-checklinkname=0"`
