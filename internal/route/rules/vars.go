@@ -16,8 +16,16 @@ import (
 // TODO: remove middleware/vars.go and use this instead
 
 type (
-	reqVarGetter  func(*http.Request) string
+	reqVarGetter func(*http.Request) string
+	reqVar       struct {
+		help Help
+		get  reqVarGetter
+	}
 	respVarGetter func(*httputils.ResponseModifier) string
+	respVar       struct {
+		help Help
+		get  respVarGetter
+	}
 )
 
 var reVar = regexp.MustCompile(`\$[\w_]+`)
@@ -163,9 +171,9 @@ func ExpandVars(w *httputils.ResponseModifier, req *http.Request, src string, ds
 					return phase, err
 				}
 			} else if getter, ok := staticReqVarSubsMap[name]; ok { // always available
-				actual = getter(req)
+				actual = getter.get(req)
 			} else if getter, ok := staticRespVarSubsMap[name]; ok { // post response
-				actual = getter(w)
+				actual = getter.get(w)
 				phase |= PhasePost
 			} else {
 				return phase, ErrUnexpectedVar.Subject(name)

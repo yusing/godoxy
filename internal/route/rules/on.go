@@ -269,8 +269,15 @@ var checkers = map[string]struct {
 	OnProto: {
 		help: Help{
 			command: OnProto,
+			description: makeLines(
+				"Match inbound scheme or protocol family.",
+				"http/https match cleartext vs TLS regardless of HTTP version.",
+				"h1 matches cleartext HTTP/1.x; h2 matches TLS HTTP/2; h2c matches cleartext HTTP/2; h3 matches TLS HTTP/3.",
+				helpExample(OnProto, "https"),
+				helpExample(OnProto, "h2"),
+			),
 			args: map[string]string{
-				"proto": "the http protocol (http, https, h1, h2, h2c, h3)",
+				"proto": "http, https, h1 (cleartext HTTP/1.x), h2 (TLS HTTP/2), h2c (cleartext HTTP/2), or h3 (TLS HTTP/3)",
 			},
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -318,8 +325,13 @@ var checkers = map[string]struct {
 	OnMethod: {
 		help: Help{
 			command: OnMethod,
+			description: makeLines(
+				"Match inbound HTTP method (verb).",
+				helpExample(OnMethod, "GET"),
+				helpExample(OnMethod, "OPTIONS"),
+			),
 			args: map[string]string{
-				"method": "the http method",
+				"method": "canonical method name such as GET, HEAD, POST, PUT, PATCH, DELETE, CONNECT, OPTIONS, TRACE",
 			},
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -390,8 +402,17 @@ var checkers = map[string]struct {
 	OnRemote: {
 		help: Help{
 			command: OnRemote,
+			description: makeLines(
+				"Match remote client IP against an address or CIDR.",
+				"Bare IPv4 input is treated as /32 for an exact host match.",
+				"Use /128 for an exact IPv6 host; bare IPv6 input expands to /32, and wider prefixes match the whole subnet.",
+				helpExample(OnRemote, "203.0.113.42"),
+				helpExample(OnRemote, "192.168.0.0/16"),
+				helpExample(OnRemote, "2001:db8::1/128"),
+				helpExample(OnRemote, "2001:db8::/32"),
+			),
 			args: map[string]string{
-				"ip|cidr": "the remote ip or cidr",
+				"ip|cidr": "IPv4/IPv6 CIDR, or a bare IPv4 address for /32 exact match",
 			},
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -423,9 +444,14 @@ var checkers = map[string]struct {
 	OnBasicAuth: {
 		help: Help{
 			command: OnBasicAuth,
+			description: makeLines(
+				"Match HTTP Basic Authorization on the inbound request.",
+				"Decoded credentials must match the username and bcrypt password hash configured in the rule.",
+				helpExample(OnBasicAuth, "<user>", "<bcrypt-hash>"),
+			),
 			args: map[string]string{
-				"username": "the username",
-				"password": "the password encrypted with bcrypt",
+				"username": "expected plain-text username",
+				"password": "bcrypt cost hash corresponding to that user",
 			},
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -467,7 +493,8 @@ var checkers = map[string]struct {
 		help: Help{
 			command: OnStatus,
 			description: makeLines(
-				"Supported formats are:",
+				"Match current post-phase response status (exact, range, or class).",
+				"Evaluated after upstream responds; earlier post-phase rewrites can change the status seen here.",
 				helpExample(OnStatus, "<status>"),
 				helpExample(OnStatus, "<status>-<status>"),
 				helpExample(OnStatus, "1xx"),
@@ -477,7 +504,7 @@ var checkers = map[string]struct {
 				helpExample(OnStatus, "5xx"),
 			),
 			args: map[string]string{
-				"status": "the status code range",
+				"status": "code (404), inclusive range (502-504), or class (4xx)",
 			},
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {

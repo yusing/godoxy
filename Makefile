@@ -94,7 +94,7 @@ ifeq ($(docker), 1)
 endif
 
 .PHONY: benchmark build build-cli build-webui ci-test cloc debug debug-list-containers \
-	dev docker-build-test ensure-webui-dist gen-api-types gen-cli gen-swagger help \
+	dev docker-build-test ensure-webui-dist gen-api-types gen-cli gen-rules-cheatsheet gen-swagger help \
 	minify mod-tidy modernize push-github rapid-crash run tcp-echo-test test \
 	update-deps update-go update-wiki
 
@@ -196,10 +196,14 @@ minify:
 	fi
 
 build-webui:
+	$(MAKE) gen-rules-cheatsheet && \
 	cd "$(WEBUI_DIR)" && \
 	bun i --frozen-lockfile && \
 	$(MAKE) gen-schema && \
 	node ./node_modules/vite/bin/vite.js build
+
+gen-rules-cheatsheet:
+	go run -ldflags='$(LDFLAGS)' ./cmd/rules-cheatsheet-gen -out "$(WEBUI_DIR)/src/generated/rules-cheatsheet.json"
 
 build: ensure-webui-dist
 	@if [ "${godoxy}" = "1" ]; then \

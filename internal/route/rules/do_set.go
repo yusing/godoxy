@@ -44,9 +44,13 @@ var modFields = map[string]struct {
 	FieldHeader: {
 		help: Help{
 			command: FieldHeader,
+			description: makeLines(
+				"Rewrite request headers forwarded upstream.",
+				"Set replaces all values for a name; add appends another value; remove deletes the header.",
+			),
 			args: map[string]string{
-				"key":   "the header key",
-				"value": "the header template",
+				"key":   "HTTP header field name",
+				"value": "template evaluated to produce new header values",
 			},
 		},
 		validate: validatePreRequestKVTemplate,
@@ -79,9 +83,13 @@ var modFields = map[string]struct {
 	FieldResponseHeader: {
 		help: Help{
 			command: FieldResponseHeader,
+			description: makeLines(
+				"Rewrite response headers after upstream returns.",
+				"Applied in post phase to the outbound response envelope.",
+			),
 			args: map[string]string{
-				"key":   "the response header key",
-				"value": "the response header template",
+				"key":   "HTTP response header field name",
+				"value": "template evaluated to produce header values returned to clients",
 			},
 		},
 		validate: validatePostResponseKVTemplate,
@@ -114,9 +122,13 @@ var modFields = map[string]struct {
 	FieldQuery: {
 		help: Help{
 			command: FieldQuery,
+			description: makeLines(
+				"Rewrite query parameters on the forwarded request.",
+				"Uses Set semantics for overwrite and Add semantics to append duplicates.",
+			),
 			args: map[string]string{
-				"key":   "the query key",
-				"value": "the query template",
+				"key":   "query parameter name",
+				"value": "template evaluated to the parameter value passed upstream",
 			},
 		},
 		validate: validatePreRequestKVTemplate,
@@ -155,9 +167,14 @@ var modFields = map[string]struct {
 	FieldCookie: {
 		help: Help{
 			command: FieldCookie,
+			description: makeLines(
+				"Rewrite cookies attached to the forwarded request.",
+				"Set updates an existing cookie or creates one with that name.",
+				"Add appends another Cookie entry carrying the same or a new name.",
+			),
 			args: map[string]string{
-				"key":   "the cookie key",
-				"value": "the cookie value",
+				"key":   "cookie name",
+				"value": "template evaluated to the cookie value forwarded upstream",
 			},
 		},
 		validate: validatePreRequestKVTemplate,

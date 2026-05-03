@@ -476,6 +476,7 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandLog,
 			description: makeLines(
+				"Write a log line from a template.",
 				"The template supports the following variables:",
 				helpListItem("Request", "the request object"),
 				helpListItem("Response", "the response object"),
@@ -543,6 +544,7 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandNotify,
 			description: makeLines(
+				"Send a notification from templates.",
 				"The template supports the following variables:",
 				helpListItem("Request", "the request object"),
 				helpListItem("Response", "the response object"),
