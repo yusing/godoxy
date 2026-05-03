@@ -1,20 +1,15 @@
 compose.yml
-*.compose.yml
 !dev.compose.yml
 
-config
-certs
-config*/
-!schemas/**
-certs*/
 bin/
-error_pages/
-!examples/error_pages/
-profiles/
-data/
-debug/
 
-logs/
+./config/
+./certs/
+./error_pages/
+./profiles/
+./data/
+./debug/
+./logs/
 
 .vscode/settings.json
 
@@ -28,10 +23,8 @@ mtrace.json
 .env
 *.env
 .cursor/
-test.Dockerfile
 
-!agent.compose.yml
-!agent/pkg/**
+
 dev-data/
 
 RELEASE_NOTES.md
