@@ -34,6 +34,15 @@ func TestHTTPConfigDeserialize(t *testing.T) {
 				ResponseHeaderTimeout: 1 * time.Second,
 			},
 		},
+		{
+			name: "max_conns_per_host",
+			input: map[string]any{
+				"max_conns_per_host": "256",
+			},
+			expected: route.HTTPConfig{
+				MaxConnsPerHost: 256,
+			},
+		},
 	}
 
 	for _, tt := range tests {

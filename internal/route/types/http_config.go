@@ -15,6 +15,7 @@ import (
 type HTTPConfig struct {
 	NoTLSVerify           bool          `json:"no_tls_verify,omitempty"`
 	ResponseHeaderTimeout time.Duration `json:"response_header_timeout,omitempty" swaggertype:"primitive,integer"`
+	MaxConnsPerHost       int           `json:"max_conns_per_host,omitempty"`
 	DisableCompression    bool          `json:"disable_compression,omitempty"`
 
 	// SSL/TLS proxy options (nginx-like)

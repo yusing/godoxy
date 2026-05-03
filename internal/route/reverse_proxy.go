@@ -54,6 +54,9 @@ func NewReverseProxyRoute(base *Route) (*ReverseProxyRoute, error) {
 		if httpConfig.ResponseHeaderTimeout > 0 {
 			trans.ResponseHeaderTimeout = httpConfig.ResponseHeaderTimeout
 		}
+		if httpConfig.MaxConnsPerHost > 0 {
+			trans.MaxConnsPerHost = httpConfig.MaxConnsPerHost
+		}
 		if httpConfig.DisableCompression {
 			trans.DisableCompression = true
 		}
