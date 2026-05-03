@@ -203,7 +203,7 @@ flowchart LR
     A[Request] --> B[Route Matching]
     B --> C{Route Type}
     C -->|HTTP| D[Middleware]
-    C -->|FileServer| E[File System]
+    C -->|FileServer| E[File System or embedded fs.FS]
     C -->|Stream| F[TCP/UDP Proxy]
 
     D --> G[Rules Engine]
@@ -212,6 +212,9 @@ flowchart LR
     E --> I
     F --> I
 ```
+
+
+File server routes normally serve from an absolute filesystem `Root`. Built-in routes may instead attach an internal `fs.FS` through route metadata; this is used by the embedded WebUI route to serve `webui/dist/client` without a separate frontend container. Embedded SPA routes use nginx-compatible `try_files` behavior: exact file, directory `index.html`, optional `.html`, then the configured SPA shell.
 
 ### Reverse Proxy Flow
 
@@ -375,6 +378,8 @@ route := &route.Route{
     Index:  "index.html",
 }
 ```
+
+Embedded file-server routes are reserved for built-in assets and set `Metadata.RootFS` internally rather than exposing a new public config field.
 
 ## Testing Notes
 

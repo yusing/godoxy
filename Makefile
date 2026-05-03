@@ -7,7 +7,7 @@ export GOOS = linux
 
 REPO_URL ?= https://github.com/yusing/godoxy
 
-WEBUI_DIR ?= $(shell pwd)/../godoxy-webui
+WEBUI_DIR ?= $(shell pwd)/webui
 DOCS_DIR ?= ${WEBUI_DIR}/wiki
 
 TEST_REGISTRY ?= reg.i.sh
@@ -50,6 +50,9 @@ else ifeq ($(debug), 1)
 	GODOXY_DEBUG = 1
 	GO_TAGS += debug
 	# FIXME: BUILD_FLAGS += -asan -gcflags=all='-N -l'
+else ifeq ($(dev), 1)
+	CGO_ENABLED = 0
+	GODOXY_DEBUG = 1
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 0
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
@@ -90,8 +93,8 @@ ifeq ($(docker), 1)
 	POST_BUILD += mkdir -p /app && mv ${BIN_PATH} /app/run;
 endif
 
-.PHONY: benchmark build build-cli ci-test cloc debug debug-list-containers \
-	dev dev-build docker-build-test gen-api-types gen-cli gen-swagger help \
+.PHONY: benchmark build build-cli build-webui ci-test cloc debug debug-list-containers \
+	dev docker-build-test ensure-webui-dist gen-api-types gen-cli gen-swagger help \
 	minify mod-tidy modernize push-github rapid-crash run tcp-echo-test test \
 	update-deps update-go update-wiki
 
@@ -128,23 +131,28 @@ help:
 		'  rapid-crash      Short docker restart loop sanity check' \
 		'  debug-list-containers  Docker socket GET /containers/json via netcat+jq' \
 		'  ci-test          act dry-run with artifacts path' \
-		'  cloc             scc on Go sources' \
+		'  cloc             scc on Go sources and WebUI source' \
 		"  push-github      git push origin $(BRANCH)" \
 		'  gen-swagger      swag init + scripts into internal/api docs' \
 		'  gen-api-types    gen-swagger + swagger-typescript-api for webui' \
 		'  gen-cli          Regenerate CLI (cmd/cli gen)' \
 		'  update-wiki      bun scripts/update-wiki (WEBUI_DIR, REPO_URL)'
 
-test:
+ensure-webui-dist:
+	@if [ "${godoxy}" = "1" ] && [ ! -f "$(WEBUI_DIR)/dist/client/_shell.html" ]; then \
+		$(MAKE) build-webui; \
+	fi
+
+test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 tcp-echo-test:
 	bun --bun scripts/tcp_echo_test.ts
 
 docker-build-test:
-	docker build -t ${TEST_REGISTRY}/godoxy .
-	docker build --build-arg=MAKE_ARGS=agent=1 -t ${TEST_REGISTRY}/godoxy-agent .
-	docker build --build-arg=MAKE_ARGS=socket-proxy=1 -t ${TEST_REGISTRY}/godoxy-socket-proxy .
+	docker build --target=main -t ${TEST_REGISTRY}/godoxy .
+	docker build --target=agent --build-arg=MAKE_ARGS=agent=1 -t ${TEST_REGISTRY}/godoxy-agent .
+	docker build --target=socket-proxy --build-arg=MAKE_ARGS=socket-proxy=1 -t ${TEST_REGISTRY}/godoxy-socket-proxy .
 	docker push ${TEST_REGISTRY}/godoxy
 	docker push ${TEST_REGISTRY}/godoxy-agent
 	docker push ${TEST_REGISTRY}/godoxy-socket-proxy
@@ -187,7 +195,13 @@ minify:
 		bun --bun scripts/minify; \
 	fi
 
-build:
+build-webui:
+	cd "$(WEBUI_DIR)" && \
+	bun i --frozen-lockfile && \
+	$(MAKE) gen-schema && \
+	node ./node_modules/vite/bin/vite.js build
+
+build: ensure-webui-dist
 	@if [ "${godoxy}" = "1" ]; then \
 		make minify; \
 	elif [ "${cli}" = "1" ]; then \
@@ -201,10 +215,9 @@ run: minify
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${PACKAGE}
 
 dev:
-	docker compose -f dev.compose.yml $(args)
-
-dev-build: build
+	$(MAKE) dev=1 build
 	docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
+	docker compose logs -f -n200 app
 
 benchmark:
 	./scripts/benchmark.sh $(args)
@@ -222,7 +235,7 @@ ci-test:
 	act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$$(gh auth token)"
 
 cloc:
-	scc -w -i go --not-match '_test.go$$'
+	scc -w -i go,ts,tsx --not-match '_test.go$$' --not-match '.test.ts$$' --not-match '.test.tsx$$'
 
 push-github:
 	git push origin $(BRANCH)

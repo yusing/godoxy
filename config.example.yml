@@ -157,6 +157,20 @@ providers:
   #     secret: aaaa-bbbb-cccc-dddd
   #     no_tls_verify: true
 
+# Embedded WebUI route.
+webui:
+  aliases:
+    - godoxy
+  # middlewares:
+  #   cidr_whitelist:
+  #     status: 403
+  #     message: IP not allowed
+  #     allow:
+  #       - 127.0.0.1
+  #       - 10.0.0.0/8
+  #       - 192.168.0.0/16
+  #       - 172.16.0.0/12
+
 # To relay the downstream client address to a TCP upstream, set
 # `relay_proxy_protocol_header: true` on that specific TCP route in route
 # configuration (for example, see providers.example.yml). UDP relay is not

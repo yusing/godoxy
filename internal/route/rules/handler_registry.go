@@ -28,3 +28,17 @@ func RegisterHandler(name string, handler http.Handler) bool {
 func GetHandler(name string) (http.Handler, bool) {
 	return namedHandlers.Load(normalizeHandlerName(name))
 }
+
+// ReplaceHandler sets or removes a named handler. Unlike RegisterHandler, this
+// overwrites an existing registration. A nil handler removes the name.
+func ReplaceHandler(name string, handler http.Handler) {
+	name = normalizeHandlerName(name)
+	if name == "" {
+		return
+	}
+	if handler == nil {
+		namedHandlers.Delete(name)
+		return
+	}
+	namedHandlers.Store(name, handler)
+}

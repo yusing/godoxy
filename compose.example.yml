@@ -20,38 +20,6 @@ services:
       - /run
     ports:
       - ${LISTEN_ADDR:-127.0.0.1:2375}:2375
-  frontend:
-    image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}
-    # lite variant
-    # image: ghcr.io/yusing/godoxy-frontend:${TAG:-latest}-lite
-    container_name: godoxy-frontend
-    restart: unless-stopped
-    env_file: .env
-    # comment out `user` for lite variant
-    user: ${GODOXY_UID:-1000}:${GODOXY_GID:-1000}
-    read_only: true
-    tmpfs:
-      - /tmp:rw
-      - /app/node_modules/.cache:rw
-      # for lite variant, do not change uid/gid
-      # - /var/cache/nginx:uid=101,gid=101
-      # - /run:uid=101,gid=101
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - all
-    depends_on:
-      - app
-    labels:
-      proxy.aliases: ${GODOXY_FRONTEND_ALIASES:-godoxy}
-      # proxy.#1.middlewares.cidr_whitelist: |
-      #   status: 403
-      #   message: IP not allowed
-      #   allow:
-      #     - 127.0.0.1
-      #     - 10.0.0.0/8
-      #     - 192.168.0.0/16
-      #     - 172.16.0.0/12
   app:
     image: ghcr.io/yusing/godoxy:${TAG:-latest}
     container_name: godoxy-proxy
@@ -70,6 +38,8 @@ services:
       - NET_BIND_SERVICE
     environment:
       - DOCKER_HOST=tcp://${LISTEN_ADDR:-127.0.0.1:2375}
+    # The WebUI is served from embedded assets by GoDoxy itself.
+    # Configure its hostnames with `webui.aliases` in config/config.yml.
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs

@@ -32,6 +32,7 @@ services:
     network_mode: host
     volumes:
       - ./bin/godoxy:/app/run:ro
+      - ./webui:/app/webui
       - /var/run/docker.sock:/var/run/docker.sock
       - ./dev-data/config:/app/config
       - ./dev-data/certs:/app/certs

@@ -116,7 +116,7 @@ Initializes state from a YAML file. Uses default config if file doesn't exist.
 func (state *state) Init(data []byte) error
 ```
 
-Initializes state from raw YAML data. Validates, then initializes MaxMind, Proxmox, providers, AutoCert, notifications, access logger, and entrypoint.
+Initializes state from raw YAML data. Validates, then initializes MaxMind, Proxmox, providers, AutoCert, notifications, access logger, entrypoint, and the built-in embedded WebUI route.
 
 ```go
 func (state *state) StartProviders() error
@@ -152,6 +152,7 @@ graph TD
         G --> L[Docker Provider]
         G --> M[File Provider]
         G --> N[Agent Provider]
+        G --> O[Built-in WebUI Static Provider]
     end
 
     subgraph State Management
@@ -271,6 +272,10 @@ No metrics are currently exposed.
 - Agent credentials are passed via configuration
 - No secrets are logged (except in debug mode with full config dump)
 
+### Built-in WebUI route
+
+The built-in WebUI route is added after configured providers are loaded. It serves the embedded `webui/dist/client` assets as a `fileserver` route named by `webui.aliases`, falling back to legacy `GODOXY_FRONTEND_ALIASES` / `FRONTEND_ALIASES` when aliases are not configured. If an alias conflicts with an existing route, config loading logs a warning and the embedded WebUI route is allowed to win.
+
 ## Failure Modes and Recovery
 
 | Failure                       | Behavior                            | Recovery                   |
@@ -280,11 +285,13 @@ No metrics are currently exposed.
 | Provider initialization fails | Error aggregated and returned       | Fix provider configuration |
 | Duplicate provider key        | Error logged, first provider kept   | Rename provider            |
 | Route loading fails           | Error aggregated, other routes load | Fix route configuration    |
+| WebUI alias conflict          | Warning logged, embedded WebUI wins | Change `webui.aliases` or remove conflicting route |
 
 ## Performance Characteristics
 
 - Providers are loaded concurrently
 - Routes are loaded concurrently per provider
+- The embedded WebUI static provider is loaded after configured providers
 - State access is lock-free for reads
 - Atomic pointer for state swap
 

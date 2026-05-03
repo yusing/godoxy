@@ -10,3 +10,6 @@
 [submodule "internal/go-proxmox"]
 	path = internal/go-proxmox
 	url = https://github.com/yusing/go-proxmox
+[submodule "webui"]
+	path = webui
+	url = https://github.com/yusing/godoxy-webui

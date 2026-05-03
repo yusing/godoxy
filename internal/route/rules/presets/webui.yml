@@ -1,27 +1,28 @@
-- name: login page
-  on: path /login
-  do: pass
-- name: protected
-  on: |
-    !path glob("/api/v1/auth/*")
-    !path glob("/auth/*")
-    !path /icon0.svg
-    !path /favicon.ico
-    !path /apple-icon.png
-    !path glob("/web-app-manifest-*x*.png")
-    !path regex("\/assets\/(chunks\/)?[a-zA-Z0-9\-_]+\.(css|js|woff2)")
-    !path regex("\/assets\/workbox-window\.prod\.es5-[a-zA-Z0-9]+\.js")
-    !path regex("/workbox-[a-zA-Z0-9]+\.js")
-    !path /api/v1/version
-    !path /manifest.json
-    !path /sw.js
-    !path /registerSW.js
-  do: require_auth
-- name: proxy to backend
-  on: path glob("/api/v1/*")
-  do: proxy http://${API_ADDR}/
-- name: proxy to auth api
-  on: path glob("/auth/*")
-  do: |
-    rewrite /auth /api/v1/auth
-    proxy http://${API_ADDR}/
+path /login {
+  pass
+}
+
+!path glob("/api/v1/auth/*") &
+!path glob("/auth/*") &
+!path glob("/__tsr/*") &
+!path regex("(?i)\\.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot)$") &
+!path /api/v1/version &
+!path /apple-icon.png &
+!path /favicon.ico &
+!path /icon0.svg &
+!path /manifest.json &
+!path /robots.txt &
+!path /sw.js &
+!path /registerSW.js &
+!path glob("/web-app-manifest-*x*.png") {
+  require_auth
+}
+
+path glob("/api/v1/*") {
+  handle api
+}
+
+path glob("/auth/*") {
+  rewrite /auth /api/v1/auth
+  handle api
+}

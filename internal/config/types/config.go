@@ -26,6 +26,7 @@ type (
 		Providers           Providers                           `json:"providers"`
 		MatchDomains        []string                            `json:"match_domains" validate:"domain_name"`
 		Homepage            homepage.Config                     `json:"homepage"`
+		WebUI               WebUIConfig                         `json:"webui"`
 		Defaults            Defaults                            `json:"defaults"`
 		TimeoutShutdown     int                                 `json:"timeout_shutdown" validate:"gte=0"`
 	}

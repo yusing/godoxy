@@ -58,6 +58,8 @@ var (
 	OIDCRateLimit       = env.GetEnvInt("OIDC_RATE_LIMIT", 10)
 	OIDCRateLimitPeriod = env.GetEnvDuation("OIDC_RATE_LIMIT_PERIOD", time.Second)
 
+	FrontendAliasesLegacy = env.GetEnvCommaSep("FRONTEND_ALIASES", "godoxy")
+
 	// metrics configuration
 	MetricsDisableCPU     = env.GetEnvBool("METRICS_DISABLE_CPU", false)
 	MetricsDisableMemory  = env.GetEnvBool("METRICS_DISABLE_MEMORY", false)

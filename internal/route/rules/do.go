@@ -59,6 +59,10 @@ func InitAuthHandler(handler AuthHandler) {
 	authHandler = handler
 }
 
+func GetAuthHandler() AuthHandler {
+	return authHandler
+}
+
 func init() {
 	commands[CommandUpstreamOld] = commands[CommandUpstream]
 	commands[CommandUpstreamOld2] = commands[CommandUpstream]

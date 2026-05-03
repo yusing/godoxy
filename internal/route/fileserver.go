@@ -2,10 +2,12 @@ package route
 
 import (
 	"errors"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
@@ -51,20 +53,74 @@ func handler(root string, spa bool, index string) http.Handler {
 	})
 }
 
+func fsHandler(root fs.FS, spa bool, index string) http.Handler {
+	if !spa {
+		return http.FileServerFS(root)
+	}
+
+	index = strings.TrimPrefix(path.Clean("/"+index), "/")
+	indexCandidates := []string{index}
+	if index != "index.html" {
+		indexCandidates = append(indexCandidates, "index.html")
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if name, ok := findFSFile(root, tryFilesCandidates(r.URL.Path)...); ok {
+			http.ServeFileFS(w, r, root, name)
+			return
+		}
+		if name, ok := findFSFile(root, indexCandidates...); ok {
+			http.ServeFileFS(w, r, root, name)
+			return
+		}
+		http.NotFound(w, r)
+	})
+}
+
+func tryFilesCandidates(urlPath string) []string {
+	clean := path.Clean("/" + urlPath)
+	name := strings.TrimPrefix(clean, "/")
+	if name == "" || name == "." {
+		return nil
+	}
+	return []string{
+		name,
+		path.Join(name, "index.html"),
+		name + ".html",
+	}
+}
+
+func findFSFile(root fs.FS, names ...string) (string, bool) {
+	for _, name := range names {
+		if name == "" || name == "." || !fs.ValidPath(name) {
+			continue
+		}
+		info, err := fs.Stat(root, name)
+		if err == nil && !info.IsDir() {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 func NewFileServer(base *Route) (*FileServer, error) {
 	s := &FileServer{Route: base}
-
-	s.Root = filepath.Clean(s.Root)
-	if !filepath.IsAbs(s.Root) {
-		return nil, errors.New("`root` must be an absolute path")
-	}
 
 	if s.Index == "" {
 		s.Index = "/index.html"
 	} else if s.Index[0] != '/' {
 		s.Index = "/" + s.Index
 	}
-	s.handler = handler(s.Root, s.SPA, s.Index)
+
+	if s.RootFS != nil {
+		s.handler = fsHandler(s.RootFS, s.SPA, s.Index)
+	} else {
+		s.Root = filepath.Clean(s.Root)
+		if !filepath.IsAbs(s.Root) {
+			return nil, errors.New("`root` must be an absolute path")
+		}
+		s.handler = handler(s.Root, s.SPA, s.Index)
+	}
 
 	if len(s.Middlewares) > 0 {
 		mid, err := middleware.BuildMiddlewareFromMap(s.Alias, s.Middlewares)
