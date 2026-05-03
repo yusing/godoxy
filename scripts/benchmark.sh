@@ -6,15 +6,8 @@
 set -euo pipefail
 
 # Configuration
-HOST="bench.domain.com"
-DURATION="${DURATION:-10s}"
-H2LOAD_DURATION="${H2LOAD_DURATION:-}"
-H2LOAD_WARM_UP_TIME="${H2LOAD_WARM_UP_TIME:-3s}"
-THREADS="${THREADS:-4}"
-CONNECTIONS="${CONNECTIONS:-100}"
-REQUESTS="${REQUESTS:-1000}"
-FRESH_CONNECTIONS="${FRESH_CONNECTIONS:-${CONNECTIONS}}"
-STREAMS="${STREAMS:-100}"
+HOST="${HOST:-bench.domain.com}"
+BENCH_PROFILE="${BENCH_PROFILE:-smoke}"
 TARGET="${TARGET-}"
 H1="${H1:-1}"
 H2="${H2:-1}"
@@ -26,8 +19,6 @@ BENCH_COMPOSE_FILE="${BENCH_COMPOSE_FILE:-dev.compose.yml}"
 BENCH_COMPOSE_MANAGE="${BENCH_COMPOSE_MANAGE:-1}"
 BENCH_COMPOSE_CLEANUP="${BENCH_COMPOSE_CLEANUP:-1}"
 BENCH_COMPOSE_RECREATE="${BENCH_COMPOSE_RECREATE:-1}"
-BENCH_STARTUP_WAIT="${BENCH_STARTUP_WAIT:-1}"
-LATENCY_SAMPLES="${LATENCY_SAMPLES:-5}"
 UPLOAD_BODY_BYTES="${UPLOAD_BODY_BYTES:-262144}"
 PROBE_BUILD_CMD="${PROBE_BUILD_CMD:-go build -C cmd/bench_server -o $PWD/bin/bench_probe .}"
 PROBE_CMD="${PROBE_CMD:-$PWD/bin/bench_probe}"
@@ -43,6 +34,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
+  --profile NAME        Benchmark profile: smoke, stable, or stress (default: BENCH_PROFILE or smoke)
   --h1 / --no-h1        Enable/disable HTTP/1.1 checks and benchmark (default: enabled)
   --h2 / --no-h2        Enable/disable HTTP/2 checks and benchmark (default: enabled)
   --h3 / --no-h3        Enable/disable HTTP/3 checks and benchmark (default: enabled)
@@ -50,33 +42,109 @@ Options:
   --reused              Run duration-based reused-connection benchmarks only
   --fresh               Run fixed-request fresh-connection benchmarks only
   --both                Run both reused and fresh modes (default)
+  --smoke               Alias for --profile smoke
+  --stable              Alias for --profile stable
+  --stress              Alias for --profile stress
   -h, --help            Show this help
 
 Environment:
+  BENCH_PROFILE=smoke|stable|stress
+                        smoke: quick broad correctness, lower concurrency
+                        stable: repeated real-ish comparison, median/CV summary
+                        stress: high-concurrency overload/limit testing
   H1=0|1                Enable/disable HTTP/1.1 (default: 1)
   H2=0|1                Enable/disable HTTP/2 (default: 1)
   H3=0|1                Enable/disable HTTP/3 (default: 1)
   H1C=0|1               Enable/disable cleartext HTTP/1.1 baseline on 8080..8083 (default: 0)
   CONNECTION_MODE=both|reused|fresh
-  STREAMS=100           Concurrent streams per H2/H3 session in reused stress mode
-  REQUESTS=1000         Requests per protocol in fresh mode
-  FRESH_CONNECTIONS=100 Concurrent connections in fresh mode (default: CONNECTIONS)
+  STREAMS=<N>           Concurrent streams per H2/H3 session (profile default)
+  REQUESTS=<N>          Requests per protocol in fresh mode (profile default)
+  FRESH_CONNECTIONS=<N> Concurrent connections in fresh mode (default: CONNECTIONS)
   H2LOAD_DURATION=<N>   h2load duration value without unit (derived from DURATION=Ns by default)
-  H2LOAD_WARM_UP_TIME=<DURATION>  h2load warm-up before reused duration measurements (default: 3s; 0 disables)
+  H2LOAD_WARM_UP_TIME=<DURATION>  h2load warm-up before reused duration measurements (profile default; 0 disables)
   H3_TOOL=auto|h2load|h3bench
   BENCH_COMPOSE_MANAGE=0|1   Start selected proxy services and bench (default: 1)
   BENCH_COMPOSE_CLEANUP=0|1  Stop selected proxy services and bench on exit (default: 1)
   BENCH_COMPOSE_RECREATE=0|1 Force recreate compose services when starting/restarting (default: 1)
   BENCH_COMPOSE_FILE=dev.compose.yml
-  LATENCY_SAMPLES=5     Samples per real-world latency scenario
+  LATENCY_SAMPLES=<N>   Samples per real-world latency scenario (profile default)
+  RUNS=<N>              Repeat each throughput benchmark and print median/CV summary
+  REPEAT_DELAY=1        Delay between repeated throughput runs, in seconds
   UPLOAD_BODY_BYTES=262144  Request body size for upload latency probe
   TARGET=<service>      Limit benchmark to GoDoxy, Traefik, Caddy, or Nginx
-  DURATION=10s THREADS=4 CONNECTIONS=100
+  DURATION=<D> THREADS=<N> CONNECTIONS=<N>
+
+Profiles:
+  smoke   DURATION=10s THREADS=4 CONNECTIONS=32 STREAMS=16 REQUESTS=2000 FRESH_CONNECTIONS=32 RUNS=1 LATENCY_SAMPLES=5
+  stable  DURATION=30s THREADS=4 CONNECTIONS=64 STREAMS=16 REQUESTS=20000 FRESH_CONNECTIONS=64 RUNS=5 LATENCY_SAMPLES=25
+  stress  DURATION=30s THREADS=4 CONNECTIONS=100 STREAMS=100 REQUESTS=50000 FRESH_CONNECTIONS=100 RUNS=3 LATENCY_SAMPLES=10
 EOF2
 }
 
-for arg in "$@"; do
+apply_bench_profile() {
+	BENCH_PROFILE="${BENCH_PROFILE,,}"
+	case "$BENCH_PROFILE" in
+	smoke)
+		DURATION="${DURATION:-10s}"
+		H2LOAD_DURATION="${H2LOAD_DURATION:-}"
+		H2LOAD_WARM_UP_TIME="${H2LOAD_WARM_UP_TIME:-3s}"
+		THREADS="${THREADS:-4}"
+		CONNECTIONS="${CONNECTIONS:-32}"
+		REQUESTS="${REQUESTS:-2000}"
+		FRESH_CONNECTIONS="${FRESH_CONNECTIONS:-${CONNECTIONS}}"
+		STREAMS="${STREAMS:-16}"
+		LATENCY_SAMPLES="${LATENCY_SAMPLES:-5}"
+		RUNS="${RUNS:-1}"
+		REPEAT_DELAY="${REPEAT_DELAY:-1}"
+		BENCH_STARTUP_WAIT="${BENCH_STARTUP_WAIT:-1}"
+		;;
+	stable)
+		DURATION="${DURATION:-30s}"
+		H2LOAD_DURATION="${H2LOAD_DURATION:-}"
+		H2LOAD_WARM_UP_TIME="${H2LOAD_WARM_UP_TIME:-5s}"
+		THREADS="${THREADS:-4}"
+		CONNECTIONS="${CONNECTIONS:-64}"
+		REQUESTS="${REQUESTS:-20000}"
+		FRESH_CONNECTIONS="${FRESH_CONNECTIONS:-${CONNECTIONS}}"
+		STREAMS="${STREAMS:-16}"
+		LATENCY_SAMPLES="${LATENCY_SAMPLES:-25}"
+		RUNS="${RUNS:-5}"
+		REPEAT_DELAY="${REPEAT_DELAY:-1}"
+		BENCH_STARTUP_WAIT="${BENCH_STARTUP_WAIT:-3}"
+		;;
+	stress)
+		DURATION="${DURATION:-30s}"
+		H2LOAD_DURATION="${H2LOAD_DURATION:-}"
+		H2LOAD_WARM_UP_TIME="${H2LOAD_WARM_UP_TIME:-5s}"
+		THREADS="${THREADS:-4}"
+		CONNECTIONS="${CONNECTIONS:-100}"
+		REQUESTS="${REQUESTS:-50000}"
+		FRESH_CONNECTIONS="${FRESH_CONNECTIONS:-${CONNECTIONS}}"
+		STREAMS="${STREAMS:-100}"
+		LATENCY_SAMPLES="${LATENCY_SAMPLES:-10}"
+		RUNS="${RUNS:-3}"
+		REPEAT_DELAY="${REPEAT_DELAY:-1}"
+		BENCH_STARTUP_WAIT="${BENCH_STARTUP_WAIT:-3}"
+		;;
+	*)
+		red "Error: BENCH_PROFILE must be smoke, stable, or stress (got $BENCH_PROFILE)"
+		exit 2
+		;;
+	esac
+}
+
+while [ "$#" -gt 0 ]; do
+	arg=$1
 	case "$arg" in
+	--profile)
+		if [ "$#" -lt 2 ]; then
+			red "Error: --profile requires smoke, stable, or stress"
+			exit 2
+		fi
+		BENCH_PROFILE=$2
+		shift
+		;;
+	--profile=*) BENCH_PROFILE=${arg#*=} ;;
 	--h1) H1=1 ;;
 	--no-h1) H1=0 ;;
 	--h2) H2=1 ;;
@@ -88,6 +156,9 @@ for arg in "$@"; do
 	--reused) CONNECTION_MODE=reused ;;
 	--fresh) CONNECTION_MODE=fresh ;;
 	--both) CONNECTION_MODE=both ;;
+	--stable) BENCH_PROFILE=stable ;;
+	--stress) BENCH_PROFILE=stress ;;
+	--smoke) BENCH_PROFILE=smoke ;;
 	-h | --help)
 		usage
 		exit 0
@@ -98,7 +169,10 @@ for arg in "$@"; do
 		exit 2
 		;;
 	esac
+	shift
 done
+
+apply_bench_profile
 
 normalize_protocol_flag() {
 	local name=$1
@@ -158,19 +232,19 @@ normalize_duration() {
 	fi
 
 	case "$DURATION" in
-		*[!0-9]s)
-			red "Error: DURATION must be an integer number of seconds like 10s (got $DURATION)"
-			exit 2
-			;;
-		*s) H2LOAD_DURATION="${DURATION%s}" ;;
-		*[!0-9]*)
-			red "Error: DURATION must be an integer number of seconds like 10s (got $DURATION)"
-			exit 2
-			;;
-		*)
-			H2LOAD_DURATION="$DURATION"
-			DURATION="${DURATION}s"
-			;;
+	*[!0-9]s)
+		red "Error: DURATION must be an integer number of seconds like 10s (got $DURATION)"
+		exit 2
+		;;
+	*s) H2LOAD_DURATION="${DURATION%s}" ;;
+	*[!0-9]*)
+		red "Error: DURATION must be an integer number of seconds like 10s (got $DURATION)"
+		exit 2
+		;;
+	*)
+		H2LOAD_DURATION="$DURATION"
+		DURATION="${DURATION}s"
+		;;
 	esac
 }
 
@@ -178,10 +252,10 @@ normalize_positive_int() {
 	local name=$1
 	local value=$2
 	case "$value" in
-		'' | *[!0-9]*)
-			red "Error: $name must be a positive integer (got $value)"
-			exit 2
-			;;
+	'' | *[!0-9]*)
+		red "Error: $name must be a positive integer (got $value)"
+		exit 2
+		;;
 	esac
 	if [ "$value" -le 0 ]; then
 		red "Error: $name must be greater than zero (got $value)"
@@ -201,6 +275,8 @@ normalize_positive_int REQUESTS "$REQUESTS"
 normalize_positive_int FRESH_CONNECTIONS "$FRESH_CONNECTIONS"
 normalize_positive_int STREAMS "$STREAMS"
 normalize_positive_int LATENCY_SAMPLES "$LATENCY_SAMPLES"
+normalize_positive_int RUNS "$RUNS"
+normalize_positive_int REPEAT_DELAY "$REPEAT_DELAY"
 normalize_positive_int BENCH_STARTUP_WAIT "$BENCH_STARTUP_WAIT"
 
 if [ "$BENCH_COMPOSE_MANAGE" = "0" ]; then
@@ -293,6 +369,7 @@ blue "Reverse Proxy Benchmark Comparison"
 blue "========================================"
 echo ""
 echo "Target: $HOST"
+echo "Profile: $BENCH_PROFILE"
 echo "Duration: $DURATION"
 echo "Threads: $THREADS"
 echo "Connections: $CONNECTIONS"
@@ -306,6 +383,8 @@ echo "Compose cleanup: $BENCH_COMPOSE_CLEANUP"
 echo "h2load duration seconds: $H2LOAD_DURATION"
 echo "h2load warm-up time: $H2LOAD_WARM_UP_TIME"
 echo "Latency samples: $LATENCY_SAMPLES"
+echo "Throughput runs: $RUNS"
+echo "Repeat delay: ${REPEAT_DELAY}s"
 echo "Upload probe bytes: $UPLOAD_BODY_BYTES"
 echo "HTTP/1.1: $H1"
 echo "HTTP/2: $H2"
@@ -525,6 +604,7 @@ run_real_world_probes() {
 
 # Array to store connection errors
 declare -a connection_errors=()
+declare -a throughput_summaries=()
 
 # Function to test connection before benchmarking
 test_connection() {
@@ -674,10 +754,10 @@ wait_for_reused_benchmark_ready() {
 	local proto=$2
 	case "$proto" in
 	h1)
-		read_response_with_retry "$(https_url "$name")" 			--insecure --http1.1 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		read_response_with_retry "$(https_url "$name")" --insecure --http1.1 --resolve "$(curl_resolve_arg "$name")" >/dev/null
 		;;
 	h2)
-		read_response_with_retry "$(https_url "$name")" 			--insecure --http2 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		read_response_with_retry "$(https_url "$name")" --insecure --http2 --resolve "$(curl_resolve_arg "$name")" >/dev/null
 		;;
 	h3)
 		h3_check_with_retry "$name" "$(https_url "$name")" >/dev/null
@@ -686,16 +766,42 @@ wait_for_reused_benchmark_ready() {
 }
 
 filter_h2load_noise() {
-	grep -vE "^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration|Stopped all clients)" || true
+	grep -vE "(^|[[:space:]])([0-9]+\.)?[[:space:]]*Stopping all clients|Stopped all clients for thread|^[0-9]+$|^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration)" || true
 }
 
 run_h2load() {
+	BENCH_THROUGHPUT=""
+	BENCH_FAILED=""
 	local h2load_status
+	local output_file
+	output_file=$(mktemp)
 
 	set +e
-	h2load "$@" | filter_h2load_noise
+	h2load "$@" 2>&1 | filter_h2load_noise | tee "$output_file"
 	h2load_status=${PIPESTATUS[0]}
 	set -e
+
+	BENCH_THROUGHPUT=$(awk '
+		/finished in/ {
+			for (i = 1; i <= NF; i++) {
+				if ($i == "req/s," || $i == "req/s") {
+					v = $(i - 1)
+					gsub(",", "", v)
+					print v
+				}
+			}
+		}
+	' "$output_file" | tail -n 1)
+	BENCH_FAILED=$(awk '
+		/^requests:/ {
+			for (i = 1; i <= NF; i++) {
+				if ($i == "failed,") {
+					print $(i - 1)
+				}
+			}
+		}
+	' "$output_file" | tail -n 1)
+	rm -f "$output_file"
 
 	if [ "$h2load_status" -ne 0 ]; then
 		yellow "h2load exited with status $h2load_status; continuing so non-2xx/stream failures remain visible in benchmark output"
@@ -703,15 +809,97 @@ run_h2load() {
 }
 
 run_h3bench() {
+	BENCH_THROUGHPUT=""
+	BENCH_FAILED=""
 	local h3bench_status
+	local output_file
+	output_file=$(mktemp)
 
 	set +e
-	"$H3BENCH_CMD" "$@"
-	h3bench_status=$?
+	"$H3BENCH_CMD" "$@" 2>&1 | tee "$output_file"
+	h3bench_status=${PIPESTATUS[0]}
 	set -e
+
+	BENCH_THROUGHPUT=$(awk '/^Throughput:/ { print $2 }' "$output_file" | tail -n 1)
+	BENCH_FAILED=$(awk '/^Failed:/ { print $2 }' "$output_file" | tail -n 1)
+	rm -f "$output_file"
 
 	if [ "$h3bench_status" -ne 0 ]; then
 		yellow "h3bench exited with status $h3bench_status; continuing so failures remain visible in benchmark output"
+	fi
+}
+
+summarize_throughput() {
+	local label=$1
+	shift
+	local values=("$@")
+
+	if [ ${#values[@]} -eq 0 ]; then
+		yellow "No parseable throughput results for $label"
+		return
+	fi
+
+	local stats
+	stats=$(printf '%s\n' "${values[@]}" | sort -n | awk '
+		{
+			a[++n] = $1
+			sum += $1
+			sumsq += $1 * $1
+		}
+		END {
+			if (n == 0) {
+				exit 1
+			}
+			mean = sum / n
+			variance = (sumsq / n) - (mean * mean)
+			if (variance < 0) {
+				variance = 0
+			}
+			sd = sqrt(variance)
+			if (n % 2 == 1) {
+				median = a[(n + 1) / 2]
+			} else {
+				median = (a[n / 2] + a[n / 2 + 1]) / 2
+			}
+			cv = mean == 0 ? 0 : (sd / mean) * 100
+			printf "runs=%d median=%.2f req/s mean=%.2f req/s sd=%.2f cv=%.2f%% min=%.2f max=%.2f", n, median, mean, sd, cv, a[1], a[n]
+		}
+	')
+
+	echo ""
+	green "[$label summary] $stats"
+	throughput_summaries+=("$label | $stats")
+}
+
+run_throughput_series() {
+	local label=$1
+	shift
+	local values=()
+	local run
+
+	for ((run = 1; run <= RUNS; run++)); do
+		if [ "$RUNS" -gt 1 ]; then
+			echo ""
+			echo "[$label run $run/$RUNS]"
+		fi
+
+		"$@"
+
+		if [ -n "${BENCH_FAILED:-}" ] && [ "$BENCH_FAILED" != "0" ]; then
+			yellow "$label run $run reported $BENCH_FAILED failed requests; excluding this run from summary"
+		elif [ -n "${BENCH_THROUGHPUT:-}" ]; then
+			values+=("$BENCH_THROUGHPUT")
+		else
+			yellow "Could not parse throughput for $label run $run"
+		fi
+
+		if [ "$run" -lt "$RUNS" ]; then
+			sleep "$REPEAT_DELAY"
+		fi
+	done
+
+	if [ "$RUNS" -gt 1 ]; then
+		summarize_throughput "$label" "${values[@]}"
 	fi
 }
 
@@ -728,10 +916,11 @@ run_reused_benchmark() {
 
 	if [ "$H1C" = "1" ]; then
 		restart_bench "$name"
-		read_response_with_retry "$(http_url "$name")" 			--http1.1 >/dev/null
+		read_response_with_retry "$(http_url "$name")" --http1.1 >/dev/null
 		echo ""
 		echo "[HTTP/1.1 cleartext reused] h2load --h1 -m1"
-		run_h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+		run_throughput_series "$name HTTP/1.1 cleartext reused" run_h2load \
+			--h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$cleartext_connect_arg" \
 			-H "Host: $HOST" \
@@ -743,7 +932,8 @@ run_reused_benchmark() {
 		wait_for_reused_benchmark_ready "$name" h1
 		echo ""
 		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
-		run_h2load --h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
+		run_throughput_series "$name HTTP/1.1 reused TLS" run_h2load \
+			--h1 -t"$THREADS" -c"$CONNECTIONS" -m1 --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H "Host: $HOST" \
@@ -755,7 +945,8 @@ run_reused_benchmark() {
 		restart_bench "$name"
 		wait_for_reused_benchmark_ready "$name" h2
 		echo "[HTTP/2 reused TLS] h2load -m$STREAMS"
-		run_h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+		run_throughput_series "$name HTTP/2 reused TLS" run_h2load \
+			-t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
 			"${H2LOAD_WARM_UP_ARGS[@]}" \
 			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
@@ -768,17 +959,19 @@ run_reused_benchmark() {
 		wait_for_reused_benchmark_ready "$name" h3
 		echo "[HTTP/3 reused] $H3_TOOL"
 		case "$H3_TOOL" in
-			h2load)
-				run_h2load -t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
-					"${H2LOAD_WARM_UP_ARGS[@]}" \
-					--h3 \
-					"$tls_connect_arg" \
-					-H ":authority: $HOST" \
-					"$https_url"
-				;;
-			h3bench)
-				run_h3bench -d "$DURATION" -c "$CONNECTIONS" -m "$STREAMS" -dial "$h3_dial_addr" -k "$https_url"
-				;;
+		h2load)
+			run_throughput_series "$name HTTP/3 reused" run_h2load \
+				-t"$THREADS" -c"$CONNECTIONS" -m"$STREAMS" --duration="$H2LOAD_DURATION" \
+				"${H2LOAD_WARM_UP_ARGS[@]}" \
+				--h3 \
+				"$tls_connect_arg" \
+				-H ":authority: $HOST" \
+				"$https_url"
+			;;
+		h3bench)
+			run_throughput_series "$name HTTP/3 reused" run_h3bench \
+				-d "$DURATION" -c "$CONNECTIONS" -m "$STREAMS" -dial "$h3_dial_addr" -k "$https_url"
+			;;
 		esac
 	fi
 }
@@ -797,7 +990,8 @@ run_fresh_benchmark() {
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/1.1 cleartext fresh] h2load --h1 -m1"
-		run_h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_throughput_series "$name HTTP/1.1 cleartext fresh" run_h2load \
+			--h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$cleartext_connect_arg" \
 			-H "Host: $HOST" \
 			"$http_url"
@@ -807,7 +1001,8 @@ run_fresh_benchmark() {
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/1.1 fresh TLS] h2load --h1 -m1"
-		run_h2load --h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_throughput_series "$name HTTP/1.1 fresh TLS" run_h2load \
+			--h1 -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$tls_connect_arg" \
 			-H "Host: $HOST" \
 			"$https_url"
@@ -817,7 +1012,8 @@ run_fresh_benchmark() {
 		restart_bench "$name"
 		echo ""
 		echo "[HTTP/2 fresh TLS] h2load -m1"
-		run_h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+		run_throughput_series "$name HTTP/2 fresh TLS" run_h2load \
+			-t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
 			"$tls_connect_arg" \
 			-H ":authority: $HOST" \
 			"$https_url"
@@ -828,16 +1024,18 @@ run_fresh_benchmark() {
 		echo ""
 		echo "[HTTP/3 fresh] $H3_TOOL -m1"
 		case "$H3_TOOL" in
-			h2load)
-				run_h2load -t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
-					--h3 \
-					"$tls_connect_arg" \
-					-H ":authority: $HOST" \
-					"$https_url"
-				;;
-			h3bench)
-				run_h3bench -n "$REQUESTS" -c "$FRESH_CONNECTIONS" -m 1 -dial "$h3_dial_addr" -k "$https_url"
-				;;
+		h2load)
+			run_throughput_series "$name HTTP/3 fresh" run_h2load \
+				-t"$THREADS" -c"$FRESH_CONNECTIONS" -n"$REQUESTS" -m1 \
+				--h3 \
+				"$tls_connect_arg" \
+				-H ":authority: $HOST" \
+				"$https_url"
+			;;
+		h3bench)
+			run_throughput_series "$name HTTP/3 fresh" run_h3bench \
+				-n "$REQUESTS" -c "$FRESH_CONNECTIONS" -m 1 -dial "$h3_dial_addr" -k "$https_url"
+			;;
 		esac
 	fi
 }
@@ -893,6 +1091,13 @@ echo "All benchmark output saved to: $OUTFILE"
 echo ""
 echo "Enabled protocols: $(enabled_protocols_label)"
 echo "Connection mode: $CONNECTION_MODE"
+if [ ${#throughput_summaries[@]} -gt 0 ]; then
+	echo ""
+	echo "Throughput repeat summaries:"
+	for summary in "${throughput_summaries[@]}"; do
+		echo "  - $summary"
+	done
+fi
 echo "Key metrics to compare:"
 echo "  - Requests/sec (throughput)"
 if [ "$H1C" = "1" ]; then
