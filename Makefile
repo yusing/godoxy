@@ -243,7 +243,7 @@ ci-test:
 	act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$$(gh auth token)"
 
 cloc:
-	scc -w -i go --not-match '_test.go$$'
+	scc -w -i go,ts,tsx --not-match '_test.go$$' --not-match '.test.ts$$' --not-match '.test.tsx$$'
 
 push-github:
 	git push origin $(BRANCH)
