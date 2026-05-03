@@ -2,6 +2,7 @@ package period
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -144,7 +145,9 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 	defer cancel()
 	data, err := p.poll(ctx, p.lastResult.Load())
 	if err != nil {
-		p.appendErr(err)
+		if !errors.Is(err, context.Canceled) {
+			p.appendErr(err)
+		}
 		return
 	}
 	p.period.Add(data)
