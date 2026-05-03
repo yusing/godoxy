@@ -1,11 +1,6 @@
 export function md2mdx(md: string) {
 	const indexFirstH2 = md.indexOf("## ");
-	if (indexFirstH2 === -1) {
-		console.error("## section not found in the file");
-		process.exit(1);
-	}
-
-	const h1 = md.slice(0, indexFirstH2);
+	const h1 = indexFirstH2 === -1 ? md : md.slice(0, indexFirstH2);
 	const h1Lines = h1.split("\n");
 	const keptH1Lines: string[] = [];
 	const callouts: string[] = [];
@@ -71,13 +66,9 @@ export function md2mdx(md: string) {
 	}
 	header += "\n---";
 
-	md = md.slice(indexFirstH2);
+	const body = indexFirstH2 === -1 ? "" : md.slice(indexFirstH2);
 	const calloutsBlock = callouts.join("\n\n");
-	if (calloutsBlock) {
-		md = `${header}\n\n${calloutsBlock}\n\n${md}`;
-	} else {
-		md = `${header}\n\n${md}`;
-	}
+	md = [header, calloutsBlock, body].filter(Boolean).join("\n\n");
 
 	md = md.replaceAll("</br>", "<br/>");
 	md = md.replaceAll("<0", "\\<0");

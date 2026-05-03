@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { md2mdx } from "./api-md2mdx";
 import { rewriteImplMarkdown, syncImplDocs } from "./index";
 
 describe("rewriteImplMarkdown", () => {
@@ -25,6 +26,25 @@ describe("rewriteImplMarkdown", () => {
       "https://github.com/yusing/godoxy/blob/main/internal/feature/config.go#L29",
     );
     expect(rewritten).not.toContain("#L29#section");
+  });
+});
+
+describe("md2mdx", () => {
+  test("converts markdown without any level-two heading", () => {
+    const mdx = md2mdx([
+      "# GoDoxy WebUI",
+      "",
+      "This is the frontend for [GoDoxy](https://github.com/yusing/godoxy).",
+      "",
+      "Production builds write static client assets to `dist/client`.",
+      "",
+    ].join("\n"));
+
+    expect(mdx).toContain("title: GoDoxy WebUI");
+    expect(mdx).toContain(
+      "description: This is the frontend for [GoDoxy](https://github.com/yusing/godoxy)",
+    );
+    expect(mdx).not.toContain("## ");
   });
 });
 
@@ -68,6 +88,33 @@ describe("syncImplDocs", () => {
     const files = await readdir(implDir);
     expect(files).toContain("internal-feature.mdx");
     expect(files).not.toContain("scripts-minify.mdx");
+  });
+
+  test("ignores README files under webui/", async () => {
+    const repoRoot = await mkdtemp(path.join(os.tmpdir(), "update-wiki-repo-"));
+    const wikiRoot = await mkdtemp(path.join(os.tmpdir(), "update-wiki-docs-"));
+    tempDirs.push(repoRoot, wikiRoot);
+
+    const readmeDir = path.join(repoRoot, "webui");
+    await mkdir(readmeDir, { recursive: true });
+    await writeFile(
+      path.join(readmeDir, "README.md"),
+      [
+        "# GoDoxy WebUI",
+        "",
+        "This is the frontend for [GoDoxy](https://github.com/yusing/godoxy).",
+        "",
+        "Production builds write static client assets to `dist/client`.",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await syncImplDocs(repoRoot, wikiRoot);
+
+    const implDir = path.join(wikiRoot, "content", "docs", "impl");
+    const files = await readdir(implDir);
+    expect(files).not.toContain("webui.mdx");
   });
 
   test("writes missing mdx files and removes orphaned generated docs", async () => {

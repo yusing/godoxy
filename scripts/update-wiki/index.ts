@@ -21,6 +21,7 @@ const excludedReadmeRoots = [
   "internal/gopsutil/",
   "internal/go-proxmox/",
   "scripts/",
+  "webui/",
 ];
 
 function normalizeRepoUrl(raw: string) {
