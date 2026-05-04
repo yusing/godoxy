@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/puzpuzpuz/xsync/v4"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/serialization"
 	httpevents "github.com/yusing/goutils/events/http"
@@ -15,7 +14,6 @@ import (
 type (
 	cidrWhitelist struct {
 		CIDRWhitelistOpts
-		cachedAddr *xsync.Map[string, bool] // cache for trusted IPs
 	}
 	CIDRWhitelistOpts struct {
 		Allow      []*nettypes.CIDR `validate:"min=1"`
@@ -43,7 +41,6 @@ func init() {
 // setup implements MiddlewareWithSetup.
 func (wl *cidrWhitelist) setup() {
 	wl.CIDRWhitelistOpts = cidrWhitelistDefaults
-	wl.cachedAddr = xsync.NewMap[string, bool](xsync.WithPresize(100))
 }
 
 // before implements RequestModifier.
@@ -53,29 +50,28 @@ func (wl *cidrWhitelist) before(w http.ResponseWriter, r *http.Request) bool {
 
 // checkIP checks if the IP address is allowed.
 func (wl *cidrWhitelist) checkIP(w http.ResponseWriter, r *http.Request) bool {
-	var allow, ok bool
-	if allow, ok = wl.cachedAddr.Load(r.RemoteAddr); !ok {
-		ipStr, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			ipStr = r.RemoteAddr
-		}
-		ip := net.ParseIP(ipStr)
-		for _, cidr := range wl.Allow {
-			if cidr.Contains(ip) {
-				wl.cachedAddr.Store(r.RemoteAddr, true)
-				allow = true
-				break
-			}
-		}
-		if !allow {
-			wl.cachedAddr.Store(r.RemoteAddr, false)
-		}
+	var allow bool
+	ipStr, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		allow = ipInCIDRs(ipStr, wl.Allow)
 	}
 	if !allow {
 		defer httpevents.Blocked(r, "CIDRWhitelist", "IP not allowed")
 		http.Error(w, wl.Message, wl.StatusCode)
 		return false
 	}
-
 	return true
+}
+
+func ipInCIDRs(ipStr string, cidrs []*nettypes.CIDR) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range cidrs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
