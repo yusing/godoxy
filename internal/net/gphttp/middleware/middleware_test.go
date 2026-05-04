@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	ioutils "github.com/yusing/goutils/io"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -342,4 +343,29 @@ func TestThemedSkipsOversizedChunkedHTML(t *testing.T) {
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, string(result.Data), originalBody)
+}
+
+func TestMiddlewareResponseRewriteGateServeHTTPIgnoresUnsupportedBufferedFlush(t *testing.T) {
+	bodyMid, err := responseBodyRewrite.New(OptionsRaw{"body": "rewritten-body"})
+	expect.NoError(t, err)
+	mid := NewMiddlewareChain("test", []*Middleware{bodyMid})
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+	rw := httptest.NewRecorder()
+
+	next := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		err := ioutils.CopyCloseWithContext(req.Context(), w, strings.NewReader("<html><body>original</body></html>"), -1)
+		expect.NoError(t, err)
+	}
+
+	mid.ServeHTTP(next, rw, req)
+
+	resp := rw.Result()
+	defer resp.Body.Close()
+	data, readErr := io.ReadAll(resp.Body)
+	expect.NoError(t, readErr)
+	expect.Equal(t, resp.StatusCode, http.StatusOK)
+	expect.Equal(t, string(data), "rewritten-body")
 }

@@ -1,6 +1,8 @@
 package route
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -340,6 +342,86 @@ default {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for backend request")
 	}
+}
+
+func TestReverseProxyRoute_RulesRouteCommandFlushesHeaderOnlyH2CStream(t *testing.T) {
+	testTask := task.GetTestTask(t)
+	entrypoint.SetCtx(testTask, newTestEntrypoint())
+
+	backend := httptest.NewUnstartedServer(h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/grpc")
+		w.Header().Set("X-Wiretrustee-Peer-Registered", "1")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		<-r.Context().Done()
+	}), &http2.Server{}))
+	backend.Start()
+	t.Cleanup(backend.Close)
+
+	backendURL, err := url.Parse(backend.URL)
+	require.NoError(t, err)
+	backendPort, err := strconv.Atoi(backendURL.Port())
+	require.NoError(t, err)
+
+	grpcRoute, err := NewStartedTestRoute(t, &Route{
+		Alias:       "netbird-grpc",
+		Scheme:      route.SchemeH2C,
+		Host:        backendURL.Hostname(),
+		Port:        Port{Proxy: backendPort},
+		HealthCheck: types.HealthCheckConfig{Disable: true},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, grpcRoute)
+
+	var frontendRules rules.Rules
+	_, err = serialization.ConvertString(strings.TrimSpace(`
+path glob(/signalexchange.SignalExchange/*) {
+  route netbird-grpc
+}
+default {
+  pass
+}
+`), reflect.ValueOf(&frontendRules))
+	require.NoError(t, err)
+
+	frontend, err := NewStartedTestRoute(t, &Route{
+		Alias:       "netbird",
+		Scheme:      route.SchemeHTTP,
+		Host:        "example.com",
+		Port:        Port{Proxy: 80},
+		Rules:       frontendRules,
+		HealthCheck: types.HealthCheckConfig{Disable: true},
+	})
+	require.NoError(t, err)
+
+	proxy := httptest.NewUnstartedServer(h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		frontend.(types.HTTPRoute).ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), entrypoint.ContextKey{}, entrypoint.FromCtx(testTask.Context()))))
+	}), &http2.Server{}))
+	proxy.Start()
+	t.Cleanup(proxy.Close)
+
+	client := &http.Client{Transport: &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, network, addr)
+		},
+	}}
+
+	ctx, cancel := context.WithTimeout(testTask.Context(), 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxy.URL+"/signalexchange.SignalExchange/ConnectStream", nil)
+	require.NoError(t, err)
+	req.Host = "netbird.local"
+	req.Header.Set("Content-Type", "application/grpc")
+
+	res, err := client.Do(req)
+	require.NoError(t, err)
+	defer res.Body.Close()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, "1", res.Header.Get("X-Wiretrustee-Peer-Registered"))
 }
 
 func TestReverseProxyRoute_AgentProxyConfigHeadersPreserveH2CScheme(t *testing.T) {

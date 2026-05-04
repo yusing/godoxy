@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/route/routes"
+	ioutils "github.com/yusing/goutils/io"
 	"golang.org/x/crypto/bcrypt"
 
 	. "github.com/yusing/godoxy/internal/route/rules"
@@ -1470,4 +1471,29 @@ func TestHTTPFlow_EnvVarExpansionInDoBody(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "env-value", w.Header().Get("X-From-Env"))
+}
+
+func TestHTTPFlow_ResponseModifier_IgnoresUnsupportedBufferedFlush(t *testing.T) {
+	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		err := ioutils.CopyCloseWithContext(r.Context(), w, strings.NewReader("<html><body>original</body></html>"), -1)
+		require.NoError(t, err)
+	})
+
+	var rules Rules
+	err := parseRules(`
+{
+  set resp_body "overridden"
+}
+`, &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(upstream)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "overridden\n", w.Body.String())
 }
