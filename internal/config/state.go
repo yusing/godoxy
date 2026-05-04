@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,8 @@ import (
 	"github.com/yusing/godoxy/internal/notif"
 	routeimpl "github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider"
+	"github.com/yusing/godoxy/internal/route/rules"
+	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
 	routetypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
@@ -559,12 +562,17 @@ func (state *state) initWebUIRoute() error {
 }
 
 func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
+	webuiRules, err := loadWebUIRules("webui.yml", state.WebUI.Rules)
+	if err != nil {
+		return nil, err
+	}
+
 	r := routeimpl.Route{
 		Scheme:      routetypes.SchemeFileServer,
 		Root:        "embed://webui",
 		SPA:         true,
 		Index:       "_shell.html",
-		RuleFile:    "embed://webui.yml",
+		Rules:       webuiRules,
 		HealthCheck: types.HealthCheckConfig{Disable: true},
 		Homepage: &homepage.ItemConfig{
 			Show: false,
@@ -588,12 +596,24 @@ func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 	r.Host = host
 	r.Port.Proxy = port
 	r.Root = ""
-	r.RuleFile = "embed://webui_dev.yml"
+	r.Rules, err = loadWebUIRules("webui_dev.yml", state.WebUI.Rules)
+	if err != nil {
+		return nil, err
+	}
 	r.SPA = false
 	r.Index = ""
 	r.Metadata.RootFS = nil
 	state.tmpLog.Info().Msg("using WebUI Vite dev server")
 	return &r, nil
+}
+
+func loadWebUIRules(presetName string, extra rules.Rules) (rules.Rules, error) {
+	webuiRules, ok := rulepresets.GetRulePreset(presetName)
+	if !ok {
+		return nil, fmt.Errorf("rule preset %q not found", presetName)
+	}
+	webuiRules = slices.Clone(webuiRules)
+	return append(webuiRules, extra...), nil
 }
 
 func (state *state) printRoutesByProvider(lenLongestName int) {

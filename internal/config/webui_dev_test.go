@@ -21,7 +21,7 @@ func TestWebUIDevServerReadyAcceptsHTTP200(t *testing.T) {
 
 func TestWebUIDevServerReadyRejectsNon2xx(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
