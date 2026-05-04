@@ -19,7 +19,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/cenkalti/backoff/v5 v5.0.3 // backoff for retrying operations
 	github.com/coreos/go-oidc/v3 v3.18.0 // oidc authentication
-	github.com/fsnotify/fsnotify v1.10.0 // file watcher
+	github.com/fsnotify/fsnotify v1.10.1 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
 	github.com/go-acme/lego/v4 v4.35.2 // acme client
 	github.com/go-playground/validator/v10 v10.30.2 // validator
@@ -41,24 +41,24 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.1 // fast json parsing
-	github.com/docker/cli v29.4.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.4.2+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.4.1 // proxmox API client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.59.0 // http3 support
-	github.com/shirou/gopsutil/v4 v4.26.3 // system information
+	github.com/shirou/gopsutil/v4 v4.26.4 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.70.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260430025755-5661fdf6f237
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260430025755-5661fdf6f237
+	github.com/yusing/godoxy/agent v0.0.0-20260501181524-1947105a7e4a
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260501181524-1947105a7e4a
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260430182405-42e6b2fc1dde
-	github.com/yusing/goutils/http/websocket v0.0.0-20260430182405-42e6b2fc1dde
-	github.com/yusing/goutils/server v0.0.0-20260430182405-42e6b2fc1dde
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260504083122-559be479b334
+	github.com/yusing/goutils/http/websocket v0.0.0-20260504083122-559be479b334
+	github.com/yusing/goutils/server v0.0.0-20260504083122-559be479b334
 )
 
 require (
@@ -114,7 +114,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/ovh/go-ovh v1.9.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.3.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
@@ -137,16 +137,16 @@ require (
 	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/api v0.277.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4 // indirect
-	google.golang.org/grpc v1.80.0 // indirect
+	google.golang.org/grpc v1.81.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/ini.v1 v1.67.1 // indirect
+	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/yusing/goutils/cache v0.0.0-20260430182405-42e6b2fc1dde
+	github.com/yusing/goutils/cache v0.0.0-20260504083122-559be479b334
 )
 
 require (
