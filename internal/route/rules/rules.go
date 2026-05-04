@@ -490,13 +490,17 @@ var errStreamClosed error
 //go:linkname errClientDisconnected golang.org/x/net/http2.errClientDisconnected
 var errClientDisconnected error
 
+//go:linkname errClosedResponseBody golang.org/x/net/http2.errClosedResponseBody
+var errClosedResponseBody error
+
 func isUnexpectedError(err error) bool {
-	if errors.Is(err, errStreamClosed) || errors.Is(err, errClientDisconnected) {
+	if errors.Is(err, errStreamClosed) || errors.Is(err, errClientDisconnected) || errors.Is(err, errClosedResponseBody) {
 		return false
 	}
 	if h2Err, ok := errors.AsType[http2.StreamError](err); ok {
 		// ignore these errors
-		if h2Err.Code == http2.ErrCodeStreamClosed {
+		switch h2Err.Code {
+		case http2.ErrCodeStreamClosed, http2.ErrCodeCancel:
 			return false
 		}
 	}
