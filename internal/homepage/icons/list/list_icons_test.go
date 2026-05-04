@@ -78,7 +78,7 @@ func runTests(t *testing.T, iconsCache IconMap, test []testCases) {
 	t.Helper()
 
 	for _, item := range test {
-		icon, ok := iconsCache[item.Key]
+		icon, ok := iconsCache.Load(item.Key)
 		if !ok {
 			t.Fatalf("icon %s not found", item.Key)
 		}
@@ -100,13 +100,13 @@ func runTests(t *testing.T, iconsCache IconMap, test []testCases) {
 func TestListWalkxCodeIcons(t *testing.T) {
 	t.Cleanup(TestClearIconsCache)
 
-	MockHTTPGet([]byte(walkxcodeIcons))
-	m := make(IconMap)
-	if err := UpdateWalkxCodeIcons(m); err != nil {
+	MockHTTPGet(t.Context(), []byte(walkxcodeIcons))
+	m := NewIconMap()
+	if err := UpdateWalkxCodeIcons(t.Context(), m); err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 3 {
-		t.Fatalf("expect 3 icons, got %d", len(m))
+	if m.Size() != 3 {
+		t.Fatalf("expect 3 icons, got %d", m.Size())
 	}
 	test := []testCases{
 		{
@@ -140,13 +140,13 @@ func TestListWalkxCodeIcons(t *testing.T) {
 
 func TestListSelfhstIcons(t *testing.T) {
 	t.Cleanup(TestClearIconsCache)
-	MockHTTPGet([]byte(selfhstIcons))
-	m := make(IconMap)
-	if err := UpdateSelfhstIcons(m); err != nil {
+	MockHTTPGet(t.Context(), []byte(selfhstIcons))
+	m := NewIconMap()
+	if err := UpdateSelfhstIcons(t.Context(), m); err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 3 {
-		t.Fatalf("expect 3 icons, got %d", len(m))
+	if m.Size() != 3 {
+		t.Fatalf("expect 3 icons, got %d", m.Size())
 	}
 	test := []testCases{
 		{

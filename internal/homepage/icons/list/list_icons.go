@@ -5,22 +5,24 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	"github.com/yusing/godoxy/internal/serialization"
+	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/intern"
 	strutils "github.com/yusing/goutils/strings"
-	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
 type (
-	IconMap  map[icons.Key]*icons.Meta
+	IconMap  = *xsync.Map[icons.Key, *icons.Meta]
 	IconList []string
 
 	IconMetaSearch struct {
@@ -35,7 +37,7 @@ type (
 
 const updateInterval = 2 * time.Hour
 
-var iconsCache synk.Value[IconMap]
+var iconsCache atomic.Pointer[xsync.Map[icons.Key, *icons.Meta]]
 
 const (
 	walkxcodeIcons = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@master/tree.json"
@@ -53,7 +55,7 @@ func init() {
 }
 
 func InitCache() {
-	m := make(IconMap)
+	m := NewIconMap()
 	err := serialization.LoadFileIfExist(common.IconListCachePath, &m, strutils.UnmarshalJSON)
 	switch {
 	case err != nil:
@@ -70,9 +72,9 @@ func InitCache() {
 			// store it to disk immediately
 			_ = serialization.SaveFile(common.IconListCachePath, &m, 0o644, strutils.MarshalJSON)
 		}
-	case len(m) > 0:
+	case m.Size() > 0:
 		log.Info().
-			Int("icons", len(m)).
+			Int("icons", m.Size()).
 			Msg("icons loaded")
 	default:
 		if err := updateIcons(m); err != nil {
@@ -90,6 +92,10 @@ func InitCache() {
 	go backgroundUpdateIcons()
 }
 
+func NewIconMap(options ...func(*xsync.MapConfig)) *xsync.Map[icons.Key, *icons.Meta] {
+	return xsync.NewMap[icons.Key, *icons.Meta](options...)
+}
+
 func backgroundUpdateIcons() {
 	ticker := time.NewTicker(updateInterval)
 	defer ticker.Stop()
@@ -98,7 +104,7 @@ func backgroundUpdateIcons() {
 		select {
 		case <-ticker.C:
 			log.Info().Msg("updating icon data")
-			newCache := make(IconMap, len(iconsCache.Load()))
+			newCache := NewIconMap(xsync.WithPresize(iconsCache.Load().Size()))
 			if err := updateIcons(newCache); err != nil {
 				log.Error().Err(err).Msg("failed to update icons")
 			} else {
@@ -109,7 +115,7 @@ func backgroundUpdateIcons() {
 				if err != nil {
 					log.Warn().Err(err).Msg("failed to save icons")
 				}
-				log.Info().Int("icons", len(newCache)).Msg("icons list updated")
+				log.Info().Int("icons", newCache.Size()).Msg("icons list updated")
 			}
 		case <-task.RootContext().Done():
 			return
@@ -118,7 +124,9 @@ func backgroundUpdateIcons() {
 }
 
 func TestClearIconsCache() {
-	clear(iconsCache.Load())
+	if cache := iconsCache.Load(); cache != nil {
+		cache.Clear()
+	}
 }
 
 func ListAvailableIcons() IconMap {
@@ -146,7 +154,7 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 	whitespacedKeyword := strings.ReplaceAll(keyword, "-", " ")
 
 	icons := ListAvailableIcons()
-	for k, icon := range icons {
+	for k, icon := range icons.Range {
 		source, ref := k.SourceRef()
 
 		var rank int
@@ -193,7 +201,7 @@ func HasIcon(icon *icons.URL) bool {
 	if common.IsTest {
 		return true
 	}
-	meta, ok := ListAvailableIcons()[icon.Extra.Key]
+	meta, ok := ListAvailableIcons().Load(icon.Extra.Key)
 	if !ok {
 		return false
 	}
@@ -215,7 +223,7 @@ type HomepageMeta struct {
 }
 
 func GetMetadata(ref string) (HomepageMeta, bool) {
-	meta, ok := ListAvailableIcons()[icons.NewKey(icons.SourceSelfhSt, ref)]
+	meta, ok := ListAvailableIcons().Load(icons.NewKey(icons.SourceSelfhSt, ref))
 	// these info is not available in walkxcode
 	// if !ok {
 	// 	meta, ok = iconsCache.Icons[icons.NewIconKey(icons.IconSourceWalkXCode, ref)]
@@ -230,29 +238,38 @@ func GetMetadata(ref string) (HomepageMeta, bool) {
 }
 
 func updateIcons(m IconMap) error {
-	if err := UpdateWalkxCodeIcons(m); err != nil {
-		return err
-	}
-	return UpdateSelfhstIcons(m)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errs := gperr.NewGroup("update icons")
+	errs.Go(func() error {
+		return UpdateWalkxCodeIcons(ctx, m)
+	})
+	errs.Go(func() error {
+		return UpdateSelfhstIcons(ctx, m)
+	})
+	return errs.Wait().Error()
 }
 
-var httpGet = httpGetImpl
+var (
+	httpGet    = httpGetImpl
+	httpClient = &http.Client{
+		Timeout: 5 * time.Second,
+	}
+)
 
-func MockHTTPGet(body []byte) {
-	httpGet = func(_ string) ([]byte, func([]byte), error) {
+func MockHTTPGet(ctx context.Context, body []byte) {
+	httpGet = func(_ context.Context, _ string) ([]byte, func([]byte), error) {
 		return body, func([]byte) {}, nil
 	}
 }
 
-func httpGetImpl(url string) ([]byte, func([]byte), error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func httpGetImpl(ctx context.Context, url string) ([]byte, func([]byte), error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -278,8 +295,8 @@ format:
 		]
 	}
 */
-func UpdateWalkxCodeIcons(m IconMap) error {
-	body, release, err := httpGet(walkxcodeIcons)
+func UpdateWalkxCodeIcons(ctx context.Context, m IconMap) error {
+	body, release, err := httpGet(ctx, walkxcodeIcons)
 	if err != nil {
 		return err
 	}
@@ -312,10 +329,10 @@ func UpdateWalkxCodeIcons(m IconMap) error {
 				f = strings.TrimSuffix(f, "-dark")
 			}
 			key := icons.NewKey(icons.SourceWalkXCode, f)
-			icon, ok := m[key]
+			icon, ok := m.Load(key)
 			if !ok {
 				icon = new(icons.Meta)
-				m[key] = icon
+				m.Store(key, icon)
 			}
 			setExt(icon)
 			if isLight {
@@ -346,7 +363,7 @@ format:
 	}
 */
 
-func UpdateSelfhstIcons(m IconMap) error {
+func UpdateSelfhstIcons(ctx context.Context, m IconMap) error {
 	type SelfhStIcon struct {
 		Name      string
 		Reference string
@@ -358,7 +375,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 		Tags      string
 	}
 
-	body, release, err := httpGet(selfhstIcons)
+	body, release, err := httpGet(ctx, selfhstIcons)
 	if err != nil {
 		return err
 	}
@@ -386,7 +403,7 @@ func UpdateSelfhstIcons(m IconMap) error {
 			Dark:        item.Dark == "Yes",
 		}
 		key := icons.NewKey(icons.SourceSelfhSt, item.Reference)
-		m[key] = icon
+		m.Store(key, icon)
 	}
 	return nil
 }
