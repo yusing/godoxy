@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
+	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/webui"
 )
 
@@ -118,6 +119,82 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 			require.Contains(t, rec.Body.String(), tt.wantBody)
 			for key, value := range tt.wantHeader {
 				require.Equal(t, value, rec.Header().Get(key))
+			}
+		})
+	}
+}
+
+func TestEmbeddedWebUIRouteMiddlewaresWrapRules(t *testing.T) {
+	prevAPI, _ := rules.GetHandler("api")
+	prevAuth := rules.GetAuthHandler()
+	t.Cleanup(func() {
+		rules.ReplaceHandler("api", prevAPI)
+		rules.InitAuthHandler(prevAuth)
+	})
+
+	rules.ReplaceHandler("api", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("api response"))
+	}))
+	rules.InitAuthHandler(func(http.ResponseWriter, *http.Request) bool { return true })
+
+	webuiRules, ok := rulepresets.GetRulePreset("webui.yml")
+	require.True(t, ok)
+
+	fileServer, err := NewFileServer(&Route{
+		Alias:    "godoxy",
+		Root:     "embed://webui",
+		Metadata: Metadata{RootFS: webui.Dist()},
+		SPA:      true,
+		Index:    "_shell.html",
+		Rules:    webuiRules,
+		Middlewares: map[string]types.LabelMap{
+			"themed": {
+				"css": "https://css.tyleo.dev/gdx/global.css",
+			},
+			"response": {
+				"set_headers": map[string]any{
+					"X-Test-Header": "test-value",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, fileServer.prepareHandler())
+
+	tests := []struct {
+		name        string
+		path        string
+		wantBody    string
+		wantHeader  string
+		wantNoTheme bool
+	}{
+		{
+			name:       "spa html gets response header and theme",
+			path:       "/routes",
+			wantBody:   `href="https://css.tyleo.dev/gdx/global.css"`,
+			wantHeader: "test-value",
+		},
+		{
+			name:        "api handled by rules still gets response header",
+			path:        "/api/v1/version",
+			wantBody:    "api response",
+			wantHeader:  "test-value",
+			wantNoTheme: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+
+			fileServer.handler.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Equal(t, tt.wantHeader, rec.Header().Get("X-Test-Header"))
+			require.Contains(t, rec.Body.String(), tt.wantBody)
+			if tt.wantNoTheme {
+				require.NotContains(t, rec.Body.String(), "css.tyleo.dev")
 			}
 		})
 	}

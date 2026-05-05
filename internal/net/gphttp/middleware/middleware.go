@@ -219,6 +219,9 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 	}
 
 	lrm := httputils.NewLazyResponseModifier(w, canBufferAndModifyResponseBody)
+	lrm.SetModifyResponse(r, func(resp *http.Response) error {
+		return modifyResponseHeadersOnly(exec, resp)
+	})
 	lrm.SetMaxBufferedBytes(maxModifiableBody)
 	defer func() {
 		_, err := lrm.FlushRelease()
@@ -246,7 +249,7 @@ func (m *Middleware) ServeHTTP(next http.HandlerFunc, w http.ResponseWriter, r *
 		Request:       r,
 	}
 	respToModify := currentResp
-	if err := exec.modifyResponse(respToModify); err != nil {
+	if err := modifyResponseBodyOnly(exec, respToModify); err != nil {
 		log.Err(err).Str("middleware", m.Name()).Str("url", fullURL(r)).Msg("failed to modify response")
 		return // skip modification if failed
 	}

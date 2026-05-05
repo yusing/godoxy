@@ -65,6 +65,37 @@ func (m *middlewareChain) modifyResponse(resp *http.Response) error {
 	return nil
 }
 
+func modifyResponseHeadersOnly(mr ResponseModifier, resp *http.Response) error {
+	if chain, ok := mr.(*middlewareChain); ok {
+		for i, mr := range chain.respHeader {
+			if err := mr.modifyResponse(resp); err != nil {
+				return gperr.PrependSubject(err, strconv.Itoa(i))
+			}
+		}
+		return nil
+	}
+	if isBodyResponseModifier(mr) {
+		return nil
+	}
+	return mr.modifyResponse(resp)
+}
+
+func modifyResponseBodyOnly(mr ResponseModifier, resp *http.Response) error {
+	if chain, ok := mr.(*middlewareChain); ok {
+		headerLen := len(chain.respHeader)
+		for i, mr := range chain.respBody {
+			if err := mr.modifyResponse(resp); err != nil {
+				return gperr.PrependSubject(err, strconv.Itoa(i+headerLen))
+			}
+		}
+		return nil
+	}
+	if !isBodyResponseModifier(mr) {
+		return nil
+	}
+	return mr.modifyResponse(resp)
+}
+
 func isBodyResponseModifier(mr ResponseModifier) bool {
 	if chain, ok := mr.(*middlewareChain); ok {
 		return len(chain.respBody) > 0

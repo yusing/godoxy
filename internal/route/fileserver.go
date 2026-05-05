@@ -138,28 +138,9 @@ func (s *FileServer) Start(parent task.Parent) error {
 	s.task = parent.Subtask("fileserver."+s.Name(), false)
 	s.task.SetValue(monitor.DisplayNameKey{}, s.DisplayName())
 
-	pathPatterns := s.PathPatterns
-	switch {
-	case len(pathPatterns) == 0:
-	case len(pathPatterns) == 1 && pathPatterns[0] == "/":
-	default:
-		mux := gphttp.NewServeMux()
-		patErrs := gperr.NewBuilder("invalid path pattern(s)")
-		for _, p := range pathPatterns {
-			patErrs.Add(mux.Handle(p, s.handler))
-		}
-		if err := patErrs.Error(); err != nil {
-			s.task.Finish(err)
-			return err
-		}
-		s.handler = mux
-	}
-
-	if s.middleware != nil {
-		next := s.handler
-		s.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s.middleware.ServeHTTP(next.ServeHTTP, w, r)
-		})
+	if err := s.prepareHandler(); err != nil {
+		s.task.Finish(err)
+		return err
 	}
 
 	if s.UseAccessLog() {
@@ -169,10 +150,6 @@ func (s *FileServer) Start(parent task.Parent) error {
 			s.task.Finish(err)
 			return err
 		}
-	}
-
-	if len(s.Rules) > 0 {
-		s.handler = s.Rules.BuildHandler(s.handler.ServeHTTP)
 	}
 
 	if s.UseHealthCheck() {
@@ -193,6 +170,36 @@ func (s *FileServer) Start(parent task.Parent) error {
 	if err := ep.StartAddRoute(s); err != nil {
 		s.task.Finish(err)
 		return err
+	}
+	return nil
+}
+
+func (s *FileServer) prepareHandler() error {
+	pathPatterns := s.PathPatterns
+	switch {
+	case len(pathPatterns) == 0:
+	case len(pathPatterns) == 1 && pathPatterns[0] == "/":
+	default:
+		mux := gphttp.NewServeMux()
+		patErrs := gperr.NewBuilder("invalid path pattern(s)")
+		for _, p := range pathPatterns {
+			patErrs.Add(mux.Handle(p, s.handler))
+		}
+		if err := patErrs.Error(); err != nil {
+			return err
+		}
+		s.handler = mux
+	}
+
+	if len(s.Rules) > 0 {
+		s.handler = s.Rules.BuildHandler(s.handler.ServeHTTP)
+	}
+
+	if s.middleware != nil {
+		next := s.handler
+		s.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s.middleware.ServeHTTP(next.ServeHTTP, w, r)
+		})
 	}
 	return nil
 }

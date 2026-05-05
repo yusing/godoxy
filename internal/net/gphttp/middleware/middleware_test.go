@@ -215,8 +215,8 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 				"Content-Type": []string{"application/octet-stream"},
 			},
 			respBody:         "binary",
-			expectStatusCode: http.StatusOK,
-			expectHeader:     "",
+			expectStatusCode: http.StatusTeapot,
+			expectHeader:     "1",
 			expectBody:       "binary",
 		},
 		{
@@ -237,8 +237,8 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 				"Transfer-Encoding": []string{"gzip"},
 			},
 			respBody:         "<html><body>original</body></html>",
-			expectStatusCode: http.StatusOK,
-			expectHeader:     "",
+			expectStatusCode: http.StatusTeapot,
+			expectHeader:     "1",
 			expectBody:       "<html><body>original</body></html>",
 		},
 		{
@@ -248,8 +248,8 @@ func TestMiddlewareResponseRewriteGateServeHTTP(t *testing.T) {
 				"Content-Encoding": []string{"gzip"},
 			},
 			respBody:         "<html><body>original</body></html>",
-			expectStatusCode: http.StatusOK,
-			expectHeader:     "",
+			expectStatusCode: http.StatusTeapot,
+			expectHeader:     "1",
 			expectBody:       "<html><body>original</body></html>",
 		},
 	}
