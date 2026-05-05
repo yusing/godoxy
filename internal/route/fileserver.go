@@ -13,10 +13,8 @@ import (
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
-	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -175,22 +173,6 @@ func (s *FileServer) Start(parent task.Parent) error {
 }
 
 func (s *FileServer) prepareHandler() error {
-	pathPatterns := s.PathPatterns
-	switch {
-	case len(pathPatterns) == 0:
-	case len(pathPatterns) == 1 && pathPatterns[0] == "/":
-	default:
-		mux := gphttp.NewServeMux()
-		patErrs := gperr.NewBuilder("invalid path pattern(s)")
-		for _, p := range pathPatterns {
-			patErrs.Add(mux.Handle(p, s.handler))
-		}
-		if err := patErrs.Error(); err != nil {
-			return err
-		}
-		s.handler = mux
-	}
-
 	if len(s.Rules) > 0 {
 		s.handler = s.Rules.BuildHandler(s.handler.ServeHTTP)
 	}

@@ -5435,9 +5435,13 @@
           "x-nullable": true
         },
         "lurl": {
-          "description": "private fields",
           "type": "string",
           "x-nullable": true
+        },
+        "max_conns_per_host": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
         },
         "middlewares": {
           "type": "object",
@@ -5450,13 +5454,6 @@
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
-        },
-        "path_patterns": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-nullable": true
         },
         "port": {
           "$ref": "#/definitions/Port",

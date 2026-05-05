@@ -44,16 +44,6 @@ func TestExplicitOnly(t *testing.T) {
 }
 
 func TestApplyLabel(t *testing.T) {
-	pathPatterns := `
-- /
-- POST /upload/{$}
-- GET /static
-`[1:]
-	pathPatternsExpect := []string{
-		"/",
-		"POST /upload/{$}",
-		"GET /static",
-	}
 	middlewaresExpect := map[string]map[string]any{
 		"request": {
 			"set_headers": map[string]any{
@@ -77,7 +67,6 @@ func TestApplyLabel(t *testing.T) {
 			"proxy.*.scheme":        "https",
 			"proxy.*.host":          "app",
 			"proxy.*.port":          "4567",
-			"proxy.a.path_patterns": pathPatterns,
 			"proxy.a.middlewares.request.set_headers.X-Header":  "value1",
 			"proxy.a.middlewares.request.add_headers.X-Header2": "value2",
 			"proxy.a.homepage.show":                             "true",
@@ -103,9 +92,6 @@ func TestApplyLabel(t *testing.T) {
 
 	expect.True(t, a.NoTLSVerify)
 	expect.True(t, b.NoTLSVerify)
-
-	expect.Equal(t, a.PathPatterns, pathPatternsExpect)
-	expect.Equal(t, len(b.PathPatterns), 0)
 
 	expect.Equal(t, a.Middlewares, middlewaresExpect)
 	expect.Equal(t, len(b.Middlewares), 0)

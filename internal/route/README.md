@@ -43,7 +43,6 @@ type Route struct {
     // Route rules and middleware
     HTTPConfig
     InboundMTLSProfile string
-    PathPatterns []string
     Rules        rules.Rules
     RuleFile     string
 

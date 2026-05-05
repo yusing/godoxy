@@ -1022,9 +1022,10 @@ definitions:
         - $ref: '#/definitions/LoadBalancerConfig'
         x-nullable: true
       lurl:
-        description: private fields
         type: string
         x-nullable: true
+      max_conns_per_host:
+        type: integer
       middlewares:
         additionalProperties:
           $ref: '#/definitions/types.LabelMap'
@@ -1032,11 +1033,6 @@ definitions:
         x-nullable: true
       no_tls_verify:
         type: boolean
-      path_patterns:
-        items:
-          type: string
-        type: array
-        x-nullable: true
       port:
         $ref: '#/definitions/Port'
       provider:
@@ -1809,11 +1805,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_15m:
+        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
-        type: string
-      load_avg_15m:
         type: string
       mem_pct:
         type: string

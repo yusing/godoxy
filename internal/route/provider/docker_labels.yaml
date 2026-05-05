@@ -4,10 +4,6 @@ proxy.app: |
   scheme: http
   host: 10.0.0.254
   port: 80
-  path_patterns: # Check https://pkg.go.dev/net/http#hdr-Patterns-ServeMux for syntax
-    - GET / # accept any GET request
-    - POST /auth # for /auth and /auth/* accept only POST
-    - GET /home/{$} # for exactly /home
   healthcheck:
     disabled: false
     path: /
@@ -69,11 +65,6 @@ proxy.app: |
 proxy.app1.scheme: http
 proxy.app1.host: 10.0.0.254
 proxy.app1.port: 80
-proxy.app1.path_patterns:
-  | # Check https://pkg.go.dev/net/http#hdr-Patterns-ServeMux for syntax
-  - GET / # accept any GET request
-  - POST /auth # for /auth and /auth/* accept only POST
-  - GET /home/{$} # for exactly /home
 proxy.app1.healthcheck.disabled: false
 proxy.app1.healthcheck.path: /
 proxy.app1.healthcheck.interval: 5s
