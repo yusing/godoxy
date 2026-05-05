@@ -1,16 +1,39 @@
-#!/bin/bash
+#!/bin/sh
+# POSIX sh — portable across Linux (dash/busybox), *BSD, macOS.
+# Functions use `local` (supported by those shells; not in POSIX yet).
 
-set -e # Exit on error
+set -e
+
+# Apply sed script(s) to file without relying on sed -i (GNU/BSD differ).
+sed_edit_in_place() {
+	local _file _tmp
+	_file=$1
+	shift
+	_tmp=$(mktemp "${TMPDIR:-/tmp}/godoxy-setup.XXXXXX") || exit 1
+	sed "$@" "$_file" > "$_tmp" || {
+		rm -f "$_tmp"
+		exit 1
+	}
+	mv "$_tmp" "$_file" || {
+		rm -f "$_tmp"
+		exit 1
+	}
+}
 
 check_cmd() {
-	not_available=()
-	for cmd in "$@"; do
-		if ! command -v "$cmd" >/dev/null 2>&1; then
-			not_available+=("$cmd")
+	local _missing _cmd
+	_missing=
+	for _cmd do
+		if ! command -v "$_cmd" >/dev/null 2>&1; then
+			if [ -z "$_missing" ]; then
+				_missing=$_cmd
+			else
+				_missing="$_missing $_cmd"
+			fi
 		fi
 	done
-	if [ "${#not_available[@]}" -gt 0 ]; then
-		echo "Error: ${not_available[*]} unavailable, please install it first"
+	if [ -n "$_missing" ]; then
+		echo "Error: $_missing unavailable, please install it first"
 		exit 1
 	fi
 }
@@ -18,14 +41,14 @@ check_cmd() {
 check_cmd openssl docker
 
 # quit if running user is root
-if [ "$EUID" -eq 0 ]; then
+if [ "$(id -u)" -eq 0 ]; then
 	echo "Error: Please do not run this script as root"
 	exit 1
 fi
 
 # check if user has docker permission
 if ! docker ps >/dev/null 2>&1; then
-	echo "Error: User $USER does not have permission to run docker, please add it to docker group"
+	echo "Error: User $(id -un) does not have permission to run docker, please add it to docker group"
 	exit 1
 fi
 
@@ -45,7 +68,7 @@ echo "Using ${DOWNLOAD_TOOL} for downloads"
 
 # Environment variables with defaults
 REPO="yusing/godoxy"
-BRANCH=${BRANCH:-"main"}
+BRANCH=${BRANCH:-main}
 REPO_URL="https://github.com/$REPO"
 BASE_URL="${REPO_URL}/raw/${BRANCH}"
 
@@ -58,7 +81,6 @@ COMPOSE_EXAMPLE_FILE_NAME="compose.example.yml"
 CONFIG_FILE_NAME="config.yml"
 CONFIG_EXAMPLE_FILE_NAME="config.example.yml"
 CONFIG_FILE_PATH="${CONFIG_BASE_PATH}/${CONFIG_FILE_NAME}"
-REQUIRED_DIRECTORIES=("config" "logs" "error_pages" "data" "certs")
 
 echo "Setting up GoDoxy"
 echo "Branch: ${BRANCH}"
@@ -86,67 +108,97 @@ touch_if_not_exists() {
 
 # Function to download file
 fetch_file() {
-	local remote_file="$1"
-	local out_file="$2"
+	local _rf _of OVERWRITE
+	_rf=$1
+	_of=$2
 
-	if has_file_or_dir "$out_file"; then
-		if [ "$remote_file" = "$out_file" ]; then
-			echo "\"$out_file\" already exists, not overwriting"
+	if has_file_or_dir "$_of"; then
+		if [ "$_rf" = "$_of" ]; then
+			echo "\"$_of\" already exists, not overwriting"
 			return
 		fi
-		read -p "Do you want to overwrite \"$out_file\"? (y/n): " OVERWRITE
+		printf 'Do you want to overwrite "%s"? (y/n): ' "$_of"
+		IFS= read -r OVERWRITE || exit 1
 		if [ "$OVERWRITE" != "y" ]; then
-			echo "Skipping \"$remote_file\""
+			echo "Skipping \"$_rf\""
 			return
 		fi
 	fi
 
-	echo "Downloading \"$remote_file\" to \"$out_file\""
-	if ! $DOWNLOAD_CMD "$out_file" "${BASE_URL}/${remote_file}"; then
-		echo "Error: Failed to download ${remote_file}"
-		rm -f "$out_file" # Clean up partial download
+	echo "Downloading \"$_rf\" to \"$_of\""
+	if ! $DOWNLOAD_CMD "$_of" "${BASE_URL}/${_rf}"; then
+		echo "Error: Failed to download ${_rf}"
+		rm -f "$_of"
 		exit 1
 	fi
 	echo "Done"
 }
 
 ask_while_empty() {
-	local prompt="$1"
-	local var_name="$2"
-	local value=""
-	while [ -z "$value" ]; do
-		read -p "$prompt" value
-		if [ -z "$value" ]; then
-			echo "Error: $var_name cannot be empty, please try again"
+	local _prompt _var_name _val
+	_prompt=$1
+	_var_name=$2
+	_val=""
+	while [ -z "$_val" ]; do
+		printf '%s' "$_prompt"
+		IFS= read -r _val || exit 1
+		if [ -z "$_val" ]; then
+			echo "Error: $_var_name cannot be empty, please try again"
 		fi
 	done
-	eval "$var_name=\"$value\""
+	eval "$_var_name=\$_val"
+}
+
+# Usage: ask_multiple_choice VAR_NAME "prompt line" choice1 choice2 ...
+pick_nth_arg() {
+	local _n _i _arg
+	_n=$1
+	shift
+	_i=1
+	for _arg do
+		if [ "$_i" -eq "$_n" ]; then
+			printf '%s\n' "$_arg"
+			return 0
+		fi
+		_i=$((_i + 1))
+	done
+	return 1
 }
 
 ask_multiple_choice() {
-	local var_name="$1"
-	local prompt="$2"
+	local _var_name _prompt _valid _i _n_choices _value _selected _choice
+	_var_name=$1
+	_prompt=$2
 	shift 2
-	local choices=("$@")
-	local n_choices="${#choices[@]}"
-	local value=""
-	local valid=0
-	while [ $valid -eq 0 ]; do
-		echo -e "$prompt"
-		for i in "${!choices[@]}"; do
-			echo "$((i + 1)). ${choices[$i]}"
+	_valid=0
+	while [ "$_valid" -eq 0 ]; do
+		printf '%s\n' "$_prompt"
+		_i=1
+		for _choice do
+			printf '%s. %s\n' "$_i" "$_choice"
+			_i=$((_i + 1))
 		done
-		read -p "Enter your choice: " value
-		if [ -z "$value" ]; then
-			echo "Error: $var_name cannot be empty, please try again"
+		_n_choices=$#
+		printf 'Enter your choice: '
+		IFS= read -r _value || exit 1
+		if [ -z "$_value" ]; then
+			echo "Error: $_var_name cannot be empty, please try again"
+			continue
 		fi
-		if [ "$value" -gt "$n_choices" ] || [ "$value" -lt 1 ]; then
+		case "$_value" in
+			*[!0-9]*)
+				echo "Error: invalid choice, please try again"
+				continue
+				;;
+		esac
+		if [ "$_value" -lt 1 ] || [ "$_value" -gt "$_n_choices" ]; then
 			echo "Error: invalid choice, please try again"
-		else
-			valid=1
+			continue
 		fi
+		_selected=$(pick_nth_arg "$_value" "$@") || continue
+		eval "$_var_name=\$_selected"
+		_valid=1
 	done
-	eval "$var_name=\"${choices[$((value - 1))]}\""
 }
 
 get_timezone() {
@@ -166,28 +218,24 @@ get_timezone() {
 }
 
 setenv() {
-	local key="$1"
-	local value="$2"
-	if [[ $(uname -s) == "Darwin" ]]; then
-		sed -i '' "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
-		sed -i '' "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
-	else
-		sed -i "/^# *${key}=/s/^# *//" "$DOT_ENV_PATH"
-		sed -i "s|${key}=.*|${key}=\"${value}\"|" "$DOT_ENV_PATH"
-	fi
-	echo "${key}=${value}"
+	local _sk _sv
+	_sk=$1
+	_sv=$2
+	sed_edit_in_place "$DOT_ENV_PATH" "/^# *${_sk}=/s/^# *//"
+	sed_edit_in_place "$DOT_ENV_PATH" "s|${_sk}=.*|${_sk}=\"${_sv}\"|"
+	echo "${_sk}=${_sv}"
 }
 
 # Setup required configurations
 # 1. Setup required directories
-for dir in "${REQUIRED_DIRECTORIES[@]}"; do
+for dir in config logs error_pages data certs; do
 	mkdir_if_not_exists "$dir"
 done
 
 # 2. check if rootless docker is used, verify again with user input
 if docker info -f "{{println .SecurityOptions}}" | grep rootless >/dev/null 2>&1; then
 	ask_while_empty "Rootless docker detected, is this correct? (y/n): " USE_ROOTLESS_DOCKER
-	if [ "$USE_ROOTLESS_DOCKER" == "n" ]; then
+	if [ "$USE_ROOTLESS_DOCKER" = "n" ]; then
 		USE_ROOTLESS_DOCKER="false"
 	else
 		USE_ROOTLESS_DOCKER="true"
@@ -195,7 +243,7 @@ if docker info -f "{{println .SecurityOptions}}" | grep rootless >/dev/null 2>&1
 fi
 
 # 3. if rootless docker is used, switch to rootless docker compose and .env
-if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+if [ "$USE_ROOTLESS_DOCKER" = "true" ]; then
 	COMPOSE_EXAMPLE_FILE_NAME="rootless-compose.example.yml"
 	DOT_ENV_EXAMPLE_PATH="rootless.env.example"
 fi
@@ -232,7 +280,7 @@ setenv "GODOXY_API_PASSWORD" "$LOGIN_PASSWORD"
 ask_while_empty "Configure autocert? (y/n): " ENABLE_AUTOCERT
 
 # quit if not using autocert
-if [ "$ENABLE_AUTOCERT" == "y" ]; then
+if [ "$ENABLE_AUTOCERT" = "y" ]; then
 	echo "Setting up autocert"
 	skip=false
 
@@ -250,49 +298,58 @@ if [ "$ENABLE_AUTOCERT" == "y" ]; then
 		"Other"
 
 	# ask for dns provider credentials
-	if [ "$DNS_PROVIDER" == "Cloudflare" ]; then
+	case "$DNS_PROVIDER" in
+	Cloudflare)
 		provider="cloudflare"
-		read -p "Enter cloudflare zone api key: " auth_token
-		options=("auth_token: \"$auth_token\"")
-	elif [ "$DNS_PROVIDER" == "CloudDNS" ]; then
+		printf '%s' "Enter cloudflare zone api key: "
+		IFS= read -r auth_token || exit 1
+		options_block=$(printf '    auth_token: "%s"' "$auth_token")
+		;;
+	CloudDNS)
 		provider="clouddns"
-		read -p "Enter clouddns client_id: " client_id
-		read -p "Enter clouddns email: " email
-		read -p "Enter clouddns password: " password
-		options=(
-			"client_id: \"$client_id\""
-			"email: \"$email\""
-			"password: \"$password\""
-		)
-	elif [ "$DNS_PROVIDER" == "DuckDNS" ]; then
+		printf '%s' "Enter clouddns client_id: "
+		IFS= read -r client_id || exit 1
+		printf '%s' "Enter clouddns email: "
+		IFS= read -r clouddns_email || exit 1
+		printf '%s' "Enter clouddns password: "
+		IFS= read -r password || exit 1
+		options_block=$(printf '    client_id: "%s"\n    email: "%s"\n    password: "%s"' "$client_id" "$clouddns_email" "$password")
+		;;
+	DuckDNS)
 		provider="duckdns"
-		read -p "Enter duckdns token: " token
-		options=("token: \"$token\"")
-	else
+		printf '%s' "Enter duckdns token: "
+		IFS= read -r token || exit 1
+		options_block=$(printf '    token: "%s"' "$token")
+		;;
+	*)
 		echo "Please check Wiki for other DNS providers: https://docs.godoxy.dev/DNS-01-Providers"
 		echo "Skipping autocert setup"
 		skip=true
-	fi
-	if [ "$skip" == false ]; then
-		autocert_config="
-autocert:
+		options_block=
+		;;
+	esac
+
+	if [ "$skip" != "true" ]; then
+		autocert_config="autocert:
   provider: \"${provider}\"
   email: \"${EMAIL}\"
   domains:
     - \"*.${BASE_DOMAIN}\"
     - \"${BASE_DOMAIN}\"
   options:
+${options_block}
+
 "
-		for option in "${options[@]}"; do
-			autocert_config+="    ${option}\n"
-		done
-		autocert_config+="\n"
-		echo -e "${autocert_config}$(<"$CONFIG_FILE_PATH")" >"$CONFIG_FILE_PATH"
+
+		_cfg_tmp=$(mktemp "${TMPDIR:-/tmp}/godoxy-setup-cfg.XXXXXX") || exit 1
+		printf '%s\n' "$autocert_config" > "$_cfg_tmp"
+		cat "$CONFIG_FILE_PATH" >> "$_cfg_tmp"
+		mv "$_cfg_tmp" "$CONFIG_FILE_PATH"
 	fi
 fi
 
 # 9. set uid and gid
-if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+if [ "$USE_ROOTLESS_DOCKER" = "true" ]; then
 	setenv "DOCKER_SOCKET" "/var/run/user/$(id -u)/docker.sock"
 else
 	setenv "GODOXY_UID" "$(id -u)"
@@ -300,7 +357,7 @@ else
 fi
 
 # 10. proxy network (rootless docker only)
-if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
+if [ "$USE_ROOTLESS_DOCKER" = "true" ]; then
 	echo "Setting up proxy network"
 	echo "Available networks:"
 	docker network ls
@@ -309,7 +366,7 @@ if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
 	# check if network exists
 	if ! docker network ls | grep -q "$PROXY_NETWORK"; then
 		ask_while_empty "Network \"$PROXY_NETWORK\" does not exist, do you want to create it? (y/n): " CREATE_NETWORK
-		if [ "$CREATE_NETWORK" == "y" ]; then
+		if [ "$CREATE_NETWORK" = "y" ]; then
 			docker network create "$PROXY_NETWORK"
 			echo "Network \"$PROXY_NETWORK\" created"
 		else
@@ -317,8 +374,8 @@ if [ "$USE_ROOTLESS_DOCKER" == "true" ]; then
 			exit 1
 		fi
 	fi
-	sed -i "s|proxy: #|\"$PROXY_NETWORK\": #|" "$COMPOSE_FILE_NAME"
-	sed -i "s|- proxy|- \"$PROXY_NETWORK\"|" "$COMPOSE_FILE_NAME"
+	sed_edit_in_place "$COMPOSE_FILE_NAME" "s|proxy: #|\"$PROXY_NETWORK\": #|"
+	sed_edit_in_place "$COMPOSE_FILE_NAME" "s|- proxy|- \"$PROXY_NETWORK\"|"
 fi
 
 echo "Setup finished"

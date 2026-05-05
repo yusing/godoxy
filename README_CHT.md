@@ -116,7 +116,7 @@
 2. 在目錄內運行安裝腳本，或[手動安裝](#手動安裝)
 
    ```shell
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
+   /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
    ```
 
 3. 現在可以在 WebUI `https://godoxy.yourdomain.com` 進行額外配置

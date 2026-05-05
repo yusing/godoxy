@@ -117,7 +117,7 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 2. Run setup script inside the directory, or [set up manually](#manual-setup)
 
    ```shell
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
+   /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/yusing/godoxy/main/scripts/setup.sh)"
    ```
 
 3. Start the docker compose service from generated `compose.yml`:
