@@ -206,16 +206,17 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 
 **Terminating Actions** (stop processing):
 
-| Command                        | Description                           |
-| ------------------------------ | ------------------------------------- |
-| `upstream` / `bypass` / `pass` | Call upstream and terminate pre-phase |
-| `error <code> <message>`       | Return HTTP error                     |
-| `redirect <url>`               | Redirect to URL                       |
-| `serve <path>`                 | Serve local files                     |
+| Command                        | Description                               |
+| ------------------------------ | ----------------------------------------- |
+| `upstream` / `bypass` / `pass` | Call upstream and terminate pre-phase     |
+| `error <code> <message>`       | Return HTTP error                         |
+| `redirect <url>`               | Redirect to URL                           |
+| `serve <dir_path>`             | Serve local files                         |
+| `serve_file <file_path>`       | Serve one local file                      |
 | `handle <name>`                | Dispatch to registered in-process handler |
-| `route <name>`                 | Route to another route                |
-| `proxy <url>`                  | Proxy to upstream                     |
-| `require_basic_auth <realm>`   | Return 401 challenge                  |
+| `route <name>`                 | Route to another route                    |
+| `proxy <url>`                  | Proxy to upstream                         |
+| `require_basic_auth <realm>`   | Return 401 challenge                      |
 
 **Non-Terminating Actions** (modify and continue):
 
@@ -527,6 +528,10 @@ path glob("/api/*") {
 
 path glob("/static/*") {
   serve /var/www/static
+}
+
+path /favicon.ico {
+  serve_file /var/www/static/favicon.ico
 }
 ```
 

@@ -708,6 +708,34 @@ path glob(/files/*) {
 	assert.Equal(t, http.StatusNotFound, w2.Code)
 }
 
+func TestHTTPFlow_ServeFileCommand(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "test-serve-file-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	filePath := filepath.Join(tempDir, "index.html")
+	err = os.WriteFile(filePath, []byte("<h1>Single File</h1>"), 0o644)
+	require.NoError(t, err)
+
+	var rules Rules
+	err = parseRules(fmt.Sprintf(`
+path /single {
+  serve_file %s
+}
+`, filePath), &rules)
+	require.NoError(t, err)
+
+	handler := rules.BuildHandler(mockUpstream(http.StatusOK, "should not be called"))
+
+	req := httptest.NewRequest(http.MethodGet, "/single", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Single File")
+}
+
 func TestHTTPFlow_ProxyCommand(t *testing.T) {
 	// Create a mock upstream server
 	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

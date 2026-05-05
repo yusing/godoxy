@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"os"
 	"testing"
 
 	expect "github.com/yusing/goutils/testing"
@@ -51,13 +52,28 @@ func TestParseCommands(t *testing.T) {
 			wantErr: ErrInvalidArguments,
 		},
 		{
+			name:    "serve_file_missing_path",
+			input:   "serve_file ",
+			wantErr: ErrInvalidArguments,
+		},
+		{
 			name:    "serve_non_exist_path",
 			input:   "serve /non-exist-path",
 			wantErr: ErrInvalidArguments,
 		},
 		{
+			name:    "serve_file_non_exist_path",
+			input:   "serve_file /non-exist-path",
+			wantErr: ErrInvalidArguments,
+		},
+		{
 			name:    "serve_too_many_args",
 			input:   "serve / / /",
+			wantErr: ErrInvalidArguments,
+		},
+		{
+			name:    "serve_file_too_many_args",
+			input:   "serve_file / / /",
 			wantErr: ErrInvalidArguments,
 		},
 		// handle tests
@@ -158,4 +174,22 @@ func TestParseCommands(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseCommandServeFileValid(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "serve-file-*.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	cmd := Command{}
+	err = cmd.Parse("serve_file " + f.Name())
+	expect.NoError(t, err)
+}
+
+func TestParseCommandServeFileRejectsDirectory(t *testing.T) {
+	cmd := Command{}
+	err := cmd.Parse("serve_file " + t.TempDir())
+	expect.ErrorIs(t, ErrInvalidArguments, err)
 }

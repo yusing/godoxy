@@ -39,6 +39,7 @@ const (
 	CommandRewrite          = "rewrite"
 	CommandHandle           = "handle"
 	CommandServe            = "serve"
+	CommandServeFile        = "serve_file"
 	CommandProxy            = "proxy"
 	CommandRedirect         = "redirect"
 	CommandRoute            = "route"
@@ -205,7 +206,7 @@ var commands = map[string]struct {
 		help: Help{
 			command: CommandServe,
 			description: makeLines(
-				"Serve static files from a local file system path, e.g.:",
+				"Serve static files from a local directory, e.g.:",
 				helpExample(CommandServe, "/var/www"),
 			),
 			args: map[string]string{
@@ -221,6 +222,31 @@ var commands = map[string]struct {
 			root := args.(string)
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 				http.ServeFile(w, r, path.Join(root, path.Clean(r.URL.Path)))
+				return errTerminateRule
+			}
+		},
+		terminate: true,
+	},
+	CommandServeFile: {
+		help: Help{
+			command: CommandServeFile,
+			description: makeLines(
+				"Serve a single local file, e.g.:",
+				helpExample(CommandServeFile, "/var/www/index.html"),
+			),
+			args: map[string]string{
+				"file": "the file system path to serve, must be an existing file",
+			},
+		},
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
+			phase = PhasePre
+			parsedArgs, err = validateFSFilePath(args)
+			return
+		},
+		build: func(args any) HandlerFunc {
+			file := args.(string)
+			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+				http.ServeFile(w, r, file)
 				return errTerminateRule
 			}
 		},

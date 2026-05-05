@@ -164,6 +164,22 @@ func validateFSPath(args []string) (any, gperr.Error) {
 	return p, nil
 }
 
+// validateFSFilePath returns string with the path validated.
+func validateFSFilePath(args []string) (any, gperr.Error) {
+	if len(args) != 1 {
+		return nil, ErrExpectOneArg
+	}
+	p := filepath.Clean(args[0])
+	info, err := os.Stat(p)
+	if err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	if info.IsDir() {
+		return nil, ErrInvalidArguments.Withf("%s is a directory", p)
+	}
+	return p, nil
+}
+
 // validateMethod returns string with the method validated.
 func validateMethod(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
