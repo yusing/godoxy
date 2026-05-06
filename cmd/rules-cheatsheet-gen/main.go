@@ -579,27 +579,56 @@ func (ex *extractor) parseLines(expr ast.Expr) []string {
 }
 
 func (ex *extractor) parseArgs(expr ast.Expr) []arg {
-	lit, ok := expr.(*ast.CompositeLit)
-	if !ok {
+	switch n := expr.(type) {
+	case *ast.CallExpr:
+		if identName(n.Fun) != "helpArgs" {
+			return nil
+		}
+		args := make([]arg, 0, len(n.Args))
+		for _, callArg := range n.Args {
+			parsed, ok := ex.parseHelpArg(callArg)
+			if ok {
+				args = append(args, parsed)
+			}
+		}
+		return args
+	case *ast.CompositeLit:
+		args := make([]arg, 0, len(n.Elts))
+		for _, elt := range n.Elts {
+			kv, ok := elt.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			name, ok := ex.stringValue(kv.Key)
+			if !ok {
+				continue
+			}
+			desc, ok := ex.renderStringExpr(kv.Value)
+			if !ok {
+				continue
+			}
+			args = append(args, arg{Name: name, Description: desc})
+		}
+		return args
+	default:
 		return nil
 	}
-	args := make([]arg, 0, len(lit.Elts))
-	for _, elt := range lit.Elts {
-		kv, ok := elt.(*ast.KeyValueExpr)
-		if !ok {
-			continue
-		}
-		name, ok := ex.stringValue(kv.Key)
-		if !ok {
-			continue
-		}
-		desc, ok := ex.renderStringExpr(kv.Value)
-		if !ok {
-			continue
-		}
-		args = append(args, arg{Name: name, Description: desc})
+}
+
+func (ex *extractor) parseHelpArg(expr ast.Expr) (arg, bool) {
+	lit, ok := expr.(*ast.CompositeLit)
+	if !ok || len(lit.Elts) != 2 {
+		return arg{}, false
 	}
-	return args
+	name, ok := ex.renderStringExpr(lit.Elts[0])
+	if !ok {
+		return arg{}, false
+	}
+	desc, ok := ex.renderStringExpr(lit.Elts[1])
+	if !ok {
+		return arg{}, false
+	}
+	return arg{Name: name, Description: desc}, true
 }
 
 func (ex *extractor) renderStringExpr(expr ast.Expr) (string, bool) {

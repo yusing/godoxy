@@ -2,10 +2,10 @@ package rules
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/yusing/ds/ordered"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/strings/ansi"
 )
@@ -13,7 +13,20 @@ import (
 type Help struct {
 	command     string
 	description []string
-	args        map[string]string // args[arg] -> description
+	args        *ordered.Map[string, string] // args[arg] -> description, in positional order
+}
+
+type helpArg struct {
+	name        string
+	description string
+}
+
+func helpArgs(args ...helpArg) *ordered.Map[string, string] {
+	m := ordered.NewMap[string, string](ordered.WithCapacity(len(args)))
+	for _, arg := range args {
+		m.Set(arg.name, arg.description)
+	}
+	return m
 }
 
 func makeLines(lines ...string) []string {
@@ -138,20 +151,18 @@ func (h *Help) Error() gperr.Error {
 	}
 
 	args := gperr.New("args")
+	if h.args == nil {
+		return help.With(args)
+	}
 
-	argKeys := make([]string, 0, len(h.args))
 	longestArg := 0
-	for arg := range h.args {
+	for arg := range h.args.IterKeys {
 		if len(arg) > longestArg {
 			longestArg = len(arg)
 		}
-		argKeys = append(argKeys, arg)
 	}
 
-	// sort argKeys alphabetically to make output stable
-	slices.Sort(argKeys)
-	for _, arg := range argKeys {
-		desc := h.args[arg]
+	for arg, desc := range h.args.Iter {
 		paddedArg := fmt.Sprintf("%-"+strconv.Itoa(longestArg)+"s", arg)
 		args = args.Withf("%s%s", ansi.WithANSI(paddedArg, ansi.HighlightCyan)+": ", desc)
 	}

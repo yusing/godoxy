@@ -79,7 +79,7 @@ var commands = map[string]struct {
 		help: Help{
 			command:     CommandUpstream,
 			description: makeLines("Pass the request to the upstream"),
-			args:        map[string]string{},
+			args:        helpArgs(),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 0 {
@@ -99,7 +99,7 @@ var commands = map[string]struct {
 		help: Help{
 			command:     CommandRequireAuth,
 			description: makeLines("Require HTTP authentication for incoming requests"),
-			args:        map[string]string{},
+			args:        helpArgs(),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -127,10 +127,10 @@ var commands = map[string]struct {
 				"Rewrite a request path from one prefix to another, e.g.:",
 				helpExample(CommandRewrite, "/foo", "/bar"),
 			),
-			args: map[string]string{
-				"from": "the path to rewrite, must start with /",
-				"to":   "the path to rewrite to, must start with /",
-			},
+			args: helpArgs(
+				helpArg{"from", "the path to rewrite, must start with /"},
+				helpArg{"to", "the path to rewrite to, must start with /"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -175,9 +175,9 @@ var commands = map[string]struct {
 				"Serve the request with a registered in-process HTTP handler, e.g.:",
 				helpExample(CommandHandle, "api"),
 			),
-			args: map[string]string{
-				"name": "the registered handler name",
-			},
+			args: helpArgs(
+				helpArg{"name", "the registered handler name"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -209,9 +209,9 @@ var commands = map[string]struct {
 				"Serve static files from a local directory, e.g.:",
 				helpExample(CommandServe, "/var/www"),
 			),
-			args: map[string]string{
-				"root": "the file system path to serve, must be an existing directory",
-			},
+			args: helpArgs(
+				helpArg{"root", "the file system path to serve, must be an existing directory"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -234,9 +234,9 @@ var commands = map[string]struct {
 				"Serve a single local file, e.g.:",
 				helpExample(CommandServeFile, "/var/www/index.html"),
 			),
-			args: map[string]string{
-				"file": "the file system path to serve, must be an existing file",
-			},
+			args: helpArgs(
+				helpArg{"file", "the file system path to serve, must be an existing file"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -259,9 +259,9 @@ var commands = map[string]struct {
 				"Redirect request to another URL, e.g.:",
 				helpExample(CommandRedirect, "https://example.com"),
 			),
-			args: map[string]string{
-				"to": "the url to redirect to, can be relative or absolute URL",
-			},
+			args: helpArgs(
+				helpArg{"to", "the url to redirect to, can be relative or absolute URL"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -284,9 +284,9 @@ var commands = map[string]struct {
 				"Route the request to another route, e.g.:",
 				helpExample(CommandRoute, "route1"),
 			),
-			args: map[string]string{
-				"route": "the route to route to",
-			},
+			args: helpArgs(
+				helpArg{"route", "the route to route to"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -326,10 +326,10 @@ var commands = map[string]struct {
 				"Send an HTTP error response and terminate processing, e.g.:",
 				helpExample(CommandError, "400", "bad request"),
 			),
-			args: map[string]string{
-				"code": "the http status code to return",
-				"text": "the error message to return",
-			},
+			args: helpArgs(
+				helpArg{"code", "the http status code to return"},
+				helpArg{"text", "the error message to return"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -373,9 +373,9 @@ var commands = map[string]struct {
 				"Require HTTP basic authentication for incoming requests, e.g.:",
 				helpExample(CommandRequireBasicAuth, "Restricted Area"),
 			),
-			args: map[string]string{
-				"realm": "the authentication realm",
-			},
+			args: helpArgs(
+				helpArg{"realm", "the authentication realm"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -401,9 +401,9 @@ var commands = map[string]struct {
 				"Proxy the request to the specified absolute URL, e.g.:",
 				helpExample(CommandProxy, "http://upstream:8080"),
 			),
-			args: map[string]string{
-				"to": "the url to proxy to, must be an absolute URL",
-			},
+			args: helpArgs(
+				helpArg{"to", "the url to proxy to, must be an absolute URL"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePre
@@ -446,11 +446,11 @@ var commands = map[string]struct {
 				"Set a field in the request or response, e.g.:",
 				helpExample(CommandSet, "header", "User-Agent", "godoxy"),
 			),
-			args: map[string]string{
-				"target": "the target to set, can be " + strings.Join(AllFields, ", "),
-				"field":  "the field to set",
-				"value":  "the value to set",
-			},
+			args: helpArgs(
+				helpArg{"target", "the target to set, can be " + strings.Join(AllFields, ", ")},
+				helpArg{"field", "the field to set"},
+				helpArg{"value", "the value to set"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			return validateModField(ModFieldSet, args)
@@ -466,11 +466,11 @@ var commands = map[string]struct {
 				"Add a value to a field in the request or response, e.g.:",
 				helpExample(CommandAdd, "header", "X-Foo", "bar"),
 			),
-			args: map[string]string{
-				"target": "the target to add, can be " + strings.Join(AllFields, ", "),
-				"field":  "the field to add",
-				"value":  "the value to add",
-			},
+			args: helpArgs(
+				helpArg{"target", "the target to add, can be " + strings.Join(AllFields, ", ")},
+				helpArg{"field", "the field to add"},
+				helpArg{"value", "the value to add"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			return validateModField(ModFieldAdd, args)
@@ -486,10 +486,10 @@ var commands = map[string]struct {
 				"Remove a field from the request or response, e.g.:",
 				helpExample(CommandRemove, "header", "User-Agent"),
 			),
-			args: map[string]string{
-				"target": "the target to remove, can be " + strings.Join(AllFields, ", "),
-				"field":  "the field to remove",
-			},
+			args: helpArgs(
+				helpArg{"target", "the target to remove, can be " + strings.Join(AllFields, ", ")},
+				helpArg{"field", "the field to remove"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			return validateModField(ModFieldRemove, args)
@@ -510,11 +510,11 @@ var commands = map[string]struct {
 				"Example:",
 				helpExample(CommandLog, "info", "/dev/stdout", "$req_method $req_url $status_code"),
 			),
-			args: map[string]string{
-				"level":    "the log level",
-				"path":     "the log path (/dev/stdout for stdout, /dev/stderr for stderr)",
-				"template": "the template to log",
-			},
+			args: helpArgs(
+				helpArg{"level", "the log level"},
+				helpArg{"path", "the log path (/dev/stdout for stdout, /dev/stderr for stderr)"},
+				helpArg{"template", "the template to log"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 3 {
@@ -578,12 +578,12 @@ var commands = map[string]struct {
 				"Example:",
 				helpExample(CommandNotify, "info", "ntfy", "Received request to $req_url", "$req_method $status_code"),
 			),
-			args: map[string]string{
-				"level":    "the log level",
-				"provider": "the notification provider (must be defined in config `providers.notification`)",
-				"title":    "the title of the notification",
-				"body":     "the body of the notification",
-			},
+			args: helpArgs(
+				helpArg{"level", "the log level"},
+				helpArg{"provider", "the notification provider (must be defined in config `providers.notification`)"},
+				helpArg{"title", "the title of the notification"},
+				helpArg{"body", "the body of the notification"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 4 {

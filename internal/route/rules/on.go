@@ -58,7 +58,7 @@ var checkers = map[string]struct {
 			description: makeLines(
 				"Select the default (fallback) rule.",
 			),
-			args: map[string]string{},
+			args: helpArgs(),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 0 {
@@ -79,10 +79,10 @@ var checkers = map[string]struct {
 				helpExample(OnHeader, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnHeader, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the header key",
-				"[value]": "the header value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the header key"},
+				helpArg{"[value]", "the header value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = toKVOptionalVMatcher(args)
@@ -109,10 +109,10 @@ var checkers = map[string]struct {
 				helpExample(OnResponseHeader, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnResponseHeader, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the response header key",
-				"[value]": "the response header value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the response header key"},
+				helpArg{"[value]", "the response header value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePost
@@ -140,10 +140,10 @@ var checkers = map[string]struct {
 				helpExample(OnQuery, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnQuery, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the query key",
-				"[value]": "the query value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the query key"},
+				helpArg{"[value]", "the query value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = toKVOptionalVMatcher(args)
@@ -170,10 +170,10 @@ var checkers = map[string]struct {
 				helpExample(OnCookie, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnCookie, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the cookie key",
-				"[value]": "the cookie value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the cookie key"},
+				helpArg{"[value]", "the cookie value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = toKVOptionalVMatcher(args)
@@ -215,10 +215,10 @@ var checkers = map[string]struct {
 				helpExample(OnForm, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnForm, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the form key",
-				"[value]": "the form value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the form key"},
+				helpArg{"[value]", "the form value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = toKVOptionalVMatcher(args)
@@ -245,10 +245,10 @@ var checkers = map[string]struct {
 				helpExample(OnPostForm, "username", helpFuncCall("glob", "user*")),
 				helpExample(OnPostForm, "username", helpFuncCall("regex", "user.*")),
 			),
-			args: map[string]string{
-				"key":     "the form key",
-				"[value]": "the form value",
-			},
+			args: helpArgs(
+				helpArg{"key", "the form key"},
+				helpArg{"[value]", "the form value"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = toKVOptionalVMatcher(args)
@@ -276,9 +276,9 @@ var checkers = map[string]struct {
 				helpExample(OnProto, "https"),
 				helpExample(OnProto, "h2"),
 			),
-			args: map[string]string{
-				"proto": "http, https, h1 (cleartext HTTP/1.x), h2 (TLS HTTP/2), h2c (cleartext HTTP/2), or h3 (TLS HTTP/3)",
-			},
+			args: helpArgs(
+				helpArg{"proto", "http, https, h1 (cleartext HTTP/1.x), h2 (TLS HTTP/2), h2c (cleartext HTTP/2), or h3 (TLS HTTP/3)"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
@@ -330,9 +330,9 @@ var checkers = map[string]struct {
 				helpExample(OnMethod, "GET"),
 				helpExample(OnMethod, "OPTIONS"),
 			),
-			args: map[string]string{
-				"method": "canonical method name such as GET, HEAD, POST, PUT, PATCH, DELETE, CONNECT, OPTIONS, TRACE",
-			},
+			args: helpArgs(
+				helpArg{"method", "canonical method name such as GET, HEAD, POST, PUT, PATCH, DELETE, CONNECT, OPTIONS, TRACE"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateMethod(args)
@@ -355,9 +355,9 @@ var checkers = map[string]struct {
 				helpExample(OnHost, helpFuncCall("regex", `(example\w+\.com)`)),
 				helpExample(OnHost, helpFuncCall("regex", `example\.com$`)),
 			),
-			args: map[string]string{
-				"host": "the host name",
-			},
+			args: helpArgs(
+				helpArg{"host", "the host name"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateSingleMatcher(args)
@@ -380,9 +380,9 @@ var checkers = map[string]struct {
 				helpExample(OnPath, helpFuncCall("regex", `^/path/to/.*$`)),
 				helpExample(OnPath, helpFuncCall("regex", `/path/[A-Z]+/`)),
 			),
-			args: map[string]string{
-				"path": "the request path",
-			},
+			args: helpArgs(
+				helpArg{"path", "the request path"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateURLPathMatcher(args)
@@ -411,9 +411,9 @@ var checkers = map[string]struct {
 				helpExample(OnRemote, "2001:db8::1/128"),
 				helpExample(OnRemote, "2001:db8::/32"),
 			),
-			args: map[string]string{
-				"ip|cidr": "IPv4/IPv6 CIDR, or a bare IPv4 address for /32 exact match",
-			},
+			args: helpArgs(
+				helpArg{"ip|cidr", "IPv4/IPv6 CIDR, or a bare IPv4 address for /32 exact match"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateCIDR(args)
@@ -449,10 +449,10 @@ var checkers = map[string]struct {
 				"Decoded credentials must match the username and bcrypt password hash configured in the rule.",
 				helpExample(OnBasicAuth, "<user>", "<bcrypt-hash>"),
 			),
-			args: map[string]string{
-				"username": "expected plain-text username",
-				"password": "bcrypt cost hash corresponding to that user",
-			},
+			args: helpArgs(
+				helpArg{"username", "expected plain-text username"},
+				helpArg{"password", "bcrypt cost hash corresponding to that user"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateUserBCryptPassword(args)
@@ -474,9 +474,9 @@ var checkers = map[string]struct {
 				helpExample(OnRoute, helpFuncCall("glob", "example*")),
 				helpExample(OnRoute, helpFuncCall("regex", "example\\w+")),
 			),
-			args: map[string]string{
-				"route": "the route name",
-			},
+			args: helpArgs(
+				helpArg{"route", "the route name"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			parsedArgs, err = validateSingleMatcher(args)
@@ -503,9 +503,9 @@ var checkers = map[string]struct {
 				helpExample(OnStatus, "4xx"),
 				helpExample(OnStatus, "5xx"),
 			),
-			args: map[string]string{
-				"status": "code (404), inclusive range (502-504), or class (4xx)",
-			},
+			args: helpArgs(
+				helpArg{"status", "code (404), inclusive range (502-504), or class (4xx)"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			phase = PhasePost

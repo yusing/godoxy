@@ -294,11 +294,38 @@ block       := '{' do_body '}'
 
 ```text
 // Elif/Else chains can appear in do_body
-do_stmt      := command_line | nested_block | elif_else_chain
+do_stmt       := command_line | command_block | nested_block | elif_else_chain
+command_block := command ws* '{' option_lines '}'
 elif_else_chain := nested_block { elif_clause } [else_clause]
 elif_clause    := 'elif' ws* on_expr ws* '{' do_body '}'
 else_clause    := 'else' ws* '{' do_body '}'
 ```
+
+#### Command option blocks
+
+Every `do` command can be written with an option block. Each line maps a named
+argument to one scalar value, in the same positional order the command expects.
+The parser converts the block back into positional args before running the
+command's normal validator.
+
+```bash
+path glob("/admin/*") {
+  rewrite {
+    from: /admin
+    to: /auth/admin
+  }
+  notify {
+    level: error
+    provider: ntfy
+    title: error occurred
+    body: "[HTTP $status] wtf?"
+  }
+}
+```
+
+Option blocks do not accept inline positional arguments. Missing keys, unknown
+keys, duplicate keys, and non-scalar values are rejected before command
+validation.
 
 #### Nested blocks (inline conditionals inside `do`)
 

@@ -35,10 +35,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarHeader+"(User-Agent)",
 				"$"+VarHeader+"(X-Forwarded-For, 1)",
 			),
-			args: map[string]string{
-				"name":    "Exact request header name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Exact request header name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -58,10 +58,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarResponseHeader+"(Content-Type)",
 				"$"+VarResponseHeader+"(Set-Cookie, 0)",
 			),
-			args: map[string]string{
-				"name":    "Exact response header name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Exact response header name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhasePost,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -81,10 +81,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarCookie+"(session_id)",
 				"$"+VarCookie+"(preferences, 0)",
 			),
-			args: map[string]string{
-				"name":    "Cookie name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Cookie name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -105,10 +105,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarQuery+"(page)",
 				"$"+VarQuery+"(filter, 1)",
 			),
-			args: map[string]string{
-				"name":    "Query parameter name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Query parameter name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -128,10 +128,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarForm+"(username)",
 				"$"+VarForm+"(tags, 1)",
 			),
-			args: map[string]string{
-				"name":    "Form field name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Form field name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -156,10 +156,10 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarPostForm+"(action)",
 				"$"+VarPostForm+"(email, 0)",
 			),
-			args: map[string]string{
-				"name":    "Request-body form field name.",
-				"[index]": "Optional zero-based value index; defaults to 0.",
-			},
+			args: helpArgs(
+				helpArg{"name", "Request-body form field name."},
+				helpArg{"[index]", "Optional zero-based value index; defaults to 0."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {
@@ -186,9 +186,9 @@ var dynamicVarSubsMap = map[string]dynamicVarGetter{
 				"$"+VarRedacted+"($header(Authorization))",
 				"$"+VarRedacted+"($cookie(session_id))",
 			),
-			args: map[string]string{
-				"value": "Literal text or the output of another variable expression.",
-			},
+			args: helpArgs(
+				helpArg{"value", "Literal text or the output of another variable expression."},
+			),
 		},
 		phase: PhaseNone,
 		get: func(args []string, w *httputils.ResponseModifier, req *http.Request) (string, error) {

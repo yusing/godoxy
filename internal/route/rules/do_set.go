@@ -48,10 +48,10 @@ var modFields = map[string]struct {
 				"Rewrite request headers forwarded upstream.",
 				"Set replaces all values for a name; add appends another value; remove deletes the header.",
 			),
-			args: map[string]string{
-				"key":   "HTTP header field name",
-				"value": "template evaluated to produce new header values",
-			},
+			args: helpArgs(
+				helpArg{"key", "HTTP header field name"},
+				helpArg{"value", "template evaluated to produce new header values"},
+			),
 		},
 		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
@@ -87,10 +87,10 @@ var modFields = map[string]struct {
 				"Rewrite response headers after upstream returns.",
 				"Applied in post phase to the outbound response envelope.",
 			),
-			args: map[string]string{
-				"key":   "HTTP response header field name",
-				"value": "template evaluated to produce header values returned to clients",
-			},
+			args: helpArgs(
+				helpArg{"key", "HTTP response header field name"},
+				helpArg{"value", "template evaluated to produce header values returned to clients"},
+			),
 		},
 		validate: validatePostResponseKVTemplate,
 		builder: func(args any) *FieldHandler {
@@ -126,10 +126,10 @@ var modFields = map[string]struct {
 				"Rewrite query parameters on the forwarded request.",
 				"Uses Set semantics for overwrite and Add semantics to append duplicates.",
 			),
-			args: map[string]string{
-				"key":   "query parameter name",
-				"value": "template evaluated to the parameter value passed upstream",
-			},
+			args: helpArgs(
+				helpArg{"key", "query parameter name"},
+				helpArg{"value", "template evaluated to the parameter value passed upstream"},
+			),
 		},
 		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
@@ -172,10 +172,10 @@ var modFields = map[string]struct {
 				"Set updates an existing cookie or creates one with that name.",
 				"Add appends another Cookie entry carrying the same or a new name.",
 			),
-			args: map[string]string{
-				"key":   "cookie name",
-				"value": "template evaluated to the cookie value forwarded upstream",
-			},
+			args: helpArgs(
+				helpArg{"key", "cookie name"},
+				helpArg{"value", "template evaluated to the cookie value forwarded upstream"},
+			),
 		},
 		validate: validatePreRequestKVTemplate,
 		builder: func(args any) *FieldHandler {
@@ -240,9 +240,9 @@ var modFields = map[string]struct {
 				"Example:",
 				helpExample(FieldBody, "HTTP STATUS: $req_method $req_path"),
 			),
-			args: map[string]string{
-				"template": "the body template",
-			},
+			args: helpArgs(
+				helpArg{"template", "the body template"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
@@ -288,9 +288,9 @@ var modFields = map[string]struct {
 				"Example:",
 				helpExample(FieldResponseBody, "HTTP STATUS: $req_method $status_code"),
 			),
-			args: map[string]string{
-				"template": "the response body template",
-			},
+			args: helpArgs(
+				helpArg{"template", "the response body template"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {
@@ -322,9 +322,9 @@ var modFields = map[string]struct {
 				"Override the status code that will be sent to the client, e.g.:",
 				helpExample(FieldStatusCode, "200"),
 			),
-			args: map[string]string{
-				"code": "the status code",
-			},
+			args: helpArgs(
+				helpArg{"code", "the status code"},
+			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
 			if len(args) != 1 {

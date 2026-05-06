@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"unicode"
@@ -396,6 +397,44 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 		return nil
 	}
 
+	appendBlockCommand := func(header string, body string) (bool, error) {
+		directive, args, err := parse(strings.TrimSpace(header))
+		if err != nil {
+			return false, err
+		}
+
+		builder, ok := commands[directive]
+		if !ok {
+			return false, ErrUnknownDirective.Subject(directive)
+		}
+		if len(args) > 0 {
+			if _, ok := checkers[directive]; ok {
+				if strings.TrimSpace(body) != "" && !strings.Contains(body, "\n") {
+					return true, ErrInvalidBlockSyntax.Withf("expected block body on a new line after '{'")
+				}
+				return false, nil
+			}
+			if !bodyLooksLikeOptionBlock(body) {
+				return false, nil
+			}
+			return true, ErrInvalidArguments.Withf("option block does not accept inline args")
+		}
+
+		flatArgs, err := parseCommandBlockArgs(builder.help, body)
+		if err != nil {
+			return true, gperr.PrependSubject(err, directive).With(builder.help.Error())
+		}
+
+		phase, validArgs, err := builder.validate(flatArgs)
+		if err != nil {
+			return true, gperr.PrependSubject(err, directive).With(builder.help.Error())
+		}
+
+		h := builder.build(validArgs)
+		handlers = append(handlers, Handler{fn: h, phase: phase, terminate: builder.terminate})
+		return true, nil
+	}
+
 	for pos < length {
 		// Handle newlines
 		switch src[pos] {
@@ -455,6 +494,30 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 			}
 
 			if linePos < length && lineEndsWithUnquotedOpenBrace(src, linePos, logicalEnd) {
+				header, bracePos, headerErr := parseHeaderToBrace(src, linePos)
+				if headerErr != nil {
+					return nil, headerErr
+				}
+				if directive, _, parseErr := parse(strings.TrimSpace(header)); parseErr == nil {
+					if _, ok := commands[directive]; ok {
+						p := bracePos
+						bodyStart := p + 1
+						bodyEnd, ferr := findMatchingBrace(src, &p, bodyStart)
+						if ferr != nil {
+							return nil, ferr
+						}
+						handled, err := appendBlockCommand(header, src[bodyStart:bodyEnd])
+						if err != nil {
+							return nil, err
+						}
+						if handled {
+							pos = p
+							lineStart = false
+							continue
+						}
+					}
+				}
+
 				h, next, err := parseAtBlockChain(src, linePos)
 				if err != nil {
 					return nil, err
@@ -482,4 +545,70 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 	}
 
 	return handlers, nil
+}
+
+func parseCommandBlockArgs(help Help, body string) ([]string, error) {
+	values := make(map[string]string, help.args.Len())
+	for line := range strings.SplitSeq(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		name, rawValue, ok := strings.Cut(line, ":")
+		if !ok {
+			return nil, ErrInvalidArguments.Withf("expected option line in the form `name: value`")
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return nil, ErrInvalidArguments.Withf("expected option name before `:`")
+		}
+		if !help.args.Contains(name) {
+			return nil, ErrInvalidArguments.Withf("unknown option %q", name)
+		}
+		if _, exists := values[name]; exists {
+			return nil, ErrInvalidArguments.Withf("duplicate option %q", name)
+		}
+		value, err := parseCommandBlockScalar(rawValue)
+		if err != nil {
+			return nil, ErrInvalidArguments.Withf("%s: %v", name, err)
+		}
+		values[name] = value
+	}
+
+	args := make([]string, 0, help.args.Len())
+	for name := range help.args.IterKeys {
+		value, ok := values[name]
+		if !ok {
+			return nil, ErrInvalidArguments.Withf("missing option %q", name)
+		}
+		args = append(args, value)
+	}
+	return args, nil
+}
+
+func bodyLooksLikeOptionBlock(body string) bool {
+	for line := range strings.SplitSeq(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		return strings.Contains(line, ":")
+	}
+	return true
+}
+
+func parseCommandBlockScalar(v string) (string, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "", nil
+	}
+
+	_, args, err := parse("arg " + v)
+	if err != nil {
+		return "", err
+	}
+	if len(args) != 1 {
+		return "", fmt.Errorf("expected a single scalar value")
+	}
+	return args[0], nil
 }

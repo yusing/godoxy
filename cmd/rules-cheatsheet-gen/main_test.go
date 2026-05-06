@@ -87,4 +87,13 @@ func TestBuildCommandSectionUsesMeaningfulSummary(t *testing.T) {
 	if notifyEntry.Summary != "Send a notification from templates" {
 		t.Fatalf("unexpected notify summary %q", notifyEntry.Summary)
 	}
+	if notifyEntry.Syntax != "notify <level> <provider> <title> <body>" {
+		t.Fatalf("unexpected notify syntax %q", notifyEntry.Syntax)
+	}
+	if len(notifyEntry.Args) != 4 {
+		t.Fatalf("expected 4 args for notify, got %d", len(notifyEntry.Args))
+	}
+	if notifyEntry.Args[0].Name != "level" || notifyEntry.Args[3].Name != "body" {
+		t.Fatalf("unexpected notify arg order: %#v", notifyEntry.Args)
+	}
 }
