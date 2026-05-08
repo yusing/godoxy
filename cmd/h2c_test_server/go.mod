@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/cmd/h2c_test_server
 
-go 1.26.2
+go 1.26.3
 
 require golang.org/x/net v0.53.0
 

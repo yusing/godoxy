@@ -1,5 +1,5 @@
 # Stage 1: go-base
-FROM golang:1.26.2-alpine AS go-base
+FROM golang:1.26.3-alpine AS go-base
 HEALTHCHECK NONE
 
 # package version does not matter
