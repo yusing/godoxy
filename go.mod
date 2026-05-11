@@ -31,8 +31,8 @@ require (
 	github.com/puzpuzpuz/xsync/v4 v4.5.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.35.1 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
-	golang.org/x/crypto v0.50.0 // encrypting password with bcrypt
-	golang.org/x/net v0.53.0 // HTTP header utilities
+	golang.org/x/crypto v0.51.0 // encrypting password with bcrypt
+	golang.org/x/net v0.54.0 // HTTP header utilities
 	golang.org/x/oauth2 v0.36.0 // oauth2 authentication
 	golang.org/x/sync v0.20.0 // errgroup and singleflight for concurrent operations
 	golang.org/x/time v0.15.0 // time utilities
@@ -46,19 +46,19 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.5.0 // proxmox API client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
-	github.com/quic-go/quic-go v0.59.0 // http3 support
+	github.com/quic-go/quic-go v0.59.1 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.4 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.71.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260506093137-344a6dba9314
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260506093137-344a6dba9314
+	github.com/yusing/godoxy/agent v0.0.0-20260508144016-7bc5b561cbce
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260508144016-7bc5b561cbce
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260505095139-a4fd3da67a05
-	github.com/yusing/goutils/http/websocket v0.0.0-20260505095139-a4fd3da67a05
-	github.com/yusing/goutils/server v0.0.0-20260505095139-a4fd3da67a05
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260508143719-c11edd03d3b1
+	github.com/yusing/goutils/http/websocket v0.0.0-20260508143719-c11edd03d3b1
+	github.com/yusing/goutils/server v0.0.0-20260508143719-c11edd03d3b1
 )
 
 require (
@@ -131,10 +131,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/atomic v1.11.0
 	go.uber.org/ratelimit v0.3.1 // indirect
-	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/sys v0.44.0
-	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/api v0.278.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
 	google.golang.org/grpc v1.81.0 // indirect
@@ -146,7 +146,7 @@ require (
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/yusing/goutils/cache v0.0.0-20260505095139-a4fd3da67a05
+	github.com/yusing/goutils/cache v0.0.0-20260508143719-c11edd03d3b1
 )
 
 require (
