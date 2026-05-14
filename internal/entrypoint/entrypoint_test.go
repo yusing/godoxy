@@ -204,6 +204,67 @@ func TestFindRouteWithPort(t *testing.T) {
 	})
 }
 
+func TestFindRouteWildcardAlias(t *testing.T) {
+	t.Run("AnyDomain", func(t *testing.T) {
+		ep := NewTestEntrypoint(t, nil)
+		addRoute(t, "*.domain.com")
+
+		tests := []string{
+			"foo.domain.com",
+			"foo.domain.com:8080",
+		}
+		testsNoMatch := []string{
+			"domain.com",
+			"foo",
+			"foo.bar.domain.com",
+			"foo.domain.co",
+		}
+		run(t, ep, tests, testsNoMatch)
+	})
+
+	t.Run("ByDomains", func(t *testing.T) {
+		ep := NewTestEntrypoint(t, nil)
+		ep.SetFindRouteDomains([]string{
+			".domain.com",
+		})
+		addRoute(t, "*.domain.com")
+
+		tests := []string{
+			"foo.domain.com",
+			"foo.domain.com:8080",
+		}
+		testsNoMatch := []string{
+			"domain.com",
+			"foo.bar.domain.com",
+			"foo.domain.co",
+		}
+		run(t, ep, tests, testsNoMatch)
+	})
+}
+
+func TestFindRouteWildcardFallbackPrecedence(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	addRoute(t, "*.domain.com")
+	addRoute(t, "app1")
+	addRoute(t, "api.domain.com")
+
+	server, ok := ep.GetServer(":" + strconv.Itoa(testHTTPRouteListenPort))
+	require.True(t, ok, "server not found")
+	require.NotNil(t, server)
+
+	route := server.FindRoute("app1.domain.com")
+	require.NotNil(t, route)
+	assert.Equal(t, "app1", route.Name())
+
+	route = server.FindRoute("api.domain.com")
+	require.NotNil(t, route)
+	assert.Equal(t, "api.domain.com", route.Name())
+
+	route = server.FindRoute("other.domain.com")
+	require.NotNil(t, route)
+	assert.Equal(t, "*.domain.com", route.Name())
+}
+
 func TestHealthInfoQueries(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
 

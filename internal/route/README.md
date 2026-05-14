@@ -28,7 +28,7 @@ Internal package with stable core types. Route configuration schema is versioned
 
 ```go
 type Route struct {
-    Alias  string       // Unique route identifier
+    Alias  string       // Route lookup key: short alias, FQDN alias, or leading-label wildcard alias (*.example.com)
     Scheme Scheme       // http, https, h2c, tcp, udp, fileserver
     Host   string       // Target host
     Port   Port         // Listen and target ports
@@ -257,6 +257,19 @@ labels:
   proxy.aliases: myapp
   proxy.myapp.port: 3000
 ```
+
+Wildcard HTTP aliases are also supported at route level:
+
+```yaml
+routes:
+  "*.example.com":
+    host: 10.0.0.20
+    port: 8080
+```
+
+- `*.example.com` matches `foo.example.com`
+- it does **not** match `foo.bar.example.com`
+- exact/FQDN and short-alias matches still win before wildcard fallback
 
 ### YAML Configuration
 

@@ -33,6 +33,9 @@ func (st *ShortLinkMatcher) AddRoute(alias string) {
 	if alias == "" {
 		return
 	}
+	if _, ok := wildcardSuffix(alias); ok {
+		return
+	}
 
 	if strings.Contains(alias, ".") { // FQDN alias
 		st.fqdnRoutes.Store(alias, alias)
@@ -57,6 +60,9 @@ func (st *ShortLinkMatcher) AddRoute(alias string) {
 func (st *ShortLinkMatcher) DelRoute(alias string) {
 	alias = strings.TrimSpace(alias)
 	if alias == "" {
+		return
+	}
+	if _, ok := wildcardSuffix(alias); ok {
 		return
 	}
 
