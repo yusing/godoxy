@@ -23,7 +23,7 @@ func addRoute(t *testing.T, alias string) {
 	ep := entrypoint.FromCtx(task.GetTestTask(t).Context())
 	require.NotNil(t, ep)
 
-	_, err := route.NewStartedTestRoute(t, &route.Route{
+	startedRoute, err := route.NewStartedTestRoute(t, &route.Route{
 		Alias:  alias,
 		Scheme: routeTypes.SchemeHTTP,
 		Port: route.Port{
@@ -38,7 +38,7 @@ func addRoute(t *testing.T, alias string) {
 		t.Fatal(err)
 	}
 
-	route, ok := ep.HTTPRoutes().Get(alias)
+	route, ok := ep.HTTPRoutes().Get(startedRoute.Key())
 	require.True(t, ok, "route not found")
 	require.NotNil(t, route)
 }
@@ -59,6 +59,9 @@ func run(t *testing.T, ep *Entrypoint, match []string, noMatch []string) {
 
 	for _, test := range noMatch {
 		t.Run(test, func(t *testing.T) {
+			route := server.FindRoute(test)
+			assert.Nil(t, route)
+
 			found, ok := ep.HTTPRoutes().Get(test)
 			assert.False(t, ok)
 			assert.Nil(t, found)
@@ -212,6 +215,8 @@ func TestFindRouteWildcardAlias(t *testing.T) {
 		tests := []string{
 			"foo.domain.com",
 			"foo.domain.com:8080",
+			"Foo.Domain.Com",
+			"foo.domain.com.",
 		}
 		testsNoMatch := []string{
 			"domain.com",
@@ -232,9 +237,26 @@ func TestFindRouteWildcardAlias(t *testing.T) {
 		tests := []string{
 			"foo.domain.com",
 			"foo.domain.com:8080",
+			"Foo.Domain.Com",
+			"foo.domain.com.",
 		}
 		testsNoMatch := []string{
 			"domain.com",
+			"foo.bar.domain.com",
+			"foo.domain.co",
+		}
+		run(t, ep, tests, testsNoMatch)
+	})
+
+	t.Run("CanonicalAlias", func(t *testing.T) {
+		ep := NewTestEntrypoint(t, nil)
+		addRoute(t, "*.Domain.Com.")
+
+		tests := []string{
+			"foo.domain.com",
+			"Foo.Domain.Com.",
+		}
+		testsNoMatch := []string{
 			"foo.bar.domain.com",
 			"foo.domain.co",
 		}

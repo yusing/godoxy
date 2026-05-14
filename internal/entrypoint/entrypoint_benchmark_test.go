@@ -156,7 +156,7 @@ func benchmarkFindRoute(b *testing.B, aliases []string, host string) {
 	ep.SetFindRouteDomains([]string{})
 
 	for _, alias := range aliases {
-		addRoute := &route.Route{
+		routeConfig := &route.Route{
 			Alias:  alias,
 			Scheme: routeTypes.SchemeHTTP,
 			Host:   "localhost",
@@ -168,8 +168,9 @@ func benchmarkFindRoute(b *testing.B, aliases []string, host string) {
 				Disable: true,
 			},
 		}
-		_, err := route.NewStartedTestRoute(b, addRoute)
+		startedRoute, err := route.NewStartedTestRoute(b, routeConfig)
 		require.NoError(b, err)
+		require.False(b, startedRoute.ShouldExclude())
 	}
 
 	server, ok := ep.GetServer(":18080")
