@@ -50,15 +50,11 @@ func (amw *oidcMiddleware) init() error {
 
 func (amw *oidcMiddleware) initSlow() error {
 	amw.initMu.Lock()
-	if amw.isInitialized == 1 {
+	if atomic.LoadInt32(&amw.isInitialized) == 1 {
 		amw.initMu.Unlock()
 		return nil
 	}
-
-	defer func() {
-		amw.isInitialized = 1
-		amw.initMu.Unlock()
-	}()
+	defer amw.initMu.Unlock()
 
 	// Always start with the global OIDC provider (for issuer discovery)
 	authProvider, err := auth.NewOIDCProviderFromEnv()
@@ -100,6 +96,7 @@ func (amw *oidcMiddleware) initSlow() error {
 	}
 
 	amw.auth = authProvider
+	atomic.StoreInt32(&amw.isInitialized, 1)
 	return nil
 }
 
