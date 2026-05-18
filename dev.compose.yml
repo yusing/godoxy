@@ -39,6 +39,7 @@ services:
       - ./dev-data/error_pages:/app/error_pages:ro
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
+      - ./dev-data/assets:/app/assets
       - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
   app-test:
     image: godoxy-dev
@@ -49,14 +50,6 @@ services:
     network_mode: host
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
-      TZ: Asia/Hong_Kong
-      API_ADDR: 127.0.0.1:8999
-      API_USER: dev
-      API_PASSWORD: 1234
-      API_SKIP_ORIGIN_CHECK: true
-      API_JWT_TTL: 24h
-      DEBUG: true
-      API_JWT_SECRET: 1234567891234567
     volumes:
       - /etc/ssl/certs/myCA.pem:/etc/ssl/certs/myCA.pem:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -74,6 +67,16 @@ services:
       proxy.#1.port: "80"
       proxy.idle_timeout: 10s
       proxy.wake_timeout: 5s
+  idlewatcher-test-microbin:
+    image: danielszabo99/microbin:latest
+    container_name: idlewatcher-test-microbin
+    restart: always
+    expose:
+      - 8080
+    labels:
+      - proxy.idle_timeout=5s
+    tmpfs:
+      - /app/microbin_data
   parca:
     image: ghcr.io/parca-dev/parca:v0.24.2
     container_name: godoxy-parca
