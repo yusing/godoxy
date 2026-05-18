@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/common"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -54,22 +55,26 @@ func TestOIDCMiddlewareRetriesAfterInitFailure(t *testing.T) {
 	middleware := &oidcMiddleware{}
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	w := httptest.NewRecorder()
-	expect.False(t, middleware.before(w, req))
-	expect.Equal(t, w.Code, http.StatusInternalServerError)
-	expect.Equal(t, middleware.auth, nil)
-	expect.Equal(t, middleware.isInitialized, int32(0))
+	t.Run("first call", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		require.False(t, middleware.before(w, req))
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+		require.Nil(t, middleware.auth)
+		require.Equal(t, int32(0), middleware.isInitialized)
+	})
 
-	w = httptest.NewRecorder()
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Fatalf("middleware.before panicked after prior init failure: %v", r)
-			}
+	t.Run("retry call", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		var panicValue any
+		func() {
+			defer func() {
+				panicValue = recover()
+			}()
+			require.False(t, middleware.before(w, req))
 		}()
-		expect.False(t, middleware.before(w, req))
-	}()
-	expect.Equal(t, w.Code, http.StatusInternalServerError)
-	expect.Equal(t, middleware.auth, nil)
-	expect.Equal(t, middleware.isInitialized, int32(0))
+		require.Nil(t, panicValue, "middleware.before panicked after prior init failure")
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+		require.Nil(t, middleware.auth)
+		require.Equal(t, int32(0), middleware.isInitialized)
+	})
 }
