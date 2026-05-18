@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -40,6 +41,8 @@ type httpServer struct {
 	routes *pool.Pool[types.HTTPRoute]
 
 	routeEntrypointOverlays atomic.Pointer[xsync.Map[string, *routeEntrypointOverlay]]
+	wildcardRoutes          atomic.Pointer[wildcardRouteIndex]
+	wildcardRoutesMu        sync.Mutex
 }
 
 type routeEntrypointOverlay struct {
@@ -68,6 +71,7 @@ func NewHTTPServer(ep *Entrypoint) HTTPServer {
 func newHTTPServer(ep *Entrypoint) *httpServer {
 	srv := &httpServer{ep: ep}
 	srv.resetRouteEntrypointOverlays()
+	srv.wildcardRoutes.Store(newWildcardRouteIndex())
 	return srv
 }
 
@@ -142,16 +146,21 @@ func (srv *httpServer) Close() {
 
 func (srv *httpServer) AddRoute(route types.HTTPRoute) {
 	srv.routes.Add(route)
+	srv.rebuildWildcardRoutes()
 	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
 func (srv *httpServer) DelRoute(route types.HTTPRoute) {
 	srv.routes.Del(route)
+	srv.rebuildWildcardRoutes()
 	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
 func (srv *httpServer) FindRoute(s string) types.HTTPRoute {
-	return srv.ep.findRouteFunc(srv.routes, s)
+	if route := srv.ep.findRouteFunc(srv.routes, s); route != nil {
+		return route
+	}
+	return srv.wildcardRouteIndex().Find(s)
 }
 
 func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +259,29 @@ func (srv *httpServer) routeEntrypointOverlayMap() *xsync.Map[string, *routeEntr
 
 func (srv *httpServer) resetRouteEntrypointOverlays() {
 	srv.routeEntrypointOverlays.Store(newRouteEntrypointOverlayMap())
+}
+
+func (srv *httpServer) wildcardRouteIndex() *wildcardRouteIndex {
+	idx := srv.wildcardRoutes.Load()
+	if idx != nil {
+		return idx
+	}
+	idx = newWildcardRouteIndex()
+	if srv.wildcardRoutes.CompareAndSwap(nil, idx) {
+		return idx
+	}
+	return srv.wildcardRoutes.Load()
+}
+
+func (srv *httpServer) rebuildWildcardRoutes() {
+	srv.wildcardRoutesMu.Lock()
+	defer srv.wildcardRoutesMu.Unlock()
+
+	idx := newWildcardRouteIndex()
+	for _, route := range srv.routes.Iter {
+		idx.Add(route)
+	}
+	srv.wildcardRoutes.Store(idx)
 }
 
 func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {

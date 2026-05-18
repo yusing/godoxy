@@ -45,6 +45,16 @@ import (
 
 type (
 	Route struct {
+		// Alias is route lookup key.
+		//
+		// Supported HTTP host-match forms:
+		//   - short alias: "app"
+		//   - FQDN alias: "app.example.com"
+		//   - leading-label wildcard alias: "*.example.com"
+		//
+		// Wildcard aliases match exactly one leftmost label and are checked only
+		// after normal exact/domain lookup misses, preserving the fast path for
+		// exact routes.
 		Alias  string       `json:"alias"`
 		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
 		Host   string       `json:"host,omitempty"`

@@ -150,3 +150,50 @@ func BenchmarkEntrypoint(b *testing.B) {
 		}
 	}
 }
+
+func benchmarkFindRoute(b *testing.B, aliases []string, host string) {
+	ep := NewTestEntrypoint(b, nil)
+	ep.SetFindRouteDomains([]string{})
+
+	for _, alias := range aliases {
+		routeConfig := &route.Route{
+			Alias:  alias,
+			Scheme: routeTypes.SchemeHTTP,
+			Host:   "localhost",
+			Port: route.Port{
+				Listening: 18080,
+				Proxy:     8080,
+			},
+			HealthCheck: types.HealthCheckConfig{
+				Disable: true,
+			},
+		}
+		startedRoute, err := route.NewStartedTestRoute(b, routeConfig)
+		require.NoError(b, err)
+		require.False(b, startedRoute.ShouldExclude())
+	}
+
+	server, ok := ep.GetServer(":18080")
+	if !ok {
+		b.Fatal("server not found")
+	}
+
+	b.ResetTimer()
+	for b.Loop() {
+		if route := server.FindRoute(host); route == nil {
+			b.Fatalf("route not found for %s", host)
+		}
+	}
+}
+
+func BenchmarkFindRouteExactNoWildcard(b *testing.B) {
+	benchmarkFindRoute(b, []string{"test"}, "test.domain.com")
+}
+
+func BenchmarkFindRouteExactWithWildcard(b *testing.B) {
+	benchmarkFindRoute(b, []string{"test", "*.domain.com"}, "test.domain.com")
+}
+
+func BenchmarkFindRouteWildcard(b *testing.B) {
+	benchmarkFindRoute(b, []string{"*.domain.com"}, "test.domain.com")
+}
