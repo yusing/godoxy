@@ -3,6 +3,7 @@ package entrypoint
 import (
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/types"
 )
 
@@ -18,8 +19,33 @@ func newWildcardRouteIndex() *wildcardRouteIndex {
 
 func (idx *wildcardRouteIndex) Add(route types.HTTPRoute) {
 	if suffix, ok := wildcardSuffix(route.Key()); ok {
+		existingRoute, exists := idx.oneLabel[suffix]
+		if exists && !preferWildcardRoute(route, existingRoute) {
+			return
+		}
+		if exists {
+			log.Warn().
+				Str("suffix", suffix).
+				Str("old_route", existingRoute.Key()).
+				Str("new_route", route.Key()).
+				Msg("replacing wildcard route with conflicting suffix")
+		}
 		idx.oneLabel[suffix] = route
 	}
+}
+
+type routePreference interface {
+	PreferOver(other any) bool
+}
+
+func preferWildcardRoute(route, existingRoute types.HTTPRoute) bool {
+	if preferredRoute, ok := route.(routePreference); ok {
+		return preferredRoute.PreferOver(existingRoute)
+	}
+	if preferredExisting, ok := existingRoute.(routePreference); ok {
+		return !preferredExisting.PreferOver(route)
+	}
+	return true
 }
 
 func (idx *wildcardRouteIndex) Find(host string) types.HTTPRoute {
