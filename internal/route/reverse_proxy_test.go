@@ -500,3 +500,44 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
+
+type recordingTransport struct {
+	closeIdleConnectionsCalls int
+}
+
+func (*recordingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader("ok")),
+	}, nil
+}
+
+func (t *recordingTransport) CloseIdleConnections() {
+	t.closeIdleConnectionsCalls++
+}
+
+func TestReverseProxyRouteClosesIdleConnectionsOnCancel(t *testing.T) {
+	testTask := task.GetTestTask(t)
+	entrypoint.SetCtx(testTask, newTestEntrypoint())
+
+	base := &Route{
+		Alias:       "test-close-idle",
+		Scheme:      route.SchemeHTTP,
+		Host:        "example.com",
+		Port:        Port{Proxy: 80},
+		HealthCheck: types.HealthCheckConfig{Disable: true},
+	}
+	require.NoError(t, base.Validate())
+
+	routeImpl, err := NewReverseProxyRoute(base)
+	require.NoError(t, err)
+
+	transport := &recordingTransport{}
+	routeImpl.rp.Transport = transport
+
+	require.NoError(t, routeImpl.Start(testTask))
+	routeImpl.FinishAndWait("test done")
+
+	require.Equal(t, 1, transport.closeIdleConnectionsCalls)
+}

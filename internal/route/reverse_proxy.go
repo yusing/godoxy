@@ -33,6 +33,10 @@ type ReverseProxyRoute struct {
 
 var _ types.ReverseProxyRoute = (*ReverseProxyRoute)(nil)
 
+type closeIdleConnectionsRoundTripper interface {
+	CloseIdleConnections()
+}
+
 // var globalMux    = http.NewServeMux() // TODO: support regex subdomain matching.
 
 func NewReverseProxyRoute(base *Route) (*ReverseProxyRoute, error) {
@@ -164,6 +168,12 @@ func (r *ReverseProxyRoute) Start(parent task.Parent) error {
 
 	if r.handler == nil {
 		r.handler = r.rp
+	}
+
+	if r.rp != nil {
+		if transport, ok := r.rp.Transport.(closeIdleConnectionsRoundTripper); ok {
+			r.task.OnCancel("close_idle_connections", transport.CloseIdleConnections)
+		}
 	}
 
 	if r.UseAccessLog() {
