@@ -4,7 +4,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider/types"
 	"github.com/yusing/godoxy/internal/watcher"
-	eventsPkg "github.com/yusing/godoxy/internal/watcher/events"
+	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
@@ -24,19 +24,12 @@ func (p *Provider) newEventHandler() *EventHandler {
 
 func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) {
 	oldRoutes := handler.provider.lockCloneRoutes()
-
-	isForceReload := false
-	for _, event := range events {
-		if event.Action == eventsPkg.ActionForceReload {
-			isForceReload = true
-			break
-		}
-	}
+	forceReload := hasForceReload(events)
 
 	newRoutes, err := handler.provider.loadRoutes()
 	if err != nil {
 		handler.errs.Add(err)
-		if len(newRoutes) == 0 && !isForceReload {
+		if len(newRoutes) == 0 {
 			return
 		}
 	}
@@ -46,7 +39,7 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 		switch {
 		case !ok:
 			handler.Remove(oldr)
-		case handler.matchAny(events, newr):
+		case handler.shouldUpdateRoute(forceReload, events, newr):
 			handler.Update(parent, oldr, newr)
 		}
 	}
@@ -55,6 +48,19 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 			handler.Add(parent, newr)
 		}
 	}
+}
+
+func (handler *EventHandler) shouldUpdateRoute(forceReload bool, events []watcher.Event, route *route.Route) bool {
+	return forceReload || handler.matchAny(events, route)
+}
+
+func hasForceReload(events []watcher.Event) bool {
+	for _, event := range events {
+		if event.Action == watcherEvents.ActionForceReload {
+			return true
+		}
+	}
+	return false
 }
 
 func (handler *EventHandler) matchAny(events []watcher.Event, route *route.Route) bool {

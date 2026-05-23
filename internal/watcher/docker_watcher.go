@@ -118,8 +118,6 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 			}
 
 			errCh <- w.parseError(result.err)
-			// trigger reload (clear routes)
-			eventCh <- reloadTrigger
 
 			retry := time.NewTicker(dockerWatcherRetryInterval)
 		outer:
@@ -135,7 +133,9 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 				}
 			}
 			retry.Stop()
-			// connection successful, trigger reload (reload routes)
+			// connection successful, trigger reload so routes can be refreshed from the
+			// latest container state without dropping the last known-good routes while the
+			// daemon was temporarily unreachable.
 			eventCh <- reloadTrigger
 			// reopen event channel
 			msgCh, dErrCh = client.Events(ctx, options)
