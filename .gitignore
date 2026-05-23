@@ -3,13 +3,13 @@ compose.yml
 
 bin/
 
-./config/
-./certs/
-./error_pages/
-./profiles/
-./data/
-./debug/
-./logs/
+/config/
+/certs/
+/error_pages/
+/profiles/
+/data/
+/debug/
+/logs/
 
 .vscode/settings.json
 
