@@ -1,5 +1,5 @@
 # Stage 1: deps
-FROM golang:1.26.2-alpine AS deps
+FROM golang:1.26.3-alpine AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
@@ -36,7 +36,7 @@ ENV GOPATH=/root/go
 RUN make ${MAKE_ARGS} docker=1 build
 
 # Stage 3: Final image
-FROM scratch
+FROM scratch AS socket-proxy
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
