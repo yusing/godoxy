@@ -48,6 +48,10 @@ type (
 
 var ErrNegativeInterval = errors.New("negative interval")
 
+var healthMonitorJitterDelay = func() time.Duration {
+	return time.Duration(rand.Intn(10)) * time.Second
+}
+
 func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
 	if state := config.WorkingState.Load(); state != nil {
 		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
@@ -112,8 +116,17 @@ func (mon *monitor) Start(parent task.Parent) error {
 			failures++
 		}
 
-		// add a random delay between 0 and 10 seconds to avoid thundering herd
-		time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+		// add a random delay between 0 and 10 seconds to avoid thundering herd,
+		// but remain cancellation-aware so force-reloaded routes do not leave
+		// obsolete monitors sleeping for seconds after teardown.
+		jitterDelay := healthMonitorJitterDelay()
+		if jitterDelay > 0 {
+			select {
+			case <-mon.task.Context().Done():
+				return
+			case <-time.After(jitterDelay):
+			}
+		}
 
 		ticker := time.NewTicker(mon.config.Interval)
 		defer ticker.Stop()
