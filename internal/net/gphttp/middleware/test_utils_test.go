@@ -102,6 +102,8 @@ type testArgs struct {
 
 	realRoundTrip bool
 
+	remoteAddr string
+
 	reqURL    *nettypes.URL
 	reqMethod string
 	headers   http.Header
@@ -118,6 +120,9 @@ func (args *testArgs) setDefaults() {
 	}
 	if args.reqMethod == "" {
 		args.reqMethod = http.MethodGet
+	}
+	if args.remoteAddr == "" {
+		args.remoteAddr = "192.0.2.1:1234"
 	}
 	if args.upstreamURL == nil {
 		args.upstreamURL = nettypes.MustParseURL("https://10.0.0.1:8443") // dummy url, no actual effect
@@ -162,6 +167,7 @@ func newMiddlewaresTest(middlewares []*Middleware, args *testArgs) (*TestResult,
 
 	req := httptest.NewRequest(args.reqMethod, args.reqURL.String(), args.bodyReader())
 	maps.Copy(req.Header, args.headers)
+	req.RemoteAddr = args.remoteAddr
 	req = routes.WithRouteContext(req, fakeMiddlewareHTTPRoute{
 		name:      "test-upstream",
 		targetURL: args.upstreamURL,
