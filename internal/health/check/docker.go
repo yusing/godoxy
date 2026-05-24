@@ -25,6 +25,21 @@ const dockerFailuresThreshold = 3
 var (
 	ErrDockerHealthCheckFailedTooManyTimes = errors.New("docker health check failed too many times")
 	ErrDockerHealthCheckNotAvailable       = errors.New("docker health check not available")
+	dockerHealthInspect                    = func(ctx context.Context, client *docker.SharedClient, containerID string) (container.State, error) {
+		// the actual inspect response is intercepted and returned as RequestInterceptedError
+		_, err := client.ContainerInspect(ctx, containerID)
+
+		var interceptedErr *httputils.RequestInterceptedError
+		if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
+			return container.State{}, err
+		}
+
+		if interceptedErr == nil || interceptedErr.Data == nil { // should not happen
+			return container.State{}, errors.New("intercepted error is nil or data is nil")
+		}
+
+		return interceptedErr.Data.(container.State), nil
+	}
 )
 
 func NewDockerHealthcheckState(client *docker.SharedClient, containerID string) *DockerHealthcheckState {
@@ -44,21 +59,11 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// the actual inspect response is intercepted and returned as RequestInterceptedError
-	_, err := state.client.ContainerInspect(ctx, state.containerID)
-
-	var interceptedErr *httputils.RequestInterceptedError
-	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
+	containerState, err := dockerHealthInspect(ctx, state.client, state.containerID)
+	if err != nil {
 		state.numDockerFailures++
 		return types.HealthCheckResult{}, err
 	}
-
-	if interceptedErr == nil || interceptedErr.Data == nil { // should not happen
-		state.numDockerFailures++
-		return types.HealthCheckResult{}, errors.New("intercepted error is nil or data is nil")
-	}
-
-	containerState := interceptedErr.Data.(container.State)
 
 	status := containerState.Status
 	switch status {
