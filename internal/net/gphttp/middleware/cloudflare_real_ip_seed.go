@@ -1,5 +1,6 @@
 package middleware
 
-//go:generate go run ../../../../cmd/cloudflare-cidrs-gen -out cloudflare_real_ip_seed_gen.go
+import _ "embed"
 
-var generatedCloudflareCIDRsRaw []byte
+//go:embed cloudflare_real_ip_seed.txt
+var embeddedCloudflareCIDRsRaw []byte

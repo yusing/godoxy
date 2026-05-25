@@ -94,7 +94,7 @@ ifeq ($(docker), 1)
 endif
 
 .PHONY: benchmark build build-cli build-webui ci-test cloc debug debug-list-containers \
-	dev docker-build-test ensure-cloudflare-cidrs ensure-webui-dist gen-api-types gen-cli gen-cloudflare-cidrs gen-rules-cheatsheet gen-swagger help \
+	dev docker-build-test ensure-webui-dist gen-api-types gen-cli gen-rules-cheatsheet gen-swagger help \
 	minify mod-tidy modernize push-github rapid-crash run tcp-echo-test test \
 	update-deps update-go update-wiki
 
@@ -135,21 +135,18 @@ help:
 		"  push-github      git push origin $(BRANCH)" \
 		'  gen-swagger      swag init + scripts into internal/api docs' \
 		'  gen-api-types    gen-swagger + swagger-typescript-api for webui' \
-		'  gen-cloudflare-cidrs  Refresh generated Cloudflare CIDR seed source' \
 		'  gen-cli          Regenerate CLI (cmd/cli gen)' \
 		'  update-wiki      bun scripts/update-wiki (WEBUI_DIR, REPO_URL)'
-
-ensure-cloudflare-cidrs:
-	@if [ ! -f internal/net/gphttp/middleware/cloudflare_real_ip_seed_gen.go ]; then \
-		$(MAKE) gen-cloudflare-cidrs; \
-	fi
 
 ensure-webui-dist:
 	@if [ "${godoxy}" = "1" ] && [ ! -f "$(WEBUI_DIR)/dist/client/_shell.html" ]; then \
 		$(MAKE) build-webui; \
 	fi
 
-test: ensure-cloudflare-cidrs ensure-webui-dist
+test: ensure-webui-dist
+	go test -v ${BUILD_FLAGS} ./internal/...
+
+race-test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 tcp-echo-test:
@@ -211,7 +208,7 @@ build-webui:
 gen-rules-cheatsheet:
 	go run -ldflags='$(LDFLAGS)' ./cmd/rules-cheatsheet-gen -out "$(WEBUI_DIR)/src/generated/rules-cheatsheet.json"
 
-build: ensure-cloudflare-cidrs ensure-webui-dist
+build: ensure-webui-dist
 	@if [ "${godoxy}" = "1" ]; then \
 		make minify; \
 	elif [ "${cli}" = "1" ]; then \
@@ -221,7 +218,7 @@ build: ensure-cloudflare-cidrs ensure-webui-dist
 	go build -C ${PWD} ${BUILD_FLAGS} -o ${BIN_PATH} ${PACKAGE}
 	${POST_BUILD}
 
-run: ensure-cloudflare-cidrs minify
+run: minify
 	cd ${PWD} && [ -f .env ] && godotenv -f .env go run ${BUILD_FLAGS} ${PACKAGE}
 
 dev:
@@ -265,9 +262,6 @@ gen-api-types: gen-swagger
 
 gen-cli:
 	cd cmd/cli && go run ./gen
-
-gen-cloudflare-cidrs:
-	go run ./cmd/cloudflare-cidrs-gen
 
 update-wiki:
 	DOCS_DIR=${DOCS_DIR} REPO_URL=${REPO_URL} bun --bun scripts/update-wiki

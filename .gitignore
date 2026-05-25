@@ -35,6 +35,3 @@ CLAUDE.md
 
 # generated CLI commands
 cmd/cli/generated_commands.go
-
-# generated Cloudflare CIDR snapshot
-internal/net/gphttp/middleware/cloudflare_real_ip_seed_gen.go

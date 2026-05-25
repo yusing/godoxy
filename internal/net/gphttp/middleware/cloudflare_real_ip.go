@@ -46,7 +46,13 @@ var (
 		{IP: net.IPv4(192, 168, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)},   // 192.168.0.0/16
 	}
 
-	loadSeedCloudflareCIDRs = sync.OnceValue(mustLoadSeedCloudflareCIDRs)
+	loadSeedCloudflareCIDRs = sync.OnceValue(func() []*nettypes.CIDR {
+		cidrs, err := parseCloudflareCIDRs(embeddedCloudflareCIDRsRaw)
+		if err != nil {
+			panic(err)
+		}
+		return append(cidrs, localCIDRs...)
+	})
 
 	loadCloudflareCIDRs = func() ([]*nettypes.CIDR, error) {
 		ipv4CIDRs, ipv4Err := fetchCloudflareCIDRs(cfIPv4CIDRsEndpoint)
@@ -175,18 +181,6 @@ func refreshCloudflareCIDRsLocked() []*nettypes.CIDR {
 	cfCIDRsNextRetry.Store(time.Time{})
 	log.Info().Msg("cloudflare CIDR range updated")
 	return updated
-}
-
-func mustLoadSeedCloudflareCIDRs() []*nettypes.CIDR {
-	if len(generatedCloudflareCIDRsRaw) == 0 {
-		panic("missing generated Cloudflare CIDR snapshot; run `make gen-cloudflare-cidrs`")
-	}
-	cidrs, err := parseCloudflareCIDRs(generatedCloudflareCIDRsRaw)
-	if err != nil {
-		panic(err)
-	}
-	cidrs = append(cidrs, localCIDRs...)
-	return cidrs
 }
 
 func fetchCloudflareCIDRs(endpoint string) ([]*nettypes.CIDR, error) {

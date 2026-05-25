@@ -231,6 +231,12 @@ func TestCloudflareRealIPFailureBacksOffAndKeepsServing(t *testing.T) {
 	expect.Equal(t, third.RemoteAddr, "198.51.100.14:1234")
 }
 
+func TestEmbeddedCloudflareCIDRSeedParses(t *testing.T) {
+	cidrs, err := parseCloudflareCIDRs(embeddedCloudflareCIDRsRaw)
+	require.NoError(t, err)
+	require.NotEmpty(t, cidrs)
+}
+
 func resetCloudflareRealIPTestState(t *testing.T) {
 	t.Helper()
 
