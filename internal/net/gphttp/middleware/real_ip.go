@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strings"
 
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/http/httpheaders"
@@ -49,7 +50,13 @@ func (ri *realIP) before(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (ri *realIP) isInCIDRList(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
 	for _, CIDR := range ri.From {
+		if CIDR == nil {
+			continue
+		}
 		if CIDR.Contains(ip) {
 			return true
 		}
@@ -70,32 +77,28 @@ func (ri *realIP) setRealIP(req *http.Request) {
 		return
 	}
 
-	clientIPStr, _, err := net.SplitHostPort(req.RemoteAddr)
+	clientIPStr, clientPort, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		clientIPStr = req.RemoteAddr
 	}
 
 	clientIP := net.ParseIP(clientIPStr)
-	isTrusted := false
-
-	for _, CIDR := range ri.From {
-		if CIDR.Contains(clientIP) {
-			isTrusted = true
-			break
-		}
-	}
-	if !isTrusted {
+	if !ri.isInCIDRList(clientIP) {
 		return
 	}
 
 	lastNonTrustedIP := ""
 
 	if !ri.Recursive {
-		lastNonTrustedIP = realIPs[len(realIPs)-1]
+		lastNonTrustedIP = parseRealIPHeaderValue(realIPs[len(realIPs)-1])
 	} else {
 		for _, r := range realIPs {
-			if !ri.isInCIDRList(net.ParseIP(r)) {
-				lastNonTrustedIP = r
+			ip := parseRealIPHeaderValue(r)
+			if ip == "" {
+				continue
+			}
+			if !ri.isInCIDRList(net.ParseIP(ip)) {
+				lastNonTrustedIP = ip
 			}
 		}
 	}
@@ -104,7 +107,26 @@ func (ri *realIP) setRealIP(req *http.Request) {
 		return
 	}
 
-	req.RemoteAddr = lastNonTrustedIP
+	if clientPort != "" {
+		req.RemoteAddr = net.JoinHostPort(lastNonTrustedIP, clientPort)
+	} else {
+		req.RemoteAddr = lastNonTrustedIP
+	}
 	req.Header.Set(ri.Header, lastNonTrustedIP)
 	req.Header.Set(httpheaders.HeaderXRealIP, lastNonTrustedIP)
+}
+
+func parseRealIPHeaderValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(value); err == nil {
+		value = host
+	}
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return ""
+	}
+	return ip.String()
 }

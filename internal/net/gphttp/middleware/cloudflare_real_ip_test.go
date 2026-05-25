@@ -29,6 +29,24 @@ func TestCloudflareRealIPSkipsFetchWithoutHeader(t *testing.T) {
 	expect.Equal(t, result.RemoteAddr, "192.0.2.1:1234")
 }
 
+func TestCloudflareRealIPIgnoresInvalidConnectingIP(t *testing.T) {
+	resetCloudflareRealIPTestState(t)
+
+	for _, value := range []string{"", "unknown"} {
+		t.Run(value, func(t *testing.T) {
+			result, err := newMiddlewareTest(CloudflareRealIP, &testArgs{
+				remoteAddr: "127.0.0.1:1234",
+				headers: http.Header{
+					"CF-Connecting-IP": []string{value},
+				},
+			})
+			expect.NoError(t, err)
+			expect.Equal(t, result.ResponseStatus, http.StatusOK)
+			expect.Equal(t, result.RemoteAddr, "127.0.0.1:1234")
+		})
+	}
+}
+
 func TestCloudflareRealIPUsesBundledCIDRsOnColdStartWithoutBlockingRequests(t *testing.T) {
 	resetCloudflareRealIPTestState(t)
 
@@ -50,7 +68,7 @@ func TestCloudflareRealIPUsesBundledCIDRsOnColdStartWithoutBlockingRequests(t *t
 	})
 	expect.NoError(t, err)
 	require.NotEmpty(t, cfCIDRs.Load())
-	expect.Equal(t, first.RemoteAddr, "198.51.100.10")
+	expect.Equal(t, first.RemoteAddr, "198.51.100.10:1234")
 	require.Eventually(t, func() bool {
 		return loadCalls.Load() == 1
 	}, time.Second, 10*time.Millisecond)
@@ -64,7 +82,7 @@ func TestCloudflareRealIPUsesBundledCIDRsOnColdStartWithoutBlockingRequests(t *t
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, loadCalls.Load(), int64(1))
-	expect.Equal(t, second.RemoteAddr, "198.51.100.11")
+	expect.Equal(t, second.RemoteAddr, "198.51.100.11:1234")
 	close(releaseLoad)
 }
 
@@ -100,7 +118,7 @@ func TestCloudflareRealIPRefreshesStaleCIDRsInBackground(t *testing.T) {
 		},
 	})
 	expect.NoError(t, err)
-	expect.Equal(t, first.RemoteAddr, "198.51.100.20")
+	expect.Equal(t, first.RemoteAddr, "198.51.100.20:1234")
 	require.Eventually(t, func() bool {
 		return loadCalls.Load() == 1
 	}, time.Second, 10*time.Millisecond)
@@ -113,7 +131,7 @@ func TestCloudflareRealIPRefreshesStaleCIDRsInBackground(t *testing.T) {
 		},
 	})
 	expect.NoError(t, err)
-	expect.Equal(t, second.RemoteAddr, "198.51.100.21")
+	expect.Equal(t, second.RemoteAddr, "198.51.100.21:1234")
 	expect.Equal(t, loadCalls.Load(), int64(1))
 
 	close(releaseLoad)
@@ -154,7 +172,7 @@ func TestCloudflareRealIPDoesNotBlockRequestsWhileRefreshIsStuck(t *testing.T) {
 	case err := <-errCh:
 		require.NoError(t, err)
 	case result := <-resultCh:
-		expect.Equal(t, result.RemoteAddr, "198.51.100.30")
+		expect.Equal(t, result.RemoteAddr, "198.51.100.30:1234")
 	case <-time.After(250 * time.Millisecond):
 		t.Fatal("request blocked on Cloudflare CIDR refresh")
 	}
@@ -185,7 +203,8 @@ func TestCloudflareRealIPFailureBacksOffAndKeepsServing(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return loadCalls.Load() == 1 && !cfCIDRsNextRetry.Load().IsZero()
 	}, time.Second, 10*time.Millisecond)
-	expect.Equal(t, first.RemoteAddr, "198.51.100.12")
+	waitForCloudflareRefreshIdle(t)
+	expect.Equal(t, first.RemoteAddr, "198.51.100.12:1234")
 
 	second, err := newMiddlewareTest(CloudflareRealIP, &testArgs{
 		remoteAddr: "127.0.0.1:1234",
@@ -195,7 +214,7 @@ func TestCloudflareRealIPFailureBacksOffAndKeepsServing(t *testing.T) {
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, loadCalls.Load(), int64(1))
-	expect.Equal(t, second.RemoteAddr, "198.51.100.13")
+	expect.Equal(t, second.RemoteAddr, "198.51.100.13:1234")
 
 	now = now.Add(cfCIDRsUpdateRetryInterval + time.Millisecond)
 
@@ -209,7 +228,7 @@ func TestCloudflareRealIPFailureBacksOffAndKeepsServing(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return loadCalls.Load() == 2
 	}, time.Second, 10*time.Millisecond)
-	expect.Equal(t, third.RemoteAddr, "198.51.100.14")
+	expect.Equal(t, third.RemoteAddr, "198.51.100.14:1234")
 }
 
 func resetCloudflareRealIPTestState(t *testing.T) {
