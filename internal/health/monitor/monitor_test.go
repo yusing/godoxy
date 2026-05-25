@@ -1,8 +1,10 @@
 package monitor
 
 import (
+	"errors"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -312,4 +314,39 @@ func TestImmediateUpNotificationAfterDownNotification(t *testing.T) {
 	require.Equal(t, 1, up)
 	require.Equal(t, 0, down)
 	require.Equal(t, "up", last)
+}
+
+func TestMonitorStartCancelsDuringJitterDelay(t *testing.T) {
+	prevJitter := healthMonitorJitterDelay
+	healthMonitorJitterDelay = func() time.Duration {
+		return 10 * time.Second
+	}
+	t.Cleanup(func() {
+		healthMonitorJitterDelay = prevJitter
+	})
+
+	var checks atomic.Int32
+	mon, _ := createTestMonitor(types.HealthCheckConfig{
+		Interval: 50 * time.Millisecond,
+		Timeout:  10 * time.Millisecond,
+	}, func(u *url.URL) (types.HealthCheckResult, error) {
+		checks.Add(1)
+		return types.HealthCheckResult{Healthy: true}, nil
+	})
+
+	rootTask := task.RootTask("test", true)
+	defer rootTask.FinishAndWait("done")
+
+	require.NoError(t, mon.Start(rootTask))
+	require.Eventually(t, func() bool {
+		return checks.Load() == 1
+	}, time.Second, 10*time.Millisecond)
+
+	start := time.Now()
+	mon.Finish(errors.New("reload"))
+	require.Eventually(t, func() bool {
+		return mon.Task().FinishCause() != nil
+	}, time.Second, 10*time.Millisecond)
+	require.Less(t, time.Since(start), time.Second)
+	require.Equal(t, int32(1), checks.Load(), "monitor should exit before post-check ticker starts")
 }

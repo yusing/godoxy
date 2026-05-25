@@ -144,6 +144,9 @@ ensure-webui-dist:
 	fi
 
 test: ensure-webui-dist
+	go test -v ${BUILD_FLAGS} ./internal/...
+
+race-test: ensure-webui-dist
 	CGO_ENABLED=1 go test -v -race ${BUILD_FLAGS} ./internal/...
 
 tcp-echo-test:

@@ -1,0 +1,49 @@
+name: Cloudflare CIDR Snapshot
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-cidrs-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Update Cloudflare CIDR snapshot
+        run: scripts/update-cloudflare-cidrs.sh
+
+      - name: Verify embedded snapshot
+        run: go test -ldflags="-checklinkname=0" ./internal/net/gphttp/middleware -run TestEmbeddedCloudflareCIDRSeedParses
+
+      - name: Commit updated snapshot
+        run: |
+          if git diff --quiet -- internal/net/gphttp/middleware/cloudflare_real_ip_seed.txt; then
+            echo "Cloudflare CIDR snapshot already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add internal/net/gphttp/middleware/cloudflare_real_ip_seed.txt
+          git commit -m "chore: update Cloudflare CIDR snapshot"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

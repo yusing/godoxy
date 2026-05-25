@@ -32,8 +32,12 @@ type (
 type DockerFilter = filters.KeyValuePair
 
 var (
-	NewDockerFilter  = filters.Arg
-	NewDockerFilters = filters.NewArgs
+	NewDockerFilter        = filters.Arg
+	NewDockerFilters       = filters.NewArgs
+	newDockerWatcherClient = func(cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return docker.NewClient(cfg, true)
+	}
+	dockerWatcherCheckConnection = checkConnection
 )
 
 // https://docs.docker.com/reference/api/engine/version/v1.47/#tag/System/operation/SystemPingHead
@@ -89,7 +93,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 	errCh := make(chan error)
 
 	go func() {
-		client, err := docker.NewClient(w.cfg)
+		client, err := newDockerWatcherClient(w.cfg)
 		if err != nil {
 			errCh <- fmt.Errorf("docker watcher: failed to initialize client: %w", err)
 			return
@@ -98,7 +102,9 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 		defer func() {
 			close(eventCh)
 			close(errCh)
-			client.Close()
+			if client != nil {
+				client.Close()
+			}
 		}()
 
 		msgCh, dErrCh := client.Events(ctx, options)
@@ -118,21 +124,11 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 			}
 
 			errCh <- w.parseError(result.err)
-
-			retry := time.NewTicker(dockerWatcherRetryInterval)
-		outer:
-			for {
-				select {
-				case <-ctx.Done():
-					retry.Stop()
-					return
-				case <-retry.C:
-					if checkConnection(ctx, client) {
-						break outer
-					}
-				}
+			client.Close()
+			client, err = reconnectDockerWatcherClient(ctx, w.cfg, errCh)
+			if err != nil {
+				return
 			}
-			retry.Stop()
 			// connection successful, trigger reload so routes can be refreshed from the
 			// latest container state without dropping the last known-good routes while the
 			// daemon was temporarily unreachable.
@@ -204,4 +200,30 @@ func checkConnection(ctx context.Context, client *docker.SharedClient) bool {
 		return false
 	}
 	return true
+}
+
+func reconnectDockerWatcherClient(ctx context.Context, cfg types.DockerProviderConfig, errCh chan<- error) (*docker.SharedClient, error) {
+	retry := time.NewTicker(dockerWatcherRetryInterval)
+	defer retry.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-retry.C:
+			client, err := newDockerWatcherClient(cfg)
+			if err != nil {
+				select {
+				case errCh <- fmt.Errorf("docker watcher: failed to reinitialize client: %w", err):
+				default:
+				}
+				continue
+			}
+			if !dockerWatcherCheckConnection(ctx, client) {
+				client.Close()
+				continue
+			}
+			return client, nil
+		}
+	}
 }
