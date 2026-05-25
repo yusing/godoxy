@@ -31,6 +31,9 @@ var (
 
 		var interceptedErr *httputils.RequestInterceptedError
 		if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
+			if err == nil {
+				err = errors.New("inspect response was not intercepted")
+			}
 			return container.State{}, err
 		}
 

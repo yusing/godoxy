@@ -83,11 +83,12 @@ func (cri *cloudflareRealIP) before(w http.ResponseWriter, r *http.Request) bool
 	if len(r.Header.Values(cri.realIP.Header)) == 0 && len(r.Header[cri.realIP.Header]) == 0 {
 		return cri.realIP.before(w, r)
 	}
+	local := cri.realIP
 	cidrs := tryFetchCFCIDR()
 	if cidrs != nil {
-		cri.realIP.From = cidrs
+		local.From = cidrs
 	}
-	return cri.realIP.before(w, r)
+	return local.before(w, r)
 }
 
 func tryFetchCFCIDR() []*nettypes.CIDR {
@@ -202,6 +203,10 @@ func fetchCloudflareCIDRs(endpoint string) ([]*nettypes.CIDR, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("cloudflare CIDR endpoint %s returned %s", endpoint, resp.Status)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

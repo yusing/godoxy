@@ -213,7 +213,10 @@ func reconnectDockerWatcherClient(ctx context.Context, cfg types.DockerProviderC
 		case <-retry.C:
 			client, err := newDockerWatcherClient(cfg)
 			if err != nil {
-				errCh <- fmt.Errorf("docker watcher: failed to reinitialize client: %w", err)
+				select {
+				case errCh <- fmt.Errorf("docker watcher: failed to reinitialize client: %w", err):
+				default:
+				}
 				continue
 			}
 			if !dockerWatcherCheckConnection(ctx, client) {
