@@ -40,6 +40,9 @@ func init() {
 	if EnvUseSonic {
 		setupSonic()
 	}
+	// default values uses std json
+	strutils.SetYAMLMarshaler(yaml.Marshal)
+	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
 }
 
 func setupSonic() {
@@ -56,8 +59,6 @@ func setupSonic() {
 	strutils.SetJSONMarshalString(sonic.MarshalString)
 	strutils.SetJSONUnmarshalString(sonic.UnmarshalString)
 	strutils.SetJSONValidString(sonic.ValidString)
-	strutils.SetYAMLMarshaler(yaml.Marshal)
-	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
 }
 
 type MapUnmarshaller interface {
