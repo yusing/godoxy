@@ -65,7 +65,7 @@ else
 	BUILD_FLAGS += -pgo=auto
 endif
 
-BUILD_FLAGS += -tags '$(GO_TAGS)' -ldflags='$(LDFLAGS)'
+BUILD_FLAGS += -tags '$(GO_TAGS)' -ldflags='$(LDFLAGS)' -trimpath
 BIN_PATH := $(shell pwd)/bin/${NAME}
 
 export NAME
