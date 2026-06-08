@@ -219,6 +219,7 @@ root:
 | OVH          | `ovh`          | `OVH_ENDPOINT`, `OVH_APP_KEY`, etc. |
 | CloudDNS     | `clouddns`     | GCP credentials                     |
 | AzureDNS     | `azuredns`     | Azure credentials                   |
+| deSEC        | `desec`        | `DESEC_TOKEN`                      |
 | DuckDNS      | `duckdns`      | `DUCKDNS_TOKEN`                     |
 
 ### Example Configuration
