@@ -8,6 +8,7 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns/clouddns"
 	"github.com/go-acme/lego/v4/providers/dns/cloudflare"
 	"github.com/go-acme/lego/v4/providers/dns/cloudns"
+	"github.com/go-acme/lego/v4/providers/dns/desec"
 	"github.com/go-acme/lego/v4/providers/dns/digitalocean"
 	"github.com/go-acme/lego/v4/providers/dns/duckdns"
 	"github.com/go-acme/lego/v4/providers/dns/edgedns"
@@ -48,6 +49,7 @@ func InitProviders() {
 	autocert.Providers["cloudflare"] = autocert.DNSProvider(cloudflare.NewDefaultConfig, cloudflare.NewDNSProviderConfig)
 	autocert.Providers["cloudns"] = autocert.DNSProvider(cloudns.NewDefaultConfig, cloudns.NewDNSProviderConfig)
 	autocert.Providers["clouddns"] = autocert.DNSProvider(clouddns.NewDefaultConfig, clouddns.NewDNSProviderConfig)
+	autocert.Providers["desec"] = autocert.DNSProvider(desec.NewDefaultConfig, desec.NewDNSProviderConfig)
 	autocert.Providers["digitalocean"] = autocert.DNSProvider(digitalocean.NewDefaultConfig, digitalocean.NewDNSProviderConfig)
 	autocert.Providers["duckdns"] = autocert.DNSProvider(duckdns.NewDefaultConfig, duckdns.NewDNSProviderConfig)
 	autocert.Providers["edgedns"] = autocert.DNSProvider(edgedns.NewDefaultConfig, edgedns.NewDNSProviderConfig)

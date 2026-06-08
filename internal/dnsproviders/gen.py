@@ -31,6 +31,7 @@ allowlist = [
     "cloudflare",
     "cloudns",
     "clouddns",
+    "desec",
     "digitalocean",
     "duckdns",
     "edgedns",
@@ -55,8 +56,7 @@ allowlist = [
     "spaceship",
     "vercel",
     "vultr",
-
-    "timewebcloud"
+    "timewebcloud",
 ]
 
 for name in allowlist:

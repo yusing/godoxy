@@ -185,10 +185,12 @@ require (
 	github.com/linode/linodego v1.69.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
+	github.com/nrdcg/desec v0.11.1 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.117.0 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.117.0 // indirect
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
+	github.com/peterhellberg/link v1.2.0 // indirect
 	github.com/pion/dtls/v3 v3.1.3 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
