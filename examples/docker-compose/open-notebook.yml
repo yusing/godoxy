@@ -1,0 +1,40 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    container_name: open_notebook-db
+    command: start --log info --user root --pass root rocksdb:/mydata/mydatabase.db
+    user: root # Required for bind mounts on Linux
+    volumes:
+      - ./surreal_data:/mydata
+    environment:
+      - SURREAL_EXPERIMENTAL_GRAPHQL=true
+    restart: always
+    pull_policy: always
+
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest
+    container_name: open_notebook
+    labels:
+      proxy.aliases: open-notebook, open-notebook-api
+      proxy.ports: 8502, 5055
+    environment:
+      # REQUIRED: Change this to your own secret string
+      # This encrypts your API keys in the database
+      - OPEN_NOTEBOOK_ENCRYPTION_KEY=some-random-secret
+
+      # Database connection (default values - no need to change)
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=root
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=open_notebook
+
+      # REQUIRED: Change the domain name to yours
+      # Reverse proxy setup
+      - API_URL=https://open-notebook-api.domain.com
+    volumes:
+      - ./notebook_data:/app/data
+    depends_on:
+      - surrealdb
+    restart: always
+    pull_policy: always
