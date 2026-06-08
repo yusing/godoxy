@@ -250,6 +250,18 @@ Route labels use the format `proxy.<alias>.<field>` where `<alias>` is the route
 | `proxy.<alias>.scheme` | HTTP scheme                     | `proxy.app.scheme: https`       |
 | `proxy.<alias>.*`      | Any route-specific setting      | `proxy.app.no_tls_verify: true` |
 
+#### Label parser normalization
+
+`ParseLabels` normalizes route labels before building the nested `types.LabelMap` consumed by `internal/route/provider`:
+
+1. `ExpandScalarShortcuts` rewrites root-level comma-separated shortcut labels into indexed `proxy.#N.<field>` labels.
+2. `ExpandWildcard` rewrites wildcard and named-alias labels into indexed labels.
+3. `applyLabel` builds the nested label map and merges inline YAML object values with dot-notated fields.
+
+Shortcut mappings are defined in `labelScalarShortcuts` in `internal/docker/label.go`. Current mappings include indexed route fields for `port`, `scheme`, `host`, `bind`, `root`, `spa`, `index`, HTTP config scalars, `agent`, `inbound_mtls_profile`, `rule_file`, `tls_termination`, and `relay_proxy_protocol_header`.
+
+Shortcut expansion rejects ambiguous input. If a shortcut exists and any full label for the same target field already exists (for example `proxy.ports` with `proxy.#1.port`, `proxy.app.port`, or `proxy.*.port`), `ExpandScalarShortcuts` returns `ErrShortcutLabelConflict` and does not expand that shortcut.
+
 #### Wildcard alias
 
 Use `proxy.*.<field>` to apply settings to all routes:

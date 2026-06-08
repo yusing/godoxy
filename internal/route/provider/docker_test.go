@@ -227,6 +227,43 @@ func TestApplyLabelWithRef(t *testing.T) {
 	expect.Equal(t, c.Port.Proxy, 1111)
 }
 
+func TestApplyLabelWithScalarShortcuts(t *testing.T) {
+	entries := makeRoutes(&container.Summary{
+		Names: dummyNames,
+		State: "running",
+		Labels: map[string]string{
+			D.LabelAliases:           "a,b,c",
+			"proxy.ports":            "4444, 9999,443:1111",
+			"proxy.protos":           "http, https,tcp",
+			"proxy.hosts":            "app-a, app-b, app-c",
+			"proxy.no_tls_verifies":  "false, true, true",
+			"proxy.tls_terminations": "false, false, true",
+		},
+	})
+	a, ok := entries["a"]
+	expect.True(t, ok)
+	b, ok := entries["b"]
+	expect.True(t, ok)
+	c, ok := entries["c"]
+	expect.True(t, ok)
+
+	expect.Equal(t, a.Port.Proxy, 4444)
+	expect.Equal(t, b.Port.Proxy, 9999)
+	expect.Equal(t, c.Port.Proxy, 1111)
+	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTPS)
+	expect.Equal(t, c.Scheme, routeTypes.SchemeTCP)
+	expect.Equal(t, a.Host, "app-a")
+	expect.Equal(t, b.Host, "app-b")
+	expect.Equal(t, c.Host, "app-c")
+	expect.Equal(t, a.NoTLSVerify, false)
+	expect.Equal(t, b.NoTLSVerify, true)
+	expect.Equal(t, c.NoTLSVerify, true)
+	expect.Equal(t, a.TLSTermination, false)
+	expect.Equal(t, b.TLSTermination, false)
+	expect.Equal(t, c.TLSTermination, true)
+}
+
 func TestApplyLabelWithRefH2C(t *testing.T) {
 	entries := makeRoutes(&container.Summary{
 		Names: []string{"/netbird-server"},

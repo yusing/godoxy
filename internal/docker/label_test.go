@@ -282,6 +282,101 @@ func TestParseLabelsMixedObjectAndFlatFields(t *testing.T) {
 	}
 }
 
+func TestParseLabelsExpandsScalarShortcuts(t *testing.T) {
+	parsed, err := docker.ParseLabels(map[string]string{
+		"proxy.ports":           "8080, 9090  , 10000",
+		"proxy.protos":          "http, https, h2c",
+		"proxy.hosts":           "app, api, grpc",
+		"proxy.no_tls_verifies": "false, true, true",
+	})
+	require.NoError(t, err)
+
+	first := requireMap(t, parsed["#1"])
+	second := requireMap(t, parsed["#2"])
+	third := requireMap(t, parsed["#3"])
+
+	require.Equal(t, "8080", first["port"])
+	require.Equal(t, "9090", second["port"])
+	require.Equal(t, "10000", third["port"])
+	require.Equal(t, "http", first["scheme"])
+	require.Equal(t, "https", second["scheme"])
+	require.Equal(t, "h2c", third["scheme"])
+	require.Equal(t, "app", first["host"])
+	require.Equal(t, "api", second["host"])
+	require.Equal(t, "grpc", third["host"])
+	require.Equal(t, "false", first["no_tls_verify"])
+	require.Equal(t, "true", second["no_tls_verify"])
+	require.Equal(t, "true", third["no_tls_verify"])
+	require.NotContains(t, parsed, "ports")
+	require.NotContains(t, parsed, "protos")
+	require.NotContains(t, parsed, "hosts")
+	require.NotContains(t, parsed, "no_tls_verifies")
+}
+
+func TestParseLabelsRejectsShortcutFullLabelConflict(t *testing.T) {
+	tests := []struct {
+		name      string
+		labels    map[string]string
+		aliases   []string
+		conflicts []string
+	}{
+		{
+			name: "indexed label",
+			labels: map[string]string{
+				"proxy.ports":   "8080,9090",
+				"proxy.#1.port": "3000",
+			},
+			conflicts: []string{"proxy.ports", "proxy.#1.port"},
+		},
+		{
+			name: "named alias label",
+			labels: map[string]string{
+				"proxy.ports":    "8080,9090",
+				"proxy.app.port": "3000",
+			},
+			conflicts: []string{"proxy.ports", "proxy.app.port"},
+		},
+		{
+			name: "wildcard label",
+			labels: map[string]string{
+				"proxy.protos":   "http,https",
+				"proxy.*.scheme": "h2c",
+			},
+			aliases:   []string{"app", "api"},
+			conflicts: []string{"proxy.protos", "proxy.*.scheme"},
+		},
+		{
+			name: "named alias object label",
+			labels: map[string]string{
+				"proxy.ports": "8080,9090",
+				"proxy.app":   "port: 3000",
+			},
+			conflicts: []string{"proxy.ports", "proxy.app"},
+		},
+		{
+			name: "wildcard object label",
+			labels: map[string]string{
+				"proxy.protos": "http,https",
+				"proxy.*":      "scheme: h2c",
+			},
+			aliases:   []string{"app", "api"},
+			conflicts: []string{"proxy.protos", "proxy.*"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := docker.ParseLabels(tt.labels, tt.aliases...)
+			require.ErrorIs(t, err, docker.ErrShortcutLabelConflict)
+			for _, conflict := range tt.conflicts {
+				require.ErrorContains(t, err, conflict)
+			}
+			require.NotContains(t, parsed, "ports")
+			require.NotContains(t, parsed, "protos")
+		})
+	}
+}
+
 func TestParseLabelsRejectsScalarAndNestedObjectConflict(t *testing.T) {
 	for i := range 100 {
 		parsed, err := docker.ParseLabels(map[string]string{

@@ -12,11 +12,45 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
+	strutils "github.com/yusing/goutils/strings"
 )
 
-var ErrInvalidLabel = errors.New("invalid label")
+var (
+	ErrInvalidLabel          = errors.New("invalid label")
+	ErrShortcutLabelConflict = errors.New("shortcut conflicts with full label")
+)
 
 const nsProxyDot = NSProxy + "."
+
+type labelScalarShortcut struct {
+	label string
+	field string
+}
+
+var labelScalarShortcuts = []labelScalarShortcut{
+	{"ports", "port"},
+	{"protos", "scheme"},
+	{"protocols", "scheme"},
+	{"schemes", "scheme"},
+	{"hosts", "host"},
+	{"binds", "bind"},
+	{"roots", "root"},
+	{"spas", "spa"},
+	{"indexes", "index"},
+	{"no_tls_verifies", "no_tls_verify"},
+	{"response_header_timeouts", "response_header_timeout"},
+	{"max_conns_per_hosts", "max_conns_per_host"},
+	{"disable_compressions", "disable_compression"},
+	{"ssl_server_names", "ssl_server_name"},
+	{"ssl_trusted_certificates", "ssl_trusted_certificate"},
+	{"ssl_certificates", "ssl_certificate"},
+	{"ssl_certificate_keys", "ssl_certificate_key"},
+	{"agents", "agent"},
+	{"inbound_mtls_profiles", "inbound_mtls_profile"},
+	{"rule_files", "rule_file"},
+	{"tls_terminations", "tls_termination"},
+	{"proxy_protocol_headers", "relay_proxy_protocol_header"},
+}
 
 type UnexpectedTypeError struct {
 	Expected string
@@ -36,6 +70,7 @@ func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, e
 	nestedMap := make(types.LabelMap)
 	errs := gperr.NewBuilder("labels error")
 
+	errs.Add(ExpandScalarShortcuts(labels))
 	ExpandWildcard(labels, aliases...)
 
 	keys := slices.SortedFunc(maps.Keys(labels), compareLabelKeys)
@@ -46,6 +81,59 @@ func ParseLabels(labels map[string]string, aliases ...string) (types.LabelMap, e
 	}
 
 	return nestedMap, errs.Error()
+}
+
+func ExpandScalarShortcuts(labels map[string]string) error {
+	errs := gperr.NewBuilder("shortcut labels error")
+
+	for _, shortcut := range labelScalarShortcuts {
+		label := nsProxyDot + shortcut.label
+		value, ok := labels[label]
+		if !ok {
+			continue
+		}
+
+		delete(labels, label)
+		conflicts := shortcutLabelConflicts(labels, shortcut.field)
+		if len(conflicts) != 0 {
+			errs.AddSubjectf(
+				ErrShortcutLabelConflict,
+				"%s -> %s conflicts with %s",
+				label,
+				shortcut.field,
+				strings.Join(conflicts, ", "),
+			)
+			continue
+		}
+		for i, item := range strutils.CommaSeperatedList(value) {
+			labels[refPrefix(i)+shortcut.field] = item
+		}
+	}
+
+	return errs.Error()
+}
+
+func shortcutLabelConflicts(labels map[string]string, field string) []string {
+	conflicts := make([]string, 0)
+	for label, value := range labels {
+		_, suffix, ok := splitAliasLabel(label)
+		if !ok {
+			continue
+		}
+		if suffix == field || suffix == "" && labelObjectHasField(value, field) {
+			conflicts = append(conflicts, label)
+		}
+	}
+
+	slices.Sort(conflicts)
+	return conflicts
+}
+
+func labelObjectHasField(value, field string) bool {
+	flattened := make(map[string]string)
+	expandYamlWildcard(value, flattened)
+	_, ok := flattened[field]
+	return ok
 }
 
 func applyLabel(dst types.LabelMap, lbl, value string) error {
