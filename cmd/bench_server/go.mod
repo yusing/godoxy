@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/quic-go/quic-go v0.59.1
+	github.com/quic-go/quic-go v0.60.0
 )
 
 require (

@@ -2,7 +2,7 @@ module h3bench
 
 go 1.26.3
 
-require github.com/quic-go/quic-go v0.59.1
+require github.com/quic-go/quic-go v0.60.0
 
 require (
 	github.com/quic-go/qpack v0.6.0 // indirect

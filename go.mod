@@ -40,32 +40,32 @@ require (
 
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
-	github.com/bytedance/sonic v1.15.1 // fast json parsing
-	github.com/docker/cli v29.5.2+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/bytedance/sonic v1.15.2 // fast json parsing
+	github.com/docker/cli v29.5.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.7.1 // proxmox API client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
-	github.com/quic-go/quic-go v0.59.1 // http3 support
+	github.com/quic-go/quic-go v0.60.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.5 // system information
 	github.com/spf13/afero v1.15.0 // afero for file system operations
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.71.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260603145853-88b81bbc74ca
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260525080000-e5f8bceda33f
+	github.com/yusing/godoxy/agent v0.0.0-20260604033128-4c502cc31bc3
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260604033128-4c502cc31bc3
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260523111849-2fc0e992e371
-	github.com/yusing/goutils/http/websocket v0.0.0-20260523111849-2fc0e992e371
-	github.com/yusing/goutils/server v0.0.0-20260523111849-2fc0e992e371
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260604023211-2e2d2a11c04e
+	github.com/yusing/goutils/http/websocket v0.0.0-20260604023211-2e2d2a11c04e
+	github.com/yusing/goutils/server v0.0.0-20260604023211-2e2d2a11c04e
 )
 
 require (
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns v1.2.0 // indirect
@@ -73,7 +73,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.10.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/andybalholm/cascadia v1.3.3 // indirect
+	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -146,7 +146,7 @@ require (
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/yusing/goutils/cache v0.0.0-20260523111849-2fc0e992e371
+	github.com/yusing/goutils/cache v0.0.0-20260604023211-2e2d2a11c04e
 )
 
 require (
@@ -185,13 +185,13 @@ require (
 	github.com/linode/linodego v1.69.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
-	github.com/nrdcg/desec v0.11.1 // indirect
+	github.com/nrdcg/desec v0.11.2 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.117.0 // indirect
 	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.117.0 // indirect
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
 	github.com/peterhellberg/link v1.2.0 // indirect
-	github.com/pion/dtls/v3 v3.1.3 // indirect
+	github.com/pion/dtls/v3 v3.1.4 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
