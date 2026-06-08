@@ -392,7 +392,7 @@ func main() {
 
     // Get the actual fetchable URL
     fmt.Println(url.URL())
-    // Output: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/nginx.svg
+    // Output: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nginx.svg
 
     // Get string representation
     fmt.Println(url.String())
@@ -401,7 +401,7 @@ func main() {
     // Create with dark variant
     darkUrl := url.WithVariant(icons.VariantDark)
     fmt.Println(darkUrl.URL())
-    // Output: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/nginx-dark.svg
+    // Output: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nginx-dark.svg
 }
 ```
 
@@ -481,11 +481,11 @@ func main() {
 
 ## Icon URL Formats
 
-| Format        | Example                        | Output URL                                                            |
-| ------------- | ------------------------------ | --------------------------------------------------------------------- |
-| Absolute      | `https://example.com/icon.png` | `https://example.com/icon.png`                                        |
-| Relative      | `@target/favicon.ico`          | `/favicon.ico`                                                        |
-| WalkXCode     | `@walkxcode/nginx.svg`         | `https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/nginx.svg` |
-| Selfh.st      | `@selfhst/adguard-home.webp`   | `https://cdn.jsdelivr.net/gh/selfhst/icons/webp/adguard-home.webp`    |
-| Light variant | `@walkxcode/nginx-light.png`   | `.../nginx-light.png`                                                 |
-| Dark variant  | `@walkxcode/nginx-dark.svg`    | `.../nginx-dark.svg`                                                  |
+| Format        | Example                        | Output URL                                                              |
+| ------------- | ------------------------------ | ----------------------------------------------------------------------- |
+| Absolute      | `https://example.com/icon.png` | `https://example.com/icon.png`                                          |
+| Relative      | `@target/favicon.ico`          | `/favicon.ico`                                                          |
+| WalkXCode     | `@walkxcode/nginx.svg`         | `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nginx.svg` |
+| Selfh.st      | `@selfhst/adguard-home.webp`   | `https://cdn.jsdelivr.net/gh/selfhst/icons/webp/adguard-home.webp`      |
+| Light variant | `@walkxcode/nginx-light.png`   | `.../nginx-light.png`                                                   |
+| Dark variant  | `@walkxcode/nginx-dark.svg`    | `.../nginx-dark.svg`                                                    |

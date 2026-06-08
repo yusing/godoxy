@@ -183,7 +183,7 @@ func (u *URL) URL() string {
 	}
 	switch u.Source {
 	case SourceWalkXCode:
-		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/%s/%s.%s", u.Extra.FileType, filename, u.Extra.FileType)
+		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/%s/%s.%s", u.Extra.FileType, filename, u.Extra.FileType)
 	case SourceSelfhSt:
 		return fmt.Sprintf("https://cdn.jsdelivr.net/gh/selfhst/icons/%s/%s.%s", u.Extra.FileType, filename, u.Extra.FileType)
 	}
