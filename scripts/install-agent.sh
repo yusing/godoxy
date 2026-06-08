@@ -256,8 +256,8 @@ if [ -z "$api_response" ]; then
 	exit 1
 fi
 
-asset=$(echo "$api_response" | jq -r '.assets[] | select(.name | contains("'$filename'"))')
-bin_last_updated=$(echo "$asset" | jq -r '.updated_at | fromdateiso8601')
+asset=$(printf '%s\n' "$api_response" | jq -r --arg filename "$filename" '.assets[] | select(.name | contains($filename))')
+bin_last_updated=$(printf '%s\n' "$asset" | jq -r '.updated_at | fromdateiso8601')
 # check if last_updated == mod time of bin_path
 installed_release_timestamp=$(read_installed_release_timestamp)
 if is_nonnegative_integer "$installed_release_timestamp"; then
@@ -277,7 +277,7 @@ if [ "$COMMAND" = "update" ]; then
 	service_stop
 fi
 
-bin_url=$(echo "$asset" | jq -r '.browser_download_url')
+bin_url=$(printf '%s\n' "$asset" | jq -r '.browser_download_url')
 if [ -z "$bin_url" ] || [ "$bin_url" = "null" ]; then
 	echo "Failed to find binary for architecture: $arch"
 	exit 1
