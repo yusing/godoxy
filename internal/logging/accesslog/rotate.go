@@ -80,20 +80,6 @@ func rotateLogFile(file supportRotate, config *Retention, result *RotateResult) 
 }
 
 func rotateLogFileByPolicy(file supportRotate, config *Retention, result *RotateResult) (rotated bool, err error) {
-	var shouldStop func() bool
-	t := mockable.TimeNow()
-
-	switch {
-	case config.Last > 0:
-		shouldStop = func() bool { return int64(result.NumLinesKeep-result.NumLinesInvalid) == config.Last }
-		// not needed to parse time for last N lines
-	case config.Days > 0:
-		cutoff := mockable.TimeNow().AddDate(0, 0, -int(config.Days)+1)
-		shouldStop = func() bool { return t.Before(cutoff) }
-	default:
-		return false, nil // should not happen
-	}
-
 	stat, err := file.Stat()
 	if err != nil {
 		return false, err
@@ -104,10 +90,32 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	if fileSize == 0 {
 		return false, nil
 	}
+	result.OriginalSize = fileSize
+
+	var shouldStop func() bool
+	t := mockable.TimeNow()
+
+	switch {
+	case config.Last > 0:
+		shouldStop = func() bool { return int64(result.NumLinesKeep-result.NumLinesInvalid) == config.Last }
+		// not needed to parse time for last N lines
+	case config.Days > 0:
+		cutoff := mockable.TimeNow().AddDate(0, 0, -int(config.Days)+1)
+		insideRetention, err := logFileStartsInsideRetention(file, fileSize, cutoff)
+		if err != nil {
+			return false, err
+		}
+		if insideRetention {
+			result.NumBytesKeep = fileSize
+			return false, nil
+		}
+		shouldStop = func() bool { return t.Before(cutoff) }
+	default:
+		return false, nil // should not happen
+	}
 
 	s := NewBackScanner(file, fileSize, defaultChunkSize)
 	defer s.Release()
-	result.OriginalSize = fileSize
 
 	// Store the line positions and sizes we want to keep
 	linesToKeep := make([]lineInfo, 0)
@@ -182,6 +190,27 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	}
 
 	return true, nil
+}
+
+func logFileStartsInsideRetention(file supportRotate, fileSize int64, cutoff time.Time) (bool, error) {
+	bufSize := min(fileSize, int64(defaultChunkSize))
+	buf := sizedPool.GetSized(int(bufSize))
+	defer sizedPool.Put(buf)
+
+	n, err := file.ReadAt(buf, 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+	line := buf[:n]
+
+	if idx := bytes.IndexByte(line, '\n'); idx >= 0 {
+		line = line[:idx]
+	} else if int64(n) == bufSize && fileSize > bufSize {
+		return false, nil
+	}
+
+	t := ParseLogTime(line)
+	return !t.IsZero() && !t.Before(cutoff), nil
 }
 
 // fileContentMove moves the content of the file from the source position to the destination position.

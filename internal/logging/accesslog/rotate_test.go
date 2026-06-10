@@ -129,6 +129,30 @@ func TestRotateKeepLast(t *testing.T) {
 	}
 }
 
+func TestRotateKeepDaysSkipsFreshLogScan(t *testing.T) {
+	file := NewMockFile(true)
+	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
+		Format: FormatJSON,
+	})
+	for range 1000 {
+		mockable.MockTimeNow(testTime)
+		logger.LogRequest(req, resp)
+	}
+	logger.Flush()
+	content := file.Content()
+
+	logger.Config().Retention = strutils.MustParse[*Retention]("30 days")
+	mockable.MockTimeNow(testTime)
+	var result RotateResult
+	rotated, err := logger.(AccessLogRotater).Rotate(&result)
+
+	expect.NoError(t, err)
+	expect.Equal(t, rotated, false)
+	expect.Equal(t, file.Content(), content)
+	expect.Equal(t, result.NumLinesRead, 0)
+	expect.Equal(t, result.NumBytesKeep, file.Len())
+}
+
 func TestRotateKeepFileSize(t *testing.T) {
 	for _, format := range ReqLoggerFormats {
 		t.Run(string(format)+" keep size no rotation", func(t *testing.T) {
