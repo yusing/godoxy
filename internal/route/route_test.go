@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/common"
 	route "github.com/yusing/godoxy/internal/route/types"
@@ -185,6 +186,28 @@ func TestPreferredPort(t *testing.T) {
 
 	port := preferredPort(ports)
 	require.Equal(t, 3000, port)
+}
+
+func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) {
+	r := &Route{
+		Alias: "app",
+		Metadata: Metadata{
+			Container: &types.Container{
+				Image:           &types.ContainerImage{Name: "custom-app"},
+				PrivateHostname: "172.18.0.2",
+				PrivatePortMapping: types.PortMapping{
+					8080: container.Port{PrivatePort: 8080, Type: "tcp"},
+				},
+			},
+		},
+	}
+
+	require.False(t, r.ShouldExclude())
+
+	r.Finalize()
+
+	require.False(t, r.ShouldExclude())
+	require.Equal(t, 8080, r.Port.Proxy)
 }
 
 func TestDockerRouteDisallowAgent(t *testing.T) {

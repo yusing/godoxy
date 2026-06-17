@@ -282,6 +282,26 @@ func TestNotification_ContextCancellation(t *testing.T) {
 	require.Equal(t, 0, up)
 }
 
+func TestCheckHealthAgentProxiedReturnsUnhealthyForInvalidURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    *url.URL
+		detail string
+	}{
+		{name: "nil", url: nil, detail: "no url specified"},
+		{name: "no host", url: &url.URL{Scheme: "http"}, detail: "no host specified"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := CheckHealthAgentProxied(nil, time.Hour, tt.url)
+			require.NoError(t, err)
+			require.False(t, result.Healthy)
+			require.Equal(t, tt.detail, result.Detail)
+		})
+	}
+}
+
 func TestImmediateUpNotificationAfterDownNotification(t *testing.T) {
 	config := types.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,

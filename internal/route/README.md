@@ -122,9 +122,9 @@ const (
     ExcludedReasonError
     ExcludedReasonManual
     ExcludedReasonNoPortContainer
-    ExcludedReasonNoPortSpecified
     ExcludedReasonBlacklisted
     ExcludedReasonBuildx
+    ExcludedReasonYAMLAnchor
     ExcludedReasonOld
 )
 ```

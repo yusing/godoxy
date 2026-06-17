@@ -37,6 +37,10 @@ var pinger = &fasthttp.Client{
 }
 
 func HTTP(url *url.URL, method, path string, timeout time.Duration) (types.HealthCheckResult, error) {
+	if result, invalid := invalidTargetURL(url); invalid {
+		return result, nil
+	}
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
@@ -56,6 +60,10 @@ func HTTP(url *url.URL, method, path string, timeout time.Duration) (types.Healt
 }
 
 func H2C(ctx context.Context, url *url.URL, method, path string, timeout time.Duration) (types.HealthCheckResult, error) {
+	if result, invalid := invalidTargetURL(url); invalid {
+		return result, nil
+	}
+
 	u := url.JoinPath(path) // JoinPath returns a copy of the URL with the path joined
 	u.Scheme = "http"
 

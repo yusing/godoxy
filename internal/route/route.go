@@ -836,7 +836,6 @@ const (
 	ExcludedReasonError
 	ExcludedReasonManual
 	ExcludedReasonNoPortContainer
-	ExcludedReasonNoPortSpecified
 	ExcludedReasonBlacklisted
 	ExcludedReasonBuildx
 	ExcludedReasonYAMLAnchor
@@ -853,8 +852,6 @@ func (re ExcludedReason) String() string {
 		return "Manual exclusion"
 	case ExcludedReasonNoPortContainer:
 		return "No port exposed in container"
-	case ExcludedReasonNoPortSpecified:
-		return "No port specified"
 	case ExcludedReasonBlacklisted:
 		return "Blacklisted (backend service or database)"
 	case ExcludedReasonBuildx:
@@ -885,15 +882,13 @@ func (r *Route) findExcludedReason() ExcludedReason {
 		switch {
 		case r.Container.IsExcluded:
 			return ExcludedReasonManual
-		case r.IsZeroPort() && !r.UseIdleWatcher():
+		case !r.canResolveDockerProxyPort() && !r.UseIdleWatcher():
 			return ExcludedReasonNoPortContainer
 		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
 			return ExcludedReasonBlacklisted
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
 			return ExcludedReasonBuildx
 		}
-	} else if r.IsZeroPort() && r.Scheme != route.SchemeFileServer {
-		return ExcludedReasonNoPortSpecified
 	}
 	// this should happen on validation API only,
 	// those routes are removed before validation.
@@ -907,6 +902,27 @@ func (r *Route) findExcludedReason() ExcludedReason {
 	return ExcludedReasonNone
 }
 
+func (r *Route) canResolveDockerProxyPort() bool {
+	if r.Port.Proxy != 0 {
+		return true
+	}
+	if r.Container == nil {
+		return false
+	}
+	if r.Container.Image != nil {
+		if _, port, ok := getSchemePortByImageName(r.Container.Image.Name); ok && port != 0 {
+			return true
+		}
+	}
+	if _, port, ok := getSchemePortByAlias(r.Alias); ok && port != 0 {
+		return true
+	}
+	if r.Container.IsHostNetworkMode {
+		return preferredPort(r.Container.PublicPortMapping) != 0
+	}
+	return preferredPort(r.Container.PrivatePortMapping) != 0
+}
+
 func (r *Route) UseLoadBalance() bool {
 	return r.LoadBalance != nil && r.LoadBalance.Link != ""
 }
@@ -917,12 +933,15 @@ func (r *Route) UseIdleWatcher() bool {
 
 func (r *Route) UseHealthCheck() bool {
 	if r.Container != nil {
+		excludedReason := r.findExcludedReason()
 		switch {
 		case r.Container.Image.Name == "godoxy-agent":
 			return false
 		case !r.Container.Running && !r.UseIdleWatcher():
 			return false
 		case strings.HasPrefix(r.Container.ContainerName, "buildx_"):
+			return false
+		case excludedReason == ExcludedReasonNoPortContainer:
 			return false
 		}
 	}

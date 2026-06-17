@@ -12,6 +12,10 @@ import (
 )
 
 func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (types.HealthCheckResult, error) {
+	if result, invalid := invalidTargetURL(url); invalid {
+		return result, nil
+	}
+
 	if port := url.Port(); port == "" || port == "0" {
 		return types.HealthCheckResult{
 			Latency: 0,

@@ -125,6 +125,13 @@ func NewAgentProxiedMonitor(config types.HealthCheckConfig, agent *agentpool.Age
 }
 
 func CheckHealthAgentProxied(agent *agentpool.Agent, timeout time.Duration, targetURL *url.URL) (Result, error) {
+	switch {
+	case targetURL == nil:
+		return Result{Detail: "no url specified"}, nil
+	case targetURL.Host == "":
+		return Result{Detail: "no host specified"}, nil
+	}
+
 	query := url.Values{
 		"scheme":  {targetURL.Scheme},
 		"host":    {targetURL.Host},

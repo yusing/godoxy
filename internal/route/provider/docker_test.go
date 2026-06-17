@@ -366,6 +366,14 @@ func TestPublicIPLocalhost(t *testing.T) {
 	expect.Equal(t, r.Host, r.Container.PublicHostname)
 }
 
+func TestNoPortExcludedDockerRouteDisablesHealthCheck(t *testing.T) {
+	c := &container.Summary{Names: dummyNames, State: "running"}
+	r, ok := makeRoutes(c)["a"]
+	expect.True(t, ok)
+	expect.True(t, r.ShouldExclude())
+	expect.False(t, r.UseHealthCheck())
+}
+
 func TestPublicIPRemote(t *testing.T) {
 	c := &container.Summary{Names: dummyNames, State: "running"}
 	raw, ok := makeRoutes(c, testIP)["a"]
