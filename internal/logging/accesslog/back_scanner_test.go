@@ -1,4 +1,4 @@
-package accesslog
+package accesslog_test
 
 import (
 	"bytes"
@@ -11,8 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/afero"
-
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 )
@@ -63,7 +62,7 @@ func TestBackScanner(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock file
-			mockFile := NewMockFile(false)
+			mockFile := newMockFile(false)
 			_, err := mockFile.Write([]byte(tt.input))
 			if err != nil {
 				t.Fatalf("failed to write to mock file: %v", err)
@@ -105,7 +104,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 
 	for _, chunkSize := range chunkSizes {
 		t.Run(fmt.Sprintf("chunk_size_%d", chunkSize), func(t *testing.T) {
-			mockFile := NewMockFile(false)
+			mockFile := newMockFile(false)
 			_, err := mockFile.Write([]byte(input))
 			if err != nil {
 				t.Fatalf("failed to write to mock file: %v", err)
@@ -138,7 +137,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 }
 
 var logEntry = func() func() []byte {
-	accesslog := NewMockAccessLogger(task.RootTask("test", false), &RequestLoggerConfig{
+	accesslog := newMockAccessLogger(task.RootTask("test", false), &RequestLoggerConfig{
 		Format: FormatJSON,
 	})
 
@@ -172,10 +171,11 @@ var logEntry = func() func() []byte {
 
 // 100000 log entries.
 func BenchmarkBackScannerRealFile(b *testing.B) {
-	file, err := afero.TempFile(afero.NewOsFs(), "", "accesslog")
+	file, err := os.CreateTemp("", "accesslog")
 	if err != nil {
 		b.Fatalf("failed to create temp file: %v", err)
 	}
+	defer file.Close()
 	defer os.Remove(file.Name())
 
 	buf := bytes.NewBuffer(nil)
@@ -192,7 +192,7 @@ func BenchmarkBackScannerRealFile(b *testing.B) {
 	// file position does not matter, Seek not needed
 
 	for i := range 12 {
-		chunkSize := (2 << i) * kilobyte
+		chunkSize := (2 << i) * 1024
 		name := strutils.FormatByteSize(chunkSize)
 		b.ResetTimer()
 		b.Run(name, func(b *testing.B) {

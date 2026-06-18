@@ -49,7 +49,3 @@ func NewAccessLogger(parent task.Parent, cfg AnyConfig) (AccessLogger, error) {
 
 	return NewMultiAccessLogger(parent, cfg, writers), nil
 }
-
-func NewMockAccessLogger(parent task.Parent, cfg *RequestLoggerConfig) AccessLogger {
-	return NewFileAccessLogger(parent, NewMockFile(true), cfg)
-}

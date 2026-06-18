@@ -48,7 +48,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.60.0 // http3 support
 	github.com/shirou/gopsutil/v4 v4.26.5 // system information
-	github.com/spf13/afero v1.15.0 // afero for file system operations
+	github.com/spf13/afero v1.15.0 // indirect
 	github.com/stretchr/testify v1.11.1 // testing framework
 	github.com/valyala/fasthttp v1.71.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms

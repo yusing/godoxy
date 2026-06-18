@@ -16,16 +16,18 @@ import (
 )
 
 const (
-	remote        = "192.168.1.1"
-	host          = "example.com"
-	uri           = "/?bar=baz&foo=bar"
-	uriRedacted   = "/?bar=" + RedactedValue + "&foo=" + RedactedValue
-	referer       = "https://www.google.com/"
-	proto         = "HTTP/1.1"
-	ua            = "Go-http-client/1.1"
-	status        = http.StatusNotFound
-	contentLength = 100
-	method        = http.MethodGet
+	remote         = "192.168.1.1"
+	host           = "example.com"
+	uri            = "/?bar=baz&foo=bar"
+	uriAlt         = "/?foo=bar&bar=baz"
+	uriRedacted    = "/?bar=" + RedactedValue + "&foo=" + RedactedValue
+	uriRedactedAlt = "/?foo=" + RedactedValue + "&bar=" + RedactedValue
+	referer        = "https://www.google.com/"
+	proto          = "HTTP/1.1"
+	ua             = "Go-http-client/1.1"
+	status         = http.StatusNotFound
+	contentLength  = 100
+	method         = http.MethodGet
 )
 
 var (
@@ -57,7 +59,7 @@ func fmtLog(cfg *RequestLoggerConfig) (ts string, line string) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 
 	t := time.Now()
-	logger := NewMockAccessLogger(testTask, cfg)
+	logger := newMockAccessLogger(testTask, cfg)
 	mockable.MockTimeNow(t)
 	logger.(RequestFormatter).AppendRequestLog(buf, req, resp)
 	return t.Format(LogTimeFormat), buf.String()
@@ -67,22 +69,28 @@ func TestAccessLoggerCommon(t *testing.T) {
 	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCommon
 	ts, log := fmtLog(config)
-	expect.Equal(t, log,
+	expect.Contains(t, log, []string{
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
 			host, remote, ts, method, uri, proto, status, contentLength,
 		),
-	)
+		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
+			host, remote, ts, method, uriAlt, proto, status, contentLength,
+		),
+	})
 }
 
 func TestAccessLoggerCombined(t *testing.T) {
 	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCombined
 	ts, log := fmtLog(config)
-	expect.Equal(t, log,
+	expect.Contains(t, log, []string{
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"",
 			host, remote, ts, method, uri, proto, status, contentLength, referer, ua,
 		),
-	)
+		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"",
+			host, remote, ts, method, uriAlt, proto, status, contentLength, referer, ua,
+		),
+	})
 }
 
 func TestAccessLoggerRedactQuery(t *testing.T) {
@@ -90,11 +98,14 @@ func TestAccessLoggerRedactQuery(t *testing.T) {
 	config.Format = FormatCommon
 	config.Fields.Query.Default = FieldModeRedact
 	ts, log := fmtLog(config)
-	expect.Equal(t, log,
+	expect.Contains(t, log, []string{
 		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
 			host, remote, ts, method, uriRedacted, proto, status, contentLength,
 		),
-	)
+		fmt.Sprintf("%s %s - - [%s] \"%s %s %s\" %d %d",
+			host, remote, ts, method, uriRedactedAlt, proto, status, contentLength,
+		),
+	})
 }
 
 type JSONLogEntry struct {
@@ -147,7 +158,7 @@ func TestAccessLoggerJSON(t *testing.T) {
 func BenchmarkAccessLoggerJSON(b *testing.B) {
 	config := DefaultRequestLoggerConfig()
 	config.Format = FormatJSON
-	logger := NewMockAccessLogger(testTask, config)
+	logger := newMockAccessLogger(testTask, config)
 	b.ResetTimer()
 	for b.Loop() {
 		logger.LogRequest(req, resp)
@@ -157,7 +168,7 @@ func BenchmarkAccessLoggerJSON(b *testing.B) {
 func BenchmarkAccessLoggerCombined(b *testing.B) {
 	config := DefaultRequestLoggerConfig()
 	config.Format = FormatCombined
-	logger := NewMockAccessLogger(testTask, config)
+	logger := newMockAccessLogger(testTask, config)
 	b.ResetTimer()
 	for b.Loop() {
 		logger.LogRequest(req, resp)

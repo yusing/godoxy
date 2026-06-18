@@ -1,4 +1,4 @@
-package accesslog
+package accesslog_test
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	. "github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/goutils/task"
 	"golang.org/x/sync/errgroup"
 )
@@ -53,7 +54,7 @@ func TestConcurrentFileLoggersShareSameAccessLogIO(t *testing.T) {
 func TestConcurrentAccessLoggerLogAndFlush(t *testing.T) {
 	for _, buffered := range []bool{false, true} {
 		t.Run(fmt.Sprintf("buffered=%t", buffered), func(t *testing.T) {
-			file := NewMockFile(buffered)
+			file := newMockFile(buffered)
 
 			cfg := DefaultRequestLoggerConfig()
 			parent := task.RootTask("test", false)
