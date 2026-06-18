@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -29,6 +31,18 @@ func parallel(fns ...func()) {
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("panic: %v\n\n%s", r, debug.Stack())
+
+			// Force the OS streams to sync/flush before exiting
+			os.Stderr.Sync()
+			os.Stdout.Sync()
+
+			os.Exit(2)
+		}
+	}()
+
 	done := make(chan struct{}, 1)
 	go func() {
 		select {
