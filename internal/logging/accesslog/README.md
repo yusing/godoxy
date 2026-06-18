@@ -325,6 +325,8 @@ access_log:
 | `filters.method`       | string[] | all      | HTTP method filter  |
 | `filters.cidr`         | CIDR[]   | none     | IP range filter     |
 
+Time-based retention (`days`, `weeks`, `months`) rotates the active file into timestamped sibling archives and deletes archives after the retention cutoff. This keeps high-traffic logs cheap to rotate. `last N` retention counts lines in the active file, so prefer size or time retention for very large access logs.
+
 ### Reloading
 
 Configuration is fixed at construction time. Create a new logger to apply changes.

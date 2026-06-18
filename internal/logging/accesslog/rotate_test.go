@@ -2,7 +2,10 @@ package accesslog_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -151,6 +154,147 @@ func TestRotateKeepDaysSkipsFreshLogScan(t *testing.T) {
 	expect.Equal(t, file.Content(), content)
 	expect.Equal(t, result.NumLinesRead, 0)
 	expect.Equal(t, result.NumBytesKeep, file.Len())
+}
+
+func TestRotateKeepDaysRollsRealFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "access.log")
+	file, err := OpenFile(path)
+	expect.NoError(t, err)
+
+	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
+		Format: FormatJSON,
+		ConfigBase: ConfigBase{
+			Retention: strutils.MustParse[*Retention]("30 days"),
+		},
+	})
+	defer logger.Close()
+
+	for range 3 {
+		mockable.MockTimeNow(testTime)
+		logger.LogRequest(req, resp)
+	}
+	logger.Flush()
+	content := expect.Must(os.ReadFile(path))
+
+	var result RotateResult
+	rotated, err := logger.(AccessLogRotater).Rotate(&result)
+
+	expect.NoError(t, err)
+	expect.True(t, rotated)
+	expect.Equal(t, result.NumLinesRead, 0)
+	expect.Equal(t, result.NumBytesKeep, int64(len(content)))
+
+	active, err := os.ReadFile(path)
+	expect.NoError(t, err)
+	expect.Equal(t, len(active), 0)
+
+	archives := expect.Must(filepath.Glob(path + ".*"))
+	expect.Equal(t, len(archives), 1)
+	archived := expect.Must(os.ReadFile(archives[0]))
+	expect.Equal(t, archived, content)
+
+	logger.LogRequest(req, resp)
+	logger.Flush()
+	active, err = os.ReadFile(path)
+	expect.NoError(t, err)
+	expect.Greater(t, int64(len(active)), int64(0))
+}
+
+func TestRotateKeepDaysPreservesActiveFileMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "access.log")
+	expect.NoError(t, os.WriteFile(path, nil, 0o644))
+	expect.NoError(t, os.Chmod(path, 0o660))
+
+	file, err := OpenFile(path)
+	expect.NoError(t, err)
+
+	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
+		Format: FormatJSON,
+		ConfigBase: ConfigBase{
+			Retention: strutils.MustParse[*Retention]("30 days"),
+		},
+	})
+	defer logger.Close()
+
+	mockable.MockTimeNow(testTime)
+	logger.LogRequest(req, resp)
+
+	var result RotateResult
+	rotated, err := logger.(AccessLogRotater).Rotate(&result)
+
+	expect.NoError(t, err)
+	expect.True(t, rotated)
+	info, err := os.Stat(path)
+	expect.NoError(t, err)
+	expect.Equal(t, info.Mode().Perm(), os.FileMode(0o660))
+}
+
+func TestRotateKeepDaysFlushesSharedFileLoggers(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "access.log")
+
+	file1, err := OpenFile(path)
+	expect.NoError(t, err)
+	file2, err := OpenFile(path)
+	expect.NoError(t, err)
+
+	cfg := &RequestLoggerConfig{
+		Format: FormatJSON,
+		ConfigBase: ConfigBase{
+			Retention: strutils.MustParse[*Retention]("30 days"),
+		},
+	}
+	logger1 := NewFileAccessLogger(task.RootTask("test", false), file1, cfg)
+	defer logger1.Close()
+	logger2 := NewFileAccessLogger(task.RootTask("test", false), file2, cfg)
+	defer logger2.Close()
+
+	mockable.MockTimeNow(testTime)
+	logger1.LogRequest(req, resp)
+	logger2.LogRequest(req, resp)
+
+	var result RotateResult
+	rotated, err := logger1.(AccessLogRotater).Rotate(&result)
+
+	expect.NoError(t, err)
+	expect.True(t, rotated)
+	archived := expect.Must(os.ReadFile(result.Filename))
+	expect.Equal(t, bytes.Count(archived, []byte("\n")), 2)
+	active := expect.Must(os.ReadFile(path))
+	expect.Equal(t, len(active), 0)
+}
+
+func TestRotateKeepDaysDeletesExpiredArchives(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "access.log")
+	file, err := OpenFile(path)
+	expect.NoError(t, err)
+
+	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
+		Format: FormatJSON,
+		ConfigBase: ConfigBase{
+			Retention: strutils.MustParse[*Retention]("30 days"),
+		},
+	})
+	defer logger.Close()
+
+	cutoff := testTime.AddDate(0, 0, -29)
+	oldArchive := path + "." + cutoff.Add(-time.Hour).UTC().Format("20060102T150405.000000000Z")
+	freshArchive := path + "." + cutoff.Add(time.Hour).UTC().Format("20060102T150405.000000000Z")
+	expect.NoError(t, os.WriteFile(oldArchive, []byte("old\n"), 0o644))
+	expect.NoError(t, os.WriteFile(freshArchive, []byte("fresh\n"), 0o644))
+
+	mockable.MockTimeNow(testTime)
+	logger.LogRequest(req, resp)
+	logger.Flush()
+
+	var result RotateResult
+	rotated, err := logger.(AccessLogRotater).Rotate(&result)
+
+	expect.NoError(t, err)
+	expect.True(t, rotated)
+	_, err = os.Stat(oldArchive)
+	expect.True(t, errors.Is(err, os.ErrNotExist), "expected old archive to be deleted")
+	_, err = os.Stat(freshArchive)
+	expect.NoError(t, err)
 }
 
 func TestRotateKeepFileSize(t *testing.T) {

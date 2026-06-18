@@ -49,6 +49,11 @@ type (
 
 var writerLocks = xsync.NewMap[string, *sync.Mutex]()
 
+var (
+	fileLoggersMu sync.Mutex
+	fileLoggers   = make(map[string]map[*fileAccessLogger]struct{})
+)
+
 const (
 	InitialBufferSize = 4 * kilobyte
 	MaxBufferSize     = 8 * megabyte
@@ -87,6 +92,9 @@ func NewFileAccessLogger(parent task.Parent, file File, anyCfg AnyConfig) Access
 
 	l.writer = ioutils.NewBufferedWriter(file, InitialBufferSize)
 	l.file = file
+	if _, ok := file.(activeLogRotater); ok {
+		registerFileLogger(name, l)
+	}
 
 	if cfg.req != nil {
 		switch cfg.req.Format {
@@ -153,11 +161,18 @@ func (l *fileAccessLogger) Rotate(result *RotateResult) (rotated bool, err error
 		return false, nil
 	}
 
-	l.Flush()
-	l.writeLock.Lock()
-	defer l.writeLock.Unlock()
+	func() {
+		l.writeLock.Lock()
+		defer l.writeLock.Unlock()
+		if !flushFileLoggersLocked(l.file.Name()) {
+			_ = l.writer.Flush()
+		}
+		rotated, err = rotateLogFile(l.file, l.cfg.Retention, result)
+	}()
 
-	rotated, err = rotateLogFile(l.file, l.cfg.Retention, result)
+	if err == nil && result.cleanup != nil {
+		err = result.cleanup()
+	}
 	return
 }
 
@@ -212,6 +227,7 @@ func (l *fileAccessLogger) Close() error {
 	if l.closed {
 		return nil
 	}
+	unregisterFileLogger(l.file.Name(), l)
 	l.writer.Flush()
 	l.closed = true
 	return l.writer.Close()
@@ -224,6 +240,42 @@ func (l *fileAccessLogger) Flush() {
 		return
 	}
 	l.writer.Flush()
+}
+
+func registerFileLogger(name string, logger *fileAccessLogger) {
+	fileLoggersMu.Lock()
+	defer fileLoggersMu.Unlock()
+
+	loggers := fileLoggers[name]
+	if loggers == nil {
+		loggers = make(map[*fileAccessLogger]struct{})
+		fileLoggers[name] = loggers
+	}
+	loggers[logger] = struct{}{}
+}
+
+func unregisterFileLogger(name string, logger *fileAccessLogger) {
+	fileLoggersMu.Lock()
+	defer fileLoggersMu.Unlock()
+
+	loggers := fileLoggers[name]
+	delete(loggers, logger)
+	if len(loggers) == 0 {
+		delete(fileLoggers, name)
+	}
+}
+
+func flushFileLoggersLocked(name string) bool {
+	fileLoggersMu.Lock()
+	defer fileLoggersMu.Unlock()
+
+	loggers := fileLoggers[name]
+	for logger := range loggers {
+		if !logger.closed {
+			_ = logger.writer.Flush()
+		}
+	}
+	return len(loggers) > 0
 }
 
 func (l *fileAccessLogger) write(data []byte) {

@@ -21,6 +21,11 @@ type supportRotate interface {
 	Stat() (fs.FileInfo, error)
 }
 
+type activeLogRotater interface {
+	RotateActiveLog(now time.Time) (archivePath string, err error)
+	CleanupRotatedLogs(cutoff time.Time) (deleted int, err error)
+}
+
 type RotateResult struct {
 	Filename        string
 	OriginalSize    int64 // original size of the file
@@ -29,6 +34,8 @@ type RotateResult struct {
 	NumLinesRead    int   // number of lines read from the file
 	NumLinesKeep    int   // number of lines to keep
 	NumLinesInvalid int   // number of invalid lines
+
+	cleanup func() error
 }
 
 func (r *RotateResult) Print(logger *zerolog.Logger) {
@@ -61,8 +68,9 @@ type lineInfo struct {
 // rotateLogFile rotates the log file based on the retention policy.
 // It writes to the result and returns an error if any.
 //
-// The file is rotated by reading the file backward line-by-line
-// and stop once error occurs or found a line that should not be kept.
+// Size retention truncates the active file. Time retention on shared files
+// archives the active file and cleans up old archives. Other policy rotation
+// reads the file backward line-by-line until enough lines are kept.
 //
 // Any invalid lines will be skipped and not included in the result.
 //
@@ -101,6 +109,19 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 		// not needed to parse time for last N lines
 	case config.Days > 0:
 		cutoff := mockable.TimeNow().AddDate(0, 0, -int(config.Days)+1)
+		if rotater, ok := file.(activeLogRotater); ok {
+			archivePath, err := rotater.RotateActiveLog(t)
+			if err != nil {
+				return false, err
+			}
+			result.cleanup = func() error {
+				_, err := rotater.CleanupRotatedLogs(cutoff)
+				return err
+			}
+			result.Filename = archivePath
+			result.NumBytesKeep = fileSize
+			return true, nil
+		}
 		insideRetention, err := logFileStartsInsideRetention(file, fileSize, cutoff)
 		if err != nil {
 			return false, err
