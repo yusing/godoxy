@@ -1,6 +1,6 @@
 # POSIX sh for recipes; ignore login $SHELL (e.g. fish) — recipes use sh syntax.
 SHELL := /bin/sh
-export VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
 export BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 export BUILD_DATE ?= $(shell date -u +'%Y%m%d-%H%M')
 export GOOS = linux
@@ -50,14 +50,14 @@ else ifeq ($(debug), 1)
 	GODOXY_DEBUG = 1
 	GO_TAGS += debug
 	# FIXME: BUILD_FLAGS += -asan -gcflags=all='-N -l'
-else ifeq ($(dev), 1)
-	CGO_ENABLED = 0
-	GODOXY_DEBUG = 1
 else ifeq ($(pprof), 1)
 	CGO_ENABLED = 0
 	GORACE = log_path=logs/pprof strip_path_prefix=$(shell pwd)/ halt_on_error=1
 	GO_TAGS += pprof
 	VERSION := ${VERSION}-pprof
+else ifeq ($(dev), 1)
+	CGO_ENABLED = 0
+	GODOXY_DEBUG = 1
 else
 	CGO_ENABLED = 0
 	LDFLAGS += -s -w
@@ -74,7 +74,6 @@ export GODOXY_DEBUG
 export GODOXY_TRACE
 export GODEBUG
 export GORACE
-export BUILD_FLAGS
 
 ifeq ($(shell id -u), 0)
 	SETCAP_CMD = setcap
