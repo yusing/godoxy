@@ -160,7 +160,7 @@ docker-build-test:
 	docker push ${TEST_REGISTRY}/godoxy-agent
 	docker push ${TEST_REGISTRY}/godoxy-socket-proxy
 
-go_ver := $(shell go version | cut -d' ' -f3 | cut -d'o' -f2)
+go_ver := $(shell go version | sed -n 's/^go version go\([0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?\).*/\1/p')
 files := $(shell find . -name go.mod -type f -or -name Dockerfile -type f)
 gomod_paths := $(shell find . -name go.mod -type f | grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' | sed 's#/go\.mod$$##')
 
