@@ -34,7 +34,7 @@ type VerifyNewAgentResponse struct {
 } // @name VerifyNewAgentResponse
 
 var (
-	verifyNewAgentFunc               = verifyNewAgent
+	verifyStartNewAgentFunc          = verifyStartNewAgent
 	persistAgentHostToConfigFunc     = persistAgentHostToConfig
 	suppressNextConfigReloadFunc     = configtypes.SuppressNextConfigReload
 	clearConfigReloadSuppressionFunc = configtypes.ClearConfigReloadSuppression
@@ -84,7 +84,7 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, err := verifyNewAgentFunc(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
+	nRoutesAdded, err := verifyStartNewAgentFunc(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -224,7 +224,7 @@ func listAgentConfigs() []*agent.AgentConfig {
 	return configs
 }
 
-func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
+func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
@@ -261,6 +261,11 @@ func verifyNewAgent(ctx context.Context, host string, ca agent.PEMPair, client a
 		cfgState.DeleteProvider(provider.String())
 		agentpool.Remove(&agentCfg)
 		return 0, fmt.Errorf("failed to load routes: %w", err)
+	}
+
+	err = provider.Start(cfgState.Task())
+	if err != nil {
+		return 0, fmt.Errorf("failed to start routes: %w", err)
 	}
 
 	return provider.NumRoutes(), nil

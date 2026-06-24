@@ -68,14 +68,14 @@ func TestAppendAgentHostToConfigDocument(t *testing.T) {
 func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	previousVerifyNewAgentFunc := verifyNewAgentFunc
+	previousVerifyNewAgentFunc := verifyStartNewAgentFunc
 	previousPersistAgentHostToConfigFunc := persistAgentHostToConfigFunc
 	previousSuppressNextConfigReloadFunc := suppressNextConfigReloadFunc
 	previousClearConfigReloadSuppressionFunc := clearConfigReloadSuppressionFunc
 	previousWriteAgentCertZipFunc := writeAgentCertZipFunc
 	previousListAgentsFunc := listAgentsFunc
 	t.Cleanup(func() {
-		verifyNewAgentFunc = previousVerifyNewAgentFunc
+		verifyStartNewAgentFunc = previousVerifyNewAgentFunc
 		persistAgentHostToConfigFunc = previousPersistAgentHostToConfigFunc
 		suppressNextConfigReloadFunc = previousSuppressNextConfigReloadFunc
 		clearConfigReloadSuppressionFunc = previousClearConfigReloadSuppressionFunc
@@ -84,7 +84,7 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 	})
 
 	verifyNewAgentCalls := 0
-	verifyNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
+	verifyStartNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
 		verifyNewAgentCalls++
 		require.Equal(t, "10.0.0.1:8890", host)
 		require.Equal(t, []byte("ca-cert"), ca.Cert)
@@ -178,14 +178,14 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	previousVerifyNewAgentFunc := verifyNewAgentFunc
+	previousVerifyNewAgentFunc := verifyStartNewAgentFunc
 	previousPersistAgentHostToConfigFunc := persistAgentHostToConfigFunc
 	previousSuppressNextConfigReloadFunc := suppressNextConfigReloadFunc
 	previousClearConfigReloadSuppressionFunc := clearConfigReloadSuppressionFunc
 	previousWriteAgentCertZipFunc := writeAgentCertZipFunc
 	previousListAgentsFunc := listAgentsFunc
 	t.Cleanup(func() {
-		verifyNewAgentFunc = previousVerifyNewAgentFunc
+		verifyStartNewAgentFunc = previousVerifyNewAgentFunc
 		persistAgentHostToConfigFunc = previousPersistAgentHostToConfigFunc
 		suppressNextConfigReloadFunc = previousSuppressNextConfigReloadFunc
 		clearConfigReloadSuppressionFunc = previousClearConfigReloadSuppressionFunc
@@ -194,7 +194,7 @@ func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testin
 	})
 
 	verifyNewAgentCalls := 0
-	verifyNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
+	verifyStartNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
 		verifyNewAgentCalls++
 		require.Equal(t, "10.0.0.1:8890", host)
 		return 2, nil
