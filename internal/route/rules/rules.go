@@ -10,12 +10,10 @@ import (
 	"unicode"
 
 	"github.com/goccy/go-yaml"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
-	"golang.org/x/net/http2"
 
 	_ "unsafe"
 )
@@ -385,7 +383,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 					preTerminated = true
 					continue
 				}
-				if isUnexpectedError(err) {
+				if httputils.IsUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing pre rule (%s): %w", rule.Do.raw, err)
 				}
@@ -402,7 +400,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					defaultTerminatedInPre = true
 				} else {
-					if isUnexpectedError(err) {
+					if httputils.IsUnexpectedError(err) {
 						// will logged by logFlushError after FlushRelease
 						rm.AppendError("executing pre rule (%s): %w", defaultRule.Do.raw, err)
 					}
@@ -429,7 +427,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				if isUnexpectedError(err) {
+				if httputils.IsUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing post rule (%s): %w", rule.Do.raw, err)
 				}
@@ -437,7 +435,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		}
 		if defaultExecutedPre && !defaultTerminatedInPre {
 			if err := execPostCommand(defaultRule.Do, rm, r); err != nil {
-				if !errors.Is(err, errTerminateRule) && isUnexpectedError(err) {
+				if !errors.Is(err, errTerminateRule) && httputils.IsUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing post rule (%s): %w", defaultRule.Do.raw, err)
 				}
@@ -455,7 +453,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				if isUnexpectedError(err) {
+				if httputils.IsUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing pre rule (%s): %w", rule.Do.raw, err)
 				}
@@ -464,7 +462,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 				if errors.Is(err, errTerminateRule) {
 					continue
 				}
-				if isUnexpectedError(err) {
+				if httputils.IsUnexpectedError(err) {
 					// will logged by logFlushError after FlushRelease
 					rm.AppendError("executing post rule (%s): %w", rule.Do.raw, err)
 				}
@@ -482,38 +480,6 @@ func (rule *Rule) Check(w *httputils.ResponseModifier, r *http.Request) bool {
 		return true
 	}
 	return rule.On.Check(w, r)
-}
-
-//go:linkname errStreamClosed golang.org/x/net/http2.errStreamClosed
-var errStreamClosed error
-
-//go:linkname errClientDisconnected golang.org/x/net/http2.errClientDisconnected
-var errClientDisconnected error
-
-//go:linkname errClosedResponseBody golang.org/x/net/http2.errClosedResponseBody
-var errClosedResponseBody error
-
-func isUnexpectedError(err error) bool {
-	if errors.Is(err, errStreamClosed) || errors.Is(err, errClientDisconnected) || errors.Is(err, errClosedResponseBody) {
-		return false
-	}
-	if h2Err, ok := errors.AsType[http2.StreamError](err); ok {
-		// ignore these errors
-		switch h2Err.Code {
-		case http2.ErrCodeStreamClosed, http2.ErrCodeCancel:
-			return false
-		}
-	}
-	if h3Err, ok := errors.AsType[*http3.Error](err); ok {
-		// ignore these errors
-		switch h3Err.ErrorCode {
-		case
-			http3.ErrCodeNoError,
-			http3.ErrCodeRequestCanceled:
-			return false
-		}
-	}
-	return true
 }
 
 func logFlushError(err error, r *http.Request) {

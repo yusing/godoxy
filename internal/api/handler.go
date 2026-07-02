@@ -22,6 +22,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/route/rules"
 	apitypes "github.com/yusing/goutils/apitypes"
+	httputils "github.com/yusing/goutils/http"
 )
 
 // NewHandler creates a new Gin engine for the API.
@@ -217,7 +218,11 @@ func ErrorHandler() gin.HandlerFunc {
 		c.Next()
 		if len(c.Errors) > 0 {
 			for _, err := range c.Errors {
-				log.Err(err.Err).Str("uri", c.Request.RequestURI).Msg("Internal error")
+				event := log.Debug()
+				if httputils.IsUnexpectedError(err) {
+					event = log.Error()
+				}
+				event.Err(err.Err).Str("uri", c.Request.RequestURI).Msg("Internal error")
 			}
 			if !c.IsWebsocket() {
 				c.JSON(http.StatusInternalServerError, apitypes.Error("Internal server error"))
