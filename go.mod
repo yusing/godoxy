@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
 	github.com/gotify/server/v2 v2.9.1 // reference the Message struct for json response
 	github.com/lithammer/fuzzysearch v1.1.8 // fuzzy search for searching icons and filtering metrics
-	github.com/pires/go-proxyproto v0.12.0 // proxy protocol support
+	github.com/pires/go-proxyproto v0.14.0 // proxy protocol support
 	github.com/puzpuzpuz/xsync/v4 v4.5.0 // lock free map for concurrent operations
 	github.com/rs/zerolog v1.35.1 // logging
 	github.com/vincent-petithory/dataurl v1.0.0 // data url for fav icon
@@ -41,24 +41,24 @@ require (
 require (
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
 	github.com/bytedance/sonic v1.15.2 // fast json parsing
-	github.com/docker/cli v29.5.3+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
+	github.com/docker/cli v29.6.1+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.8.0 // proxmox API client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
 	github.com/quic-go/quic-go v0.60.0 // http3 support
-	github.com/shirou/gopsutil/v4 v4.26.5 // system information
+	github.com/shirou/gopsutil/v4 v4.26.6 // system information
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/stretchr/testify v1.11.1 // testing framework
-	github.com/valyala/fasthttp v1.71.0 // fast http for health check
+	github.com/valyala/fasthttp v1.72.0 // fast http for health check
 	github.com/yusing/ds v0.4.1 // data structures and algorithms
-	github.com/yusing/godoxy/agent v0.0.0-20260617075833-d6954bd27c30
-	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260617075833-d6954bd27c30
+	github.com/yusing/godoxy/agent v0.0.0-20260624073034-6d18c93a23db
+	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20260624073034-6d18c93a23db
 	github.com/yusing/gointernals v0.2.0
 	github.com/yusing/goutils v0.7.0
-	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260608031217-bd30100d768d
-	github.com/yusing/goutils/http/websocket v0.0.0-20260608031217-bd30100d768d
-	github.com/yusing/goutils/server v0.0.0-20260608031217-bd30100d768d
+	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260618075130-468165129a28
+	github.com/yusing/goutils/http/websocket v0.0.0-20260618075130-468165129a28
+	github.com/yusing/goutils/server v0.0.0-20260618075130-468165129a28
 )
 
 require (
@@ -93,7 +93,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
@@ -114,7 +114,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/ovh/go-ovh v1.9.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.4.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.4.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
@@ -134,10 +134,10 @@ require (
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.38.0 // indirect
-	golang.org/x/tools v0.46.0 // indirect
-	google.golang.org/api v0.285.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260615183401-62b3387ff324 // indirect
-	google.golang.org/grpc v1.81.1 // indirect
+	golang.org/x/tools v0.47.0 // indirect
+	google.golang.org/api v0.287.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
+	google.golang.org/grpc v1.82.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -146,14 +146,14 @@ require (
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/yusing/goutils/cache v0.0.0-20260608031217-bd30100d768d
+	github.com/yusing/goutils/cache v0.0.0-20260618075130-468165129a28
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/akamai/AkamaiOPEN-edgegrid-golang/v13 v13.2.0 // indirect
+	github.com/akamai/AkamaiOPEN-edgegrid-golang/v13 v13.3.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
-	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/bodgit/gssapi v0.0.4 // indirect
 	github.com/bodgit/tsig v1.3.1 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
@@ -179,16 +179,16 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/linode/linodego v1.69.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
+	github.com/lufia/plan9stats v0.0.0-20260627054121-477a66015f15 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/nrdcg/desec v0.11.2 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
-	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.118.0 // indirect
-	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.118.0 // indirect
+	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.119.0 // indirect
+	github.com/nrdcg/oci-go-sdk/dns/v1065 v1065.119.0 // indirect
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
 	github.com/peterhellberg/link v1.2.0 // indirect
 	github.com/pion/dtls/v3 v3.1.4 // indirect
