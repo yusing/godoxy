@@ -46,7 +46,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // jwt authentication
 	github.com/luthermonson/go-proxmox v0.8.0 // proxmox API client
 	github.com/oschwald/maxminddb-golang v1.13.1 // maxminddb for geoip database
-	github.com/quic-go/quic-go v0.60.0 // http3 support
+	github.com/quic-go/quic-go v0.60.0 // indirect; http3 support
 	github.com/shirou/gopsutil/v4 v4.26.6 // system information
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/stretchr/testify v1.11.1 // testing framework
