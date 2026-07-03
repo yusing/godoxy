@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -54,9 +54,9 @@ func NewDockerHealthcheckState(client *docker.SharedClient, containerID string) 
 	}
 }
 
-func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Duration) (types.HealthCheckResult, error) {
+func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Duration) (health.HealthCheckResult, error) {
 	if state.numDockerFailures > dockerFailuresThreshold {
-		return types.HealthCheckResult{}, ErrDockerHealthCheckFailedTooManyTimes
+		return health.HealthCheckResult{}, ErrDockerHealthCheckFailedTooManyTimes
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -65,38 +65,38 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 	containerState, err := dockerHealthInspect(ctx, state.client, state.containerID)
 	if err != nil {
 		state.numDockerFailures++
-		return types.HealthCheckResult{}, err
+		return health.HealthCheckResult{}, err
 	}
 
 	status := containerState.Status
 	switch status {
 	case "dead", "exited", "paused", "restarting", "removing":
 		state.numDockerFailures = 0
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Healthy: false,
 			Detail:  "container is " + string(status),
 		}, nil
 	case "created":
 		state.numDockerFailures = 0
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Healthy: false,
 			Detail:  "container is not started",
 		}, nil
 	}
 
-	health := containerState.Health
-	if health == nil {
+	dockerHealth := containerState.Health
+	if dockerHealth == nil {
 		// no health check from docker, return error to trigger fallback
 		state.numDockerFailures = dockerFailuresThreshold + 1
-		return types.HealthCheckResult{}, ErrDockerHealthCheckNotAvailable
+		return health.HealthCheckResult{}, ErrDockerHealthCheckNotAvailable
 	}
 
 	state.numDockerFailures = 0
-	result := types.HealthCheckResult{
-		Healthy: health.Status == container.Healthy,
+	result := health.HealthCheckResult{
+		Healthy: dockerHealth.Status == container.Healthy,
 	}
-	if len(health.Log) > 0 {
-		lastLog := health.Log[len(health.Log)-1]
+	if len(dockerHealth.Log) > 0 {
+		lastLog := dockerHealth.Log[len(dockerHealth.Log)-1]
 		result.Detail = lastLog.Output
 		result.Latency = lastLog.End.Sub(lastLog.Start)
 	}

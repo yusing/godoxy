@@ -4,24 +4,24 @@ import (
 	"os"
 	"time"
 
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 )
 
-func FileServer(path string) (types.HealthCheckResult, error) {
+func FileServer(path string) (health.HealthCheckResult, error) {
 	start := time.Now()
 	_, err := os.Stat(path)
 	lat := time.Since(start)
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			return types.HealthCheckResult{
+			return health.HealthCheckResult{
 				Detail: err.Error(),
 			}, nil
 		}
-		return types.HealthCheckResult{}, err
+		return health.HealthCheckResult{}, err
 	}
 
-	return types.HealthCheckResult{
+	return health.HealthCheckResult{
 		Healthy: true,
 		Latency: lat,
 	}, nil

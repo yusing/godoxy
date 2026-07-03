@@ -2,7 +2,7 @@ package provider
 
 import (
 	"github.com/yusing/godoxy/internal/route"
-	provider "github.com/yusing/godoxy/internal/route/provider/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -63,21 +63,21 @@ func hasForceReload(events []watcher.Event) bool {
 	return false
 }
 
-func (handler *EventHandler) matchAny(events []watcher.Event, route *route.Route) bool {
+func (handler *EventHandler) matchAny(events []watcher.Event, rt *route.Route) bool {
 	for _, event := range events {
-		if handler.match(event, route) {
+		if handler.match(event, rt) {
 			return true
 		}
 	}
 	return false
 }
 
-func (handler *EventHandler) match(event watcher.Event, route *route.Route) bool {
+func (handler *EventHandler) match(event watcher.Event, rt *route.Route) bool {
 	switch handler.provider.GetType() {
-	case provider.ProviderTypeDocker, provider.ProviderTypeAgent:
-		return route.Container.ContainerID == event.ActorID ||
-			route.Container.ContainerName == event.ActorName
-	case provider.ProviderTypeFile:
+	case routing.ProviderTypeDocker, routing.ProviderTypeAgent:
+		return rt.Container.ContainerID == event.ActorID ||
+			rt.Container.ContainerName == event.ActorName
+	case routing.ProviderTypeFile:
 		return true
 	}
 	// should never happen

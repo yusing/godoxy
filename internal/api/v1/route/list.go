@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/route"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
+	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
@@ -33,6 +34,10 @@ func Routes(c *gin.Context) {
 	}
 
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible for the main API, but debug server has no entrypoint context.
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
 
 	provider := c.Query("provider")
 	if provider == "" {
@@ -40,7 +45,7 @@ func Routes(c *gin.Context) {
 		return
 	}
 
-	rts := make([]types.Route, 0, ep.NumRoutes())
+	rts := make([]routing.Route, 0, ep.NumRoutes())
 	for r := range ep.IterRoutes {
 		if r.ProviderName() == provider {
 			rts = append(rts, r)
@@ -51,6 +56,10 @@ func Routes(c *gin.Context) {
 
 func RoutesWS(c *gin.Context) {
 	ep := entrypoint.FromCtx(c.Request.Context())
+	if ep == nil { // impossible for the main API, but debug server has no entrypoint context.
+		c.JSON(http.StatusInternalServerError, apitypes.Error("entrypoint not initialized"))
+		return
+	}
 
 	provider := c.Query("provider")
 	if provider == "" {
@@ -61,7 +70,7 @@ func RoutesWS(c *gin.Context) {
 	}
 
 	websocket.PeriodicWrite(c, 3*time.Second, func() (any, error) {
-		rts := make([]types.Route, 0, ep.NumRoutes())
+		rts := make([]routing.Route, 0, ep.NumRoutes())
 		for r := range ep.IterRoutes {
 			if r.ProviderName() == provider {
 				rts = append(rts, r)

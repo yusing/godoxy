@@ -14,12 +14,13 @@ import (
 	"github.com/yusing/ds/ordered"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
 	gevents "github.com/yusing/goutils/events"
@@ -32,13 +33,13 @@ import (
 )
 
 type (
-	Config = types.IdlewatcherConfig
+	Config = idlewatcher.Config
 
 	routeHelper struct {
-		route  types.Route
+		route  routing.Route
 		rp     *reverseproxy.ReverseProxy
 		stream nettypes.Stream
-		hc     types.HealthChecker
+		hc     health.HealthChecker
 	}
 
 	containerState struct {
@@ -106,7 +107,7 @@ const reqTimeout = 3 * time.Second
 // prevents dependencies from being stopped automatically.
 const neverTick = time.Duration(1<<63 - 1)
 
-func NewWatcher(parent task.Parent, r types.Route, cfg *Config) (*Watcher, error) {
+func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, error) {
 	key := cfg.Key()
 
 	watcherMapMu.RLock()
@@ -164,7 +165,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *Config) (*Watcher, error
 
 		cont := r.ContainerInfo()
 
-		var depRoute types.Route
+		var depRoute routing.Route
 		var ok bool
 
 		// try to find the dependency in the same provider and the same docker compose project first
@@ -206,7 +207,7 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *Config) (*Watcher, error
 		if depCfg.Docker == nil && depCfg.Proxmox == nil {
 			depCont := depRoute.ContainerInfo()
 			if depCont != nil {
-				depCfg.Docker = &types.DockerConfig{
+				depCfg.Docker = &idlewatcher.DockerConfig{
 					DockerCfg:     depCont.DockerCfg,
 					ContainerID:   depCont.ContainerID,
 					ContainerName: depCont.ContainerName,
@@ -280,9 +281,9 @@ func NewWatcher(parent task.Parent, r types.Route, cfg *Config) (*Watcher, error
 	w.provider.Store(p)
 
 	switch r := r.(type) {
-	case types.ReverseProxyRoute:
+	case routing.ReverseProxyRoute:
 		w.rp = r.ReverseProxy()
-	case types.StreamRoute:
+	case routing.StreamRoute:
 		w.stream = r.Stream()
 	default:
 		p.Close()
@@ -516,11 +517,11 @@ func (w *Watcher) stopByMethod() error {
 		return errors.New("provider not set")
 	}
 	switch cfg.StopMethod {
-	case types.ContainerStopMethodPause:
+	case idlewatcher.ContainerStopMethodPause:
 		err = p.ContainerPause(ctx)
-	case types.ContainerStopMethodStop:
+	case idlewatcher.ContainerStopMethodStop:
 		err = p.ContainerStop(ctx, cfg.StopSignal, int(math.Ceil(cfg.StopTimeout.Seconds())))
-	case types.ContainerStopMethodKill:
+	case idlewatcher.ContainerStopMethodKill:
 		err = p.ContainerKill(ctx, cfg.StopSignal)
 	default:
 		err = w.newWatcherError(fmt.Errorf("unexpected stop method: %q", cfg.StopMethod))

@@ -29,7 +29,8 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
-	entrypointctx "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypointctx "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
 	homepagetypes "github.com/yusing/godoxy/internal/homepage/types"
 	"github.com/yusing/godoxy/internal/logging"
@@ -37,13 +38,14 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/godoxy/internal/route"
 	routeimpl "github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider"
 	"github.com/yusing/godoxy/internal/route/rules"
 	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
-	routetypes "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/routing"
+
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/webui"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
@@ -53,7 +55,7 @@ import (
 type state struct {
 	config.Config
 
-	providers        *xsync.Map[string, types.RouteProvider]
+	providers        *xsync.Map[string, routing.Provider]
 	autocertProvider *autocert.Provider
 	entrypoint       *entrypoint.Entrypoint
 
@@ -80,7 +82,7 @@ func (e CriticalError) Unwrap() error {
 func NewState() config.State {
 	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	return &state{
-		providers: xsync.NewMap[string, types.RouteProvider](),
+		providers: xsync.NewMap[string, routing.Provider](),
 		task:      task.RootTask("config", false),
 		tmpLogBuf: tmpLogBuf,
 		tmpLog:    logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
@@ -156,7 +158,7 @@ func (state *state) Value() *config.Config {
 	return &state.Config
 }
 
-func (state *state) Entrypoint() entrypointctx.Entrypoint {
+func (state *state) Entrypoint() routing.Entrypoint {
 	return state.entrypoint
 }
 
@@ -174,7 +176,7 @@ func (state *state) AutoCertProvider() server.CertProvider {
 	return state.autocertProvider
 }
 
-func (state *state) LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool) {
+func (state *state) LoadOrStoreProvider(key string, value routing.Provider) (actual routing.Provider, loaded bool) {
 	actual, loaded = state.providers.LoadOrStore(key, value)
 	return
 }
@@ -183,8 +185,8 @@ func (state *state) DeleteProvider(key string) {
 	state.providers.Delete(key)
 }
 
-func (state *state) IterProviders() iter.Seq2[string, types.RouteProvider] {
-	return func(yield func(string, types.RouteProvider) bool) {
+func (state *state) IterProviders() iter.Seq2[string, routing.Provider] {
+	return func(yield func(string, routing.Provider) bool) {
 		for k, v := range state.providers.Range {
 			if !yield(k, v) {
 				return
@@ -433,7 +435,7 @@ func (state *state) loadRouteProviders() error {
 
 	agentpool.RemoveAll()
 
-	registerProvider := func(p types.RouteProvider) {
+	registerProvider := func(p routing.Provider) {
 		if actual, loaded := state.providers.LoadOrStore(p.String(), p); loaded {
 			errs.Addf("provider %s already exists, first: %s, second: %s", p.String(), actual.GetType(), p.GetType())
 		}
@@ -568,12 +570,12 @@ func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 	}
 
 	r := routeimpl.Route{
-		Scheme:      routetypes.SchemeFileServer,
+		Scheme:      route.SchemeFileServer,
 		Root:        "embed://webui",
 		SPA:         true,
 		Index:       "_shell.html",
 		Rules:       webuiRules,
-		HealthCheck: types.HealthCheckConfig{Disable: true},
+		HealthCheck: health.HealthCheckConfig{Disable: true},
 		Homepage: &homepage.ItemConfig{
 			Show: false,
 		},
@@ -592,7 +594,7 @@ func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 		return &r, err
 	}
 
-	r.Scheme = routetypes.SchemeHTTP
+	r.Scheme = route.SchemeHTTP
 	r.Host = host
 	r.Port.Proxy = port
 	r.Root = ""

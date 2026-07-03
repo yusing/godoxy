@@ -18,7 +18,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 - Per-domain route resolution
 - HTTP server management (HTTP/HTTPS)
 - Shared HTTPS listener support for TCP routes selected by TLS SNI
-- Route pool abstractions via [`PoolLike`](internal/entrypoint/types/entrypoint.go:27) and [`RWPoolLike`](internal/entrypoint/types/entrypoint.go:33) interfaces
+- Route pool abstractions via `internal/routing` `PoolLike` and `RWPoolLike` interfaces
 
 ### Primary Consumers
 
@@ -36,7 +36,7 @@ The entrypoint package implements the primary HTTP handler that receives all inc
 
 ### Stability
 
-Internal package with stable core interfaces. The [`Entrypoint`](internal/entrypoint/types/entrypoint.go:7) interface is the public contract.
+Internal package with stable core interfaces. The `internal/routing.Entrypoint` interface is the public contract.
 
 ## Public API
 
@@ -49,16 +49,16 @@ type Entrypoint interface {
     DisablePoolsLog(v bool)
 
     // Route registry access
-    GetRoute(alias string) (types.Route, bool)
-    StartAddRoute(r types.Route) error
-    IterRoutes(yield func(r types.Route) bool)
+    GetRoute(alias string) (routing.Route, bool)
+    StartAddRoute(r routing.Route) error
+    IterRoutes(yield func(r routing.Route) bool)
     NumRoutes() int
-    RoutesByProvider() map[string][]types.Route
+    RoutesByProvider() map[string][]routing.Route
 
     // Route pool accessors
-    HTTPRoutes() PoolLike[types.HTTPRoute]
-    StreamRoutes() PoolLike[types.StreamRoute]
-    ExcludedRoutes() RWPoolLike[types.Route]
+    HTTPRoutes() routing.PoolLike[routing.HTTPRoute]
+    StreamRoutes() routing.PoolLike[routing.StreamRoute]
+    ExcludedRoutes() routing.RWPoolLike[routing.Route]
 
     // Health info queries
     GetHealthInfo() map[string]types.HealthInfo

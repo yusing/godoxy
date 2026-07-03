@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	statequery "github.com/yusing/godoxy/internal/config/query"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
@@ -16,11 +16,20 @@ type StatsResponse struct {
 	Uptime  int64      `json:"uptime"`
 } //	@name	StatsResponse
 
+type RouteStats = routing.RouteStats // @name RouteStats
+
+type ProviderStats struct {
+	Total          uint16               `json:"total"`
+	ReverseProxies RouteStats           `json:"reverse_proxies"`
+	Streams        RouteStats           `json:"streams"`
+	Type           routing.ProviderType `json:"type"`
+} //	@name	ProviderStats
+
 type ProxyStats struct {
-	Total          uint16                         `json:"total"`
-	ReverseProxies types.RouteStats               `json:"reverse_proxies"`
-	Streams        types.RouteStats               `json:"streams"`
-	Providers      map[string]types.ProviderStats `json:"providers"`
+	Total          uint16                   `json:"total"`
+	ReverseProxies RouteStats               `json:"reverse_proxies"`
+	Streams        RouteStats               `json:"streams"`
+	Providers      map[string]ProviderStats `json:"providers"`
 } //	@name	ProxyStats
 
 // @x-id				"stats"

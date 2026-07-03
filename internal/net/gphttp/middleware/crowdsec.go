@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	"github.com/yusing/godoxy/internal/routing"
 	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
 	strutils "github.com/yusing/goutils/strings"
@@ -172,7 +172,7 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 func (m *crowdsecMiddleware) buildCrowdSecURL(ctx context.Context) (string, error) {
 	// Try to get route first
 	if m.Route != "" {
-		if route, ok := entrypoint.FromCtx(ctx).GetRoute(m.Route); ok {
+		if route, ok := routing.EntrypointFromCtx(ctx).GetRoute(m.Route); ok {
 			// Using route name
 			targetURL := *route.TargetURL()
 			targetURL.Path = m.Endpoint

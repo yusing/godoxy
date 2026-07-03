@@ -11,7 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/serialization"
-	W "github.com/yusing/godoxy/internal/watcher"
+	"github.com/yusing/godoxy/internal/watcher"
 )
 
 type FileProvider struct {
@@ -80,6 +80,6 @@ func (p *FileProvider) loadRoutesImpl() (route.Routes, error) {
 	return routes, err
 }
 
-func (p *FileProvider) NewWatcher() W.Watcher {
-	return W.NewConfigFileWatcher(p.fileName)
+func (p *FileProvider) NewWatcher() watcher.Watcher {
+	return watcher.NewConfigFileWatcher(p.fileName)
 }

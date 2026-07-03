@@ -6,9 +6,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
-	providerTypes "github.com/yusing/godoxy/internal/route/provider/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/goutils/task"
@@ -44,7 +44,7 @@ func TestEventHandlerKeepsExistingRoutesWhenForceReloadReturnsEmptyOnError(t *te
 	providerErr := errors.New("unexpected EOF")
 	p := &Provider{
 		ProviderImpl: eventHandlerTestProviderImpl{err: providerErr},
-		t:            providerTypes.ProviderTypeDocker,
+		t:            routing.ProviderTypeDocker,
 		routes: route.Routes{
 			"app": {Alias: "app"},
 		},
@@ -63,7 +63,7 @@ func TestEventHandlerKeepsExistingRoutesWhenForceReloadReturnsEmptyOnError(t *te
 
 func TestEventHandlerShouldUpdateRouteOnForceReloadEvenWithoutMatchingContainerEvent(t *testing.T) {
 	handler := &EventHandler{
-		provider: &Provider{t: providerTypes.ProviderTypeDocker},
+		provider: &Provider{t: routing.ProviderTypeDocker},
 	}
 
 	shouldUpdate := handler.shouldUpdateRoute(true, []watcher.Event{{
@@ -73,7 +73,7 @@ func TestEventHandlerShouldUpdateRouteOnForceReloadEvenWithoutMatchingContainerE
 		ActorName: "other-name",
 	}}, &route.Route{
 		Metadata: route.Metadata{
-			Container: &types.Container{
+			Container: &docker.Container{
 				ContainerID:   "app-id",
 				ContainerName: "app-name",
 			},

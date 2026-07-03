@@ -34,7 +34,7 @@ type Config struct {
 }
 ```
 
-The `HTTPConfig` embedded type (from `internal/route/types`) includes:
+The `HTTPConfig` embedded type (from `internal/types`) includes:
 
 - `NoTLSVerify` - Skip TLS certificate verification
 - `ResponseHeaderTimeout` - Timeout for response headers

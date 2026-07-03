@@ -11,8 +11,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/agentpool"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/loadbalancer"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
 )
@@ -183,38 +188,38 @@ func newFakeSNIStreamRoute(t *testing.T, alias, listenAddr string, stream nettyp
 	}
 }
 
-func (r *fakeSNIStreamRoute) Key() string                                 { return r.key }
-func (r *fakeSNIStreamRoute) Name() string                                { return r.name }
-func (r *fakeSNIStreamRoute) Start(task.Parent) error                     { return nil }
-func (r *fakeSNIStreamRoute) Task() *task.Task                            { return r.task }
-func (r *fakeSNIStreamRoute) Finish(any)                                  {}
-func (r *fakeSNIStreamRoute) MarshalZerologObject(*zerolog.Event)         {}
-func (r *fakeSNIStreamRoute) ProviderName() string                        { return "" }
-func (r *fakeSNIStreamRoute) GetProvider() types.RouteProvider            { return nil }
-func (r *fakeSNIStreamRoute) ListenURL() *nettypes.URL                    { return r.listenURL }
-func (r *fakeSNIStreamRoute) TargetURL() *nettypes.URL                    { return nil }
-func (r *fakeSNIStreamRoute) HealthMonitor() types.HealthMonitor          { return nil }
-func (r *fakeSNIStreamRoute) SetHealthMonitor(types.HealthMonitor)        {}
-func (r *fakeSNIStreamRoute) References() []string                        { return nil }
-func (r *fakeSNIStreamRoute) ShouldExclude() bool                         { return false }
-func (r *fakeSNIStreamRoute) Started() <-chan struct{}                    { return nil }
-func (r *fakeSNIStreamRoute) IdlewatcherConfig() *types.IdlewatcherConfig { return nil }
-func (r *fakeSNIStreamRoute) HealthCheckConfig() types.HealthCheckConfig {
-	return types.HealthCheckConfig{}
+func (r *fakeSNIStreamRoute) Key() string                            { return r.key }
+func (r *fakeSNIStreamRoute) Name() string                           { return r.name }
+func (r *fakeSNIStreamRoute) Start(task.Parent) error                { return nil }
+func (r *fakeSNIStreamRoute) Task() *task.Task                       { return r.task }
+func (r *fakeSNIStreamRoute) Finish(any)                             {}
+func (r *fakeSNIStreamRoute) MarshalZerologObject(*zerolog.Event)    {}
+func (r *fakeSNIStreamRoute) ProviderName() string                   { return "" }
+func (r *fakeSNIStreamRoute) GetProvider() routing.Provider          { return nil }
+func (r *fakeSNIStreamRoute) ListenURL() *nettypes.URL               { return r.listenURL }
+func (r *fakeSNIStreamRoute) TargetURL() *nettypes.URL               { return nil }
+func (r *fakeSNIStreamRoute) HealthMonitor() health.HealthMonitor    { return nil }
+func (r *fakeSNIStreamRoute) SetHealthMonitor(health.HealthMonitor)  {}
+func (r *fakeSNIStreamRoute) References() []string                   { return nil }
+func (r *fakeSNIStreamRoute) ShouldExclude() bool                    { return false }
+func (r *fakeSNIStreamRoute) Started() <-chan struct{}               { return nil }
+func (r *fakeSNIStreamRoute) IdlewatcherConfig() *idlewatcher.Config { return nil }
+func (r *fakeSNIStreamRoute) HealthCheckConfig() health.HealthCheckConfig {
+	return health.HealthCheckConfig{}
 }
-func (r *fakeSNIStreamRoute) LoadBalanceConfig() *types.LoadBalancerConfig { return nil }
-func (r *fakeSNIStreamRoute) HomepageItem() homepage.Item                  { return homepage.Item{} }
-func (r *fakeSNIStreamRoute) DisplayName() string                          { return r.name }
-func (r *fakeSNIStreamRoute) ContainerInfo() *types.Container              { return nil }
-func (r *fakeSNIStreamRoute) InboundMTLSProfileRef() string                { return "" }
-func (r *fakeSNIStreamRoute) RouteMiddlewares() map[string]types.LabelMap  { return nil }
-func (r *fakeSNIStreamRoute) GetAgent() *agentpool.Agent                   { return nil }
-func (r *fakeSNIStreamRoute) IsDocker() bool                               { return false }
-func (r *fakeSNIStreamRoute) IsAgent() bool                                { return false }
-func (r *fakeSNIStreamRoute) UseLoadBalance() bool                         { return false }
-func (r *fakeSNIStreamRoute) UseIdleWatcher() bool                         { return false }
-func (r *fakeSNIStreamRoute) UseHealthCheck() bool                         { return false }
-func (r *fakeSNIStreamRoute) UseAccessLog() bool                           { return false }
+func (r *fakeSNIStreamRoute) LoadBalanceConfig() *loadbalancer.Config     { return nil }
+func (r *fakeSNIStreamRoute) HomepageItem() homepage.Item                 { return homepage.Item{} }
+func (r *fakeSNIStreamRoute) DisplayName() string                         { return r.name }
+func (r *fakeSNIStreamRoute) ContainerInfo() *docker.Container            { return nil }
+func (r *fakeSNIStreamRoute) InboundMTLSProfileRef() string               { return "" }
+func (r *fakeSNIStreamRoute) RouteMiddlewares() map[string]types.LabelMap { return nil }
+func (r *fakeSNIStreamRoute) GetAgent() *agentpool.Agent                  { return nil }
+func (r *fakeSNIStreamRoute) IsDocker() bool                              { return false }
+func (r *fakeSNIStreamRoute) IsAgent() bool                               { return false }
+func (r *fakeSNIStreamRoute) UseLoadBalance() bool                        { return false }
+func (r *fakeSNIStreamRoute) UseIdleWatcher() bool                        { return false }
+func (r *fakeSNIStreamRoute) UseHealthCheck() bool                        { return false }
+func (r *fakeSNIStreamRoute) UseAccessLog() bool                          { return false }
 func (r *fakeSNIStreamRoute) ListenAndServe(context.Context, nettypes.HookFunc, nettypes.HookFunc) error {
 	return nil
 }

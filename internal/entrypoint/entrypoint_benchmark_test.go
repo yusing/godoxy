@@ -12,9 +12,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	. "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/route"
-	routeTypes "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routetest"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
 type noopResponseWriter struct {
@@ -76,12 +77,12 @@ func BenchmarkEntrypointReal(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	r, err := route.NewStartedTestRoute(b, &route.Route{
+	r, err := routetest.NewStartedRoute(b, &route.Route{
 		Alias:       "test",
-		Scheme:      routeTypes.SchemeHTTP,
+		Scheme:      route.SchemeHTTP,
 		Host:        host,
 		Port:        route.Port{Listening: 18080, Proxy: portInt},
-		HealthCheck: types.HealthCheckConfig{Disable: true},
+		HealthCheck: health.HealthCheckConfig{Disable: true},
 	})
 
 	require.NoError(b, err)
@@ -117,15 +118,15 @@ func BenchmarkEntrypoint(b *testing.B) {
 	}
 	ep.SetFindRouteDomains([]string{})
 
-	r, err := route.NewStartedTestRoute(b, &route.Route{
+	r, err := routetest.NewStartedRoute(b, &route.Route{
 		Alias:  "test",
-		Scheme: routeTypes.SchemeHTTP,
+		Scheme: route.SchemeHTTP,
 		Host:   "localhost",
 		Port: route.Port{
 			Listening: 18080,
 			Proxy:     8080,
 		},
-		HealthCheck: types.HealthCheckConfig{
+		HealthCheck: health.HealthCheckConfig{
 			Disable: true,
 		},
 	})
@@ -133,7 +134,7 @@ func BenchmarkEntrypoint(b *testing.B) {
 	require.NoError(b, err)
 	require.False(b, r.ShouldExclude())
 
-	r.(types.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
+	r.(routing.ReverseProxyRoute).ReverseProxy().Transport = noopTransport{}
 
 	var w noopResponseWriter
 
@@ -158,17 +159,17 @@ func benchmarkFindRoute(b *testing.B, aliases []string, host string) {
 	for _, alias := range aliases {
 		routeConfig := &route.Route{
 			Alias:  alias,
-			Scheme: routeTypes.SchemeHTTP,
+			Scheme: route.SchemeHTTP,
 			Host:   "localhost",
 			Port: route.Port{
 				Listening: 18080,
 				Proxy:     8080,
 			},
-			HealthCheck: types.HealthCheckConfig{
+			HealthCheck: health.HealthCheckConfig{
 				Disable: true,
 			},
 		}
-		startedRoute, err := route.NewStartedTestRoute(b, routeConfig)
+		startedRoute, err := routetest.NewStartedRoute(b, routeConfig)
 		require.NoError(b, err)
 		require.False(b, startedRoute.ShouldExclude())
 	}

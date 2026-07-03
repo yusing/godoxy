@@ -3,16 +3,16 @@ package healthcheck
 import (
 	"net/url"
 
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 )
 
-func invalidTargetURL(u *url.URL) (types.HealthCheckResult, bool) {
+func invalidTargetURL(u *url.URL) (health.HealthCheckResult, bool) {
 	switch {
 	case u == nil:
-		return types.HealthCheckResult{Detail: "no url specified"}, true
+		return health.HealthCheckResult{Detail: "no url specified"}, true
 	case u.Host == "":
-		return types.HealthCheckResult{Detail: "no host specified"}, true
+		return health.HealthCheckResult{Detail: "no host specified"}, true
 	default:
-		return types.HealthCheckResult{}, false
+		return health.HealthCheckResult{}, false
 	}
 }

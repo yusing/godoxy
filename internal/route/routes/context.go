@@ -7,15 +7,20 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/yusing/godoxy/internal/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 
 type RouteContextKey struct{}
 
+type Route interface {
+	Name() string
+	TargetURL() *nettypes.URL
+}
+
 type RouteContext struct {
 	context.Context
 
-	Route types.HTTPRoute
+	Route Route
 }
 
 var routeContextKey = RouteContextKey{}
@@ -27,7 +32,7 @@ func (r *RouteContext) Value(key any) any {
 	return r.Context.Value(key)
 }
 
-func WithRouteContext(r *http.Request, route types.HTTPRoute) *http.Request {
+func WithRouteContext(r *http.Request, route Route) *http.Request {
 	// we don't want to copy the request object every fucking requests
 	// return r.WithContext(context.WithValue(r.Context(), routeContextKey, route))
 	ctxFieldPtr := (*context.Context)(unsafe.Add(unsafe.Pointer(r), ctxFieldOffset))
@@ -39,8 +44,8 @@ func WithRouteContext(r *http.Request, route types.HTTPRoute) *http.Request {
 	return r
 }
 
-func TryGetRoute(r *http.Request) types.HTTPRoute {
-	if route, ok := r.Context().Value(routeContextKey).(types.HTTPRoute); ok {
+func TryGetRoute(r *http.Request) Route {
+	if route, ok := r.Context().Value(routeContextKey).(Route); ok {
 		return route
 	}
 	return nil

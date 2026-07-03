@@ -59,7 +59,7 @@ func Logs(c *gin.Context) {
 	}
 
 	// TODO: implement levels
-	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
+	dockerCfg, ok := docker.LookupContainerConfig(id)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error(fmt.Sprintf("container %s not found", id)))
 		return

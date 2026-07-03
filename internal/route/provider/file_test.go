@@ -5,13 +5,13 @@ import (
 
 	_ "embed"
 
-	expect "github.com/yusing/goutils/testing"
+	"github.com/stretchr/testify/require"
 )
 
-//go:embed all_fields.yaml
+//go:embed fixtures/all_fields.yaml
 var testAllFieldsYAML []byte
 
 func TestFile(t *testing.T) {
 	_, err := validate(testAllFieldsYAML)
-	expect.NoError(t, err)
+	require.NoError(t, err)
 }

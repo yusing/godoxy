@@ -13,11 +13,16 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
 	"github.com/yusing/godoxy/internal/dnsproviders"
+	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/health/monitor"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/rules"
+	"github.com/yusing/godoxy/internal/routevalidate"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
 )
@@ -72,6 +77,11 @@ func main() {
 	for _, dir := range common.RequiredDirectories {
 		prepareDirectory(dir)
 	}
+
+	route.InitBuilder(routevalidate.Validate)
+	route.InitHealthMonitor(func(r routing.Route) health.HealthMonitor {
+		return monitor.NewMonitor(r)
+	})
 
 	err := config.Load()
 	if err != nil {

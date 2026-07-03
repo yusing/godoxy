@@ -8,7 +8,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	"github.com/yusing/godoxy/internal/health"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	lbconfig "github.com/yusing/godoxy/internal/loadbalancer"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/pool"
@@ -29,7 +31,7 @@ type (
 
 	LoadBalancer struct {
 		impl
-		*types.LoadBalancerConfig
+		*lbconfig.Config
 
 		task *task.Task
 
@@ -45,11 +47,11 @@ type (
 
 const maxWeight int = 100
 
-func New(cfg *types.LoadBalancerConfig) *LoadBalancer {
+func New(cfg *lbconfig.Config) *LoadBalancer {
 	lb := &LoadBalancer{
-		LoadBalancerConfig: cfg,
-		pool:               pool.New[types.LoadBalancerServer]("loadbalancer."+cfg.Link, "loadbalancers"),
-		l:                  log.With().Str("name", cfg.Link).Logger(),
+		Config: cfg,
+		pool:   pool.New[types.LoadBalancerServer]("loadbalancer."+cfg.Link, "loadbalancers"),
+		l:      log.With().Str("name", cfg.Link).Logger(),
 	}
 	lb.UpdateConfigIfNeeded(cfg)
 	return lb
@@ -82,11 +84,11 @@ func (lb *LoadBalancer) Finish(reason any) {
 
 func (lb *LoadBalancer) updateImpl() {
 	switch lb.Mode {
-	case types.LoadbalanceModeUnset, types.LoadbalanceModeRoundRobin:
+	case lbconfig.ModeUnset, lbconfig.ModeRoundRobin:
 		lb.impl = lb.newRoundRobin()
-	case types.LoadbalanceModeLeastConn:
+	case lbconfig.ModeLeastConn:
 		lb.impl = lb.newLeastConn()
-	case types.LoadbalanceModeIPHash:
+	case lbconfig.ModeIPHash:
 		lb.impl = lb.newIPHash()
 	default: // should happen in test only
 		lb.impl = lb.newRoundRobin()
@@ -96,14 +98,14 @@ func (lb *LoadBalancer) updateImpl() {
 	}
 }
 
-func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *types.LoadBalancerConfig) {
+func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *lbconfig.Config) {
 	if cfg != nil {
 		lb.poolMu.Lock()
 		defer lb.poolMu.Unlock()
 
 		lb.Link = cfg.Link
 
-		if lb.Mode == types.LoadbalanceModeUnset && cfg.Mode != types.LoadbalanceModeUnset {
+		if lb.Mode == lbconfig.ModeUnset && cfg.Mode != lbconfig.ModeUnset {
 			lb.Mode = cfg.Mode
 			if !lb.Mode.ValidateUpdate() {
 				lb.l.Error().Msgf("invalid mode %q, fallback to %q", cfg.Mode, lb.Mode)
@@ -275,15 +277,15 @@ func (lb *LoadBalancer) MarshalJSON() ([]byte, error) {
 
 	status, numHealthy := lb.status()
 
-	return (&types.HealthJSONRepr{
+	return (&health.HealthJSONRepr{
 		Name:    lb.Name(),
 		Status:  status,
 		Detail:  fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size()),
 		Started: lb.startTime,
 		Uptime:  lb.Uptime(),
 		Latency: lb.Latency(),
-		Extra: &types.HealthExtra{
-			Config: lb.LoadBalancerConfig,
+		Extra: &health.HealthExtra{
+			Config: lb.Config,
 			Pool:   extra,
 		},
 	}).MarshalJSON()
@@ -295,7 +297,7 @@ func (lb *LoadBalancer) Name() string {
 }
 
 // Status implements health.HealthMonitor.
-func (lb *LoadBalancer) Status() types.HealthStatus {
+func (lb *LoadBalancer) Status() health.HealthStatus {
 	status, _ := lb.status()
 	return status
 }
@@ -306,9 +308,9 @@ func (lb *LoadBalancer) Detail() string {
 	return fmt.Sprintf("%d/%d servers are healthy", numHealthy, lb.pool.Size())
 }
 
-func (lb *LoadBalancer) status() (status types.HealthStatus, numHealthy int) {
+func (lb *LoadBalancer) status() (status health.HealthStatus, numHealthy int) {
 	if lb.pool.Size() == 0 {
-		return types.StatusUnknown, 0
+		return health.StatusUnknown, 0
 	}
 
 	// should be healthy if at least one server is healthy
@@ -319,9 +321,9 @@ func (lb *LoadBalancer) status() (status types.HealthStatus, numHealthy int) {
 		}
 	}
 	if numHealthy == 0 {
-		return types.StatusUnhealthy, numHealthy
+		return health.StatusUnhealthy, numHealthy
 	}
-	return types.StatusHealthy, numHealthy
+	return health.StatusHealthy, numHealthy
 }
 
 // Uptime implements health.HealthMonitor.

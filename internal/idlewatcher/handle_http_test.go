@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/types"
-	"github.com/yusing/godoxy/internal/types"
+	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	gevents "github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
@@ -89,13 +88,13 @@ func newTestWatcher(t *testing.T) *Watcher {
 	t.Cleanup(ticker.Stop)
 
 	w := &Watcher{
-		cfg: &types.IdlewatcherConfig{
-			IdlewatcherProviderConfig: types.IdlewatcherProviderConfig{
-				Docker: &types.DockerConfig{
+		cfg: &idlewatchertypes.Config{
+			IdlewatcherProviderConfig: idlewatchertypes.ProviderConfig{
+				Docker: &idlewatchertypes.DockerConfig{
 					ContainerName: "test-container",
 				},
 			},
-			IdlewatcherConfigBase: types.IdlewatcherConfigBase{
+			IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
 				IdleTimeout: time.Hour,
 				WakeTimeout: time.Second,
 			},

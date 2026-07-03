@@ -33,7 +33,7 @@ func Start(c *gin.Context) {
 		return
 	}
 
-	dockerCfg, ok := docker.GetDockerCfgByContainerID(req.ID)
+	dockerCfg, ok := docker.LookupContainerConfig(req.ID)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("container not found"))
 		return

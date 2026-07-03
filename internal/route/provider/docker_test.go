@@ -7,9 +7,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	D "github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
-	routeTypes "github.com/yusing/godoxy/internal/route/types"
 	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -31,9 +30,9 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 	}
 	cont.ID = "test"
 	p.name = "test"
-	routes := expect.Must(p.routesFromContainerLabels(D.FromDocker(cont, types.DockerProviderConfig{URL: host})))
+	routes := expect.Must(p.routesFromContainerLabels(docker.FromDocker(cont, types.DockerProviderConfig{URL: host})))
 	for _, r := range routes {
-		r.Finalize()
+		_ = r.Validate()
 	}
 	return routes
 }
@@ -57,12 +56,12 @@ func TestApplyLabel(t *testing.T) {
 	entries := makeRoutes(&container.Summary{
 		Names: dummyNames,
 		Labels: map[string]string{
-			D.LabelAliases:          "a,b",
-			D.LabelIdleTimeout:      "10s",
-			D.LabelStopMethod:       "stop",
-			D.LabelStopSignal:       "SIGTERM",
-			D.LabelStopTimeout:      "1h",
-			D.LabelWakeTimeout:      "10s",
+			docker.LabelAliases:     "a,b",
+			docker.LabelIdleTimeout: "10s",
+			docker.LabelStopMethod:  "stop",
+			docker.LabelStopSignal:  "SIGTERM",
+			docker.LabelStopTimeout: "1h",
+			docker.LabelWakeTimeout: "10s",
 			"proxy.*.no_tls_verify": "true",
 			"proxy.*.scheme":        "https",
 			"proxy.*.host":          "app",
@@ -81,8 +80,8 @@ func TestApplyLabel(t *testing.T) {
 	b, ok := entries["b"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTPS)
-	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTPS)
+	expect.Equal(t, a.Scheme, route.SchemeHTTPS)
+	expect.Equal(t, b.Scheme, route.SchemeHTTPS)
 
 	expect.Equal(t, a.Host, "app")
 	expect.Equal(t, b.Host, "app")
@@ -124,7 +123,7 @@ func TestApplyLabelParsesMiddlewareBypassOverlay(t *testing.T) {
 	entries := makeRoutes(&container.Summary{
 		Names: dummyNames,
 		Labels: map[string]string{
-			D.LabelAliases:                    "a",
+			docker.LabelAliases:               "a",
 			"proxy.a.scheme":                  "http",
 			"proxy.a.port":                    "4567",
 			"proxy.a.middlewares.oidc.bypass": "\n- path glob(/public/*)\n- path /health"[1:],
@@ -177,7 +176,7 @@ func TestApplyLabelWithAlias(t *testing.T) {
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
-			D.LabelAliases:          "a,b,c",
+			docker.LabelAliases:     "a,b,c",
 			"proxy.a.no_tls_verify": "true",
 			"proxy.a.port":          "3333",
 			"proxy.b.port":          "1234",
@@ -191,12 +190,12 @@ func TestApplyLabelWithAlias(t *testing.T) {
 	c, ok := entries["c"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, a.Scheme, route.SchemeHTTP)
 	expect.Equal(t, a.Port.Proxy, 3333)
 	expect.Equal(t, a.NoTLSVerify, true)
-	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, b.Scheme, route.SchemeHTTP)
 	expect.Equal(t, b.Port.Proxy, 1234)
-	expect.Equal(t, c.Scheme, routeTypes.SchemeHTTPS)
+	expect.Equal(t, c.Scheme, route.SchemeHTTPS)
 }
 
 func TestApplyLabelWithRef(t *testing.T) {
@@ -204,12 +203,12 @@ func TestApplyLabelWithRef(t *testing.T) {
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
-			D.LabelAliases:    "a,b,c",
-			"proxy.#1.host":   "localhost",
-			"proxy.#1.port":   "4444",
-			"proxy.#2.port":   "9999",
-			"proxy.#3.port":   "1111",
-			"proxy.#3.scheme": "https",
+			docker.LabelAliases: "a,b,c",
+			"proxy.#1.host":     "localhost",
+			"proxy.#1.port":     "4444",
+			"proxy.#2.port":     "9999",
+			"proxy.#3.port":     "1111",
+			"proxy.#3.scheme":   "https",
 		},
 	})
 	a, ok := entries["a"]
@@ -219,11 +218,11 @@ func TestApplyLabelWithRef(t *testing.T) {
 	c, ok := entries["c"]
 	expect.True(t, ok)
 
-	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, a.Scheme, route.SchemeHTTP)
 	expect.Equal(t, a.Host, "localhost")
 	expect.Equal(t, a.Port.Proxy, 4444)
 	expect.Equal(t, b.Port.Proxy, 9999)
-	expect.Equal(t, c.Scheme, routeTypes.SchemeHTTPS)
+	expect.Equal(t, c.Scheme, route.SchemeHTTPS)
 	expect.Equal(t, c.Port.Proxy, 1111)
 }
 
@@ -232,7 +231,7 @@ func TestApplyLabelWithScalarShortcuts(t *testing.T) {
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
-			D.LabelAliases:           "a,b,c",
+			docker.LabelAliases:      "a,b,c",
 			"proxy.ports":            "4444, 9999,443:1111",
 			"proxy.protos":           "http, https,tcp",
 			"proxy.hosts":            "app-a, app-b, app-c",
@@ -250,9 +249,9 @@ func TestApplyLabelWithScalarShortcuts(t *testing.T) {
 	expect.Equal(t, a.Port.Proxy, 4444)
 	expect.Equal(t, b.Port.Proxy, 9999)
 	expect.Equal(t, c.Port.Proxy, 1111)
-	expect.Equal(t, a.Scheme, routeTypes.SchemeHTTP)
-	expect.Equal(t, b.Scheme, routeTypes.SchemeHTTPS)
-	expect.Equal(t, c.Scheme, routeTypes.SchemeTCP)
+	expect.Equal(t, a.Scheme, route.SchemeHTTP)
+	expect.Equal(t, b.Scheme, route.SchemeHTTPS)
+	expect.Equal(t, c.Scheme, route.SchemeTCP)
 	expect.Equal(t, a.Host, "app-a")
 	expect.Equal(t, b.Host, "app-b")
 	expect.Equal(t, c.Host, "app-c")
@@ -276,11 +275,11 @@ func TestApplyLabelWithRefH2C(t *testing.T) {
 			},
 		},
 		Labels: map[string]string{
-			D.LabelAliases:    "netbird-api, netbird-grpc",
-			"proxy.#1.port":   "80",
-			"proxy.#1.scheme": "http",
-			"proxy.#2.port":   "80",
-			"proxy.#2.scheme": "h2c",
+			docker.LabelAliases: "netbird-api, netbird-grpc",
+			"proxy.#1.port":     "80",
+			"proxy.#1.scheme":   "http",
+			"proxy.#2.port":     "80",
+			"proxy.#2.scheme":   "h2c",
 		},
 	})
 	api, ok := entries["netbird-api"]
@@ -288,33 +287,33 @@ func TestApplyLabelWithRefH2C(t *testing.T) {
 	grpc, ok := entries["netbird-grpc"]
 	expect.True(t, ok)
 
-	expect.Equal(t, api.Scheme, routeTypes.SchemeHTTP)
-	expect.Equal(t, grpc.Scheme, routeTypes.SchemeH2C)
+	expect.Equal(t, api.Scheme, route.SchemeHTTP)
+	expect.Equal(t, grpc.Scheme, route.SchemeH2C)
 	expect.NoError(t, grpc.Validate())
 	expect.Equal(t, grpc.TargetURL().Scheme, "h2c")
 }
 
 func TestApplyLabelWithRefIndexError(t *testing.T) {
-	c := D.FromDocker(&container.Summary{
+	c := docker.FromDocker(&container.Summary{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
-			D.LabelAliases:    "a,b",
-			"proxy.#1.host":   "localhost",
-			"proxy.*.port":    "4444",
-			"proxy.#4.scheme": "https",
+			docker.LabelAliases: "a,b",
+			"proxy.#1.host":     "localhost",
+			"proxy.*.port":      "4444",
+			"proxy.#4.scheme":   "https",
 		},
 	}, types.DockerProviderConfig{})
 	var p DockerProvider
 	_, err := p.routesFromContainerLabels(c)
 	expect.ErrorIs(t, ErrAliasRefIndexOutOfRange, err)
 
-	c = D.FromDocker(&container.Summary{
+	c = docker.FromDocker(&container.Summary{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
-			D.LabelAliases:  "a,b",
-			"proxy.#0.host": "localhost",
+			docker.LabelAliases: "a,b",
+			"proxy.#0.host":     "localhost",
 		},
 	}, types.DockerProviderConfig{})
 	_, err = p.routesFromContainerLabels(c)
@@ -335,12 +334,12 @@ func TestDynamicAliases(t *testing.T) {
 
 	r, ok := entries["app1"]
 	expect.True(t, ok)
-	expect.Equal(t, r.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, r.Scheme, route.SchemeHTTP)
 	expect.Equal(t, r.Port.Proxy, 1234)
 
 	r, ok = entries["app1_backend"]
 	expect.True(t, ok)
-	expect.Equal(t, r.Scheme, routeTypes.SchemeHTTP)
+	expect.Equal(t, r.Scheme, route.SchemeHTTP)
 	expect.Equal(t, r.Port.Proxy, 5678)
 }
 
@@ -440,7 +439,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		r, ok := makeRoutes(cont)["a"]
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
-		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
+		expect.Equal(t, r.Scheme, route.SchemeUDP)
 		expect.Equal(t, r.TargetURL().Hostname(), testDockerIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(privPort))
@@ -450,7 +449,7 @@ func TestStreamDefaultValues(t *testing.T) {
 		r, ok := makeRoutes(cont, testIP)["a"]
 		expect.True(t, ok)
 		expect.NoError(t, r.Validate())
-		expect.Equal(t, r.Scheme, routeTypes.SchemeUDP)
+		expect.Equal(t, r.Scheme, route.SchemeUDP)
 		expect.Equal(t, r.TargetURL().Hostname(), testIP)
 		expect.Equal(t, r.Port.Listening, 0)
 		expect.Equal(t, r.Port.Proxy, int(pubPort))
@@ -461,8 +460,8 @@ func TestExplicitExclude(t *testing.T) {
 	r, ok := makeRoutes(&container.Summary{
 		Names: dummyNames,
 		Labels: map[string]string{
-			D.LabelAliases:          "a",
-			D.LabelExclude:          "true",
+			docker.LabelAliases:     "a",
+			docker.LabelExclude:     "true",
 			"proxy.a.no_tls_verify": "true",
 		},
 	}, "")["a"]

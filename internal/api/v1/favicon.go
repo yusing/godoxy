@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	apitypes "github.com/yusing/goutils/apitypes"

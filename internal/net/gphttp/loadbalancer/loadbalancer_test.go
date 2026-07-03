@@ -3,14 +3,14 @@ package loadbalancer
 import (
 	"testing"
 
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/loadbalancer"
 	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRebalance(t *testing.T) {
 	t.Parallel()
 	t.Run("zero", func(t *testing.T) {
-		lb := New(new(types.LoadBalancerConfig))
+		lb := New(new(loadbalancer.Config))
 		for range 10 {
 			lb.AddServer(TestNewServer(0))
 		}
@@ -18,7 +18,7 @@ func TestRebalance(t *testing.T) {
 		expect.Equal(t, lb.sumWeight, maxWeight)
 	})
 	t.Run("less", func(t *testing.T) {
-		lb := New(new(types.LoadBalancerConfig))
+		lb := New(new(loadbalancer.Config))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .1))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .2))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .3))
@@ -29,7 +29,7 @@ func TestRebalance(t *testing.T) {
 		expect.Equal(t, lb.sumWeight, maxWeight)
 	})
 	t.Run("more", func(t *testing.T) {
-		lb := New(new(types.LoadBalancerConfig))
+		lb := New(new(loadbalancer.Config))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .1))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .2))
 		lb.AddServer(TestNewServer(float64(maxWeight) * .3))

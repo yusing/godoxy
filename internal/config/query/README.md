@@ -35,17 +35,17 @@ type RouteProviderListResponse struct {
 
 ```go
 type Statistics struct {
-    Total          uint16                         `json:"total"`
-    ReverseProxies types.RouteStats               `json:"reverse_proxies"`
-    Streams        types.RouteStats               `json:"streams"`
-    Providers      map[string]types.ProviderStats `json:"providers"`
+    Total          uint16                           `json:"total"`
+    ReverseProxies routing.RouteStats               `json:"reverse_proxies"`
+    Streams        routing.RouteStats               `json:"streams"`
+    Providers      map[string]routing.ProviderStats `json:"providers"`
 }
 ```
 
 ### Exported functions
 
 ```go
-func DumpRouteProviders() map[string]types.RouteProvider
+func DumpRouteProviders() map[string]routing.Provider
 ```
 
 Returns all route providers as a map keyed by their short name. Thread-safe access via `config.ActiveState.Load()`.

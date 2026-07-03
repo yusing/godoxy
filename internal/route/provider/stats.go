@@ -1,12 +1,12 @@
 package provider
 
 import (
-	route "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
-func (p *Provider) Statistics() types.ProviderStats {
-	var rps, streams types.RouteStats
+func (p *Provider) Statistics() routing.ProviderStats {
+	var rps, streams routing.RouteStats
 	for _, r := range p.routes {
 		switch r.Type() {
 		case route.RouteTypeHTTP:
@@ -15,7 +15,7 @@ func (p *Provider) Statistics() types.ProviderStats {
 			streams.Add(r)
 		}
 	}
-	return types.ProviderStats{
+	return routing.ProviderStats{
 		Total:   rps.Total + streams.Total,
 		RPs:     rps,
 		Streams: streams,

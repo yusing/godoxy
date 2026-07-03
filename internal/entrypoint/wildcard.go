@@ -4,20 +4,20 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
 type wildcardRouteIndex struct {
-	oneLabel map[string]types.HTTPRoute
+	oneLabel map[string]routing.HTTPRoute
 }
 
 func newWildcardRouteIndex() *wildcardRouteIndex {
 	return &wildcardRouteIndex{
-		oneLabel: make(map[string]types.HTTPRoute),
+		oneLabel: make(map[string]routing.HTTPRoute),
 	}
 }
 
-func (idx *wildcardRouteIndex) Add(route types.HTTPRoute) {
+func (idx *wildcardRouteIndex) Add(route routing.HTTPRoute) {
 	if suffix, ok := wildcardSuffix(route.Key()); ok {
 		existingRoute, exists := idx.oneLabel[suffix]
 		if exists && !preferWildcardRoute(route, existingRoute) {
@@ -38,7 +38,7 @@ type routePreference interface {
 	PreferOver(other any) bool
 }
 
-func preferWildcardRoute(route, existingRoute types.HTTPRoute) bool {
+func preferWildcardRoute(route, existingRoute routing.HTTPRoute) bool {
 	if preferredRoute, ok := route.(routePreference); ok {
 		return preferredRoute.PreferOver(existingRoute)
 	}
@@ -48,7 +48,7 @@ func preferWildcardRoute(route, existingRoute types.HTTPRoute) bool {
 	return true
 }
 
-func (idx *wildcardRouteIndex) Find(host string) types.HTTPRoute {
+func (idx *wildcardRouteIndex) Find(host string) routing.HTTPRoute {
 	if idx == nil {
 		return nil
 	}

@@ -18,7 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/godoxy/internal/route/routes"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/server"
 )
@@ -26,9 +26,9 @@ import (
 // HTTPServer is a server that listens on a given address and serves HTTP routes.
 type HTTPServer interface {
 	Listen(addr string, proto HTTPProto) error
-	AddRoute(route types.HTTPRoute)
-	DelRoute(route types.HTTPRoute)
-	FindRoute(s string) types.HTTPRoute
+	AddRoute(route routing.HTTPRoute)
+	DelRoute(route routing.HTTPRoute)
+	FindRoute(s string) routing.HTTPRoute
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
@@ -38,7 +38,7 @@ type httpServer struct {
 	stopFunc func(reason any)
 
 	addr   string
-	routes *pool.Pool[types.HTTPRoute]
+	routes *pool.Pool[routing.HTTPRoute]
 
 	routeEntrypointOverlays atomic.Pointer[xsync.Map[string, *routeEntrypointOverlay]]
 	wildcardRoutes          atomic.Pointer[wildcardRouteIndex]
@@ -132,7 +132,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	}
 	srv.stopFunc = task.FinishAndWait
 	srv.addr = addr
-	srv.routes = pool.New[types.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
+	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	return nil
 }
@@ -144,19 +144,19 @@ func (srv *httpServer) Close() {
 	srv.stopFunc(nil)
 }
 
-func (srv *httpServer) AddRoute(route types.HTTPRoute) {
+func (srv *httpServer) AddRoute(route routing.HTTPRoute) {
 	srv.routes.Add(route)
 	srv.rebuildWildcardRoutes()
 	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
-func (srv *httpServer) DelRoute(route types.HTTPRoute) {
+func (srv *httpServer) DelRoute(route routing.HTTPRoute) {
 	srv.routes.Del(route)
 	srv.rebuildWildcardRoutes()
 	srv.routeEntrypointOverlayMap().Delete(route.Key())
 }
 
-func (srv *httpServer) FindRoute(s string) types.HTTPRoute {
+func (srv *httpServer) FindRoute(s string) routing.HTTPRoute {
 	if route := srv.ep.findRouteFunc(srv.routes, s); route != nil {
 		return route
 	}
@@ -222,7 +222,7 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *httpServer) getRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
+func (srv *httpServer) getRouteEntrypointOverlay(route routing.HTTPRoute) (*routeEntrypointOverlay, error) {
 	if srv.ep.middleware == nil || len(srv.ep.cfg.Middlewares) == 0 {
 		return nil, errNoRouteEntrypointOverlay
 	}
@@ -284,7 +284,7 @@ func (srv *httpServer) rebuildWildcardRoutes() {
 	srv.wildcardRoutes.Store(idx)
 }
 
-func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*routeEntrypointOverlay, error) {
+func (srv *httpServer) compileRouteEntrypointOverlay(route routing.HTTPRoute) (*routeEntrypointOverlay, error) {
 	routeMiddlewareMap := route.RouteMiddlewares()
 	if len(routeMiddlewareMap) == 0 {
 		return &routeEntrypointOverlay{}, nil
@@ -310,7 +310,7 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route types.HTTPRoute) (*ro
 	}, nil
 }
 
-func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, error) {
+func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute, error) {
 	hostRoute := srv.FindRoute(req.Host)
 	// Skip per-route mTLS resolution if no TLS or a global mTLS profile is configured
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
@@ -348,7 +348,7 @@ func (srv *httpServer) resolveRequestRoute(req *http.Request) (types.HTTPRoute, 
 	return hostRoute, nil
 }
 
-func sameHTTPRoute(left, right types.HTTPRoute) bool {
+func sameHTTPRoute(left, right routing.HTTPRoute) bool {
 	switch {
 	case left == nil || right == nil:
 		return left == right

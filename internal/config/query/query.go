@@ -2,7 +2,7 @@ package statequery
 
 import (
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
 type RouteProviderListResponse struct {
@@ -10,9 +10,9 @@ type RouteProviderListResponse struct {
 	FullName  string `json:"full_name"`
 } // @name RouteProvider
 
-func DumpRouteProviders() map[string]types.RouteProvider {
+func DumpRouteProviders() map[string]routing.Provider {
 	state := config.ActiveState.Load()
-	entries := make(map[string]types.RouteProvider, state.NumProviders())
+	entries := make(map[string]routing.Provider, state.NumProviders())
 	for _, p := range state.IterProviders() {
 		entries[p.ShortName()] = p
 	}

@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	config "github.com/yusing/godoxy/internal/config/types"
-	entrypointtypes "github.com/yusing/godoxy/internal/entrypoint/types"
+	"github.com/yusing/godoxy/internal/route"
 	routeimpl "github.com/yusing/godoxy/internal/route"
-	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
@@ -74,16 +74,16 @@ func (s *stubState) Init([]byte) error                         { return nil }
 func (s *stubState) Task() *task.Task                          { return nil }
 func (s *stubState) Context() context.Context                  { return context.Background() }
 func (s *stubState) Value() *config.Config                     { return s.cfg }
-func (s *stubState) Entrypoint() entrypointtypes.Entrypoint    { return nil }
+func (s *stubState) Entrypoint() routing.Entrypoint            { return nil }
 func (s *stubState) ShortLinkMatcher() config.ShortLinkMatcher { return nil }
 func (s *stubState) AutoCertProvider() server.CertProvider     { return nil }
-func (s *stubState) LoadOrStoreProvider(string, types.RouteProvider) (types.RouteProvider, bool) {
+func (s *stubState) LoadOrStoreProvider(string, routing.Provider) (routing.Provider, bool) {
 	return nil, false
 }
 func (s *stubState) DeleteProvider(string) { /* no-op: test stub */ }
-func (s *stubState) IterProviders() iter.Seq2[string, types.RouteProvider] {
+func (s *stubState) IterProviders() iter.Seq2[string, routing.Provider] {
 	// no-op: returns empty iterator
-	return func(func(string, types.RouteProvider) bool) {}
+	return func(func(string, routing.Provider) bool) {}
 }
 func (s *stubState) NumProviders() int     { return 0 }   // no-op: test stub
 func (s *stubState) StartProviders() error { return nil } // no-op: test stub

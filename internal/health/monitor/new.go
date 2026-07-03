@@ -10,19 +10,20 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
 	healthcheck "github.com/yusing/godoxy/internal/health/check"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
 type (
-	Result  = types.HealthCheckResult
-	Monitor = types.HealthMonCheck
+	Result  = health.HealthCheckResult
+	Monitor = health.HealthMonCheck
 )
 
 // NewMonitor creates a health monitor based on the route type and configuration.
 //
 // See internal/health/monitor/README.md for detailed health check flow and conditions.
-func NewMonitor(r types.Route) Monitor {
+func NewMonitor(r routing.Route) Monitor {
 	target := &r.TargetURL().URL
 
 	var mon Monitor
@@ -30,11 +31,11 @@ func NewMonitor(r types.Route) Monitor {
 		mon = NewAgentProxiedMonitor(r.HealthCheckConfig(), r.GetAgent(), target)
 	} else {
 		switch r := r.(type) {
-		case types.ReverseProxyRoute:
+		case routing.ReverseProxyRoute:
 			mon = NewHTTPHealthMonitor(r.HealthCheckConfig(), target)
-		case types.FileServerRoute:
+		case routing.FileServerRoute:
 			mon = NewFileServerHealthMonitor(r.HealthCheckConfig(), r.RootPath())
-		case types.StreamRoute:
+		case routing.StreamRoute:
 			mon = NewStreamHealthMonitor(r.HealthCheckConfig(), target)
 		default:
 			log.Panic().Msgf("unexpected route type: %T", r)
@@ -54,7 +55,7 @@ func NewMonitor(r types.Route) Monitor {
 	return mon
 }
 
-func NewHTTPHealthMonitor(config types.HealthCheckConfig, u *url.URL) Monitor {
+func NewHTTPHealthMonitor(config health.HealthCheckConfig, u *url.URL) Monitor {
 	var method string
 	if config.UseGet {
 		method = http.MethodGet
@@ -72,7 +73,7 @@ func NewHTTPHealthMonitor(config types.HealthCheckConfig, u *url.URL) Monitor {
 	return &mon
 }
 
-func NewFileServerHealthMonitor(config types.HealthCheckConfig, path string) Monitor {
+func NewFileServerHealthMonitor(config health.HealthCheckConfig, path string) Monitor {
 	var mon monitor
 	mon.init(&url.URL{Scheme: "file", Host: path}, config, func(u *url.URL) (result Result, err error) {
 		return healthcheck.FileServer(path)
@@ -80,7 +81,7 @@ func NewFileServerHealthMonitor(config types.HealthCheckConfig, path string) Mon
 	return &mon
 }
 
-func NewStreamHealthMonitor(config types.HealthCheckConfig, targetURL *url.URL) Monitor {
+func NewStreamHealthMonitor(config health.HealthCheckConfig, targetURL *url.URL) Monitor {
 	var mon monitor
 	mon.init(targetURL, config, func(u *url.URL) (result Result, err error) {
 		return healthcheck.Stream(mon.Context(), u, config.Timeout)
@@ -88,7 +89,7 @@ func NewStreamHealthMonitor(config types.HealthCheckConfig, targetURL *url.URL) 
 	return &mon
 }
 
-func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.SharedClient, containerID string, fallback Monitor) Monitor {
+func NewDockerHealthMonitor(config health.HealthCheckConfig, client *docker.SharedClient, containerID string, fallback Monitor) Monitor {
 	state := healthcheck.NewDockerHealthcheckState(client, containerID)
 	displayURL := &url.URL{ // only for display purposes, no actual request is made
 		Scheme: "docker",
@@ -116,7 +117,7 @@ func NewDockerHealthMonitor(config types.HealthCheckConfig, client *docker.Share
 	return &mon
 }
 
-func NewAgentProxiedMonitor(config types.HealthCheckConfig, agent *agentpool.Agent, targetURL *url.URL) Monitor {
+func NewAgentProxiedMonitor(config health.HealthCheckConfig, agent *agentpool.Agent, targetURL *url.URL) Monitor {
 	var mon monitor
 	mon.init(targetURL, config, func(u *url.URL) (result Result, err error) {
 		return CheckHealthAgentProxied(agent, config.Timeout, u)

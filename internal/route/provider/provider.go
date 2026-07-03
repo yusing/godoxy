@@ -12,7 +12,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
-	provider "github.com/yusing/godoxy/internal/route/provider/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	W "github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
@@ -26,7 +26,7 @@ type (
 	Provider struct {
 		ProviderImpl
 
-		t        provider.Type
+		t        routing.ProviderType
 		routes   route.Routes
 		routesMu sync.RWMutex
 
@@ -48,9 +48,9 @@ const (
 
 var ErrEmptyProviderName = errors.New("empty provider name")
 
-var _ types.RouteProvider = (*Provider)(nil)
+var _ routing.Provider = (*Provider)(nil)
 
-func newProvider(t provider.Type) *Provider {
+func newProvider(t routing.ProviderType) *Provider {
 	return &Provider{t: t}
 }
 
@@ -59,7 +59,7 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 	if name == "" {
 		return nil, ErrEmptyProviderName
 	}
-	p = newProvider(provider.ProviderTypeFile)
+	p = newProvider(routing.ProviderTypeFile)
 	p.ProviderImpl, err = FileProviderImpl(filename)
 	if err != nil {
 		return nil, err
@@ -69,14 +69,14 @@ func NewFileProvider(filename string) (p *Provider, err error) {
 }
 
 func NewDockerProvider(name string, dockerCfg types.DockerProviderConfig) *Provider {
-	p := newProvider(provider.ProviderTypeDocker)
+	p := newProvider(routing.ProviderTypeDocker)
 	p.ProviderImpl = DockerProviderImpl(name, dockerCfg)
 	p.watcher = p.NewWatcher()
 	return p
 }
 
 func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
-	p := newProvider(provider.ProviderTypeAgent)
+	p := newProvider(routing.ProviderTypeAgent)
 	agent := &AgentProvider{
 		AgentConfig: cfg,
 		docker: DockerProviderImpl(cfg.Name, types.DockerProviderConfig{
@@ -88,7 +88,7 @@ func NewAgentProvider(cfg *agent.AgentConfig) *Provider {
 	return p
 }
 
-func (p *Provider) GetType() provider.Type {
+func (p *Provider) GetType() routing.ProviderType {
 	return p.t
 }
 
@@ -157,7 +157,7 @@ func (p *Provider) NumRoutes() int {
 	return len(p.routes)
 }
 
-func (p *Provider) IterRoutes(yield func(string, types.Route) bool) {
+func (p *Provider) IterRoutes(yield func(string, routing.Route) bool) {
 	routes := p.lockCloneRoutes()
 	for alias, r := range routes {
 		impl := r.Impl()
@@ -170,9 +170,9 @@ func (p *Provider) IterRoutes(yield func(string, types.Route) bool) {
 	}
 }
 
-func (p *Provider) FindService(project, service string) (types.Route, bool) {
+func (p *Provider) FindService(project, service string) (routing.Route, bool) {
 	switch p.GetType() {
-	case provider.ProviderTypeDocker, provider.ProviderTypeAgent:
+	case routing.ProviderTypeDocker, routing.ProviderTypeAgent:
 	default:
 		return nil, false
 	}
@@ -192,7 +192,7 @@ func (p *Provider) FindService(project, service string) (types.Route, bool) {
 	return nil, false
 }
 
-func (p *Provider) GetRoute(alias string) (types.Route, bool) {
+func (p *Provider) GetRoute(alias string) (routing.Route, bool) {
 	r, ok := p.lockGetRoute(alias)
 	if !ok {
 		return nil, false
@@ -221,7 +221,6 @@ func (p *Provider) loadRoutes() (routes route.Routes, err error) {
 			delete(routes, alias)
 			continue
 		}
-		r.FinalizeHomepageConfig()
 	}
 	return routes, errs.Error()
 }

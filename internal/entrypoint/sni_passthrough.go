@@ -23,7 +23,7 @@ import (
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"golang.org/x/sys/unix"
 )
 
@@ -58,7 +58,7 @@ func (t *sniRouteTable) exists(key string) bool {
 }
 
 type sniRouteEntry struct {
-	route         types.StreamRoute
+	route         routing.StreamRoute
 	proxy         nettypes.ConnProxy
 	terminatesTLS bool
 }
@@ -72,7 +72,7 @@ func newSNIRouter(ep *Entrypoint) *sniRouter {
 	return r
 }
 
-func (r *sniRouter) AddRoute(route types.StreamRoute) error {
+func (r *sniRouter) AddRoute(route routing.StreamRoute) error {
 	proxy, ok := route.Stream().(nettypes.ConnProxy)
 	if !ok {
 		return fmt.Errorf("route %q stream does not support accepted connection proxying", route.Name())
@@ -93,7 +93,7 @@ func (r *sniRouter) AddRoute(route types.StreamRoute) error {
 	return nil
 }
 
-func (r *sniRouter) DelRoute(route types.StreamRoute) {
+func (r *sniRouter) DelRoute(route routing.StreamRoute) {
 	if listener, ok := r.listeners.Load(sniListenAddr(route)); ok {
 		listener.delRoute(route)
 	}
@@ -203,7 +203,7 @@ func (r *sniRouter) terminateTLS(ctx context.Context, conn net.Conn) (net.Conn, 
 	return tlsConn, err
 }
 
-func (l *sniListener) addRoute(route types.StreamRoute, proxy nettypes.ConnProxy, terminatesTLS bool) {
+func (l *sniListener) addRoute(route routing.StreamRoute, proxy nettypes.ConnProxy, terminatesTLS bool) {
 	key := normalizeSNIName(route.Key())
 	entry := &sniRouteEntry{route: route, proxy: proxy, terminatesTLS: terminatesTLS}
 	for {
@@ -221,7 +221,7 @@ func (l *sniListener) addRoute(route types.StreamRoute, proxy nettypes.ConnProxy
 	}
 }
 
-func (l *sniListener) delRoute(route types.StreamRoute) {
+func (l *sniListener) delRoute(route routing.StreamRoute) {
 	key := normalizeSNIName(route.Key())
 	for {
 		old := l.routes.Load()
@@ -267,7 +267,7 @@ func matchSNI(serverName string, findKey findRouteKeyFunc, exists func(string) b
 	return findKey(serverName, exists)
 }
 
-func asSNIRoute(route types.StreamRoute) bool {
+func asSNIRoute(route routing.StreamRoute) bool {
 	listenURL := route.ListenURL()
 	switch listenURL.Scheme {
 	case "tcp", "tcp4", "tcp6":
@@ -277,11 +277,11 @@ func asSNIRoute(route types.StreamRoute) bool {
 	}
 }
 
-func sniListenAddr(route types.StreamRoute) string {
+func sniListenAddr(route routing.StreamRoute) string {
 	return netutils.SharedHTTPSListenAddr(route.ListenURL().Host)
 }
 
-func routeTerminatesTLS(route types.StreamRoute) bool {
+func routeTerminatesTLS(route routing.StreamRoute) bool {
 	terminatingRoute, ok := route.(interface{ TerminatesTLS() bool })
 	return ok && terminatingRoute.TerminatesTLS()
 }

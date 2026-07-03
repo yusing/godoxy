@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/docker"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
-	"github.com/yusing/godoxy/internal/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/routing"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -36,9 +36,9 @@ func Stats(c *gin.Context) {
 		return
 	}
 
-	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
+	dockerCfg, ok := docker.LookupContainerConfig(id)
 	if !ok {
-		var route types.Route
+		var route routing.Route
 		route, ok = entrypoint.FromCtx(c.Request.Context()).GetRoute(id)
 		if ok {
 			cont := route.ContainerInfo()

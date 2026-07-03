@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/goutils/version"
 	"golang.org/x/net/http2"
 )
@@ -36,7 +36,7 @@ var pinger = &fasthttp.Client{
 	NoDefaultUserAgentHeader: true,
 }
 
-func HTTP(url *url.URL, method, path string, timeout time.Duration) (types.HealthCheckResult, error) {
+func HTTP(url *url.URL, method, path string, timeout time.Duration) (health.HealthCheckResult, error) {
 	if result, invalid := invalidTargetURL(url); invalid {
 		return result, nil
 	}
@@ -59,7 +59,7 @@ func HTTP(url *url.URL, method, path string, timeout time.Duration) (types.Healt
 	return processHealthResponse(lat, respErr, resp.StatusCode), nil
 }
 
-func H2C(ctx context.Context, url *url.URL, method, path string, timeout time.Duration) (types.HealthCheckResult, error) {
+func H2C(ctx context.Context, url *url.URL, method, path string, timeout time.Duration) (health.HealthCheckResult, error) {
 	if result, invalid := invalidTargetURL(url); invalid {
 		return result, nil
 	}
@@ -78,7 +78,7 @@ func H2C(ctx context.Context, url *url.URL, method, path string, timeout time.Du
 		req, err = http.NewRequestWithContext(ctx, http.MethodHead, u.String(), nil)
 	}
 	if err != nil {
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Detail: err.Error(),
 		}, nil
 	}
@@ -109,16 +109,16 @@ func setCommonHeaders(setHeader func(key, value string)) {
 	setHeader("Pragma", "no-cache")
 }
 
-func processHealthResponse(lat time.Duration, err error, getStatusCode func() int) types.HealthCheckResult {
+func processHealthResponse(lat time.Duration, err error, getStatusCode func() int) health.HealthCheckResult {
 	if err != nil {
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(err, &tlsErr); !ok {
-			return types.HealthCheckResult{
+			return health.HealthCheckResult{
 				Latency: lat,
 				Detail:  err.Error(),
 			}
 		}
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Latency: lat,
 			Healthy: true,
 			Detail:  tlsErr.Error(),
@@ -127,13 +127,13 @@ func processHealthResponse(lat time.Duration, err error, getStatusCode func() in
 
 	statusCode := getStatusCode()
 	if statusCode >= 500 && statusCode < 600 {
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Latency: lat,
 			Detail:  http.StatusText(statusCode),
 		}
 	}
 
-	return types.HealthCheckResult{
+	return health.HealthCheckResult{
 		Latency: lat,
 		Healthy: true,
 	}

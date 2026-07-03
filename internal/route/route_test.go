@@ -1,19 +1,28 @@
-package route
+package route_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/common"
-	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/loadbalancer"
+	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/routevalidate"
 	"github.com/yusing/godoxy/internal/types"
 )
 
+func TestMain(m *testing.M) {
+	route.InitBuilder(routevalidate.Validate)
+	os.Exit(m.Run())
+}
+
 func TestRouteValidate(t *testing.T) {
 	t.Run("ReservedPort", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeHTTP,
 			Host:   "localhost",
@@ -25,15 +34,15 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("DisabledHealthCheckWithLoadBalancer", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
-			HealthCheck: types.HealthCheckConfig{
+			HealthCheck: health.HealthCheckConfig{
 				Disable: true,
 			},
-			LoadBalance: &types.LoadBalancerConfig{
+			LoadBalance: &loadbalancer.Config{
 				Link: "test-link",
 			}, // Minimal LoadBalance config with non-empty Link will be checked by UseLoadBalance
 		}
@@ -43,7 +52,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("FileServerScheme", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeFileServer,
 			Host:   "example.com",
@@ -52,11 +61,11 @@ func TestRouteValidate(t *testing.T) {
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for valid file server route")
-		require.NotNil(t, r.impl, "Impl should be initialized")
+		require.NotNil(t, r.Impl(), "Impl should be initialized")
 	})
 
 	t.Run("HTTPScheme", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
@@ -64,11 +73,11 @@ func TestRouteValidate(t *testing.T) {
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for valid HTTP route")
-		require.NotNil(t, r.impl, "Impl should be initialized")
+		require.NotNil(t, r.Impl(), "Impl should be initialized")
 	})
 
 	t.Run("TCPScheme", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeTCP,
 			Host:   "example.com",
@@ -76,11 +85,11 @@ func TestRouteValidate(t *testing.T) {
 		}
 		err := r.Validate()
 		require.NoError(t, err, "Validate should not return error for valid TCP route")
-		require.NotNil(t, r.impl, "Impl should be initialized")
+		require.NotNil(t, r.Impl(), "Impl should be initialized")
 	})
 
 	t.Run("RelayProxyProtocolHeaderTCPOnly", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:                    "test-udp-relay",
 			Scheme:                   route.SchemeUDP,
 			Host:                     "127.0.0.1",
@@ -93,7 +102,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("TLSTerminationTCPOnly", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:          "test-udp-tls",
 			Scheme:         route.SchemeUDP,
 			Host:           "127.0.0.1",
@@ -106,7 +115,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("TLSTerminationSharedHTTPSOnly", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:          "test-tcp-tls",
 			Scheme:         route.SchemeTCP,
 			Host:           "127.0.0.1",
@@ -119,7 +128,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("InboundMTLSProfileHTTPOnly", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:              "test-udp-mtls",
 			Scheme:             route.SchemeUDP,
 			Host:               "127.0.0.1",
@@ -132,15 +141,15 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("DockerContainer", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
-			Metadata: Metadata{
-				Container: &types.Container{
+			Metadata: route.Metadata{
+				Container: &docker.Container{
 					ContainerID: "test-id",
-					Image: &types.ContainerImage{
+					Image: &docker.Image{
 						Name: "test-image",
 					},
 				},
@@ -152,7 +161,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("InvalidScheme", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: 123,
 			Host:   "example.com",
@@ -164,7 +173,7 @@ func TestRouteValidate(t *testing.T) {
 	})
 
 	t.Run("ModifiedFields", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
@@ -177,50 +186,17 @@ func TestRouteValidate(t *testing.T) {
 	})
 }
 
-func TestPreferredPort(t *testing.T) {
-	ports := types.PortMapping{
-		22:   {PrivatePort: 22},
-		1000: {PrivatePort: 1000},
-		3000: {PrivatePort: 80},
-	}
-
-	port := preferredPort(ports)
-	require.Equal(t, 3000, port)
-}
-
-func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) {
-	r := &Route{
-		Alias: "app",
-		Metadata: Metadata{
-			Container: &types.Container{
-				Image:           &types.ContainerImage{Name: "custom-app"},
-				PrivateHostname: "172.18.0.2",
-				PrivatePortMapping: types.PortMapping{
-					8080: container.Port{PrivatePort: 8080, Type: "tcp"},
-				},
-			},
-		},
-	}
-
-	require.False(t, r.ShouldExclude())
-
-	r.Finalize()
-
-	require.False(t, r.ShouldExclude())
-	require.Equal(t, 8080, r.Port.Proxy)
-}
-
 func TestDockerRouteDisallowAgent(t *testing.T) {
-	r := &Route{
+	r := &route.Route{
 		Alias:  "test",
 		Scheme: route.SchemeHTTP,
 		Host:   "example.com",
 		Port:   route.Port{Proxy: 80},
 		Agent:  "test-agent",
-		Metadata: Metadata{
-			Container: &types.Container{
+		Metadata: route.Metadata{
+			Container: &docker.Container{
 				ContainerID: "test-id",
-				Image: &types.ContainerImage{
+				Image: &docker.Image{
 					Name: "test-image",
 				},
 			},
@@ -232,7 +208,7 @@ func TestDockerRouteDisallowAgent(t *testing.T) {
 }
 
 func TestRouteAgent(t *testing.T) {
-	r := &Route{
+	r := &route.Route{
 		Alias:  "test",
 		Scheme: route.SchemeHTTP,
 		Host:   "example.com",
@@ -245,8 +221,8 @@ func TestRouteAgent(t *testing.T) {
 }
 
 func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
-	hc := types.HealthCheckConfig{}
-	hc.ApplyDefaults(types.HealthCheckConfig{
+	hc := health.HealthCheckConfig{}
+	hc.ApplyDefaults(health.HealthCheckConfig{
 		Interval: 15 * time.Second,
 		Timeout:  10 * time.Second,
 	})
@@ -257,7 +233,7 @@ func TestRouteApplyingHealthCheckDefaults(t *testing.T) {
 
 func TestRouteMiddlewaresReturnsClone(t *testing.T) {
 	original := types.LabelMap{"bypass": []string{"path /health"}}
-	r := &Route{
+	r := &route.Route{
 		Middlewares: map[string]types.LabelMap{
 			"redirectHTTP": original,
 		},
@@ -272,7 +248,7 @@ func TestRouteMiddlewaresReturnsClone(t *testing.T) {
 
 func TestRouteBindField(t *testing.T) {
 	t.Run("TCPSchemeWithCustomBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-tcp",
 			Scheme: route.SchemeTCP,
 			Host:   "192.168.1.100",
@@ -286,7 +262,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("UDPSchemeWithCustomBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-udp",
 			Scheme: route.SchemeUDP,
 			Host:   "10.0.0.1",
@@ -300,7 +276,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("HTTPSchemeWithoutBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-http",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
@@ -313,7 +289,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("HTTPSchemeWithBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-http",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
@@ -327,7 +303,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("HTTPSchemeWithBindAndPort", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-http",
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
@@ -341,7 +317,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("TCPSchemeDefaultsToZeroBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-default-bind",
 			Scheme: route.SchemeTCP,
 			Host:   "example.com",
@@ -356,7 +332,7 @@ func TestRouteBindField(t *testing.T) {
 	})
 
 	t.Run("FileServerSchemeWithBind", func(t *testing.T) {
-		r := &Route{
+		r := &route.Route{
 			Alias:  "test-fileserver",
 			Scheme: route.SchemeFileServer,
 			Port:   route.Port{Listening: 9000},

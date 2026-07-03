@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/handler"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 )
 
 func TestCheckHealthHTTP(t *testing.T) {
@@ -81,7 +81,7 @@ func TestCheckHealthHTTP(t *testing.T) {
 			require.Equal(t, recorder.Code, tt.expectedStatus)
 
 			if tt.expectedStatus == http.StatusOK {
-				var result types.HealthCheckResult
+				var result health.HealthCheckResult
 				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
 				require.Equal(t, result.Healthy, tt.expectedHealthy)
 			}
@@ -125,7 +125,7 @@ func TestCheckHealthFileServer(t *testing.T) {
 
 			require.Equal(t, recorder.Code, tt.expectedStatus)
 
-			var result types.HealthCheckResult
+			var result health.HealthCheckResult
 			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
 			require.Equal(t, result.Healthy, tt.expectedHealthy)
 			require.Equal(t, result.Detail, tt.expectedDetail)
@@ -217,7 +217,7 @@ func TestCheckHealthTCPUDP(t *testing.T) {
 			require.Equal(t, recorder.Code, tt.expectedStatus)
 
 			if tt.expectedStatus == http.StatusOK {
-				var result types.HealthCheckResult
+				var result health.HealthCheckResult
 				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &result))
 				require.Equal(t, result.Healthy, tt.expectedHealthy)
 			}

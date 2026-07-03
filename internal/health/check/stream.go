@@ -8,16 +8,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 )
 
-func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (types.HealthCheckResult, error) {
+func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (health.HealthCheckResult, error) {
 	if result, invalid := invalidTargetURL(url); invalid {
 		return result, nil
 	}
 
 	if port := url.Port(); port == "" || port == "0" {
-		return types.HealthCheckResult{
+		return health.HealthCheckResult{
 			Latency: 0,
 			Healthy: false,
 			Detail:  "no port specified",
@@ -41,17 +41,17 @@ func Stream(ctx context.Context, url *url.URL, timeout time.Duration) (types.Hea
 			errors.Is(err, syscall.ECONNRESET) ||
 			errors.Is(err, syscall.ECONNABORTED) ||
 			errors.Is(err, syscall.EPIPE) {
-			return types.HealthCheckResult{
+			return health.HealthCheckResult{
 				Latency: lat,
 				Healthy: false,
 				Detail:  err.Error(),
 			}, nil
 		}
-		return types.HealthCheckResult{}, err
+		return health.HealthCheckResult{}, err
 	}
 
 	defer conn.Close()
-	return types.HealthCheckResult{
+	return health.HealthCheckResult{
 		Latency: lat,
 		Healthy: true,
 	}, nil

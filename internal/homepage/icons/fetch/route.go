@@ -3,8 +3,8 @@ package iconfetch
 import (
 	"net/http"
 
+	"github.com/yusing/godoxy/internal/health"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/pool"
 )
 
@@ -13,7 +13,7 @@ type route interface {
 	ProviderName() string
 	References() []string
 	TargetURL() *nettypes.URL
-	HealthMonitor() types.HealthMonitor
+	HealthMonitor() health.HealthMonitor
 }
 
 type httpRoute interface {

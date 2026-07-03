@@ -86,7 +86,7 @@ graph LR
 
 ```go
 type LoadBalancer struct {
-    *types.LoadBalancerConfig
+    *lbconfig.Config
     task *task.Task
     pool pool.Pool[types.LoadBalancerServer]
     poolMu sync.Mutex
@@ -99,13 +99,13 @@ type LoadBalancer struct {
 
 ```go
 // Create a new load balancer from configuration
-func New(cfg *types.LoadBalancerConfig) *LoadBalancer
+func New(cfg *lbconfig.Config) *LoadBalancer
 
 // Start the load balancer as a background task
 func (lb *LoadBalancer) Start(parent task.Parent) error
 
 // Update configuration dynamically
-func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *types.LoadBalancerConfig)
+func (lb *LoadBalancer) UpdateConfigIfNeeded(cfg *lbconfig.Config)
 
 // Add a backend server
 func (lb *LoadBalancer) AddServer(srv types.LoadBalancerServer)
@@ -125,11 +125,11 @@ type server struct {
     url    *nettypes.URL
     weight int
     http.Handler
-    types.HealthMonitor
+    health.HealthMonitor
 }
 
 // Create a new backend server
-func NewServer(name string, url *nettypes.URL, weight int, handler http.Handler, healthMon types.HealthMonitor) types.LoadBalancerServer
+func NewServer(name string, url *nettypes.URL, weight int, handler http.Handler, healthMon health.HealthMonitor) types.LoadBalancerServer
 ```
 
 **Server Interface:**
@@ -141,7 +141,7 @@ type LoadBalancerServer interface {
     Key() string
     Weight() int
     SetWeight(weight int)
-    Status() types.HealthStatus
+    Status() health.HealthStatus
     Latency() time.Duration
     ServeHTTP(rw http.ResponseWriter, r *http.Request)
     TryWake() error
@@ -176,19 +176,19 @@ Secure: Based on TLS/Forwarded-Proto
 
 ```go
 const (
-    LoadbalanceModeUnset      = ""
-    LoadbalanceModeRoundRobin = "round_robin"
-    LoadbalanceModeLeastConn  = "least_conn"
-    LoadbalanceModeIPHash     = "ip_hash"
+    ModeUnset      = ""
+    ModeRoundRobin = "roundrobin"
+    ModeLeastConn  = "leastconn"
+    ModeIPHash     = "iphash"
 )
 ```
 
 ## Configuration
 
 ```go
-type LoadBalancerConfig struct {
+type Config struct {
     Link   string              // Link name
-    Mode   LoadbalanceMode     // Balancing algorithm
+    Mode   Mode                // Balancing algorithm
     Sticky bool                // Enable sticky sessions
     StickyMaxAge time.Duration // Cookie max age
     Options map[string]any     // Algorithm-specific options
@@ -200,9 +200,9 @@ type LoadBalancerConfig struct {
 ### Basic Round Robin Load Balancer
 
 ```go
-config := &types.LoadBalancerConfig{
+config := &lbconfig.Config{
     Link: "my-service",
-    Mode: types.LoadbalanceModeRoundRobin,
+    Mode: lbconfig.ModeRoundRobin,
 }
 
 lb := loadbalancer.New(config)
@@ -219,9 +219,9 @@ http.Handle("/", lb)
 ### Least Connections with Sticky Sessions
 
 ```go
-config := &types.LoadBalancerConfig{
+config := &lbconfig.Config{
     Link:         "api-service",
-    Mode:         types.LoadbalanceModeLeastConn,
+    Mode:         lbconfig.ModeLeastConn,
     Sticky:       true,
     StickyMaxAge: 1 * time.Hour,
 }
@@ -237,9 +237,9 @@ for _, srv := range backends {
 ### IP Hash Load Balancer with Real IP
 
 ```go
-config := &types.LoadBalancerConfig{
+config := &lbconfig.Config{
     Link: "user-service",
-    Mode: types.LoadbalanceModeIPHash,
+    Mode: lbconfig.ModeIPHash,
     Options: map[string]any{
         "header":     "X-Real-IP",
         "from":       []string{"10.0.0.0/8", "172.16.0.0/12"},
@@ -271,10 +271,10 @@ The load balancer integrates with the idlewatcher system:
 
 ## Health Monitoring
 
-The load balancer implements `types.HealthMonitor`:
+The load balancer implements `health.HealthMonitor`:
 
 ```go
-func (lb *LoadBalancer) Status() types.HealthStatus
+func (lb *LoadBalancer) Status() health.HealthStatus
 func (lb *LoadBalancer) Detail() string
 func (lb *LoadBalancer) Uptime() time.Duration
 func (lb *LoadBalancer) Latency() time.Duration

@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/godoxy/internal/docker"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher"
 )
@@ -43,14 +43,14 @@ func (p *DockerProvider) ContainerStart(ctx context.Context) error {
 	return p.client.ContainerStart(ctx, p.containerID, container.StartOptions{})
 }
 
-func (p *DockerProvider) ContainerStop(ctx context.Context, signal types.ContainerSignal, timeout int) error {
+func (p *DockerProvider) ContainerStop(ctx context.Context, signal idlewatcher.ContainerSignal, timeout int) error {
 	return p.client.ContainerStop(ctx, p.containerID, container.StopOptions{
 		Signal:  string(signal),
 		Timeout: &timeout,
 	})
 }
 
-func (p *DockerProvider) ContainerKill(ctx context.Context, signal types.ContainerSignal) error {
+func (p *DockerProvider) ContainerKill(ctx context.Context, signal idlewatcher.ContainerSignal) error {
 	err := p.client.ContainerKill(ctx, p.containerID, string(signal))
 	return err
 }

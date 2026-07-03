@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	. "github.com/yusing/godoxy/internal/route/rules"
+	"github.com/yusing/godoxy/internal/routeimpl"
 	httputils "github.com/yusing/goutils/http"
 	expect "github.com/yusing/goutils/testing"
 	"golang.org/x/crypto/bcrypt"
@@ -246,7 +247,7 @@ func TestOnCorrectness(t *testing.T) {
 		{
 			name:    "route_match",
 			checker: "route example",
-			input: routes.WithRouteContext(&http.Request{}, expect.Must(route.NewFileServer(&route.Route{
+			input: routes.WithRouteContext(&http.Request{}, expect.Must(routeimpl.NewFileServer(&route.Route{
 				Alias: "example",
 				Root:  "/",
 			}))),
@@ -263,7 +264,7 @@ func TestOnCorrectness(t *testing.T) {
 		{
 			name:    "route_negated_match",
 			checker: "!route example",
-			input: routes.WithRouteContext(&http.Request{}, expect.Must(route.NewFileServer(&route.Route{
+			input: routes.WithRouteContext(&http.Request{}, expect.Must(routeimpl.NewFileServer(&route.Route{
 				Alias: "example",
 				Root:  "/",
 			}))),

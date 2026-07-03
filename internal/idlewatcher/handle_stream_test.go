@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 

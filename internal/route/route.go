@@ -7,40 +7,25 @@ import (
 	"io/fs"
 	"maps"
 	"net"
-	"net/url"
-	"os"
-	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
-	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
-	entrypointimpl "github.com/yusing/godoxy/internal/entrypoint"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
-	"github.com/yusing/godoxy/internal/health/monitor"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
-	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
-	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
-	netutils "github.com/yusing/godoxy/internal/net"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/loadbalancer"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
-	"github.com/yusing/godoxy/internal/serialization"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
-	gperr "github.com/yusing/goutils/errs"
-	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/task"
 
-	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/route/rules"
-	rulepresets "github.com/yusing/godoxy/internal/route/rules/presets"
-	route "github.com/yusing/godoxy/internal/route/types"
 )
 
 type (
@@ -55,10 +40,10 @@ type (
 		// Wildcard aliases match exactly one leftmost label and are checked only
 		// after normal exact/domain lookup misses, preserving the fast path for
 		// exact routes.
-		Alias  string       `json:"alias"`
-		Scheme route.Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
-		Host   string       `json:"host,omitempty"`
-		Port   route.Port   `json:"port"`
+		Alias  string `json:"alias"`
+		Scheme Scheme `json:"scheme,omitempty" swaggertype:"string" enums:"http,https,h2c,tcp,udp,fileserver"`
+		Host   string `json:"host,omitempty"`
+		Port   Port   `json:"port"`
 
 		Bind string `json:"bind,omitempty" validate:"omitempty,ip_addr" extensions:"x-nullable"`
 
@@ -66,12 +51,12 @@ type (
 		SPA   bool   `json:"spa,omitempty"`   // Single-page app mode: serves index for non-existent paths
 		Index string `json:"index,omitempty"` // Index file to serve for single-page app mode
 
-		route.HTTPConfig
+		types.HTTPConfig
 		InboundMTLSProfile       string                         `json:"inbound_mtls_profile,omitempty"` // HTTP-based routes only: must match a configured inbound_mtls_profiles entry and is ignored when entrypoint.inbound_mtls_profile is set
 		Rules                    rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 		RuleFile                 string                         `json:"rule_file,omitempty" extensions:"x-nullable"`
-		HealthCheck              types.HealthCheckConfig        `json:"healthcheck,omitzero" extensions:"x-nullable"` // null on load-balancer routes
-		LoadBalance              *types.LoadBalancerConfig      `json:"load_balance,omitempty" extensions:"x-nullable"`
+		HealthCheck              health.HealthCheckConfig       `json:"healthcheck,omitzero" extensions:"x-nullable"` // null on load-balancer routes
+		LoadBalance              *loadbalancer.Config           `json:"load_balance,omitempty" extensions:"x-nullable"`
 		Middlewares              map[string]types.LabelMap      `json:"middlewares,omitempty" extensions:"x-nullable"`
 		Homepage                 *homepage.ItemConfig           `json:"homepage"`
 		AccessLog                *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
@@ -81,14 +66,16 @@ type (
 
 		Proxmox *proxmox.NodeConfig `json:"proxmox,omitempty" extensions:"x-nullable"`
 
-		Idlewatcher *types.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
+		Idlewatcher *idlewatcher.IdlewatcherConfig `json:"idlewatcher,omitempty" extensions:"x-nullable"`
 
 		Metadata `deserialize:"-"`
 	} // @name Route
 
 	Metadata struct {
 		/* Docker only */
-		Container *types.Container `json:"container,omitempty" extensions:"x-nullable"`
+		Container                 *docker.Container `json:"container,omitempty" extensions:"x-nullable"`
+		CanResolveDockerProxyPort bool              `json:"-" deserialize:"-"`
+		CheckedDockerProxyPort    bool              `json:"-" deserialize:"-"`
 
 		Provider string `json:"provider,omitempty" extensions:"x-nullable"` // for backward compatibility
 
@@ -104,18 +91,18 @@ type (
 		Excluded       bool           `json:"excluded,omitempty" extensions:"x-nullable"`
 		ExcludedReason ExcludedReason `json:"excluded_reason,omitempty" swaggertype:"string" extensions:"x-nullable"`
 
-		HealthMon types.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
+		HealthMon health.HealthMonitor `json:"health,omitempty" swaggerignore:"true"`
 		// for swagger
-		HealthJSON *types.HealthJSON `json:",omitempty" form:"health"`
+		HealthJSON *health.HealthJSON `json:",omitempty" form:"health"`
 
-		impl types.Route
+		impl routing.Route
 		task *task.Task
 
 		// ensure err is read after validation or start
 		valErr   lockedError
 		startErr lockedError
 
-		provider types.RouteProvider
+		provider routing.Provider
 
 		agent *agentpool.Agent
 
@@ -124,24 +111,29 @@ type (
 		onceValidate sync.Once
 	}
 	Routes map[string]*Route
-	Port   = route.Port
 )
 
 type lockedError struct {
-	err  error
-	lock sync.Mutex
+	sync.Mutex
+	err error
 }
 
 func (le *lockedError) Get() error {
-	le.lock.Lock()
-	defer le.lock.Unlock()
+	le.Lock()
+	defer le.Unlock()
 	return le.err
 }
 
 func (le *lockedError) Set(err error) {
-	le.lock.Lock()
-	defer le.lock.Unlock()
+	le.Lock()
+	defer le.Unlock()
 	le.err = err
+}
+
+func (le *lockedError) SetDo(fn func(*error)) {
+	le.Lock()
+	defer le.Unlock()
+	fn(&le.err)
 }
 
 const DefaultHost = "localhost"
@@ -155,358 +147,47 @@ func (r *Route) RouteMiddlewares() map[string]types.LabelMap {
 	return maps.Clone(r.Middlewares)
 }
 
+func (r *Route) Init(parent task.Parent, name string, needFinish bool) {
+	r.task = parent.Subtask(name, needFinish)
+}
+
+func (r *Route) SetTask(task *task.Task) {
+	r.task = task
+}
+
 func (r *Route) Validate() error {
 	// wait for alias to be set
 	if r.Alias == "" {
 		return nil
 	}
-	// pcs := make([]uintptr, 1)
-	// runtime.Callers(2, pcs)
-	// f := runtime.FuncForPC(pcs[0])
-	// fname := f.Name()
+
 	r.onceValidate.Do(func() {
-		// filename, line := f.FileLine(pcs[0])
-		// if strings.HasPrefix(r.Alias, "godoxy") {
-		// 	log.Debug().Str("route", r.Alias).Str("caller", fname).Str("file", filename).Int("line", line).Msg("validating route")
-		// }
-		r.valErr.Set(r.validate())
+		r.started = make(chan struct{})
+		// close the channel when the route is destroyed (if not closed yet).
+		runtime.AddCleanup(r, func(ch chan struct{}) {
+			select {
+			case <-ch:
+			default:
+				close(ch)
+			}
+		}, r.started)
+
+		if build == nil {
+			r.valErr.Set(ErrBuilderNotInitialized)
+			return
+		}
+		impl, agent, err := build(r)
+		if err != nil {
+			r.valErr.Set(err)
+			return
+		}
+		r.impl = impl
+		r.agent = agent
 	})
 	return r.valErr.Get()
 }
 
-func (r *Route) validate() error {
-	// if strings.HasPrefix(r.Alias, "godoxy") {
-	// 	log.Debug().Any("route", r).Msg("validating route")
-	// }
-	if r.Agent != "" {
-		if r.Container != nil {
-			return errors.New("specifying agent is not allowed for docker container routes")
-		}
-		var ok bool
-		// by agent address
-		r.agent, ok = agentpool.Get(r.Agent)
-		if !ok {
-			// fallback to get agent by name
-			r.agent, ok = agentpool.GetAgent(r.Agent)
-			if !ok {
-				return fmt.Errorf("agent %s not found", r.Agent)
-			}
-		}
-	}
-
-	if workingState := config.WorkingState.Load(); workingState != nil {
-		cfg := workingState.Value()
-		if err := entrypointimpl.ValidateInboundMTLSProfileRef(r.InboundMTLSProfile, cfg.Entrypoint.InboundMTLSProfile, cfg.InboundMTLSProfiles); err != nil {
-			return err
-		}
-	}
-
-	r.Finalize()
-
-	if r.InboundMTLSProfile != "" {
-		switch r.Scheme {
-		case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C, route.SchemeFileServer:
-		default:
-			return errors.New("inbound_mtls_profile is only supported for HTTP-based routes")
-		}
-	}
-
-	r.started = make(chan struct{})
-	// close the channel when the route is destroyed (if not closed yet).
-	runtime.AddCleanup(r, func(ch chan struct{}) {
-		select {
-		case <-ch:
-		default:
-			close(ch)
-		}
-	}, r.started)
-
-	if r.Proxmox != nil && r.Idlewatcher != nil {
-		r.Idlewatcher.Proxmox = &types.ProxmoxConfig{
-			Node: r.Proxmox.Node,
-		}
-		if r.Proxmox.VMID != nil {
-			r.Idlewatcher.Proxmox.VMID = *r.Proxmox.VMID
-		}
-	}
-
-	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
-		r.Proxmox = &proxmox.NodeConfig{
-			Node: r.Idlewatcher.Proxmox.Node,
-			VMID: &r.Idlewatcher.Proxmox.VMID,
-		}
-	}
-
-	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
-		wasNotNil := r.Proxmox != nil
-		workingState := config.WorkingState.Load()
-		var proxmoxProviders []*proxmox.Config
-		if workingState != nil { // nil in tests
-			proxmoxProviders = workingState.Value().Providers.Proxmox
-		}
-		if len(proxmoxProviders) > 0 {
-			// it's fine if ip is nil
-			hostname := r.Host
-			ip := net.ParseIP(hostname)
-			for _, p := range proxmoxProviders {
-				// First check if hostname, IP, or alias matches a node (node-level route)
-				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
-					zero := uint64(0)
-					if r.Proxmox == nil {
-						r.Proxmox = &proxmox.NodeConfig{}
-					}
-					r.Proxmox.Node = nodeName
-					r.Proxmox.VMID = &zero
-					r.Proxmox.VMName = ""
-					log.Info().EmbedObject(r).Msg("found proxmox node")
-					break
-				}
-
-				// Then check if hostname, IP, or alias matches a VM resource
-				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
-				if resource != nil {
-					vmid := resource.VMID
-					if r.Proxmox == nil {
-						r.Proxmox = &proxmox.NodeConfig{}
-					}
-					r.Proxmox.Node = resource.Node
-					r.Proxmox.VMID = &vmid
-					r.Proxmox.VMName = resource.Name
-					log.Info().EmbedObject(r).Msg("found proxmox resource")
-					break
-				}
-			}
-		}
-		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
-			log.Warn().EmbedObject(r).Msg("no proxmox node / resource found")
-		}
-	}
-
-	if r.Proxmox != nil {
-		r.validateProxmox()
-	}
-
-	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
-		r.Idlewatcher = r.Container.IdlewatcherConfig
-	}
-
-	// return error if route is localhost:<godoxy_port> but route is not agent
-	if !r.IsAgent() && !r.ShouldExclude() {
-		switch r.Host {
-		case "localhost", "127.0.0.1":
-			switch r.Port.Proxy {
-			case common.ProxyHTTPPort, common.ProxyHTTPSPort, common.APIHTTPPort:
-				if r.Scheme.IsReverseProxy() || r.Scheme == route.SchemeTCP {
-					return fmt.Errorf("localhost:%d is reserved for godoxy", r.Port.Proxy)
-				}
-			}
-		}
-	}
-
-	var errs gperr.Builder
-	if err := r.validateRules(); err != nil {
-		errs.Add(err)
-	}
-
-	if r.ShouldExclude() {
-		r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-	} else {
-		switch r.Scheme {
-		case route.SchemeFileServer:
-			r.Host = ""
-			r.Port.Proxy = 0
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, "https://"+net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening)))
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, "file://"+r.Root)
-		case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, "https://"+net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening)))
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", r.Scheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-		case route.SchemeTCP, route.SchemeUDP:
-			bindIP := net.ParseIP(r.Bind)
-			remoteIP := net.ParseIP(r.Host)
-			toNetwork := func(ip net.IP, scheme route.Scheme) string {
-				if ip == nil { // hostname, indeterminate
-					return scheme.String()
-				}
-				if ip.To4() == nil {
-					if scheme == route.SchemeTCP {
-						return "tcp6"
-					}
-					return "udp6"
-				}
-				if scheme == route.SchemeTCP {
-					return "tcp4"
-				}
-				return "udp4"
-			}
-			lScheme := toNetwork(bindIP, r.Scheme)
-			rScheme := toNetwork(remoteIP, r.Scheme)
-
-			r.LisURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", lScheme, net.JoinHostPort(r.Bind, strconv.Itoa(r.Port.Listening))))
-			r.ProxyURL = gperr.Collect(&errs, nettypes.ParseURL, fmt.Sprintf("%s://%s", rScheme, net.JoinHostPort(r.Host, strconv.Itoa(r.Port.Proxy))))
-		}
-	}
-
-	if !r.UseHealthCheck() && (r.UseLoadBalance() || r.UseIdleWatcher()) {
-		errs.Adds("cannot disable healthcheck when loadbalancer or idle watcher is enabled")
-	}
-	if r.RelayProxyProtocolHeader && r.Scheme != route.SchemeTCP {
-		errs.Adds("relay_proxy_protocol_header is only supported for tcp routes")
-	}
-	if r.TLSTermination && r.Scheme != route.SchemeTCP {
-		errs.Adds("tls_termination is only supported for tcp routes")
-	}
-	if r.TLSTermination && r.Scheme == route.SchemeTCP && r.LisURL != nil && !netutils.IsSharedHTTPSListenAddr(r.LisURL.Host) {
-		errs.Adds("tls_termination is only supported on the shared HTTPS listener")
-	}
-
-	if errs.HasError() {
-		return errs.Error()
-	}
-
-	var impl types.Route
-	var err error
-	switch r.Scheme {
-	case route.SchemeFileServer:
-		impl, err = NewFileServer(r)
-	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C:
-		impl, err = NewReverseProxyRoute(r)
-	case route.SchemeTCP, route.SchemeUDP:
-		impl, err = NewStreamRoute(r)
-	default:
-		panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
-	}
-
-	if err != nil {
-		return err
-	}
-
-	r.impl = impl
-	r.Excluded = r.ShouldExclude()
-	if r.Excluded {
-		r.ExcludedReason = r.findExcludedReason()
-	}
-	return nil
-}
-
-func (r *Route) validateRules() error {
-	if r.RuleFile != "" && len(r.Rules) > 0 {
-		return errors.New("`rule_file` and `rules` cannot be used together")
-	} else if r.RuleFile != "" {
-		src, err := url.Parse(r.RuleFile)
-		if err != nil {
-			return fmt.Errorf("failed to parse rule file url %q: %w", r.RuleFile, err)
-		}
-		switch src.Scheme {
-		case "embed": // embed://<preset_file_name>
-			rules, ok := rulepresets.GetRulePreset(src.Host)
-			if !ok {
-				return fmt.Errorf("rule preset %q not found", src.Host)
-			} else {
-				r.Rules = rules
-			}
-		case "file", "":
-			if !strutils.IsValidFilename(src.Path) {
-				return fmt.Errorf("invalid rule file path %q", src.Path)
-			}
-			content, err := os.ReadFile(src.Path)
-			if err != nil {
-				return fmt.Errorf("failed to read rule file %q: %w", src.Path, err)
-			} else {
-				_, err = serialization.ConvertString(string(content), reflect.ValueOf(&r.Rules))
-				if err != nil {
-					return fmt.Errorf("failed to unmarshal rule file %q: %w", src.Path, err)
-				}
-			}
-		default:
-			return fmt.Errorf("unsupported rule file scheme %q", src.Scheme)
-		}
-	}
-	return nil
-}
-
-func (r *Route) validateProxmox() {
-	l := log.With().EmbedObject(r).Logger()
-
-	nodeName := r.Proxmox.Node
-	vmid := r.Proxmox.VMID
-	if nodeName == "" || vmid == nil {
-		l.Error().Msg("node (proxmox node name) is required")
-		return
-	}
-
-	node, ok := proxmox.Nodes.Get(nodeName)
-	if !ok {
-		l.Error().Msgf("proxmox node %s not found in pool", nodeName)
-		return
-	}
-
-	// Node-level route (VMID = 0)
-	if *vmid == 0 {
-		r.Scheme = route.SchemeHTTPS
-		if r.Host == DefaultHost {
-			r.Host = node.Client().BaseURL.Hostname()
-		}
-		port, _ := strconv.Atoi(node.Client().BaseURL.Port())
-		if port == 0 {
-			port = 8006
-		}
-		r.Port.Proxy = port
-	} else {
-		res, err := node.Client().GetResource("lxc", *vmid)
-		if err != nil { // ErrResourceNotFound
-			l.Error().Err(err).Msgf("failed to get resource %d", *vmid)
-			return
-		}
-
-		r.Proxmox.VMName = res.Name
-
-		if r.Host == DefaultHost {
-			containerName := res.Name
-			// get ip addresses of the vmid
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			ips := res.IPs
-			if len(ips) == 0 {
-				l.Warn().Msgf("no ip addresses found for %s, make sure you have set static ip address for container instead of dhcp", containerName)
-				return
-			}
-
-			l.Info().Str("container", containerName).Msg("checking if container is running")
-			running, err := node.LXCIsRunning(ctx, *vmid)
-			if err != nil {
-				l.Error().Err(err).Msgf("failed to check container state")
-				return
-			}
-
-			if !running {
-				l.Info().Msg("starting container")
-				if err := node.LXCAction(ctx, *vmid, proxmox.LXCStart); err != nil {
-					l.Error().Err(err).Msg("failed to start container")
-					return
-				}
-			}
-
-			l.Info().Msg("finding reachable ip addresses")
-			errs := gperr.NewBuilder("failed to find reachable ip addresses")
-			for _, ip := range ips {
-				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
-					errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
-				} else {
-					r.Host = ip.String()
-					l.Info().Msgf("using ip %s", r.Host)
-					break
-				}
-			}
-			if r.Host == DefaultHost {
-				l.Warn().Err(errs.Error()).Msgf("no reachable ip addresses found, tried %d IPs", len(ips))
-			}
-		}
-	}
-}
-
-func (r *Route) Impl() types.Route {
+func (r *Route) Impl() routing.Route {
 	return r.impl
 }
 
@@ -536,7 +217,7 @@ func (r *Route) start(parent task.Parent) error {
 	}
 
 	if cont := r.ContainerInfo(); cont != nil {
-		docker.SetDockerCfgByContainerID(cont.ContainerID, cont.DockerCfg)
+		docker.RegisterContainerConfig(cont.ContainerID, cont.DockerCfg)
 	}
 
 	if !excluded {
@@ -544,19 +225,22 @@ func (r *Route) start(parent task.Parent) error {
 			return err
 		}
 	} else {
-		ep := entrypoint.FromCtx(parent.Context())
+		ep := routing.EntrypointFromCtx(parent.Context())
 		if ep == nil {
 			return errors.New("entrypoint not initialized")
 		}
 
 		r.task = parent.Subtask("excluded."+r.Name(), false)
-		r.task.SetValue(monitor.DisplayNameKey{}, r.DisplayName())
+		r.task.SetValue(health.DisplayNameKey{}, r.DisplayName())
 		ep.ExcludedRoutes().Add(r.impl)
 		r.task.OnCancel("remove_route_from_excluded", func() {
 			ep.ExcludedRoutes().Del(r.impl)
 		})
 		if r.UseHealthCheck() {
-			r.HealthMon = monitor.NewMonitor(r.impl)
+			if newHealthMonitor == nil {
+				return errors.New("health monitor factory not initialized")
+			}
+			r.HealthMon = newHealthMonitor(r.impl)
 			err := r.HealthMon.Start(r.task)
 			if err != nil {
 				return err
@@ -568,7 +252,7 @@ func (r *Route) start(parent task.Parent) error {
 
 func (r *Route) Finish(reason any) {
 	if cont := r.ContainerInfo(); cont != nil {
-		docker.DeleteDockerCfgByContainerID(cont.ContainerID)
+		docker.UnregisterContainerConfig(cont.ContainerID)
 	}
 	r.FinishAndWait(reason)
 }
@@ -585,11 +269,11 @@ func (r *Route) Started() <-chan struct{} {
 	return r.started
 }
 
-func (r *Route) GetProvider() types.RouteProvider {
+func (r *Route) GetProvider() routing.Provider {
 	return r.provider
 }
 
-func (r *Route) SetProvider(p types.RouteProvider) {
+func (r *Route) SetProvider(p routing.Provider) {
 	r.provider = p
 	r.Provider = p.ShortName()
 }
@@ -651,12 +335,12 @@ func (r *Route) Key() string {
 	return r.Alias
 }
 
-func (r *Route) Type() route.RouteType {
+func (r *Route) Type() RouteType {
 	switch r.Scheme {
-	case route.SchemeHTTP, route.SchemeHTTPS, route.SchemeH2C, route.SchemeFileServer:
-		return route.RouteTypeHTTP
-	case route.SchemeTCP, route.SchemeUDP:
-		return route.RouteTypeStream
+	case SchemeHTTP, SchemeHTTPS, SchemeH2C, SchemeFileServer:
+		return RouteTypeHTTP
+	case SchemeTCP, SchemeUDP:
+		return RouteTypeStream
 	}
 	panic(fmt.Errorf("unexpected scheme %s for alias %s", r.Scheme, r.Alias))
 }
@@ -672,26 +356,26 @@ func (r *Route) IsAgent() bool {
 	return r.GetAgent() != nil
 }
 
-func (r *Route) HealthMonitor() types.HealthMonitor {
+func (r *Route) HealthMonitor() health.HealthMonitor {
 	return r.HealthMon
 }
 
-func (r *Route) SetHealthMonitor(m types.HealthMonitor) {
+func (r *Route) SetHealthMonitor(m health.HealthMonitor) {
 	if r.HealthMon != nil && r.HealthMon != m {
 		r.HealthMon.Finish("health monitor replaced")
 	}
 	r.HealthMon = m
 }
 
-func (r *Route) IdlewatcherConfig() *types.IdlewatcherConfig {
+func (r *Route) IdlewatcherConfig() *idlewatcher.Config {
 	return r.Idlewatcher
 }
 
-func (r *Route) HealthCheckConfig() types.HealthCheckConfig {
+func (r *Route) HealthCheckConfig() health.HealthCheckConfig {
 	return r.HealthCheck
 }
 
-func (r *Route) LoadBalanceConfig() *types.LoadBalancerConfig {
+func (r *Route) LoadBalanceConfig() *loadbalancer.Config {
 	return r.LoadBalance
 }
 
@@ -715,29 +399,39 @@ func (r *Route) DisplayName() string {
 	return r.Homepage.Name
 }
 
+var zeroURL nettypes.URL
+
 func (r *Route) MarshalZerologObject(e *zerolog.Event) {
+	lisURL := r.LisURL
+	proxyURL := r.ProxyURL
+	if lisURL == nil {
+		lisURL = &zeroURL
+	}
+	if proxyURL == nil {
+		proxyURL = &zeroURL
+	}
 	e.Str("alias", r.Alias)
-	switch r := r.impl.(type) {
-	case *ReverseProxyRoute:
+	switch r.Scheme {
+	case SchemeHTTP, SchemeHTTPS, SchemeH2C:
 		e.Str("type", "reverse_proxy").
 			Str("scheme", r.Scheme.String()).
-			Str("bind", r.LisURL.Host).
-			Str("target", r.ProxyURL.URL.String())
-	case *FileServer:
+			Str("bind", lisURL.Host).
+			Str("target", proxyURL.String())
+	case SchemeFileServer:
 		e.Str("type", "file_server").
 			Str("root", r.Root)
-	case *StreamRoute:
+	default:
 		e.Str("type", "stream").
-			Str("scheme", r.LisURL.Scheme+"->"+r.ProxyURL.Scheme)
-		if r.stream != nil {
+			Str("scheme", lisURL.Scheme+"->"+proxyURL.Scheme)
+		if stream, ok := r.impl.(interface{ LocalAddr() net.Addr }); ok {
 			// listening port could be zero (random),
 			// use LocalAddr() to get the actual listening host+port.
-			e.Str("bind", r.stream.LocalAddr().String())
+			e.Str("bind", stream.LocalAddr().String())
 		} else {
 			// not yet started
-			e.Str("bind", r.LisURL.Host)
+			e.Str("bind", lisURL.Host)
 		}
-		e.Str("target", r.ProxyURL.URL.String())
+		e.Str("target", proxyURL.String())
 	}
 	if r.Proxmox != nil {
 		e.Str("proxmox", r.Proxmox.Node)
@@ -753,6 +447,11 @@ func (r *Route) MarshalZerologObject(e *zerolog.Event) {
 	}
 }
 
+// Base returns the base route object
+func (r *Route) Base() *Route {
+	return r
+}
+
 // PreferOver implements pool.Preferable to resolve duplicate route keys deterministically.
 // Preference policy:
 // - Prefer routes with rules over routes without rules.
@@ -764,12 +463,8 @@ func (r *Route) PreferOver(other any) bool {
 	switch v := other.(type) {
 	case *Route:
 		or = v
-	case *ReverseProxyRoute:
-		or = v.Route
-	case *FileServer:
-		or = v.Route
-	case *StreamRoute:
-		or = v.Route
+	case interface{ Base() *Route }:
+		or = v.Base()
 	default:
 		// Unknown type, allow replacement
 		return true
@@ -799,7 +494,7 @@ func (r *Route) PreferOver(other any) bool {
 	return true
 }
 
-func (r *Route) ContainerInfo() *types.Container {
+func (r *Route) ContainerInfo() *docker.Container {
 	return r.Container
 }
 
@@ -826,52 +521,10 @@ func (r *Route) ShouldExclude() bool {
 	if r.ExcludedReason != ExcludedReasonNone {
 		return true
 	}
-	return r.findExcludedReason() != ExcludedReasonNone
+	return r.FindExcludedReason() != ExcludedReasonNone
 }
 
-type ExcludedReason uint8
-
-const (
-	ExcludedReasonNone ExcludedReason = iota
-	ExcludedReasonError
-	ExcludedReasonManual
-	ExcludedReasonNoPortContainer
-	ExcludedReasonBlacklisted
-	ExcludedReasonBuildx
-	ExcludedReasonYAMLAnchor
-	ExcludedReasonOld
-)
-
-func (re ExcludedReason) String() string {
-	switch re {
-	case ExcludedReasonNone:
-		return ""
-	case ExcludedReasonError:
-		return "Error"
-	case ExcludedReasonManual:
-		return "Manual exclusion"
-	case ExcludedReasonNoPortContainer:
-		return "No port exposed in container"
-	case ExcludedReasonBlacklisted:
-		return "Blacklisted (backend service or database)"
-	case ExcludedReasonBuildx:
-		return "Buildx"
-	case ExcludedReasonYAMLAnchor:
-		return "YAML anchor or reference"
-	case ExcludedReasonOld:
-		return "Container renaming intermediate state"
-	default:
-		return "Unknown"
-	}
-}
-
-func (re ExcludedReason) MarshalJSON() ([]byte, error) {
-	return strconv.AppendQuote(nil, re.String()), nil
-}
-
-// no need to unmarshal json because we don't store this
-
-func (r *Route) findExcludedReason() ExcludedReason {
+func (r *Route) FindExcludedReason() ExcludedReason {
 	if r.valErr.Get() != nil {
 		return ExcludedReasonError
 	}
@@ -882,7 +535,7 @@ func (r *Route) findExcludedReason() ExcludedReason {
 		switch {
 		case r.Container.IsExcluded:
 			return ExcludedReasonManual
-		case !r.canResolveDockerProxyPort() && !r.UseIdleWatcher():
+		case r.CheckedDockerProxyPort && !r.CanResolveDockerProxyPort && !r.UseIdleWatcher():
 			return ExcludedReasonNoPortContainer
 		case !r.Container.IsExplicit && docker.IsBlacklisted(r.Container):
 			return ExcludedReasonBlacklisted
@@ -902,27 +555,6 @@ func (r *Route) findExcludedReason() ExcludedReason {
 	return ExcludedReasonNone
 }
 
-func (r *Route) canResolveDockerProxyPort() bool {
-	if r.Port.Proxy != 0 {
-		return true
-	}
-	if r.Container == nil {
-		return false
-	}
-	if r.Container.Image != nil {
-		if _, port, ok := getSchemePortByImageName(r.Container.Image.Name); ok && port != 0 {
-			return true
-		}
-	}
-	if _, port, ok := getSchemePortByAlias(r.Alias); ok && port != 0 {
-		return true
-	}
-	if r.Container.IsHostNetworkMode {
-		return preferredPort(r.Container.PublicPortMapping) != 0
-	}
-	return preferredPort(r.Container.PrivatePortMapping) != 0
-}
-
 func (r *Route) UseLoadBalance() bool {
 	return r.LoadBalance != nil && r.LoadBalance.Link != ""
 }
@@ -933,7 +565,7 @@ func (r *Route) UseIdleWatcher() bool {
 
 func (r *Route) UseHealthCheck() bool {
 	if r.Container != nil {
-		excludedReason := r.findExcludedReason()
+		excludedReason := r.FindExcludedReason()
 		switch {
 		case r.Container.Image.Name == "godoxy-agent":
 			return false
@@ -952,204 +584,29 @@ func (r *Route) UseAccessLog() bool {
 	return r.AccessLog != nil
 }
 
-func (r *Route) Finalize() {
-	r.Alias = strings.ToLower(strings.TrimSpace(r.Alias))
-	r.Host = strings.ToLower(strings.TrimSpace(r.Host))
-
-	isDocker := r.Container != nil
-	cont := r.Container
-
-	if r.Host == "" {
-		switch {
-		case !isDocker:
-			r.Host = "localhost"
-		case cont.PrivateHostname != "":
-			r.Host = cont.PrivateHostname
-		case cont.PublicHostname != "":
-			r.Host = cont.PublicHostname
-		}
+// checkExists checks if the route already exists in the entrypoint.
+//
+// Context must be passed from the parent task that carries the entrypoint value.
+func checkExists(ctx context.Context, r routing.Route) error {
+	if r.UseLoadBalance() { // skip checking for load balanced routes
+		return nil
 	}
-
-	lp, pp := r.Port.Listening, r.Port.Proxy
-
-	if isDocker {
-		scheme, port, ok := getSchemePortByImageName(cont.Image.Name)
-		if ok {
-			if r.Scheme == route.SchemeNone {
-				r.Scheme = scheme
-			}
-			if pp == 0 {
-				pp = port
-			}
-		}
+	ep := routing.EntrypointFromCtx(ctx)
+	if ep == nil {
+		return errors.New("entrypoint not found in context")
 	}
-
-	if scheme, port, ok := getSchemePortByAlias(r.Alias); ok {
-		if r.Scheme == route.SchemeNone {
-			r.Scheme = scheme
-		}
-		if pp == 0 {
-			pp = port
-		}
+	var (
+		existing routing.Route
+		ok       bool
+	)
+	switch r := r.(type) {
+	case routing.HTTPRoute:
+		existing, ok = routing.EntrypointFromCtx(ctx).HTTPRoutes().Get(r.Key())
+	case routing.StreamRoute:
+		existing, ok = routing.EntrypointFromCtx(ctx).StreamRoutes().Get(r.Key())
 	}
-
-	if pp == 0 {
-		switch {
-		case isDocker:
-			if cont.IsHostNetworkMode {
-				pp = preferredPort(cont.PublicPortMapping)
-			} else {
-				pp = preferredPort(cont.PrivatePortMapping)
-			}
-		case r.Scheme == route.SchemeHTTPS:
-			pp = 443
-		default:
-			pp = 80
-		}
+	if ok {
+		return fmt.Errorf("route already exists: from provider %s and %s", existing.ProviderName(), r.ProviderName())
 	}
-
-	if isDocker {
-		if r.Scheme == route.SchemeNone {
-			for _, p := range cont.PublicPortMapping {
-				if int(p.PrivatePort) == pp && p.Type == "udp" {
-					r.Scheme = route.SchemeUDP
-					break
-				}
-			}
-		}
-		// replace private port with public port if using public IP.
-		if r.Host == cont.PublicHostname {
-			if p, ok := cont.PrivatePortMapping[pp]; ok {
-				pp = int(p.PublicPort)
-			}
-		} else {
-			// replace public port with private port if using private IP.
-			if p, ok := cont.PublicPortMapping[pp]; ok {
-				pp = int(p.PrivatePort)
-			}
-		}
-	}
-
-	if r.Scheme == route.SchemeNone {
-		switch {
-		case lp != 0:
-			r.Scheme = route.SchemeTCP
-		case pp%1000 == 443:
-			r.Scheme = route.SchemeHTTPS
-		default: // assume its http
-			r.Scheme = route.SchemeHTTP
-		}
-	}
-
-	switch r.Scheme {
-	case route.SchemeTCP, route.SchemeUDP:
-		if r.Bind == "" {
-			r.Bind = "0.0.0.0"
-		}
-	}
-
-	r.Port.Listening, r.Port.Proxy = lp, pp
-
-	workingState := config.WorkingState.Load()
-	if workingState == nil {
-		if common.IsTest { // in tests, working state might be nil
-			return
-		}
-		panic("bug: working state is nil")
-	}
-
-	// TODO: default value from context
-	r.HealthCheck.ApplyDefaults(workingState.Value().Defaults.HealthCheck)
-}
-
-func (r *Route) FinalizeHomepageConfig() {
-	if r.Alias == "" {
-		panic("alias is empty")
-	}
-
-	isDocker := r.Container != nil
-
-	if r.Homepage == nil {
-		r.Homepage = &homepage.ItemConfig{
-			Show: true,
-		}
-	}
-
-	if r.ShouldExclude() && isDocker {
-		r.Homepage.Show = false
-		r.Homepage.Name = r.Container.ContainerName // still show container name in metrics page
-		return
-	}
-
-	hp := r.Homepage
-	refs := r.References()
-	for _, ref := range refs {
-		meta, ok := iconlist.GetMetadata(ref)
-		if ok {
-			if hp.Name == "" {
-				hp.Name = meta.DisplayName
-			}
-			if hp.Category == "" {
-				hp.Category = meta.Tag
-			}
-			break
-		}
-	}
-
-	if hp.Name == "" {
-		hp.Name = strutils.Title(
-			strings.ReplaceAll(
-				strings.ReplaceAll(refs[0], "-", " "),
-				"_", " ",
-			),
-		)
-	}
-
-	if hp.Category == "" {
-		if homepagecfg.ActiveConfig.Load().UseDefaultCategories {
-			for _, ref := range refs {
-				if category, ok := homepage.PredefinedCategories[ref]; ok {
-					hp.Category = category
-					break
-				}
-			}
-		}
-
-		if hp.Category == "" {
-			switch {
-			case r.UseLoadBalance():
-				hp.Category = "Load-balanced"
-			case isDocker:
-				hp.Category = "Docker"
-			default:
-				hp.Category = "Others"
-			}
-		}
-	}
-}
-
-var preferredPortOrder = []int{
-	80,
-	8080,
-	3000,
-	8000,
-	443,
-	8443,
-}
-
-func preferredPort(portMapping types.PortMapping) (res int) {
-	for _, port := range preferredPortOrder {
-		if _, ok := portMapping[port]; ok {
-			return port
-		}
-	}
-	// fallback to lowest port
-	cmp := (uint16)(65535)
-	for port, v := range portMapping {
-		if v.PrivatePort < cmp {
-			cmp = v.PrivatePort
-			res = port
-		}
-	}
-	return res
+	return nil
 }

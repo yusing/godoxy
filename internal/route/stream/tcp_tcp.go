@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
 	"github.com/yusing/godoxy/internal/agentpool"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
 	"go.uber.org/atomic"

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/goutils/task"
 )
 
@@ -50,18 +50,18 @@ func (w *Watcher) Latency() time.Duration {
 }
 
 // Status implements health.HealthMonitor.
-func (w *Watcher) Status() types.HealthStatus {
+func (w *Watcher) Status() health.HealthStatus {
 	state := w.state.Load()
 	if state.err != nil {
-		return types.StatusError
+		return health.StatusError
 	}
 	if state.ready {
-		return types.StatusHealthy
+		return health.StatusHealthy
 	}
 	if state.status == idlewatcher.ContainerStatusRunning {
-		return types.StatusStarting
+		return health.StatusStarting
 	}
-	return types.StatusNapping
+	return health.StatusNapping
 }
 
 // Detail implements health.HealthMonitor.
@@ -89,10 +89,10 @@ func (w *Watcher) MarshalJSON() ([]byte, error) {
 	if err := w.error(); err != nil {
 		detail = err.Error()
 	}
-	return (&types.HealthJSONRepr{
+	return (&health.HealthJSONRepr{
 		Name:   w.Name(),
 		Status: w.Status(),
-		Config: &types.HealthCheckConfig{
+		Config: &health.HealthCheckConfig{
 			Interval: idleWakerCheckInterval,
 			Timeout:  idleWakerCheckTimeout,
 		},

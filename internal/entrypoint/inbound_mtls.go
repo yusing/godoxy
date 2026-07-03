@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -152,7 +153,7 @@ func (srv *httpServer) resolveInboundMTLSProfileForServerName(serverName string,
 	return srv.resolveInboundMTLSProfileForGlobal()
 }
 
-func (srv *httpServer) resolveInboundMTLSProfileForRoute(route types.HTTPRoute) (pool *x509.CertPool, enabled bool, err error) {
+func (srv *httpServer) resolveInboundMTLSProfileForRoute(route routing.HTTPRoute) (pool *x509.CertPool, enabled bool, err error) {
 	if route == nil {
 		return nil, false, nil
 	}

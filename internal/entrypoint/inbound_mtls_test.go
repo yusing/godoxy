@@ -19,8 +19,13 @@ import (
 	"github.com/yusing/godoxy/internal/agentpool"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/loadbalancer"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
@@ -62,25 +67,27 @@ func (r *fakeHTTPRoute) Finish(any) {
 func (r *fakeHTTPRoute) MarshalZerologObject(*zerolog.Event) {
 	// no-op: test stub
 }
-func (r *fakeHTTPRoute) ProviderName() string               { return "" }
-func (r *fakeHTTPRoute) GetProvider() types.RouteProvider   { return nil }
-func (r *fakeHTTPRoute) ListenURL() *nettypes.URL           { return r.listenURL }
-func (r *fakeHTTPRoute) TargetURL() *nettypes.URL           { return nil }
-func (r *fakeHTTPRoute) HealthMonitor() types.HealthMonitor { return nil }
-func (r *fakeHTTPRoute) SetHealthMonitor(types.HealthMonitor) {
+func (r *fakeHTTPRoute) ProviderName() string                { return "" }
+func (r *fakeHTTPRoute) GetProvider() routing.Provider       { return nil }
+func (r *fakeHTTPRoute) ListenURL() *nettypes.URL            { return r.listenURL }
+func (r *fakeHTTPRoute) TargetURL() *nettypes.URL            { return nil }
+func (r *fakeHTTPRoute) HealthMonitor() health.HealthMonitor { return nil }
+func (r *fakeHTTPRoute) SetHealthMonitor(health.HealthMonitor) {
 	// no-op: test stub
 }
-func (r *fakeHTTPRoute) References() []string                        { return nil }
-func (r *fakeHTTPRoute) ShouldExclude() bool                         { return false }
-func (r *fakeHTTPRoute) Started() <-chan struct{}                    { return nil }
-func (r *fakeHTTPRoute) IdlewatcherConfig() *types.IdlewatcherConfig { return nil }
-func (r *fakeHTTPRoute) HealthCheckConfig() types.HealthCheckConfig  { return types.HealthCheckConfig{} }
-func (r *fakeHTTPRoute) LoadBalanceConfig() *types.LoadBalancerConfig {
+func (r *fakeHTTPRoute) References() []string                   { return nil }
+func (r *fakeHTTPRoute) ShouldExclude() bool                    { return false }
+func (r *fakeHTTPRoute) Started() <-chan struct{}               { return nil }
+func (r *fakeHTTPRoute) IdlewatcherConfig() *idlewatcher.Config { return nil }
+func (r *fakeHTTPRoute) HealthCheckConfig() health.HealthCheckConfig {
+	return health.HealthCheckConfig{}
+}
+func (r *fakeHTTPRoute) LoadBalanceConfig() *loadbalancer.Config {
 	return nil
 }
 func (r *fakeHTTPRoute) HomepageItem() homepage.Item { return homepage.Item{} }
 func (r *fakeHTTPRoute) DisplayName() string         { return r.name }
-func (r *fakeHTTPRoute) ContainerInfo() *types.Container {
+func (r *fakeHTTPRoute) ContainerInfo() *docker.Container {
 	return nil
 }
 func (r *fakeHTTPRoute) GetAgent() *agentpool.Agent { return nil }
@@ -109,7 +116,7 @@ func newTestHTTPServer(t *testing.T, ep *Entrypoint) *httpServer {
 	srv = &httpServer{
 		ep:     ep,
 		addr:   common.ProxyHTTPAddr,
-		routes: pool.New[types.HTTPRoute]("test-http-routes", "test-http-routes"),
+		routes: pool.New[routing.HTTPRoute]("test-http-routes", "test-http-routes"),
 	}
 	srv.resetRouteEntrypointOverlays()
 	ep.servers.Store(common.ProxyHTTPAddr, srv)

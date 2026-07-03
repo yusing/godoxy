@@ -10,8 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/routing"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -69,7 +70,7 @@ func Items(c *gin.Context) {
 	}
 }
 
-func HomepageItems(ep entrypoint.Entrypoint, proto, hostname string, request *HomepageItemsRequest) homepage.Homepage {
+func HomepageItems(ep routing.Entrypoint, proto, hostname string, request *HomepageItemsRequest) homepage.Homepage {
 	switch proto {
 	case "http", "https":
 	default:

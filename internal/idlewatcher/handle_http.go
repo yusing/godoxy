@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	httputils "github.com/yusing/goutils/http"
 
 	_ "unsafe"

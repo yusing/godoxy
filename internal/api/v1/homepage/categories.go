@@ -4,8 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/homepage"
+	"github.com/yusing/godoxy/internal/routing"
 
 	apitypes "github.com/yusing/goutils/apitypes"
 )
@@ -30,7 +31,7 @@ func Categories(c *gin.Context) {
 	c.JSON(http.StatusOK, HomepageCategories(ep))
 }
 
-func HomepageCategories(ep entrypoint.Entrypoint) []string {
+func HomepageCategories(ep routing.Entrypoint) []string {
 	check := make(map[string]struct{})
 	categories := make([]string, 0)
 	categories = append(categories, homepage.CategoryAll)

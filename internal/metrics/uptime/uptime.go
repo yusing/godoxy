@@ -10,32 +10,32 @@ import (
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	config "github.com/yusing/godoxy/internal/config/types"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
-	"github.com/yusing/godoxy/internal/types"
 	strutils "github.com/yusing/goutils/strings"
 )
 
 type (
 	StatusByAlias struct {
-		Map       map[string]types.HealthInfoWithoutDetail `json:"statuses"`
-		Timestamp int64                                    `json:"timestamp"`
+		Map       map[string]health.HealthInfoWithoutDetail `json:"statuses"`
+		Timestamp int64                                     `json:"timestamp"`
 	} // @name RouteStatusesByAlias
 	Status struct {
-		Status    types.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
-		Latency   int32              `json:"latency"`
-		Timestamp int64              `json:"timestamp"`
+		Status    health.HealthStatus `json:"status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
+		Latency   int32               `json:"latency"`
+		Timestamp int64               `json:"timestamp"`
 	} // @name RouteStatus
 	RouteStatuses  map[string][]Status // @name RouteStatuses
 	RouteAggregate struct {
-		Alias         string             `json:"alias"`
-		Uptime        float32            `json:"uptime"`
-		Downtime      float32            `json:"downtime"`
-		Idle          float32            `json:"idle"`
-		AvgLatency    float32            `json:"avg_latency"`
-		CurrentStatus types.HealthStatus `json:"current_status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
-		Statuses      []Status           `json:"statuses"`
+		Alias         string              `json:"alias"`
+		Uptime        float32             `json:"uptime"`
+		Downtime      float32             `json:"downtime"`
+		Idle          float32             `json:"idle"`
+		AvgLatency    float32             `json:"avg_latency"`
+		CurrentStatus health.HealthStatus `json:"current_status" swaggertype:"string" enums:"healthy,unhealthy,unknown,napping,starting"`
+		Statuses      []Status            `json:"statuses"`
 	} // @name RouteUptimeAggregate
 	Aggregated []RouteAggregate
 )
@@ -94,11 +94,11 @@ func (rs RouteStatuses) calculateInfo(statuses []Status) (up float32, down float
 	latency := float32(0)
 	for _, status := range statuses {
 		// ignoring unknown; treating napping and starting as downtime
-		if status.Status == types.StatusUnknown {
+		if status.Status == health.StatusUnknown {
 			continue
 		}
 		switch {
-		case status.Status == types.StatusHealthy:
+		case status.Status == health.StatusHealthy:
 			up++
 		case status.Status.Idling():
 			idle++
@@ -133,7 +133,7 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		statuses := rs[alias]
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
-		status := types.StatusUnknown
+		status := health.StatusUnknown
 		if state := config.ActiveState.Load(); state != nil {
 			r, ok := entrypoint.FromCtx(state.Context()).GetRoute(alias)
 			if ok {

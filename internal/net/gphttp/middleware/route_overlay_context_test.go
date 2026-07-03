@@ -8,9 +8,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/agentpool"
+	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/loadbalancer"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
 )
@@ -46,31 +51,32 @@ type fakeMiddlewareHTTPRoute struct {
 	targetURL *nettypes.URL
 }
 
-func (r fakeMiddlewareHTTPRoute) Key() string                                 { return r.name }
-func (r fakeMiddlewareHTTPRoute) Name() string                                { return r.name }
-func (r fakeMiddlewareHTTPRoute) Start(task.Parent) error                     { return nil }
-func (r fakeMiddlewareHTTPRoute) Task() *task.Task                            { return nil }
-func (r fakeMiddlewareHTTPRoute) Finish(any)                                  {}
-func (r fakeMiddlewareHTTPRoute) MarshalZerologObject(*zerolog.Event)         {}
-func (r fakeMiddlewareHTTPRoute) ProviderName() string                        { return "" }
-func (r fakeMiddlewareHTTPRoute) GetProvider() types.RouteProvider            { return nil }
-func (r fakeMiddlewareHTTPRoute) ListenURL() *nettypes.URL                    { return nil }
-func (r fakeMiddlewareHTTPRoute) TargetURL() *nettypes.URL                    { return r.targetURL }
-func (r fakeMiddlewareHTTPRoute) HealthMonitor() types.HealthMonitor          { return nil }
-func (r fakeMiddlewareHTTPRoute) SetHealthMonitor(types.HealthMonitor)        {}
-func (r fakeMiddlewareHTTPRoute) References() []string                        { return nil }
-func (r fakeMiddlewareHTTPRoute) ShouldExclude() bool                         { return false }
-func (r fakeMiddlewareHTTPRoute) Started() <-chan struct{}                    { return nil }
-func (r fakeMiddlewareHTTPRoute) IdlewatcherConfig() *types.IdlewatcherConfig { return nil }
-func (r fakeMiddlewareHTTPRoute) HealthCheckConfig() types.HealthCheckConfig {
-	return types.HealthCheckConfig{}
+func (r fakeMiddlewareHTTPRoute) Key() string                            { return r.name }
+func (r fakeMiddlewareHTTPRoute) Name() string                           { return r.name }
+func (r fakeMiddlewareHTTPRoute) Start(task.Parent) error                { return nil }
+func (r fakeMiddlewareHTTPRoute) Task() *task.Task                       { return nil }
+func (r fakeMiddlewareHTTPRoute) Finish(any)                             {}
+func (r fakeMiddlewareHTTPRoute) MarshalZerologObject(*zerolog.Event)    {}
+func (r fakeMiddlewareHTTPRoute) ProviderName() string                   { return "" }
+func (r fakeMiddlewareHTTPRoute) GetProvider() routing.Provider          { return nil }
+func (r fakeMiddlewareHTTPRoute) ListenURL() *nettypes.URL               { return nil }
+func (r fakeMiddlewareHTTPRoute) TargetURL() *nettypes.URL               { return r.targetURL }
+func (r fakeMiddlewareHTTPRoute) HealthMonitor() health.HealthMonitor    { return nil }
+func (r fakeMiddlewareHTTPRoute) SetHealthMonitor(health.HealthMonitor)  {}
+func (r fakeMiddlewareHTTPRoute) References() []string                   { return nil }
+func (r fakeMiddlewareHTTPRoute) ShouldExclude() bool                    { return false }
+func (r fakeMiddlewareHTTPRoute) Started() <-chan struct{}               { return nil }
+func (r fakeMiddlewareHTTPRoute) IdlewatcherConfig() *idlewatcher.Config { return nil }
+func (r fakeMiddlewareHTTPRoute) HealthCheckConfig() health.HealthCheckConfig {
+	return health.HealthCheckConfig{}
 }
-func (r fakeMiddlewareHTTPRoute) LoadBalanceConfig() *types.LoadBalancerConfig {
+
+func (r fakeMiddlewareHTTPRoute) LoadBalanceConfig() *loadbalancer.Config {
 	return nil
 }
 func (r fakeMiddlewareHTTPRoute) HomepageItem() homepage.Item                  { return homepage.Item{} }
 func (r fakeMiddlewareHTTPRoute) DisplayName() string                          { return r.name }
-func (r fakeMiddlewareHTTPRoute) ContainerInfo() *types.Container              { return nil }
+func (r fakeMiddlewareHTTPRoute) ContainerInfo() *docker.Container             { return nil }
 func (r fakeMiddlewareHTTPRoute) InboundMTLSProfileRef() string                { return "" }
 func (r fakeMiddlewareHTTPRoute) RouteMiddlewares() map[string]types.LabelMap  { return nil }
 func (r fakeMiddlewareHTTPRoute) GetAgent() *agentpool.Agent                   { return nil }

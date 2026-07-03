@@ -61,7 +61,7 @@ type Container struct {
     PublicHostname      string
     PrivateHostname     string
     Agent               *agentpool.Agent
-    IdlewatcherConfig   *IdlewatcherConfig
+    IdlewatcherConfig   *idlewatcher.IdlewatcherConfig
 }
 ```
 
@@ -80,10 +80,12 @@ func Clients() map[string]*SharedClient
 Returns all currently connected clients. Callers must close returned clients.
 
 ```go
-func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) *types.Container
+func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) *Container
 ```
 
-Converts Docker API container summary to internal container type. Parses labels for route configuration.
+Converts a Docker API container summary to the docker package's `Container`
+metadata type. It parses labels, image metadata, port mappings, hostnames, and
+idlewatcher labels used by route providers.
 
 ```go
 func UpdatePorts(ctx context.Context, c *Container) error
@@ -302,7 +304,8 @@ Those are created by Docker Compose.
 
 - `internal/agentpool` - Agent-based Docker host connections
 - `internal/maxmind` - Container geolocation
-- `internal/types` - Container and provider types
+- `internal/docker` - Container metadata types
+- `internal/config/types` - Provider configuration types
 - `internal/task/task.go` - Lifetime management
 
 ### External dependencies

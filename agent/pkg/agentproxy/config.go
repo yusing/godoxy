@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	route "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/types"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -14,7 +14,7 @@ type Config struct {
 	Scheme string `json:"scheme,omitempty"`
 	Host   string `json:"host,omitempty"` // host or host:port
 
-	route.HTTPConfig
+	types.HTTPConfig
 }
 
 func ConfigFromHeaders(h http.Header) (Config, error) {

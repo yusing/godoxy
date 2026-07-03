@@ -15,7 +15,8 @@ import (
 	"github.com/yusing/godoxy/internal/entrypoint"
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
-	routeTypes "github.com/yusing/godoxy/internal/route/types"
+	"github.com/yusing/godoxy/internal/routetest"
+
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/reverseproxy"
 	expect "github.com/yusing/goutils/testing"
@@ -237,11 +238,11 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	expect.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	r, err := route.NewStartedTestRoute(t, &route.Route{
+	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
-		Scheme: routeTypes.SchemeHTTP,
+		Scheme: route.SchemeHTTP,
 		Host:   host,
-		Port: routeTypes.Port{
+		Port: route.Port{
 			Listening: testPort,
 			Proxy:     portInt,
 		},
@@ -290,11 +291,11 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	r, err := route.NewStartedTestRoute(t, &route.Route{
+	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
-		Scheme: routeTypes.SchemeHTTP,
+		Scheme: route.SchemeHTTP,
 		Host:   host,
-		Port: routeTypes.Port{
+		Port: route.Port{
 			Listening: testPort,
 			Proxy:     portInt,
 		},
@@ -376,11 +377,11 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 	require.NoError(t, err)
 
 	entry := entrypoint.NewTestEntrypoint(t, nil)
-	r, err := route.NewStartedTestRoute(t, &route.Route{
+	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
-		Scheme: routeTypes.SchemeHTTP,
+		Scheme: route.SchemeHTTP,
 		Host:   host,
-		Port: routeTypes.Port{
+		Port: route.Port{
 			Listening: testPort,
 			Proxy:     portInt,
 		},

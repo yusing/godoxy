@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	. "github.com/yusing/godoxy/internal/entrypoint"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/route"
-	routeTypes "github.com/yusing/godoxy/internal/route/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routetest"
 	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -23,14 +23,14 @@ func addRoute(t *testing.T, alias string) {
 	ep := entrypoint.FromCtx(task.GetTestTask(t).Context())
 	require.NotNil(t, ep)
 
-	startedRoute, err := route.NewStartedTestRoute(t, &route.Route{
+	startedRoute, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  alias,
-		Scheme: routeTypes.SchemeHTTP,
+		Scheme: route.SchemeHTTP,
 		Port: route.Port{
 			Listening: testHTTPRouteListenPort,
 			Proxy:     8080,
 		},
-		HealthCheck: types.HealthCheckConfig{
+		HealthCheck: health.HealthCheckConfig{
 			Disable: true,
 		},
 	})
@@ -298,9 +298,9 @@ func TestHealthInfoQueries(t *testing.T) {
 	t.Run("GetHealthInfo", func(t *testing.T) {
 		info := ep.GetHealthInfo()
 		expect.Equal(t, 2, len(info))
-		for _, health := range info {
-			expect.Equal(t, types.StatusUnknown, health.Status)
-			expect.Equal(t, "n/a", health.Detail)
+		for _, healthInfo := range info {
+			expect.Equal(t, health.StatusUnknown, healthInfo.Status)
+			expect.Equal(t, "n/a", healthInfo.Detail)
 		}
 	})
 
@@ -308,8 +308,8 @@ func TestHealthInfoQueries(t *testing.T) {
 	t.Run("GetHealthInfoWithoutDetail", func(t *testing.T) {
 		info := ep.GetHealthInfoWithoutDetail()
 		expect.Equal(t, 2, len(info))
-		for _, health := range info {
-			expect.Equal(t, types.StatusUnknown, health.Status)
+		for _, healthInfo := range info {
+			expect.Equal(t, health.StatusUnknown, healthInfo.Status)
 		}
 	})
 
@@ -318,7 +318,7 @@ func TestHealthInfoQueries(t *testing.T) {
 		info := ep.GetHealthInfoSimple()
 		expect.Equal(t, 2, len(info))
 		for _, status := range info {
-			expect.Equal(t, types.StatusUnknown, status)
+			expect.Equal(t, health.StatusUnknown, status)
 		}
 	})
 }

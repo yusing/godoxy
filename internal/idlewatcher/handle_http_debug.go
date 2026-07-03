@@ -7,17 +7,16 @@ import (
 	"net/http"
 	"time"
 
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
-	"github.com/yusing/godoxy/internal/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	gevents "github.com/yusing/goutils/events"
 )
 
 func DebugHandler(rw http.ResponseWriter, r *http.Request) {
 	w := &Watcher{
 		events: gevents.NewHistory(),
-		cfg: &types.IdlewatcherConfig{
-			IdlewatcherProviderConfig: types.IdlewatcherProviderConfig{
-				Docker: &types.DockerConfig{
+		cfg: &idlewatcher.Config{
+			IdlewatcherProviderConfig: idlewatcher.ProviderConfig{
+				Docker: &idlewatcher.DockerConfig{
 					ContainerName: "test",
 				},
 			},

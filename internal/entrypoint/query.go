@@ -1,14 +1,15 @@
 package entrypoint
 
 import (
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
 // GetHealthInfo returns a map of route name to health info.
 //
 // The health info is for all routes, including excluded routes.
-func (ep *Entrypoint) GetHealthInfo() map[string]types.HealthInfo {
-	healthMap := make(map[string]types.HealthInfo, ep.NumRoutes())
+func (ep *Entrypoint) GetHealthInfo() map[string]health.HealthInfo {
+	healthMap := make(map[string]health.HealthInfo, ep.NumRoutes())
 	for r := range ep.IterRoutes {
 		healthMap[r.Name()] = getHealthInfo(r)
 	}
@@ -18,8 +19,8 @@ func (ep *Entrypoint) GetHealthInfo() map[string]types.HealthInfo {
 // GetHealthInfoWithoutDetail returns a map of route name to health info without detail.
 //
 // The health info is for all routes, including excluded routes.
-func (ep *Entrypoint) GetHealthInfoWithoutDetail() map[string]types.HealthInfoWithoutDetail {
-	healthMap := make(map[string]types.HealthInfoWithoutDetail, ep.NumRoutes())
+func (ep *Entrypoint) GetHealthInfoWithoutDetail() map[string]health.HealthInfoWithoutDetail {
+	healthMap := make(map[string]health.HealthInfoWithoutDetail, ep.NumRoutes())
 	for r := range ep.IterRoutes {
 		healthMap[r.Name()] = getHealthInfoWithoutDetail(r)
 	}
@@ -29,8 +30,8 @@ func (ep *Entrypoint) GetHealthInfoWithoutDetail() map[string]types.HealthInfoWi
 // GetHealthInfoSimple returns a map of route name to health status.
 //
 // The health status is for all routes, including excluded routes.
-func (ep *Entrypoint) GetHealthInfoSimple() map[string]types.HealthStatus {
-	healthMap := make(map[string]types.HealthStatus, ep.NumRoutes())
+func (ep *Entrypoint) GetHealthInfoSimple() map[string]health.HealthStatus {
+	healthMap := make(map[string]health.HealthStatus, ep.NumRoutes())
 	for r := range ep.IterRoutes {
 		healthMap[r.Name()] = getHealthInfoSimple(r)
 	}
@@ -40,8 +41,8 @@ func (ep *Entrypoint) GetHealthInfoSimple() map[string]types.HealthStatus {
 // RoutesByProvider returns a map of provider name to routes.
 //
 // The routes are all routes, including excluded routes.
-func (ep *Entrypoint) RoutesByProvider() map[string][]types.Route {
-	rts := make(map[string][]types.Route)
+func (ep *Entrypoint) RoutesByProvider() map[string][]routing.Route {
+	rts := make(map[string][]routing.Route)
 	for r := range ep.IterRoutes {
 		providerName := r.ProviderName()
 		rts[providerName] = append(rts[providerName], r)
@@ -49,18 +50,18 @@ func (ep *Entrypoint) RoutesByProvider() map[string][]types.Route {
 	return rts
 }
 
-func getHealthInfo(r types.Route) types.HealthInfo {
+func getHealthInfo(r routing.Route) health.HealthInfo {
 	mon := r.HealthMonitor()
 	if mon == nil {
-		return types.HealthInfo{
-			HealthInfoWithoutDetail: types.HealthInfoWithoutDetail{
-				Status: types.StatusUnknown,
+		return health.HealthInfo{
+			HealthInfoWithoutDetail: health.HealthInfoWithoutDetail{
+				Status: health.StatusUnknown,
 			},
 			Detail: "n/a",
 		}
 	}
-	return types.HealthInfo{
-		HealthInfoWithoutDetail: types.HealthInfoWithoutDetail{
+	return health.HealthInfo{
+		HealthInfoWithoutDetail: health.HealthInfoWithoutDetail{
 			Status:  mon.Status(),
 			Uptime:  mon.Uptime(),
 			Latency: mon.Latency(),
@@ -69,24 +70,24 @@ func getHealthInfo(r types.Route) types.HealthInfo {
 	}
 }
 
-func getHealthInfoWithoutDetail(r types.Route) types.HealthInfoWithoutDetail {
+func getHealthInfoWithoutDetail(r routing.Route) health.HealthInfoWithoutDetail {
 	mon := r.HealthMonitor()
 	if mon == nil {
-		return types.HealthInfoWithoutDetail{
-			Status: types.StatusUnknown,
+		return health.HealthInfoWithoutDetail{
+			Status: health.StatusUnknown,
 		}
 	}
-	return types.HealthInfoWithoutDetail{
+	return health.HealthInfoWithoutDetail{
 		Status:  mon.Status(),
 		Uptime:  mon.Uptime(),
 		Latency: mon.Latency(),
 	}
 }
 
-func getHealthInfoSimple(r types.Route) types.HealthStatus {
+func getHealthInfoSimple(r routing.Route) health.HealthStatus {
 	mon := r.HealthMonitor()
 	if mon == nil {
-		return types.StatusUnknown
+		return health.StatusUnknown
 	}
 	return mon.Status()
 }

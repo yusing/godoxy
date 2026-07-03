@@ -6,8 +6,7 @@ import (
 	"iter"
 	"net/http"
 
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
@@ -22,13 +21,13 @@ type State interface {
 
 	Value() *Config
 
-	Entrypoint() entrypoint.Entrypoint
+	Entrypoint() routing.Entrypoint
 	ShortLinkMatcher() ShortLinkMatcher
 	AutoCertProvider() server.CertProvider
 
-	LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool)
+	LoadOrStoreProvider(key string, value routing.Provider) (actual routing.Provider, loaded bool)
 	DeleteProvider(key string)
-	IterProviders() iter.Seq2[string, types.RouteProvider]
+	IterProviders() iter.Seq2[string, routing.Provider]
 	NumProviders() int
 	StartProviders() error
 

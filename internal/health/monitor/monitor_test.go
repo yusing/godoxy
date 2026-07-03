@@ -10,8 +10,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/notif"
-	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/task"
 )
 
@@ -30,7 +30,7 @@ func (t *testNotificationTracker) getStats() (up, down int, last string) {
 }
 
 // Create test monitor with mock health checker - returns both monitor and tracker
-func createTestMonitor(config types.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
+func createTestMonitor(config health.HealthCheckConfig, checkFunc HealthCheckFunc) (*monitor, *testNotificationTracker) {
 	testURL, _ := url.Parse("http://localhost:8080")
 
 	var mon monitor
@@ -59,14 +59,14 @@ func createTestMonitor(config types.HealthCheckConfig, checkFunc HealthCheckFunc
 }
 
 func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  -1, // Immediate notification
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start with healthy service
@@ -75,8 +75,8 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 	require.True(t, result.Healthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// Simulate status change detection
@@ -84,7 +84,7 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 	require.NoError(t, err)
 
 	// With NotifyAfter=0, notification should happen immediately
-	require.Equal(t, types.StatusUnhealthy, mon.Status())
+	require.Equal(t, health.StatusUnhealthy, mon.Status())
 
 	// Check notification counts - should have 1 down notification
 	up, down, last := tracker.getStats()
@@ -94,22 +94,22 @@ func TestNotification_ImmediateNotifyAfterZero(t *testing.T) {
 }
 
 func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 50 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(types.StatusHealthy)
+	mon.status.Store(health.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure - should not notify yet
@@ -133,22 +133,22 @@ func TestNotification_WithNotifyAfterThreshold(t *testing.T) {
 }
 
 func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  3, // Notify after 3 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(types.StatusHealthy)
+	mon.status.Store(health.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure
@@ -165,8 +165,8 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 	require.Equal(t, 0, up)
 
 	// Service recovers before third failure
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	}
 
 	// Health check with recovery
@@ -182,22 +182,22 @@ func TestNotification_ServiceRecoversBeforeThreshold(t *testing.T) {
 }
 
 func TestNotification_ConsecutiveFailureReset(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2, // Notify after 2 consecutive failures
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Start healthy
-	mon.status.Store(types.StatusHealthy)
+	mon.status.Store(health.StatusHealthy)
 
 	// Set to unhealthy
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure
@@ -205,8 +205,8 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.NoError(t, err)
 
 	// Recover briefly
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	}
 
 	err = mon.checkUpdateHealth()
@@ -219,8 +219,8 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 	require.Equal(t, 0, up)
 
 	// Go down again - consecutive counter should start from 0
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// First failure after recovery
@@ -244,14 +244,14 @@ func TestNotification_ConsecutiveFailureReset(t *testing.T) {
 }
 
 func TestNotification_ContextCancellation(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  1,
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	// Create a task that we can cancel
@@ -259,9 +259,9 @@ func TestNotification_ContextCancellation(t *testing.T) {
 	mon.task = rootTask.Subtask("monitor", true)
 
 	// Start healthy, then go unhealthy
-	mon.status.Store(types.StatusHealthy)
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon.status.Store(health.StatusHealthy)
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	}
 
 	// Trigger notification
@@ -303,23 +303,23 @@ func TestCheckHealthAgentProxiedReturnsUnhealthyForInvalidURL(t *testing.T) {
 }
 
 func TestImmediateUpNotificationAfterDownNotification(t *testing.T) {
-	config := types.HealthCheckConfig{
+	config := health.HealthCheckConfig{
 		Interval: 100 * time.Millisecond,
 		Timeout:  50 * time.Millisecond,
 		Retries:  2,
 	}
 
-	mon, tracker := createTestMonitor(config, func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: false}, nil
+	mon, tracker := createTestMonitor(config, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
 	})
 
 	// Start unhealthy
-	mon.status.Store(types.StatusUnhealthy)
+	mon.status.Store(health.StatusUnhealthy)
 	mon.downNotificationSent.Store(true)
 
 	// Set to healthy
-	mon.checkHealth = func(u *url.URL) (types.HealthCheckResult, error) {
-		return types.HealthCheckResult{Healthy: true, Latency: 50 * time.Millisecond}, nil
+	mon.checkHealth = func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: true, Latency: 50 * time.Millisecond}, nil
 	}
 
 	// Trigger health check
@@ -327,7 +327,7 @@ func TestImmediateUpNotificationAfterDownNotification(t *testing.T) {
 	require.NoError(t, err)
 
 	// Up notification should happen immediately once a prior down notification exists.
-	require.Equal(t, types.StatusHealthy, mon.Status())
+	require.Equal(t, health.StatusHealthy, mon.Status())
 
 	// Should have exactly 1 up notification immediately
 	up, down, last := tracker.getStats()
@@ -346,12 +346,12 @@ func TestMonitorStartCancelsDuringJitterDelay(t *testing.T) {
 	})
 
 	var checks atomic.Int32
-	mon, _ := createTestMonitor(types.HealthCheckConfig{
+	mon, _ := createTestMonitor(health.HealthCheckConfig{
 		Interval: 50 * time.Millisecond,
 		Timeout:  10 * time.Millisecond,
-	}, func(u *url.URL) (types.HealthCheckResult, error) {
+	}, func(u *url.URL) (health.HealthCheckResult, error) {
 		checks.Add(1)
-		return types.HealthCheckResult{Healthy: true}, nil
+		return health.HealthCheckResult{Healthy: true}, nil
 	})
 
 	rootTask := task.RootTask("test", true)

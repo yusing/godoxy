@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
-	"github.com/yusing/godoxy/internal/types"
+	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
 )
 
-type HealthMap = map[string]types.HealthInfoWithoutDetail // @name HealthMap
+type HealthMap = map[string]health.HealthInfoWithoutDetail // @name HealthMap
 
 // @x-id				"health"
 // @BasePath		/api/v1

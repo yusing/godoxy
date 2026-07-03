@@ -1,7 +1,5 @@
 package docker
 
-import "github.com/yusing/godoxy/internal/types"
-
 var imageBlacklist = map[string]struct{}{
 	// pure databases without UI
 	"postgres":  {},
@@ -47,7 +45,7 @@ var authorBlacklist = map[string]struct{}{
 	"docker": {},
 }
 
-func IsBlacklistedImage(image *types.ContainerImage) bool {
+func IsBlacklistedImage(image *Image) bool {
 	_, ok := imageBlacklist[image.Name]
 	if ok {
 		return true

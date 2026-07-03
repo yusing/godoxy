@@ -4,7 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	"github.com/yusing/godoxy/internal/health"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/types"
 )
@@ -15,10 +16,10 @@ type server struct {
 	weight int
 
 	http.Handler `json:"-"`
-	types.HealthMonitor
+	health.HealthMonitor
 }
 
-func NewServer(name string, url *nettypes.URL, weight int, handler http.Handler, healthMon types.HealthMonitor) types.LoadBalancerServer {
+func NewServer(name string, url *nettypes.URL, weight int, handler http.Handler, healthMon health.HealthMonitor) types.LoadBalancerServer {
 	srv := &server{
 		name:          name,
 		url:           url,

@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/proxmox"
-	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -60,11 +59,11 @@ func (p *ProxmoxProvider) ContainerStart(ctx context.Context) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCStart)
 }
 
-func (p *ProxmoxProvider) ContainerStop(ctx context.Context, _ types.ContainerSignal, _ int) error {
+func (p *ProxmoxProvider) ContainerStop(ctx context.Context, _ idlewatcher.ContainerSignal, _ int) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCShutdown)
 }
 
-func (p *ProxmoxProvider) ContainerKill(ctx context.Context, _ types.ContainerSignal) error {
+func (p *ProxmoxProvider) ContainerKill(ctx context.Context, _ idlewatcher.ContainerSignal) error {
 	return p.LXCAction(ctx, p.vmid, proxmox.LXCShutdown)
 }
 

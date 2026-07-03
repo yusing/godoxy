@@ -78,27 +78,21 @@ definitions:
       labels:
         additionalProperties:
           type: string
-        description: for displaying in UI
         type: object
       mounts:
         additionalProperties:
           type: string
-        description: source:destination
         type: object
       network:
         type: string
       private_hostname:
         type: string
       private_ports:
-        allOf:
-        - $ref: '#/definitions/types.PortMapping'
-        description: privatePort:types.Port
+        $ref: '#/definitions/docker.PortMapping'
       public_hostname:
         type: string
       public_ports:
-        allOf:
-        - $ref: '#/definitions/types.PortMapping'
-        description: non-zero publicPort:types.Port
+        $ref: '#/definitions/docker.PortMapping'
       running:
         type: boolean
       state:
@@ -673,10 +667,10 @@ definitions:
     - iphash
     type: string
     x-enum-varnames:
-    - LoadbalanceModeUnset
-    - LoadbalanceModeRoundRobin
-    - LoadbalanceModeLeastConn
-    - LoadbalanceModeIPHash
+    - ModeUnset
+    - ModeRoundRobin
+    - ModeLeastConn
+    - ModeIPHash
   LogFilter-CIDR:
     properties:
       negative:
@@ -976,6 +970,17 @@ definitions:
       agent:
         type: string
       alias:
+        description: |-
+          Alias is route lookup key.
+
+          Supported HTTP host-match forms:
+            - short alias: "app"
+            - FQDN alias: "app.example.com"
+            - leading-label wildcard alias: "*.example.com"
+
+          Wildcard aliases match exactly one leftmost label and are checked only
+          after normal exact/domain lookup misses, preserving the fast path for
+          exact routes.
         type: string
       bind:
         type: string
@@ -1675,6 +1680,10 @@ definitions:
       used_percent:
         type: number
     type: object
+  docker.PortMapping:
+    additionalProperties:
+      $ref: '#/definitions/container.Port'
+    type: object
   dockerapi.RestartRequest:
     properties:
       id:
@@ -1878,10 +1887,6 @@ definitions:
     - Hour
   types.LabelMap:
     additionalProperties: {}
-    type: object
-  types.PortMapping:
-    additionalProperties:
-      $ref: '#/definitions/container.Port'
     type: object
   widgets.Config:
     properties:

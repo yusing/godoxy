@@ -7,10 +7,10 @@ import (
 	"strconv"
 
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 )
 
-func (ep *Entrypoint) IterRoutes(yield func(r types.Route) bool) {
+func (ep *Entrypoint) IterRoutes(yield func(r routing.Route) bool) {
 	for _, r := range ep.HTTPRoutes().Iter {
 		if !yield(r) {
 			return
@@ -32,7 +32,7 @@ func (ep *Entrypoint) NumRoutes() int {
 	return ep.HTTPRoutes().Size() + ep.streamRoutes.Size() + ep.excludedRoutes.Size()
 }
 
-func (ep *Entrypoint) GetRoute(alias string) (types.Route, bool) {
+func (ep *Entrypoint) GetRoute(alias string) (routing.Route, bool) {
 	if r, ok := ep.HTTPRoutes().Get(alias); ok {
 		return r, true
 	}
@@ -45,7 +45,7 @@ func (ep *Entrypoint) GetRoute(alias string) (types.Route, bool) {
 	return nil, false
 }
 
-func (ep *Entrypoint) StartAddRoute(r types.Route) error {
+func (ep *Entrypoint) StartAddRoute(r routing.Route) error {
 	if r.ShouldExclude() {
 		ep.excludedRoutes.Add(r)
 		r.Task().OnCancel("remove_route", func() {
@@ -54,7 +54,7 @@ func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 		return nil
 	}
 	switch r := r.(type) {
-	case types.HTTPRoute:
+	case routing.HTTPRoute:
 		if err := ep.AddHTTPRoute(r); err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 			ep.delHTTPRoute(r)
 			ep.shortLinkMatcher.DelRoute(r.Key())
 		})
-	case types.StreamRoute:
+	case routing.StreamRoute:
 		if asSNIRoute(r) {
 			if !common.SNIRoutingForTCPRoutes {
 				return fmt.Errorf("route %q listens on the shared HTTPS listener, but TCP SNI routing is disabled", r.Name())
@@ -96,7 +96,7 @@ func (ep *Entrypoint) StartAddRoute(r types.Route) error {
 	return nil
 }
 
-func getAddr(route types.HTTPRoute) (httpAddr, httpsAddr string) {
+func getAddr(route routing.HTTPRoute) (httpAddr, httpsAddr string) {
 	if port := route.ListenURL().Port(); port == "" || port == "0" {
 		host := route.ListenURL().Hostname()
 		if host == "" {
@@ -116,7 +116,7 @@ func getAddr(route types.HTTPRoute) (httpAddr, httpsAddr string) {
 // AddHTTPRoute adds a HTTP route to the entrypoint's server.
 //
 // If the server does not exist, it will be created, started and return any error.
-func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
+func (ep *Entrypoint) AddHTTPRoute(route routing.HTTPRoute) error {
 	httpAddr, httpsAddr := getAddr(route)
 	var httpErr, httpsErr error
 	if httpAddr != "" {
@@ -128,11 +128,11 @@ func (ep *Entrypoint) AddHTTPRoute(route types.HTTPRoute) error {
 	return errors.Join(httpErr, httpsErr)
 }
 
-func (ep *Entrypoint) addHTTPRoute(route types.HTTPRoute, addr string, proto HTTPProto) error {
+func (ep *Entrypoint) addHTTPRoute(route routing.HTTPRoute, addr string, proto HTTPProto) error {
 	return ep.addHTTPRouteWithListener(route, addr, proto, nil)
 }
 
-func (ep *Entrypoint) addHTTPRouteWithListener(route types.HTTPRoute, addr string, proto HTTPProto, listener net.Listener) error {
+func (ep *Entrypoint) addHTTPRouteWithListener(route routing.HTTPRoute, addr string, proto HTTPProto, listener net.Listener) error {
 	var err error
 	srv, _ := ep.servers.LoadOrCompute(addr, func() (newSrv *httpServer, cancel bool) {
 		newSrv = newHTTPServer(ep)
@@ -148,7 +148,7 @@ func (ep *Entrypoint) addHTTPRouteWithListener(route types.HTTPRoute, addr strin
 	return nil
 }
 
-func (ep *Entrypoint) delHTTPRoute(route types.HTTPRoute) {
+func (ep *Entrypoint) delHTTPRoute(route routing.HTTPRoute) {
 	httpAddr, httpsAddr := getAddr(route)
 	if httpAddr != "" {
 		srv, _ := ep.servers.Load(httpAddr)

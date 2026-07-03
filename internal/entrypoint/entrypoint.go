@@ -10,20 +10,19 @@ import (
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/rules"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 )
 
 type HTTPRoutes interface {
-	Get(alias string) (types.HTTPRoute, bool)
+	Get(alias string) (routing.HTTPRoute, bool)
 }
 
-type findRouteFunc func(HTTPRoutes, string) types.HTTPRoute
+type findRouteFunc func(HTTPRoutes, string) routing.HTTPRoute
 type findRouteKeyFunc func(string, func(string) bool) (string, bool)
 
 type Entrypoint struct {
@@ -38,8 +37,8 @@ type Entrypoint struct {
 	findRouteKeyFunc findRouteKeyFunc
 	shortLinkMatcher *ShortLinkMatcher
 
-	streamRoutes   *pool.Pool[types.StreamRoute]
-	excludedRoutes *pool.Pool[types.Route]
+	streamRoutes   *pool.Pool[routing.StreamRoute]
+	excludedRoutes *pool.Pool[routing.Route]
 
 	// this only affects future http servers creation
 	httpPoolDisableLog atomic.Bool
@@ -51,7 +50,7 @@ type Entrypoint struct {
 	inboundMTLSProfiles map[string]*x509.CertPool
 }
 
-var _ entrypoint.Entrypoint = &Entrypoint{}
+var _ routing.Entrypoint = &Entrypoint{}
 
 var emptyCfg Config
 
@@ -60,7 +59,7 @@ func NewTestEntrypoint(tb testing.TB, cfg *Config) *Entrypoint {
 
 	testTask := task.GetTestTask(tb)
 	ep := NewEntrypoint(testTask, cfg)
-	entrypoint.SetCtx(testTask, ep)
+	SetCtx(testTask, ep)
 	return ep
 }
 
@@ -75,8 +74,8 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 		findRouteFunc:       findRouteAnyDomain,
 		findRouteKeyFunc:    findRouteKeyAnyDomain,
 		shortLinkMatcher:    newShortLinkMatcher(),
-		streamRoutes:        pool.New[types.StreamRoute]("stream_routes", "stream_routes"),
-		excludedRoutes:      pool.New[types.Route]("excluded_routes", "excluded_routes"),
+		streamRoutes:        pool.New[routing.StreamRoute]("stream_routes", "stream_routes"),
+		excludedRoutes:      pool.New[routing.Route]("excluded_routes", "excluded_routes"),
 		servers:             xsync.NewMap[string, *httpServer](),
 		inboundMTLSProfiles: make(map[string]*x509.CertPool),
 	}
@@ -107,15 +106,15 @@ func (ep *Entrypoint) ShortLinkMatcher() *ShortLinkMatcher {
 	return ep.shortLinkMatcher
 }
 
-func (ep *Entrypoint) HTTPRoutes() entrypoint.PoolLike[types.HTTPRoute] {
+func (ep *Entrypoint) HTTPRoutes() routing.PoolLike[routing.HTTPRoute] {
 	return newHTTPPoolAdapter(ep)
 }
 
-func (ep *Entrypoint) StreamRoutes() entrypoint.PoolLike[types.StreamRoute] {
+func (ep *Entrypoint) StreamRoutes() routing.PoolLike[routing.StreamRoute] {
 	return ep.streamRoutes
 }
 
-func (ep *Entrypoint) ExcludedRoutes() entrypoint.RWPoolLike[types.Route] {
+func (ep *Entrypoint) ExcludedRoutes() routing.RWPoolLike[routing.Route] {
 	return ep.excludedRoutes
 }
 
@@ -187,7 +186,7 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 	return nil
 }
 
-func findRouteAnyDomain(routes HTTPRoutes, host string) types.HTTPRoute {
+func findRouteAnyDomain(routes HTTPRoutes, host string) routing.HTTPRoute {
 	before, _, ok := strings.Cut(host, ".")
 	if ok {
 		target := before
@@ -224,8 +223,8 @@ func findRouteKeyAnyDomain(host string, exists func(string) bool) (string, bool)
 	return "", false
 }
 
-func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) types.HTTPRoute {
-	return func(routes HTTPRoutes, host string) types.HTTPRoute {
+func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) routing.HTTPRoute {
+	return func(routes HTTPRoutes, host string) routing.HTTPRoute {
 		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok {

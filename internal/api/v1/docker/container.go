@@ -28,7 +28,7 @@ func GetContainer(c *gin.Context) {
 		return
 	}
 
-	dockerCfg, ok := docker.GetDockerCfgByContainerID(id)
+	dockerCfg, ok := docker.LookupContainerConfig(id)
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("container not found"))
 		return

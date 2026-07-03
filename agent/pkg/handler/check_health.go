@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yusing/godoxy/internal/health"
 	healthcheck "github.com/yusing/godoxy/internal/health/check"
-	"github.com/yusing/godoxy/internal/types"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -23,7 +23,7 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	timeout := parseMsOrDefault(query.Get("timeout"))
 
 	var (
-		result types.HealthCheckResult
+		result health.HealthCheckResult
 		err    error
 	)
 	switch scheme {
@@ -78,12 +78,12 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 
 func parseMsOrDefault(msStr string) time.Duration {
 	if msStr == "" {
-		return types.HealthCheckTimeoutDefault
+		return health.HealthCheckTimeoutDefault
 	}
 
 	timeoutMs, _ := strconv.ParseInt(msStr, 10, 64)
 	if timeoutMs == 0 {
-		return types.HealthCheckTimeoutDefault
+		return health.HealthCheckTimeoutDefault
 	}
 
 	return time.Duration(timeoutMs) * time.Millisecond

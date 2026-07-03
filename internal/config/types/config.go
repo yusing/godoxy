@@ -9,6 +9,7 @@ import (
 	"github.com/yusing/godoxy/internal/acl"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/godoxy/internal/health"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -31,7 +32,7 @@ type (
 		TimeoutShutdown     int                                 `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Defaults struct {
-		HealthCheck types.HealthCheckConfig `json:"healthcheck"`
+		HealthCheck health.HealthCheckConfig `json:"healthcheck"`
 	}
 	Providers struct {
 		Files        []string                              `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`

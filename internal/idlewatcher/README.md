@@ -32,7 +32,7 @@ type Watcher struct {
     // Embedded route helper for proxy/stream/health
     routeHelper
 
-    cfg *types.IdlewatcherConfig
+    cfg *runtime.Config
 
     // Thread-safe state containers
     provider    synk.Value[idlewatcher.Provider]
@@ -64,7 +64,7 @@ type WakeEvent struct {
 
 ```go
 // NewWatcher creates or reuses a watcher for the given route and config
-func NewWatcher(parent task.Parent, r types.Route, cfg *types.IdlewatcherConfig) (*Watcher, error)
+func NewWatcher(parent task.Parent, r routing.Route, cfg *runtime.Config) (*Watcher, error)
 
 // Wake wakes the container, blocking until ready
 func (w *Watcher) Wake(ctx context.Context) error
@@ -166,10 +166,10 @@ stateDiagram-v2
 
 ## Configuration Surface
 
-Configuration is defined in `types.IdlewatcherConfig`:
+Configuration is defined in `internal/idlewatcher/runtime.Config`:
 
 ```go
-type IdlewatcherConfig struct {
+type Config struct {
     IdlewatcherConfigBase
     Docker  *types.DockerProviderConfig  // Exactly one required
     Proxmox *types.ProxmoxProviderConfig // Exactly one required
@@ -177,8 +177,8 @@ type IdlewatcherConfig struct {
 
 type IdlewatcherConfigBase struct {
     IdleTimeout  time.Duration          // Duration before container is stopped
-    StopMethod   types.ContainerMethod  // pause, stop, or kill
-    StopSignal   types.ContainerSignal  // Signal to send
+    StopMethod   runtime.ContainerStopMethod  // pause, stop, or kill
+    StopSignal   runtime.ContainerSignal      // Signal to send
     StopTimeout  int                    // Timeout in seconds
     WakeTimeout  time.Duration          // Max time to wait for wake
     DependsOn    []string               // Container dependencies
@@ -254,10 +254,10 @@ No metrics exposed directly; health check metrics available via `internal/health
 ```go
 route := &route.Route{
     Alias: "myapp",
-    Idlewatcher: &types.IdlewatcherConfig{
-        IdlewatcherConfigBase: types.IdlewatcherConfigBase{
+    Idlewatcher: &runtime.Config{
+        IdlewatcherConfigBase: runtime.IdlewatcherConfigBase{
             IdleTimeout: 5 * time.Minute,
-            StopMethod:  types.ContainerMethodStop,
+            StopMethod:  runtime.ContainerStopMethodStop,
             StopTimeout: 30,
         },
         Docker: &types.DockerProviderConfig{

@@ -3445,7 +3445,6 @@
           "x-omitempty": false
         },
         "labels": {
-          "description": "for displaying in UI",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -3454,7 +3453,6 @@
           "x-omitempty": false
         },
         "mounts": {
-          "description": "source:destination",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -3473,12 +3471,7 @@
           "x-omitempty": false
         },
         "private_ports": {
-          "description": "privatePort:types.Port",
-          "allOf": [
-            {
-              "$ref": "#/definitions/types.PortMapping"
-            }
-          ],
+          "$ref": "#/definitions/docker.PortMapping",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -3488,12 +3481,7 @@
           "x-omitempty": false
         },
         "public_ports": {
-          "description": "non-zero publicPort:types.Port",
-          "allOf": [
-            {
-              "$ref": "#/definitions/types.PortMapping"
-            }
-          ],
+          "$ref": "#/definitions/docker.PortMapping",
           "x-nullable": false,
           "x-omitempty": false
         },
@@ -4710,10 +4698,10 @@
         "iphash"
       ],
       "x-enum-varnames": [
-        "LoadbalanceModeUnset",
-        "LoadbalanceModeRoundRobin",
-        "LoadbalanceModeLeastConn",
-        "LoadbalanceModeIPHash"
+        "ModeUnset",
+        "ModeRoundRobin",
+        "ModeLeastConn",
+        "ModeIPHash"
       ],
       "x-nullable": false,
       "x-omitempty": false
@@ -5347,6 +5335,7 @@
           "x-omitempty": false
         },
         "alias": {
+          "description": "Alias is route lookup key.\n\nSupported HTTP host-match forms:\n  - short alias: \"app\"\n  - FQDN alias: \"app.example.com\"\n  - leading-label wildcard alias: \"*.example.com\"\n\nWildcard aliases match exactly one leftmost label and are checked only\nafter normal exact/domain lookup misses, preserving the fast path for\nexact routes.",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
@@ -6684,6 +6673,14 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "docker.PortMapping": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/container.Port"
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "dockerapi.RestartRequest": {
       "type": "object",
       "required": [
@@ -7014,14 +7011,6 @@
     "types.LabelMap": {
       "type": "object",
       "additionalProperties": {},
-      "x-nullable": false,
-      "x-omitempty": false
-    },
-    "types.PortMapping": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/container.Port"
-      },
       "x-nullable": false,
       "x-omitempty": false
     },

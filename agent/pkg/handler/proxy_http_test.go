@@ -14,7 +14,6 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/godoxy/agent/pkg/handler"
-	route "github.com/yusing/godoxy/internal/route/types"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -44,9 +43,8 @@ func TestProxyHTTPH2C(t *testing.T) {
 	)
 	req.Header.Set("Content-Type", "application/grpc+proto")
 	(&agentproxy.Config{
-		Scheme:     "h2c",
-		Host:       backendURL.Host,
-		HTTPConfig: route.HTTPConfig{},
+		Scheme: "h2c",
+		Host:   backendURL.Host,
 	}).SetAgentProxyConfigHeaders(req.Header)
 
 	rec := httptest.NewRecorder()

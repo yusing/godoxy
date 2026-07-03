@@ -13,8 +13,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/notif"
-	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/events"
 	strutils "github.com/yusing/goutils/strings"
 	"github.com/yusing/goutils/synk"
@@ -22,18 +22,16 @@ import (
 )
 
 type (
-	DisplayNameKey struct{}
-
-	HealthCheckFunc func(url *url.URL) (result types.HealthCheckResult, err error)
+	HealthCheckFunc func(url *url.URL) (result health.HealthCheckResult, err error)
 	monitor         struct {
 		service string
-		config  types.HealthCheckConfig
+		config  health.HealthCheckConfig
 		url     synk.Value[*url.URL]
 
 		onUpdateURL func(url *url.URL)
 
-		status     synk.Value[types.HealthStatus]
-		lastResult synk.Value[types.HealthCheckResult]
+		status     synk.Value[health.HealthStatus]
+		lastResult synk.Value[health.HealthCheckResult]
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
@@ -52,18 +50,18 @@ var healthMonitorJitterDelay = func() time.Duration {
 	return time.Duration(rand.Intn(10)) * time.Second
 }
 
-func (mon *monitor) init(u *url.URL, cfg types.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
+func (mon *monitor) init(u *url.URL, cfg health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
 	if state := config.WorkingState.Load(); state != nil {
 		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
 	} else {
-		cfg.ApplyDefaults(types.HealthCheckConfig{}) // use defaults from constants
+		cfg.ApplyDefaults(health.HealthCheckConfig{}) // use defaults from constants
 	}
 	mon.config = cfg
 	mon.checkHealth = healthCheckFunc
 	mon.startTime = time.Now()
 	mon.notifyFunc = notif.Notify
-	mon.status.Store(types.StatusHealthy)
-	mon.lastResult.Store(types.HealthCheckResult{Healthy: true, Detail: "started"})
+	mon.status.Store(health.StatusHealthy)
+	mon.lastResult.Store(health.HealthCheckResult{Healthy: true, Detail: "started"})
 
 	if u == nil {
 		mon.url.Store(&url.URL{})
@@ -82,7 +80,7 @@ func (mon *monitor) Context() context.Context {
 	return context.Background()
 }
 
-func (mon *monitor) CheckHealth() (types.HealthCheckResult, error) {
+func (mon *monitor) CheckHealth() (health.HealthCheckResult, error) {
 	return mon.checkHealth(mon.url.Load())
 }
 
@@ -95,7 +93,7 @@ func (mon *monitor) Start(parent task.Parent) error {
 	mon.task = parent.Subtask("health_monitor", true)
 
 	mon.service = parent.Name()
-	if displayName, ok := parent.GetValue(DisplayNameKey{}).(string); ok {
+	if displayName, ok := parent.GetValue(health.DisplayNameKey{}).(string); ok {
 		mon.service = displayName
 	}
 
@@ -103,8 +101,8 @@ func (mon *monitor) Start(parent task.Parent) error {
 		logger := log.With().Str("name", mon.service).Logger()
 
 		defer func() {
-			if mon.status.Load() != types.StatusError {
-				mon.status.Store(types.StatusUnhealthy)
+			if mon.status.Load() != health.StatusError {
+				mon.status.Store(health.StatusUnhealthy)
 			}
 			mon.task.Finish(nil)
 		}()
@@ -144,7 +142,7 @@ func (mon *monitor) Start(parent task.Parent) error {
 					failures = 0
 				}
 				if failures >= 5 {
-					mon.status.Store(types.StatusError)
+					mon.status.Store(health.StatusError)
 					mon.task.Finish(err)
 					logger.Error().Msg("healthchecker stopped after 5 trials")
 					return
@@ -185,12 +183,12 @@ func (mon *monitor) URL() *url.URL {
 }
 
 // Config implements HealthChecker.
-func (mon *monitor) Config() *types.HealthCheckConfig {
+func (mon *monitor) Config() *health.HealthCheckConfig {
 	return &mon.config
 }
 
 // Status implements HealthMonitor.
-func (mon *monitor) Status() types.HealthStatus {
+func (mon *monitor) Status() health.HealthStatus {
 	return mon.status.Load()
 }
 
@@ -225,7 +223,7 @@ func (mon *monitor) String() string {
 // MarshalJSON implements health.HealthMonitor.
 func (mon *monitor) MarshalJSON() ([]byte, error) {
 	res := mon.lastResult.Load()
-	return (&types.HealthJSONRepr{
+	return (&health.HealthJSONRepr{
 		Name:     mon.service,
 		Config:   &mon.config,
 		Status:   mon.status.Load(),
@@ -242,21 +240,21 @@ func (mon *monitor) checkUpdateHealth() error {
 	logger := log.With().Str("name", mon.Name()).Logger()
 	result, err := mon.checkHealth(mon.url.Load())
 
-	var lastStatus types.HealthStatus
+	var lastStatus health.HealthStatus
 	switch {
 	case err != nil:
-		result = types.HealthCheckResult{Healthy: false, Detail: err.Error()}
-		lastStatus = mon.status.Swap(types.StatusError)
+		result = health.HealthCheckResult{Healthy: false, Detail: err.Error()}
+		lastStatus = mon.status.Swap(health.StatusError)
 	case result.Healthy:
-		lastStatus = mon.status.Swap(types.StatusHealthy)
+		lastStatus = mon.status.Swap(health.StatusHealthy)
 		UpdateLastSeen(mon.service)
 	default:
-		lastStatus = mon.status.Swap(types.StatusUnhealthy)
+		lastStatus = mon.status.Swap(health.StatusUnhealthy)
 	}
 	mon.lastResult.Store(result)
 
 	// change of status
-	if result.Healthy != (lastStatus == types.StatusHealthy) {
+	if result.Healthy != (lastStatus == health.StatusHealthy) {
 		if result.Healthy {
 			mon.numConsecFailures.Store(0)
 			if mon.downNotificationSent.Load() { // Only notify if the service down has been notified
@@ -282,7 +280,7 @@ func (mon *monitor) checkUpdateHealth() error {
 	return err
 }
 
-func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *types.HealthCheckResult) {
+func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *health.HealthCheckResult) {
 	logger.Info().Msg("service is up")
 	extras := mon.buildNotificationExtras(result)
 	extras.Add("Ping", fmt.Sprintf("%d ms", result.Latency.Milliseconds()))
@@ -295,7 +293,7 @@ func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *types.Health
 	events.Global.Add(events.NewEvent(events.LevelInfo, "health", "service_up", mon))
 }
 
-func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *types.HealthCheckResult) {
+func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *health.HealthCheckResult) {
 	logger.Warn().Str("detail", result.Detail).Msg("service went down")
 	extras := mon.buildNotificationExtras(result)
 	extras.Add("Last Seen", strutils.FormatLastSeen(GetLastSeen(mon.service)))
@@ -308,7 +306,7 @@ func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *types.Heal
 	events.Global.Add(events.NewEvent(events.LevelWarn, "health", "service_down", mon))
 }
 
-func (mon *monitor) buildNotificationExtras(result *types.HealthCheckResult) notif.FieldsBody {
+func (mon *monitor) buildNotificationExtras(result *health.HealthCheckResult) notif.FieldsBody {
 	extras := notif.FieldsBody{
 		{Name: "Service Name", Value: mon.service},
 		{Name: "Time", Value: strutils.FormatTime(time.Now())},

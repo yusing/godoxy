@@ -1,317 +1,92 @@
 # internal/health/monitor
 
-Route health monitoring with configurable check intervals, retry policies, and notification integration.
+Route health monitor construction, scheduling, last-seen tracking, and status
+change notifications.
 
 ## Overview
 
-### Purpose
+`internal/health/monitor` wraps low-level checks from `internal/health/check`
+with task-managed polling, retry tracking, status transitions, JSON output, and
+up/down notifications. Shared health config, status values, and interfaces live
+in `internal/health`.
 
-This package provides health monitoring for different route types in GoDoxy:
+## Responsibilities
 
-- Monitors service health via configurable check functions
-- Tracks consecutive failures with configurable thresholds
-- Sends notifications on status changes
-- Provides last-seen tracking for idle detection
+- Build monitor implementations for routes.
+- Poll health checks on the configured interval.
+- Apply timeout, retry, and failure threshold behavior.
+- Track last successful health check time.
+- Emit notifications/events on service up/down transitions.
+- Wrap Docker health checks with route fallback health checks.
 
-### Primary Consumers
+## Non-Goals
 
-- `internal/route/` - Route health monitoring
-- `internal/api/v1/metrics/` - Uptime poller integration
-- WebUI - Health status display
-
-### Non-goals
-
-- Health check execution itself (delegated to `internal/health/check/`)
-- Alert routing (handled by `internal/notif/`)
-- Automatic remediation
-
-### Stability
-
-Internal package with stable public interfaces. `HealthMonitor` interface is stable.
+- No route validation or route implementation construction.
+- No protocol-specific check logic beyond selecting functions from `health/check`.
+- No entrypoint route lookup.
+- No load-balancer server selection.
 
 ## Public API
 
-### Types
-
 ```go
-type HealthCheckFunc func(url *url.URL) (result types.HealthCheckResult, err error)
+func NewMonitor(r routing.Route) Monitor
 ```
 
-### HealthMonitor Interface
+`NewMonitor` selects an implementation from the concrete route interface:
+
+- agent routes use `NewAgentProxiedMonitor`
+- reverse proxy routes use `NewHTTPHealthMonitor`
+- file server routes use `NewFileServerHealthMonitor`
+- stream routes use `NewStreamHealthMonitor`
+- Docker routes can wrap the route monitor with `NewDockerHealthMonitor`
+
+Direct constructors:
 
 ```go
-type HealthMonitor interface {
-    Start(parent task.Parent) error
-    Task() *task.Task
-    Finish(reason any)
-    UpdateURL(url *url.URL)
-    URL() *url.URL
-    Config() *types.HealthCheckConfig
-    Status() types.HealthStatus
-    Uptime() time.Duration
-    Latency() time.Duration
-    Detail() string
-    Name() string
-    String() string
-    CheckHealth() (types.HealthCheckResult, error)
-}
+func NewHTTPHealthMonitor(config health.HealthCheckConfig, u *url.URL) Monitor
+func NewFileServerHealthMonitor(config health.HealthCheckConfig, path string) Monitor
+func NewStreamHealthMonitor(config health.HealthCheckConfig, targetURL *url.URL) Monitor
+func NewDockerHealthMonitor(config health.HealthCheckConfig, client *docker.SharedClient, containerID string, fallback Monitor) Monitor
+func NewAgentProxiedMonitor(config health.HealthCheckConfig, agent *agentpool.Agent, targetURL *url.URL) Monitor
 ```
 
-### Monitor Creation (`new.go`)
-
-```go
-// Create monitor for agent-proxied routes
-func NewAgentProxiedMonitor(
-    ctx context.Context,
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) (HealthMonitor, error)
-
-// Create monitor for Docker containers
-func NewDockerHealthMonitor(
-    ctx context.Context,
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-    containerID string,
-) (HealthMonitor, error)
-
-// Create monitor for HTTP routes
-func NewHTTPMonitor(
-    ctx context.Context,
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) HealthMonitor
-
-// Create monitor for H2C (HTTP/2 cleartext) routes
-func NewH2CMonitor(
-    ctx context.Context,
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) HealthMonitor
-
-// Create monitor for file server routes
-func NewFileServerMonitor(
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) HealthMonitor
-
-// Create monitor for stream routes
-func NewStreamMonitor(
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) HealthMonitor
-
-// Unified monitor factory (routes to appropriate type)
-func NewMonitor(
-    ctx context.Context,
-    cfg types.HealthCheckConfig,
-    url *url.URL,
-) (HealthMonitor, error)
-```
-
-## Architecture
-
-### Monitor Selection Flow
+## Monitor Flow
 
 ```mermaid
 flowchart TD
-    A[NewMonitor route] --> B{IsAgent route?}
-    B -->|true| C[NewAgentProxiedMonitor]
-    B -->|false| D{IsDocker route?}
-    D -->|true| E[NewDockerHealthMonitor]
-    D -->|false| F{Has h2c scheme?}
-    F -->|true| G[NewH2CMonitor]
-    F -->|false| H{Has http/https scheme?}
-    H -->|true| I[NewHTTPMonitor]
-    H -->|false| J{Is file:// scheme?}
-    J -->|true| K[NewFileServerMonitor]
-    J -->|false| L[NewStreamMonitor]
+    A[NewMonitor route] --> B{agent route?}
+    B -->|yes| C[agent-proxied HTTP check]
+    B -->|no| D{route type}
+    D -->|reverse proxy| E[HTTP/H2C health monitor]
+    D -->|file server| F[file server health monitor]
+    D -->|stream| G[stream health monitor]
+    E --> H{docker container?}
+    F --> H
+    G --> H
+    H -->|yes| I[docker health wrapper with fallback]
+    H -->|no| J[monitor]
 ```
 
-### Monitor State Machine
+## Runtime Behavior
 
-```mermaid
-stateDiagram-v2
-    [*] --> Starting: First check
-    Starting --> Healthy: Check passes
-    Starting --> Unhealthy: Check fails
-    Healthy --> Unhealthy: 5 consecutive failures
-    Healthy --> Error: Check error
-    Error --> Healthy: Check passes
-    Error --> Unhealthy: 5 consecutive failures
-    Unhealthy --> Healthy: Check passes
-    Unhealthy --> Error: Check error
-    [*] --> Stopped: Task cancelled
-```
+On start, a monitor creates a `health_monitor` subtask, applies config defaults,
+sets initial status to healthy, and begins polling after jitter. Each poll stores
+the latest result and updates status:
 
-### Component Structure
+- healthy result: `health.StatusHealthy`, last-seen timestamp updated
+- unhealthy result: `health.StatusUnhealthy`
+- check error: `health.StatusError`
 
-```mermaid
-classDiagram
-    class monitor {
-        -service string
-        -config types.HealthCheckConfig
-        -url synk.Value~*url.URL~
-        -status synk.Value~HealthStatus~
-        -lastResult synk.Value~HealthCheckResult~
-        -checkHealth HealthCheckFunc
-        -startTime time.Time
-        -task *task.Task
-        +Start(parent task.Parent)
-        +CheckHealth() (HealthCheckResult, error)
-        +Status() HealthStatus
-        +Uptime() time.Duration
-        +Latency() time.Duration
-        +Detail() string
-    }
+Service-up and service-down notifications are emitted only on status transitions
+and after retry thresholds are met.
 
-    class HealthMonitor {
-        <<interface>>
-        +Start(parent task.Parent)
-        +Task() *task.Task
-        +Status() HealthStatus
-    }
-```
+## Dependency Map
 
-## Configuration Surface
-
-### HealthCheckConfig
-
-```go
-type HealthCheckConfig struct {
-    Interval    time.Duration // Check interval (default: 30s)
-    Timeout     time.Duration // Check timeout (default: 10s)
-    Path        string        // Health check path
-    Method      string        // HTTP method (GET/HEAD)
-    Retries     int           // Consecutive failures before notification (-1 for immediate)
-    BaseContext func() context.Context
-}
-```
-
-### Defaults
-
-| Field    | Default |
-| -------- | ------- |
-| Interval | 30s     |
-| Timeout  | 10s     |
-| Method   | GET     |
-| Path     | "/"     |
-| Retries  | 3       |
-
-### Applying Defaults
-
-```go
-cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
-```
-
-## Dependency and Integration Map
-
-### Internal Dependencies
-
-- `internal/task/task.go` - Lifetime management
-- `internal/notif/` - Status change notifications
-- `internal/health/check/` - Health check implementations
-- `internal/types/` - Health status types
-- `internal/config/types/` - Working state
-
-### External Dependencies
-
-- `github.com/puzpuzpuz/xsync/v4` - Atomic values
-
-## Observability
-
-### Logs
-
-| Level   | When                           |
-| ------- | ------------------------------ |
-| `Info`  | Service comes up               |
-| `Warn`  | Service goes down              |
-| `Error` | Health check error             |
-| `Error` | Monitor stopped after 5 trials |
-
-### Notifications
-
-- Service up notification (with latency)
-- Service down notification (with last seen time)
-- Immediate notification when `Retries < 0`
-
-### Metrics
-
-- Consecutive failure count
-- Last check latency
-- Monitor uptime
-
-## Failure Modes and Recovery
-
-| Failure Mode                | Impact                                 | Recovery                |
-| --------------------------- | -------------------------------------- | ----------------------- |
-| 5 consecutive check errors  | Monitor enters Error state, task stops | Manual restart required |
-| Health check function panic | Monitor crashes                        | Automatic cleanup       |
-| Context cancellation        | Monitor stops gracefully               | Stopped state           |
-| URL update to invalid       | Check will fail                        | Manual URL fix          |
-
-### Status Transitions
-
-| From      | To        | Condition                      |
-| --------- | --------- | ------------------------------ |
-| Starting  | Healthy   | Check passes                   |
-| Starting  | Unhealthy | Check fails                    |
-| Healthy   | Unhealthy | `Retries` consecutive failures |
-| Healthy   | Error     | Check returns error            |
-| Unhealthy | Healthy   | Check passes                   |
-| Error     | Healthy   | Check passes                   |
-
-## Usage Examples
-
-### Creating an HTTP Monitor
-
-```go
-cfg := types.HealthCheckConfig{
-    Interval: 15 * time.Second,
-    Timeout: 5 * time.Second,
-    Path:    "/health",
-    Retries: 3,
-}
-url, _ := url.Parse("http://localhost:8080")
-
-monitor := monitor.NewHTTPMonitor(context.Background(), cfg, url)
-if err := monitor.Start(parent); err != nil {
-    return err
-}
-
-// Check status
-fmt.Printf("Status: %s\n", monitor.Status())
-fmt.Printf("Latency: %v\n", monitor.Latency())
-```
-
-### Creating a Docker Monitor
-
-```go
-monitor, err := monitor.NewDockerHealthMonitor(
-    context.Background(),
-    cfg,
-    url,
-    containerID,
-)
-if err != nil {
-    return err
-}
-monitor.Start(parent)
-```
-
-### Unified Factory
-
-```go
-monitor, err := monitor.NewMonitor(ctx, cfg, url)
-if err != nil {
-    return err
-}
-monitor.Start(parent)
-```
-
-## Testing Notes
-
-- `monitor_test.go` - Monitor lifecycle tests
-- Mock health check functions for deterministic testing
-- Status transition coverage tests
-- Notification trigger tests
+| Dependency | Purpose |
+| --- | --- |
+| `internal/health` | Shared config, status, and monitor interfaces |
+| `internal/health/check` | Protocol-specific health checks |
+| `internal/docker` | Docker health wrapper client |
+| `internal/notif` | Status change notifications |
+| `goutils/task` | Monitor task lifetime |
+| `goutils/events` | Global service up/down events |

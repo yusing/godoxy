@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 )
 
 type templateData struct {

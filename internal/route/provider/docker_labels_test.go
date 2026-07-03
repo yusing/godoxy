@@ -12,7 +12,7 @@ import (
 	_ "embed"
 )
 
-//go:embed docker_labels.yaml
+//go:embed fixtures/docker_labels.yaml
 var testDockerLabelsYAML []byte
 
 func TestParseDockerLabels(t *testing.T) {

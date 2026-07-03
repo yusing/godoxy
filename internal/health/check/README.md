@@ -39,7 +39,7 @@ func HTTP(
     method string,
     path string,
     timeout time.Duration,
-) (types.HealthCheckResult, error)
+) (health.HealthCheckResult, error)
 ```
 
 ### H2C Health Check (`http.go`)
@@ -51,7 +51,7 @@ func H2C(
     method string,
     path string,
     timeout time.Duration,
-) (types.HealthCheckResult, error)
+) (health.HealthCheckResult, error)
 ```
 
 ### Docker Health Check (`docker.go`)
@@ -60,7 +60,7 @@ func H2C(
 func Docker(
     ctx context.Context,
     containerID string,
-) (types.HealthCheckResult, error)
+) (health.HealthCheckResult, error)
 ```
 
 ### FileServer Health Check (`fileserver.go`)
@@ -68,7 +68,7 @@ func Docker(
 ```go
 func FileServer(
     url *url.URL,
-) (types.HealthCheckResult, error)
+) (health.HealthCheckResult, error)
 ```
 
 ### Stream Health Check (`stream.go`)
@@ -76,10 +76,10 @@ func FileServer(
 ```go
 func Stream(
     url *url.URL,
-) (types.HealthCheckResult, error)
+) (health.HealthCheckResult, error)
 ```
 
-### Common Types (`internal/types/`)
+### Common Types (`internal/health`)
 
 ```go
 type HealthCheckResult struct {
@@ -88,12 +88,15 @@ type HealthCheckResult struct {
     Detail   string
 }
 
-type HealthStatus int
+type HealthStatus uint8
 
 const (
-    StatusHealthy   HealthStatus = 0
-    StatusUnhealthy HealthStatus = 1
-    StatusError     HealthStatus = 2
+    StatusUnknown HealthStatus = 0
+    StatusHealthy HealthStatus = 1 << iota
+    StatusNapping
+    StatusStarting
+    StatusUnhealthy
+    StatusError
 )
 ```
 
@@ -242,7 +245,7 @@ All HTTP/H2C checks set:
 
 ### Internal Dependencies
 
-- `internal/types/` - Health check result types
+- `internal/health/` - Health check result types
 - `goutils/version/` - User-Agent version
 
 ## Observability

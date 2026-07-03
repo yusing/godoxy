@@ -10,13 +10,12 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint/types"
 	"github.com/yusing/godoxy/internal/logging"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/route/routes"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/routing"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -27,6 +26,10 @@ type (
 		raw  string
 		pre  Commands // runs before w.WriteHeader
 		post Commands
+	}
+
+	httpRoute interface {
+		http.Handler
 	}
 )
 
@@ -298,19 +301,23 @@ var commands = map[string]struct {
 		build: func(args any) HandlerFunc {
 			route := args.(string)
 			return func(w *httputils.ResponseModifier, req *http.Request, upstream http.HandlerFunc) error {
-				ep := entrypoint.FromCtx(req.Context())
+				ep := routing.EntrypointFromCtx(req.Context())
 				if ep == nil {
 					return errors.New("entrypoint not found")
 				}
 				r, ok := ep.HTTPRoutes().Get(route)
+				var h http.Handler
+				if ok {
+					h = r
+				}
 				if !ok {
 					excluded, has := ep.ExcludedRoutes().Get(route)
 					if has {
-						r, ok = excluded.(types.HTTPRoute)
+						h, ok = excluded.(httpRoute)
 					}
 				}
 				if ok {
-					r.ServeHTTP(w, req)
+					h.ServeHTTP(w, req)
 				} else {
 					http.Error(w, fmt.Sprintf("Route %q not found", route), http.StatusNotFound)
 				}

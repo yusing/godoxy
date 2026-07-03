@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/yusing/ds/ordered"
-	"github.com/yusing/godoxy/internal/types"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -45,11 +44,11 @@ func (c containerHelper) getMounts() *ordered.Map[string, string] {
 	return m
 }
 
-func (c containerHelper) parseImage() *types.ContainerImage {
+func (c containerHelper) parseImage() *Image {
 	colonSep := strings.Split(c.Image, ":")
 	slashSep := strings.Split(colonSep[0], "/")
 	_, sha256, _ := strings.Cut(c.ImageID, ":")
-	im := &types.ContainerImage{
+	im := &Image{
 		SHA256:  sha256,
 		Version: c.Labels["org.opencontainers.image.version"],
 	}
@@ -68,8 +67,8 @@ func (c containerHelper) parseImage() *types.ContainerImage {
 	return im
 }
 
-func (c containerHelper) getPublicPortMapping() types.PortMapping {
-	res := make(types.PortMapping)
+func (c containerHelper) getPublicPortMapping() PortMapping {
+	res := make(PortMapping)
 	for _, v := range c.Ports {
 		if v.PublicPort == 0 {
 			continue
@@ -79,8 +78,8 @@ func (c containerHelper) getPublicPortMapping() types.PortMapping {
 	return res
 }
 
-func (c containerHelper) getPrivatePortMapping() types.PortMapping {
-	res := make(types.PortMapping)
+func (c containerHelper) getPrivatePortMapping() PortMapping {
+	res := make(PortMapping)
 	for _, v := range c.Ports {
 		res[int(v.PrivatePort)] = v
 	}

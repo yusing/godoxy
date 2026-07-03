@@ -1,401 +1,137 @@
 # internal/route
 
-Provides HTTP routing, reverse proxy, file serving, and TCP/UDP stream proxying for GoDoxy.
+Route configuration, runtime metadata, and lifecycle glue.
 
 ## Overview
 
-The `internal/route` package implements the core routing system for GoDoxy. It handles reverse proxying HTTP requests, serving static files, and proxying TCP/UDP streams. Routes can be discovered from Docker containers, YAML files, or remote agents.
+`internal/route` owns the `Route` object that providers load from YAML, Docker
+labels, agents, or built-in config. It stores user-facing route configuration,
+derived URLs, provider metadata, task state, validation/start errors, and the
+concrete implementation produced by `internal/routevalidate`.
 
-### Primary Consumers
+Concrete request handling is intentionally outside this package:
 
-- **Route providers**: Create and manage route instances
-- **HTTP server**: Dispatches requests to route handlers
-- **Configuration layer**: Validates and loads route configs
+- `internal/routevalidate` finalizes and validates `Route`, then builds an implementation.
+- `internal/routeimpl` contains reverse proxy, file server, and stream route implementations.
+- `internal/routing` defines the route/provider/entrypoint interfaces used across packages.
+- `internal/entrypoint` owns HTTP and stream listener registration.
 
-### Non-goals
+## Responsibilities
 
-- Does not implement container runtime operations (delegates to providers)
-- Does not handle authentication (delegates to middleware/rules)
-- Does not manage health checks (delegates to `internal/health/monitor`)
+- Define route config fields and JSON/OpenAPI shape.
+- Track provider, Docker/proxmox, homepage, health, and runtime metadata.
+- Expose lifecycle methods (`Validate`, `Start`, `Finish`) used by providers.
+- Delegate implementation construction through the package builder hook.
+- Register excluded routes and route health monitors during start.
+- Provide shared route helpers such as `ShouldExclude`, `UseHealthCheck`, `Key`, and `References`.
 
-### Stability
+## Non-Goals
 
-Internal package with stable core types. Route configuration schema is versioned.
+- No concrete HTTP reverse proxy, file-server, TCP, or UDP serving logic.
+- No route discovery from files, Docker, or agents.
+- No entrypoint listener or request dispatch logic.
+- No health-check execution logic.
+- No rule parsing or rule command implementation.
 
-## Public API
+## Runtime Wiring
 
-### Exported Types
+`Route.Validate` calls a package-level builder registered by the application:
+
+```go
+route.InitBuilder(routevalidate.Validate)
+```
+
+Production initialization happens in `cmd/main.go`. Tests that validate or start
+routes directly must also install a builder in `TestMain` or test setup.
+
+Excluded routes can still start enough runtime state to appear in the excluded
+route pool and expose health, but non-excluded routes delegate startup to their
+concrete `routing.Route` implementation.
+
+## Key Types
 
 ```go
 type Route struct {
-    Alias  string       // Route lookup key: short alias, FQDN alias, or leading-label wildcard alias (*.example.com)
-    Scheme Scheme       // http, https, h2c, tcp, udp, fileserver
-    Host   string       // Target host
-    Port   Port         // Listen and target ports
+    Alias  string
+    Scheme Scheme
+    Host   string
+    Port   Port
+    Bind   string
 
-    Bind   string       // Bind address for listening (IP address, optional)
+    Root  string
+    SPA   bool
+    Index string
 
-    // File serving
-    Root  string        // Document root
-    SPA   bool          // Single-page app mode
-    Index string        // Index file
-
-    // Route rules and middleware
-    HTTPConfig
-    InboundMTLSProfile string
-    Rules        rules.Rules
-    RuleFile     string
-
-    // Health and load balancing
-    HealthCheck types.HealthCheckConfig
-    LoadBalance *types.LoadBalancerConfig
-
-    // Additional features
-    Middlewares map[string]types.LabelMap
-    Homepage    *homepage.ItemConfig
-    AccessLog   *accesslog.RequestLoggerConfig
-    TLSTermination bool
-    Agent       string
-    Idlewatcher *types.IdlewatcherConfig
+    types.HTTPConfig
+    HealthCheck health.HealthCheckConfig
+    LoadBalance *loadbalancer.Config
+    Idlewatcher *idlewatcher.IdlewatcherConfig
+    Rules       rules.Rules
+    RuleFile    string
 
     Metadata
 }
 ```
 
-`Middlewares` stores route-local raw middleware options, including Docker-label-derived maps such as:
+`Metadata` contains runtime-only fields such as `Container`, derived `LisURL`
+and `ProxyURL`, exclusion reason, health monitor, provider reference, task, and
+the built `routing.Route` implementation.
 
-```yaml
-middlewares:
-  oidc:
-    bypass:
-      - path glob("/public/*")
-```
+`Scheme` is an internal bitset type that marshals to the route config strings:
+`http`, `https`, `h2c`, `tcp`, `udp`, and `fileserver`.
 
-For HTTP routes, this map is also the source used by entrypoint overlay promotion when a route-local `bypass` targets a middleware already configured on the entrypoint.
-
-`InboundMTLSProfile` references a named root-level inbound mTLS profile for this route.
-
-- It is only honored when no global `entrypoint.inbound_mtls_profile` is configured.
-- It is only valid for HTTP-based routes.
-- If set on a non-HTTP route (tcp, udp, fileserver), route validation fails.
-- Route-scoped inbound mTLS is selected by TLS SNI.
-- Requests for secured routes must resolve to the same route by both HTTP `Host` and TLS SNI.
-- If the profile name does not exist, route validation fails.
-
-Example route fragment:
-
-```yaml
-alias: secure-api
-host: api.example.com
-scheme: https
-port: 443
-inbound_mtls_profile: corp-clients
-```
-
-`TLSTermination` (`tls_termination`) is valid only for TCP routes on the shared
-HTTPS listener. Route validation checks the listener address, and SNI route
-registration rejects TLS termination unless an autocert provider is configured.
-When enabled, Godoxy matches the TLS ClientHello SNI to the TCP route alias,
-terminates TLS with the configured autocert provider, and proxies decrypted
-plaintext to the TCP target. Leave `tls_termination` disabled when autocert is
-absent; matching HTTPS-listener TCP routes then remain SNI passthrough and the
-upstream target keeps serving its own certificate.
+`Port` stores the externally listening port and the upstream proxy port:
 
 ```go
-type Scheme string
-
-const (
-    SchemeHTTP      Scheme = "http"
-    SchemeHTTPS     Scheme = "https"
-    SchemeH2C       Scheme = "h2c"
-    SchemeTCP       Scheme = "tcp"
-    SchemeUDP       Scheme = "udp"
-    SchemeFileServer Scheme = "fileserver"
-)
+type Port struct {
+    Listening int `json:"listening"`
+    Proxy     int `json:"proxy"`
+}
 ```
 
-```go
-type ExcludedReason int
-
-const (
-    ExcludedReasonNone ExcludedReason = iota
-    ExcludedReasonError
-    ExcludedReasonManual
-    ExcludedReasonNoPortContainer
-    ExcludedReasonBlacklisted
-    ExcludedReasonBuildx
-    ExcludedReasonYAMLAnchor
-    ExcludedReasonOld
-)
-```
-
-### Exported Functions/Methods
-
-```go
-// Validation and lifecycle
-func (r *Route) Validate() error
-func (r *Route) Start(parent task.Parent) error
-func (r *Route) Finish(reason any)
-func (r *Route) Started() <-chan struct{}
-
-// Route queries
-func (r *Route) Impl() types.Route
-func (r *Route) Task() *task.Task
-func (r *Route) ProviderName() string
-func (r *Route) TargetURL() *nettypes.URL
-func (r *Route) References() []string
-
-// Status queries
-func (r *Route) ShouldExclude() bool
-func (r *Route) UseLoadBalance() bool
-func (r *Route) UseIdleWatcher() bool
-func (r *Route) UseHealthCheck() bool
-```
-
-## Architecture
-
-### Core Components
+## Lifecycle
 
 ```mermaid
-classDiagram
-    class Route {
-        +Validate() error
-        +Start(parent) error
-        +Finish(reason)
-        +Started() &lt;-chan struct#123;#125;
-    }
-
-    class Metadata {
-        +impl types.Route
-        +task *task.Task
-        +started chan struct#123;#125;
-    }
-
-    class HealthMonitor {
-        +Start(parent) error
-        +Healthy() bool
-        +URL() string
-    }
-
-    Route --> Metadata : contains
-    Route --> HealthMonitor : optional
+flowchart TD
+    A[provider loads route config] --> B[set alias and provider]
+    B --> C[Route.Validate]
+    C --> D[routevalidate finalizes and builds impl]
+    D --> E[Route.Start]
+    E --> F{excluded?}
+    F -->|yes| G[add impl to excluded route pool]
+    F -->|no| H[start concrete route implementation]
+    H --> I[entrypoint registers HTTP or stream route]
 ```
 
-### Route Types
+`Validate` is guarded by `sync.Once`; callers should treat route config as fixed
+after validation. `Start` is also guarded by `sync.Once`; errors are retained for
+later reads.
 
-```mermaid
-graph TD
-    Route --> HTTPRoute
-    Route --> StreamRoute
+## Exclusion
 
-    HTTPRoute --> ReverseProxyRoute
-    HTTPRoute --> FileServer
+Routes are excluded when validation fails, Docker labels request exclusion,
+container port resolution fails, an image is blacklisted, a temporary buildx or
+rename container is detected, or a YAML anchor route leaks into validation.
 
-    StreamRoute --> TCPStream
-    StreamRoute --> UDPStream
-```
+Excluded routes keep enough metadata for API/UI reporting but do not register as
+normal HTTP or stream routes.
 
-### Request Processing Pipeline
+## Dependency Map
 
-```mermaid
-flowchart LR
-    A[Request] --> B[Route Matching]
-    B --> C{Route Type}
-    C -->|HTTP| D[Middleware]
-    C -->|FileServer| E[File System or embedded fs.FS]
-    C -->|Stream| F[TCP/UDP Proxy]
-
-    D --> G[Rules Engine]
-    G --> H[Upstream]
-    H --> I[Response]
-    E --> I
-    F --> I
-```
-
-
-File server routes normally serve from an absolute filesystem `Root`. Built-in routes may instead attach an internal `fs.FS` through route metadata; this is used by the embedded WebUI route to serve `webui/dist/client` without a separate frontend container. Embedded SPA routes use nginx-compatible `try_files` behavior: exact file, directory `index.html`, optional `.html`, then the configured SPA shell.
-
-### Reverse Proxy Flow
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant P as Proxy
-    participant L as Load Balancer
-    participant B as Backend
-
-    C->>P: GET /
-    P->>L: Select Backend
-    L-->>P: Backend1
-    P->>B: Forward Request
-    B-->>P: 200 OK
-    P-->>C: Response
-```
-
-## Configuration Surface
-
-### Route Configuration
-
-```go
-type Route struct {
-    Alias  string       `json:"alias"`
-    Scheme Scheme       `json:"scheme"`
-    Host   string       `json:"host,omitempty"`
-    Bind   string       `json:"bind,omitempty"`  // Listen bind address
-    Port   Port         `json:"port"`
-    Root   string       `json:"root,omitempty"`
-    SPA    bool         `json:"spa,omitempty"`
-    Index  string       `json:"index,omitempty"`
-    // ... additional fields
-}
-```
-
-### Docker Labels
-
-```yaml
-labels:
-  proxy.aliases: myapp
-  proxy.myapp.port: 3000
-```
-
-Wildcard HTTP aliases are also supported at route level:
-
-```yaml
-routes:
-  "*.example.com":
-    host: 10.0.0.20
-    port: 8080
-```
-
-- `*.example.com` matches `foo.example.com`
-- it does **not** match `foo.bar.example.com`
-- exact/FQDN and short-alias matches still win before wildcard fallback
-
-### YAML Configuration
-
-```yaml
-routes:
-  myapp:
-    scheme: http
-    host: myapp.local
-    bind: 192.168.1.100 # Optional: bind to specific address
-    port:
-      proxy: 80
-      target: 3000
-```
-
-## Dependency and Integration Map
-
-| Dependency                         | Purpose                           |
-| ---------------------------------- | --------------------------------- |
-| `internal/route/routes/context.go` | Route context helpers (only file) |
-| `internal/route/rules`             | Request/response rule processing  |
-| `internal/route/stream`            | TCP/UDP stream proxying           |
-| `internal/route/provider`          | Route discovery and loading       |
-| `internal/health/monitor`          | Health checking                   |
-| `internal/idlewatcher`             | Idle container management         |
-| `internal/logging/accesslog`       | Request logging                   |
-| `internal/homepage`                | Dashboard integration             |
-| `github.com/yusing/goutils/errs`   | Error handling                    |
-
-## Observability
-
-### Logs
-
-- **INFO**: Route start/stop, validation results
-- **DEBUG**: Request processing details
-- **ERROR**: Proxy failures, health check failures
-
-Log context includes: `alias`, `host`, `method`, `path`, `status`
-
-### Metrics
-
-Health check metrics via `internal/health/monitor`:
-
-- `health_check_total`
-- `health_check_failure_total`
-- `health_check_duration_seconds`
-
-## Security Considerations
-
-- Route matching validates host and path patterns
-- Upstream URL validation prevents SSRF attacks
-- Rules engine can enforce authentication/authorization
-- ACL integration available for IP-based access control
-
-## Failure Modes and Recovery
-
-| Failure                   | Behavior                   | Recovery                    |
-| ------------------------- | -------------------------- | --------------------------- |
-| Backend unavailable       | Returns 502 error          | Fix backend service         |
-| Health check fails        | Route marked unhealthy     | Fix backend health endpoint |
-| Route validation fails    | Route excluded with reason | Fix configuration           |
-| TLS handshake fails       | Connection error           | Fix certificates            |
-| Load balancer no backends | Returns 503 error          | Add healthy backends        |
-
-## Usage Examples
-
-### Creating a Basic HTTP Route
-
-```go
-route := &route.Route{
-    Alias:  "myapp",
-    Scheme: route.SchemeHTTP,
-    Host:   "myapp.local",
-    Port:   route.Port{Proxy: 8080, Target: 3000},
-}
-
-if err := route.Validate(); err != nil {
-    return err
-}
-
-if err := route.Start(parent); err != nil {
-    return err
-}
-```
-
-### Route with Health Check
-
-```go
-route := &route.Route{
-    Alias: "myservice",
-    HealthCheck: types.HealthCheckConfig{
-        Path:     "/health",
-        Interval: 30 * time.Second,
-        Timeout:  5 * time.Second,
-    },
-}
-```
-
-### Route with Custom Bind Address
-
-```go
-route := &route.Route{
-    Alias:  "myapp",
-    Scheme: route.SchemeHTTP,
-    Host:   "myapp.local",
-    Bind:   "192.168.1.100",  // Bind to specific interface
-    Port:   route.Port{Listening: 8443, Proxy: 80},
-}
-```
-
-### File Server Route
-
-```go
-route := &route.Route{
-    Alias:  "files",
-    Scheme: route.SchemeFileServer,
-    Root:   "/var/www/files",
-    SPA:    false,
-    Index:  "index.html",
-}
-```
-
-Embedded file-server routes are reserved for built-in assets and set `Metadata.RootFS` internally rather than exposing a new public config field.
+| Dependency | Purpose |
+| --- | --- |
+| `internal/routing` | Shared route/provider/entrypoint interfaces |
+| `internal/routevalidate` | Validation/finalization implementation registered by builder |
+| `internal/docker` | Docker container metadata attached to routes |
+| `internal/health` | Health config, monitor interfaces, status values |
+| `internal/loadbalancer` | Serializable load-balancer route config |
+| `internal/idlewatcher/runtime` | Idlewatcher config attached to routes |
+| `internal/route/rules` | Route-local request/response rule config |
+| `goutils/task` | Route task lifetime and cleanup |
 
 ## Testing Notes
 
-- Unit tests for validation logic
-- Integration tests with real backends
-- Mock health monitors for testing
-- Route exclusion tests cover all reason codes
+- Route validation tests must initialize the builder.
+- Tests should assert behavior through `routing.Route` interfaces where possible.
+- Test helpers live outside this package in `internal/routetest` when they need
+  concrete implementations.

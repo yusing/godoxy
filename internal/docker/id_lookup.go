@@ -5,16 +5,16 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 )
 
-var idDockerCfgMap = xsync.NewMap[string, types.DockerProviderConfig](xsync.WithPresize(100))
+var containerConfigRegistry = xsync.NewMap[string, types.DockerProviderConfig](xsync.WithPresize(100))
 
-func GetDockerCfgByContainerID(id string) (types.DockerProviderConfig, bool) {
-	return idDockerCfgMap.Load(id)
+func LookupContainerConfig(id string) (types.DockerProviderConfig, bool) {
+	return containerConfigRegistry.Load(id)
 }
 
-func SetDockerCfgByContainerID(id string, cfg types.DockerProviderConfig) {
-	idDockerCfgMap.Store(id, cfg)
+func RegisterContainerConfig(id string, cfg types.DockerProviderConfig) {
+	containerConfigRegistry.Store(id, cfg)
 }
 
-func DeleteDockerCfgByContainerID(id string) {
-	idDockerCfgMap.Delete(id)
+func UnregisterContainerConfig(id string) {
+	containerConfigRegistry.Delete(id)
 }

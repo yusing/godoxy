@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/godoxy/internal/routeimpl"
 	"github.com/yusing/godoxy/internal/serialization"
 	"golang.org/x/crypto/bcrypt"
 
@@ -39,8 +40,8 @@ func mockUpstreamWithHeaders(status int, body string, headers http.Header) http.
 	}
 }
 
-func mockRoute(alias string) *route.FileServer {
-	return &route.FileServer{Route: &route.Route{Alias: alias}}
+func mockRoute(alias string) *routeimpl.FileServer {
+	return &routeimpl.FileServer{Route: &route.Route{Alias: alias}}
 }
 
 func parseRules(data string, target *Rules) error {

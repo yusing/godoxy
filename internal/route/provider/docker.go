@@ -112,7 +112,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, error) {
 
 // Returns a list of proxy entries for a container.
 // Always non-nil.
-func (p *DockerProvider) routesFromContainerLabels(container *types.Container) (route.Routes, error) {
+func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) (route.Routes, error) {
 	if !container.IsExplicit && p.IsExplicitOnly() {
 		return make(route.Routes, 0), nil
 	}

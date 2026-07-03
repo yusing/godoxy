@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/docker"
-	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/godoxy/internal/health"
 )
 
 func TestDockerHealthcheckReturnsUnhealthyForStoppedStates(t *testing.T) {
@@ -41,7 +41,7 @@ func TestDockerHealthcheckReturnsUnhealthyForStoppedStates(t *testing.T) {
 
 			result, err := Docker(t.Context(), state, time.Second)
 			require.NoError(t, err)
-			require.Equal(t, types.HealthCheckResult{
+			require.Equal(t, health.HealthCheckResult{
 				Healthy: false,
 				Detail:  tc.detail,
 			}, result)

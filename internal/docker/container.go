@@ -15,12 +15,13 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/agentpool"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
 )
 
-var DummyContainer = new(types.Container)
+var DummyContainer = new(Container)
 
 var EnvDockerHost = os.Getenv("DOCKER_HOST")
 
@@ -29,7 +30,7 @@ var (
 	ErrNoNetwork       = errors.New("no network found")
 )
 
-func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res *types.Container) {
+func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res *Container) {
 	actualLabels := maps.Clone(c.Labels)
 
 	_, isExplicit := c.Labels[LabelAliases]
@@ -46,7 +47,7 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 	network := helper.getDeleteLabel(LabelNetwork)
 
 	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
-	res = &types.Container{
+	res = &Container{
 		DockerCfg:     dockerCfg,
 		Image:         helper.parseImage(),
 		ContainerName: helper.getName(),
@@ -87,11 +88,11 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 	return res
 }
 
-func IsBlacklisted(c *types.Container) bool {
+func IsBlacklisted(c *Container) bool {
 	return IsBlacklistedImage(c.Image) || isDatabase(c)
 }
 
-func UpdatePorts(ctx context.Context, c *types.Container) error {
+func UpdatePorts(ctx context.Context, c *Container) error {
 	dockerClient, err := NewClient(c.DockerCfg)
 	if err != nil {
 		return err
@@ -118,15 +119,15 @@ func UpdatePorts(ctx context.Context, c *types.Container) error {
 	return nil
 }
 
-func DockerComposeProject(c *types.Container) string {
+func DockerComposeProject(c *Container) string {
 	return c.Labels["com.docker.compose.project"]
 }
 
-func DockerComposeService(c *types.Container) string {
+func DockerComposeService(c *Container) string {
 	return c.Labels["com.docker.compose.service"]
 }
 
-func Dependencies(c *types.Container) []string {
+func Dependencies(c *Container) []string {
 	deps := c.Labels[LabelDependsOn]
 	if deps == "" {
 		deps = c.Labels["com.docker.compose.depends_on"]
@@ -143,7 +144,7 @@ var databaseMPs = map[string]struct{}{
 	"/var/lib/rabbitmq":        {},
 }
 
-func isDatabase(c *types.Container) bool {
+func isDatabase(c *Container) bool {
 	if c.Mounts != nil { // only happens in test
 		for _, m := range c.Mounts.Iter {
 			if _, ok := databaseMPs[m]; ok {
@@ -162,7 +163,7 @@ func isDatabase(c *types.Container) bool {
 	return false
 }
 
-func isLocal(c *types.Container) bool {
+func isLocal(c *Container) bool {
 	if strings.HasPrefix(c.DockerCfg.URL, "unix://") {
 		return true
 	}
@@ -185,7 +186,7 @@ func isLocal(c *types.Container) bool {
 	return false
 }
 
-func setPublicHostname(c *types.Container) {
+func setPublicHostname(c *Container) {
 	if !c.Running {
 		return
 	}
@@ -201,7 +202,7 @@ func setPublicHostname(c *types.Container) {
 	c.PublicHostname = url.Hostname()
 }
 
-func setPrivateHostname(c *types.Container, helper containerHelper) {
+func setPrivateHostname(c *Container, helper containerHelper) {
 	if !isLocal(c) && c.Agent == nil {
 		return
 	}
@@ -242,7 +243,7 @@ func setPrivateHostname(c *types.Container, helper containerHelper) {
 	}
 }
 
-func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
+func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 	hasIdleTimeout := false
 	cfg := make(map[string]any, len(idlewatcherLabels))
 	for lbl, key := range idlewatcherLabels {
@@ -261,15 +262,14 @@ func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 
 	// set only if idlewatcher is enabled
 	if hasIdleTimeout {
-		idwCfg := new(types.IdlewatcherConfig)
-		idwCfg.Docker = &types.DockerConfig{
+		idwCfg := new(idlewatcher.IdlewatcherConfig)
+		idwCfg.Docker = &idlewatcher.DockerConfig{
 			DockerCfg:     c.DockerCfg,
 			ContainerID:   c.ContainerID,
 			ContainerName: c.ContainerName,
 		}
 
-		err := serialization.MapUnmarshalValidate(cfg, idwCfg)
-		if err != nil {
+		if err := serialization.MapUnmarshalValidate(cfg, idwCfg); err != nil {
 			addError(c, err)
 		} else {
 			c.IdlewatcherConfig = idwCfg
@@ -277,9 +277,9 @@ func loadDeleteIdlewatcherLabels(c *types.Container, helper containerHelper) {
 	}
 }
 
-func addError(c *types.Container, err error) {
+func addError(c *Container, err error) {
 	if c.Errors == nil {
-		c.Errors = new(types.ContainerError)
+		c.Errors = new(ContainerError)
 	}
 	c.Errors.Add(err)
 }
