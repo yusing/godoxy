@@ -46,6 +46,25 @@ describe("md2mdx", () => {
     );
     expect(mdx).not.toContain("## ");
   });
+
+  test("writes wrapped descriptions as valid frontmatter", () => {
+    const mdx = md2mdx([
+      "# internal/health/monitor",
+      "",
+      "Route health monitor construction, scheduling, last-seen tracking, and status",
+      "change notifications.",
+      "",
+      "## Overview",
+      "",
+      "Details.",
+      "",
+    ].join("\n"));
+
+    expect(mdx).toContain(
+      "description: Route health monitor construction, scheduling, last-seen tracking, and status change notifications",
+    );
+    expect(mdx).not.toContain("\nchange notifications\n");
+  });
 });
 
 describe("syncImplDocs", () => {

@@ -54,7 +54,9 @@ export function md2mdx(md: string) {
 	let description = h1WithoutCallout
 		.replace(new RegExp(/^\s*#\s+[^\n]+\n?/, "im"), "")
 		.replaceAll(new RegExp(/^\s*>.+$/, "gm"), "")
-		.trim();
+		.trim()
+		.split(/\s+/)
+		.join(" ");
 	// remove trailing full stop
 	if (description.endsWith(".")) {
 		description = description.slice(0, -1);
