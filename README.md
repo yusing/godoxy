@@ -23,96 +23,23 @@ Have questions? Ask [ChatGPT](https://chatgpt.com/g/g-6825390374b481919ad482f2e4
 
 </div>
 
-## Table of content
-
-<!-- TOC -->
-
-- [Table of content](#table-of-content)
-- [Running demo](#running-demo)
-- [Key Features](#key-features)
-- [Prerequisites](#prerequisites)
-- [Setup](#setup)
-- [How does GoDoxy work](#how-does-godoxy-work)
-- [Proxmox Integration](#proxmox-integration)
-  - [Automatic Route Binding](#automatic-route-binding)
-  - [WebUI Management](#webui-management)
-- [Update / Uninstall system agent](#update--uninstall-system-agent)
-- [Screenshots](#screenshots)
-  - [idlesleeper](#idlesleeper)
-  - [Metrics and Logs](#metrics-and-logs)
-- [Manual Setup](#manual-setup)
-  - [Folder structrue](#folder-structrue)
-- [Build it yourself](#build-it-yourself)
-- [Star History](#star-history)
-
 ## Running demo
 
 <https://demo.godoxy.dev>
 
-## Key Features
-
-- **Simple**
-  - Effortless configuration with [simple labels](https://docs.godoxy.dev/Docker-labels-and-Route-Files) or WebUI
-  - [Simple multi-node setup](https://docs.godoxy.dev/Configurations#multi-docker-nodes-setup)
-  - Detailed error messages for easy troubleshooting.
-- **ACL**: connection / request level access control
-  - IP/CIDR
-  - Country **(Maxmind account required)**
-  - Timezone **(Maxmind account required)**
-  - **Access logging**
-  - Periodic notification of access summaries for number of allowed and blocked connections
-- **Advanced Automation**
-  - Automatic SSL certificate management with Let's Encrypt ([using DNS-01 Challenge](https://docs.godoxy.dev/DNS-01-Providers))
-  - Auto-configuration for Docker containers
-  - Hot-reloading of configurations and container state changes
-- **Container Runtime Support**
-  - Docker
-  - Podman
-- **Idle-sleep**: stop and wake containers based on traffic _(see [screenshots](#idlesleeper))_
-  - Docker containers
-  - Proxmox LXC containers
-- **Proxmox Integration**
-  - **Automatic route binding**: Routes automatically bind to Proxmox nodes or LXC containers by matching hostname, IP, or alias
-  - **LXC lifecycle control**: Start, stop, restart containers directly from WebUI
-  - **Real-time logs**: Stream journalctl logs from nodes and LXC containers via WebSocket
-- **Traffic Management**
-  - HTTP reserve proxy
-  - TCP/UDP port forwarding
-  - **OpenID Connect support**: SSO and secure your apps easily
-  - **ForwardAuth support**: integrate with any auth provider (e.g. TinyAuth)
-- **Customization**
-  - [HTTP middlewares](https://docs.godoxy.dev/Middlewares)
-  - [Custom error pages support](https://docs.godoxy.dev/Custom-Error-Pages)
-- **Web UI**
-  - App Dashboard
-  - Config Editor
-  - Uptime and System Metrics
-  - **Docker**
-    - Container lifecycle management (start, stop, restart)
-    - Real-time container logs via WebSocket
-  - **Proxmox**
-    - LXC container lifecycle management (start, stop, restart)
-    - Real-time node and LXC journalctl logs via WebSocket
-- **Cross-Platform support**
-  - Supports **linux/amd64** and **linux/arm64**
-- **Efficient and Performant**
-  - Written in **[Go](https://go.dev)**
-
-## Prerequisites
+## Quick start
 
 Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 
 - A Record: `*.domain.com` -> `10.0.10.1`
 - AAAA Record (if you use IPv6): `*.domain.com` -> `::ffff:a00:a01`
 
-## Setup
-
 > [!NOTE]
 > GoDoxy is designed to be running in `host` network mode, do not change it.
 >
 > To change listening ports, modify `.env`.
 
-1. Prepare a new directory for docker compose and config files.
+1. Prepare a new directory for Docker Compose and config files.
 
 2. Run setup script inside the directory, or [set up manually](#manual-setup)
 
@@ -128,10 +55,43 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 
 4. You may now do some extra configuration on WebUI `https://godoxy.yourdomain.com`
 
-## How does GoDoxy work
+## Key features
+
+- **Simple setup**
+  - Configure routes with [Docker labels or route files](https://docs.godoxy.dev/Docker-labels-and-Route-Files)
+  - Manage routes, config, containers, logs, metrics, and uptime from the WebUI
+  - Use [multi-node Docker setups](https://docs.godoxy.dev/Configurations#multi-docker-nodes-setup)
+- **Automatic routing**
+  - Discover Docker and Podman containers
+  - Hot-reload config and container state changes
+  - Manage Let's Encrypt certificates with [DNS-01 providers](https://docs.godoxy.dev/DNS-01-Providers)
+- **Traffic management**
+  - HTTP reverse proxy
+  - TCP/UDP port forwarding
+  - OpenID Connect SSO
+  - ForwardAuth integration, e.g. TinyAuth
+  - [HTTP middlewares](https://docs.godoxy.dev/Middlewares)
+  - [Custom error pages](https://docs.godoxy.dev/Custom-Error-Pages)
+- **Access control**
+  - IP/CIDR rules
+  - Country and timezone rules with a MaxMind account
+  - Access logging
+  - Periodic access summaries
+- **Idle sleep**
+  - Stop and wake Docker containers based on traffic
+  - Stop and wake Proxmox LXC containers based on traffic
+- **Proxmox integration**
+  - Bind routes automatically to nodes or LXC containers
+  - Start, stop, and restart LXC containers from the WebUI
+  - Stream node and LXC logs through WebSocket
+- **Platform support**
+  - Linux amd64
+  - Linux arm64
+
+## How GoDoxy works
 
 1. List all the containers
-2. Read container name, labels and port configurations for each of them
+2. Read container name, labels, and port configurations for each of them
 3. Create a route if applicable (a route is like a "Virtual Host" in NPM)
 4. Watch for container / config changes and update automatically
 
@@ -139,6 +99,27 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 > GoDoxy uses the label `proxy.aliases` as the subdomain(s), if unset it defaults to the `container_name` field in docker compose.
 >
 > For example, with the label `proxy.aliases: qbt` you can access your app via `qbt.domain.com`.
+
+## Screenshots
+
+### idlesleeper
+
+![idlesleeper](screenshots/idlesleeper.webp)
+
+### Metrics and Logs
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="screenshots/routes.jpg" alt="Routes" width="350"/></td>
+      <td align="center"><img src="screenshots/servers.jpg" alt="Servers" width="350"/></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Routes</b></td>
+      <td align="center"><b>Servers</b></td>
+    </tr>
+  </table>
+</div>
 
 ## Proxmox Integration
 
@@ -169,7 +150,7 @@ From the WebUI, you can:
 - **Node Logs**: Stream real-time journalctl or log files output from nodes
 - **LXC Logs**: Stream real-time journalctl or log files output from containers
 
-## Update / Uninstall system agent
+## Update / uninstall system agent
 
 Installer supports both systemd and Alpine/OpenRC (`rc-service`) hosts.
 
@@ -185,27 +166,6 @@ Uninstall:
 sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts/install-agent.sh)" -- uninstall
 ```
 
-## Screenshots
-
-### idlesleeper
-
-![idlesleeper](screenshots/idlesleeper.webp)
-
-### Metrics and Logs
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><img src="screenshots/routes.jpg" alt="Routes" width="350"/></td>
-      <td align="center"><img src="screenshots/servers.jpg" alt="Servers" width="350"/></td>
-    </tr>
-    <tr>
-      <td align="center"><b>Routes</b></td>
-      <td align="center"><b>Servers</b></td>
-    </tr>
-  </table>
-</div>
-
 ## Manual Setup
 
 1. Make `config` directory then grab `config.example.yml` into `config/config.yml`
@@ -220,7 +180,7 @@ sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts
 
    `wget https://raw.githubusercontent.com/yusing/godoxy/main/compose.example.yml -O compose.yml`
 
-### Folder structrue
+### Folder structure
 
 ```shell
 ├── certs
@@ -241,7 +201,7 @@ sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts
 └── .env
 ```
 
-## Build it yourself
+## Build from source
 
 1. Clone the repository `git clone https://github.com/yusing/godoxy --depth=1`
 
@@ -256,5 +216,3 @@ sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=yusing/godoxy&type=Date)](https://www.star-history.com/#yusing/godoxy&Date)
-
-[🔼Back to top](#table-of-content)
