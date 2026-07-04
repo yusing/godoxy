@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Development
+
+This repository uses `shadowtree`
+
 ## Repo Map
 
 ### Proxy / route debugging
@@ -15,16 +19,18 @@ Anchors before broad repo search:
 - Response buffering/trailers used by rules: `goutils/http/response_modifier.go`
 - Agent proxy headers/handler: `agent/pkg/agentproxy/config.go`, `agent/pkg/handler/proxy_http.go`
 - Generated Swagger: `internal/api/v1/docs/swagger.{json,yaml}`, ignore
+- Implementation docs: package level `**/README.md` - NOT USER-FACING
 
 Root, `agent/`, `goutils/` = separate Go modules; run scoped tests from owning module dir.
 
 ### Wiki
 
-- MDX: `webui/wiki/content/docs/` — **godoxy/** user/guide, **impl/** package readme (synced with `make update-wiki`).
+- MDX:
+  - **godoxy/** user/guide: `webui/wiki/content/docs/`
+  - **impl/** package readme (mirrors package `README.md`, synced with `shadowtree update-wiki`).
 - Fumadocs `defineDocs` + collections: `webui/source.config.ts`; main Vite app content path.
 - In-app docs: `/docs`; `webui/src/lib/wiki/`, `webui/src/components/wiki/`.
 - Standalone wiki: `webui/wiki/` — docs-only layout, OG/search.
-- Impl wiki: `docs/impl` - synced from package READMEs
 
 ### Web frontend (`webui/`)
 

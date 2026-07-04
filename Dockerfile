@@ -4,7 +4,12 @@ HEALTHCHECK NONE
 
 # package version does not matter
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make libcap-setcap
+RUN apk add --no-cache tzdata libcap-setcap
+
+ARG SHADOWTREE_VERSION=latest
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  CGO_ENABLED=0 go install github.com/yusing/shadowtree/cmd/shadowtree@${SHADOWTREE_VERSION}
 
 # Stage 2: frontend-base
 FROM go-base AS frontend-base
@@ -55,10 +60,10 @@ FROM frontend-base AS webui-schema
 WORKDIR /src
 
 COPY webui/src/types/godoxy/ ./src/types/godoxy/
-COPY webui/Makefile ./Makefile
+COPY webui/.shadowtree.toml ./.shadowtree.toml
 COPY webui/tsconfig.json ./tsconfig.json
 
-RUN --mount=type=cache,target=/root/.bun make gen-schema
+RUN --mount=type=cache,target=/root/.bun shadowtree gen-schema
 
 # Stage 6: webui build
 FROM frontend-base AS webui-build
@@ -79,7 +84,7 @@ WORKDIR /src
 
 COPY scripts/minify ./scripts/minify
 COPY go.mod go.sum ./
-COPY Makefile ./
+COPY .shadowtree.toml ./
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
@@ -89,8 +94,8 @@ COPY goutils ./goutils
 ARG VERSION
 ENV VERSION=${VERSION}
 
-ARG MAKE_ARGS
-ENV MAKE_ARGS=${MAKE_ARGS}
+ARG SHADOWTREE_ARGS
+ENV SHADOWTREE_ARGS=${SHADOWTREE_ARGS}
 
 ARG BRANCH
 ENV BRANCH=${BRANCH}
@@ -103,7 +108,7 @@ FROM binary-source AS non-main-builder
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
-  make ${MAKE_ARGS} docker=1 build
+  shadowtree build ${SHADOWTREE_ARGS} docker=true
 
 # Stage 9: main builder
 FROM binary-source AS main-builder
@@ -122,7 +127,7 @@ COPY --from=webui-build /src/dist/client ./webui/dist/client
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
-  make ${MAKE_ARGS} docker=1 build
+  shadowtree build ${SHADOWTREE_ARGS} docker=true
 
 # Stage 10: agent image
 FROM scratch AS agent

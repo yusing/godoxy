@@ -1,0 +1,430 @@
+profile = "go"
+shell = "sh"
+
+shell_prelude = '''
+repo_root=$(pwd)
+repo_url=${REPO_URL:-https://github.com/yusing/godoxy}
+webui_dir=${WEBUI_DIR:-"$repo_root/webui"}
+docs_dir=${DOCS_DIR:-"$webui_dir/wiki"}
+test_registry=${TEST_REGISTRY:-reg.i.sh}
+
+version_value() {
+	if [ -n "${VERSION:-}" ]; then
+		printf '%s\n' "$VERSION"
+	else
+		git describe --tags --abbrev=0 2>/dev/null || true
+	fi
+}
+
+branch_value() {
+	if [ -n "${BRANCH:-}" ]; then
+		printf '%s\n' "$BRANCH"
+	else
+		git rev-parse --abbrev-ref HEAD 2>/dev/null || true
+	fi
+}
+
+configure_component() {
+	component=$1
+	name_override=$2
+	package=${PACKAGE:-./cmd}
+	build_dir=$repo_root
+	is_godoxy=false
+
+	case "$component" in
+		godoxy|main|"")
+			name=godoxy
+			is_godoxy=true
+			;;
+		agent)
+			name=godoxy-agent
+			build_dir=$repo_root/agent
+			;;
+		socket-proxy)
+			name=godoxy-socket-proxy
+			build_dir=$repo_root/socket-proxy
+			;;
+		cli)
+			name=godoxy-cli
+			build_dir=$repo_root/cmd/cli
+			package=.
+			;;
+		*)
+			echo "unknown component: $component" >&2
+			exit 2
+			;;
+	esac
+
+	if [ -n "$name_override" ]; then
+		name=$name_override
+	fi
+	bin_path=$repo_root/bin/$name
+}
+
+configure_build_mode() {
+	mode=$1
+	version=$(version_value)
+	ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0"
+	go_tags=
+	extra_flags=
+	cgo_enabled=0
+	godoxy_debug=
+	godoxy_trace=
+	go_debug=
+	go_race=
+
+	case "$mode" in
+		production|"")
+			ldflags="$ldflags -s -w"
+			go_tags=production
+			extra_flags="-pgo=auto"
+			;;
+		race)
+			cgo_enabled=1
+			godoxy_debug=1
+			go_tags=debug
+			extra_flags="-race"
+			;;
+		debug)
+			cgo_enabled=1
+			godoxy_debug=1
+			go_tags=debug
+			;;
+		trace)
+			cgo_enabled=1
+			godoxy_debug=1
+			godoxy_trace=${GODOXY_TRACE:-1}
+			go_debug="gctrace=1 inittrace=1 schedtrace=3000"
+			go_tags=debug
+			;;
+		pprof)
+			go_tags=pprof
+			version=$version-pprof
+			ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0"
+			go_race="log_path=logs/pprof strip_path_prefix=$repo_root/ halt_on_error=1"
+			;;
+		dev)
+			godoxy_debug=1
+			;;
+		*)
+			echo "unknown build mode: $mode" >&2
+			exit 2
+			;;
+	esac
+}
+
+ensure_webui_dist() {
+	if [ "$is_godoxy" = true ] && [ ! -f "$webui_dir/dist/client/_shell.html" ]; then
+		shadowtree build-webui
+	fi
+}
+
+go_mod_paths() {
+	find . -name go.mod -type f \
+		| grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' \
+		| sed 's#/go\.mod$##'
+}
+
+run_in_go_modules() {
+	for path in $(go_mod_paths); do
+		echo "$repo_root/$path"
+		(cd "$repo_root/$path" && "$@")
+	done
+}
+'''
+
+[recipes.test]
+help = "Run Go tests for internal packages."
+sandboxed = false
+default_args = []
+cmd = '''
+configure_component godoxy ""
+ensure_webui_dist
+configure_build_mode production
+CGO_ENABLED="$cgo_enabled" \
+GODOXY_DEBUG="$godoxy_debug" \
+GODOXY_TRACE="$godoxy_trace" \
+GODEBUG="$go_debug" \
+GORACE="$go_race" \
+go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./internal/...
+'''
+
+[recipes.race-test]
+help = "Run internal package tests with the race detector."
+sandboxed = false
+cmd = '''
+configure_component godoxy ""
+ensure_webui_dist
+configure_build_mode race
+CGO_ENABLED=1 \
+GODOXY_DEBUG="$godoxy_debug" \
+GODOXY_TRACE="$godoxy_trace" \
+GODEBUG="$go_debug" \
+GORACE="$go_race" \
+go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./internal/...
+'''
+
+[recipes.tcp-echo-test]
+help = "Run the TCP echo integration test script."
+sandboxed = false
+cmd = ["bun", "--bun", "scripts/tcp_echo_test.ts"]
+
+[recipes.docker-build-test]
+help = "Build and push test Docker images."
+sandboxed = false
+cmd = '''
+docker build --target=main -t "$test_registry/godoxy" .
+docker build --target=agent --build-arg=SHADOWTREE_ARGS=component=agent -t "$test_registry/godoxy-agent" .
+docker build --target=socket-proxy --build-arg=SHADOWTREE_ARGS=component=socket-proxy -t "$test_registry/godoxy-socket-proxy" .
+docker push "$test_registry/godoxy"
+docker push "$test_registry/godoxy-agent"
+docker push "$test_registry/godoxy-socket-proxy"
+'''
+
+[recipes.update-go]
+help = "Bump Go version in modules and Dockerfiles, then tidy project modules."
+sandboxed = false
+cmd = '''
+go_ver=$(go version | sed -n 's/^go version go\([0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?\).*/\1/p')
+find . \( -name go.mod -type f -o -name Dockerfile -type f \) | while IFS= read -r file; do
+	echo "updating $file"
+	sed -i "s|go \([0-9]\+\.[0-9]\+\.[0-9]\+\)|go $go_ver|g" "$file"
+	sed -i "s|FROM golang:.*-alpine|FROM golang:$go_ver-alpine|g" "$file"
+done
+run_in_go_modules go mod tidy
+'''
+
+[recipes.update-deps]
+help = "Run go get -u and go mod tidy across project modules."
+sandboxed = false
+cmd = '''
+for path in $(go_mod_paths); do
+	echo "$repo_root/$path"
+	(cd "$repo_root/$path" && go get -u ./... && go mod tidy)
+done
+'''
+
+[recipes.mod-tidy]
+help = "Run go mod tidy across project modules."
+sandboxed = false
+cmd = "run_in_go_modules go mod tidy"
+
+[recipes.tidy]
+help = "Run go mod tidy across project modules."
+sandboxed = false
+cmd = "run_in_go_modules go mod tidy"
+
+[recipes.modernize]
+help = "Run go fix across project modules."
+sandboxed = false
+cmd = "run_in_go_modules go fix ./..."
+
+[recipes.minify]
+help = "Minify frontend assets for the selected component."
+sandboxed = false
+cmd = '''
+case "{component}" in
+	agent)
+		echo "minify: skipped for agent"
+		;;
+	socket-proxy)
+		echo "minify: skipped for socket-proxy"
+		;;
+	godoxy|main|"")
+		bun --bun scripts/minify
+		;;
+	*)
+		echo "unknown component: {component}" >&2
+		exit 2
+		;;
+esac
+'''
+
+[recipes.minify.arguments.component]
+help = "Component being built."
+position = 1
+default = "godoxy"
+values = "printf '%s\\n' godoxy agent socket-proxy cli"
+
+[recipes.build-webui]
+help = "Build the embedded WebUI."
+sandboxed = false
+cmd = '''
+shadowtree gen-rules-cheatsheet
+cd "$webui_dir"
+bun i --frozen-lockfile
+shadowtree gen-schema
+node ./node_modules/vite/bin/vite.js build
+'''
+
+[recipes.gen-rules-cheatsheet]
+help = "Regenerate the WebUI rules cheatsheet."
+sandboxed = false
+cmd = '''
+version=$(version_value)
+go run -ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0" ./cmd/rules-cheatsheet-gen -out "$webui_dir/src/generated/rules-cheatsheet.json"
+'''
+
+[recipes.build]
+help = "Build a GoDoxy binary."
+sandboxed = false
+default_args = []
+cmd = '''
+configure_component "{component}" "{name}"
+ensure_webui_dist
+
+if [ "$is_godoxy" = true ]; then
+	shadowtree minify component=godoxy
+elif [ "{component}" = cli ]; then
+	shadowtree gen-cli
+fi
+
+configure_build_mode "{mode}"
+mkdir -p "$(dirname "$bin_path")"
+CGO_ENABLED="$cgo_enabled" \
+GODOXY_DEBUG="$godoxy_debug" \
+GODOXY_TRACE="$godoxy_trace" \
+GODEBUG="$go_debug" \
+GORACE="$go_race" \
+go build -C "$build_dir" -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags -o "$bin_path" "$package"
+
+if [ "$is_godoxy" = true ]; then
+	if [ "$(id -u)" -eq 0 ]; then
+		setcap CAP_NET_BIND_SERVICE=+ep "$bin_path"
+	else
+		sudo setcap CAP_NET_BIND_SERVICE=+ep "$bin_path"
+	fi
+fi
+
+if [ "{docker}" = true ]; then
+	mkdir -p /app
+	mv "$bin_path" /app/run
+fi
+'''
+
+[recipes.build.arguments.component]
+help = "Binary component to build."
+position = 1
+default = "godoxy"
+values = "printf '%s\\n' godoxy main agent socket-proxy cli"
+
+[recipes.build.arguments.mode]
+help = "Build mode."
+default = "production"
+values = "printf '%s\\n' production debug race trace pprof dev"
+
+[recipes.build.arguments.docker]
+help = "Move the binary to /app/run for container images."
+type = "bool"
+default = false
+
+[recipes.build.arguments.name]
+help = "Override output binary name under bin/."
+default = ""
+
+[recipes.run-app]
+help = "Run the selected component with godotenv."
+sandboxed = false
+cmd = '''
+configure_component "{component}" ""
+shadowtree minify component="{component}"
+configure_build_mode "{mode}"
+cd "$build_dir"
+[ -f .env ] && CGO_ENABLED="$cgo_enabled" \
+	GODOXY_DEBUG="$godoxy_debug" \
+	GODOXY_TRACE="$godoxy_trace" \
+	GODEBUG="$go_debug" \
+	GORACE="$go_race" \
+	godotenv -f .env go run -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags "$package"
+'''
+
+[recipes.run-app.arguments.component]
+help = "Component to run."
+position = 1
+default = "godoxy"
+values = "printf '%s\\n' godoxy main agent socket-proxy cli"
+
+[recipes.run-app.arguments.mode]
+help = "Run mode."
+default = "production"
+values = "printf '%s\\n' production debug race trace pprof dev"
+
+[recipes.dev]
+help = "Build a dev binary and restart the development compose app."
+sandboxed = false
+cmd = '''
+shadowtree build component=godoxy mode=dev
+docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
+docker compose logs -f -n200 app
+'''
+
+[recipes.benchmark]
+help = "Run scripts/benchmark.sh; extra arguments are passed through."
+sandboxed = false
+cmd = ["./scripts/benchmark.sh"]
+
+[recipes.rapid-crash]
+help = "Run a short Docker restart loop sanity check."
+sandboxed = false
+cmd = '''
+docker run --restart=always --name test_crash -p 80 debian:bookworm-slim /bin/cat
+sleep 3
+docker rm -f test_crash
+'''
+
+[recipes.debug-list-containers]
+help = "List Docker containers through the Docker socket with netcat and jq."
+sandboxed = false
+cmd = "printf 'GET /containers/json HTTP/1.0\\r\\n\\r\\n' | sudo netcat -U /var/run/docker.sock | tail -n +9 | jq"
+
+[recipes.ci-test]
+help = "Run act dry-run with a local artifact path."
+sandboxed = false
+cmd = '''
+mkdir -p /tmp/artifacts
+act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$(gh auth token)"
+'''
+
+[recipes.cloc]
+help = "Count Go and WebUI source lines."
+sandboxed = false
+cmd = ["scc", "-w", "-i", "go,ts,tsx", "--not-match", "_test.go$", "--not-match", ".test.ts$", "--not-match", ".test.tsx$"]
+
+[recipes.push-github]
+help = "Push the current branch to origin."
+sandboxed = false
+cmd = "git push origin $(branch_value)"
+
+[recipes.gen-swagger]
+help = "Regenerate Swagger docs and sync api.json into the wiki."
+sandboxed = false
+cmd = '''
+swag init --parseDependency --parseInternal --parseFuncBody -g handler.go -d internal/api -o internal/api/v1/docs
+python3 scripts/fix-swagger-json.py
+rm internal/api/v1/docs/docs.go
+cp internal/api/v1/docs/swagger.json "$docs_dir/public/api.json"
+'''
+
+[recipes.gen-api-types]
+help = "Regenerate Swagger docs and TypeScript API client."
+sandboxed = false
+pre = [["shadowtree", "gen-swagger"]]
+cmd = '''
+bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --add-readonly --route-types \
+	--responses -o "$webui_dir/src/lib" -n api.ts -p internal/api/v1/docs/swagger.json
+'''
+
+[recipes.gen-cli]
+help = "Regenerate the CLI from cmd/cli/gen."
+sandboxed = false
+cmd = ["go", "run", "-C", "cmd/cli", "./gen"]
+
+[recipes.update-wiki]
+help = "Regenerate wiki content from package docs."
+sandboxed = false
+cmd = "DOCS_DIR=$docs_dir REPO_URL=$repo_url bun --bun scripts/update-wiki"
+
+[recipes.gen-schema]
+help = "Generate WebUI config schemas."
+sandboxed = false
+cmd = ["shadowtree", "--config", "webui/.shadowtree.toml", "gen-schema"]

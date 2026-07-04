@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - ".shadowtree.toml"
       - "socket-proxy/**"
       - "socket-proxy.Dockerfile"
       - ".github/workflows/docker-image-socket-proxy.yml"

@@ -19,7 +19,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  MAKE_ARGS: ${{ inputs.target }}=1
+  SHADOWTREE_ARGS: component=${{ inputs.target }}
   DIGEST_PATH: /tmp/digests/${{ inputs.target }}
   DIGEST_NAME_SUFFIX: ${{ inputs.target }}
   DOCKERFILE: ${{ inputs.dockerfile }}
@@ -114,7 +114,7 @@ jobs:
             type=registry,ref=${{ env.REGISTRY }}/${{ inputs.image_name }}:buildcache-${{ env.CACHE_VARIANT }}-${{ env.PLATFORM_PAIR }},mode=max
           build-args: |
             VERSION=${{ env.VERSION_FOR_BUILD }}
-            MAKE_ARGS=${{ env.MAKE_ARGS }}
+            SHADOWTREE_ARGS=${{ env.SHADOWTREE_ARGS }}
             BRANCH=${{ env.BRANCH_FOR_BUILD }}
 
       - name: Generate artifact attestation

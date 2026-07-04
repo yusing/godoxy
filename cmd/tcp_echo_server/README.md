@@ -18,4 +18,4 @@ Health checks are disabled because this service speaks raw TCP, not HTTP.
 
 ## Make test recipe
 
-`make tcp-echo-test` starts the `tcp_echo_server` service from `dev.compose.yml`, then connects to `localhost:443` with SNI for both Docker-label routes. This tests GoDoxy TLS passthrough and TLS termination routing, not direct fixture ports.
+`shadowtree tcp-echo-test` starts the `tcp_echo_server` service from `dev.compose.yml`, then connects to `localhost:443` with SNI for both Docker-label routes. This tests GoDoxy TLS passthrough and TLS termination routing, not direct fixture ports.

@@ -5,6 +5,7 @@ on:
     tags:
       - v*
     paths:
+      - ".shadowtree.toml"
       - "agent/**"
 
 jobs:
@@ -32,9 +33,11 @@ jobs:
           go-version-file: go.mod
       - name: Verify dependencies
         run: go mod verify
+      - name: Install Shadowtree
+        run: go install github.com/yusing/shadowtree/cmd/shadowtree@latest
       - name: Build
         run: |
-          make agent=1 NAME=${{ matrix.binary_name }} build
+          shadowtree build component=agent name=${{ matrix.binary_name }}
       - name: Check binary
         run: |
           file bin/${{ matrix.binary_name }}

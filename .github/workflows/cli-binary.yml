@@ -5,7 +5,7 @@ on:
     paths:
       - "cmd/cli/**"
       - "internal/api/v1/docs/swagger.json"
-      - "Makefile"
+      - ".shadowtree.toml"
       - ".github/workflows/cli-binary.yml"
   push:
     branches:
@@ -13,7 +13,7 @@ on:
     paths:
       - "cmd/cli/**"
       - "internal/api/v1/docs/swagger.json"
-      - "Makefile"
+      - ".shadowtree.toml"
       - ".github/workflows/cli-binary.yml"
     tags:
       - v*
@@ -45,9 +45,12 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Install Shadowtree
+        run: go install github.com/yusing/shadowtree/cmd/shadowtree@latest
+
       - name: Build CLI
         run: |
-          make cli=1 NAME=${{ matrix.binary_name }} build
+          shadowtree build component=cli name=${{ matrix.binary_name }}
 
       - name: Check binary
         run: |

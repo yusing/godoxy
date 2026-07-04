@@ -31,7 +31,7 @@ mkdir -p "$OUT_DIR"
 build_image() {
   blue "build pprof image: $IMAGE_NAME"
   docker build \
-    --build-arg MAKE_ARGS=pprof=1 \
+    --build-arg SHADOWTREE_ARGS=mode=pprof \
     --target=main \
     -t "$IMAGE_NAME" .
 }

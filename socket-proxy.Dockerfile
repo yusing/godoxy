@@ -1,10 +1,15 @@
 # Stage 1: deps
-FROM golang:1.26.3-alpine AS deps
+FROM golang:1.26.4-alpine AS deps
 HEALTHCHECK NONE
 
 # package version does not matter
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache tzdata make libcap-setcap
+RUN apk add --no-cache tzdata libcap-setcap
+
+ARG SHADOWTREE_VERSION=latest
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  CGO_ENABLED=0 go install github.com/yusing/shadowtree/cmd/shadowtree@${SHADOWTREE_VERSION}
 
 ENV GOPATH=/root/go
 
@@ -20,20 +25,20 @@ FROM deps AS builder
 
 WORKDIR /src
 
-COPY Makefile ./
+COPY .shadowtree.toml ./
 COPY socket-proxy ./socket-proxy
 COPY goutils ./goutils
 
 ARG VERSION
 ENV VERSION=${VERSION}
 
-ARG MAKE_ARGS
-ENV MAKE_ARGS=${MAKE_ARGS}
+ARG SHADOWTREE_ARGS
+ENV SHADOWTREE_ARGS=${SHADOWTREE_ARGS}
 
 ENV GOCACHE=/root/.cache/go-build
 ENV GOPATH=/root/go
 
-RUN make ${MAKE_ARGS} docker=1 build
+RUN shadowtree build ${SHADOWTREE_ARGS:-component=socket-proxy} docker=true
 
 # Stage 3: Final image
 FROM scratch AS socket-proxy

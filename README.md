@@ -245,13 +245,13 @@ sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts
 
 1. Clone the repository `git clone https://github.com/yusing/godoxy --depth=1`
 
-2. Install / Upgrade [go (>=1.22)](https://go.dev/doc/install) and `make` if not already
+2. Install / Upgrade [go (>=1.22)](https://go.dev/doc/install) and [`shadowtree`](https://github.com/yusing/shadowtree) if not already
 
 3. Clear cache if you have built this before (go < 1.22) with `go clean -cache`
 
-4. get dependencies with `make get`
+4. Get dependencies with `shadowtree mod-tidy`
 
-5. build binary with `make build`
+5. Build binary with `shadowtree build`
 
 ## Star History
 

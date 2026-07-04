@@ -226,13 +226,13 @@ sudo /bin/sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/ma
 
 1. 克隆儲存庫 `git clone https://github.com/yusing/godoxy --depth=1`
 
-2. 如果尚未安裝，請安裝/升級 [go (>=1.22)](https://go.dev/doc/install) 和 `make`
+2. 如果尚未安裝，請安裝/升級 [go (>=1.22)](https://go.dev/doc/install) 和 [`shadowtree`](https://github.com/yusing/shadowtree)
 
 3. 如果之前編譯過（go < 1.22），請使用 `go clean -cache` 清除快取
 
-4. 使用 `make get` 獲取依賴
+4. 使用 `shadowtree mod-tidy` 獲取依賴
 
-5. 使用 `make build` 編譯二進制檔案
+5. 使用 `shadowtree build` 編譯二進制檔案
 
 ## Star History
 
