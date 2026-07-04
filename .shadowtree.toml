@@ -115,7 +115,7 @@ configure_build_mode() {
 
 ensure_webui_dist() {
 	if [ "$is_godoxy" = true ] && [ ! -f "$webui_dir/dist/client/_shell.html" ]; then
-		shadowtree build-webui
+		@build-webui
 	fi
 }
 
@@ -244,16 +244,16 @@ esac
 help = "Component being built."
 position = 1
 default = "godoxy"
-values = "printf '%s\\n' godoxy agent socket-proxy cli"
+values = "@enum godoxy agent socket-proxy cli"
 
 [recipes.build-webui]
 help = "Build the embedded WebUI."
 sandboxed = false
 cmd = '''
-shadowtree gen-rules-cheatsheet
+@gen-rules-cheatsheet
 cd "$webui_dir"
 bun i --frozen-lockfile
-shadowtree gen-schema
+@gen-schema
 node ./node_modules/vite/bin/vite.js build
 '''
 
@@ -274,9 +274,9 @@ configure_component "{component}" "{name}"
 ensure_webui_dist
 
 if [ "$is_godoxy" = true ]; then
-	shadowtree minify component=godoxy
+	@minify component=godoxy
 elif [ "{component}" = cli ]; then
-	shadowtree gen-cli
+	@gen-cli
 fi
 
 configure_build_mode "{mode}"
@@ -292,6 +292,7 @@ if [ "$is_godoxy" = true ]; then
 	if [ "$(id -u)" -eq 0 ]; then
 		setcap CAP_NET_BIND_SERVICE=+ep "$bin_path"
 	else
+	  echo "Running sudo setcap CAP_NET_BIND_SERVICE=+ep "$bin_path", you'll be asked for password."
 		sudo setcap CAP_NET_BIND_SERVICE=+ep "$bin_path"
 	fi
 fi
@@ -306,12 +307,12 @@ fi
 help = "Binary component to build."
 position = 1
 default = "godoxy"
-values = "printf '%s\\n' godoxy main agent socket-proxy cli"
+values = "@enum godoxy main agent socket-proxy cli"
 
 [recipes.build.arguments.mode]
 help = "Build mode."
 default = "production"
-values = "printf '%s\\n' production debug race trace pprof dev"
+values = "@enum production debug race trace pprof dev"
 
 [recipes.build.arguments.docker]
 help = "Move the binary to /app/run for container images."
@@ -327,7 +328,7 @@ help = "Run the selected component with godotenv."
 sandboxed = false
 cmd = '''
 configure_component "{component}" ""
-shadowtree minify component="{component}"
+@minify component="{component}"
 configure_build_mode "{mode}"
 cd "$build_dir"
 [ -f .env ] && CGO_ENABLED="$cgo_enabled" \
@@ -342,18 +343,18 @@ cd "$build_dir"
 help = "Component to run."
 position = 1
 default = "godoxy"
-values = "printf '%s\\n' godoxy main agent socket-proxy cli"
+values = "@enum godoxy main agent socket-proxy cli"
 
 [recipes.run-app.arguments.mode]
 help = "Run mode."
 default = "production"
-values = "printf '%s\\n' production debug race trace pprof dev"
+values = "@enum production debug race trace pprof dev"
 
 [recipes.dev]
 help = "Build a dev binary and restart the development compose app."
 sandboxed = false
+pre = ["@build[component=godoxy,mode=dev]"]
 cmd = '''
-shadowtree build component=godoxy mode=dev
 docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 docker compose logs -f -n200 app
 '''
@@ -408,7 +409,7 @@ cp internal/api/v1/docs/swagger.json "$docs_dir/public/api.json"
 [recipes.gen-api-types]
 help = "Regenerate Swagger docs and TypeScript API client."
 sandboxed = false
-pre = [["shadowtree", "gen-swagger"]]
+pre = ["@gen-swagger"]
 cmd = '''
 bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --add-readonly --route-types \
 	--responses -o "$webui_dir/src/lib" -n api.ts -p internal/api/v1/docs/swagger.json
@@ -427,4 +428,4 @@ cmd = "DOCS_DIR=$docs_dir REPO_URL=$repo_url bun --bun scripts/update-wiki"
 [recipes.gen-schema]
 help = "Generate WebUI config schemas."
 sandboxed = false
-cmd = ["shadowtree", "--config", "webui/.shadowtree.toml", "gen-schema"]
+cmd = ["@webui:gen-schema"]
