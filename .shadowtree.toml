@@ -3,9 +3,6 @@ shell = "sh"
 
 shell_prelude = '''
 repo_root=$(pwd)
-repo_url=${REPO_URL:-https://github.com/yusing/godoxy}
-webui_dir=${WEBUI_DIR:-"$repo_root/webui"}
-docs_dir=${DOCS_DIR:-"$webui_dir/wiki"}
 test_registry=${TEST_REGISTRY:-reg.i.sh}
 
 version_value() {
@@ -13,14 +10,6 @@ version_value() {
 		printf '%s\n' "$VERSION"
 	else
 		git describe --tags --abbrev=0 2>/dev/null || true
-	fi
-}
-
-branch_value() {
-	if [ -n "${BRANCH:-}" ]; then
-		printf '%s\n' "$BRANCH"
-	else
-		git rev-parse --abbrev-ref HEAD 2>/dev/null || true
 	fi
 }
 
@@ -118,25 +107,19 @@ ensure_webui_dist() {
 		@build-webui
 	fi
 }
-
-go_mod_paths() {
-	find . -name go.mod -type f \
-		| grep -vE '^./internal/(go-oidc|go-proxmox|gopsutil)/' \
-		| sed 's#/go\.mod$##'
-}
-
-run_in_go_modules() {
-	for path in $(go_mod_paths); do
-		echo "$repo_root/$path"
-		(cd "$repo_root/$path" && "$@")
-	done
-}
 '''
+
+[var_commands]
+repo_root="pwd"
+
+[vars]
+repo_url="https://github.com/yusing/godoxy"
+webui_dir="{repo_root}/webui"
+docs_dir="{webui_dir}/wiki"
 
 [recipes.test]
 help = "Run Go tests for internal packages."
 sandboxed = false
-default_args = []
 cmd = '''
 configure_component godoxy ""
 ensure_webui_dist
@@ -167,7 +150,7 @@ go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./interna
 [recipes.tcp-echo-test]
 help = "Run the TCP echo integration test script."
 sandboxed = false
-cmd = ["bun", "--bun", "scripts/tcp_echo_test.ts"]
+cmd = "bun --bun scripts/tcp_echo_test.ts"
 
 [recipes.docker-build-test]
 help = "Build and push test Docker images."
@@ -191,33 +174,19 @@ find . \( -name go.mod -type f -o -name Dockerfile -type f \) | while IFS= read 
 	sed -i "s|go \([0-9]\+\.[0-9]\+\.[0-9]\+\)|go $go_ver|g" "$file"
 	sed -i "s|FROM golang:.*-alpine|FROM golang:$go_ver-alpine|g" "$file"
 done
-run_in_go_modules go mod tidy
+@tidy
 '''
 
 [recipes.update-deps]
 help = "Run go get -u and go mod tidy across project modules."
 sandboxed = false
+for_each = "@go-packages"
+workdir = "{item}"
 cmd = '''
-for path in $(go_mod_paths); do
-	echo "$repo_root/$path"
-	(cd "$repo_root/$path" && go get -u ./... && go mod tidy)
-done
+echo "$repo_root/{item}"
+go get -u ./...
 '''
-
-[recipes.mod-tidy]
-help = "Run go mod tidy across project modules."
-sandboxed = false
-cmd = "run_in_go_modules go mod tidy"
-
-[recipes.tidy]
-help = "Run go mod tidy across project modules."
-sandboxed = false
-cmd = "run_in_go_modules go mod tidy"
-
-[recipes.modernize]
-help = "Run go fix across project modules."
-sandboxed = false
-cmd = "run_in_go_modules go fix ./..."
+post = ["go mod tidy"]
 
 [recipes.minify]
 help = "Minify frontend assets for the selected component."
@@ -251,7 +220,7 @@ help = "Build the embedded WebUI."
 sandboxed = false
 cmd = '''
 @gen-rules-cheatsheet
-cd "$webui_dir"
+cd "{webui_dir}"
 bun i --frozen-lockfile
 @gen-schema
 node ./node_modules/vite/bin/vite.js build
@@ -262,13 +231,12 @@ help = "Regenerate the WebUI rules cheatsheet."
 sandboxed = false
 cmd = '''
 version=$(version_value)
-go run -ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0" ./cmd/rules-cheatsheet-gen -out "$webui_dir/src/generated/rules-cheatsheet.json"
+go run -ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0" ./cmd/rules-cheatsheet-gen -out "{webui_dir}/src/generated/rules-cheatsheet.json"
 '''
 
 [recipes.build]
 help = "Build a GoDoxy binary."
 sandboxed = false
-default_args = []
 cmd = '''
 configure_component "{component}" "{name}"
 ensure_webui_dist
@@ -362,7 +330,7 @@ docker compose logs -f -n200 app
 [recipes.benchmark]
 help = "Run scripts/benchmark.sh; extra arguments are passed through."
 sandboxed = false
-cmd = ["./scripts/benchmark.sh"]
+cmd = "./scripts/benchmark.sh {@}"
 
 [recipes.rapid-crash]
 help = "Run a short Docker restart loop sanity check."
@@ -389,12 +357,7 @@ act -n --artifact-server-path /tmp/artifacts -s GITHUB_TOKEN="$(gh auth token)"
 [recipes.cloc]
 help = "Count Go and WebUI source lines."
 sandboxed = false
-cmd = ["scc", "-w", "-i", "go,ts,tsx", "--not-match", "_test.go$", "--not-match", ".test.ts$", "--not-match", ".test.tsx$"]
-
-[recipes.push-github]
-help = "Push the current branch to origin."
-sandboxed = false
-cmd = "git push origin $(branch_value)"
+cmd = "scc -w -i go,ts,tsx --not-match '_test.go$' --not-match '.test.ts$' --not-match '.test.tsx$'"
 
 [recipes.gen-swagger]
 help = "Regenerate Swagger docs and sync api.json into the wiki."
@@ -403,7 +366,7 @@ cmd = '''
 swag init --parseDependency --parseInternal --parseFuncBody -g handler.go -d internal/api -o internal/api/v1/docs
 python3 scripts/fix-swagger-json.py
 rm internal/api/v1/docs/docs.go
-cp internal/api/v1/docs/swagger.json "$docs_dir/public/api.json"
+cp internal/api/v1/docs/swagger.json "{docs_dir}/public/api.json"
 '''
 
 [recipes.gen-api-types]
@@ -412,20 +375,24 @@ sandboxed = false
 pre = ["@gen-swagger"]
 cmd = '''
 bunx --bun swagger-typescript-api generate --sort-types --generate-union-enums --add-readonly --route-types \
-	--responses -o "$webui_dir/src/lib" -n api.ts -p internal/api/v1/docs/swagger.json
+	--responses -o "{webui_dir}/src/lib" -n api.ts -p internal/api/v1/docs/swagger.json
 '''
 
 [recipes.gen-cli]
 help = "Regenerate the CLI from cmd/cli/gen."
 sandboxed = false
-cmd = ["go", "run", "-C", "cmd/cli", "./gen"]
+cmd = "@run cwd=cmd/cli ./gen"
 
 [recipes.update-wiki]
 help = "Regenerate wiki content from package docs."
 sandboxed = false
-cmd = "DOCS_DIR=$docs_dir REPO_URL=$repo_url bun --bun scripts/update-wiki"
+cmd = "bun --bun scripts/update-wiki"
+
+[recipes.update-wiki.env]
+DOCS_DIR="{docs_dir}"
+REPO_URL="{repo_url}"
 
 [recipes.gen-schema]
 help = "Generate WebUI config schemas."
 sandboxed = false
-cmd = ["@webui:gen-schema"]
+cmd = "@webui:gen-schema"
