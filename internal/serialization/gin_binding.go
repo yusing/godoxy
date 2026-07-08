@@ -12,10 +12,12 @@ type (
 	GinYAMLBinding struct{}
 )
 
+// Name implements binding.Binding.
 func (b GinJSONBinding) Name() string {
 	return "json"
 }
 
+// Bind implements binding.Binding.
 func (b GinJSONBinding) Bind(req *http.Request, obj any) error {
 	m := make(map[string]any)
 	if err := strutils.NewJSONDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {
@@ -24,10 +26,12 @@ func (b GinJSONBinding) Bind(req *http.Request, obj any) error {
 	return MapUnmarshalValidate(m, obj)
 }
 
+// Name implements binding.Binding.
 func (b GinYAMLBinding) Name() string {
 	return "yaml"
 }
 
+// Bind implements binding.Binding.
 func (b GinYAMLBinding) Bind(req *http.Request, obj any) error {
 	m := make(map[string]any)
 	if err := yaml.NewDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {

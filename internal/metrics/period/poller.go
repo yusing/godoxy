@@ -19,15 +19,13 @@ import (
 type (
 	PollFunc[T any]                      func(ctx context.Context, lastResult T) (T, error)
 	AggregateFunc[T any, AggregateT any] func(entries []T, query url.Values) (total int, result AggregateT)
-	FilterFunc[T any]                    func(entries []T, keyword string) (filtered []T)
 	Poller[T any, AggregateT any]        struct {
-		name         string
-		poll         PollFunc[T]
-		aggregate    AggregateFunc[T, AggregateT]
-		resultFilter FilterFunc[T]
-		period       *Period[T]
-		lastResult   synk.Value[T]
-		errs         []pollErr
+		name       string
+		poll       PollFunc[T]
+		aggregate  AggregateFunc[T, AggregateT]
+		period     *Period[T]
+		lastResult synk.Value[T]
+		errs       []pollErr
 	}
 	pollErr struct {
 		err   error
@@ -102,11 +100,6 @@ func (p *Poller[T, AggregateT]) save() error {
 		return err
 	}
 	return nil
-}
-
-func (p *Poller[T, AggregateT]) WithResultFilter(filter FilterFunc[T]) *Poller[T, AggregateT] {
-	p.resultFilter = filter
-	return p
 }
 
 func (p *Poller[T, AggregateT]) appendErr(err error) {

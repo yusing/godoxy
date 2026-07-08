@@ -45,16 +45,10 @@ type Statistics struct {
 ### Exported functions
 
 ```go
-func DumpRouteProviders() map[string]routing.Provider
-```
-
-Returns all route providers as a map keyed by their short name. Thread-safe access via `config.ActiveState.Load()`.
-
-```go
 func RouteProviderList() []RouteProviderListResponse
 ```
 
-Searches for a route by alias across all providers. Returns `nil` if not found.
+Returns route provider short and full names for API responses.
 
 ```go
 func GetStatistics() Statistics
@@ -91,13 +85,16 @@ graph TD
 All functions use `config.ActiveState.Load()` for thread-safe read access:
 
 ```go
-func DumpRouteProviders() map[string]types.RouteProvider {
+func RouteProviderList() []RouteProviderListResponse {
     state := config.ActiveState.Load()
-    entries := make(map[string]types.RouteProvider, state.NumProviders())
+    list := make([]RouteProviderListResponse, 0, state.NumProviders())
     for _, p := range state.IterProviders() {
-        entries[p.ShortName()] = p
+        list = append(list, RouteProviderListResponse{
+            ShortName: p.ShortName(),
+            FullName:  p.String(),
+        })
     }
-    return entries
+    return list
 }
 ```
 
@@ -161,15 +158,6 @@ No metrics are currently exposed.
 providers := statequery.RouteProviderList()
 for _, p := range providers {
     fmt.Printf("Short: %s, Full: %s\n", p.ShortName, p.FullName)
-}
-```
-
-### Getting all providers as a map
-
-```go
-providers := statequery.DumpRouteProviders()
-for shortName, provider := range providers {
-    fmt.Printf("%s: %s\n", shortName, provider.String())
 }
 ```
 

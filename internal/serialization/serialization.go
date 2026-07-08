@@ -654,11 +654,8 @@ func substituteEnv(data []byte) ([]byte, error) {
 }
 
 type (
-	marshalFunc    func(src any) ([]byte, error)
-	unmarshalFunc  func(data []byte, target any) error
-	newDecoderFunc func(r io.Reader) interface {
-		Decode(v any) error
-	}
+	marshalFunc   func(src any) ([]byte, error)
+	unmarshalFunc func(data []byte, target any) error
 	interceptFunc func(m map[string]any) error
 )
 
@@ -683,56 +680,6 @@ func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc,
 		}
 	}
 	return MapUnmarshalValidate(m, target)
-}
-
-// UnmarshalValidateReader reads from an io.Reader, unmarshals to a map,
-//   - Applies optional intercept functions, and validates against the target struct.
-//   - Environment variables are substituted during reading using ${VAR} syntax.
-//   - The newDecoder function creates a decoder for the reader (e.g.,
-//     json.NewDecoder).
-func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) error {
-	m := make(map[string]any)
-	if err := newDecoder(NewSubstituteEnvReader(reader)).Decode(&m); err != nil {
-		return err
-	}
-	for _, intercept := range interceptFns {
-		if err := intercept(m); err != nil {
-			return err
-		}
-	}
-	return MapUnmarshalValidate(m, target)
-}
-
-// UnmarshalValidateXSync unmarshals data into an xsync.Map[string, V].
-//   - Environment variables in the data are substituted using ${VAR} syntax.
-//   - The unmarshaler function converts data to a map[string]any.
-//   - Intercept functions can modify or validate the map before unmarshaling.
-//   - Returns a thread-safe concurrent map with the unmarshaled values.
-func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], error) {
-	data, err := substituteEnv(data)
-	if err != nil {
-		return nil, err
-	}
-
-	m := make(map[string]any)
-	if err := unmarshaler(data, &m); err != nil {
-		return nil, err
-	}
-	for _, intercept := range interceptFns {
-		if err := intercept(m); err != nil {
-			return nil, err
-		}
-	}
-
-	m2 := make(map[string]V, len(m))
-	if err = MapUnmarshalValidate(m, m2); err != nil {
-		return nil, err
-	}
-	ret := xsync.NewMap[string, V](xsync.WithPresize(len(m)))
-	for k, v := range m2 {
-		ret.Store(k, v)
-	}
-	return ret, nil
 }
 
 // SaveFile marshals a value to bytes and writes it to a file.

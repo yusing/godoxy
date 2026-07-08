@@ -58,14 +58,8 @@ type CustomValidator interface {
 // Generic unmarshal with pluggable format handler
 func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) error
 
-// Read from io.Reader with format decoder
-func UnmarshalValidateReader[T any](reader io.Reader, target *T, newDecoder newDecoderFunc, interceptFns ...interceptFunc) error
-
 // Direct map deserialization
 func MapUnmarshalValidate(src SerializedObject, dst any) error
-
-// To xsync.Map with pluggable format handler
-func UnmarshalValidateXSync[V any](data []byte, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) (*xsync.Map[string, V], error)
 ```
 
 ### File I/O Functions
@@ -99,9 +93,6 @@ func MustRegisterValidation(tag string, fn validator.Func)
 
 // Validate using CustomValidator interface
 func ValidateWithCustomValidator(v reflect.Value) error
-
-// Get underlying validator
-func Validator() *validator.Validate
 ```
 
 ### Utility Functions
@@ -344,17 +335,6 @@ if err := serialization.LoadFileIfExist("config.yml", &config, yaml.Unmarshal); 
 
 // Save back to file
 if err := serialization.SaveFile("config.yml", &config, 0644, yaml.Marshal); err != nil {
-    panic(err)
-}
-```
-
-### Reading from io.Reader
-
-```go
-var config ServerConfig
-file, _ := os.Open("config.yml")
-defer file.Close()
-if err := serialization.UnmarshalValidateReader(file, &config, yaml.NewDecoder); err != nil {
     panic(err)
 }
 ```

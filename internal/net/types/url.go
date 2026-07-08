@@ -10,14 +10,6 @@ type URL struct {
 	urlPkg.URL
 }
 
-func MustParseURL(url string) *URL {
-	u, err := ParseURL(url)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
 func ParseURL(url string) (*URL, error) {
 	u := &URL{}
 	return u, u.Parse(url)

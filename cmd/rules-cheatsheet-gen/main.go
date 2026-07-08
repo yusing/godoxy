@@ -476,27 +476,6 @@ func (ex *extractor) parseStaticVars(expr ast.Expr) map[string]staticVarData {
 	return result
 }
 
-func (ex *extractor) parseMapKeys(expr ast.Expr) []string {
-	lit, ok := expr.(*ast.CompositeLit)
-	if !ok {
-		return nil
-	}
-	var keys []string
-	for _, elt := range lit.Elts {
-		kv, ok := elt.(*ast.KeyValueExpr)
-		if !ok {
-			continue
-		}
-		key, ok := ex.stringValue(kv.Key)
-		if !ok {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
 func (ex *extractor) parseStringSlice(expr ast.Expr) []string {
 	lit, ok := expr.(*ast.CompositeLit)
 	if !ok {
@@ -1333,21 +1312,6 @@ func stripLeadingGoTypeSentence(line string) string {
 		return string(unicode.ToUpper(r)) + after[size:]
 	}
 	return line
-}
-
-func controlFlowEntryOrder(id string) int {
-	switch id {
-	case "control-inline-block":
-		return 0
-	case "control-elif":
-		return 1
-	case "control-else":
-		return 2
-	case "control-default":
-		return 3
-	default:
-		return 99
-	}
 }
 
 const (

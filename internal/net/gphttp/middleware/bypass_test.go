@@ -19,6 +19,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -27,6 +28,15 @@ const (
 )
 
 func noOpHandler(w http.ResponseWriter, r *http.Request) {}
+
+func newTestEntrypoint(tb testing.TB) *entrypoint.Entrypoint {
+	tb.Helper()
+
+	testTask := task.GetTestTask(tb)
+	ep := entrypoint.NewEntrypoint(testTask, nil)
+	entrypoint.SetCtx(testTask, ep)
+	return ep
+}
 
 func TestBypassCIDR(t *testing.T) {
 	mr, err := ModifyRequest.New(map[string]any{
@@ -237,7 +247,7 @@ func TestEntrypointBypassRoute(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	expect.NoError(t, err)
 
-	entry := entrypoint.NewTestEntrypoint(t, nil)
+	entry := newTestEntrypoint(t)
 	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: route.SchemeHTTP,
@@ -290,7 +300,7 @@ func TestEntrypointPromotesRouteBypassOverlay(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
-	entry := entrypoint.NewTestEntrypoint(t, nil)
+	entry := newTestEntrypoint(t)
 	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: route.SchemeHTTP,
@@ -376,7 +386,7 @@ func TestRouteBypassWithoutMatchingEntrypointMiddlewareKeepsCurrentBehavior(t *t
 	portInt, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
-	entry := entrypoint.NewTestEntrypoint(t, nil)
+	entry := newTestEntrypoint(t)
 	r, err := routetest.NewStartedRoute(t, &route.Route{
 		Alias:  "test-route",
 		Scheme: route.SchemeHTTP,

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
-	"testing"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
@@ -53,15 +52,6 @@ type Entrypoint struct {
 var _ routing.Entrypoint = &Entrypoint{}
 
 var emptyCfg Config
-
-func NewTestEntrypoint(tb testing.TB, cfg *Config) *Entrypoint {
-	tb.Helper()
-
-	testTask := task.GetTestTask(tb)
-	ep := NewEntrypoint(testTask, cfg)
-	SetCtx(testTask, ep)
-	return ep
-}
 
 func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 	if cfg == nil {

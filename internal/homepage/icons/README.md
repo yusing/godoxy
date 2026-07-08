@@ -476,7 +476,7 @@ func main() {
 
 - Unit tests in `url_test.go` validate parsing and serialization
 - Test mode (`common.IsTest`) bypasses existence checks
-- Mock HTTP in list tests via `MockHTTPGet()`
+- List tests mock HTTP with a test-local helper in `list/list_icons_test.go`
 - Golden tests not used; test fixtures embedded in test cases
 
 ## Icon URL Formats

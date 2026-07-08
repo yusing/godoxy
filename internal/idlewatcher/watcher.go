@@ -545,13 +545,6 @@ func (w *Watcher) resetIdleTimer() {
 	w.lastReset.Store(time.Now())
 }
 
-func (w *Watcher) expires() time.Time {
-	if !w.running() || w.cfg.IdleTimeout <= 0 {
-		return time.Time{}
-	}
-	return w.lastReset.Load().Add(w.cfg.IdleTimeout)
-}
-
 // watchUntilDestroy waits for the container to be created, started, or unpaused,
 // and then reset the idle timer.
 //

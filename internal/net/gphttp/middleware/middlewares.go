@@ -57,10 +57,6 @@ func Get(name string) (*Middleware, error) {
 	return middleware, nil
 }
 
-func All() map[string]*Middleware {
-	return allMiddlewares
-}
-
 func LoadComposeFiles() {
 	var errs gperr.Builder
 	middlewareDefs, err := fsutils.ListFiles(common.MiddlewareComposeBasePath, 0)

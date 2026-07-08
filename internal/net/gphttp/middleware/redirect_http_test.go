@@ -4,13 +4,12 @@ import (
 	"net/http"
 	"testing"
 
-	nettypes "github.com/yusing/godoxy/internal/net/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
 func TestRedirectToHTTPs(t *testing.T) {
 	result, err := newMiddlewareTest(RedirectHTTP, &testArgs{
-		reqURL: nettypes.MustParseURL("http://example.com"),
+		reqURL: mustParseURL("http://example.com"),
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, result.ResponseStatus, http.StatusPermanentRedirect)
@@ -19,7 +18,7 @@ func TestRedirectToHTTPs(t *testing.T) {
 
 func TestNoRedirect(t *testing.T) {
 	result, err := newMiddlewareTest(RedirectHTTP, &testArgs{
-		reqURL: nettypes.MustParseURL("https://example.com"),
+		reqURL: mustParseURL("https://example.com"),
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, result.ResponseStatus, http.StatusOK)

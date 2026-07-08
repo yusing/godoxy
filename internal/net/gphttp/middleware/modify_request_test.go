@@ -7,7 +7,6 @@ import (
 	"slices"
 	"testing"
 
-	nettypes "github.com/yusing/godoxy/internal/net/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -51,8 +50,8 @@ func TestModifyRequest(t *testing.T) {
 	})
 
 	t.Run("request_headers", func(t *testing.T) {
-		reqURL := nettypes.MustParseURL("https://my.app/?arg_1=b")
-		upstreamURL := nettypes.MustParseURL("http://test.example.com")
+		reqURL := mustParseURL("https://my.app/?arg_1=b")
+		upstreamURL := mustParseURL("http://test.example.com")
 		result, err := newMiddlewareTest(ModifyRequest, &testArgs{
 			middlewareOpt: opts,
 			reqURL:        reqURL,
@@ -128,8 +127,8 @@ func TestModifyRequest(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				reqURL := nettypes.MustParseURL("https://my.app" + tt.path)
-				upstreamURL := nettypes.MustParseURL(tt.upstreamURL)
+				reqURL := mustParseURL("https://my.app" + tt.path)
+				upstreamURL := mustParseURL(tt.upstreamURL)
 
 				opts["add_prefix"] = tt.addPrefix
 				result, err := newMiddlewareTest(ModifyRequest, &testArgs{

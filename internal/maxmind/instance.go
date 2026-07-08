@@ -40,10 +40,6 @@ func SetInstance(parent task.Parent, cfg *Config) error {
 	return nil
 }
 
-func HasInstance() bool {
-	return instance != nil
-}
-
 func LookupCity(ip *IPInfo) (*City, bool) {
 	if ip.City != nil {
 		return ip.City, false

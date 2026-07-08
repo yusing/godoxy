@@ -86,13 +86,12 @@ const (
 
 ```go
 type Poller[T any, A any] struct {
-    name         string
-    poll         PollFunc[T]
-    aggregate    AggregateFunc[T, A]
-    resultFilter FilterFunc[T]
-    period       *Period[T]
-    lastResult   synk.Value[T]
-    errs         []pollErr
+    name       string
+    poll       PollFunc[T]
+    aggregate  AggregateFunc[T, A]
+    period     *Period[T]
+    lastResult synk.Value[T]
+    errs       []pollErr
 }
 ```
 
@@ -103,7 +102,6 @@ Generic poller that collects data at regular intervals.
 ```go
 type PollFunc[T any] func(ctx context.Context, lastResult T) (T, error)
 type AggregateFunc[T any, A any] func(entries []T, query url.Values) (total int, result A)
-type FilterFunc[T any] func(entries []T, keyword string) (filtered []T)
 ```
 
 #### ResponseType[AggregateT]
@@ -138,12 +136,6 @@ func NewPoller[T any, A any](
 ```
 
 Creates a new poller with the specified name, poll function, and aggregator.
-
-```go
-func (p *Poller[T, A]) WithResultFilter(filter FilterFunc[T]) *Poller[T, A]
-```
-
-Adds a result filter to the poller for keyword-based filtering.
 
 #### Poller Methods
 

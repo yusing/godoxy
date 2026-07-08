@@ -1,13 +1,13 @@
-package iconlist_test
+package iconlist
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage/icons"
-	. "github.com/yusing/godoxy/internal/homepage/icons/list"
 )
 
-const walkxcodeIcons = `{
+const testWalkxcodeIcons = `{
 	"png": [
 		"app1.png",
 		"app1-light.png",
@@ -30,7 +30,7 @@ const walkxcodeIcons = `{
 	]
 }`
 
-const selfhstIcons = `[
+const testSelfhstIcons = `[
 	{
 			"Name": "2FAuth",
 			"Reference": "2fauth",
@@ -98,9 +98,7 @@ func runTests(t *testing.T, iconsCache IconMap, test []testCases) {
 }
 
 func TestListWalkxCodeIcons(t *testing.T) {
-	t.Cleanup(TestClearIconsCache)
-
-	MockHTTPGet(t.Context(), []byte(walkxcodeIcons))
+	mockHTTPGet(t, []byte(testWalkxcodeIcons))
 	m := NewIconMap()
 	if err := UpdateWalkxCodeIcons(t.Context(), m); err != nil {
 		t.Fatal(err)
@@ -139,8 +137,7 @@ func TestListWalkxCodeIcons(t *testing.T) {
 }
 
 func TestListSelfhstIcons(t *testing.T) {
-	t.Cleanup(TestClearIconsCache)
-	MockHTTPGet(t.Context(), []byte(selfhstIcons))
+	mockHTTPGet(t, []byte(testSelfhstIcons))
 	m := NewIconMap()
 	if err := UpdateSelfhstIcons(t.Context(), m); err != nil {
 		t.Fatal(err)
@@ -182,4 +179,16 @@ func TestListSelfhstIcons(t *testing.T) {
 		},
 	}
 	runTests(t, m, test)
+}
+
+func mockHTTPGet(tb testing.TB, body []byte) {
+	tb.Helper()
+
+	prev := httpGet
+	httpGet = func(context.Context, string) ([]byte, func([]byte), error) {
+		return body, func([]byte) {}, nil
+	}
+	tb.Cleanup(func() {
+		httpGet = prev
+	})
 }

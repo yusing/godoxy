@@ -41,10 +41,6 @@ func PutResponseRecorder(r *ResponseRecorder) {
 	recorderPool.Put(r)
 }
 
-func NewResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
-	return GetResponseRecorder(w)
-}
-
 func (w *ResponseRecorder) Unwrap() http.ResponseWriter {
 	return w.w
 }

@@ -64,10 +64,6 @@ const (
 	HTTPProtoHTTPS HTTPProto = "https"
 )
 
-func NewHTTPServer(ep *Entrypoint) HTTPServer {
-	return newHTTPServer(ep)
-}
-
 func newHTTPServer(ep *Entrypoint) *httpServer {
 	srv := &httpServer{ep: ep}
 	srv.resetRouteEntrypointOverlays()

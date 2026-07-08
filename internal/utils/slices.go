@@ -18,11 +18,3 @@ func Intersect[T comparable, Slice ~[]T](slice1 Slice, slice2 Slice) Slice {
 
 	return result
 }
-
-// Slice returns a slice of the first n elements in slice like javascript's slice.
-func Slice[T any](slice []T, n int) []T {
-	if n >= len(slice) {
-		return slice
-	}
-	return slice[:n]
-}

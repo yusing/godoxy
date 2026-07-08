@@ -71,22 +71,6 @@ Default transport settings:
 - `ResponseHeaderTimeout`: 60 seconds
 - `WriteBufferSize` / `ReadBufferSize`: 16KB
 
-### ServeMux Wrapper
-
-Extended `http.ServeMux` with panic recovery:
-
-```go
-type ServeMux struct {
-    *http.ServeMux
-}
-
-func NewServeMux() ServeMux
-func (mux ServeMux) Handle(pattern string, handler http.Handler) (err error)
-func (mux ServeMux) HandleFunc(pattern string, handler http.HandlerFunc) (err error)
-```
-
-The `Handle` and `HandleFunc` methods recover from panics and return them as errors, preventing one bad handler from crashing the entire server.
-
 ## Usage Examples
 
 ### Creating Custom Transports
@@ -106,17 +90,6 @@ tlsConfig := &tls.Config{
     ServerName: "example.com",
 }
 transport := gphttp.NewTransportWithTLSConfig(tlsConfig)
-```
-
-### Using ServeMux with Panic Recovery
-
-```go
-mux := gphttp.NewServeMux()
-
-// Register handlers - panics are converted to errors
-if err := mux.HandleFunc("/api", apiHandler); err != nil {
-    log.Printf("handler registration failed: %v", err)
-}
 ```
 
 ## Integration Points

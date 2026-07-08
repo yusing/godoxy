@@ -17,6 +17,31 @@ import (
 	"github.com/yusing/goutils/task"
 )
 
+// NewTestEntrypoint is a test-only bridge for external entrypoint_test tests.
+func NewTestEntrypoint(tb testing.TB, cfg *Config) *Entrypoint {
+	tb.Helper()
+
+	testTask := task.GetTestTask(tb)
+	ep := NewEntrypoint(testTask, cfg)
+	SetCtx(testTask, ep)
+	return ep
+}
+
+// NewHTTPServer is a test-only bridge for external entrypoint_test tests.
+func NewHTTPServer(ep *Entrypoint) HTTPServer {
+	return newHTTPServer(ep)
+}
+
+func mustParseURL(tb testing.TB, rawURL string) *nettypes.URL {
+	tb.Helper()
+
+	u, err := nettypes.ParseURL(rawURL)
+	if err != nil {
+		tb.Fatalf("parse URL %q: %v", rawURL, err)
+	}
+	return u
+}
+
 type testHTTPRoute struct {
 	*route.Route
 }

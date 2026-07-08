@@ -92,11 +92,9 @@ func TestCloudflareRealIPRefreshesStaleCIDRsInBackground(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	timeNow = func() time.Time { return now }
 
-	oldCIDRValue, err := nettypes.ParseCIDR("127.0.0.1/32")
-	require.NoError(t, err)
+	oldCIDRValue := mustParseCIDR(t, "127.0.0.1/32")
 	oldCIDR := &oldCIDRValue
-	newCIDRValue, err := nettypes.ParseCIDR("10.0.0.0/8")
-	require.NoError(t, err)
+	newCIDRValue := mustParseCIDR(t, "10.0.0.0/8")
 	newCIDR := &newCIDRValue
 	cfCIDRs.Store([]*nettypes.CIDR{oldCIDR})
 	cfCIDRsLastUpdate.Store(now.Add(-cfCIDRsUpdateInterval - time.Second))
@@ -279,4 +277,12 @@ func waitForCloudflareRefreshIdle(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return !cfCIDRsRefreshing.Load()
 	}, time.Second, 10*time.Millisecond)
+}
+
+func mustParseCIDR(t *testing.T, rawCIDR string) nettypes.CIDR {
+	t.Helper()
+
+	var cidr nettypes.CIDR
+	require.NoError(t, cidr.Parse(rawCIDR))
+	return cidr
 }

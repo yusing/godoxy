@@ -35,6 +35,14 @@ func init() {
 	}
 }
 
+func mustParseURL(rawURL string) *nettypes.URL {
+	u, err := nettypes.ParseURL(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
+
 type requestRecorder struct {
 	args *testArgs
 
@@ -116,7 +124,7 @@ type testArgs struct {
 
 func (args *testArgs) setDefaults() {
 	if args.reqURL == nil {
-		args.reqURL = nettypes.MustParseURL("https://example.com")
+		args.reqURL = mustParseURL("https://example.com")
 	}
 	if args.reqMethod == "" {
 		args.reqMethod = http.MethodGet
@@ -125,7 +133,7 @@ func (args *testArgs) setDefaults() {
 		args.remoteAddr = "192.0.2.1:1234"
 	}
 	if args.upstreamURL == nil {
-		args.upstreamURL = nettypes.MustParseURL("https://10.0.0.1:8443") // dummy url, no actual effect
+		args.upstreamURL = mustParseURL("https://10.0.0.1:8443") // dummy url, no actual effect
 	}
 	if args.respHeaders == nil {
 		args.respHeaders = http.Header{}

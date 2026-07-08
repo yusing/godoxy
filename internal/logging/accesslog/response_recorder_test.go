@@ -61,7 +61,7 @@ func (w *hijackableResponseWriter) Flush() {
 
 func TestResponseRecorderDoesNotWriteUnderlyingAfterHijack(t *testing.T) {
 	underlying := newHijackableResponseWriter()
-	rec := NewResponseRecorder(underlying)
+	rec := GetResponseRecorder(underlying)
 	defer PutResponseRecorder(rec)
 
 	conn, _, err := rec.Hijack()
@@ -86,7 +86,7 @@ func TestResponseRecorderDoesNotWriteUnderlyingAfterHijack(t *testing.T) {
 
 func TestResponseRecorderRecordsFinalStatusAndBytes(t *testing.T) {
 	underlying := newHijackableResponseWriter()
-	rec := NewResponseRecorder(underlying)
+	rec := GetResponseRecorder(underlying)
 	defer PutResponseRecorder(rec)
 
 	rec.WriteHeader(http.StatusEarlyHints)

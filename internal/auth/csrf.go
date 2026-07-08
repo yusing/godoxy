@@ -70,15 +70,3 @@ func SetCSRFCookie(w http.ResponseWriter, r *http.Request, token string) {
 		Path:     "/",
 	})
 }
-
-func ClearCSRFCookie(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     CSRFCookieName,
-		Value:    "",
-		MaxAge:   -1,
-		HttpOnly: false,
-		Secure:   common.APIJWTSecure,
-		SameSite: http.SameSiteStrictMode,
-		Path:     "/",
-	})
-}

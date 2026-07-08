@@ -36,10 +36,6 @@ const (
 	LogFormatRawJSON  LogFormat = "json" // internal use only
 )
 
-func MakeLogFields(fields ...LogField) LogBody {
-	return FieldsBody(fields)
-}
-
 func ErrorBody(err error) LogBody {
 	return errorBody{Error: err}
 }

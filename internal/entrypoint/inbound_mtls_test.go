@@ -52,7 +52,7 @@ func newFakeHTTPRouteAt(t *testing.T, alias, profile, listenURL string) *fakeHTT
 		key:                alias,
 		name:               alias,
 		inboundMTLSProfile: profile,
-		listenURL:          nettypes.MustParseURL(listenURL),
+		listenURL:          mustParseURL(t, listenURL),
 		task:               task.GetTestTask(t),
 	}
 }

@@ -182,7 +182,7 @@ func newFakeSNIStreamRoute(t *testing.T, alias, listenAddr string, stream nettyp
 	return &fakeSNIStreamRoute{
 		key:       alias,
 		name:      alias,
-		listenURL: nettypes.MustParseURL("tcp://" + listenAddr),
+		listenURL: mustParseURL(t, "tcp://"+listenAddr),
 		stream:    stream,
 		task:      task.GetTestTask(t),
 	}

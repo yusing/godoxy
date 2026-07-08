@@ -23,9 +23,3 @@ func InitBuilder(fn BuildFunc) {
 func InitHealthMonitor(fn HealthMonitorFunc) {
 	newHealthMonitor = fn
 }
-
-// InitRuntime is kept as a temporary compatibility shim while the refactor
-// updates callers to builder terminology.
-func InitRuntime(fn BuildFunc) {
-	InitBuilder(fn)
-}

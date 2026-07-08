@@ -123,12 +123,6 @@ func backgroundUpdateIcons() {
 	}
 }
 
-func TestClearIconsCache() {
-	if cache := iconsCache.Load(); cache != nil {
-		cache.Clear()
-	}
-}
-
 func ListAvailableIcons() IconMap {
 	return iconsCache.Load()
 }
@@ -257,12 +251,6 @@ var (
 		Timeout: 5 * time.Second,
 	}
 )
-
-func MockHTTPGet(ctx context.Context, body []byte) {
-	httpGet = func(_ context.Context, _ string) ([]byte, func([]byte), error) {
-		return body, func([]byte) {}, nil
-	}
-}
 
 func httpGetImpl(ctx context.Context, url string) ([]byte, func([]byte), error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

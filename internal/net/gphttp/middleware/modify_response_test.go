@@ -7,7 +7,6 @@ import (
 	"slices"
 	"testing"
 
-	nettypes "github.com/yusing/godoxy/internal/net/types"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -54,8 +53,8 @@ func TestModifyResponse(t *testing.T) {
 	})
 
 	t.Run("response_headers", func(t *testing.T) {
-		reqURL := nettypes.MustParseURL("https://my.app/?arg_1=b")
-		upstreamURL := nettypes.MustParseURL("http://test.example.com")
+		reqURL := mustParseURL("https://my.app/?arg_1=b")
+		upstreamURL := mustParseURL("http://test.example.com")
 		result, err := newMiddlewareTest(ModifyResponse, &testArgs{
 			middlewareOpt: opts,
 			reqURL:        reqURL,

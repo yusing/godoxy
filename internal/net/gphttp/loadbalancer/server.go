@@ -30,14 +30,6 @@ func NewServer(name string, url *nettypes.URL, weight int, handler http.Handler,
 	return srv
 }
 
-func TestNewServer[T ~int | ~float32 | ~float64](weight T) types.LoadBalancerServer {
-	srv := &server{
-		weight: int(weight),
-		url:    nettypes.MustParseURL("http://localhost"),
-	}
-	return srv
-}
-
 func (srv *server) Name() string {
 	return srv.name
 }
