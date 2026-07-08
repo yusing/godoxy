@@ -1,3 +1,7 @@
+include = [
+  ".shadowtree/benchmark.toml",
+]
+
 profile = "go"
 shell = "sh"
 
@@ -327,11 +331,6 @@ docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
 docker compose logs -f -n200 app
 '''
 
-[recipes.benchmark]
-help = "Run scripts/benchmark.sh; extra arguments are passed through."
-sandboxed = false
-cmd = "./scripts/benchmark.sh {@}"
-
 [recipes.rapid-crash]
 help = "Run a short Docker restart loop sanity check."
 sandboxed = false
@@ -396,3 +395,9 @@ REPO_URL="{repo_url}"
 help = "Generate WebUI config schemas."
 sandboxed = false
 cmd = "@webui:gen-schema"
+
+[recipes.deadcode]
+help = "Scan for deadcode"
+for_each = "@go-main-packages"
+workdir = "{item}"
+cmd = "deadcode ./..."

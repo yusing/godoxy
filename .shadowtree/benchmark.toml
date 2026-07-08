@@ -1,0 +1,1112 @@
+[recipes.benchmark]
+help = "Run reverse proxy benchmarks with typed Shadowtree arguments."
+sandboxed = false
+shell = "bash"
+pre = ["benchmark_prepare"]
+cmd = "benchmark_run"
+post = ["benchmark_cleanup"]
+log = "logs/reverse_proxy_benchmark_{run_id}.log"
+shell_prelude = '''
+set -euo pipefail
+
+red() { echo -e "\033[0;31m$*\033[0m"; }
+green() { echo -e "\033[0;32m$*\033[0m"; }
+yellow() { echo -e "\033[1;33m$*\033[0m"; }
+blue() { echo -e "\033[0;34m$*\033[0m"; }
+
+benchmark_init() {
+	duration="{duration}s"
+	h2load_duration={h2load_duration}
+	if [ "$h2load_duration" = 0 ]; then
+		h2load_duration={duration}
+	fi
+	h2load_warm_up_time="{h2load_warm_up_time}"
+	h2load_warm_up_args=()
+	if [ "$h2load_warm_up_time" != "0s" ]; then
+		h2load_warm_up_args=(--warm-up-time="$h2load_warm_up_time")
+	fi
+	threads={threads}
+	connections={connections}
+	requests={requests}
+	if [ -z "{fresh_connections}" ] || [ "{fresh_connections}" = "0" ]; then
+		fresh_connections=$connections
+	else
+		fresh_connections={fresh_connections}
+	fi
+	streams={streams}
+	latency_samples={latency_samples}
+	runs={runs}
+	repeat_delay={repeat_delay}
+	startup_wait={startup_wait}
+	curl_http_code_format=$(printf '\n%%'; printf '%s' '{'; printf '%s' http_code; printf '%s' '}')
+
+	case "{connection_mode}" in
+	reused | fresh | both) ;;
+	*)
+		red "Error: connection_mode must be reused, fresh, or both (got {connection_mode})"
+		exit 2
+		;;
+	esac
+
+	if [ "{h1}" = false ] && [ "{h2}" = false ] && [ "{h3}" = false ] && [ "{h1c}" = false ]; then
+		red "Error: at least one protocol must be enabled"
+		exit 2
+	fi
+}
+
+probe_cmd_path() {
+	printf '%s/%s\n' "$PWD" "{probe_cmd}"
+}
+
+h3bench_cmd_path() {
+	printf '%s/%s\n' "$PWD" "{h3bench_cmd}"
+}
+
+build_h3bench() {
+	yellow "Building local h3bench..."
+	mkdir -p "$(dirname "$(h3bench_cmd_path)")"
+	go build -C cmd/h3bench -o "$(h3bench_cmd_path)" .
+}
+
+build_probe_client() {
+	yellow "Building local bench probe client..."
+	mkdir -p "$(dirname "$(probe_cmd_path)")"
+	go build -C cmd/bench_server -o "$(probe_cmd_path)" .
+}
+
+select_h3_tool() {
+	case "{h3_tool}" in
+	auto)
+		if command -v h2load &>/dev/null && h2load --help 2>&1 | grep -q -- "--h3"; then
+			selected_h3_tool=h2load
+		else
+			if command -v h2load &>/dev/null; then
+				yellow "h2load does not expose --h3; falling back to h3bench"
+			else
+				yellow "h2load is not installed; falling back to h3bench"
+			fi
+			yellow "HTTP/3 throughput results from h3bench are a fallback and are not directly comparable to h2load h1/h2 results"
+			build_h3bench
+			selected_h3_tool=h3bench
+		fi
+		;;
+	h2load)
+		if ! command -v h2load &>/dev/null || ! h2load --help 2>&1 | grep -q -- "--h3"; then
+			yellow "h2load does not expose --h3; falling back to h3bench"
+			yellow "HTTP/3 throughput results from h3bench are a fallback and are not directly comparable to h2load h1/h2 results"
+			build_h3bench
+			selected_h3_tool=h3bench
+		else
+			selected_h3_tool=h2load
+		fi
+		;;
+	h3bench)
+		build_h3bench
+		selected_h3_tool=h3bench
+		;;
+	*)
+		red "Error: unsupported h3_tool={h3_tool} (use auto, h2load, or h3bench)"
+		exit 1
+		;;
+	esac
+}
+
+selected_h3_tool=
+
+benchmark_print_header() {
+blue "========================================"
+blue "Reverse Proxy Benchmark Comparison"
+blue "========================================"
+echo ""
+echo "Target: {host}"
+echo "Duration: $duration"
+echo "Threads: $threads"
+echo "Connections: $connections"
+echo "Requests: $requests"
+echo "Streams: $streams"
+echo "Fresh connections: $fresh_connections"
+echo "Connection mode: {connection_mode}"
+echo "Compose file: {compose_file}"
+echo "Compose manage: {compose_manage}"
+echo "Compose cleanup: {compose_cleanup}"
+echo "h2load duration seconds: $h2load_duration"
+echo "h2load warm-up time: $h2load_warm_up_time"
+echo "Latency samples: $latency_samples"
+echo "Throughput runs: $runs"
+echo "Repeat delay: ${repeat_delay}s"
+echo "Upload probe bytes: {upload_body_bytes}"
+echo "HTTP/1.1: {h1}"
+echo "HTTP/2: {h2}"
+echo "HTTP/3: {h3}"
+echo "HTTP/1.1 cleartext baseline: {h1c}"
+if [ "{h3}" = true ]; then
+	echo "HTTP/3 tool: $selected_h3_tool"
+fi
+if [ -n "{target}" ]; then
+	echo "Filter: {target}"
+fi
+echo ""
+}
+
+benchmark_select_services() {
+declare -ga service_names matched_services
+declare -gA compose_services
+service_names=(GoDoxy Traefik Caddy Nginx)
+compose_services=(
+	["GoDoxy"]="godoxy"
+	["Traefik"]="traefik"
+	["Caddy"]="caddy"
+	["Nginx"]="nginx"
+)
+
+service_selected() {
+	local name=$1
+	[ -z "{target}" ] || [ "${name,,}" = "$(printf '%s' "{target}" | tr '[:upper:]' '[:lower:]')" ]
+}
+
+matched_services=()
+for name in "${service_names[@]}"; do
+	if service_selected "$name"; then
+		matched_services+=("$name")
+	fi
+done
+
+if [ ${#matched_services[@]} -eq 0 ]; then
+	red "Error: target={target} matched no services (valid: ${service_names[*]})"
+	exit 2
+fi
+}
+
+http_port() {
+	case "$1" in
+	GoDoxy) echo "8080" ;;
+	Traefik) echo "8081" ;;
+	Caddy) echo "8082" ;;
+	Nginx) echo "8083" ;;
+	esac
+}
+
+h3_port() {
+	case "$1" in
+	GoDoxy) echo "8440" ;;
+	Traefik) echo "8441" ;;
+	Caddy) echo "8442" ;;
+	Nginx) echo "8443" ;;
+	esac
+}
+
+http_url() {
+	echo "http://{host}:$(http_port "$1")/"
+}
+
+h2load_cleartext_connect_arg() {
+	echo "--connect-to=127.0.0.1:$(http_port "$1")"
+}
+
+https_url() {
+	echo "https://{host}:$(h3_port "$1")/"
+}
+
+h3_dial_addr() {
+	echo "127.0.0.1:$(h3_port "$1")"
+}
+
+h2load_tls_connect_arg() {
+	echo "--connect-to=127.0.0.1:$(h3_port "$1")"
+}
+
+curl_resolve_arg() {
+	echo "{host}:$(h3_port "$1"):127.0.0.1"
+}
+
+read_response_with_retry() {
+	local url=$1
+	shift
+	local curl_args=("$@")
+	local res
+
+	for _ in {1..30}; do
+		if res=$(curl -sS -w "$curl_http_code_format" "${curl_args[@]}" -H "Host: {host}" --max-time 5 "$url" 2>/dev/null); then
+			echo "$res"
+			return 0
+		fi
+		sleep 1
+	done
+
+	curl -sS -w "$curl_http_code_format" "${curl_args[@]}" -H "Host: {host}" --max-time 5 "$url"
+}
+
+h3_check_with_retry() {
+	local name=$1
+	local url=$2
+	local dial_addr
+	dial_addr=$(h3_dial_addr "$name")
+	local tls_connect_arg
+	tls_connect_arg=$(h2load_tls_connect_arg "$name")
+	for _ in {1..30}; do
+		case "$selected_h3_tool" in
+		h2load)
+			if h2load -n1 -c1 -m1 --h3 "$tls_connect_arg" -H ":authority: {host}" "$url" >/dev/null 2>&1; then
+				return 0
+			fi
+			;;
+		h3bench)
+			if "$(h3bench_cmd_path)" -d 1s -c 1 -dial "$dial_addr" -k "$url" >/dev/null 2>&1; then
+				return 0
+			fi
+			;;
+		esac
+		sleep 1
+	done
+
+	case "$selected_h3_tool" in
+	h2load) h2load -n1 -c1 -m1 --h3 "$tls_connect_arg" -H ":authority: {host}" "$url" >/dev/null 2>&1 ;;
+	h3bench) "$(h3bench_cmd_path)" -d 1s -c 1 -m 1 -dial "$dial_addr" -k "$url" >/dev/null 2>&1 ;;
+	esac
+}
+
+enabled_protocols_label() {
+	local protocols=()
+	[ "{h1}" = true ] && protocols+=("HTTP/1.1")
+	[ "{h2}" = true ] && protocols+=("HTTP/2")
+	[ "{h3}" = true ] && protocols+=("HTTP/3")
+	[ "{h1c}" = true ] && protocols+=("HTTP/1.1 cleartext")
+	local IFS=", "
+	echo "${protocols[*]}"
+}
+
+proto_enabled() {
+	case "$1" in
+	h1) [ "{h1}" = true ] ;;
+	h2) [ "{h2}" = true ] ;;
+	h3) [ "{h3}" = true ] ;;
+	*) return 1 ;;
+	esac
+}
+
+proto_label() {
+	case "$1" in
+	h1) echo "HTTP/1.1" ;;
+	h2) echo "HTTP/2" ;;
+	h3) echo "HTTP/3" ;;
+	esac
+}
+
+probe_base_url() {
+	echo "https://{host}"
+}
+
+probe_ws_url() {
+	echo "wss://{host}/ws"
+}
+
+run_probe() {
+	local kind=$1
+	local proto=$2
+	local url=$3
+	local name=$4
+	shift 4
+	local args=("$@")
+	local dial_addr
+	dial_addr=$(h3_dial_addr "$name")
+
+	if ! proto_enabled "$proto"; then
+		return 0
+	fi
+
+	echo ""
+	echo "[$(proto_label "$proto") $kind] $url"
+	"$(probe_cmd_path)" \
+		-probe "$kind" \
+		-proto "$proto" \
+		-url "$url" \
+		-dial-addr "$dial_addr" \
+		-samples "$latency_samples" \
+		-timeout 15s \
+		"${args[@]}"
+}
+
+run_real_world_probes() {
+	local name=$1
+	local base_url
+	base_url=$(probe_base_url "$name")
+
+	echo ""
+	blue "[Real-world latency probes] samples=$latency_samples"
+
+	for proto in h1 h2 h3; do
+		run_probe http "$proto" "$base_url/json" "$name"
+		run_probe http "$proto" "$base_url/upload" "$name" -method POST -body-bytes "{upload_body_bytes}"
+		run_probe http "$proto" "$base_url/stream?chunks=8&chunk_bytes=4096&interval_ms=15" "$name"
+		run_probe sse "$proto" "$base_url/sse?count=3&interval_ms=150" "$name"
+	done
+
+	# WebSocket upgrade is still the most common deployment shape and maps cleanly to gorilla/websocket.
+	run_probe ws h1 "$(probe_ws_url)" "$name"
+}
+
+# Array to store connection errors
+declare -a connection_errors=()
+declare -a throughput_summaries=()
+
+# Function to test connection before benchmarking
+test_connection() {
+	local name=$1
+
+	yellow "Testing connection to $name..."
+
+	local https_url
+	https_url=$(https_url "$name")
+	local curl_resolve
+	curl_resolve=$(curl_resolve_arg "$name")
+
+	local failed=false
+	if [ "{h1c}" = true ]; then
+		local clear_url
+		clear_url=$(http_url "$name")
+		local res0
+		res0=$(read_response_with_retry "$clear_url" --http1.1)
+		local body0
+		body0=$(echo "$res0" | head -n -1)
+		local status0
+		status0=$(echo "$res0" | tail -n 1)
+
+		if [ "$status0" != "200" ] || [ ${#body0} -ne 4096 ]; then
+			red "FAIL $name failed cleartext HTTP/1.1 connection test (Status: $status0, Body length: ${#body0})"
+			failed=true
+		fi
+	fi
+
+	if [ "{h1}" = true ]; then
+		local res1
+		res1=$(read_response_with_retry "$https_url" --http1.1 --insecure --resolve "$curl_resolve")
+		local body1
+		body1=$(echo "$res1" | head -n -1)
+		local status1
+		status1=$(echo "$res1" | tail -n 1)
+
+		if [ "$status1" != "200" ] || [ ${#body1} -ne 4096 ]; then
+			red "FAIL $name failed HTTP/1.1 connection test (Status: $status1, Body length: ${#body1})"
+			failed=true
+		fi
+	fi
+
+	if [ "{h2}" = true ]; then
+		local res2
+		res2=$(read_response_with_retry "$https_url" --http2 --insecure --resolve "$curl_resolve")
+		local body2
+		body2=$(echo "$res2" | head -n -1)
+		local status2
+		status2=$(echo "$res2" | tail -n 1)
+
+		if [ "$status2" != "200" ] || [ ${#body2} -ne 4096 ]; then
+			red "FAIL $name failed HTTP/2 connection test (Status: $status2, Body length: ${#body2})"
+			failed=true
+		fi
+	fi
+
+	if [ "{h3}" = true ] && [ -n "$https_url" ]; then
+		if ! h3_check_with_retry "$name" "$https_url"; then
+			red "FAIL $name failed HTTP/3 connection test (URL: $https_url)"
+			failed=true
+		fi
+	fi
+
+	if [ "$failed" = true ]; then
+		connection_errors+=("$name failed connection test")
+		return 1
+	else
+		green "OK $name is reachable ($(enabled_protocols_label))"
+		return 0
+	fi
+}
+
+compose_target_services() {
+	local targets=(bench)
+	local name
+	for name in "${matched_services[@]}"; do
+		targets+=("${compose_services[$name]}")
+	done
+	echo "${targets[@]}"
+}
+
+compose_up() {
+	[ "{compose_manage}" = true ] || return 0
+	local targets
+	targets=$(compose_target_services)
+	yellow "Starting benchmark compose services: $targets"
+	local recreate_args=()
+	if [ "{compose_recreate}" = true ]; then
+		recreate_args+=(--force-recreate)
+	fi
+	# shellcheck disable=SC2086 # targets are an intentional word list.
+	docker compose -f "{compose_file}" up -d -t 0 "${recreate_args[@]}" $targets
+	sleep "$startup_wait"
+}
+
+compose_down() {
+	[ "{compose_manage}" = true ] || return 0
+	[ "{compose_cleanup}" = true ] || return 0
+	local targets
+	targets=$(compose_target_services)
+	yellow "Stopping benchmark compose services: $targets"
+	# shellcheck disable=SC2086 # targets are an intentional word list.
+	docker compose -f "{compose_file}" down $targets -t 0
+}
+
+restart_bench() {
+	local name=$1
+	echo ""
+	yellow "Preparing benchmark services before benchmarking $name..."
+	if [ "{compose_manage}" = true ]; then
+		local recreate_args=()
+		if [ "{compose_recreate}" = true ]; then
+			recreate_args+=(--force-recreate)
+		fi
+		local targets=(bench)
+		if [ -n "${compose_services[$name]:-}" ]; then
+			targets+=("${compose_services[$name]}")
+		fi
+		docker compose -f "{compose_file}" up -d -t 0 "${recreate_args[@]}" "${targets[@]}" >/dev/null 2>&1
+		sleep "$startup_wait"
+	fi
+
+	connection_errors=()
+	if ! test_connection "$name"; then
+		echo ""
+		red "Connection test failed for $name:"
+		for error in "${connection_errors[@]}"; do
+			red "  - $error"
+		done
+		echo ""
+		red "Please ensure benchmark services are running, or leave compose_manage=true so this recipe can start them"
+		exit 1
+	fi
+}
+
+benchmark_started_marker() {
+	printf '%s/godoxy-benchmark-{run_id}.started\n' "${TMPDIR:-/tmp}"
+}
+
+ensure_benchmark_cert() {
+	local host=$1
+	local cert_dir=dev-data/certs
+	local cert_file="$cert_dir/$host.crt"
+	local key_file="$cert_dir/$host.key"
+
+	mkdir -p "$cert_dir"
+
+	if [[ -s "$cert_file" && -s "$key_file" ]] &&
+		openssl x509 -in "$cert_file" -noout -checkend 86400 >/dev/null 2>&1 &&
+		openssl x509 -in "$cert_file" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$host"; then
+		return 0
+	fi
+
+	openssl req -x509 -newkey rsa:2048 -sha256 -days 30 -nodes \
+		-subj "/CN=$host" \
+		-addext "subjectAltName=DNS:$host" \
+		-keyout "$key_file" \
+		-out "$cert_file" >/dev/null 2>&1
+
+	chmod 600 "$key_file"
+	chmod 644 "$cert_file"
+}
+
+benchmark_prepare() {
+	benchmark_init
+	ensure_benchmark_cert "{host}"
+
+	if { [ "{h1}" = true ] || [ "{h2}" = true ] || [ "{h1c}" = true ]; } && ! command -v h2load &>/dev/null; then
+		red "Error: h2load is not installed (required for HTTP/1.1, cleartext HTTP/1.1, and HTTP/2; use h1=false, h1c=false, or h2=false to skip)"
+		echo "Please install nghttp2-client:"
+		echo "  Ubuntu/Debian: sudo apt-get install nghttp2-client"
+		echo "  macOS: brew install nghttp2"
+		exit 1
+	fi
+
+	selected_h3_tool=
+	if [ "{h3}" = true ]; then
+		select_h3_tool
+	fi
+	build_probe_client
+	benchmark_select_services
+	touch "$(benchmark_started_marker)"
+	compose_up
+}
+
+benchmark_cleanup() {
+	local marker
+	marker=$(benchmark_started_marker)
+	[ -f "$marker" ] || return 0
+	benchmark_select_services
+	compose_down
+	rm -f "$marker"
+}
+
+wait_for_reused_benchmark_ready() {
+	local name=$1
+	local proto=$2
+	case "$proto" in
+	h1)
+		read_response_with_retry "$(https_url "$name")" --insecure --http1.1 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		;;
+	h2)
+		read_response_with_retry "$(https_url "$name")" --insecure --http2 --resolve "$(curl_resolve_arg "$name")" >/dev/null
+		;;
+	h3)
+		h3_check_with_retry "$name" "$(https_url "$name")" >/dev/null
+		;;
+	esac
+}
+
+filter_h2load_noise() {
+	grep -vE "(^|[[:space:]])([0-9]+\.)?[[:space:]]*Stopping all clients|Stopped all clients for thread|^[0-9]+$|^(starting benchmark...|spawning thread|progress: |Warm-up |Main benchmark duration)" || true
+}
+
+run_h2load() {
+	bench_throughput=""
+	bench_failed=""
+	local h2load_status
+	local output_file
+	output_file=$(mktemp)
+
+	set +e
+	h2load "$@" 2>&1 | filter_h2load_noise | tee "$output_file"
+	h2load_status=${PIPESTATUS[0]}
+	set -e
+
+	bench_throughput=$(awk '
+		/finished in/ {
+			for (i = 1; i <= NF; i++) {
+				if ($i == "req/s," || $i == "req/s") {
+					v = $(i - 1)
+					gsub(",", "", v)
+					print v
+				}
+			}
+		}
+	' "$output_file" | tail -n 1)
+	bench_failed=$(awk '
+		/^requests:/ {
+			for (i = 1; i <= NF; i++) {
+				if ($i == "failed,") {
+					print $(i - 1)
+				}
+			}
+		}
+	' "$output_file" | tail -n 1)
+	rm -f "$output_file"
+
+	if [ "$h2load_status" -ne 0 ]; then
+		yellow "h2load exited with status $h2load_status; continuing so non-2xx/stream failures remain visible in benchmark output"
+	fi
+}
+
+run_h3bench() {
+	bench_throughput=""
+	bench_failed=""
+	local h3bench_status
+	local output_file
+	output_file=$(mktemp)
+
+	set +e
+	"$(h3bench_cmd_path)" "$@" 2>&1 | tee "$output_file"
+	h3bench_status=${PIPESTATUS[0]}
+	set -e
+
+	bench_throughput=$(awk '/^Throughput:/ { print $2 }' "$output_file" | tail -n 1)
+	bench_failed=$(awk '/^Failed:/ { print $2 }' "$output_file" | tail -n 1)
+	rm -f "$output_file"
+
+	if [ "$h3bench_status" -ne 0 ]; then
+		yellow "h3bench exited with status $h3bench_status; continuing so failures remain visible in benchmark output"
+	fi
+}
+
+summarize_throughput() {
+	local label=$1
+	shift
+	local values=("$@")
+
+	if [ ${#values[@]} -eq 0 ]; then
+		yellow "No parseable throughput results for $label"
+		return
+	fi
+
+	local stats
+	stats=$(printf '%s\n' "${values[@]}" | sort -n | awk '
+		{
+			a[++n] = $1
+			sum += $1
+			sumsq += $1 * $1
+		}
+		END {
+			if (n == 0) {
+				exit 1
+			}
+			mean = sum / n
+			variance = (sumsq / n) - (mean * mean)
+			if (variance < 0) {
+				variance = 0
+			}
+			sd = sqrt(variance)
+			if (n % 2 == 1) {
+				median = a[(n + 1) / 2]
+			} else {
+				median = (a[n / 2] + a[n / 2 + 1]) / 2
+			}
+			cv = mean == 0 ? 0 : (sd / mean) * 100
+			printf "runs=%d median=%.2f req/s mean=%.2f req/s sd=%.2f cv=%.2f%% min=%.2f max=%.2f", n, median, mean, sd, cv, a[1], a[n]
+		}
+	')
+
+	echo ""
+	green "[$label summary] $stats"
+	throughput_summaries+=("$label | $stats")
+}
+
+run_throughput_series() {
+	local label=$1
+	shift
+	local values=()
+	local run
+
+	for ((run = 1; run <= runs; run++)); do
+		if [ "$runs" -gt 1 ]; then
+			echo ""
+			echo "[$label run $run/$runs]"
+		fi
+
+		"$@"
+
+		if [ -n "${bench_failed:-}" ] && [ "$bench_failed" != "0" ]; then
+			yellow "$label run $run reported $bench_failed failed requests; excluding this run from summary"
+		elif [ -n "${bench_throughput:-}" ]; then
+			values+=("$bench_throughput")
+		else
+			yellow "Could not parse throughput for $label run $run"
+		fi
+
+		if [ "$run" -lt "$runs" ]; then
+			sleep "$repeat_delay"
+		fi
+	done
+
+	if [ "$runs" -gt 1 ]; then
+		summarize_throughput "$label" "${values[@]}"
+	fi
+}
+
+run_reused_benchmark() {
+	local name=$1
+	local http_url=$2
+	local cleartext_connect_arg=$3
+	local https_url=$4
+	local tls_connect_arg=$5
+	local h3_dial_addr=$6
+
+	echo ""
+	blue "[Reused connections] duration=$duration warm-up=$h2load_warm_up_time connections=$connections streams=$streams"
+
+	if [ "{h1c}" = true ]; then
+		restart_bench "$name"
+		read_response_with_retry "$(http_url "$name")" --http1.1 >/dev/null
+		echo ""
+		echo "[HTTP/1.1 cleartext reused] h2load --h1 -m1"
+		run_throughput_series "$name HTTP/1.1 cleartext reused" run_h2load \
+			--h1 -t"$threads" -c"$connections" -m1 --duration="$h2load_duration" \
+			"${h2load_warm_up_args[@]}" \
+			"$cleartext_connect_arg" \
+			-H "Host: {host}" \
+			"$http_url"
+	fi
+
+	if [ "{h1}" = true ]; then
+		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h1
+		echo ""
+		echo "[HTTP/1.1 reused TLS] h2load --h1 -m1"
+		run_throughput_series "$name HTTP/1.1 reused TLS" run_h2load \
+			--h1 -t"$threads" -c"$connections" -m1 --duration="$h2load_duration" \
+			"${h2load_warm_up_args[@]}" \
+			"$tls_connect_arg" \
+			-H "Host: {host}" \
+			"$https_url"
+	fi
+
+	if [ "{h2}" = true ]; then
+		echo ""
+		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h2
+		echo "[HTTP/2 reused TLS] h2load -m$streams"
+		run_throughput_series "$name HTTP/2 reused TLS" run_h2load \
+			-t"$threads" -c"$connections" -m"$streams" --duration="$h2load_duration" \
+			"${h2load_warm_up_args[@]}" \
+			"$tls_connect_arg" \
+			-H ":authority: {host}" \
+			"$https_url"
+	fi
+
+	if [ "{h3}" = true ]; then
+		echo ""
+		restart_bench "$name"
+		wait_for_reused_benchmark_ready "$name" h3
+		echo "[HTTP/3 reused] $selected_h3_tool"
+		case "$selected_h3_tool" in
+		h2load)
+			run_throughput_series "$name HTTP/3 reused" run_h2load \
+				-t"$threads" -c"$connections" -m"$streams" --duration="$h2load_duration" \
+				"${h2load_warm_up_args[@]}" \
+				--h3 \
+				"$tls_connect_arg" \
+				-H ":authority: {host}" \
+				"$https_url"
+			;;
+		h3bench)
+			run_throughput_series "$name HTTP/3 reused" run_h3bench \
+				-d "$duration" -c "$connections" -m "$streams" -dial "$h3_dial_addr" -k "$https_url"
+			;;
+		esac
+	fi
+}
+
+run_fresh_benchmark() {
+	local name=$1
+	local http_url=$2
+	local cleartext_connect_arg=$3
+	local https_url=$4
+	local tls_connect_arg=$5
+	local h3_dial_addr=$6
+	echo ""
+	blue "[Fresh connections] requests=$requests concurrency=$fresh_connections one-request-per-connection"
+
+	if [ "{h1c}" = true ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/1.1 cleartext fresh] h2load --h1 -m1"
+		run_throughput_series "$name HTTP/1.1 cleartext fresh" run_h2load \
+			--h1 -t"$threads" -c"$fresh_connections" -n"$requests" -m1 \
+			"$cleartext_connect_arg" \
+			-H "Host: {host}" \
+			"$http_url"
+	fi
+
+	if [ "{h1}" = true ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/1.1 fresh TLS] h2load --h1 -m1"
+		run_throughput_series "$name HTTP/1.1 fresh TLS" run_h2load \
+			--h1 -t"$threads" -c"$fresh_connections" -n"$requests" -m1 \
+			"$tls_connect_arg" \
+			-H "Host: {host}" \
+			"$https_url"
+	fi
+
+	if [ "{h2}" = true ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/2 fresh TLS] h2load -m1"
+		run_throughput_series "$name HTTP/2 fresh TLS" run_h2load \
+			-t"$threads" -c"$fresh_connections" -n"$requests" -m1 \
+			"$tls_connect_arg" \
+			-H ":authority: {host}" \
+			"$https_url"
+	fi
+
+	if [ "{h3}" = true ]; then
+		restart_bench "$name"
+		echo ""
+		echo "[HTTP/3 fresh] $selected_h3_tool -m1"
+		case "$selected_h3_tool" in
+		h2load)
+			run_throughput_series "$name HTTP/3 fresh" run_h2load \
+				-t"$threads" -c"$fresh_connections" -n"$requests" -m1 \
+				--h3 \
+				"$tls_connect_arg" \
+				-H ":authority: {host}" \
+				"$https_url"
+			;;
+		h3bench)
+			run_throughput_series "$name HTTP/3 fresh" run_h3bench \
+				-n "$requests" -c "$fresh_connections" -m 1 -dial "$h3_dial_addr" -k "$https_url"
+			;;
+		esac
+	fi
+}
+
+run_benchmark() {
+	local name=$1
+	local http_url
+	http_url=$(http_url "$name")
+	local cleartext_connect_arg
+	cleartext_connect_arg=$(h2load_cleartext_connect_arg "$name")
+	local https_url
+	https_url=$(https_url "$name")
+	local tls_connect_arg
+	tls_connect_arg=$(h2load_tls_connect_arg "$name")
+	local h3_dial_addr
+	h3_dial_addr=$(h3_dial_addr "$name")
+
+	yellow "Testing $name..."
+
+	echo "========================================"
+	echo "$name"
+	echo "Benchmark URL: $https_url ($tls_connect_arg)"
+	echo "Cleartext URL: $http_url ($cleartext_connect_arg)"
+	echo "========================================"
+
+	case "{connection_mode}" in
+	reused) run_reused_benchmark "$name" "$http_url" "$cleartext_connect_arg" "$https_url" "$tls_connect_arg" "$h3_dial_addr" ;;
+	fresh) run_fresh_benchmark "$name" "$http_url" "$cleartext_connect_arg" "$https_url" "$tls_connect_arg" "$h3_dial_addr" ;;
+	both)
+		run_reused_benchmark "$name" "$http_url" "$cleartext_connect_arg" "$https_url" "$tls_connect_arg" "$h3_dial_addr"
+		run_fresh_benchmark "$name" "$http_url" "$cleartext_connect_arg" "$https_url" "$tls_connect_arg" "$h3_dial_addr"
+		;;
+	esac
+
+	restart_bench "$name"
+	run_real_world_probes "$name"
+
+	echo ""
+	green "OK $name benchmark completed"
+	blue "----------------------------------------"
+	echo ""
+}
+
+benchmark_run() {
+	benchmark_init
+	selected_h3_tool=
+	if [ "{h3}" = true ]; then
+		select_h3_tool
+	fi
+	benchmark_select_services
+	benchmark_print_header
+
+	echo ""
+	green "Compose services ready. Starting benchmarks..."
+	echo ""
+	blue "========================================"
+	echo ""
+
+for name in "${matched_services[@]}"; do
+	run_benchmark "$name"
+done
+
+blue "========================================"
+blue "Benchmark Summary"
+blue "========================================"
+echo ""
+echo "All benchmark output saved to: logs/reverse_proxy_benchmark_{run_id}.log"
+echo ""
+echo "Enabled protocols: $(enabled_protocols_label)"
+echo "Connection mode: {connection_mode}"
+if [ ${#throughput_summaries[@]} -gt 0 ]; then
+	echo ""
+	echo "Throughput repeat summaries:"
+	for summary in "${throughput_summaries[@]}"; do
+		echo "  - $summary"
+	done
+fi
+echo "Key metrics to compare:"
+echo "  - Requests/sec (throughput)"
+if [ "{h1c}" = true ]; then
+	echo "  - Cleartext HTTP/1.1 baseline excludes TLS/ALPN overhead"
+fi
+echo "  - Latency (mean, stdev)"
+echo "  - Transfer/sec"
+echo "  - Real-world latency probes: dial, TTFB, total, payload bytes"
+echo "  - Scenarios: JSON API, upload, streaming body, SSE, WebSocket"
+if [ "{h3}" = true ]; then
+	echo "  - HTTP/3 QUIC stats (RTT, packets sent/recv/lost)"
+fi
+echo ""
+green "All benchmarks completed!"
+}
+'''
+
+[recipes.benchmark.arguments.host]
+help = "Benchmark SNI and authority host."
+default = "bench.domain.com"
+
+[recipes.benchmark.arguments.target]
+help = "Optional proxy service filter."
+default = ""
+values = "@enum GoDoxy Traefik Caddy Nginx"
+
+[recipes.benchmark.arguments.h1]
+help = "Run HTTP/1.1 TLS checks and benchmarks."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.h2]
+help = "Run HTTP/2 TLS checks and benchmarks."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.h3]
+help = "Run HTTP/3 checks and benchmarks."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.h1c]
+help = "Run cleartext HTTP/1.1 baseline benchmarks on ports 8080..8083."
+type = "bool"
+default = false
+
+[recipes.benchmark.arguments.connection_mode]
+help = "Connection benchmark mode."
+default = "both"
+values = "@enum both reused fresh"
+
+[recipes.benchmark.arguments.h3_tool]
+help = "HTTP/3 throughput tool."
+default = "auto"
+values = "@enum auto h2load h3bench"
+
+[recipes.benchmark.arguments.compose_file]
+help = "Docker Compose file used for benchmark services."
+type = "rel_path"
+path_kind = "file"
+default = "dev.compose.yml"
+
+[recipes.benchmark.arguments.compose_manage]
+help = "Start selected proxy and bench services before running."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.compose_cleanup]
+help = "Stop selected proxy and bench services on exit."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.compose_recreate]
+help = "Force recreate compose services when starting or restarting."
+type = "bool"
+default = true
+
+[recipes.benchmark.arguments.upload_body_bytes]
+help = "Request body size for upload latency probes."
+type = "int"
+default = 262144
+min = 0
+
+[recipes.benchmark.arguments.probe_cmd]
+help = "Bench probe binary path."
+type = "rel_path"
+default = "bin/bench_probe"
+
+[recipes.benchmark.arguments.h3bench_cmd]
+help = "HTTP/3 fallback benchmark binary path."
+type = "rel_path"
+default = "bin/h3bench"
+
+[recipes.benchmark.arguments.duration]
+help = "Duration for reused-connection benchmark runs."
+type = "duration:seconds"
+default = "10s"
+min = "1s"
+
+[recipes.benchmark.arguments.h2load_duration]
+help = "h2load duration in seconds; 0 derives from duration."
+type = "duration:seconds"
+default = "0s"
+min = "0s"
+
+[recipes.benchmark.arguments.h2load_warm_up_time]
+help = "h2load warm-up duration; 0 disables."
+type = "duration"
+default = "3s"
+min = "0s"
+
+[recipes.benchmark.arguments.threads]
+help = "h2load worker threads."
+type = "int"
+default = 4
+min = 1
+
+[recipes.benchmark.arguments.connections]
+help = "Concurrent reused-mode connections."
+type = "int"
+default = 32
+min = 1
+
+[recipes.benchmark.arguments.requests]
+help = "Requests per protocol in fresh mode."
+type = "int"
+default = 2000
+min = 1
+
+[recipes.benchmark.arguments.fresh_connections]
+help = "Concurrent fresh-mode connections; 0 uses connections."
+type = "int"
+default = 0
+min = 0
+
+[recipes.benchmark.arguments.streams]
+help = "Concurrent streams per HTTP/2 or HTTP/3 session."
+type = "int"
+default = 16
+min = 1
+
+[recipes.benchmark.arguments.latency_samples]
+help = "Samples per real-world latency scenario."
+type = "int"
+default = 5
+min = 1
+
+[recipes.benchmark.arguments.runs]
+help = "Repeat each throughput benchmark and summarize."
+type = "int"
+default = 1
+min = 1
+
+[recipes.benchmark.arguments.repeat_delay]
+help = "Delay between repeated throughput runs in seconds."
+type = "int"
+default = 1
+min = 1
+
+[recipes.benchmark.arguments.startup_wait]
+help = "Seconds to wait after compose up/recreate."
+type = "int"
+default = 1
+min = 1
+
+[recipes.benchmark.presets.smoke.arguments]
+duration = "10s"
+h2load_warm_up_time = "3s"
+threads = 4
+connections = 32
+requests = 2000
+fresh_connections = 0
+streams = 16
+latency_samples = 5
+runs = 1
+repeat_delay = 1
+startup_wait = 1
+
+[recipes.benchmark.presets.stable.arguments]
+duration = "30s"
+h2load_warm_up_time = "5s"
+threads = 4
+connections = 64
+requests = 20000
+fresh_connections = 0
+streams = 16
+latency_samples = 25
+runs = 5
+repeat_delay = 1
+startup_wait = 3
+
+[recipes.benchmark.presets.stress.arguments]
+duration = "30s"
+h2load_warm_up_time = "5s"
+threads = 4
+connections = 100
+requests = 50000
+fresh_connections = 0
+streams = 100
+latency_samples = 10
+runs = 3
+repeat_delay = 1
+startup_wait = 3
