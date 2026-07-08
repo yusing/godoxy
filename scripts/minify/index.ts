@@ -5,26 +5,26 @@ import { basename, dirname, join } from "node:path";
 
 type Kind = "html" | "js";
 
-function isIgnored(path: string) {
+function isIgnored(path: string): boolean {
   return (
     path.startsWith("internal/go-proxmox") || basename(path).includes(".min.")
   );
 }
 
-function globAssets(extension: Kind, callback: (matches: string) => void) {
-  glob(
-    [`internal/**/*.${extension}`, `goutils/**/*.${extension}`],
-    (err, matches) => {
-      if (err) {
-        console.error(err);
-      }
-      matches.forEach((e) => {
-        if (!isIgnored(e)) {
-          callback(e);
+function globAssets(extension: Kind): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    glob(
+      [`internal/**/*.${extension}`, `goutils/**/*.${extension}`],
+      (err, matches) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      });
-    },
-  );
+
+        resolve(matches.filter((match) => !isIgnored(match)));
+      },
+    );
+  });
 }
 
 async function minify(filePath: string, kind: Kind): Promise<string> {
@@ -36,7 +36,7 @@ async function minify(filePath: string, kind: Kind): Promise<string> {
       minify: true,
     });
     if (!out.code) {
-      return Promise.reject("out code is empty");
+      throw new Error(`js minify output is empty for "${filePath}"`);
     }
     return out.code;
   }
@@ -52,14 +52,14 @@ async function minify(filePath: string, kind: Kind): Promise<string> {
   if (out.errors && out.errors.length > 0) {
     const err = `html minify error for "${filePath}": ${out.errors.map((e) => e.message)}`;
     if (!out.code) {
-      return Promise.reject(err);
+      throw new Error(err);
     }
     console.error(err);
   }
   return out.code;
 }
 
-async function minifyOut(filePath: string, kind: Kind) {
+async function minifyOut(filePath: string, kind: Kind): Promise<void> {
   const minified = await minify(filePath, kind);
 
   const fnameNoExt = basename(filePath).split(".")[0]!;
@@ -70,10 +70,15 @@ async function minifyOut(filePath: string, kind: Kind) {
 }
 
 async function main() {
-  const promises = new Array<Promise<void>>();
-  globAssets("html", (e) => promises.push(minifyOut(e, "html")));
-  globAssets("js", (e) => promises.push(minifyOut(e, "js")));
-  await Promise.allSettled(promises);
+  const [htmlFiles, jsFiles] = await Promise.all([
+    globAssets("html"),
+    globAssets("js"),
+  ]);
+
+  await Promise.all([
+    ...htmlFiles.map((filePath) => minifyOut(filePath, "html")),
+    ...jsFiles.map((filePath) => minifyOut(filePath, "js")),
+  ]);
 }
 
 await main();
