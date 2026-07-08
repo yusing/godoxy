@@ -144,16 +144,19 @@ func TestLoginAllowsSameOriginPostWithoutCSRFCookie(t *testing.T) {
 	assert.NotEmpty(t, csrfCookie.Value)
 }
 
-func TestGetLogoutRouteStillAvailableForFrontend(t *testing.T) {
+func TestGetLogoutRouteIsNotAvailable(t *testing.T) {
 	handler := newAuthenticatedHandler(t)
+	sessionToken := issueSessionToken(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/logout", nil)
 	req.Host = "app.example.com"
+	req.AddCookie(&http.Cookie{Name: "godoxy_token", Value: sessionToken})
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Nil(t, findCookie(rec.Result().Cookies(), "godoxy_token"))
 }
 
 func TestCertRenewRejectsCrossOriginWebSocketRequest(t *testing.T) {

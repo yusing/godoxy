@@ -63,7 +63,6 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			v1Auth.GET("/callback", authApi.Callback)
 			v1Auth.POST("/callback", CSRFMiddleware(), authApi.Callback)
 			v1Auth.POST("/logout", CSRFMiddleware(), authApi.Logout)
-			v1Auth.GET("/logout", authApi.Logout)
 		}
 	}
 
