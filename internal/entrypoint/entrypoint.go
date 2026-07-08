@@ -3,6 +3,7 @@ package entrypoint
 import (
 	"crypto/x509"
 	"maps"
+	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -177,18 +178,12 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 }
 
 func findRouteAnyDomain(routes HTTPRoutes, host string) routing.HTTPRoute {
-	before, _, ok := strings.Cut(host, ".")
-	if ok {
-		target := before
-		if r, ok := routes.Get(target); ok {
-			return r
-		}
-	}
+	host = hostWithoutPort(host)
 	if r, ok := routes.Get(host); ok {
 		return r
 	}
-	// try striping the trailing :port from the host
-	if before, _, ok := strings.Cut(host, ":"); ok {
+	before, _, ok := strings.Cut(host, ".")
+	if ok {
 		if r, ok := routes.Get(before); ok {
 			return r
 		}
@@ -197,25 +192,27 @@ func findRouteAnyDomain(routes HTTPRoutes, host string) routing.HTTPRoute {
 }
 
 func findRouteKeyAnyDomain(host string, exists func(string) bool) (string, bool) {
+	host = hostWithoutPort(host)
+	if exists(host) {
+		return host, true
+	}
 	before, _, ok := strings.Cut(host, ".")
 	if ok && exists(before) {
 		return before, true
 	}
-	if exists(host) {
-		return host, true
-	}
-	// try striping the trailing :port from the host
-	if before, _, ok := strings.Cut(host, ":"); ok {
-		if exists(before) {
-			return before, true
-		}
-	}
 	return "", false
+}
+
+func hostWithoutPort(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		return h
+	}
+	return host
 }
 
 func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) routing.HTTPRoute {
 	return func(routes HTTPRoutes, host string) routing.HTTPRoute {
-		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
+		host = hostWithoutPort(host)
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok {
 				if r, ok := routes.Get(target); ok {
@@ -234,7 +231,7 @@ func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) r
 
 func findRouteKeyByDomains(domains []string) findRouteKeyFunc {
 	return func(host string, exists func(string) bool) (string, bool) {
-		host, _, _ = strings.Cut(host, ":") // strip the trailing :port
+		host = hostWithoutPort(host)
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok && exists(target) {
 				return target, true

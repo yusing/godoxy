@@ -71,26 +71,18 @@ func NewReverseProxyRoute(base *route.Route) (*ReverseProxyRoute, error) {
 	rp := reverseproxy.NewReverseProxy(service, &proxyURL.URL, trans)
 
 	scheme := base.Scheme
-	retried := false
-	retryLock := sync.Mutex{}
 	if scheme == route.SchemeHTTP || scheme == route.SchemeHTTPS {
-		rp.OnSchemeMisMatch = func() (retry bool) { // switch scheme and retry
-			retryLock.Lock()
-			defer retryLock.Unlock()
-
-			if retried {
-				return false
+		rp.OnSchemeMisMatch = func(currentScheme string) (string, bool) {
+			switch currentScheme {
+			case route.SchemeHTTP.String():
+				rp.Info().Msg("scheme mismatch detected, retrying with https")
+				return route.SchemeHTTPS.String(), true
+			case route.SchemeHTTPS.String():
+				rp.Info().Msg("scheme mismatch detected, retrying with http")
+				return route.SchemeHTTP.String(), true
+			default:
+				return "", false
 			}
-
-			retried = true
-
-			if scheme == route.SchemeHTTP {
-				rp.TargetURL.Scheme = "https"
-			} else {
-				rp.TargetURL.Scheme = "http"
-			}
-			rp.Info().Msgf("scheme mismatch detected, retrying with %s", rp.TargetURL.Scheme)
-			return true
 		}
 	}
 

@@ -144,7 +144,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	req.Header.Del("Forwarded")
+	outreq.Header.Del("Forwarded")
 	removeHopByHopHeaders(outreq.Header)
 
 	// Issue 21096: tell backend applications that care about trailer support

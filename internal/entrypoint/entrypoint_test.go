@@ -111,6 +111,20 @@ func TestFindRouteExactHostMatch(t *testing.T) {
 	run(t, ep, tests, testsNoMatch)
 }
 
+func TestFindRouteAnyDomainExactFQDNPrecedence(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	addRoute(t, "app")
+	addRoute(t, "app.example.com")
+
+	server, ok := ep.GetServer(":" + strconv.Itoa(testHTTPRouteListenPort))
+	require.True(t, ok, "server not found")
+	require.NotNil(t, server)
+
+	route := server.FindRoute("app.example.com")
+	require.NotNil(t, route)
+	assert.Equal(t, "app.example.com", route.Name())
+}
+
 func TestFindRouteByDomains(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
 	ep.SetFindRouteDomains([]string{

@@ -69,7 +69,7 @@ func wildcardSuffix(alias string) (string, bool) {
 }
 
 func wildcardLookupKey(host string) (string, bool) {
-	host, _, _ = strings.Cut(host, ":")
+	host = hostWithoutPort(host)
 	host = strings.TrimSuffix(strings.ToLower(host), ".")
 	_, suffix, ok := strings.Cut(host, ".")
 	if !ok || suffix == "" {

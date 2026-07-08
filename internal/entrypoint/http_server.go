@@ -356,11 +356,7 @@ func sameHTTPRoute(left, right routing.HTTPRoute) bool {
 }
 
 func (srv *httpServer) tryHandleShortLink(w http.ResponseWriter, r *http.Request) (handled bool) {
-	host := r.Host
-	if before, _, ok := strings.Cut(host, ":"); ok {
-		host = before
-	}
-	if strings.EqualFold(host, common.ShortLinkPrefix) {
+	if strings.EqualFold(hostWithoutPort(r.Host), common.ShortLinkPrefix) {
 		if srv.ep.middleware != nil {
 			srv.ep.middleware.ServeHTTP(srv.ep.shortLinkMatcher.ServeHTTP, w, r)
 		} else {
