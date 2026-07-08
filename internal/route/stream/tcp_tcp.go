@@ -123,6 +123,7 @@ func (s *TCPTCPStream) listen(ctx context.Context) {
 			if s.onRead != nil {
 				if err := s.onRead(ctx); err != nil {
 					logErr(s, err, "failed to on read")
+					_ = conn.Close()
 					continue
 				}
 			}

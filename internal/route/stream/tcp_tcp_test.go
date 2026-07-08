@@ -3,9 +3,12 @@ package stream
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/pires/go-proxyproto"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
@@ -178,4 +181,29 @@ func TestTCPTCPStreamProxyConnRelaysAcceptedConnection(t *testing.T) {
 	_, err = io.ReadFull(upstreamConn, payload)
 	require.NoError(t, err)
 	require.Equal(t, []byte("hello"), payload)
+}
+
+func TestTCPTCPStreamClosesAcceptedConnectionWhenOnReadRejects(t *testing.T) {
+	upstreamLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer upstreamLn.Close()
+
+	s, err := NewTCPTCPStream("tcp", "tcp", "127.0.0.1:0", upstreamLn.Addr().String(), nil, false)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	require.NoError(t, s.ListenAndServe(ctx, nil, func(context.Context) error {
+		return errors.New("reject")
+	}))
+	defer s.Close()
+
+	client, err := net.Dial("tcp", s.LocalAddr().String())
+	require.NoError(t, err)
+	defer client.Close()
+
+	require.NoError(t, client.SetReadDeadline(time.Now().Add(time.Second)))
+	_, err = client.Read(make([]byte, 1))
+	require.Error(t, err)
+	require.False(t, errors.Is(err, os.ErrDeadlineExceeded), "client read timed out; accepted connection was not closed")
 }

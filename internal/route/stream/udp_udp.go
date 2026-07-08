@@ -172,10 +172,14 @@ func (s *UDPUDPStream) getOrCreateConnection(ctx context.Context, srcAddr *net.U
 
 	s.mu.Lock()
 	if conn, ok := s.conns[key]; ok {
-		s.mu.Unlock()
-		// Forward packet for existing connection
-		go conn.forwardToDestination(initialData)
-		return
+		if conn.closed.Load() {
+			delete(s.conns, key)
+		} else {
+			s.mu.Unlock()
+			// Forward packet for existing connection
+			go conn.forwardToDestination(initialData)
+			return
+		}
 	}
 
 	defer s.mu.Unlock()
@@ -183,6 +187,7 @@ func (s *UDPUDPStream) getOrCreateConnection(ctx context.Context, srcAddr *net.U
 	conn, ok := s.createConnection(ctx, srcAddr, initialData)
 	if ok && !conn.closed.Load() {
 		s.conns[key] = conn
+		go s.runConnUntilClosed(ctx, key, conn)
 	}
 }
 
@@ -223,11 +228,18 @@ func (s *UDPUDPStream) createConnection(ctx context.Context, srcAddr *net.UDPAdd
 		return nil, false
 	}
 
-	// Start response handler after initial data is sent
-	go conn.handleResponses(ctx)
-
 	logDebugf(s, "created new connection from %s", srcAddr.String())
 	return conn, true
+}
+
+func (s *UDPUDPStream) runConnUntilClosed(ctx context.Context, key string, conn *udpUDPConn) {
+	conn.handleResponses(ctx)
+
+	s.mu.Lock()
+	if s.conns[key] == conn {
+		delete(s.conns, key)
+	}
+	s.mu.Unlock()
 }
 
 func (conn *udpUDPConn) MarshalZerologObject(e *zerolog.Event) {
