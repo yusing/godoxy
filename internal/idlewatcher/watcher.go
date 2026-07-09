@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -90,6 +91,9 @@ var (
 	watcherMap   = make(map[string]*Watcher)
 	watcherMapMu sync.RWMutex
 	singleFlight singleflight.Group
+
+	newDockerProvider  = provider.NewDockerProvider
+	newProxmoxProvider = provider.NewProxmoxProvider
 )
 
 const (
@@ -109,6 +113,7 @@ const neverTick = time.Duration(1<<63 - 1)
 
 func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, error) {
 	key := cfg.Key()
+	cfgDependsOn := slices.Clone(cfg.DependsOn)
 
 	watcherMapMu.RLock()
 	// if the watcher already exists, finish it
@@ -116,9 +121,6 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	watcherMapMu.RUnlock()
 
 	if exists {
-		if len(cfg.DependsOn) > 0 {
-			w.cfg.DependsOn = cfg.DependsOn
-		}
 		if cfg.IdleTimeout > 0 {
 			w.cfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 		}
@@ -142,14 +144,22 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 		}
 	}
 
+	resolvedDepNames := slices.Clone(cfgDependsOn)
+	resolvedDeps := make([]*dependency, 0, len(resolvedDepNames))
+	type dependencySpec struct {
+		route       routing.Route
+		cfg         *Config
+		waitHealthy bool
+	}
+	depSpecs := make([]dependencySpec, 0, len(resolvedDepNames))
 	var depErrors gperr.Builder
-	for i, dep := range cfg.DependsOn {
+	for i, dep := range resolvedDepNames {
 		depSegments := strings.Split(dep, ":")
 		dep = depSegments[0]
 		if dep == "" { // empty dependency (likely stopped container), skip; it will be removed by dedupDependencies()
 			continue
 		}
-		cfg.DependsOn[i] = dep
+		resolvedDepNames[i] = dep
 		waitHealthy := false
 		if len(depSegments) > 1 { // likely from `com.docker.compose.depends_on` label
 			switch depSegments[1] {
@@ -195,11 +205,16 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 		}
 
 		depCfg := depRoute.IdlewatcherConfig()
-		if depCfg == nil {
+		if depCfg != nil {
+			depCfgCopy := *depCfg
+			depCfgCopy.DependsOn = slices.Clone(depCfg.DependsOn)
+			depCfg = &depCfgCopy
+		} else {
 			depCfg = new(Config)
 			depCfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 			depCfg.IdleTimeout = neverTick // disable auto sleep for dependencies
-		} else if depCfg.IdleTimeout > 0 && depCfg.IdleTimeout != neverTick {
+		}
+		if depCfg.IdleTimeout > 0 && depCfg.IdleTimeout != neverTick {
 			depErrors.Addf("dependency %q has positive idle timeout %s", dep, depCfg.IdleTimeout)
 			continue
 		}
@@ -226,28 +241,15 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 
 		depCfg.IdleTimeout = neverTick // disable auto sleep for dependencies
 
-		depWatcher, err := NewWatcher(parent, depRoute, depCfg)
-		if err != nil {
-			depErrors.Add(err)
-			continue
-		}
-		w.dependsOn = append(w.dependsOn, &dependency{
-			Watcher:     depWatcher,
+		depSpecs = append(depSpecs, dependencySpec{
+			route:       depRoute,
+			cfg:         depCfg,
 			waitHealthy: waitHealthy,
 		})
 	}
 
-	if pOld := w.provider.Load(); pOld != nil { // it's a reload, close the old provider
-		pOld.Close()
-	}
-
 	if depErrors.HasError() {
 		return nil, depErrors.Error()
-	}
-
-	if !exists {
-		watcherMapMu.Lock()
-		defer watcherMapMu.Unlock()
 	}
 
 	var p idlewatcher.Provider
@@ -255,10 +257,10 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	var kind string
 	switch {
 	case cfg.Docker != nil:
-		p, err = provider.NewDockerProvider(cfg.Docker.DockerCfg, cfg.Docker.ContainerID)
+		p, err = newDockerProvider(cfg.Docker.DockerCfg, cfg.Docker.ContainerID)
 		kind = "docker"
 	default:
-		p, err = provider.NewProxmoxProvider(parent.Context(), cfg.Proxmox.Node, cfg.Proxmox.VMID)
+		p, err = newProxmoxProvider(parent.Context(), cfg.Proxmox.Node, cfg.Proxmox.VMID)
 		kind = "proxmox"
 	}
 	targetURL := r.TargetURL()
@@ -278,7 +280,6 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	if err != nil {
 		return nil, err
 	}
-	w.provider.Store(p)
 
 	switch r := r.(type) {
 	case routing.ReverseProxyRoute:
@@ -298,7 +299,29 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 		p.Close()
 		return nil, w.newWatcherError(err)
 	}
+	for _, dep := range depSpecs {
+		depWatcher, err := NewWatcher(parent, dep.route, dep.cfg)
+		if err != nil {
+			depErrors.Add(err)
+			continue
+		}
+		resolvedDeps = append(resolvedDeps, &dependency{
+			Watcher:     depWatcher,
+			waitHealthy: dep.waitHealthy,
+		})
+	}
+	if depErrors.HasError() {
+		p.Close()
+		return nil, depErrors.Error()
+	}
+	pOld := w.provider.Load()
+	w.provider.Store(p)
+	if pOld != nil { // it's a reload, close the old provider after the new provider is ready.
+		pOld.Close()
+	}
 	w.state.Store(&containerState{status: status})
+	w.cfg.DependsOn = resolvedDepNames
+	w.dependsOn = resolvedDeps
 
 	// when more providers are added, we need to add a new case here.
 	switch p := p.(type) { //nolint:gocritic
@@ -311,8 +334,10 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	}
 
 	if !exists {
+		watcherMapMu.Lock()
 		w.task = parent.Subtask("idlewatcher."+r.Name(), true)
 		watcherMap[key] = w
+		watcherMapMu.Unlock()
 
 		go func() {
 			cause := w.watchUntilDestroy()
