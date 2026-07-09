@@ -106,9 +106,9 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error {
 	} else {
 		cfg.Logger().Info().Msg("MaxMind DB loaded")
 		cfg.db.Reader = reader
-		if !common.IsTest {
-			go cfg.scheduleUpdate(parent)
-		}
+	}
+	if !common.IsTest {
+		go scheduleUpdate(cfg, parent)
 	}
 	return nil
 }
@@ -320,8 +320,9 @@ func extractFileFromTarGz(tarGzBytes []byte, targetFilename, destPath string) er
 }
 
 var (
-	dataDir       = common.DataDir
-	dbPath        = (*MaxMind).dbPath
-	doReq         = httpClient.Do
-	maxmindDBOpen = maxminddb.Open
+	dataDir        = common.DataDir
+	dbPath         = (*MaxMind).dbPath
+	doReq          = httpClient.Do
+	maxmindDBOpen  = maxminddb.Open
+	scheduleUpdate = (*MaxMind).scheduleUpdate
 )

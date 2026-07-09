@@ -3,12 +3,15 @@ package maxmind
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/oschwald/maxminddb-golang"
+	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/task"
 )
@@ -23,7 +26,7 @@ func testCfg() *MaxMind {
 	}
 }
 
-var testLastMod = time.Now().UTC()
+var testLastMod = time.Date(2026, time.July, 9, 12, 34, 56, 0, time.UTC)
 
 func testDoReq(cfg *MaxMind, w http.ResponseWriter, r *http.Request) {
 	if u, p, ok := r.BasicAuth(); !ok || u != "testid" || p != "testkey" {
@@ -89,8 +92,8 @@ func Test_MaxMindConfig_checkLatest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("checkLatest() error = %v", err)
 	}
-	if latest.Equal(testLastMod) {
-		t.Errorf("expected latest equal to testLastMod")
+	if !latest.Equal(testLastMod) {
+		t.Errorf("latest = %v, want %v", latest, testLastMod)
 	}
 }
 
@@ -106,6 +109,87 @@ func Test_MaxMindConfig_download(t *testing.T) {
 	}
 	if cfg.db.Reader == nil {
 		t.Error("expected db instance")
+	}
+}
+
+func Test_MaxMindConfig_loadMaxMindDBSchedulesUpdateAfterDownload(t *testing.T) {
+	cfg := testCfg()
+	mockDataDir(t)
+	mockDoReq(t, cfg)
+
+	oldIsTest := common.IsTest
+	common.IsTest = false
+	t.Cleanup(func() { common.IsTest = oldIsTest })
+
+	oldMaxMindDBOpen := maxmindDBOpen
+	dbMissing := true
+	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
+		if dbMissing {
+			dbMissing = false
+			return nil, os.ErrNotExist
+		}
+		return &maxminddb.Reader{}, nil
+	}
+	t.Cleanup(func() { maxmindDBOpen = oldMaxMindDBOpen })
+
+	scheduled := make(chan struct{})
+	oldScheduleUpdate := scheduleUpdate
+	scheduleUpdate = func(*MaxMind, task.Parent) {
+		close(scheduled)
+	}
+	t.Cleanup(func() { scheduleUpdate = oldScheduleUpdate })
+
+	parent := task.RootTask("test", true)
+	defer parent.Finish(nil)
+
+	err := cfg.LoadMaxMindDB(parent)
+	if err != nil {
+		t.Fatalf("loadMaxMindDB() error = %v", err)
+	}
+
+	select {
+	case <-scheduled:
+	case <-time.After(time.Second):
+		t.Fatal("expected update scheduler to start")
+	}
+
+	if cfg.db.Reader == nil {
+		t.Error("expected db instance")
+	}
+}
+
+func Test_MaxMindConfig_loadMaxMindDBDoesNotScheduleAfterFailedDownload(t *testing.T) {
+	cfg := testCfg()
+	mockDataDir(t)
+
+	oldIsTest := common.IsTest
+	common.IsTest = false
+	t.Cleanup(func() { common.IsTest = oldIsTest })
+
+	oldDoReq := doReq
+	doReq = func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("download failed")
+	}
+	t.Cleanup(func() { doReq = oldDoReq })
+
+	scheduled := make(chan struct{})
+	oldScheduleUpdate := scheduleUpdate
+	scheduleUpdate = func(*MaxMind, task.Parent) {
+		close(scheduled)
+	}
+	t.Cleanup(func() { scheduleUpdate = oldScheduleUpdate })
+
+	parent := task.RootTask("test", true)
+	defer parent.Finish(nil)
+
+	if err := cfg.LoadMaxMindDB(parent); err == nil {
+		t.Fatal("expected load error")
+	}
+
+	select {
+	case <-scheduled:
+		t.Fatal("scheduler should not start after failed download")
+	default:
 	}
 }
 
