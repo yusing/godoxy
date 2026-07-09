@@ -12,7 +12,9 @@ import (
 func TestMatchers(t *testing.T) {
 	strMatchers := []string{
 		"ip:127.0.0.1",
+		"ip:2001:db8::1",
 		"cidr:10.0.0.0/8",
+		"cidr:2001:db8:abcd::/48",
 	}
 
 	var mathers Matchers
@@ -26,10 +28,14 @@ func TestMatchers(t *testing.T) {
 		want bool
 	}{
 		{"127.0.0.1", true},
+		{"2001:db8::1", true},
 		{"10.0.0.1", true},
+		{"2001:db8:abcd::123", true},
 		{"127.0.0.2", false},
+		{"2001:db8::2", false},
 		{"192.168.0.1", false},
 		{"11.0.0.1", false},
+		{"2001:db8:abce::1", false},
 	}
 
 	for _, test := range tests {
@@ -45,5 +51,21 @@ func TestMatchers(t *testing.T) {
 		if got != test.want {
 			t.Errorf("mathers.Match(%s) = %v, want %v", test.ip, got, test.want)
 		}
+	}
+}
+
+func TestMatcherRejectsMalformedNonIPValues(t *testing.T) {
+	tests := []string{
+		"tz:Asia/Shanghai:extra",
+		"country:GB:extra",
+	}
+
+	for _, test := range tests {
+		t.Run(test, func(t *testing.T) {
+			var matcher Matcher
+			if err := matcher.Parse(test); err == nil {
+				t.Fatal("expected parse error")
+			}
+		})
 	}
 }

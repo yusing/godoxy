@@ -45,29 +45,35 @@ var (
 )
 
 func (matcher *Matcher) Parse(s string) error {
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
+	matcherType, matcherValue, ok := strings.Cut(s, ":")
+	if !ok {
 		return errSyntax
 	}
 	matcher.raw = s
 
-	switch parts[0] {
+	switch matcherType {
 	case MatcherTypeIP:
-		ip := net.ParseIP(parts[1])
+		ip := net.ParseIP(matcherValue)
 		if ip == nil {
 			return errInvalidIP
 		}
 		matcher.match = matchIP(ip)
 	case MatcherTypeCIDR:
-		_, net, err := net.ParseCIDR(parts[1])
+		_, net, err := net.ParseCIDR(matcherValue)
 		if err != nil {
 			return errInvalidCIDR
 		}
 		matcher.match = matchCIDR(net)
 	case MatcherTypeTimeZone:
-		matcher.match = matchTimeZone(parts[1])
+		if strings.Contains(matcherValue, ":") {
+			return errSyntax
+		}
+		matcher.match = matchTimeZone(matcherValue)
 	case MatcherTypeCountry:
-		matcher.match = matchISOCode(parts[1])
+		if strings.Contains(matcherValue, ":") {
+			return errSyntax
+		}
+		matcher.match = matchISOCode(matcherValue)
 	default:
 		return errSyntax
 	}
