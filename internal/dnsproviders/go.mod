@@ -4,6 +4,8 @@ go 1.26.4
 
 replace github.com/yusing/godoxy => ../..
 
+replace github.com/yusing/goutils => ../../goutils
+
 require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/yusing/godoxy v0.29.6
