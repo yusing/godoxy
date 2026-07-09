@@ -97,3 +97,35 @@ func TestBuildCommandSectionUsesMeaningfulSummary(t *testing.T) {
 		t.Fatalf("unexpected notify arg order: %#v", notifyEntry.Args)
 	}
 }
+
+func TestBuildCommandSectionIncludesMutationTargets(t *testing.T) {
+	rulesDir := filepath.Join("..", "..", "internal", "route", "rules")
+	ex, err := parseRulesDir(rulesDir)
+	if err != nil {
+		t.Fatalf("parseRulesDir: %v", err)
+	}
+
+	section := ex.buildCommandSection()
+	entries := map[string]entry{}
+	for _, item := range section.Entries {
+		entries[item.Name] = item
+	}
+
+	wantTargets := map[string]string{
+		"add":    "the target to add, can be header, resp_header, query, cookie, body, resp_body, status",
+		"remove": "the target to remove, can be header, resp_header, query, cookie, body, resp_body, status",
+		"set":    "the target to set, can be header, resp_header, query, cookie, body, resp_body, status",
+	}
+	for command, want := range wantTargets {
+		item, ok := entries[command]
+		if !ok {
+			t.Fatalf("missing %s entry", command)
+		}
+		if len(item.Args) == 0 {
+			t.Fatalf("%s entry has no args", command)
+		}
+		if got := item.Args[0].Description; got != want {
+			t.Fatalf("%s target description = %q, want %q", command, got, want)
+		}
+	}
+}

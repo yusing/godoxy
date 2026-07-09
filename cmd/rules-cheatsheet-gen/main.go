@@ -183,10 +183,18 @@ func parseRulesDir(dir string) (*extractor, error) {
 			switch n := decl.(type) {
 			case *ast.GenDecl:
 				ex.collectConsts(n)
-				ex.collectVars(n)
-				ex.collectControlDocs(n)
+				ex.collectKnownVars(n)
 			case *ast.FuncDecl:
 				ex.funcs[n.Name.Name] = n
+			}
+		}
+	}
+
+	for _, file := range pkg.Files {
+		for _, decl := range file.Decls {
+			if n, ok := decl.(*ast.GenDecl); ok {
+				ex.collectVars(n)
+				ex.collectControlDocs(n)
 			}
 		}
 	}
@@ -216,6 +224,21 @@ func (ex *extractor) collectConsts(decl *ast.GenDecl) {
 			if strings.HasPrefix(name.Name, "MatcherType") {
 				ex.matcherTypes = append(ex.matcherTypes, value)
 			}
+		}
+	}
+}
+
+func (ex *extractor) collectKnownVars(decl *ast.GenDecl) {
+	if decl.Tok != token.VAR {
+		return
+	}
+	for _, spec := range decl.Specs {
+		valueSpec, ok := spec.(*ast.ValueSpec)
+		if !ok || len(valueSpec.Names) != 1 || len(valueSpec.Values) != 1 {
+			continue
+		}
+		if valueSpec.Names[0].Name == "AllFields" {
+			ex.allFields = ex.parseStringSlice(valueSpec.Values[0])
 		}
 	}
 }
