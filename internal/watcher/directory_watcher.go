@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog"
@@ -12,6 +13,8 @@ import (
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	"github.com/yusing/goutils/task"
 )
+
+const watcherChannelCapacity = 10
 
 type DirWatcher struct {
 	zerolog.Logger
@@ -22,8 +25,9 @@ type DirWatcher struct {
 	fwMap map[string]*fileWatcher
 	mu    sync.Mutex
 
-	eventCh chan Event
-	errCh   chan error
+	eventCh          chan Event
+	errCh            chan error
+	eventSubscribers atomic.Int64
 
 	task *task.Task
 }
@@ -53,8 +57,8 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 		dir:     dirPath,
 		w:       w,
 		fwMap:   make(map[string]*fileWatcher),
-		eventCh: make(chan Event),
-		errCh:   make(chan error),
+		eventCh: make(chan Event, watcherChannelCapacity),
+		errCh:   make(chan error, watcherChannelCapacity),
 		task:    parent.Subtask("dir_watcher("+dirPath+")", true),
 	}
 	go helper.start()
@@ -64,7 +68,11 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 var _ Watcher = (*DirWatcher)(nil)
 
 // Events implements the Watcher interface.
-func (h *DirWatcher) Events(_ context.Context) (<-chan Event, <-chan error) {
+func (h *DirWatcher) Events(ctx context.Context) (<-chan Event, <-chan error) {
+	h.eventSubscribers.Add(1)
+	context.AfterFunc(ctx, func() {
+		h.eventSubscribers.Add(-1)
+	})
 	return h.eventCh, h.errCh
 }
 
@@ -79,8 +87,8 @@ func (h *DirWatcher) Add(relPath string) Watcher {
 	}
 	s = &fileWatcher{
 		relPath: relPath,
-		eventCh: make(chan Event),
-		errCh:   make(chan error),
+		eventCh: make(chan Event, watcherChannelCapacity),
+		errCh:   make(chan error, watcherChannelCapacity),
 	}
 	h.fwMap[relPath] = s
 	return s
@@ -136,37 +144,57 @@ func (h *DirWatcher) start() {
 				continue
 			}
 
-			// send event to directory watcher
-			select {
-			case h.eventCh <- msg:
-				h.Debug().Msg("sent event to directory watcher")
-			default:
-				h.Debug().Msg("failed to send event to directory watcher")
+			if !h.dispatchEvent(relPath, msg) {
+				return
 			}
-
-			// send event to file watcher too
-			h.mu.Lock()
-			w, ok := h.fwMap[relPath]
-			h.mu.Unlock()
-			if ok {
-				select {
-				case w.eventCh <- msg:
-					h.Debug().Msg("sent event to file watcher " + relPath)
-				default:
-					h.Debug().Msg("failed to send event to file watcher " + relPath)
-				}
-			} else {
-				h.Debug().Msg("file watcher not found: " + relPath)
-			}
-		case err := <-h.w.Errors:
-			if errors.Is(err, fsnotify.ErrClosed) {
+		case err, ok := <-h.w.Errors:
+			if !ok || errors.Is(err, fsnotify.ErrClosed) {
 				// closed manually?
 				return
 			}
-			select {
-			case h.errCh <- err:
-			default:
+			if !h.dispatchError(err) {
+				return
 			}
 		}
 	}
+}
+
+func (h *DirWatcher) dispatchEvent(relPath string, msg Event) bool {
+	if h.eventSubscribers.Load() > 0 {
+		select {
+		case h.eventCh <- msg:
+			h.Debug().Msg("sent event to directory watcher")
+		case <-h.task.Context().Done():
+			return false
+		}
+	}
+
+	h.mu.Lock()
+	w, ok := h.fwMap[relPath]
+	h.mu.Unlock()
+	if !ok {
+		h.Debug().Msg("file watcher not found: " + relPath)
+		return true
+	}
+
+	select {
+	case w.eventCh <- msg:
+		h.Debug().Msg("sent event to file watcher " + relPath)
+	case <-h.task.Context().Done():
+		return false
+	}
+	return true
+}
+
+func (h *DirWatcher) dispatchError(err error) bool {
+	if h.eventSubscribers.Load() == 0 {
+		return true
+	}
+
+	select {
+	case h.errCh <- err:
+	case <-h.task.Context().Done():
+		return false
+	}
+	return true
 }
