@@ -39,6 +39,7 @@ func newFileContentRouter() *gin.Engine {
 	r.Use(api.ErrorHandler())
 	r.GET("/api/v1/file/content", fileapi.Get)
 	r.PUT("/api/v1/file/content", fileapi.Set)
+	r.POST("/api/v1/file/validate", fileapi.Validate)
 	return r
 }
 
@@ -96,6 +97,35 @@ func TestGet_PathTraversalBlocked(t *testing.T) {
 			// "Blocked" means we should never successfully read the outside file.
 			assert.NotEqual(t, http.StatusOK, w.Code)
 			assert.NotEqual(t, outsideContent, w.Body.String())
+		})
+	}
+}
+
+func TestValidate_RejectsMissingOrInvalidType(t *testing.T) {
+	r := newFileContentRouter()
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "missing_type",
+			url:  "/api/v1/file/validate",
+		},
+		{
+			name: "invalid_type",
+			url:  "/api/v1/file/validate?type=other",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
+
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
 		})
 	}
 }

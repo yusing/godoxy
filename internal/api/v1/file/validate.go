@@ -12,7 +12,7 @@ import (
 )
 
 type ValidateFileRequest struct {
-	FileType FileType `form:"type" validate:"required,oneof=config provider middleware"`
+	FileType FileType `form:"type" binding:"required,oneof=config provider middleware"`
 } //	@name	ValidateFileRequest
 
 // @x-id				"validate"
