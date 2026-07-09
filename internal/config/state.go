@@ -58,6 +58,7 @@ type state struct {
 	providers        *xsync.Map[string, routing.Provider]
 	autocertProvider *autocert.Provider
 	entrypoint       *entrypoint.Entrypoint
+	notifDispatcher  *notif.Dispatcher
 
 	task *task.Task
 
@@ -79,7 +80,7 @@ func (e CriticalError) Unwrap() error {
 	return e.err
 }
 
-func NewState() config.State {
+func NewState() *state {
 	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	return &state{
 		providers: xsync.NewMap[string, routing.Provider](),
@@ -375,10 +376,11 @@ func (state *state) initNotification() error {
 		return nil
 	}
 
-	dispatcher := notif.StartNotifDispatcher(state.task)
+	dispatcher := notif.NewDispatcher(state.task)
 	for _, notifier := range notifCfg {
 		dispatcher.RegisterProvider(notifier)
 	}
+	state.notifDispatcher = dispatcher
 	return nil
 }
 

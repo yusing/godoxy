@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -18,6 +19,8 @@ type (
 		task        *task.Task
 		providers   *xsync.Map[Provider, struct{}]
 		logCh       chan *LogMessage
+		logChMu     sync.Mutex
+		logChClosed bool
 		retryMsg    *xsync.Map[*RetryMessage, struct{}]
 		retryTicker *time.Ticker
 	}
@@ -33,7 +36,7 @@ type (
 	NotifyFunc func(msg *LogMessage)
 )
 
-var dispatcher *Dispatcher
+var dispatcher atomic.Pointer[Dispatcher]
 
 const (
 	retryInterval     = time.Second
@@ -41,27 +44,57 @@ const (
 	backoffMultiplier = 2.0
 )
 
+// StartNotifDispatcher creates, starts, and publishes a notification dispatcher.
 func StartNotifDispatcher(parent task.Parent) *Dispatcher {
-	dispatcher = &Dispatcher{
+	disp := NewDispatcher(parent)
+	SetDispatcher(disp)
+	return disp
+}
+
+// NewDispatcher creates and starts a dispatcher without publishing it globally.
+func NewDispatcher(parent task.Parent) *Dispatcher {
+	disp := &Dispatcher{
 		task:        parent.Subtask("notification", true),
 		providers:   xsync.NewMap[Provider, struct{}](),
 		logCh:       make(chan *LogMessage, 100),
 		retryMsg:    xsync.NewMap[*RetryMessage, struct{}](),
 		retryTicker: time.NewTicker(retryInterval),
 	}
-	go dispatcher.start()
-	return dispatcher
+	go disp.start()
+	return disp
+}
+
+// SetDispatcher sets the global notification dispatcher; nil disables notification.
+func SetDispatcher(disp *Dispatcher) {
+	dispatcher.Store(disp)
 }
 
 func Notify(msg *LogMessage) {
-	if dispatcher == nil {
-		return
+	for {
+		disp := dispatcher.Load()
+		if disp == nil {
+			return
+		}
+		if disp.enqueue(msg) {
+			return
+		}
+		if dispatcher.Load() == disp {
+			return
+		}
+	}
+}
+
+func (disp *Dispatcher) enqueue(msg *LogMessage) bool {
+	disp.logChMu.Lock()
+	defer disp.logChMu.Unlock()
+	if disp.logChClosed {
+		return false
 	}
 	select {
-	case <-dispatcher.task.Context().Done():
-		return
-	default:
-		dispatcher.logCh <- msg
+	case <-disp.task.Context().Done():
+		return false
+	case disp.logCh <- msg:
+		return true
 	}
 }
 
@@ -71,10 +104,11 @@ func (disp *Dispatcher) RegisterProvider(cfg *NotificationConfig) {
 
 func (disp *Dispatcher) start() {
 	defer func() {
+		clearDispatcher(disp)
 		disp.providers.Clear()
-		close(disp.logCh)
+		disp.closeLogCh()
+		disp.retryTicker.Stop()
 		disp.task.Finish(nil)
-		dispatcher = nil
 	}()
 
 	for {
@@ -90,6 +124,20 @@ func (disp *Dispatcher) start() {
 			disp.processRetries()
 		}
 	}
+}
+
+func clearDispatcher(disp *Dispatcher) {
+	dispatcher.CompareAndSwap(disp, nil)
+}
+
+func (disp *Dispatcher) closeLogCh() {
+	disp.logChMu.Lock()
+	defer disp.logChMu.Unlock()
+	if disp.logChClosed {
+		return
+	}
+	close(disp.logCh)
+	disp.logChClosed = true
 }
 
 func (disp *Dispatcher) dispatch(msg *LogMessage) {

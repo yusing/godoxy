@@ -64,6 +64,7 @@ func Load() error {
 	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 
 	initErr := state.InitFromFile(common.ConfigPath)
+	notif.SetDispatcher(state.notifDispatcher)
 	if initErr != nil {
 		// if error is critical, notify and return it without starting providers
 		if criticalErr, ok := errors.AsType[CriticalError](initErr); ok {
@@ -112,6 +113,7 @@ func Reload() error {
 
 	// flush temporary log
 	newState.FlushTmpLog()
+	notif.SetDispatcher(newState.notifDispatcher)
 
 	// cancel all current subtasks -> wait
 	// -> replace config -> start new subtasks
