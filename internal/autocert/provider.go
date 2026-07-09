@@ -491,7 +491,7 @@ var emptyForceRenewalDoneCh any = chan struct{}(nil)
 
 // scheduleRenewal schedules the renewal of the certificate for this provider.
 func (p *Provider) scheduleRenewal(parent task.Parent) {
-	if p.GetName() == ProviderLocal || p.GetName() == ProviderPseudo {
+	if p.cfg.Provider == ProviderLocal || p.cfg.Provider == ProviderPseudo {
 		return
 	}
 
