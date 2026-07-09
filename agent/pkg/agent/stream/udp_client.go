@@ -63,6 +63,10 @@ func newUDPClientWIthHeader(ctx context.Context, serverAddr string, header *Stre
 	if err != nil {
 		return nil, err
 	}
+	if err := conn.HandshakeContext(ctx); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
 
 	deadline, hasDeadline := ctx.Deadline()
 	if hasDeadline {
