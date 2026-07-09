@@ -17,7 +17,9 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	configtypes "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/route/provider"
+	"github.com/yusing/godoxy/internal/routing"
 	apitypes "github.com/yusing/goutils/apitypes"
+	"github.com/yusing/goutils/task"
 )
 
 type VerifyNewAgentRequest struct {
@@ -41,6 +43,10 @@ var (
 	zipCertFunc                      = certs.ZipCert
 	writeAgentCertZipFunc            = func(filename string, zip []byte) error { return os.WriteFile(filename, zip, 0o600) }
 	listAgentsFunc                   = listAgentConfigs
+	initAgentConfigWithCertsFunc     = (*agent.AgentConfig).InitWithCerts
+	newAgentProviderFunc             = func(cfg *agent.AgentConfig) routing.Provider {
+		return provider.NewAgentProvider(cfg)
+	}
 )
 
 // @x-id          "verify"
@@ -84,7 +90,7 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, err := verifyStartNewAgentFunc(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
+	nRoutesAdded, cleanupStartedAgent, err := verifyStartNewAgentFunc(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -92,11 +98,13 @@ func Verify(c *gin.Context) {
 
 	zip, err := zipCertFunc(ca.Cert, client.Cert, client.Key)
 	if err != nil {
+		cleanupStartedAgent(err)
 		c.Error(apitypes.InternalServerError(err, "failed to zip certs"))
 		return
 	}
 
 	if err := writeAgentCertZipFunc(filename, zip); err != nil {
+		cleanupStartedAgent(err)
 		c.Error(apitypes.InternalServerError(err, "failed to write certs"))
 		return
 	}
@@ -105,6 +113,7 @@ func Verify(c *gin.Context) {
 		suppressNextConfigReloadFunc()
 		if err := persistAgentHostToConfigFunc(request.Host); err != nil {
 			clearConfigReloadSuppressionFunc()
+			cleanupStartedAgent(err)
 			c.Error(apitypes.InternalServerError(err, "failed to update config"))
 			return
 		}
@@ -224,7 +233,7 @@ func listAgentConfigs() []*agent.AgentConfig {
 	return configs
 }
 
-func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, error) {
+func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, func(reason any), error) {
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
@@ -233,40 +242,57 @@ func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, cli
 	cfgState := configtypes.ActiveState.Load()
 	for _, a := range cfgState.Value().Providers.Agents {
 		if a.Addr == host {
-			return 0, errAgentAlreadyExists
+			return 0, nil, errAgentAlreadyExists
 		}
 	}
 	// check if agent host exists in the agent pool
 	if agentpool.Has(&agentCfg) {
-		return 0, errAgentAlreadyExists
+		return 0, nil, errAgentAlreadyExists
 	}
 
-	err := agentCfg.InitWithCerts(ctx, ca.Cert, client.Cert, client.Key)
+	err := initAgentConfigWithCertsFunc(&agentCfg, ctx, ca.Cert, client.Cert, client.Key)
 	if err != nil {
-		return 0, fmt.Errorf("failed to initialize agent config: %w", err)
+		return 0, nil, fmt.Errorf("failed to initialize agent config: %w", err)
 	}
 
-	provider := provider.NewAgentProvider(&agentCfg)
+	provider := newAgentProviderFunc(&agentCfg)
 	if _, loaded := cfgState.LoadOrStoreProvider(provider.String(), provider); loaded {
-		return 0, fmt.Errorf("provider %s already exists", provider.String())
+		return 0, nil, fmt.Errorf("provider %s already exists", provider.String())
+	}
+
+	agentAdded := false
+	var providerTaskParent *task.Task
+	cleanupProvider := func(reason any) {
+		if providerTaskParent != nil {
+			providerTaskParent.FinishAndWait(reason)
+		}
+		cfgState.DeleteProvider(provider.String())
+		if agentAdded {
+			agentpool.Remove(&agentCfg)
+		}
 	}
 
 	// agent must be added before loading routes
 	added := agentpool.Add(&agentCfg)
 	if !added {
-		return 0, errAgentAlreadyExists
+		cleanupProvider(errAgentAlreadyExists)
+		return 0, nil, errAgentAlreadyExists
 	}
+	agentAdded = true
 	err = provider.LoadRoutes()
 	if err != nil {
-		cfgState.DeleteProvider(provider.String())
-		agentpool.Remove(&agentCfg)
-		return 0, fmt.Errorf("failed to load routes: %w", err)
+		cleanupProvider(err)
+		return 0, nil, fmt.Errorf("failed to load routes: %w", err)
 	}
 
-	err = provider.Start(cfgState.Task())
+	providerTaskParent = cfgState.Task().Subtask("verify_agent."+provider.String(), false)
+	err = provider.Start(providerTaskParent)
 	if err != nil {
-		return 0, fmt.Errorf("failed to start routes: %w", err)
+		if provider.NumRoutes() == 0 {
+			cleanupProvider(err)
+		}
+		return 0, nil, fmt.Errorf("failed to start routes: %w", err)
 	}
 
-	return provider.NumRoutes(), nil
+	return provider.NumRoutes(), cleanupProvider, nil
 }
