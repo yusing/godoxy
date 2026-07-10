@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/agent
 
-go 1.26.4
+go 1.26.5
 
 replace (
 	github.com/shirou/gopsutil/v4 => ../internal/gopsutil

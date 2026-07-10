@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy
 
-go 1.26.4
+go 1.26.5
 
 replace (
 	github.com/coreos/go-oidc/v3 => ./internal/go-oidc
