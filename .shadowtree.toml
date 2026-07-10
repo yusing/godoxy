@@ -107,7 +107,7 @@ configure_build_mode() {
 }
 
 ensure_webui_dist() {
-	if [ "$is_godoxy" = true ] && [ ! -f "$webui_dir/dist/client/_shell.html" ]; then
+	if [ "$is_godoxy" = true ] && [ ! -f "{webui_dir}/dist/client/_shell.html" ]; then
 		@build-webui
 	fi
 }
