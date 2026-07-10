@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/goutils/http/reverseproxy"
