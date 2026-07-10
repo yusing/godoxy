@@ -216,10 +216,6 @@ func (r *Route) start(parent task.Parent) error {
 		}
 	}
 
-	if cont := r.ContainerInfo(); cont != nil {
-		docker.RegisterContainerConfig(cont.ContainerID, cont.DockerCfg)
-	}
-
 	if !excluded {
 		if err := r.impl.Start(parent); err != nil {
 			return err
@@ -247,13 +243,16 @@ func (r *Route) start(parent task.Parent) error {
 			}
 		}
 	}
+	if cont := r.ContainerInfo(); cont != nil {
+		docker.RegisterContainerConfig(cont.ContainerID, cont.DockerCfg)
+		r.task.OnCancel("unregister_container_config", func() {
+			docker.UnregisterContainerConfig(cont.ContainerID)
+		})
+	}
 	return nil
 }
 
 func (r *Route) Finish(reason any) {
-	if cont := r.ContainerInfo(); cont != nil {
-		docker.UnregisterContainerConfig(cont.ContainerID)
-	}
 	r.FinishAndWait(reason)
 }
 

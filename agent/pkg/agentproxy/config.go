@@ -2,6 +2,7 @@ package agentproxy
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,11 +19,24 @@ type Config struct {
 }
 
 func ConfigFromHeaders(h http.Header) (Config, error) {
-	cfg, err := proxyConfigFromHeaders(h)
-	if cfg.Host == "" || err != nil {
-		cfg = proxyConfigFromHeadersLegacy(h)
+	_, hasScheme := h[HeaderXProxyScheme]
+	_, hasConfig := h[HeaderXProxyConfig]
+	if !hasScheme && !hasConfig {
+		return proxyConfigFromHeadersLegacy(h), nil
 	}
-	return cfg, nil
+	cfg, err := proxyConfigFromHeaders(h)
+	if err != nil {
+		return cfg, err
+	}
+	if cfg.Host == "" {
+		return cfg, errors.New("missing proxy host")
+	}
+	switch cfg.Scheme {
+	case "http", "https", "h2c":
+		return cfg, nil
+	default:
+		return cfg, errors.New("invalid proxy scheme")
+	}
 }
 
 func proxyConfigFromHeadersLegacy(h http.Header) (cfg Config) {

@@ -118,21 +118,68 @@ func getAddr(route routing.HTTPRoute) (httpAddr, httpsAddr string) {
 // If the server does not exist, it will be created, started and return any error.
 func (ep *Entrypoint) AddHTTPRoute(route routing.HTTPRoute) error {
 	httpAddr, httpsAddr := getAddr(route)
-	var httpErr, httpsErr error
+	var (
+		errs  []error
+		added []httpRouteAddition
+	)
 	if httpAddr != "" {
-		httpErr = ep.addHTTPRoute(route, httpAddr, HTTPProtoHTTP)
+		addition, err := ep.addHTTPRouteResult(route, httpAddr, HTTPProtoHTTP, nil)
+		if err != nil {
+			errs = append(errs, err)
+		} else if addition.added {
+			added = append(added, addition)
+		}
 	}
 	if httpsAddr != "" {
-		httpsErr = ep.addHTTPRoute(route, httpsAddr, HTTPProtoHTTPS)
+		addition, err := ep.addHTTPRouteResult(route, httpsAddr, HTTPProtoHTTPS, nil)
+		if err != nil {
+			errs = append(errs, err)
+		} else if addition.added {
+			added = append(added, addition)
+		}
 	}
-	return errors.Join(httpErr, httpsErr)
+	if err := errors.Join(errs...); err != nil {
+		ep.rollbackHTTPRouteAdditions(route, added)
+		return err
+	}
+	return nil
+}
+
+type httpRouteAddition struct {
+	addr     string
+	previous routing.HTTPRoute
+	added    bool
+}
+
+func (ep *Entrypoint) rollbackHTTPRouteAdditions(route routing.HTTPRoute, additions []httpRouteAddition) {
+	for _, addition := range additions {
+		srv, ok := ep.servers.Load(addition.addr)
+		if !ok {
+			continue
+		}
+		current, ok := srv.routes.Get(route.Key())
+		if !ok || current != route {
+			continue
+		}
+		if addition.previous != nil {
+			srv.AddRoute(addition.previous)
+			continue
+		}
+		srv.DelRoute(route)
+	}
 }
 
 func (ep *Entrypoint) addHTTPRoute(route routing.HTTPRoute, addr string, proto HTTPProto) error {
-	return ep.addHTTPRouteWithListener(route, addr, proto, nil)
+	_, err := ep.addHTTPRouteResult(route, addr, proto, nil)
+	return err
 }
 
 func (ep *Entrypoint) addHTTPRouteWithListener(route routing.HTTPRoute, addr string, proto HTTPProto, listener net.Listener) error {
+	_, err := ep.addHTTPRouteResult(route, addr, proto, listener)
+	return err
+}
+
+func (ep *Entrypoint) addHTTPRouteResult(route routing.HTTPRoute, addr string, proto HTTPProto, listener net.Listener) (httpRouteAddition, error) {
 	var err error
 	srv, _ := ep.servers.LoadOrCompute(addr, func() (newSrv *httpServer, cancel bool) {
 		newSrv = newHTTPServer(ep)
@@ -141,11 +188,15 @@ func (ep *Entrypoint) addHTTPRouteWithListener(route routing.HTTPRoute, addr str
 		return
 	})
 	if err != nil {
-		return err
+		return httpRouteAddition{}, err
 	}
-
+	previous, _ := srv.routes.Get(route.Key())
+	if previous == route {
+		return httpRouteAddition{}, nil
+	}
 	srv.AddRoute(route)
-	return nil
+	current, ok := srv.routes.Get(route.Key())
+	return httpRouteAddition{addr: addr, previous: previous, added: ok && current == route}, nil
 }
 
 func (ep *Entrypoint) delHTTPRoute(route routing.HTTPRoute) {

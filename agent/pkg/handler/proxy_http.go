@@ -1,15 +1,31 @@
 package handler
 
 import (
+	"container/list"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/goutils/http/reverseproxy"
 )
+
+const maxCachedProxies = 64
+
+type cachedProxy struct {
+	key string
+	rp  *reverseproxy.ReverseProxy
+}
+
+var proxyCache = struct {
+	sync.Mutex
+	entries map[string]*list.Element
+	lru     list.List
+}{entries: make(map[string]*list.Element)}
 
 func NewTransport() *http.Transport {
 	return &http.Transport{
@@ -28,14 +44,6 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse agent proxy config: %s", err.Error()), http.StatusBadRequest)
 		return
-	}
-
-	transport := NewTransport()
-	if cfg.ResponseHeaderTimeout > 0 {
-		transport.ResponseHeaderTimeout = cfg.ResponseHeaderTimeout
-	}
-	if cfg.DisableCompression {
-		transport.DisableCompression = true
 	}
 
 	// Strip the {API_BASE}/proxy/http prefix while preserving URL escaping.
@@ -62,12 +70,51 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	targetURL.RawPath = ""
 	targetURL.RawQuery = ""
 
-	transport.TLSClientConfig, err = cfg.BuildTLSConfig(&targetURL)
+	rp, err := cachedReverseProxy(cfg, &targetURL)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to build TLS client config: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to build proxy: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-
-	rp := reverseproxy.NewReverseProxy(cfg.Host, &targetURL, transport)
 	rp.ServeHTTP(w, r)
+}
+
+func cachedReverseProxy(cfg agentproxy.Config, targetURL *url.URL) (*reverseproxy.ReverseProxy, error) {
+	keyBytes, err := sonic.Marshal(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("marshal proxy config: %w", err)
+	}
+	key := string(keyBytes)
+
+	proxyCache.Lock()
+	defer proxyCache.Unlock()
+	if elem, ok := proxyCache.entries[key]; ok {
+		proxyCache.lru.MoveToFront(elem)
+		return elem.Value.(cachedProxy).rp, nil
+	}
+
+	transport := NewTransport()
+	if cfg.ResponseHeaderTimeout > 0 {
+		transport.ResponseHeaderTimeout = cfg.ResponseHeaderTimeout
+	}
+	if cfg.DisableCompression {
+		transport.DisableCompression = true
+	}
+	transport.TLSClientConfig, err = cfg.BuildTLSConfig(targetURL)
+	if err != nil {
+		return nil, err
+	}
+
+	rp := reverseproxy.NewReverseProxy(cfg.Host, targetURL, transport)
+	elem := proxyCache.lru.PushFront(cachedProxy{key: key, rp: rp})
+	proxyCache.entries[key] = elem
+	if proxyCache.lru.Len() > maxCachedProxies {
+		oldest := proxyCache.lru.Back()
+		cached := oldest.Value.(cachedProxy)
+		delete(proxyCache.entries, cached.key)
+		proxyCache.lru.Remove(oldest)
+		if transport, ok := cached.rp.Transport.(interface{ CloseIdleConnections() }); ok {
+			transport.CloseIdleConnections()
+		}
+	}
+	return rp, nil
 }
