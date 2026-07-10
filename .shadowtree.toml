@@ -184,7 +184,7 @@ done
 [recipes.update-deps]
 help = "Run go get -u and go mod tidy across project modules."
 sandboxed = false
-for_each = "@go-packages"
+for_each = "@go-modules"
 workdir = "{item}"
 cmd = '''
 echo "$repo_root/{item}"

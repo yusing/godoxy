@@ -85,6 +85,7 @@ WORKDIR /src
 COPY scripts/minify ./scripts/minify
 COPY go.mod go.sum ./
 COPY .shadowtree.toml ./
+COPY .shadowtree/benchmark.toml ./.shadowtree/benchmark.toml
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
