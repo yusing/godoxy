@@ -7,7 +7,6 @@ shell = "sh"
 
 shell_prelude = '''
 repo_root=$(pwd)
-test_registry=${TEST_REGISTRY:-reg.i.sh}
 
 version_value() {
 	if [ -n "${VERSION:-}" ]; then
@@ -113,6 +112,10 @@ ensure_webui_dist() {
 }
 '''
 
+[enum_sets]
+component = "@enum godoxy main agent socket-proxy cli"
+build_mode = "@enum production debug race trace pprof dev"
+
 [var_commands]
 repo_root="pwd"
 
@@ -155,18 +158,6 @@ go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./interna
 help = "Run the TCP echo integration test script."
 sandboxed = false
 cmd = "bun --bun scripts/tcp_echo_test.ts"
-
-[recipes.docker-build-test]
-help = "Build and push test Docker images."
-sandboxed = false
-cmd = '''
-docker build --target=main -t "$test_registry/godoxy" .
-docker build --target=agent --build-arg=SHADOWTREE_ARGS=component=agent -t "$test_registry/godoxy-agent" .
-docker build --target=socket-proxy --build-arg=SHADOWTREE_ARGS=component=socket-proxy -t "$test_registry/godoxy-socket-proxy" .
-docker push "$test_registry/godoxy"
-docker push "$test_registry/godoxy-agent"
-docker push "$test_registry/godoxy-socket-proxy"
-'''
 
 [recipes.update-go]
 help = "Bump Go version in modules and Dockerfiles, then tidy project modules."
@@ -279,12 +270,12 @@ fi
 help = "Binary component to build."
 position = 1
 default = "godoxy"
-values = "@enum godoxy main agent socket-proxy cli"
+values = "@enum_set component"
 
 [recipes.build.arguments.mode]
 help = "Build mode."
 default = "production"
-values = "@enum production debug race trace pprof dev"
+values = "@enum_set build_mode"
 
 [recipes.build.arguments.docker]
 help = "Move the binary to /app/run for container images."
@@ -294,6 +285,24 @@ default = false
 [recipes.build.arguments.name]
 help = "Override output binary name under bin/."
 default = ""
+
+[recipes.build-docker]
+help = "Build a Docker image."
+sandboxed = false
+cmd = '''
+docker build --build-arg="SHADOWTREE_ARGS=component={component} mode={mode}" {@} .
+'''
+
+[recipes.build-docker.arguments.component]
+help = "Binary component to build."
+position = 1
+default = "godoxy"
+values = "@enum_set component"
+
+[recipes.build-docker.arguments.mode]
+help = "Build mode."
+default = "production"
+values = "@enum_set build_mode"
 
 [recipes.run-app]
 help = "Run the selected component with godotenv."
@@ -315,12 +324,12 @@ cd "$build_dir"
 help = "Component to run."
 position = 1
 default = "godoxy"
-values = "@enum godoxy main agent socket-proxy cli"
+values = "@enum_set component"
 
 [recipes.run-app.arguments.mode]
 help = "Run mode."
 default = "production"
-values = "@enum production debug race trace pprof dev"
+values = "@enum_set build_mode"
 
 [recipes.dev]
 help = "Build a dev binary and restart the development compose app."
