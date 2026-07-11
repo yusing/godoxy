@@ -125,7 +125,6 @@ webui_dir="{repo_root}/webui"
 docs_dir="{webui_dir}/wiki"
 
 [recipes.test]
-help = "Run Go tests for internal packages."
 sandboxed = false
 cmd = '''
 configure_component godoxy ""
@@ -136,11 +135,11 @@ GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./internal/...
+go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
 '''
 
 [recipes.race-test]
-help = "Run internal package tests with the race detector."
+help = "Run tests with the race detector."
 sandboxed = false
 cmd = '''
 configure_component godoxy ""
@@ -151,7 +150,7 @@ GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags ./internal/...
+go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
 '''
 
 [recipes.tcp-echo-test]
