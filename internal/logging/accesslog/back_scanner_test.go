@@ -72,9 +72,9 @@ func TestBackScanner(t *testing.T) {
 			scanner := NewBackScanner(mockFile, mockFile.MustSize(), 10)
 
 			// Collect all lines
-			var lines [][]byte
+			var lines []string
 			for scanner.Scan() {
-				lines = append(lines, scanner.Bytes())
+				lines = append(lines, string(scanner.Bytes()))
 			}
 
 			// Check for scanning errors
@@ -89,7 +89,7 @@ func TestBackScanner(t *testing.T) {
 			}
 
 			for i, line := range lines {
-				if string(line) != tt.expected[i] {
+				if line != tt.expected[i] {
 					t.Errorf("line %d: got %q, want %q", i, line, tt.expected[i])
 				}
 			}
@@ -112,9 +112,9 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 
 			scanner := NewBackScanner(mockFile, mockFile.MustSize(), chunkSize)
 
-			var lines [][]byte
+			var lines []string
 			for scanner.Scan() {
-				lines = append(lines, scanner.Bytes())
+				lines = append(lines, string(scanner.Bytes()))
 			}
 
 			if err := scanner.Err(); err != nil {
@@ -127,7 +127,7 @@ func TestBackScannerWithVaryingChunkSizes(t *testing.T) {
 			}
 
 			for i, line := range lines {
-				if string(line) != expected[i] {
+				if line != expected[i] {
 					t.Errorf("chunk size %d, line %d: got %q, want %q",
 						chunkSize, i, line, expected[i])
 				}
