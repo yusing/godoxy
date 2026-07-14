@@ -930,7 +930,7 @@ default = "bench.domain.com"
 
 [recipes.benchmark.arguments.target]
 help = "Optional proxy service filter."
-default = ""
+default = "GoDoxy"
 values = "@enum GoDoxy Traefik Caddy Nginx"
 
 [recipes.benchmark.arguments.h1]
