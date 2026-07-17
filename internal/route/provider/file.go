@@ -10,8 +10,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/routevalidate"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/watcher"
+	gperr "github.com/yusing/goutils/errs"
 )
 
 type FileProvider struct {
@@ -48,8 +50,22 @@ func validate(data []byte) (routes route.Routes, err error) {
 }
 
 func Validate(data []byte) (err error) {
-	_, err = validate(data)
-	return err
+	routes, err := validate(data)
+	var errs gperr.Builder
+	errs.Add(err)
+	for alias, r := range routes {
+		if r == nil {
+			continue
+		}
+		r.Alias = alias
+		routevalidate.ResolveProxmox(r)
+		if r.Idlewatcher != nil {
+			if err := r.Idlewatcher.ValidateResolved(); err != nil {
+				errs.AddSubject(gperr.PrependSubject(err, "idlewatcher"), alias)
+			}
+		}
+	}
+	return errs.Error()
 }
 
 func (p *FileProvider) String() string {

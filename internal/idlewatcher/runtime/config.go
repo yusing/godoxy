@@ -89,14 +89,26 @@ func (c *IdlewatcherConfig) ContainerName() string {
 }
 
 func (c *IdlewatcherConfig) Validate() error {
+	return c.validate(false)
+}
+
+// ValidateResolved validates the config after its route has resolved a
+// Docker or Proxmox provider.
+func (c *IdlewatcherConfig) ValidateResolved() error {
+	return c.validate(true)
+}
+
+func (c *IdlewatcherConfig) validate(requireProvider bool) error {
 	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
 		c.valErr = nil
 		return nil
 	}
 
 	var errs gperr.Builder
+	if requireProvider {
+		errs.Add(c.validateProvider())
+	}
 	errs.AddRange(
-		c.validateProvider(),
 		c.validateTimeouts(),
 		c.validateStopMethod(),
 		c.validateStopSignal(),

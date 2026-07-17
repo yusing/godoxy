@@ -2,15 +2,81 @@ package routevalidate
 
 import (
 	"context"
+	"net"
 	"strconv"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	config "github.com/yusing/godoxy/internal/config/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	netutils "github.com/yusing/godoxy/internal/net"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	gperr "github.com/yusing/goutils/errs"
 )
+
+// ResolveProxmox applies explicit or inferred Proxmox metadata to a route and
+// its idlewatcher config without contacting the Proxmox API.
+func ResolveProxmox(r *route.Route) {
+	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
+		r.Proxmox = &proxmox.NodeConfig{
+			Node: r.Idlewatcher.Proxmox.Node,
+			VMID: &r.Idlewatcher.Proxmox.VMID,
+		}
+	}
+
+	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
+		wasNotNil := r.Proxmox != nil
+		workingState := config.WorkingState.Load()
+		var proxmoxProviders []*proxmox.Config
+		if workingState != nil {
+			proxmoxProviders = workingState.Value().Providers.Proxmox
+		}
+		if len(proxmoxProviders) > 0 {
+			hostname := r.Host
+			ip := net.ParseIP(hostname)
+			for _, p := range proxmoxProviders {
+				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
+					zero := uint64(0)
+					if r.Proxmox == nil {
+						r.Proxmox = &proxmox.NodeConfig{}
+					}
+					r.Proxmox.Node = nodeName
+					r.Proxmox.VMID = &zero
+					r.Proxmox.VMName = ""
+					log.Info().EmbedObject(r).Msg("found proxmox node")
+					break
+				}
+
+				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
+				if resource != nil {
+					vmid := resource.VMID
+					if r.Proxmox == nil {
+						r.Proxmox = &proxmox.NodeConfig{}
+					}
+					r.Proxmox.Node = resource.Node
+					r.Proxmox.VMID = &vmid
+					r.Proxmox.VMName = resource.Name
+					log.Info().EmbedObject(r).Msg("found proxmox resource")
+					break
+				}
+			}
+		}
+		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
+			log.Warn().EmbedObject(r).Msg("no proxmox node / resource found")
+		}
+	}
+
+	if r.Proxmox == nil || r.Idlewatcher == nil {
+		return
+	}
+	r.Idlewatcher.Proxmox = &idlewatcher.ProxmoxConfig{
+		Node: r.Proxmox.Node,
+	}
+	if r.Proxmox.VMID != nil {
+		r.Idlewatcher.Proxmox.VMID = *r.Proxmox.VMID
+	}
+}
 
 func validateProxmox(r *route.Route) {
 	l := log.With().EmbedObject(r).Logger()

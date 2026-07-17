@@ -15,3 +15,27 @@ func TestFile(t *testing.T) {
 	_, err := validate(testAllFieldsYAML)
 	require.NoError(t, err)
 }
+
+func TestValidateIdlewatcherUsesRouteProxmoxBinding(t *testing.T) {
+	data := []byte(`app:
+  host: example.com
+  proxmox:
+    node: pve
+    vmid: 119
+  idlewatcher:
+    idle_timeout: 30m
+`)
+
+	require.NoError(t, Validate(data))
+}
+
+func TestValidateIdlewatcherRequiresBoundProvider(t *testing.T) {
+	data := []byte(`app:
+  host: example.com
+  idlewatcher:
+    idle_timeout: 30m
+`)
+
+	err := Validate(data)
+	require.ErrorContains(t, err, "missing idlewatcher provider config")
+}

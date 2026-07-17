@@ -6,15 +6,12 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routeimpl"
 	"github.com/yusing/godoxy/internal/routing"
@@ -55,66 +52,7 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 		}
 	}
 
-	if r.Proxmox != nil && r.Idlewatcher != nil {
-		r.Idlewatcher.Proxmox = &idlewatcher.ProxmoxConfig{
-			Node: r.Proxmox.Node,
-		}
-		if r.Proxmox.VMID != nil {
-			r.Idlewatcher.Proxmox.VMID = *r.Proxmox.VMID
-		}
-	}
-
-	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
-		r.Proxmox = &proxmox.NodeConfig{
-			Node: r.Idlewatcher.Proxmox.Node,
-			VMID: &r.Idlewatcher.Proxmox.VMID,
-		}
-	}
-
-	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
-		wasNotNil := r.Proxmox != nil
-		workingState := config.WorkingState.Load()
-		var proxmoxProviders []*proxmox.Config
-		if workingState != nil { // nil in tests
-			proxmoxProviders = workingState.Value().Providers.Proxmox
-		}
-		if len(proxmoxProviders) > 0 {
-			// it's fine if ip is nil
-			hostname := r.Host
-			ip := net.ParseIP(hostname)
-			for _, p := range proxmoxProviders {
-				// First check if hostname, IP, or alias matches a node (node-level route)
-				if nodeName := p.Client().ReverseLookupNode(hostname, ip, r.Alias); nodeName != "" {
-					zero := uint64(0)
-					if r.Proxmox == nil {
-						r.Proxmox = &proxmox.NodeConfig{}
-					}
-					r.Proxmox.Node = nodeName
-					r.Proxmox.VMID = &zero
-					r.Proxmox.VMName = ""
-					log.Info().EmbedObject(r).Msg("found proxmox node")
-					break
-				}
-
-				// Then check if hostname, IP, or alias matches a VM resource
-				resource, _ := p.Client().ReverseLookupResource(ip, hostname, r.Alias)
-				if resource != nil {
-					vmid := resource.VMID
-					if r.Proxmox == nil {
-						r.Proxmox = &proxmox.NodeConfig{}
-					}
-					r.Proxmox.Node = resource.Node
-					r.Proxmox.VMID = &vmid
-					r.Proxmox.VMName = resource.Name
-					log.Info().EmbedObject(r).Msg("found proxmox resource")
-					break
-				}
-			}
-		}
-		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
-			log.Warn().EmbedObject(r).Msg("no proxmox node / resource found")
-		}
-	}
+	ResolveProxmox(r)
 
 	if r.Proxmox != nil {
 		validateProxmox(r)
@@ -122,6 +60,11 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 
 	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
 		r.Idlewatcher = r.Container.IdlewatcherConfig
+	}
+
+	var errs gperr.Builder
+	if r.Idlewatcher != nil {
+		errs.AddSubject(r.Idlewatcher.ValidateResolved(), "idlewatcher")
 	}
 
 	// return error if route is localhost:<godoxy_port> but route is not agent
@@ -137,7 +80,6 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 		}
 	}
 
-	var errs gperr.Builder
 	if err := validateRules(r); err != nil {
 		errs.Add(err)
 	}
