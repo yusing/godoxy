@@ -30,6 +30,10 @@ type (
 		Latency() time.Duration
 		Detail() string
 	}
+	// SleepTimer exposes time remaining before an idle resource sleeps.
+	SleepTimer interface {
+		SleepIn() time.Duration
+	}
 	HealthMonitor interface {
 		task.TaskStarter
 		task.TaskFinisher
@@ -83,6 +87,7 @@ type (
 		Status  HealthStatus  `json:"status" swaggertype:"string" enums:"healthy,unhealthy,napping,starting,error,unknown"`
 		Uptime  time.Duration `json:"uptime" swaggertype:"number"`
 		Latency time.Duration `json:"latency" swaggertype:"number"`
+		SleepIn time.Duration `json:"sleep_in" swaggertype:"number"`
 	} // @name HealthInfoWithoutDetail
 
 	HealthInfo struct {

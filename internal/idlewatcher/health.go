@@ -49,6 +49,18 @@ func (w *Watcher) Latency() time.Duration {
 	return 0
 }
 
+// SleepIn returns the remaining idle time before the watched container sleeps.
+func (w *Watcher) SleepIn() time.Duration {
+	if !w.ready() {
+		return 0
+	}
+	lastReset := w.lastReset.Load()
+	if lastReset.IsZero() {
+		return 0
+	}
+	return max(time.Until(lastReset.Add(w.cfg.IdleTimeout)), 0)
+}
+
 // Status implements health.HealthMonitor.
 func (w *Watcher) Status() health.HealthStatus {
 	state := w.state.Load()

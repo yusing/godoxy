@@ -1,6 +1,8 @@
 package entrypoint
 
 import (
+	"time"
+
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/routing"
 )
@@ -65,6 +67,7 @@ func getHealthInfo(r routing.Route) health.HealthInfo {
 			Status:  mon.Status(),
 			Uptime:  mon.Uptime(),
 			Latency: mon.Latency(),
+			SleepIn: sleepIn(mon),
 		},
 		Detail: mon.Detail(),
 	}
@@ -81,7 +84,16 @@ func getHealthInfoWithoutDetail(r routing.Route) health.HealthInfoWithoutDetail 
 		Status:  mon.Status(),
 		Uptime:  mon.Uptime(),
 		Latency: mon.Latency(),
+		SleepIn: sleepIn(mon),
 	}
+}
+
+func sleepIn(mon health.HealthMonitor) time.Duration {
+	timer, ok := mon.(health.SleepTimer)
+	if !ok {
+		return 0
+	}
+	return timer.SleepIn()
 }
 
 func getHealthInfoSimple(r routing.Route) health.HealthStatus {
