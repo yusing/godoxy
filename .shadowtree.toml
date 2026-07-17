@@ -90,7 +90,7 @@ configure_build_mode() {
 			go_tags=debug
 			;;
 		pprof)
-			go_tags=pprof
+			go_tags=production,pprof
 			version=$version-pprof
 			ldflags="-X github.com/yusing/goutils/version.version=$version -checklinkname=0"
 			go_race="log_path=logs/pprof strip_path_prefix=$repo_root/ halt_on_error=1"
