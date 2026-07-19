@@ -66,13 +66,15 @@ type WakeEvent struct {
 // NewWatcher creates or reuses a watcher for the given route and config
 func NewWatcher(parent task.Parent, r routing.Route, cfg *runtime.Config) (*Watcher, error)
 
-// Wake wakes the container, blocking until ready
+// Wake waits for the shared provider-start result unless ctx is canceled.
+// Canceling ctx stops only this caller's wait; an independently owned shared wake may continue.
 func (w *Watcher) Wake(ctx context.Context) error
 
 // Start begins the idle watcher loop
 func (w *Watcher) Start(parent task.Parent) error
 
-// ServeHTTP serves the loading page and SSE events
+// ServeHTTP promptly serves the loading page while wake-up continues on the watcher task;
+// non-HTML and no_loading_page requests wait so the original request can be proxied
 func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 
 // ListenAndServe handles stream connections with idle detection
@@ -136,15 +138,16 @@ classDiagram
 flowchart TD
     A[HTTP Request] --> B{Container Ready?}
     B -->|Yes| C[Proxy Request]
-    B -->|No| D[Wake Container]
-    D --> E[SingleFlight Check]
+    B -->|No, HTML| D[Return Loading Page]
+    D --> E[Start Coalesced Background Wake]
     E --> F[Wake Dependencies]
     F --> G[Start Container]
     G --> H[Health Check]
-    H -->|Pass| I[Notify Ready]
-    I --> J[SSE Event]
-    J --> K[Loading Page]
-    K --> L[Retry Request]
+    H -->|Progress| I[SSE Event History]
+    I --> J[Loading Page EventSource]
+    H -->|Ready| K[Refresh Navigation]
+    B -->|No, non-HTML or no_loading_page| L[Wake and Wait]
+    L --> C
 ```
 
 ### State Machine
@@ -242,7 +245,7 @@ No metrics exposed directly; health check metrics available via `internal/health
 
 | Failure                       | Behavior                                           | Recovery                       |
 | ----------------------------- | -------------------------------------------------- | ------------------------------ |
-| Wake timeout                  | Returns error, container remains in current state  | Retry wake with longer timeout |
+| Wake timeout                  | Loading page reports the error through SSE; waiting requests return an error | Retry wake with longer timeout |
 | Health check fails repeatedly | Container marked as error, retries on next request | External fix required          |
 | Provider connection lost      | SSE disconnects, next request retries wake         | Reconnect on next request      |
 | Dependencies fail to start    | Wake fails with dependency error                   | Fix dependency container       |

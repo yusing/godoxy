@@ -71,7 +71,8 @@ type (
 		// Per-watcher event history (for SSE and debug)
 		events *gevents.History
 
-		dependsOn []*dependency
+		dependsOn      []*dependency
+		backgroundWake singleflight.Group
 	}
 
 	dependency struct {
@@ -388,7 +389,9 @@ func (w *Watcher) Key() string {
 
 // Wake wakes the container.
 //
-// It will cancel as soon as the either of the passed in context or the watcher is done.
+// It returns as soon as either the passed context or the watcher is done.
+// The shared wake operation uses the watcher lifetime and WakeTimeout so one caller
+// disconnecting does not cancel startup for other callers.
 //
 // It uses singleflight to prevent multiple wake calls at the same time.
 //
@@ -398,22 +401,36 @@ func (w *Watcher) Key() string {
 // If the container is paused, it will unpause it.
 // If the container is stopped, it will do nothing.
 func (w *Watcher) Wake(ctx context.Context) error {
-	// wake dependencies first.
-	if err := w.wakeDependencies(ctx); err != nil {
-		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
-		return w.newWatcherError(err)
-	}
+	return w.wake(ctx, nil)
+}
 
-	if w.wakeInProgress() {
-		w.l.Debug().Msg("already starting, ignoring duplicate start event")
-		return nil
-	}
-
-	// wake itself.
+// wake waits using ctx. When operationCtx is non-nil, a newly started shared
+// operation inherits it; public callers pass nil so their disconnect cannot
+// cancel startup for other callers.
+func (w *Watcher) wake(ctx, operationCtx context.Context) error {
 	// use container name instead of Key() here as the container id will change on restart (docker).
 	containerName := w.cfg.ContainerName()
-	_, err, _ := singleFlight.Do(containerName, func() (any, error) {
-		err := w.wakeIfStopped(ctx)
+	resultCh := singleFlight.DoChan(containerName, func() (any, error) {
+		wakeCtx := operationCtx
+		if wakeCtx == nil {
+			var cancel context.CancelFunc
+			wakeCtx, cancel = context.WithTimeout(w.task.Context(), w.cfg.WakeTimeout)
+			defer cancel()
+		}
+
+		// Wake dependencies inside the shared operation so their ordering, timeout,
+		// and cancellation ownership match the container start itself.
+		if err := w.wakeDependencies(wakeCtx); err != nil {
+			w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
+			return nil, err
+		}
+
+		if w.wakeInProgress() {
+			w.l.Debug().Msg("already starting, ignoring duplicate start event")
+			return nil, nil
+		}
+
+		err := w.wakeIfStopped(wakeCtx)
 		if err != nil {
 			w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
 		} else {
@@ -422,8 +439,13 @@ func (w *Watcher) Wake(ctx context.Context) error {
 		}
 		return nil, err
 	})
-	if err != nil {
-		return w.newWatcherError(err)
+	select {
+	case <-ctx.Done():
+		return w.newWatcherError(context.Cause(ctx))
+	case result := <-resultCh:
+		if result.Err != nil {
+			return w.newWatcherError(result.Err)
+		}
 	}
 
 	return nil
@@ -450,7 +472,7 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 		}
 		errs.Go(func() error {
 			w.sendEvent(WakeEventWakingDep, "Waking dependency: "+dep.cfg.ContainerName(), nil)
-			if err := dep.Wake(ctx); err != nil {
+			if err := dep.wake(ctx, ctx); err != nil {
 				return err
 			}
 			w.sendEvent(WakeEventDepReady, "Dependency woke: "+dep.cfg.ContainerName(), nil)

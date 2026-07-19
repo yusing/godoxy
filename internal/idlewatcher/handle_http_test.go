@@ -2,16 +2,23 @@ package idlewatcher
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/health"
 	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gevents "github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/task"
 )
 
 func TestWriteLoadingPageDisablesCaching(t *testing.T) {
@@ -81,17 +88,293 @@ func TestServeHTTPReadyProxyPreservesUpstreamCacheHeaders(t *testing.T) {
 	require.Equal(t, "ok", rec.Body.String())
 }
 
+func TestServeHTTPLoadingPageDoesNotWaitForWake(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	rec := httptest.NewRecorder()
+	reqCtx, cancelRequest := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil).WithContext(reqCtx)
+
+	returned := make(chan struct{})
+	go func() {
+		w.ServeHTTP(rec, req)
+		close(returned)
+	}()
+
+	wakeCtx := receiveWakeContext(t, provider.started)
+	requireChannelClosed(t, returned, "loading page handler did not return while provider startup was blocked")
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "loading-dots")
+
+	// The navigation request ends when the loading page is returned, but its wake operation
+	// must continue so the page's subsequent SSE request can observe startup progress.
+	cancelRequest()
+	select {
+	case <-wakeCtx.Done():
+		t.Fatal("loading page wake inherited the completed request context")
+	default:
+	}
+
+	secondReturned := make(chan struct{})
+	go func() {
+		w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+		close(secondReturned)
+	}()
+	requireChannelClosed(t, secondReturned, "duplicate loading page handler did not return")
+	require.EqualValues(t, 1, provider.starts.Load(), "concurrent loading requests must share one wake operation")
+
+	close(provider.release)
+}
+
+func TestServeHTTPLoadingPageRequestClassification(t *testing.T) {
+	tests := []struct {
+		name          string
+		path          string
+		accept        string
+		startEndpoint string
+		wantWake      bool
+		wantStatus    int
+		wantType      string
+	}{
+		{
+			name:       "html navigation",
+			path:       "/app",
+			accept:     "text/html",
+			wantWake:   true,
+			wantStatus: http.StatusOK,
+			wantType:   "text/html; charset=utf-8",
+		},
+		{
+			name:       "malformed accept falls back to navigation",
+			path:       "/",
+			accept:     "not a media type",
+			wantWake:   true,
+			wantStatus: http.StatusOK,
+			wantType:   "text/html; charset=utf-8",
+		},
+		{
+			name:       "reserved path suffix is not an asset collision",
+			path:       idlewatchertypes.LoadingPageJSPath + ".map",
+			accept:     "text/html",
+			wantWake:   true,
+			wantStatus: http.StatusOK,
+			wantType:   "text/html; charset=utf-8",
+		},
+		{
+			name:       "unknown future internal path remains a navigation",
+			path:       idlewatchertypes.PathPrefix + "future-endpoint",
+			accept:     "text/html",
+			wantWake:   true,
+			wantStatus: http.StatusOK,
+			wantType:   "text/html; charset=utf-8",
+		},
+		{
+			name:       "exact static asset does not wake",
+			path:       idlewatchertypes.LoadingPageJSPath,
+			accept:     "text/html",
+			wantWake:   false,
+			wantStatus: http.StatusOK,
+			wantType:   "application/javascript",
+		},
+		{
+			name:          "start endpoint mismatch rejects without waking",
+			path:          "/other",
+			accept:        "text/html",
+			startEndpoint: "/start",
+			wantWake:      false,
+			wantStatus:    http.StatusForbidden,
+			wantType:      "text/plain; charset=utf-8",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w, provider := newBlockingWakeWatcher(t)
+			close(provider.release)
+			w.cfg.StartEndpoint = tt.startEndpoint
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://example.com"+tt.path, nil)
+			req.Header.Set("Accept", tt.accept)
+
+			w.ServeHTTP(rec, req)
+
+			require.Equal(t, tt.wantStatus, rec.Code)
+			require.Equal(t, tt.wantType, rec.Header().Get("Content-Type"))
+			if tt.wantWake {
+				receiveWakeContext(t, provider.started)
+				require.EqualValues(t, 1, provider.starts.Load())
+				return
+			}
+			select {
+			case <-provider.started:
+				t.Fatal("request unexpectedly started the container")
+			default:
+			}
+		})
+	}
+}
+
+func TestServeHTTPNonHTMLRequestStillWaitsForWake(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	rec := httptest.NewRecorder()
+	reqCtx, cancelRequest := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/", nil).WithContext(reqCtx)
+	returned := make(chan struct{})
+	go func() {
+		w.ServeHTTP(rec, req)
+		close(returned)
+	}()
+
+	receiveWakeContext(t, provider.started)
+	select {
+	case <-returned:
+		t.Fatal("non-HTML request returned before synchronous wake completed")
+	default:
+	}
+
+	cancelRequest()
+	requireChannelClosed(t, returned, "non-HTML request did not propagate cancellation")
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+func TestServeHTTPNonHTMLCancellationDoesNotWaitForBackgroundWake(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	wakeCtx := receiveWakeContext(t, provider.started)
+
+	rec := httptest.NewRecorder()
+	reqCtx, cancelRequest := context.WithCancel(t.Context())
+	observedCtx := &observedDoneContext{Context: reqCtx, doneObserved: make(chan struct{})}
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/", nil).WithContext(observedCtx)
+	returned := make(chan struct{})
+	go func() {
+		w.ServeHTTP(rec, req)
+		close(returned)
+	}()
+
+	requireChannelClosed(t, observedCtx.doneObserved, "non-HTML request did not join the shared wake")
+	select {
+	case <-returned:
+		t.Fatal("non-HTML request returned before cancellation")
+	default:
+	}
+	cancelRequest()
+	requireChannelClosed(t, returned, "canceled non-HTML request waited for the shared background wake")
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	select {
+	case <-wakeCtx.Done():
+		t.Fatal("canceling a joined request canceled the shared background wake")
+	default:
+	}
+	close(provider.release)
+}
+
+func TestServeHTTPLoadingPageWakeSurvivesInitiatingNonHTMLCancellation(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	rec := httptest.NewRecorder()
+	reqCtx, cancelRequest := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/", nil).WithContext(reqCtx)
+	returned := make(chan struct{})
+	go func() {
+		w.ServeHTTP(rec, req)
+		close(returned)
+	}()
+
+	wakeCtx := receiveWakeContext(t, provider.started)
+	loadingRec := httptest.NewRecorder()
+	w.ServeHTTP(loadingRec, httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	require.Equal(t, http.StatusOK, loadingRec.Code)
+	require.Contains(t, loadingRec.Body.String(), "loading-dots")
+
+	cancelRequest()
+	requireChannelClosed(t, returned, "initiating non-HTML request did not propagate cancellation")
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	select {
+	case <-wakeCtx.Done():
+		t.Fatal("initiating request cancellation canceled the shared loading-page wake")
+	default:
+	}
+	close(provider.release)
+}
+
+func TestServeHTTPLoadingPageWakeFailureIsPublished(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	provider.startErr = errors.New("provider start failed")
+	close(provider.release)
+	_, eventCh, stopListening := w.events.SnapshotAndListen()
+	defer stopListening()
+
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	receiveWakeContext(t, provider.started)
+
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event := <-eventCh:
+			if event.Action == string(WakeEventError) {
+				wakeEvent, ok := event.Data.(*WakeEvent)
+				require.True(t, ok)
+				require.Contains(t, wakeEvent.Error, provider.startErr.Error())
+				return
+			}
+		case <-timer.C:
+			t.Fatal("wake failure was not published to loading page event listeners")
+		}
+	}
+}
+
+func TestServeHTTPLoadingPageDependencyHealthWaitTimesOutAndRetries(t *testing.T) {
+	w, _ := newBlockingWakeWatcher(t)
+	w.cfg.WakeTimeout = 20 * time.Millisecond
+	dep, depProvider := newBlockingWakeWatcher(t)
+	close(depProvider.release)
+	dep.hc = &unhealthyHealthChecker{targetURL: &url.URL{Scheme: "http", Host: "dependency.test"}}
+	w.dependsOn = []*dependency{{Watcher: dep, waitHealthy: true}}
+	_, eventCh, stopListening := w.events.SnapshotAndListen()
+	defer stopListening()
+
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	receiveWakeContext(t, depProvider.started)
+	waitForWakeError(t, eventCh, "timeout")
+
+	require.Eventually(t, func() bool {
+		w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+		return depProvider.starts.Load() >= 2
+	}, time.Second, 10*time.Millisecond, "loading page wake could not retry after dependency timeout")
+}
+
+func TestServeHTTPLoadingPageDependencyStartInheritsParentTimeout(t *testing.T) {
+	w, _ := newBlockingWakeWatcher(t)
+	w.cfg.WakeTimeout = 20 * time.Millisecond
+	dep, depProvider := newBlockingWakeWatcher(t)
+	dep.cfg.WakeTimeout = time.Second
+	w.dependsOn = []*dependency{{Watcher: dep}}
+	_, eventCh, stopListening := w.events.SnapshotAndListen()
+	defer stopListening()
+
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	depWakeCtx := receiveWakeContext(t, depProvider.started)
+	waitForWakeError(t, eventCh, "timeout")
+	requireChannelClosed(t, depWakeCtx.Done(), "dependency start escaped the parent wake timeout")
+	require.EqualValues(t, 1, depProvider.starts.Load())
+}
+
 func newTestWatcher(t *testing.T) *Watcher {
 	t.Helper()
 
 	ticker := time.NewTicker(time.Hour)
 	t.Cleanup(ticker.Stop)
+	containerName := fmt.Sprintf("test-container-%d", testWatcherID.Add(1))
+	watcherTask := task.GetTestTask(t).Subtask("idlewatcher_http", true)
+	t.Cleanup(func() {
+		watcherTask.FinishAndWait(nil)
+	})
 
 	w := &Watcher{
 		cfg: &idlewatchertypes.Config{
 			IdlewatcherProviderConfig: idlewatchertypes.ProviderConfig{
 				Docker: &idlewatchertypes.DockerConfig{
-					ContainerName: "test-container",
+					ContainerName: containerName,
 				},
 			},
 			IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
@@ -102,6 +385,7 @@ func newTestWatcher(t *testing.T) *Watcher {
 		idleTicker:    ticker,
 		readyNotifyCh: make(chan struct{}, 1),
 		events:        gevents.NewHistory(),
+		task:          watcherTask,
 	}
 	w.lastReset.Store(time.Now())
 	w.state.Store(&containerState{
@@ -109,3 +393,116 @@ func newTestWatcher(t *testing.T) *Watcher {
 	})
 	return w
 }
+
+func newBlockingWakeWatcher(t *testing.T) (*Watcher, *blockingStartProvider) {
+	t.Helper()
+	w := newTestWatcher(t)
+	provider := &blockingStartProvider{
+		started: make(chan context.Context, 1),
+		release: make(chan struct{}),
+	}
+	w.provider.Store(provider)
+	return w, provider
+}
+
+func receiveWakeContext(t *testing.T, started <-chan context.Context) context.Context {
+	t.Helper()
+	select {
+	case ctx := <-started:
+		return ctx
+	case <-time.After(time.Second):
+		t.Fatal("container wake did not start")
+		return nil
+	}
+}
+
+func waitForWakeError(t *testing.T, eventCh <-chan gevents.Event, contains string) {
+	t.Helper()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event := <-eventCh:
+			if event.Action != string(WakeEventError) {
+				continue
+			}
+			wakeEvent, ok := event.Data.(*WakeEvent)
+			require.True(t, ok)
+			require.Contains(t, wakeEvent.Error, contains)
+			return
+		case <-timer.C:
+			t.Fatal("wake error was not published to loading page event listeners")
+		}
+	}
+}
+
+func requireChannelClosed(t *testing.T, ch <-chan struct{}, message string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal(message)
+	}
+}
+
+type blockingStartProvider struct {
+	started  chan context.Context
+	release  chan struct{}
+	starts   atomic.Int64
+	startErr error
+}
+
+var testWatcherID atomic.Uint64
+
+func (*blockingStartProvider) ContainerPause(context.Context) error   { return nil }
+func (*blockingStartProvider) ContainerUnpause(context.Context) error { return nil }
+func (p *blockingStartProvider) ContainerStart(ctx context.Context) error {
+	p.starts.Add(1)
+	select {
+	case p.started <- ctx:
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	}
+	select {
+	case <-p.release:
+		return p.startErr
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	}
+}
+func (*blockingStartProvider) ContainerStop(context.Context, idlewatchertypes.Signal, int) error {
+	return nil
+}
+func (*blockingStartProvider) ContainerKill(context.Context, idlewatchertypes.Signal) error {
+	return nil
+}
+func (*blockingStartProvider) ContainerStatus(context.Context) (idlewatchertypes.ContainerStatus, error) {
+	return idlewatchertypes.ContainerStatusStopped, nil
+}
+func (*blockingStartProvider) Watch(context.Context) (<-chan watcherEvents.Event, <-chan error) {
+	return nil, nil
+}
+func (*blockingStartProvider) Close() {}
+
+type observedDoneContext struct {
+	context.Context
+	doneObserved chan struct{}
+	once         sync.Once
+}
+
+func (c *observedDoneContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.doneObserved) })
+	return c.Context.Done()
+}
+
+type unhealthyHealthChecker struct {
+	targetURL *url.URL
+	cfg       health.HealthCheckConfig
+}
+
+func (*unhealthyHealthChecker) CheckHealth() (health.HealthCheckResult, error) {
+	return health.HealthCheckResult{Healthy: false}, nil
+}
+func (c *unhealthyHealthChecker) URL() *url.URL                     { return c.targetURL }
+func (c *unhealthyHealthChecker) Config() *health.HealthCheckConfig { return &c.cfg }
+func (c *unhealthyHealthChecker) UpdateURL(targetURL *url.URL)      { c.targetURL = targetURL }

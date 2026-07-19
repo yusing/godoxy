@@ -143,6 +143,17 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	accept := httputils.GetAccept(r.Header)
 	acceptHTML := (r.Method == http.MethodGet && accept.AcceptHTML() || r.RequestURI == "/" && accept.IsEmpty())
 
+	if acceptHTML && !w.cfg.NoLoadingPage {
+		w.wakeForLoadingPage()
+
+		// Send the loading response before provider startup or dependency health waits complete.
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setNoStoreHeaders(rw.Header())
+		rw.Header().Add("Connection", "close")
+		_ = w.writeLoadingPage(rw)
+		return false
+	}
+
 	err := w.Wake(r.Context())
 	if err != nil {
 		log.Err(err).Msg("Failed to wake container")
@@ -152,21 +163,22 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		}
 	}
 
-	if !acceptHTML || w.cfg.NoLoadingPage {
-		// send a continue response to prevent client wait-header timeout
-		rw.WriteHeader(http.StatusContinue)
-		ready := w.waitForReady(r.Context())
-		if !ready {
-			serveStaticContent(rw, http.StatusInternalServerError, "text/plain", []byte("Timeout waiting for container to become ready"))
-			return false
-		}
-		return true
+	// send a continue response to prevent client wait-header timeout
+	rw.WriteHeader(http.StatusContinue)
+	ready := w.waitForReady(r.Context())
+	if !ready {
+		serveStaticContent(rw, http.StatusInternalServerError, "text/plain", []byte("Timeout waiting for container to become ready"))
+		return false
 	}
+	return true
+}
 
-	// Send a loading response to the client
-	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-	setNoStoreHeaders(rw.Header())
-	rw.Header().Add("Connection", "close")
-	_ = w.writeLoadingPage(rw)
-	return false
+func (w *Watcher) wakeForLoadingPage() {
+	w.backgroundWake.DoChan("wake", func() (any, error) {
+		err := w.Wake(w.task.Context())
+		if err != nil {
+			w.l.Error().Err(err).Msg("failed to wake container from loading page")
+		}
+		return nil, err
+	})
 }
