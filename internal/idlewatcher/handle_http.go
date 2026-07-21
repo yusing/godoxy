@@ -154,7 +154,9 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	err := w.Wake(r.Context())
+	// request cancelling should not abort wake
+	// avoid partial wake state
+	err := w.Wake(context.Background())
 	if err != nil {
 		log.Err(err).Msg("Failed to wake container")
 		if !acceptHTML {

@@ -224,7 +224,7 @@ func TestServeHTTPNonHTMLRequestStillWaitsForWake(t *testing.T) {
 		close(returned)
 	}()
 
-	receiveWakeContext(t, provider.started)
+	wakeCtx := receiveWakeContext(t, provider.started)
 	select {
 	case <-returned:
 		t.Fatal("non-HTML request returned before synchronous wake completed")
@@ -232,40 +232,43 @@ func TestServeHTTPNonHTMLRequestStillWaitsForWake(t *testing.T) {
 	}
 
 	cancelRequest()
-	requireChannelClosed(t, returned, "non-HTML request did not propagate cancellation")
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	select {
+	case <-returned:
+		t.Fatal("non-HTML request cancellation interrupted the synchronous wake")
+	case <-wakeCtx.Done():
+		t.Fatal("non-HTML request cancellation canceled the wake operation")
+	default:
+	}
+	close(provider.release)
+	requireChannelClosed(t, returned, "non-HTML request did not return after wake completed")
+	require.Equal(t, http.StatusContinue, rec.Code)
 }
 
-func TestServeHTTPNonHTMLCancellationDoesNotWaitForBackgroundWake(t *testing.T) {
+func TestServeHTTPNonHTMLCancellationDoesNotCancelBackgroundWake(t *testing.T) {
 	w, provider := newBlockingWakeWatcher(t)
 	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
 	wakeCtx := receiveWakeContext(t, provider.started)
 
 	rec := httptest.NewRecorder()
 	reqCtx, cancelRequest := context.WithCancel(t.Context())
-	observedCtx := &observedDoneContext{Context: reqCtx, doneObserved: make(chan struct{})}
-	req := httptest.NewRequest(http.MethodPost, "http://example.com/", nil).WithContext(observedCtx)
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/", nil).WithContext(reqCtx)
 	returned := make(chan struct{})
 	go func() {
 		w.ServeHTTP(rec, req)
 		close(returned)
 	}()
 
-	requireChannelClosed(t, observedCtx.doneObserved, "non-HTML request did not join the shared wake")
+	cancelRequest()
 	select {
 	case <-returned:
-		t.Fatal("non-HTML request returned before cancellation")
-	default:
-	}
-	cancelRequest()
-	requireChannelClosed(t, returned, "canceled non-HTML request waited for the shared background wake")
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
-	select {
+		t.Fatal("canceled non-HTML request returned before the shared wake completed")
 	case <-wakeCtx.Done():
 		t.Fatal("canceling a joined request canceled the shared background wake")
 	default:
 	}
 	close(provider.release)
+	requireChannelClosed(t, returned, "non-HTML request did not return after the shared wake completed")
+	require.Equal(t, http.StatusContinue, rec.Code)
 }
 
 func TestServeHTTPLoadingPageWakeSurvivesInitiatingNonHTMLCancellation(t *testing.T) {
@@ -286,14 +289,16 @@ func TestServeHTTPLoadingPageWakeSurvivesInitiatingNonHTMLCancellation(t *testin
 	require.Contains(t, loadingRec.Body.String(), "loading-dots")
 
 	cancelRequest()
-	requireChannelClosed(t, returned, "initiating non-HTML request did not propagate cancellation")
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
 	select {
+	case <-returned:
+		t.Fatal("initiating non-HTML request cancellation interrupted the shared wake")
 	case <-wakeCtx.Done():
 		t.Fatal("initiating request cancellation canceled the shared loading-page wake")
 	default:
 	}
 	close(provider.release)
+	requireChannelClosed(t, returned, "initiating non-HTML request did not return after wake completed")
+	require.Equal(t, http.StatusContinue, rec.Code)
 }
 
 func TestServeHTTPLoadingPageWakeFailureIsPublished(t *testing.T) {
@@ -327,6 +332,7 @@ func TestServeHTTPLoadingPageDependencyHealthWaitTimesOutAndRetries(t *testing.T
 	w, _ := newBlockingWakeWatcher(t)
 	w.cfg.WakeTimeout = 20 * time.Millisecond
 	dep, depProvider := newBlockingWakeWatcher(t)
+	dep.cfg.WakeTimeout = 20 * time.Millisecond
 	close(depProvider.release)
 	dep.hc = &unhealthyHealthChecker{targetURL: &url.URL{Scheme: "http", Host: "dependency.test"}}
 	w.dependsOn = []*dependency{{Watcher: dep, waitHealthy: true}}
@@ -343,20 +349,132 @@ func TestServeHTTPLoadingPageDependencyHealthWaitTimesOutAndRetries(t *testing.T
 	}, time.Second, 10*time.Millisecond, "loading page wake could not retry after dependency timeout")
 }
 
-func TestServeHTTPLoadingPageDependencyStartInheritsParentTimeout(t *testing.T) {
-	w, _ := newBlockingWakeWatcher(t)
+func TestServeHTTPLoadingPageDependencyStartUsesDependencyTimeout(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
 	w.cfg.WakeTimeout = 20 * time.Millisecond
 	dep, depProvider := newBlockingWakeWatcher(t)
 	dep.cfg.WakeTimeout = time.Second
 	w.dependsOn = []*dependency{{Watcher: dep}}
-	_, eventCh, stopListening := w.events.SnapshotAndListen()
-	defer stopListening()
 
 	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
 	depWakeCtx := receiveWakeContext(t, depProvider.started)
-	waitForWakeError(t, eventCh, "timeout")
-	requireChannelClosed(t, depWakeCtx.Done(), "dependency start escaped the parent wake timeout")
+	deadline, ok := depWakeCtx.Deadline()
+	require.True(t, ok)
+	require.Greater(t, time.Until(deadline), 500*time.Millisecond,
+		"dependency start was truncated by the root target timeout")
 	require.EqualValues(t, 1, depProvider.starts.Load())
+	close(depProvider.release)
+	close(provider.release)
+}
+
+func TestTotalWakeTimeoutIncludesUniqueRecursiveDependencies(t *testing.T) {
+	root := newTestWatcher(t)
+	direct := newTestWatcher(t)
+	nested := newTestWatcher(t)
+	shared := newTestWatcher(t)
+
+	root.cfg.WakeTimeout = time.Second
+	direct.cfg.WakeTimeout = 2 * time.Second
+	nested.cfg.WakeTimeout = 3 * time.Second
+	shared.cfg.WakeTimeout = 4 * time.Second
+	for _, watcher := range []*Watcher{root, direct, nested, shared} {
+		watcher.cfg.Docker.ContainerID = watcher.cfg.ContainerName()
+	}
+
+	nested.dependsOn = []*dependency{{Watcher: shared}}
+	direct.dependsOn = []*dependency{{Watcher: nested}}
+	root.dependsOn = []*dependency{
+		{Watcher: direct},
+		{Watcher: shared},
+	}
+
+	require.Equal(t, 10*time.Second, root.totalWakeTimeout())
+}
+
+func TestWakeCallerCancellationDoesNotStopSharedOperation(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	firstCtx, cancelFirst := context.WithCancel(t.Context())
+	firstResult := make(chan error, 1)
+	go func() {
+		firstResult <- w.Wake(firstCtx)
+	}()
+
+	wakeCtx := receiveWakeContext(t, provider.started)
+	secondCtx := &observedDoneContext{Context: t.Context(), doneObserved: make(chan struct{})}
+	secondResult := make(chan error, 1)
+	go func() {
+		secondResult <- w.Wake(secondCtx)
+	}()
+	requireChannelClosed(t, secondCtx.doneObserved, "second caller did not join the shared wake")
+
+	cancelFirst()
+
+	select {
+	case err := <-firstResult:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("canceled caller did not stop waiting for the shared wake")
+	}
+	select {
+	case <-wakeCtx.Done():
+		t.Fatal("canceling the initiating caller canceled the shared wake operation")
+	default:
+	}
+
+	close(provider.release)
+	select {
+	case err := <-secondResult:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("joined caller did not receive the shared wake result")
+	}
+}
+
+func TestWakeWatcherCancellationStopsOperation(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	result := make(chan error, 1)
+	go func() {
+		result <- w.Wake(context.Background())
+	}()
+
+	wakeCtx := receiveWakeContext(t, provider.started)
+	w.task.Finish(errors.New("watcher stopped"))
+
+	requireChannelClosed(t, wakeCtx.Done(), "watcher cancellation did not cancel the provider wake context")
+	select {
+	case err := <-result:
+		require.ErrorContains(t, err, "watcher stopped")
+	case <-time.After(time.Second):
+		t.Fatal("wake did not return after watcher cancellation")
+	}
+}
+
+func TestWakeDependencyOutlivesParentCancellation(t *testing.T) {
+	root, _ := newBlockingWakeWatcher(t)
+	dep, depProvider := newBlockingWakeWatcher(t)
+	root.dependsOn = []*dependency{{Watcher: dep}}
+	result := make(chan error, 1)
+	go func() {
+		result <- root.Wake(context.Background())
+	}()
+
+	depWakeCtx := receiveWakeContext(t, depProvider.started)
+	root.task.Finish(errors.New("parent watcher stopped"))
+
+	select {
+	case err := <-result:
+		require.ErrorContains(t, err, "parent watcher stopped")
+	case <-time.After(time.Second):
+		t.Fatal("parent wake did not return after parent watcher cancellation")
+	}
+	select {
+	case <-depWakeCtx.Done():
+		t.Fatal("parent watcher cancellation canceled the dependency wake")
+	default:
+	}
+
+	close(depProvider.release)
+	requireChannelClosed(t, depWakeCtx.Done(), "dependency wake did not finish after provider release")
 }
 
 func newTestWatcher(t *testing.T) *Watcher {

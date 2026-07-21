@@ -389,9 +389,11 @@ func (w *Watcher) Key() string {
 
 // Wake wakes the container.
 //
-// It returns as soon as either the passed context or the watcher is done.
-// The shared wake operation uses the watcher lifetime and WakeTimeout so one caller
-// disconnecting does not cancel startup for other callers.
+// It returns when the caller's context is done or the shared wake completes.
+// Caller cancellation does not cancel the shared operation; watcher cancellation does.
+// The wake operation is limited to the sum of this watcher's WakeTimeout and
+// the WakeTimeout of every recursive dependency. Each individual target is
+// still limited to its own WakeTimeout.
 //
 // It uses singleflight to prevent multiple wake calls at the same time.
 //
@@ -401,44 +403,48 @@ func (w *Watcher) Key() string {
 // If the container is paused, it will unpause it.
 // If the container is stopped, it will do nothing.
 func (w *Watcher) Wake(ctx context.Context) error {
-	return w.wake(ctx, nil)
-}
-
-// wake waits using ctx. When operationCtx is non-nil, a newly started shared
-// operation inherits it; public callers pass nil so their disconnect cannot
-// cancel startup for other callers.
-func (w *Watcher) wake(ctx, operationCtx context.Context) error {
-	// use container name instead of Key() here as the container id will change on restart (docker).
 	containerName := w.cfg.ContainerName()
 	resultCh := singleFlight.DoChan(containerName, func() (any, error) {
-		wakeCtx := operationCtx
-		if wakeCtx == nil {
-			var cancel context.CancelFunc
-			wakeCtx, cancel = context.WithTimeout(w.task.Context(), w.cfg.WakeTimeout)
-			defer cancel()
-		}
-
-		// Wake dependencies inside the shared operation so their ordering, timeout,
-		// and cancellation ownership match the container start itself.
-		if err := w.wakeDependencies(wakeCtx); err != nil {
-			w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
-			return nil, err
-		}
-
-		if w.wakeInProgress() {
-			w.l.Debug().Msg("already starting, ignoring duplicate start event")
-			return nil, nil
-		}
-
-		err := w.wakeIfStopped(wakeCtx)
-		if err != nil {
-			w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
-		} else {
-			w.sendEvent(WakeEventContainerWoke, containerName+" started successfully", nil)
-			w.sendEvent(WakeEventWaitingReady, "Waiting for "+containerName+" to be ready...", nil)
-		}
-		return nil, err
+		wakeCtx, cancel := context.WithTimeout(w.task.Context(), w.totalWakeTimeout())
+		defer cancel()
+		return nil, w.wake(wakeCtx)
 	})
+	return w.waitWake(ctx, resultCh)
+}
+
+func (w *Watcher) totalWakeTimeout() time.Duration {
+	total := w.cfg.WakeTimeout
+	for _, dep := range w.dependencies().Iter {
+		total += dep.cfg.WakeTimeout
+	}
+	return total
+}
+
+func (w *Watcher) wake(ctx context.Context) error {
+	// Wake dependencies inside the shared operation so their ordering, timeout,
+	// and cancellation ownership match the container start itself.
+	if err := w.wakeDependencies(ctx); err != nil {
+		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
+		return err
+	}
+
+	if w.wakeInProgress() {
+		w.l.Debug().Msg("already starting, ignoring duplicate start event")
+		return nil
+	}
+
+	containerName := w.cfg.ContainerName()
+	err := w.wakeIfStopped(ctx)
+	if err != nil {
+		w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
+	} else {
+		w.sendEvent(WakeEventContainerWoke, containerName+" started successfully", nil)
+		w.sendEvent(WakeEventWaitingReady, "Waiting for "+containerName+" to be ready...", nil)
+	}
+	return err
+}
+
+func (w *Watcher) waitWake(ctx context.Context, resultCh <-chan singleflight.Result) error {
 	select {
 	case <-ctx.Done():
 		return w.newWatcherError(context.Cause(ctx))
@@ -447,7 +453,6 @@ func (w *Watcher) wake(ctx, operationCtx context.Context) error {
 			return w.newWatcherError(result.Err)
 		}
 	}
-
 	return nil
 }
 
@@ -472,7 +477,7 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 		}
 		errs.Go(func() error {
 			w.sendEvent(WakeEventWakingDep, "Waking dependency: "+dep.cfg.ContainerName(), nil)
-			if err := dep.wake(ctx, ctx); err != nil {
+			if err := dep.Wake(ctx); err != nil {
 				return err
 			}
 			w.sendEvent(WakeEventDepReady, "Dependency woke: "+dep.cfg.ContainerName(), nil)
