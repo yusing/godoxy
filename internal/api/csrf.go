@@ -91,7 +91,7 @@ func requestSourceMatchesHost(r *http.Request) bool {
 		if err != nil || u.Host == "" {
 			return false
 		}
-		return normalizeHost(u.Hostname()) == normalizeHost(r.Host)
+		return normalizeHost(u.Host) == normalizeHost(r.Host)
 	}
 	return false
 }

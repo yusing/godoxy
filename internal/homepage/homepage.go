@@ -38,6 +38,10 @@ type (
 		Label string `json:"label"`
 		Value string `json:"value"`
 	} // @name HomepageItemWidget
+	ProxmoxContainer struct {
+		Node string `json:"node"`
+		VMID uint64 `json:"vmid"`
+	} // @name HomepageProxmoxContainer
 
 	Item struct {
 		ItemConfig
@@ -50,10 +54,11 @@ type (
 
 		Widgets []Widget `json:"widgets,omitempty"`
 
-		Alias       string `json:"alias"`
-		Provider    string `json:"provider"`
-		OriginURL   string `json:"origin_url"`
-		ContainerID string `json:"container_id,omitempty" extensions:"x-nullable"`
+		Alias       string            `json:"alias"`
+		Provider    string            `json:"provider"`
+		OriginURL   string            `json:"origin_url"`
+		ContainerID string            `json:"container_id,omitempty" extensions:"x-nullable"`
+		Proxmox     *ProxmoxContainer `json:"proxmox,omitempty" extensions:"x-nullable"`
 	} // @name HomepageItem
 
 	SortMethod string // @name HomepageSortMethod

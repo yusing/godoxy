@@ -4244,6 +4244,14 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "proxmox": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/HomepageProxmoxContainer"
+            }
+          ],
+          "x-nullable": true
+        },
         "show": {
           "type": "boolean",
           "x-nullable": false,
@@ -4481,6 +4489,23 @@
           "additionalProperties": {
             "$ref": "#/definitions/HomepageItemConfig"
           },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "HomepageProxmoxContainer": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "vmid": {
+          "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         }

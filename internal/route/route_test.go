@@ -9,7 +9,9 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/loadbalancer"
+	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routevalidate"
 	"github.com/yusing/godoxy/internal/types"
@@ -18,6 +20,48 @@ import (
 func TestMain(m *testing.M) {
 	route.InitBuilder(routevalidate.Validate)
 	os.Exit(m.Run())
+}
+
+func TestHomepageItemContainerControls(t *testing.T) {
+	vmid := uint64(119)
+	tests := []struct {
+		name            string
+		route           *route.Route
+		wantContainerID string
+		wantProxmox     *homepage.ProxmoxContainer
+	}{
+		{
+			name: "docker container",
+			route: &route.Route{
+				Homepage: &homepage.ItemConfig{},
+				Metadata: route.Metadata{Container: &docker.Container{ContainerID: "container-id"}},
+			},
+			wantContainerID: "container-id",
+		},
+		{
+			name: "proxmox LXC",
+			route: &route.Route{
+				Homepage: &homepage.ItemConfig{},
+				Proxmox:  &proxmox.NodeConfig{Node: "pve", VMID: &vmid},
+			},
+			wantProxmox: &homepage.ProxmoxContainer{Node: "pve", VMID: vmid},
+		},
+		{
+			name: "proxmox node",
+			route: &route.Route{
+				Homepage: &homepage.ItemConfig{},
+				Proxmox:  &proxmox.NodeConfig{Node: "pve", VMID: new(uint64)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := tt.route.HomepageItem()
+			require.Equal(t, tt.wantContainerID, item.ContainerID)
+			require.Equal(t, tt.wantProxmox, item.Proxmox)
+		})
+	}
 }
 
 func TestRouteValidate(t *testing.T) {

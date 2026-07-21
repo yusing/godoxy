@@ -444,6 +444,10 @@ definitions:
         type: string
       provider:
         type: string
+      proxmox:
+        allOf:
+        - $ref: '#/definitions/HomepageProxmoxContainer'
+        x-nullable: true
       show:
         type: boolean
       sort_order:
@@ -548,6 +552,13 @@ definitions:
         additionalProperties:
           $ref: '#/definitions/HomepageItemConfig'
         type: object
+    type: object
+  HomepageProxmoxContainer:
+    properties:
+      node:
+        type: string
+      vmid:
+        type: integer
     type: object
   IconFetchResult:
     properties:

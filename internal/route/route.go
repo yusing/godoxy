@@ -383,11 +383,19 @@ func (r *Route) HomepageItem() homepage.Item {
 	if r.Container != nil {
 		containerID = r.Container.ContainerID
 	}
+	var proxmoxContainer *homepage.ProxmoxContainer
+	if r.Proxmox != nil && r.Proxmox.VMID != nil && *r.Proxmox.VMID > 0 {
+		proxmoxContainer = &homepage.ProxmoxContainer{
+			Node: r.Proxmox.Node,
+			VMID: *r.Proxmox.VMID,
+		}
+	}
 	return homepage.Item{
 		Alias:       r.Alias,
 		Provider:    r.Provider,
 		ItemConfig:  *r.Homepage,
 		ContainerID: containerID,
+		Proxmox:     proxmoxContainer,
 	}.GetOverride()
 }
 
