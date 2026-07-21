@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,68 +17,40 @@ import (
 type DockerHealthcheckState struct {
 	client      *docker.SharedClient
 	containerID string
-
-	numDockerFailures int
 }
 
-const dockerFailuresThreshold = 3
-
 var (
-	ErrDockerHealthCheckFailedTooManyTimes = errors.New("docker health check failed too many times")
-	ErrDockerHealthCheckNotAvailable       = errors.New("docker health check not available")
-	dockerHealthInspect                    = func(ctx context.Context, client *docker.SharedClient, containerID string) (container.State, error) {
-		// the actual inspect response is intercepted and returned as RequestInterceptedError
-		_, err := client.ContainerInspect(ctx, containerID)
-
-		var interceptedErr *httputils.RequestInterceptedError
-		if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
-			if err == nil {
-				err = errors.New("inspect response was not intercepted")
-			}
-			return container.State{}, err
-		}
-
-		if interceptedErr == nil || interceptedErr.Data == nil { // should not happen
-			return container.State{}, errors.New("intercepted error is nil or data is nil")
-		}
-
-		return interceptedErr.Data.(container.State), nil
-	}
+	ErrDockerContainerStateNotAvailable = errors.New("docker container state not available")
+	ErrDockerHealthCheckNotAvailable    = errors.New("docker health check not available")
 )
 
 func NewDockerHealthcheckState(client *docker.SharedClient, containerID string) *DockerHealthcheckState {
+	// Health monitors use unique clients, so intercepting the inspect response here
+	// avoids decoding the rest of the large container-inspect payload on every poll.
 	client.InterceptHTTPClient(interceptDockerInspectResponse)
 	return &DockerHealthcheckState{
-		client:            client,
-		containerID:       containerID,
-		numDockerFailures: 0,
+		client:      client,
+		containerID: containerID,
 	}
 }
 
 func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Duration) (health.HealthCheckResult, error) {
-	if state.numDockerFailures > dockerFailuresThreshold {
-		return health.HealthCheckResult{}, ErrDockerHealthCheckFailedTooManyTimes
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	containerState, err := dockerHealthInspect(ctx, state.client, state.containerID)
 	if err != nil {
-		state.numDockerFailures++
-		return health.HealthCheckResult{}, err
+		return health.HealthCheckResult{}, fmt.Errorf("inspect docker container %q: %w", state.containerID, err)
 	}
 
 	status := containerState.Status
 	switch status {
 	case "dead", "exited", "paused", "restarting", "removing":
-		state.numDockerFailures = 0
 		return health.HealthCheckResult{
 			Healthy: false,
-			Detail:  "container is " + string(status),
+			Detail:  "container is " + status,
 		}, nil
 	case "created":
-		state.numDockerFailures = 0
 		return health.HealthCheckResult{
 			Healthy: false,
 			Detail:  "container is not started",
@@ -86,12 +59,9 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 
 	dockerHealth := containerState.Health
 	if dockerHealth == nil {
-		// no health check from docker, return error to trigger fallback
-		state.numDockerFailures = dockerFailuresThreshold + 1
 		return health.HealthCheckResult{}, ErrDockerHealthCheckNotAvailable
 	}
 
-	state.numDockerFailures = 0
 	result := health.HealthCheckResult{
 		Healthy: dockerHealth.Status == container.Healthy,
 	}
@@ -101,6 +71,26 @@ func Docker(ctx context.Context, state *DockerHealthcheckState, timeout time.Dur
 		result.Latency = lastLog.End.Sub(lastLog.Start)
 	}
 	return result, nil
+}
+
+func dockerHealthInspect(ctx context.Context, client *docker.SharedClient, containerID string) (container.State, error) {
+	_, err := client.ContainerInspect(ctx, containerID)
+
+	var interceptedErr *httputils.RequestInterceptedError
+	if !httputils.AsRequestInterceptedError(err, &interceptedErr) {
+		if err == nil {
+			err = errors.New("inspect response was not intercepted")
+		}
+		return container.State{}, err
+	}
+	if interceptedErr == nil || interceptedErr.Data == nil {
+		return container.State{}, ErrDockerContainerStateNotAvailable
+	}
+	state, ok := interceptedErr.Data.(container.State)
+	if !ok {
+		return container.State{}, fmt.Errorf("unexpected intercepted inspect state type %T", interceptedErr.Data)
+	}
+	return state, nil
 }
 
 func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err error) {
@@ -114,12 +104,17 @@ func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err 
 		return false, err
 	}
 
-	var state container.State
-	err = strutils.UnmarshalJSON(body, &state)
+	var inspect struct {
+		State *container.State `json:"State"`
+	}
+	err = strutils.UnmarshalJSON(body, &inspect)
 	release(body)
 	if err != nil {
 		return false, err
 	}
+	if inspect.State == nil {
+		return true, ErrDockerContainerStateNotAvailable
+	}
 
-	return true, httputils.NewRequestInterceptedError(resp, state)
+	return true, httputils.NewRequestInterceptedError(resp, *inspect.State)
 }

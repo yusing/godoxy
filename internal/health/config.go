@@ -6,7 +6,7 @@ import (
 )
 
 type HealthCheckConfig struct {
-	Disable  bool          `json:"disable,omitempty" aliases:"disabled"`
+	Disable  bool          `json:"disable,omitempty" aliases:"disabled"` // Disable the route-specific probe; Docker health remains active.
 	UseGet   bool          `json:"use_get,omitempty"`
 	Path     string        `json:"path,omitempty" validate:"omitempty,uri,startswith=/"`
 	Interval time.Duration `json:"interval" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`

@@ -80,6 +80,26 @@ func TestContainerHostNetworkMode(t *testing.T) {
 	}
 }
 
+func TestContainerHealthCheckEnabled(t *testing.T) {
+	tests := []struct {
+		status  string
+		enabled bool
+	}{
+		{status: "Up 5 seconds (health: starting)", enabled: true},
+		{status: "Up 10 seconds (healthy)", enabled: true},
+		{status: "Up 20 seconds (unhealthy)", enabled: true},
+		{status: "Up 30 seconds"},
+		{status: "Exited (0) 1 minute ago"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			c := FromDocker(&container.Summary{Names: []string{"test"}, Status: tt.status}, types.DockerProviderConfig{})
+			expect.Equal(t, c.HealthCheckEnabled, tt.enabled)
+		})
+	}
+}
+
 func TestImageNameParsing(t *testing.T) {
 	tests := []struct {
 		full   string

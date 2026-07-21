@@ -584,7 +584,7 @@ func (r *Route) UseHealthCheck() bool {
 			return false
 		}
 	}
-	return !r.HealthCheck.Disable
+	return r.Container != nil && r.Container.HealthCheckEnabled || !r.HealthCheck.Disable
 }
 
 func (r *Route) UseAccessLog() bool {

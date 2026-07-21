@@ -343,7 +343,23 @@ func TestDynamicAliases(t *testing.T) {
 	expect.Equal(t, r.Port.Proxy, 5678)
 }
 
-func TestDisableHealthCheck(t *testing.T) {
+func TestDisableHealthCheckKeepsDockerHealthMonitoring(t *testing.T) {
+	c := &container.Summary{
+		Names:  dummyNames,
+		State:  "running",
+		Status: "Up 10 seconds (healthy)",
+		Labels: map[string]string{
+			"proxy.a.healthcheck.disable": "true",
+			"proxy.a.port":                "1234",
+		},
+	}
+	r, ok := makeRoutes(c)["a"]
+	expect.True(t, ok)
+	expect.True(t, r.UseHealthCheck())
+	expect.True(t, r.HealthCheck.Disable)
+}
+
+func TestDisableHealthCheckWithoutDockerHealthDisablesMonitoring(t *testing.T) {
 	c := &container.Summary{
 		Names: dummyNames,
 		State: "running",

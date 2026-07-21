@@ -62,12 +62,13 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 		PublicPortMapping:  helper.getPublicPortMapping(),
 		PrivatePortMapping: helper.getPrivatePortMapping(),
 
-		Aliases:           helper.getAliases(),
-		IsExcluded:        isExcluded,
-		IsExplicit:        isExplicit,
-		IsHostNetworkMode: c.HostConfig.NetworkMode == "host",
-		Running:           c.Status == "running" || c.State == "running",
-		State:             c.State,
+		Aliases:            helper.getAliases(),
+		IsExcluded:         isExcluded,
+		IsExplicit:         isExplicit,
+		IsHostNetworkMode:  c.HostConfig.NetworkMode == "host",
+		HealthCheckEnabled: hasHealthCheck(c.Status),
+		Running:            c.Status == "running" || c.State == "running",
+		State:              c.State,
 	}
 
 	if agent.IsDockerHostAgent(dockerCfg.URL) {
@@ -86,6 +87,12 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 		addError(res, ErrNoNetwork)
 	}
 	return res
+}
+
+func hasHealthCheck(status string) bool {
+	return strings.HasSuffix(status, "("+string(container.Healthy)+")") ||
+		strings.HasSuffix(status, "("+string(container.Unhealthy)+")") ||
+		strings.HasSuffix(status, "(health: "+string(container.Starting)+")")
 }
 
 func IsBlacklisted(c *Container) bool {

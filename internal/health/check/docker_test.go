@@ -2,123 +2,160 @@ package healthcheck
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/types"
 )
 
 func TestDockerHealthcheckReturnsUnhealthyForStoppedStates(t *testing.T) {
-	states := []struct {
-		name   string
+	tests := []struct {
 		status string
 		detail string
 	}{
-		{name: "dead", status: "dead", detail: "container is dead"},
-		{name: "exited", status: "exited", detail: "container is exited"},
-		{name: "paused", status: "paused", detail: "container is paused"},
-		{name: "restarting", status: "restarting", detail: "container is restarting"},
-		{name: "removing", status: "removing", detail: "container is removing"},
-		{name: "created", status: "created", detail: "container is not started"},
+		{status: "dead", detail: "container is dead"},
+		{status: "exited", detail: "container is exited"},
+		{status: "paused", detail: "container is paused"},
+		{status: "restarting", detail: "container is restarting"},
+		{status: "removing", detail: "container is removing"},
+		{status: "created", detail: "container is not started"},
 	}
 
-	for _, tc := range states {
-		t.Run(tc.name, func(t *testing.T) {
-			state := &DockerHealthcheckState{
-				client:      &docker.SharedClient{},
-				containerID: "test",
-			}
-
-			oldInspect := dockerHealthInspect
-			t.Cleanup(func() { dockerHealthInspect = oldInspect })
-			dockerHealthInspect = func(ctx context.Context, _ *docker.SharedClient, _ string) (container.State, error) {
-				return container.State{Status: tc.status}, nil
-			}
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			state := newDockerHealthcheckState(t, http.StatusOK, fmt.Sprintf(`{"State":{"Status":%q}}`, tt.status))
 
 			result, err := Docker(t.Context(), state, time.Second)
 			require.NoError(t, err)
 			require.Equal(t, health.HealthCheckResult{
 				Healthy: false,
-				Detail:  tc.detail,
+				Detail:  tt.detail,
 			}, result)
 		})
 	}
 }
 
-func TestDockerHealthcheckReturnsHealthyWhenContainerHealthy(t *testing.T) {
-	state := &DockerHealthcheckState{
-		client:      &docker.SharedClient{},
-		containerID: "test",
-	}
+func TestDockerHealthcheckReadsNestedHealthyState(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{
+		"Id":"test",
+		"State":{
+			"Status":"running",
+			"Health":{
+				"Status":"healthy",
+				"Log":[{
+					"Start":"2026-07-21T00:00:00Z",
+					"End":"2026-07-21T00:00:00.1Z",
+					"ExitCode":0,
+					"Output":"healthy"
+				}]
+			}
+		}
+	}`)
 
-	oldInspect := dockerHealthInspect
-	t.Cleanup(func() { dockerHealthInspect = oldInspect })
-	dockerHealthInspect = func(ctx context.Context, _ *docker.SharedClient, _ string) (container.State, error) {
-		start := time.Now()
-		return container.State{
-			Status: "running",
-			Health: &container.Health{
-				Status: container.Healthy,
-				Log: []*container.HealthcheckResult{{
-					Start:  start,
-					End:    start.Add(100 * time.Millisecond),
-					Output: "healthy",
-				}},
-			},
-		}, nil
-	}
+	result, err := Docker(t.Context(), state, time.Second)
+	require.NoError(t, err)
+	require.Equal(t, health.HealthCheckResult{
+		Healthy: true,
+		Detail:  "healthy",
+		Latency: 100 * time.Millisecond,
+	}, result)
+}
+
+func TestDockerHealthcheckIgnoresUnrelatedTopLevelCollision(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{
+		"Status":"exited",
+		"Health":{"Status":"unhealthy"},
+		"State":{"Status":"running","Health":{"Status":"healthy"}}
+	}`)
 
 	result, err := Docker(t.Context(), state, time.Second)
 	require.NoError(t, err)
 	require.True(t, result.Healthy)
-	require.Equal(t, "healthy", result.Detail)
-	require.Positive(t, result.Latency)
 }
 
-func TestDockerHealthcheckFallsBackWhenDockerHealthMissing(t *testing.T) {
-	state := &DockerHealthcheckState{
-		client:      &docker.SharedClient{},
-		containerID: "test",
-	}
+func TestDockerHealthcheckAllowsUnknownFutureFields(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{
+		"FutureTopLevel":{"enabled":true},
+		"State":{
+			"Status":"running",
+			"FutureStateField":"future-value",
+			"Health":{"Status":"healthy","FutureHealthField":42}
+		}
+	}`)
 
-	oldInspect := dockerHealthInspect
-	t.Cleanup(func() { dockerHealthInspect = oldInspect })
-	dockerHealthInspect = func(ctx context.Context, _ *docker.SharedClient, _ string) (container.State, error) {
-		st := container.State{Status: "running", Health: nil}
-		return st, nil
-	}
+	result, err := Docker(t.Context(), state, time.Second)
+	require.NoError(t, err)
+	require.True(t, result.Healthy)
+}
+
+func TestDockerHealthcheckReportsMissingHealth(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{"State":{"Status":"running"}}`)
 
 	_, err := Docker(t.Context(), state, time.Second)
 	require.ErrorIs(t, err, ErrDockerHealthCheckNotAvailable)
 }
 
-func TestDockerHealthcheckReturnsErrorAfterThreshold(t *testing.T) {
-	state := &DockerHealthcheckState{
-		client:            &docker.SharedClient{},
-		containerID:       "test",
-		numDockerFailures: dockerFailuresThreshold + 1,
-	}
+func TestDockerHealthcheckReportsMissingState(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{}`)
 
 	_, err := Docker(t.Context(), state, time.Second)
-	require.ErrorIs(t, err, ErrDockerHealthCheckFailedTooManyTimes)
+	require.ErrorIs(t, err, ErrDockerContainerStateNotAvailable)
+}
+
+func TestDockerHealthcheckPropagatesMalformedResponse(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{"State":`)
+
+	_, err := Docker(t.Context(), state, time.Second)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrDockerHealthCheckNotAvailable)
 }
 
 func TestDockerHealthcheckPropagatesInspectFailure(t *testing.T) {
-	state := &DockerHealthcheckState{
-		client:      &docker.SharedClient{},
-		containerID: "test",
-	}
-
-	oldInspect := dockerHealthInspect
-	t.Cleanup(func() { dockerHealthInspect = oldInspect })
-	dockerHealthInspect = func(ctx context.Context, _ *docker.SharedClient, _ string) (container.State, error) {
-		return container.State{}, errors.New("boom")
-	}
+	state := newDockerHealthcheckState(t, http.StatusInternalServerError, `{"message":"boom"}`)
 
 	_, err := Docker(t.Context(), state, time.Second)
-	require.EqualError(t, err, "boom")
+	require.ErrorContains(t, err, "inspect docker container \"test\"")
+	require.ErrorContains(t, err, "boom")
+}
+
+func TestDockerHealthcheckHonorsCancellation(t *testing.T) {
+	state := newDockerHealthcheckState(t, http.StatusOK, `{"State":{"Status":"running"}}`)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := Docker(ctx, state, time.Second)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func newDockerHealthcheckState(t *testing.T, status int, body string) *DockerHealthcheckState {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/_ping":
+			w.Header().Set("API-Version", "1.44")
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/containers/test/json"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			_, _ = io.WriteString(w, body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := docker.NewClient(types.DockerProviderConfig{URL: server.URL}, true)
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+
+	return NewDockerHealthcheckState(client, "test")
 }

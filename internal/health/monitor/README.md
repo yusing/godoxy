@@ -38,7 +38,16 @@ func NewMonitor(r routing.Route) Monitor
 - reverse proxy routes use `NewHTTPHealthMonitor`
 - file server routes use `NewFileServerHealthMonitor`
 - stream routes use `NewStreamHealthMonitor`
-- Docker routes can wrap the route monitor with `NewDockerHealthMonitor`
+- Docker routes with health enabled at provider load wrap the route monitor with
+  `NewDockerHealthMonitor`
+
+For Docker routes with a configured Docker healthcheck, the route-specific monitor
+is a fallback only. Docker health availability is detected from the container-list
+response during provider load, avoiding an inspect request just to select a monitor.
+`healthcheck.disable: true` suppresses the fallback probe while retaining configured
+Docker health monitoring. Docker client initialization, API, decoding, timeout, and
+other inspection failures remain visible as unhealthy diagnostics and are retried on
+later intervals.
 
 Direct constructors:
 
@@ -60,11 +69,15 @@ flowchart TD
     D -->|reverse proxy| E[HTTP/H2C health monitor]
     D -->|file server| F[file server health monitor]
     D -->|stream| G[stream health monitor]
-    E --> H{docker container?}
+    E --> H{Docker health enabled at load?}
     F --> H
     G --> H
-    H -->|yes| I[docker health wrapper with fallback]
+    H -->|yes| I[docker health wrapper]
     H -->|no| J[monitor]
+    I --> K{docker health available?}
+    K -->|yes| L[docker result only]
+    K -->|no, fallback enabled| M[route fallback check]
+    K -->|no, fallback disabled| N[unhealthy diagnostic, retry Docker later]
 ```
 
 ## Runtime Behavior

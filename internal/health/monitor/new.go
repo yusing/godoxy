@@ -1,10 +1,13 @@
 package monitor
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -25,32 +28,47 @@ type (
 // See internal/health/monitor/README.md for detailed health check flow and conditions.
 func NewMonitor(r routing.Route) Monitor {
 	target := &r.TargetURL().URL
+	config := r.HealthCheckConfig()
+	container := r.ContainerInfo()
+	dockerHealthEnabled := container != nil && container.HealthCheckEnabled
 
 	var mon Monitor
-	if r.IsAgent() {
-		mon = NewAgentProxiedMonitor(r.HealthCheckConfig(), r.GetAgent(), target)
-	} else {
-		switch r := r.(type) {
-		case routing.ReverseProxyRoute:
-			mon = NewHTTPHealthMonitor(r.HealthCheckConfig(), target)
-		case routing.FileServerRoute:
-			mon = NewFileServerHealthMonitor(r.HealthCheckConfig(), r.RootPath())
-		case routing.StreamRoute:
-			mon = NewStreamHealthMonitor(r.HealthCheckConfig(), target)
-		default:
-			log.Panic().Msgf("unexpected route type: %T", r)
+	if !dockerHealthEnabled || !config.Disable {
+		if r.IsAgent() {
+			mon = NewAgentProxiedMonitor(config, r.GetAgent(), target)
+		} else {
+			switch r := r.(type) {
+			case routing.ReverseProxyRoute:
+				mon = NewHTTPHealthMonitor(config, target)
+			case routing.FileServerRoute:
+				mon = NewFileServerHealthMonitor(config, r.RootPath())
+			case routing.StreamRoute:
+				mon = NewStreamHealthMonitor(config, target)
+			default:
+				log.Panic().Msgf("unexpected route type: %T", r)
+			}
 		}
 	}
-	if r.IsDocker() {
-		cont := r.ContainerInfo()
-		client, err := docker.NewClient(cont.DockerCfg, true)
-		if err != nil {
-			return mon
+	if dockerHealthEnabled {
+		displayURL := &url.URL{
+			Scheme: "docker",
+			Host:   container.DockerCfg.URL,
+			Path:   "/containers/" + container.ContainerID + "/json",
 		}
-		r.Task().OnCancel("close_docker_client", client.Close)
-
-		fallback := mon
-		return NewDockerHealthMonitor(r.HealthCheckConfig(), client, cont.ContainerID, fallback)
+		return newDockerHealthMonitor(
+			config,
+			displayURL,
+			container.ContainerID,
+			mon,
+			func() (*docker.SharedClient, error) {
+				client, err := docker.NewClient(container.DockerCfg, true)
+				if err != nil {
+					return nil, err
+				}
+				r.Task().OnCancel("close_docker_client", client.Close)
+				return client, nil
+			},
+		)
 	}
 	return mon
 }
@@ -90,30 +108,74 @@ func NewStreamHealthMonitor(config health.HealthCheckConfig, targetURL *url.URL)
 }
 
 func NewDockerHealthMonitor(config health.HealthCheckConfig, client *docker.SharedClient, containerID string, fallback Monitor) Monitor {
-	state := healthcheck.NewDockerHealthcheckState(client, containerID)
 	displayURL := &url.URL{ // only for display purposes, no actual request is made
 		Scheme: "docker",
 		Host:   client.DaemonHost(),
 		Path:   "/containers/" + containerID + "/json",
 	}
-	logger := log.With().Str("host", client.DaemonHost()).Str("container_id", containerID).Logger()
+	return newDockerHealthMonitor(
+		config,
+		displayURL,
+		containerID,
+		fallback,
+		func() (*docker.SharedClient, error) { return client, nil },
+	)
+}
+
+func newDockerHealthMonitor(
+	config health.HealthCheckConfig,
+	displayURL *url.URL,
+	containerID string,
+	fallback Monitor,
+	newClient func() (*docker.SharedClient, error),
+) Monitor {
+	logger := log.With().Str("host", displayURL.Host).Str("container_id", containerID).Logger()
 	isFirstFailure := true
+	var state *healthcheck.DockerHealthcheckState
+	var stateMu sync.Mutex
 
 	var mon monitor
 	mon.init(displayURL, config, func(_ *url.URL) (result Result, err error) {
-		result, err = healthcheck.Docker(mon.Context(), state, config.Timeout)
-		if err != nil {
-			if isFirstFailure {
-				isFirstFailure = false
-				if !errors.Is(err, healthcheck.ErrDockerHealthCheckNotAvailable) {
-					logger.Err(err).Msg("docker health check failed, using fallback")
-				}
+		stateMu.Lock()
+		defer stateMu.Unlock()
+
+		if state == nil {
+			client, clientErr := newClient()
+			if clientErr != nil {
+				err = fmt.Errorf("initialize docker health check: %w", clientErr)
+			} else if client == nil {
+				err = errors.New("initialize docker health check: client is nil")
+			} else {
+				state = healthcheck.NewDockerHealthcheckState(client, containerID)
+			}
+		}
+
+		if err == nil {
+			result, err = healthcheck.Docker(mon.Context(), state, config.Timeout)
+		}
+		if err == nil {
+			return result, nil
+		}
+		if errors.Is(err, context.Canceled) {
+			return Result{}, err
+		}
+		if errors.Is(err, healthcheck.ErrDockerHealthCheckNotAvailable) && !config.Disable && fallback != nil {
+			if err := mon.Context().Err(); err != nil {
+				return Result{}, err
 			}
 			return fallback.CheckHealth()
 		}
-		return result, nil
+		if isFirstFailure {
+			isFirstFailure = false
+			if !errors.Is(err, healthcheck.ErrDockerHealthCheckNotAvailable) {
+				logger.Err(err).Msg("docker health check failed")
+			}
+		}
+		return Result{Detail: err.Error()}, nil
 	})
-	mon.onUpdateURL = fallback.UpdateURL
+	if fallback != nil {
+		mon.onUpdateURL = fallback.UpdateURL
+	}
 	return &mon
 }
 

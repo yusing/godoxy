@@ -34,11 +34,12 @@ type (
 		PublicHostname     string      `json:"public_hostname"`
 		PrivateHostname    string      `json:"private_hostname"`
 
-		Aliases           []string `json:"aliases"`
-		IsExcluded        bool     `json:"is_excluded"`
-		IsExplicit        bool     `json:"is_explicit"`
-		IsHostNetworkMode bool     `json:"is_host_network_mode"`
-		Running           bool     `json:"running"`
+		Aliases            []string `json:"aliases"`
+		IsExcluded         bool     `json:"is_excluded"`
+		IsExplicit         bool     `json:"is_explicit"`
+		IsHostNetworkMode  bool     `json:"is_host_network_mode"`
+		HealthCheckEnabled bool     `json:"-"`
+		Running            bool     `json:"running"`
 
 		Errors *ContainerError `json:"errors" swaggertype:"string"`
 	} // @name Container

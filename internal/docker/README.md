@@ -56,6 +56,7 @@ type Container struct {
     IsExcluded          bool
     IsExplicit          bool
     IsHostNetworkMode   bool
+    HealthCheckEnabled  bool
     Running             bool
     State               string
     PublicHostname      string
@@ -82,6 +83,9 @@ Returns all currently connected clients. Callers must close returned clients.
 ```go
 func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) *Container
 ```
+
+Records whether Docker health is enabled from the container-list status so route
+construction can select a Docker health monitor without an extra inspect request.
 
 Converts a Docker API container summary to the docker package's `Container`
 metadata type. It parses labels, image metadata, port mappings, hostnames, and

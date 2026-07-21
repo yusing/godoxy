@@ -57,9 +57,15 @@ func H2C(
 ### Docker Health Check (`docker.go`)
 
 ```go
+func NewDockerHealthcheckState(
+    client *docker.SharedClient,
+    containerID string,
+) *DockerHealthcheckState
+
 func Docker(
     ctx context.Context,
-    containerID string,
+    state *DockerHealthcheckState,
+    timeout time.Duration,
 ) (health.HealthCheckResult, error)
 ```
 
@@ -127,14 +133,18 @@ flowchart TD
 
 ### Docker Health Check Flow
 
+Docker health monitors use a unique client whose transport decodes only the top-level
+`State` envelope. This preserves the low-allocation inspect path instead of decoding
+the full container configuration, mounts, and network settings on every interval.
+
 ```mermaid
 flowchart TD
-    A[Docker Health Check] --> B{Docker Failures > Threshold?}
-    B -->|yes| C[Return Error: Too Many Failures]
-    B -->|no| D[Container Inspect API Call]
-    D --> E{Inspect Successful?}
-    E -->|no| F[Increment Failure Count]
-    E -->|yes| G[Parse Container State]
+    A[Docker Health Check] --> B[Container Inspect API Call]
+    B --> C{Inspect Successful?}
+    C -->|no| D[Return Inspect Error]
+    C -->|yes| E{Nested State Present?}
+    E -->|no| F[Return Missing State Error]
+    E -->|yes| G[Read Typed Container State]
 
     G --> H{Container Status}
     H -->|dead/exited/paused/restarting/removing| I[Unhealthy: Container State]
@@ -147,7 +157,7 @@ flowchart TD
     N -->|healthy| O[Healthy]
     N -->|unhealthy| P[Unhealthy: Last Log Output]
 
-    I --> Q[Reset Failure Count]
+    I --> Q[Return Result]
     J --> Q
     O --> Q
     P --> Q
