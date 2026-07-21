@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -63,22 +64,30 @@ type (
 		state     synk.Value[*containerState]
 		lastReset synk.Value[time.Time]
 
-		idleTicker    *time.Ticker
-		healthTicker  *time.Ticker
-		readyNotifyCh chan struct{} // notifies when container becomes ready
-		task          *task.Task
+		idleTicker     *time.Ticker
+		healthTicker   *time.Ticker
+		stateChangedMu sync.Mutex
+		stateChangedCh chan struct{}
+		task           *task.Task
 
 		// Per-watcher event history (for SSE and debug)
-		events *gevents.History
+		events   *gevents.History
+		eventsMu sync.Mutex
 
-		dependsOn      []*dependency
-		backgroundWake singleflight.Group
+		dependenciesMu    sync.RWMutex
+		dependsOn         []*dependency
+		dependenciesCache synk.Value[*dependencyCache]
 	}
 
 	dependency struct {
 		*Watcher
 
 		waitHealthy bool
+	}
+
+	dependencyCache struct {
+		version      uint64
+		dependencies []*dependency
 	}
 
 	StopCallback func() error
@@ -89,9 +98,10 @@ const ContextKey = "idlewatcher.watcher"
 var _ idlewatcher.Waker = (*Watcher)(nil)
 
 var (
-	watcherMap   = make(map[string]*Watcher)
-	watcherMapMu sync.RWMutex
-	singleFlight singleflight.Group
+	watcherMap             = make(map[string]*Watcher)
+	watcherMapMu           sync.RWMutex
+	singleFlight           singleflight.Group
+	dependencyGraphVersion atomic.Uint64
 
 	newDockerProvider  = provider.NewDockerProvider
 	newProxmoxProvider = provider.NewProxmoxProvider
@@ -133,11 +143,11 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 		}
 	} else {
 		w = &Watcher{
-			idleTicker:    time.NewTicker(cfg.IdleTimeout),
-			healthTicker:  time.NewTicker(idleWakerCheckInterval),
-			readyNotifyCh: make(chan struct{}, 1), // buffered to avoid blocking
-			events:        gevents.NewHistory(),
-			cfg:           cfg,
+			idleTicker:     time.NewTicker(cfg.IdleTimeout),
+			healthTicker:   time.NewTicker(idleWakerCheckInterval),
+			stateChangedCh: make(chan struct{}),
+			events:         gevents.NewHistory(),
+			cfg:            cfg,
 			routeHelper: routeHelper{
 				hc: monitor.NewMonitor(r),
 			},
@@ -320,9 +330,9 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	if pOld != nil { // it's a reload, close the old provider after the new provider is ready.
 		pOld.Close()
 	}
-	w.state.Store(&containerState{status: status})
+	w.storeState(&containerState{status: status})
 	w.cfg.DependsOn = resolvedDepNames
-	w.dependsOn = resolvedDeps
+	w.setDependencies(resolvedDeps)
 
 	// when more providers are added, we need to add a new case here.
 	switch p := p.(type) { //nolint:gocritic
@@ -359,7 +369,6 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 			w.idleTicker.Stop()
 			w.healthTicker.Stop()
 			w.setReady()
-			close(w.readyNotifyCh)
 			w.task.Finish(cause)
 		}()
 	}
@@ -371,6 +380,9 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	hcCfg.Timeout = cfg.WakeTimeout
 
 	w.dedupDependencies()
+	if exists {
+		w.clearEventHistory()
+	}
 
 	r.SetHealthMonitor(w)
 
@@ -401,36 +413,46 @@ func (w *Watcher) Key() string {
 // If the container is already running, it will do nothing.
 // If the container is not running, it will start it.
 // If the container is paused, it will unpause it.
-// If the container is stopped, it will do nothing.
+// If the container is stopped, it will start it.
 func (w *Watcher) Wake(ctx context.Context) error {
-	containerName := w.cfg.ContainerName()
-	resultCh := singleFlight.DoChan(containerName, func() (any, error) {
+	return w.waitWake(ctx, w.startWake())
+}
+
+func (w *Watcher) startWake() <-chan singleflight.Result {
+	return singleFlight.DoChan(w.Key(), func() (any, error) {
 		wakeCtx, cancel := context.WithTimeout(w.task.Context(), w.totalWakeTimeout())
 		defer cancel()
 		return nil, w.wake(wakeCtx)
 	})
-	return w.waitWake(ctx, resultCh)
 }
 
 func (w *Watcher) totalWakeTimeout() time.Duration {
 	total := w.cfg.WakeTimeout
-	for _, dep := range w.dependencies().Iter {
+	for _, dep := range w.dependencies() {
 		total += dep.cfg.WakeTimeout
 	}
 	return total
 }
 
 func (w *Watcher) wake(ctx context.Context) error {
-	// Wake dependencies inside the shared operation so their ordering, timeout,
-	// and cancellation ownership match the container start itself.
-	if err := w.wakeDependencies(ctx); err != nil {
-		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
-		return err
+	if w.ready() {
+		return nil
 	}
 
 	if w.wakeInProgress() {
 		w.l.Debug().Msg("already starting, ignoring duplicate start event")
 		return nil
+	}
+
+	// A completed attempt's events, including terminal errors, must not be
+	// replayed as the status of this new attempt.
+	w.clearEventHistory()
+
+	// Wake dependencies inside the shared operation so their ordering, timeout,
+	// and cancellation ownership match the container start itself.
+	if err := w.wakeDependencies(ctx); err != nil {
+		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
+		return err
 	}
 
 	containerName := w.cfg.ContainerName()
@@ -465,16 +487,13 @@ func (w *Watcher) wakeInProgress() bool {
 }
 
 func (w *Watcher) wakeDependencies(ctx context.Context) error {
-	if len(w.dependsOn) == 0 {
+	dependencies := w.directDependencies()
+	if len(dependencies) == 0 {
 		return nil
 	}
 
 	errs := errgroup.Group{}
-	for _, dep := range w.dependsOn {
-		if dep.wakeInProgress() {
-			w.l.Debug().Str("dep", dep.cfg.ContainerName()).Msg("dependency already starting, ignoring duplicate start event")
-			continue
-		}
+	for _, dep := range dependencies {
 		errs.Go(func() error {
 			w.sendEvent(WakeEventWakingDep, "Waking dependency: "+dep.cfg.ContainerName(), nil)
 			if err := dep.Wake(ctx); err != nil {
@@ -512,36 +531,54 @@ func (w *Watcher) wakeDependencies(ctx context.Context) error {
 
 func (w *Watcher) wakeIfStopped(ctx context.Context) error {
 	state := w.state.Load()
-	if state.status == idlewatcher.ContainerStatusRunning {
-		w.l.Debug().Msg("container is already running")
-		return nil
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, w.cfg.WakeTimeout)
 	defer cancel()
 	p := w.provider.Load()
 	if p == nil {
 		return errors.New("provider not set")
 	}
-	switch state.status {
+
+	status := state.status
+	if state.err != nil || status == idlewatcher.ContainerStatusError {
+		var err error
+		status, err = p.ContainerStatus(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	switch status {
+	case idlewatcher.ContainerStatusRunning:
+		w.setStarting()
+		return nil
 	case idlewatcher.ContainerStatusStopped:
 		w.sendEvent(WakeEventStarting, w.cfg.ContainerName()+" is starting...", nil)
-		return p.ContainerStart(ctx)
+		if err := p.ContainerStart(ctx); err != nil {
+			return err
+		}
 	case idlewatcher.ContainerStatusPaused:
 		w.sendEvent(WakeEventStarting, w.cfg.ContainerName()+" is unpausing...", nil)
-		return p.ContainerUnpause(ctx)
+		if err := p.ContainerUnpause(ctx); err != nil {
+			return err
+		}
 	default:
-		return fmt.Errorf("unexpected container status: %s", state.status)
+		return fmt.Errorf("unexpected container status: %s", status)
 	}
+
+	if !w.ready() && !w.wakeInProgress() {
+		w.setStarting()
+	}
+	return nil
 }
 
 func (w *Watcher) stopDependencies() error {
-	if len(w.dependsOn) == 0 {
+	dependencies := w.directDependencies()
+	if len(dependencies) == 0 {
 		return nil
 	}
 
 	errs := errgroup.Group{}
-	for _, dep := range w.dependsOn {
+	for _, dep := range dependencies {
 		errs.Go(dep.stopByMethod)
 	}
 	return errs.Wait()
@@ -634,7 +671,6 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 			switch {
 			case e.Action.IsContainerStart(): // create / start / unpause
 				w.setStarting()
-				w.healthTicker.Reset(idleWakerCheckInterval) // start health checking
 				w.l.Info().Msg("awaken")
 			case e.Action.IsContainerStop(): // stop / kill / die
 				w.setNapping(idlewatcher.ContainerStatusStopped)
@@ -685,11 +721,15 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 
 func (w *Watcher) dedupDependencies() {
 	// remove from dependencies if the dependency is also a dependency of another dependency, or have duplicates.
-	deps := w.dependencies()
-	for _, dep := range w.dependsOn {
+	directDependencies := w.directDependencies()
+	deps := ordered.NewMap[string, *dependency]()
+	for _, dep := range w.dependencies() {
+		deps.Set(dep.Key(), dep)
+	}
+	for _, dep := range directDependencies {
 		depdeps := dep.dependencies()
-		for depdep := range depdeps.Iter {
-			deps.Del(depdep)
+		for _, depdep := range depdeps {
+			deps.Del(depdep.Key())
 		}
 	}
 	newDepOn := make([]string, 0, deps.Len())
@@ -699,16 +739,49 @@ func (w *Watcher) dedupDependencies() {
 		newDeps = append(newDeps, dep)
 	}
 	w.cfg.DependsOn = newDepOn
-	w.dependsOn = newDeps
+	w.setDependencies(newDeps)
 }
 
-func (w *Watcher) dependencies() *ordered.Map[string, *dependency] {
-	deps := ordered.NewMap[string, *dependency]()
-	for _, dep := range w.dependsOn {
-		deps.Set(dep.Key(), dep)
-		for _, depdep := range dep.dependencies().Iter {
-			deps.Set(depdep.Key(), depdep)
+func (w *Watcher) setDependencies(dependencies []*dependency) {
+	w.dependenciesMu.Lock()
+	w.dependsOn = dependencies
+	dependencyGraphVersion.Add(1)
+	w.dependenciesMu.Unlock()
+}
+
+func (w *Watcher) directDependencies() []*dependency {
+	w.dependenciesMu.RLock()
+	dependencies := w.dependsOn
+	w.dependenciesMu.RUnlock()
+	return dependencies
+}
+
+func (w *Watcher) dependencies() []*dependency {
+	for {
+		version := dependencyGraphVersion.Load()
+		if cached := w.dependenciesCache.Load(); cached != nil && cached.version == version {
+			return cached.dependencies
 		}
+
+		deps := ordered.NewMap[string, *dependency]()
+		for _, dep := range w.directDependencies() {
+			deps.Set(dep.Key(), dep)
+			for _, depdep := range dep.dependencies() {
+				deps.Set(depdep.Key(), depdep)
+			}
+		}
+		if dependencyGraphVersion.Load() != version {
+			continue
+		}
+
+		dependencies := make([]*dependency, 0, deps.Len())
+		for _, dep := range deps.Iter {
+			dependencies = append(dependencies, dep)
+		}
+		w.dependenciesCache.Store(&dependencyCache{
+			version:      version,
+			dependencies: dependencies,
+		})
+		return dependencies
 	}
-	return deps
 }

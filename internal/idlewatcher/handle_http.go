@@ -127,7 +127,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 		return false
 	}
 
-	// Allow request to proceed if the container is already ready.
+	// Allow ready requests to proceed without joining an active wake operation.
 	// This check occurs after serving static files because a container can become ready quickly;
 	// otherwise, requests for assets may get a 404, leaving the user stuck on the loading screen.
 	if w.ready() {
@@ -176,11 +176,10 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 }
 
 func (w *Watcher) wakeForLoadingPage() {
-	w.backgroundWake.DoChan("wake", func() (any, error) {
-		err := w.Wake(w.task.Context())
-		if err != nil {
-			w.l.Error().Err(err).Msg("failed to wake container from loading page")
-		}
-		return nil, err
-	})
+	// The browser opens the SSE stream after this handler returns. Remove a
+	// terminal error before then so the new stream cannot replay the previous
+	// attempt's result while the asynchronous retry is being scheduled. Keep
+	// current-attempt progress intact when this request joins an active wake.
+	w.clearTerminalEventHistory()
+	w.startWake()
 }

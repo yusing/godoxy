@@ -28,12 +28,15 @@ import (
 func TestNewWatcherReloadClearsDependencies(t *testing.T) {
 	w, parent, mainRoute, _ := newDependencyReloadTest(t, "clear-deps", []string{"old"})
 	require.Len(t, w.dependsOn, 1)
+	w.sendEvent(WakeEventError, "stale attempt", errors.New("stale wake error"))
+	require.NotEmpty(t, w.events.Get())
 
 	reloaded, err := NewWatcher(parent, mainRoute, idlewatcherTestConfig("clear-deps", nil))
 	require.NoError(t, err)
 	require.Same(t, w, reloaded)
 	require.Empty(t, reloaded.dependsOn)
 	require.Empty(t, reloaded.cfg.DependsOn)
+	require.Empty(t, reloaded.events.Get())
 }
 
 func TestNewWatcherReloadReplacesDependencies(t *testing.T) {

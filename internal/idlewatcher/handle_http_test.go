@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -86,6 +87,35 @@ func TestServeHTTPReadyProxyPreservesUpstreamCacheHeaders(t *testing.T) {
 	require.Equal(t, "Tue, 21 Apr 2026 00:00:00 GMT", rec.Header().Get("Expires"))
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "ok", rec.Body.String())
+}
+
+func TestServeHTTPReadyRequestBypassesWakeSingleflight(t *testing.T) {
+	w := newTestWatcher(t)
+	w.setReady()
+	operationStarted := make(chan struct{})
+	releaseOperation := make(chan struct{})
+	release := sync.OnceFunc(func() { close(releaseOperation) })
+	t.Cleanup(release)
+	sharedResult := singleFlight.DoChan(w.Key(), func() (any, error) {
+		close(operationStarted)
+		<-releaseOperation
+		return nil, nil
+	})
+	requireChannelClosed(t, operationStarted, "shared wake operation did not start")
+
+	result := make(chan bool, 1)
+	go func() {
+		result <- w.wakeFromHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	}()
+	select {
+	case shouldNext := <-result:
+		require.True(t, shouldNext)
+	case <-time.After(time.Second):
+		t.Fatal("ready HTTP request waited for active wake singleflight")
+	}
+
+	release()
+	require.NoError(t, (<-sharedResult).Err)
 }
 
 func TestServeHTTPLoadingPageDoesNotWaitForWake(t *testing.T) {
@@ -328,7 +358,109 @@ func TestServeHTTPLoadingPageWakeFailureIsPublished(t *testing.T) {
 	}
 }
 
-func TestServeHTTPLoadingPageDependencyHealthWaitTimesOutAndRetries(t *testing.T) {
+func TestServeHTTPLoadingPageRetriesCachedError(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	staleErr := errors.New("stale startup timeout")
+	w.setError(staleErr)
+
+	rec := httptest.NewRecorder()
+	w.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	for _, event := range w.events.Get() {
+		wakeEvent, ok := event.Data.(*WakeEvent)
+		require.True(t, ok)
+		require.NotContains(t, wakeEvent.Error, staleErr.Error())
+	}
+
+	receiveWakeContext(t, provider.started)
+	require.EqualValues(t, 1, provider.statusCalls.Load())
+	for _, event := range w.events.Get() {
+		wakeEvent, ok := event.Data.(*WakeEvent)
+		require.True(t, ok)
+		require.NotContains(t, wakeEvent.Error, staleErr.Error())
+	}
+
+	close(provider.release)
+	require.Eventually(t, func() bool {
+		return w.error() == nil && w.wakeInProgress()
+	}, time.Second, time.Millisecond, "successful retry did not replace the cached error with starting state")
+}
+
+func TestServeHTTPLoadingPageJoinPreservesActiveRetryHistory(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	dep, depProvider := newBlockingWakeWatcher(t)
+	w.dependsOn = []*dependency{{Watcher: dep}}
+	w.setError(errors.New("stale startup timeout"))
+	defer close(provider.release)
+	defer close(depProvider.release)
+
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	receiveWakeContext(t, depProvider.started)
+	require.Eventually(t, func() bool {
+		return historyContainsAction(w, WakeEventWakingDep)
+	}, time.Second, time.Millisecond, "dependency progress was not published")
+
+	w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
+	require.True(t, historyContainsAction(w, WakeEventWakingDep),
+		"joining loading-page request erased active retry progress")
+}
+
+func TestWakeRechecksErroredRunningContainer(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	provider.status = idlewatchertypes.ContainerStatusRunning
+	w.setError(errors.New("stale health failure"))
+
+	err := w.Wake(t.Context())
+
+	require.NoError(t, err)
+	require.EqualValues(t, 1, provider.statusCalls.Load())
+	require.Zero(t, provider.starts.Load())
+	require.NoError(t, w.error())
+	require.True(t, w.wakeInProgress())
+}
+
+func TestWakeDoesNotCacheInvalidProviderStatus(t *testing.T) {
+	for _, status := range []idlewatchertypes.ContainerStatus{"", "future"} {
+		t.Run(string(status), func(t *testing.T) {
+			w, provider := newBlockingWakeWatcher(t)
+			provider.status = status
+			w.setError(errors.New("retryable failure"))
+
+			for range 2 {
+				err := w.Wake(t.Context())
+				require.ErrorContains(t, err, "unexpected container status")
+			}
+			require.EqualValues(t, 2, provider.statusCalls.Load())
+		})
+	}
+}
+
+func TestWakeSingleflightUsesProviderSpecificKey(t *testing.T) {
+	first, firstProvider := newBlockingWakeWatcher(t)
+	second, secondProvider := newBlockingWakeWatcher(t)
+	second.cfg.Docker.ContainerName = first.cfg.Docker.ContainerName
+	releaseProviders := sync.OnceFunc(func() {
+		close(firstProvider.release)
+		close(secondProvider.release)
+	})
+	defer releaseProviders()
+
+	firstResult := make(chan error, 1)
+	secondResult := make(chan error, 1)
+	go func() { firstResult <- first.Wake(t.Context()) }()
+	go func() { secondResult <- second.Wake(t.Context()) }()
+
+	receiveWakeContext(t, firstProvider.started)
+	receiveWakeContext(t, secondProvider.started)
+	releaseProviders()
+	require.NoError(t, <-firstResult)
+	require.NoError(t, <-secondResult)
+	require.EqualValues(t, 1, firstProvider.starts.Load())
+	require.EqualValues(t, 1, secondProvider.starts.Load())
+}
+
+func TestServeHTTPLoadingPageDependencyHealthWaitRetriesWithoutRestart(t *testing.T) {
 	w, _ := newBlockingWakeWatcher(t)
 	w.cfg.WakeTimeout = 20 * time.Millisecond
 	dep, depProvider := newBlockingWakeWatcher(t)
@@ -345,8 +477,18 @@ func TestServeHTTPLoadingPageDependencyHealthWaitTimesOutAndRetries(t *testing.T
 
 	require.Eventually(t, func() bool {
 		w.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/", nil))
-		return depProvider.starts.Load() >= 2
-	}, time.Second, 10*time.Millisecond, "loading page wake could not retry after dependency timeout")
+		select {
+		case event := <-eventCh:
+			if event.Action != string(WakeEventError) {
+				return false
+			}
+			wakeEvent, ok := event.Data.(*WakeEvent)
+			return ok && strings.Contains(wakeEvent.Error, "timeout")
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond, "loading page did not publish a fresh dependency health error")
+	require.EqualValues(t, 1, depProvider.starts.Load(), "health retry restarted an already-running dependency")
 }
 
 func TestServeHTTPLoadingPageDependencyStartUsesDependencyTimeout(t *testing.T) {
@@ -389,6 +531,34 @@ func TestTotalWakeTimeoutIncludesUniqueRecursiveDependencies(t *testing.T) {
 	}
 
 	require.Equal(t, 10*time.Second, root.totalWakeTimeout())
+}
+
+func TestDependenciesCacheInvalidatesWithGraphVersion(t *testing.T) {
+	root := newTestWatcher(t)
+	direct := newTestWatcher(t)
+	nested := newTestWatcher(t)
+	firstLeaf := newTestWatcher(t)
+	secondLeaf := newTestWatcher(t)
+
+	nested.setDependencies([]*dependency{{Watcher: firstLeaf}})
+	root.setDependencies([]*dependency{{Watcher: direct}, {Watcher: nested}})
+	first := root.dependencies()
+	second := root.dependencies()
+	require.Len(t, first, 3)
+	require.Same(t, first[0], second[0])
+	require.True(t, &first[0] == &second[0], "dependency cache rebuilt without a graph change")
+	require.Zero(t, testing.AllocsPerRun(100, func() {
+		_ = root.dependencies()
+	}), "cached dependency lookup allocated")
+
+	nested.setDependencies([]*dependency{{Watcher: secondLeaf}})
+	refreshed := root.dependencies()
+	require.Len(t, refreshed, 3)
+	refreshedKeys := make([]string, 0, len(refreshed))
+	for _, dep := range refreshed {
+		refreshedKeys = append(refreshedKeys, dep.Key())
+	}
+	require.ElementsMatch(t, []string{direct.Key(), nested.Key(), secondLeaf.Key()}, refreshedKeys)
 }
 
 func TestWakeCallerCancellationDoesNotStopSharedOperation(t *testing.T) {
@@ -477,11 +647,64 @@ func TestWakeDependencyOutlivesParentCancellation(t *testing.T) {
 	requireChannelClosed(t, depWakeCtx.Done(), "dependency wake did not finish after provider release")
 }
 
+func TestWaitForReadyIgnoresStaleNotification(t *testing.T) {
+	w := newTestWatcher(t)
+	w.setReady()
+	w.setError(errors.New("not ready anymore"))
+	ctx := &observedDoneContext{Context: t.Context(), doneObserved: make(chan struct{})}
+	result := make(chan bool, 1)
+	go func() {
+		result <- w.waitForReady(ctx)
+	}()
+
+	requireChannelClosed(t, ctx.doneObserved, "readiness waiter did not block after consuming stale notification")
+	select {
+	case <-result:
+		t.Fatal("stale readiness notification released waiter")
+	default:
+	}
+
+	w.setReady()
+	select {
+	case ready := <-result:
+		require.True(t, ready)
+	case <-time.After(time.Second):
+		t.Fatal("current readiness notification did not release waiter")
+	}
+}
+
+func TestWaitForReadyBroadcastsReadyToAllWaiters(t *testing.T) {
+	w := newTestWatcher(t)
+	w.setStarting()
+
+	const waiterCount = 3
+	results := make(chan bool, waiterCount)
+	for range waiterCount {
+		ctx := &observedDoneContext{Context: t.Context(), doneObserved: make(chan struct{})}
+		go func() {
+			results <- w.waitForReady(ctx)
+		}()
+		requireChannelClosed(t, ctx.doneObserved, "readiness waiter did not start waiting")
+	}
+
+	w.setReady()
+	for range waiterCount {
+		select {
+		case ready := <-results:
+			require.True(t, ready)
+		case <-time.After(time.Second):
+			t.Fatal("ready transition did not release every waiter")
+		}
+	}
+}
+
 func newTestWatcher(t *testing.T) *Watcher {
 	t.Helper()
 
-	ticker := time.NewTicker(time.Hour)
-	t.Cleanup(ticker.Stop)
+	idleTicker := time.NewTicker(time.Hour)
+	healthTicker := time.NewTicker(time.Hour)
+	t.Cleanup(idleTicker.Stop)
+	t.Cleanup(healthTicker.Stop)
 	containerName := fmt.Sprintf("test-container-%d", testWatcherID.Add(1))
 	watcherTask := task.GetTestTask(t).Subtask("idlewatcher_http", true)
 	t.Cleanup(func() {
@@ -492,6 +715,7 @@ func newTestWatcher(t *testing.T) *Watcher {
 		cfg: &idlewatchertypes.Config{
 			IdlewatcherProviderConfig: idlewatchertypes.ProviderConfig{
 				Docker: &idlewatchertypes.DockerConfig{
+					ContainerID:   containerName,
 					ContainerName: containerName,
 				},
 			},
@@ -500,10 +724,11 @@ func newTestWatcher(t *testing.T) *Watcher {
 				WakeTimeout: time.Second,
 			},
 		},
-		idleTicker:    ticker,
-		readyNotifyCh: make(chan struct{}, 1),
-		events:        gevents.NewHistory(),
-		task:          watcherTask,
+		idleTicker:     idleTicker,
+		healthTicker:   healthTicker,
+		stateChangedCh: make(chan struct{}),
+		events:         gevents.NewHistory(),
+		task:           watcherTask,
 	}
 	w.lastReset.Store(time.Now())
 	w.state.Store(&containerState{
@@ -518,6 +743,7 @@ func newBlockingWakeWatcher(t *testing.T) (*Watcher, *blockingStartProvider) {
 	provider := &blockingStartProvider{
 		started: make(chan context.Context, 1),
 		release: make(chan struct{}),
+		status:  idlewatchertypes.ContainerStatusStopped,
 	}
 	w.provider.Store(provider)
 	return w, provider
@@ -554,6 +780,15 @@ func waitForWakeError(t *testing.T, eventCh <-chan gevents.Event, contains strin
 	}
 }
 
+func historyContainsAction(w *Watcher, action WakeEventType) bool {
+	for _, event := range w.events.Get() {
+		if event.Action == string(action) {
+			return true
+		}
+	}
+	return false
+}
+
 func requireChannelClosed(t *testing.T, ch <-chan struct{}, message string) {
 	t.Helper()
 	select {
@@ -564,10 +799,12 @@ func requireChannelClosed(t *testing.T, ch <-chan struct{}, message string) {
 }
 
 type blockingStartProvider struct {
-	started  chan context.Context
-	release  chan struct{}
-	starts   atomic.Int64
-	startErr error
+	started     chan context.Context
+	release     chan struct{}
+	starts      atomic.Int64
+	statusCalls atomic.Int64
+	status      idlewatchertypes.ContainerStatus
+	startErr    error
 }
 
 var testWatcherID atomic.Uint64
@@ -594,8 +831,9 @@ func (*blockingStartProvider) ContainerStop(context.Context, idlewatchertypes.Si
 func (*blockingStartProvider) ContainerKill(context.Context, idlewatchertypes.Signal) error {
 	return nil
 }
-func (*blockingStartProvider) ContainerStatus(context.Context) (idlewatchertypes.ContainerStatus, error) {
-	return idlewatchertypes.ContainerStatusStopped, nil
+func (p *blockingStartProvider) ContainerStatus(context.Context) (idlewatchertypes.ContainerStatus, error) {
+	p.statusCalls.Add(1)
+	return p.status, nil
 }
 func (*blockingStartProvider) Watch(context.Context) (<-chan watcherEvents.Event, <-chan error) {
 	return nil, nil

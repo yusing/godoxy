@@ -39,14 +39,18 @@ type Watcher struct {
     state       synk.Value[*containerState]
     lastReset   synk.Value[time.Time]
 
-    // Timers and channels
-    idleTicker   *time.Ticker
-    healthTicker *time.Ticker
-    readyNotifyCh chan struct{}
+    // Timers and state-transition broadcast
+    idleTicker     *time.Ticker
+    healthTicker   *time.Ticker
+    stateChangedMu sync.Mutex
+    stateChangedCh chan struct{}
 
-    // SSE event broadcasting (HTTP routes only)
-    eventChs       *xsync.Map[chan *WakeEvent, struct{}]
-    eventHistory   []WakeEvent
+    // SSE event history and listeners (HTTP routes only)
+    events   *events.History
+    eventsMu sync.Mutex
+
+    // Versioned flattened dependency graph, reused by wake timeout calculation
+    dependenciesCache synk.Value[*dependencyCache]
 }
 ```
 
@@ -92,8 +96,11 @@ var (
     watcherMap map[string]*Watcher
     watcherMapMu sync.RWMutex
 
-    // singleFlight prevents duplicate wake calls for the same container
+    // singleFlight prevents duplicate wake calls for the same provider-specific watcher key
     singleFlight singleflight.Group
+
+    // dependencyGraphVersion invalidates flattened dependency caches after reloads
+    dependencyGraphVersion atomic.Uint64
 )
 ```
 
@@ -136,18 +143,20 @@ classDiagram
 
 ```mermaid
 flowchart TD
-    A[HTTP Request] --> B{Container Ready?}
-    B -->|Yes| C[Proxy Request]
-    B -->|No, HTML| D[Return Loading Page]
-    D --> E[Start Coalesced Background Wake]
-    E --> F[Wake Dependencies]
-    F --> G[Start Container]
-    G --> H[Health Check]
-    H -->|Progress| I[SSE Event History]
-    I --> J[Loading Page EventSource]
-    H -->|Ready| K[Refresh Navigation]
-    B -->|No, non-HTML or no_loading_page| L[Wake and Wait]
-    L --> C
+    A[Dynamic HTTP Request] --> B{Container Ready?}
+    B -->|Yes| D[Proxy Request]
+    B -->|No| C[Join Provider-Specific Wake Flight]
+    C -->|HTML| E[Return Loading Page]
+    E --> F[Continue Coalesced Wake]
+    F --> G[Wake Dependencies]
+    G --> H[Start Container]
+    H --> I[Health Check]
+    I -->|Progress| J[SSE Event History]
+    J --> K[Loading Page EventSource]
+    I -->|Ready| L[Broadcast State Change]
+    L --> M[Refresh Navigation or Release All Waiters]
+    C -->|non-HTML or no_loading_page| N[Wait for Ready]
+    N --> D
 ```
 
 ### State Machine

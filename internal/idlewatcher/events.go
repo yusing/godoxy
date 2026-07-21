@@ -49,7 +49,20 @@ func (e *WakeEvent) WriteSSE(w io.Writer) error {
 }
 
 func (w *Watcher) clearEventHistory() {
+	w.eventsMu.Lock()
+	defer w.eventsMu.Unlock()
+
 	w.events.Clear()
+}
+
+func (w *Watcher) clearTerminalEventHistory() {
+	w.eventsMu.Lock()
+	defer w.eventsMu.Unlock()
+
+	events := w.events.Get()
+	if len(events) != 0 && events[len(events)-1].Action == string(WakeEventError) {
+		w.events.Clear()
+	}
 }
 
 func (w *Watcher) sendEvent(eventType WakeEventType, message string, err error) {
@@ -62,6 +75,9 @@ func (w *Watcher) sendEvent(eventType WakeEventType, message string, err error) 
 	if eventType == WakeEventError {
 		level = gevents.LevelError
 	}
+
+	w.eventsMu.Lock()
+	defer w.eventsMu.Unlock()
 
 	w.events.Add(gevents.NewEvent(
 		level,

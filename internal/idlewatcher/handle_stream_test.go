@@ -3,6 +3,7 @@ package idlewatcher
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +36,35 @@ func TestWatcherProxyConnDelegatesToWrappedConnProxy(t *testing.T) {
 		t.Fatal("wrapped conn proxy did not read from accepted connection")
 	}
 	require.True(t, w.lastReset.Load().After(before))
+}
+
+func TestWakeFromStreamReadyRequestBypassesWakeSingleflight(t *testing.T) {
+	w := newTestWatcher(t)
+	w.setReady()
+	operationStarted := make(chan struct{})
+	releaseOperation := make(chan struct{})
+	release := sync.OnceFunc(func() { close(releaseOperation) })
+	t.Cleanup(release)
+	sharedResult := singleFlight.DoChan(w.Key(), func() (any, error) {
+		close(operationStarted)
+		<-releaseOperation
+		return nil, nil
+	})
+	requireChannelClosed(t, operationStarted, "shared wake operation did not start")
+
+	result := make(chan error, 1)
+	go func() {
+		result <- w.wakeFromStream(t.Context())
+	}()
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("ready stream request waited for active wake singleflight")
+	}
+
+	release()
+	require.NoError(t, (<-sharedResult).Err)
 }
 
 type testConnProxyStream struct {

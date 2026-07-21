@@ -70,7 +70,6 @@ func (w *Watcher) onRead(ctx context.Context, onRead nettypes.HookFunc) error {
 func (w *Watcher) wakeFromStream(ctx context.Context) error {
 	w.resetIdleTimer()
 
-	// pass through if container is already ready
 	if w.ready() {
 		return nil
 	}
