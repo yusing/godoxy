@@ -13,6 +13,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	entrypointtypes "github.com/yusing/godoxy/internal/entrypoint"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 
 	"github.com/stretchr/testify/require"
@@ -102,7 +103,10 @@ func TestTCPTCPStreamRelayProxyProtocolUsesIncomingProxyHeader(t *testing.T) {
 
 	parent := task.GetTestTask(t)
 	ep := entrypoint.NewEntrypoint(parent, &entrypoint.Config{
-		SupportProxyProtocol: true,
+		ProxyProtocol: &server.ProxyProtocolConfig{
+			Mode:           server.ProxyProtocolModeRequired,
+			TrustedProxies: []string{"127.0.0.1"},
+		},
 	})
 	entrypointtypes.SetCtx(parent, ep)
 

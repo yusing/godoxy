@@ -317,6 +317,9 @@ func (state *state) initACL() error {
 func (state *state) initEntrypoint() error {
 	epCfg := state.Config.Entrypoint
 	matchDomains := state.MatchDomains
+	if warning := proxyProtocolDeprecationWarning(epCfg); warning != "" {
+		state.tmpLog.Warn().Msg(warning)
+	}
 
 	state.entrypoint = entrypoint.NewEntrypoint(state.task, &epCfg)
 	state.entrypoint.SetFindRouteDomains(matchDomains)
@@ -339,6 +342,16 @@ func (state *state) initEntrypoint() error {
 	errs.Add(state.entrypoint.SetAccessLogger(state.task, epCfg.AccessLog))
 	errs.Add(state.entrypoint.SetInboundMTLSProfiles(state.Config.InboundMTLSProfiles))
 	return errs.Error()
+}
+
+func proxyProtocolDeprecationWarning(cfg entrypoint.Config) string {
+	if !cfg.SupportProxyProtocol {
+		return ""
+	}
+	if cfg.ProxyProtocol == nil {
+		return "entrypoint.support_proxy_protocol is deprecated and trusts PROXY headers from any peer; configure entrypoint.proxy_protocol with mode required or mixed and at least one trusted_proxies entry"
+	}
+	return "entrypoint.support_proxy_protocol is deprecated and ignored because entrypoint.proxy_protocol is configured; remove the deprecated setting"
 }
 
 func getAutoCertDefaultDomain(p *autocert.Provider) string {

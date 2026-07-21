@@ -16,7 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pires/go-proxyproto"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
@@ -100,6 +99,11 @@ func (r *sniRouter) DelRoute(route routing.StreamRoute) {
 }
 
 func (r *sniRouter) Listen(ctx context.Context, addr string) (net.Listener, error) {
+	proxyProtocolPolicy, err := r.ep.ProxyProtocolPolicy()
+	if err != nil {
+		return nil, err
+	}
+
 	var listenErr error
 	listener, loaded := r.listeners.LoadOrCompute(addr, func() (*sniListener, bool) {
 		var lc net.ListenConfig
@@ -108,8 +112,8 @@ func (r *sniRouter) Listen(ctx context.Context, addr string) (net.Listener, erro
 			listenErr = err
 			return nil, true
 		}
-		if r.ep.cfg.SupportProxyProtocol {
-			ln = &proxyproto.Listener{Listener: ln}
+		if proxyProtocolPolicy.Enabled() {
+			ln = proxyProtocolPolicy.Wrap(ln)
 		}
 		if aclCfg := acl.FromCtx(r.ep.task.Context()); aclCfg != nil {
 			ln = aclCfg.WrapTCP(ln)

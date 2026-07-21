@@ -15,6 +15,7 @@ import (
 	basetypes "github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/pool"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 )
 
@@ -84,7 +85,7 @@ type (
 		String() string
 	}
 	Entrypoint interface {
-		SupportProxyProtocol() bool
+		ProxyProtocolPolicy() (server.ProxyProtocolPolicy, error)
 		DisablePoolsLog(v bool)
 		GetRoute(alias string) (Route, bool)
 		StartAddRoute(r Route) error

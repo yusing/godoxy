@@ -60,9 +60,15 @@
 
 entrypoint:
   # Proxy Protocol: https://www.haproxy.com/blog/use-the-proxy-protocol-to-preserve-a-clients-ip-address
-  # When set to true, web entrypoint and all tcp routes will be wrapped with Proxy Protocol listener in order to preserve the client's IP address.
+  # "required" accepts only the listed proxies and requires a Proxy Protocol header.
+  # "mixed" also permits direct clients; unlisted peers bypass Proxy Protocol parsing.
+  # "disabled" disables Proxy Protocol parsing and ignores trusted_proxies.
   # Note that HTTP/3 with proxy protocol is not supported yet.
-  support_proxy_protocol: false
+  # proxy_protocol:
+  #   mode: required
+  #   trusted_proxies:
+  #     - 172.18.0.10
+  #     - 10.0.0.0/8
 
   # Below define an example of middleware config
   # 1. set security headers

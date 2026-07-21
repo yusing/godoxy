@@ -45,7 +45,7 @@ Internal package with stable core interfaces. The `internal/routing.Entrypoint` 
 ```go
 type Entrypoint interface {
     // Server capabilities
-    SupportProxyProtocol() bool
+    ProxyProtocolPolicy() (server.ProxyProtocolPolicy, error)
     DisablePoolsLog(v bool)
 
     // Route registry access
@@ -96,7 +96,8 @@ type RWPoolLike[Route types.Route] interface {
 
 ```go
 type Config struct {
-    SupportProxyProtocol bool                     `json:"support_proxy_protocol"`
+    SupportProxyProtocol bool                     `json:"support_proxy_protocol"` // deprecated
+    ProxyProtocol        *server.ProxyProtocolConfig `json:"proxy_protocol,omitempty"`
     InboundMTLSProfile   string                   `json:"inbound_mtls_profile,omitempty"`
     Rules                struct {
         NotFound rules.Rules                     `json:"not_found"`
@@ -233,7 +234,7 @@ classDiagram
         +excludedRoutes *pool.Pool\[types.Route\]
         +servers *xsync.Map\[string, *httpServer\]
         +sni *sniRouter
-        +SupportProxyProtocol() bool
+        +ProxyProtocolPolicy() (server.ProxyProtocolPolicy, error)
         +StartAddRoute(r) error
         +IterRoutes(yield)
         +HTTPRoutes() PoolLike
@@ -431,7 +432,11 @@ Environment variables and YAML config file:
 
 ```yaml
 entrypoint:
-  support_proxy_protocol: true
+  proxy_protocol:
+    mode: required
+    trusted_proxies:
+      - 172.18.0.10
+      - 10.0.0.0/8
   middlewares:
     - rate_limit:
         requests_per_second: 100
@@ -444,9 +449,18 @@ entrypoint:
 
 ### Environment Variables
 
-| Variable                       | Description                   |
-| ------------------------------ | ----------------------------- |
-| `PROXY_SUPPORT_PROXY_PROTOCOL` | Enable PROXY protocol support |
+`proxy_protocol.mode` controls PROXY protocol handling on the web entrypoint
+and TCP route listeners. `required` accepts only listed proxies and requires a
+valid PROXY header. `mixed` also permits unlisted direct clients, which bypass
+PROXY parsing. `disabled` disables parsing and ignores `trusted_proxies`.
+Enabled modes require at least one trusted IP address or
+CIDR range.
+
+The legacy `support_proxy_protocol: true` setting remains compatible: PROXY
+headers are optional and accepted from any peer. It is deprecated because an
+untrusted client can supply a forged source address. Configure at least one
+`proxy_protocol.trusted_proxies` entry with mode `required` or `mixed`, then
+remove the legacy setting.
 
 ## Dependency and Integration Map
 
@@ -513,7 +527,10 @@ healthMap := ep.GetHealthInfo()
 
 ```go
 ep := entrypoint.NewEntrypoint(parent, &entrypoint.Config{
-    SupportProxyProtocol: false,
+    ProxyProtocol: &server.ProxyProtocolConfig{
+        Mode:           server.ProxyProtocolModeRequired,
+        TrustedProxies: []string{"172.18.0.10", "10.0.0.0/8"},
+    },
 })
 
 // Configure domain matching

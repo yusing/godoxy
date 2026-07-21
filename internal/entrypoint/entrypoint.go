@@ -15,6 +15,7 @@ import (
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/goutils/pool"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 )
 
@@ -78,8 +79,14 @@ func (ep *Entrypoint) Task() *task.Task {
 	return ep.task
 }
 
-func (ep *Entrypoint) SupportProxyProtocol() bool {
-	return ep.cfg.SupportProxyProtocol
+func (ep *Entrypoint) ProxyProtocolPolicy() (server.ProxyProtocolPolicy, error) {
+	if ep.cfg.ProxyProtocol != nil {
+		return server.NewProxyProtocolPolicy(*ep.cfg.ProxyProtocol)
+	}
+	if ep.cfg.SupportProxyProtocol {
+		return server.NewLegacyProxyProtocolPolicy(), nil
+	}
+	return server.ProxyProtocolPolicy{}, nil
 }
 
 func (ep *Entrypoint) DisablePoolsLog(v bool) {

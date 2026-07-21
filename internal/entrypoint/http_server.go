@@ -82,11 +82,13 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	}
 
 	aclCfg := acl.FromCtx(srv.ep.task.Context())
-	supportProxyProtocol := srv.ep.cfg.SupportProxyProtocol
+	proxyProtocolPolicy, err := srv.ep.ProxyProtocolPolicy()
+	if err != nil {
+		return err
+	}
 	certProvider := autocert.FromCtx(srv.ep.task.Context())
 	var sniListener net.Listener
 	if proto == HTTPProtoHTTPS && listener == nil && common.SNIRoutingForTCPRoutes {
-		var err error
 		sniListener, err = srv.ep.sni.Listen(srv.ep.task.Context(), addr)
 		if err != nil {
 			return err
@@ -96,14 +98,14 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		// and applies ACL / PROXY protocol wrappers before ClientHello sniffing.
 		// Do not apply them again around the forwarded HTTPS listener.
 		aclCfg = nil
-		supportProxyProtocol = false
+		proxyProtocolPolicy = server.ProxyProtocolPolicy{}
 	}
 
 	opts := server.Options{
-		Name:                 addr,
-		Handler:              srv,
-		ACL:                  aclCfg,
-		SupportProxyProtocol: supportProxyProtocol,
+		Name:                addr,
+		Handler:             srv,
+		ACL:                 aclCfg,
+		ProxyProtocolPolicy: proxyProtocolPolicy,
 	}
 
 	switch proto {
@@ -118,7 +120,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	}
 
 	task := srv.ep.task.Subtask("http_server", false)
-	_, err := server.StartServer(task, opts)
+	_, err = server.StartServer(task, opts)
 	if err != nil {
 		task.Finish(err)
 		if sniListener != nil {

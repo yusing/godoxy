@@ -32,6 +32,7 @@ import (
 	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/goutils/http/reverseproxy"
+	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
 	"github.com/yusing/goutils/version"
 	"golang.org/x/net/http2"
@@ -101,8 +102,10 @@ func newTestEntrypoint() *testEntrypoint {
 	}
 }
 
-func (ep *testEntrypoint) SupportProxyProtocol() bool { return false }
-func (ep *testEntrypoint) DisablePoolsLog(bool)       {}
+func (ep *testEntrypoint) ProxyProtocolPolicy() (server.ProxyProtocolPolicy, error) {
+	return server.ProxyProtocolPolicy{}, nil
+}
+func (ep *testEntrypoint) DisablePoolsLog(bool) {}
 
 func (ep *testEntrypoint) GetRoute(alias string) (routing.Route, bool) {
 	if r, ok := ep.httpRoutes.Get(alias); ok {

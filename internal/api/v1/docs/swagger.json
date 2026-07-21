@@ -3979,6 +3979,7 @@
       "type": "object",
       "properties": {
         "disable": {
+          "description": "Disable the route-specific probe; Docker health remains active.",
           "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false

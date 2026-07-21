@@ -317,6 +317,7 @@ definitions:
   HealthCheckConfig:
     properties:
       disable:
+        description: Disable the route-specific probe; Docker health remains active.
         type: boolean
       interval:
         type: integer

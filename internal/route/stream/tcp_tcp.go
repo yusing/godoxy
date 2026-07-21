@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	acl "github.com/yusing/godoxy/internal/acl/types"
@@ -12,6 +11,7 @@ import (
 	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	ioutils "github.com/yusing/goutils/io"
+	"github.com/yusing/goutils/server"
 	"go.uber.org/atomic"
 )
 
@@ -53,17 +53,25 @@ func NewTCPTCPStream(network, dstNetwork, listenAddr, dstAddr string, agent *age
 }
 
 func (s *TCPTCPStream) ListenAndServe(ctx context.Context, preDial, onRead nettypes.HookFunc) error {
+	ep := entrypoint.FromCtx(ctx)
+	var proxyProtocolPolicy server.ProxyProtocolPolicy
+	if ep != nil {
+		var err error
+		proxyProtocolPolicy, err = ep.ProxyProtocolPolicy()
+		if err != nil {
+			return err
+		}
+	}
+
 	var err error
 	s.listener, err = net.ListenTCP(s.network, s.laddr)
 	if err != nil {
 		return err
 	}
 
-	if ep := entrypoint.FromCtx(ctx); ep != nil {
-		if proxyProto := ep.SupportProxyProtocol(); proxyProto {
-			log.Debug().EmbedObject(s).Msg("wrapping listener with proxy protocol")
-			s.listener = &proxyproto.Listener{Listener: s.listener}
-		}
+	if proxyProtocolPolicy.Enabled() {
+		log.Debug().EmbedObject(s).Msg("wrapping listener with proxy protocol")
+		s.listener = proxyProtocolPolicy.Wrap(s.listener)
 	}
 
 	if aclCfg := acl.FromCtx(ctx); aclCfg != nil {
