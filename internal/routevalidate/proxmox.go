@@ -88,9 +88,14 @@ func validateProxmox(r *route.Route) {
 		return
 	}
 
-	node, ok := proxmox.Nodes.Get(nodeName)
-	if !ok {
-		l.Error().Msgf("proxmox node %s not found in pool", nodeName)
+	workingState := config.WorkingState.Load()
+	if workingState == nil {
+		l.Error().Msg("proxmox node pool is unavailable")
+		return
+	}
+	node, err := proxmox.NodeFromCtx(workingState.Context(), nodeName)
+	if err != nil {
+		l.Error().Err(err).Msgf("failed to resolve proxmox node %s", nodeName)
 		return
 	}
 

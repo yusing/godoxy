@@ -2,8 +2,13 @@ package proxmox
 
 import (
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	goproxmox "github.com/luthermonson/go-proxmox"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetIPFromNet(t *testing.T) {
@@ -37,4 +42,28 @@ func TestGetIPFromNet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLXCGetIPsFromConfigReadsAllIndexedNetworksInOrder(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/nodes/pve/lxc/101/config", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{
+			"net31":"name=eth31,ip=10.0.31.2/24",
+			"net3":"name=eth3,ip=10.0.3.2/24",
+			"net100":"name=eth100,ip=10.0.100.2/24"
+		}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, goproxmox.WithHTTPClient(srv.Client()))
+	node := NewNode(client, "pve", "node/pve")
+	ips, err := node.LXCGetIPsFromConfig(t.Context(), 101)
+	require.NoError(t, err)
+	require.Len(t, ips, 3)
+	require.Equal(t, []string{"10.0.3.2", "10.0.31.2", "10.0.100.2"}, []string{
+		ips[0].String(),
+		ips[1].String(),
+		ips[2].String(),
+	})
 }

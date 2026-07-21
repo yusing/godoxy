@@ -38,6 +38,7 @@ import (
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	routeimpl "github.com/yusing/godoxy/internal/route"
 	provider "github.com/yusing/godoxy/internal/route/provider"
@@ -82,12 +83,14 @@ func (e CriticalError) Unwrap() error {
 
 func NewState() *state {
 	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
-	return &state{
+	state := &state{
 		providers: xsync.NewMap[string, routing.Provider](),
 		task:      task.RootTask("config", false),
 		tmpLogBuf: tmpLogBuf,
 		tmpLog:    logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
 	}
+	proxmox.SetCtx(state.task, proxmox.NewNodePool())
+	return state
 }
 
 var stateMu sync.RWMutex

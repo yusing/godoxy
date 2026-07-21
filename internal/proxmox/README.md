@@ -9,7 +9,7 @@ The proxmox package implements Proxmox API client management, node discovery, an
 ### Key Features
 
 - Proxmox API client management
-- Node discovery and pool management
+- State-scoped node discovery and pool management
 - LXC container operations (start, stop, status, stats, command execution)
 - IP address retrieval for containers (online and offline)
 - Container stats streaming (like `docker stats`)
@@ -37,7 +37,7 @@ graph TD
     G --> L[Execute Command]
     G --> M[Stream Stats]
 
-    subgraph Node Pool
+    subgraph State Task Context
         F --> N[Nodes Map]
         N --> O[Node 1]
         N --> P[Node 2]
@@ -71,6 +71,8 @@ type Client struct {
     *proxmox.Cluster
     Version *proxmox.Version
     BaseURL *url.URL
+    nodesMu sync.RWMutex
+    nodes map[string]*Node
     // id -> resource; id: lxc/<vmid> or qemu/<vmid>
     resources   map[string]*VMResource
     resourcesMu sync.RWMutex
@@ -94,8 +96,20 @@ type Node struct {
     client *Client
 }
 
-var Nodes = pool.New[*Node]("proxmox_nodes")
+type NodePool struct {
+    // node name -> provider URL -> node
+    byName map[string]map[string]*Node
+}
+
+func NewNodePool() *NodePool
+func SetCtx(ctx interface{ SetValue(key, value any) }, nodes *NodePool)
+func FromCtx(ctx context.Context) *NodePool
+func NodeFromCtx(ctx context.Context, name string) (*Node, error)
 ```
+
+Each configuration state stores its own `NodePool` in its task context. Nodes
+with the same name from different providers are retained as an ambiguity and
+cannot be selected accidentally.
 
 ### NodeConfig
 
@@ -158,8 +172,8 @@ func (c *Client) MarshalJSON() ([]byte, error)
 ### Node Operations
 
 ```go
-// AvailableNodeNames returns all available node names as a comma-separated string.
-func AvailableNodeNames() string
+// AvailableNodeNames returns node names from the pool in ctx.
+func AvailableNodeNames(ctx context.Context) string
 
 // NewNode creates a new node.
 func NewNode(client *Client, name, id string) *Node
@@ -191,6 +205,10 @@ func (n *Node) NodeTail(ctx context.Context, files []string, limit int) (io.Read
 ### Basic Setup
 
 ```go
+stateTask := task.RootTask("proxmox-example", false)
+defer stateTask.Finish(nil)
+proxmox.SetCtx(stateTask, proxmox.NewNodePool())
+
 proxmoxCfg := &proxmox.Config{
     URL:         "https://proxmox.example.com:8006",
     TokenID:     "user@pam!token-name",
@@ -198,7 +216,7 @@ proxmoxCfg := &proxmox.Config{
     NoTLSVerify: false,
 }
 
-ctx := context.Background()
+ctx := stateTask.Context()
 err := proxmoxCfg.Init(ctx)
 if err != nil {
     log.Fatal(err)
@@ -210,9 +228,9 @@ client := proxmoxCfg.Client()
 ### Node Access
 
 ```go
-// Get a specific node
-node, ok := proxmox.Nodes.Get("pve")
-if !ok {
+// Get a specific node from the active state context.
+node, err := proxmox.NodeFromCtx(ctx, "pve")
+if err != nil {
     log.Fatal("Node not found")
 }
 
@@ -222,7 +240,7 @@ fmt.Printf("Node: %s (%s)\n", node.Name(), node.Key())
 ### Available Nodes
 
 ```go
-names := proxmox.AvailableNodeNames()
+names := proxmox.AvailableNodeNames(ctx)
 fmt.Printf("Available nodes: %s\n", names)
 ```
 
@@ -266,7 +284,7 @@ const (
 )
 
 // LXCAction performs an action on a container with task tracking.
-func (node *Node) LXCAction(ctx context.Context, vmid int, action LXCAction) error
+func (node *Node) LXCAction(ctx context.Context, vmid uint64, action LXCAction) error
 
 // LXCSetShutdownTimeout sets the shutdown timeout for a container.
 func (node *Node) LXCSetShutdownTimeout(ctx context.Context, vmid int, timeout time.Duration) error
@@ -355,17 +373,19 @@ sequenceDiagram
     User->>NodePool: Get Node
     NodePool-->>User: Node
 
-    User->>Node: LXCGetIPs(vmid)
+    User->>Node: LXCGetIPs(ctx, vmid)
     Node->>ProxmoxAPI: GET /lxc/{vmid}/config
     ProxmoxAPI-->>Node: Config with IPs
     Node-->>User: IP addresses
 
-    User->>Node: LXCAction(vmid, "start")
+    User->>Node: LXCAction(ctx, vmid, "start")
     Node->>ProxmoxAPI: POST /lxc/{vmid}/status/start
-    ProxmoxAPI-->>Node: Success
-    Node-->>User: Done
+    ProxmoxAPI-->>Node: Task UPID
+    Node->>ProxmoxAPI: Wait for task completion
+    Node->>ProxmoxAPI: Wait for expected LXC status
+    Node-->>User: Expected status reached
 
-    User->>Node: LXCCommand(vmid, "df -h")
+    User->>Node: LXCCommand(ctx, vmid, "df -h")
     Node->>ProxmoxAPI: WebSocket /nodes/{node}/termproxy
     ProxmoxAPI-->>Node: WebSocket connection
     Node->>ProxmoxAPI: Send: "pct exec {vmid} -- df -h"
@@ -427,24 +447,23 @@ tr := gphttp.NewTransportWithTLSConfig(&tls.Config{
 
 ## Node Pool
 
-The package maintains a global node pool:
+The configuration state owns a node pool through its task context:
 
 ```go
-var Nodes = pool.New[*Node]("proxmox_nodes")
+nodes := proxmox.NewNodePool()
+proxmox.SetCtx(stateTask, nodes)
 ```
 
-### Pool Operations
+REST requests and subtasks inherit that value from the state task. Candidate
+reloads therefore cannot mutate the active state's nodes, and removing a state
+makes its clients unreachable from the replacement context.
+
+### Lookup
 
 ```go
-// Add a node
-Nodes.Add(&Node{name: "pve1", id: "node/pve1", client: client})
-
-// Get a node
-node, ok := Nodes.Get("pve1")
-
-// Iterate nodes
-for _, node := range Nodes.Iter {
-    fmt.Printf("Node: %s\n", node.Name())
+node, err := proxmox.NodeFromCtx(ctx, "pve1")
+if errors.Is(err, proxmox.ErrNodeAmbiguous) {
+    // More than one configured provider exposes pve1.
 }
 ```
 
@@ -455,12 +474,12 @@ The proxmox package integrates with the route package for idlewatcher:
 ```go
 // In route validation
 if r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
-    node := r.Idlewatcher.Proxmox.Node
+    nodeName := r.Idlewatcher.Proxmox.Node
     vmid := r.Idlewatcher.Proxmox.VMID
 
-    node, ok := proxmox.Nodes.Get(node)
-    if !ok {
-        return fmt.Errorf("proxmox node %s not found", node)
+    node, err := proxmox.NodeFromCtx(ctx, nodeName)
+    if err != nil {
+        return err
     }
 
     // Get container IPs
@@ -505,25 +524,29 @@ return gperr.New("no session").With(ErrNoSession)
 ```go
 var (
     ErrResourceNotFound = errors.New("resource not found")
-    ErrNoResources      = errors.New("no resources")
     ErrNoSession        = fmt.Errorf("no session found, make sure username and password are set")
+    ErrNodeNotFound     = errors.New("proxmox node not found")
+    ErrNodeAmbiguous    = errors.New("proxmox node name is ambiguous")
 )
 ```
 
 | Error                 | Description                                                           |
 | --------------------- | --------------------------------------------------------------------- |
 | `ErrResourceNotFound` | Resource not found in cluster                                         |
-| `ErrNoResources`      | No resources available                                                |
 | `ErrNoSession`        | No session for WebSocket operations (requires username/password auth) |
+| `ErrNodeNotFound`     | Node is absent from the active configuration state's pool             |
+| `ErrNodeAmbiguous`    | Multiple providers expose the requested bare node name                |
 
 ## Performance Considerations
 
 - Cluster info fetched once on init
 - Nodes cached in pool
 - Resources updated in background loop (every 3 seconds by default)
-- Concurrent IP resolution for all containers (limited to GOMAXPROCS \* 2)
-- 5-second timeout for initial connection
-- Per-operation API calls with 3-second timeout
+- Concurrent IP resolution for all containers (limited to `min(GOMAXPROCS, 8)`)
+- Resource metadata is published even when an individual LXC IP lookup fails
+- 30-second timeout for initialization and individual lifecycle API requests;
+  lifecycle completion follows the caller's deadline, or a two-minute default
+  when the caller has none
 - WebSocket connections properly closed to prevent goroutine leaks
 
 ## Command Validation

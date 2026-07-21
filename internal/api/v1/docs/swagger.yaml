@@ -1816,11 +1816,11 @@ definitions:
         type: string
       kernel_version:
         type: string
-      load_avg_15m:
-        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
+        type: string
+      load_avg_15m:
         type: string
       mem_pct:
         type: string
@@ -3354,6 +3354,10 @@ paths:
           description: Node not found
           schema:
             $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal server error
           schema:
@@ -3415,6 +3419,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3482,6 +3490,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3558,6 +3570,10 @@ paths:
           description: Node not found
           schema:
             $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal server error
           schema:
@@ -3592,6 +3608,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3629,6 +3649,10 @@ paths:
           description: Node not found
           schema:
             $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -3662,6 +3686,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3698,6 +3726,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3739,6 +3771,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":
@@ -3798,6 +3834,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "404":
           description: Node not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Node name is ambiguous
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":

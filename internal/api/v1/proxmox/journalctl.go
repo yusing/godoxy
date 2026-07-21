@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -35,6 +34,7 @@ type JournalctlRequest struct {
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
+// @Failure		409			{object}	apitypes.ErrorResponse	"Node name is ambiguous"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
 // @Router		/proxmox/journalctl [get]
 // @Router		/proxmox/journalctl/{node} [get]
@@ -58,9 +58,8 @@ func Journalctl(c *gin.Context) {
 		request.Limit = new(100)
 	}
 
-	node, ok := proxmox.Nodes.Get(request.Node)
+	node, ok := nodeFromRequest(c, request.Node)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error("node not found"))
 		return
 	}
 

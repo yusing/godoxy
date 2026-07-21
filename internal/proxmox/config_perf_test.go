@@ -63,10 +63,6 @@ func TestLXCGetIPsWithStatusSkipsInterfacesForStoppedStates(t *testing.T) {
 	}
 }
 func TestUpdateResourcesReusesFreshCachedIPs(t *testing.T) {
-	// Not parallel: modifies global Nodes state
-	Nodes.Clear()
-	t.Cleanup(Nodes.Clear)
-
 	var resourcesCalls atomic.Int32
 	var interfaceCalls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +83,8 @@ func TestUpdateResourcesReusesFreshCachedIPs(t *testing.T) {
 
 	client := NewClient(srv.URL, goproxmox.WithHTTPClient(srv.Client()))
 	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
-	Nodes.Add(NewNode(client, "pve", "node/pve"))
+	node := NewNode(client, "pve", "node/pve")
+	client.nodes[node.name] = node
 
 	require.NoError(t, client.UpdateResources(t.Context()))
 	require.NoError(t, client.UpdateResources(t.Context()))
@@ -101,9 +98,6 @@ func TestUpdateResourcesReusesFreshCachedIPs(t *testing.T) {
 }
 
 func TestUpdateResourcesRefreshesIPsWhenStatusChanges(t *testing.T) {
-	Nodes.Clear()
-	t.Cleanup(Nodes.Clear)
-
 	var resourcesCalls atomic.Int32
 	var configCalls atomic.Int32
 	var interfaceCalls atomic.Int32
@@ -133,7 +127,8 @@ func TestUpdateResourcesRefreshesIPsWhenStatusChanges(t *testing.T) {
 
 	client := NewClient(srv.URL, goproxmox.WithHTTPClient(srv.Client()))
 	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
-	Nodes.Add(NewNode(client, "pve", "node/pve"))
+	node := NewNode(client, "pve", "node/pve")
+	client.nodes[node.name] = node
 
 	require.NoError(t, client.UpdateResources(t.Context()))
 	require.NoError(t, client.UpdateResources(t.Context()))
@@ -147,4 +142,90 @@ func TestUpdateResourcesRefreshesIPsWhenStatusChanges(t *testing.T) {
 	require.Equal(t, "stopped", resource.Status)
 	require.Len(t, resource.IPs, 1)
 	require.Equal(t, []string{"10.0.0.5"}, []string{resource.IPs[0].String()})
+}
+
+func TestUpdateResourcesPublishesUsableSnapshotWhenOneIPLookupFails(t *testing.T) {
+	var failedInterfaceCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery) {
+		case "/cluster/resources?type=vm":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[
+				{"id":"lxc/101","name":"healthy","node":"pve","status":"running","vmid":101},
+				{"id":"lxc/102","name":"broken","node":"pve","status":"running","vmid":102}
+			]}`))
+		case "/nodes/pve/lxc/101/interfaces?":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"eth0","inet":"10.0.0.8/24"}]}`))
+		case "/nodes/pve/lxc/102/interfaces?":
+			failedInterfaceCalls.Add(1)
+			http.Error(w, "unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, goproxmox.WithHTTPClient(srv.Client()))
+	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
+	node := NewNode(client, "pve", "node/pve")
+	client.nodes[node.name] = node
+
+	err := client.UpdateResources(t.Context())
+	require.Error(t, err)
+	require.ErrorContains(t, err, "lxc/102")
+	require.EqualValues(t, 1, failedInterfaceCalls.Load())
+
+	healthy, err := client.GetResource("lxc", 101)
+	require.NoError(t, err)
+	require.Equal(t, "running", healthy.Status)
+	require.Len(t, healthy.IPs, 1)
+	require.Equal(t, []string{"10.0.0.8"}, []string{healthy.IPs[0].String()})
+
+	broken, err := client.GetResource("lxc", 102)
+	require.NoError(t, err)
+	require.Equal(t, "running", broken.Status)
+	require.Empty(t, broken.IPs)
+}
+
+func TestUpdateResourcesDropsCachedIPsWhenStatusChangesAndLookupFails(t *testing.T) {
+	var resourcesCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery) {
+		case "/cluster/resources?type=vm":
+			status := "running"
+			if resourcesCalls.Add(1) > 1 {
+				status = "stopped"
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, `{"data":[{"id":"lxc/101","name":"changing","node":"pve","status":%q,"vmid":101}]}`, status)
+		case "/nodes/pve/lxc/101/interfaces?":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"eth0","inet":"10.0.0.9/24"}]}`))
+		case "/nodes/pve/lxc/101/config?":
+			http.Error(w, "unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := NewClient(srv.URL, goproxmox.WithHTTPClient(srv.Client()))
+	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
+	node := NewNode(client, "pve", "node/pve")
+	client.nodes[node.name] = node
+
+	require.NoError(t, client.UpdateResources(t.Context()))
+	running, err := client.GetResource("lxc", 101)
+	require.NoError(t, err)
+	require.Len(t, running.IPs, 1)
+	require.Equal(t, "10.0.0.9", running.IPs[0].String())
+
+	err = client.UpdateResources(t.Context())
+	require.Error(t, err)
+	stopped, getErr := client.GetResource("lxc", 101)
+	require.NoError(t, getErr)
+	require.Equal(t, "stopped", stopped.Status)
+	require.Empty(t, stopped.IPs)
+	require.True(t, stopped.IPsFetchedAt.IsZero())
 }

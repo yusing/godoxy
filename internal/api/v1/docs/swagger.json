@@ -2184,6 +2184,12 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "409": {
+            "description": "Node name is ambiguous",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Internal server error",
             "schema": {
@@ -2271,6 +2277,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2368,6 +2380,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2479,6 +2497,12 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "409": {
+            "description": "Node name is ambiguous",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Internal server error",
             "schema": {
@@ -2529,6 +2553,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2587,6 +2617,12 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "409": {
+            "description": "Node name is ambiguous",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -2637,6 +2673,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2693,6 +2735,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2754,6 +2802,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -2839,6 +2893,12 @@
           },
           "404": {
             "description": "Node not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Node name is ambiguous",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }

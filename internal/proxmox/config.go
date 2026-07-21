@@ -33,6 +33,7 @@ type Config struct {
 const (
 	ResourcePollInterval   = 3 * time.Second
 	SessionRefreshInterval = 1 * time.Minute
+	RequestTimeout         = 30 * time.Second
 
 	maxConcurrentResourceLookups = 8
 	proxmoxMaxConnsPerHost       = maxConcurrentResourceLookups
@@ -92,7 +93,7 @@ func (c *Config) Init(ctx context.Context) error {
 	}
 	c.client = NewClient(c.URL, opts...)
 
-	initCtx, initCtxCancel := context.WithTimeout(ctx, 5*time.Second)
+	initCtx, initCtxCancel := context.WithTimeout(ctx, RequestTimeout)
 	defer initCtxCancel()
 
 	if useCredentials {
@@ -110,7 +111,7 @@ func (c *Config) Init(ctx context.Context) error {
 	}
 
 	{
-		reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
+		reqCtx, reqCtxCancel := context.WithTimeout(ctx, RequestTimeout)
 		err := c.client.UpdateResources(reqCtx)
 		reqCtxCancel()
 		if err != nil {
@@ -135,12 +136,13 @@ func (c *Config) updateResourcesLoop(ctx context.Context) {
 			log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] stopping resources update loop")
 			return
 		case <-ticker.C:
-			reqCtx, reqCtxCancel := context.WithTimeout(ctx, ResourcePollInterval)
+			reqCtx, reqCtxCancel := context.WithTimeout(ctx, RequestTimeout)
 			err := c.client.UpdateResources(reqCtx)
 			reqCtxCancel()
 			if err != nil {
 				log.Error().Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to update resources")
 			}
+			ticker.Reset(ResourcePollInterval)
 		}
 	}
 }
@@ -159,7 +161,7 @@ func (c *Config) refreshSessionLoop(ctx context.Context) {
 			log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] stopping session refresh loop")
 			return
 		case <-ticker.C:
-			reqCtx, reqCtxCancel := context.WithTimeout(ctx, SessionRefreshInterval)
+			reqCtx, reqCtxCancel := context.WithTimeout(ctx, RequestTimeout)
 			err := c.client.RefreshSession(reqCtx)
 			reqCtxCancel()
 			if err != nil {

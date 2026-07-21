@@ -3,10 +3,8 @@ package proxmox
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	gperr "github.com/yusing/goutils/errs"
-	"github.com/yusing/goutils/pool"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -22,8 +20,6 @@ type Node struct {
 	name   string
 	id     string // likely node/<name>
 	client *Client
-
-	// statsScriptInitErrs *xsync.Map[int, error]
 }
 
 // Validate implements the serialization.CustomValidator interface.
@@ -42,27 +38,16 @@ func (n *NodeConfig) Validate() error {
 	return errs.Error()
 }
 
-var Nodes = pool.New[*Node]("proxmox_nodes", "proxmox_node")
-
 func NewNode(client *Client, name, id string) *Node {
 	return &Node{
 		name:   name,
 		id:     id,
 		client: client,
-		// statsScriptInitErrs: xsync.NewMap[int, error](xsync.WithGrowOnly()),
 	}
 }
 
-func AvailableNodeNames() string {
-	if Nodes.Size() == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	for _, node := range Nodes.Iter {
-		sb.WriteString(node.name)
-		sb.WriteString(", ")
-	}
-	return sb.String()[:sb.Len()-2]
+func (n *Node) providerKey() string {
+	return n.client.Client.GetBaseURL()
 }
 
 func (n *Node) Key() string {

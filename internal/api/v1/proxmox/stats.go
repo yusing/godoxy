@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
@@ -24,6 +23,7 @@ type StatsRequest ActionRequest
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
+// @Failure		409			{object}	apitypes.ErrorResponse	"Node name is ambiguous"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
 // @Router		/proxmox/stats/{node} [get]
 func NodeStats(c *gin.Context) {
@@ -33,9 +33,8 @@ func NodeStats(c *gin.Context) {
 		return
 	}
 
-	node, ok := proxmox.Nodes.Get(nodeName)
+	node, ok := nodeFromRequest(c, nodeName)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error("node not found"))
 		return
 	}
 
@@ -85,6 +84,7 @@ func NodeStats(c *gin.Context) {
 // @Failure		400			{object}	apitypes.ErrorResponse	"Invalid request"
 // @Failure		403			{object}	apitypes.ErrorResponse	"Unauthorized"
 // @Failure		404			{object}	apitypes.ErrorResponse	"Node not found"
+// @Failure		409			{object}	apitypes.ErrorResponse	"Node name is ambiguous"
 // @Failure		500			{object}	apitypes.ErrorResponse	"Internal server error"
 // @Router		/proxmox/stats/{node}/{vmid} [get]
 func VMStats(c *gin.Context) {
@@ -94,9 +94,8 @@ func VMStats(c *gin.Context) {
 		return
 	}
 
-	node, ok := proxmox.Nodes.Get(request.Node)
+	node, ok := nodeFromRequest(c, request.Node)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error("node not found"))
 		return
 	}
 

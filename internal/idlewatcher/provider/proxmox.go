@@ -11,7 +11,6 @@ import (
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
-	gperr "github.com/yusing/goutils/errs"
 )
 
 type ProxmoxProvider struct {
@@ -24,17 +23,14 @@ type ProxmoxProvider struct {
 
 const proxmoxStateCheckInterval = 1 * time.Second
 
-var ErrNodeNotFound = gperr.New("node not found in pool")
-
 func NewProxmoxProvider(ctx context.Context, nodeName string, vmid uint64) (idlewatcher.Provider, error) {
 	if nodeName == "" || vmid == 0 {
 		return nil, errors.New("node name and vmid are required")
 	}
 
-	node, ok := proxmox.Nodes.Get(nodeName)
-	if !ok {
-		return nil, ErrNodeNotFound.Subject(nodeName).
-			Withf("available nodes: %s", proxmox.AvailableNodeNames())
+	node, err := proxmox.NodeFromCtx(ctx, nodeName)
+	if err != nil {
+		return nil, fmt.Errorf("%w (available nodes: %s)", err, proxmox.AvailableNodeNames(ctx))
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)

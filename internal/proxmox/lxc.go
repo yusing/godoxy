@@ -1,9 +1,14 @@
 package proxmox
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,14 +42,45 @@ const (
 )
 
 const (
-	proxmoxReqTimeout        = 3 * time.Second
 	proxmoxTaskCheckInterval = 300 * time.Millisecond
+	defaultLXCActionTimeout  = 2 * time.Minute
 )
 
+var ErrUnsupportedLXCAction = errors.New("unsupported LXC action")
+
+func expectedLXCStatus(action LXCAction) (LXCStatus, error) {
+	switch action {
+	case LXCStart, LXCResume, LXCReboot:
+		return LXCStatusRunning, nil
+	case LXCShutdown:
+		return LXCStatusStopped, nil
+	case LXCSuspend:
+		return LXCStatusSuspended, nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrUnsupportedLXCAction, action)
+	}
+}
+
 func (n *Node) LXCAction(ctx context.Context, vmid uint64, action LXCAction) error {
-	var upid proxmox.UPID
-	if err := n.client.Post(ctx, fmt.Sprintf("/nodes/%s/lxc/%d/status/%s", n.name, vmid, action), nil, &upid); err != nil {
+	expectedStatus, err := expectedLXCStatus(action)
+	if err != nil {
 		return err
+	}
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultLXCActionTimeout)
+		defer cancel()
+	}
+
+	var upid proxmox.UPID
+	reqCtx, reqCancel := context.WithTimeout(ctx, RequestTimeout)
+	err = n.client.Post(reqCtx, fmt.Sprintf("/nodes/%s/lxc/%d/status/%s", n.name, vmid, action), nil, &upid)
+	reqCancel()
+	if err != nil {
+		return err
+	}
+	if strings.Count(string(upid), ":") < 7 {
+		return fmt.Errorf("invalid task id returned for %s: %q", action, upid)
 	}
 
 	task := proxmox.NewTask(upid, n.client.Client)
@@ -55,28 +91,26 @@ func (n *Node) LXCAction(ctx context.Context, vmid uint64, action LXCAction) err
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-checkTicker.C:
-			if err := task.Ping(ctx); err != nil {
+			reqCtx, reqCancel := context.WithTimeout(ctx, RequestTimeout)
+			err := task.Ping(reqCtx)
+			reqCancel()
+			if err != nil {
 				return err
 			}
-			if task.Status != proxmox.TaskRunning {
-				status, err := n.LXCStatus(ctx, vmid)
-				if err != nil {
-					return err
-				}
-				switch status {
-				case LXCStatusRunning:
-					if action == LXCStart {
-						return nil
-					}
-				case LXCStatusStopped:
-					if action == LXCShutdown {
-						return nil
-					}
-				case LXCStatusSuspended:
-					if action == LXCSuspend {
-						return nil
-					}
-				}
+			if task.Status == proxmox.TaskRunning {
+				continue
+			}
+			if task.ExitStatus != "OK" {
+				return fmt.Errorf("proxmox task for %s failed: %s", action, task.ExitStatus)
+			}
+			reqCtx, reqCancel = context.WithTimeout(ctx, RequestTimeout)
+			status, err := n.LXCStatus(reqCtx, vmid)
+			reqCancel()
+			if err != nil {
+				return err
+			}
+			if status == expectedStatus {
+				return nil
 			}
 		}
 	}
@@ -200,19 +234,19 @@ func (n *Node) LXCGetIPsWithStatus(ctx context.Context, vmid int, status string)
 
 // LXCGetIPsFromConfig returns the ip addresses of the container from the config
 func (n *Node) LXCGetIPsFromConfig(ctx context.Context, vmid int) (res []net.IP, err error) {
-	type Config struct {
-		Net0 string `json:"net0"`
-		Net1 string `json:"net1"`
-		Net2 string `json:"net2"`
-	}
-	var cfg Config
+	var cfg proxmox.ContainerConfig
 	if err := n.client.Get(ctx, fmt.Sprintf("/nodes/%s/lxc/%d/config", n.name, vmid), &cfg); err != nil {
 		return nil, err
 	}
 
-	res = append(res, getIPFromNet(cfg.Net0)...)
-	res = append(res, getIPFromNet(cfg.Net1)...)
-	res = append(res, getIPFromNet(cfg.Net2)...)
+	networks := slices.SortedFunc(maps.Keys(cfg.Nets), func(a, b string) int {
+		aIndex, _ := strconv.Atoi(strings.TrimPrefix(a, "net"))
+		bIndex, _ := strconv.Atoi(strings.TrimPrefix(b, "net"))
+		return cmp.Compare(aIndex, bIndex)
+	})
+	for _, network := range networks {
+		res = append(res, getIPFromNet(cfg.Nets[network])...)
+	}
 	return res, nil
 }
 

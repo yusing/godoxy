@@ -18,6 +18,7 @@ import (
 // @Success		200	{object}  apitypes.SuccessResponse
 // @Failure		400	{object}	apitypes.ErrorResponse "Invalid request"
 // @Failure		404	{object}	apitypes.ErrorResponse "Node not found"
+// @Failure		409	{object}	apitypes.ErrorResponse "Node name is ambiguous"
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router		/proxmox/lxc/:node/:vmid/start [post]
 func Start(c *gin.Context) {
@@ -27,9 +28,8 @@ func Start(c *gin.Context) {
 		return
 	}
 
-	node, ok := proxmox.Nodes.Get(req.Node)
+	node, ok := nodeFromRequest(c, req.Node)
 	if !ok {
-		c.JSON(http.StatusNotFound, apitypes.Error("node not found"))
 		return
 	}
 

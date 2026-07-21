@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/luthermonson/go-proxmox"
+	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
 
@@ -26,6 +27,8 @@ type Client struct {
 
 	Version *proxmox.Version
 	BaseURL *url.URL
+	nodesMu sync.RWMutex
+	nodes   map[string]*Node
 	// id -> resource; id: lxc/<vmid> or qemu/<vmid>
 	resources   map[string]*VMResource
 	resourcesMu sync.RWMutex
@@ -40,7 +43,6 @@ type VMResource struct {
 
 var (
 	ErrResourceNotFound = errors.New("resource not found")
-	ErrNoResources      = errors.New("no resources")
 )
 
 const lxcIPRefreshInterval = 30 * time.Second
@@ -48,6 +50,7 @@ const lxcIPRefreshInterval = 30 * time.Second
 func NewClient(baseURL string, opts ...proxmox.Option) *Client {
 	return &Client{
 		Client:    proxmox.NewClient(baseURL, opts...),
+		nodes:     make(map[string]*Node),
 		resources: make(map[string]*VMResource),
 	}
 }
@@ -69,9 +72,19 @@ func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
 	}
 	c.Cluster = cluster
 
-	for _, node := range c.Cluster.Nodes {
-		Nodes.Add(NewNode(c, node.Name, node.ID))
+	nodePool := FromCtx(ctx)
+	if nodePool == nil {
+		return ErrNodePoolUnavailable
 	}
+	nodes := make(map[string]*Node, len(c.Cluster.Nodes))
+	for _, nodeInfo := range c.Cluster.Nodes {
+		node := NewNode(c, nodeInfo.Name, nodeInfo.ID)
+		nodes[node.name] = node
+	}
+	c.nodesMu.Lock()
+	c.nodes = nodes
+	c.nodesMu.Unlock()
+	nodePool.replaceProvider(c.Client.GetBaseURL(), nodes)
 	if cluster.Name == "" && len(c.Cluster.Nodes) == 1 {
 		cluster.Name = c.Cluster.Nodes[0].Name
 	}
@@ -89,6 +102,9 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 	c.resourcesMu.RLock()
 	oldResources := maps.Clone(c.resources)
 	c.resourcesMu.RUnlock()
+	c.nodesMu.RLock()
+	nodes := maps.Clone(c.nodes)
+	c.nodesMu.RUnlock()
 
 	now := time.Now()
 	vmResources := make([]*VMResource, len(resourcesSlice))
@@ -96,7 +112,7 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 		oldResource := oldResources[resource.ID]
 		var ips []net.IP
 		var fetchedAt time.Time
-		if oldResource != nil {
+		if oldResource != nil && oldResource.Status == resource.Status {
 			ips = slices.Clone(oldResource.IPs)
 			fetchedAt = oldResource.IPsFetchedAt
 		}
@@ -106,16 +122,18 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 			IPsFetchedAt:    fetchedAt,
 		}
 	}
-	var errs errgroup.Group
+	var workers errgroup.Group
+	lookupErrs := gperr.NewGroup("failed to refresh proxmox resource IPs")
 	limit := min(runtime.GOMAXPROCS(0), maxConcurrentResourceLookups)
-	errs.SetLimit(limit)
+	workers.SetLimit(limit)
 	for i, resource := range resourcesSlice {
 		vmResource := vmResources[i]
 		oldResource := oldResources[resource.ID]
-		errs.Go(func() error {
-			node, ok := Nodes.Get(resource.Node)
+		workers.Go(func() error {
+			node, ok := nodes[resource.Node]
 			if !ok {
-				return fmt.Errorf("node %s not found", resource.Node)
+				lookupErrs.Addf("%s: node %s not found", resource.ID, resource.Node)
+				return nil
 			}
 			vmid, ok := strings.CutPrefix(resource.ID, "lxc/")
 			if !ok {
@@ -123,7 +141,8 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 			}
 			vmidInt, err := strconv.Atoi(vmid)
 			if err != nil {
-				return fmt.Errorf("invalid resource id %s: %w", resource.ID, err)
+				lookupErrs.Add(fmt.Errorf("invalid resource id %s: %w", resource.ID, err))
+				return nil
 			}
 
 			if oldResource != nil &&
@@ -134,23 +153,22 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 
 			ips, err := node.LXCGetIPsWithStatus(ctx, vmidInt, resource.Status)
 			if err != nil {
-				return fmt.Errorf("failed to get ips for resource %s: %w", resource.ID, err)
+				lookupErrs.Add(fmt.Errorf("%s: %w", resource.ID, err))
+				return nil
 			}
 			vmResource.IPs = ips
 			vmResource.IPsFetchedAt = now
 			return nil
 		})
 	}
-	if err := errs.Wait(); err != nil {
-		return err
-	}
+	_ = workers.Wait()
 	c.resourcesMu.Lock()
 	clear(c.resources)
 	for i, resource := range resourcesSlice {
 		c.resources[resource.ID] = vmResources[i]
 	}
 	c.resourcesMu.Unlock()
-	return nil
+	return lookupErrs.Wait().Error()
 }
 
 // GetResource gets a resource by kind and id.
