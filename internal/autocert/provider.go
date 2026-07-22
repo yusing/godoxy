@@ -586,7 +586,7 @@ func (p *Provider) registerACME() error {
 		reg, err = client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
 			TermsOfServiceAgreed: true,
 			Kid:                  p.cfg.EABKid,
-			HmacEncoded:          p.cfg.EABHmac,
+			HmacEncoded:          p.cfg.EABHmac.String(),
 		})
 	} else {
 		reg, err = client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})

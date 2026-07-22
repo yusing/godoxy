@@ -48,7 +48,7 @@ type Config struct {
     CADirURL    string                       // Custom ACME CA directory
     CACerts     []string                     // Custom CA certificates
     EABKid      string                       // External Account Binding Key ID
-    EABHmac     string                       // External Account Binding HMAC
+    EABHmac     strutils.Redacted            // External Account Binding HMAC
     CertificateKeyType string                // ACME-issued cert key: EC256 (default), EC384, RSA2048, …
 }
 

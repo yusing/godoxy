@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/dnsproviders"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 // TestACMEServer implements a minimal ACME server for testing with request tracking.
@@ -518,7 +519,7 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 			ACMEKeyPath: "certs/stepca-eab-test-acme.key",
 			HTTPClient:  acmeServer.httpClient(),
 			EABKid:      "kid-123",
-			EABHmac:     base64.RawURLEncoding.EncodeToString([]byte("secret")),
+			EABHmac:     strutils.Redacted(base64.RawURLEncoding.EncodeToString([]byte("secret"))),
 		}
 
 		err := error(cfg.Validate())

@@ -43,8 +43,8 @@ type (
 		CACerts  []string `json:"ca_certs,omitempty"`
 
 		// EAB
-		EABKid  string `json:"eab_kid,omitempty" validate:"required_with=EABHmac"`
-		EABHmac string `json:"eab_hmac,omitempty" validate:"required_with=EABKid"` // base64 encoded
+		EABKid  string            `json:"eab_kid,omitempty" validate:"required_with=EABHmac"`
+		EABHmac strutils.Redacted `json:"eab_hmac,omitempty" validate:"required_with=EABKid"` // base64 encoded
 
 		// CertificateKeyType is the private key algorithm for ACME-issued TLS certificates (lego Certificate.KeyType).
 		// Default is EC256. Use RSA2048 (or rsa2048) for clients that do not support ECDSA certificates.

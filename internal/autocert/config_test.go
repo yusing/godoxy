@@ -1,7 +1,9 @@
 package autocert_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/go-acme/lego/v4/certcrypto"
@@ -10,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/autocert"
 	"github.com/yusing/godoxy/internal/dnsproviders"
 	"github.com/yusing/godoxy/internal/serialization"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 func TestEABConfigRequired(t *testing.T) {
@@ -33,6 +36,28 @@ func TestEABConfigRequired(t *testing.T) {
 			if (err != nil) != test.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, test.wantErr)
 			}
+		})
+	}
+}
+
+func TestEABHmacSerializationRedacted(t *testing.T) {
+	const secret = "eab-hmac-credential-sentinel"
+	cfg := autocert.Config{EABHmac: secret}
+
+	jsonRepr, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	yamlRepr, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+
+	redacted := strutils.Redact(secret)
+	for format, repr := range map[string][]byte{
+		"JSON": jsonRepr,
+		"YAML": yamlRepr,
+	} {
+		t.Run(format, func(t *testing.T) {
+			serialized := string(repr)
+			require.NotContains(t, serialized, secret)
+			require.True(t, strings.Contains(serialized, redacted), "serialized value should contain the redacted credential: %s", serialized)
 		})
 	}
 }

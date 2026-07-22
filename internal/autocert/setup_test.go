@@ -59,7 +59,7 @@ extra:
 	require.Equal(t, []string{"8.8.8.8"}, merged0.Resolvers)                              // inherited
 	require.Equal(t, []string{"ca.crt"}, merged0.CACerts)                                 // inherited
 	require.Equal(t, "eabKid", merged0.EABKid)                                            // inherited
-	require.Equal(t, "eabHmac", merged0.EABHmac)                                          // inherited
+	require.Equal(t, strutils.Redacted("eabHmac"), merged0.EABHmac)                       // inherited
 	require.Equal(t, cfg.HTTPClient, merged0.HTTPClient)                                  // inherited
 	require.Nil(t, merged0.Extra)
 
@@ -76,7 +76,7 @@ extra:
 	require.Equal(t, []string{"1.1.1.1"}, merged1.Resolvers)                        // overridden
 	require.Equal(t, []string{"ca2.crt"}, merged1.CACerts)                          // overridden
 	require.Equal(t, "eabKid2", merged1.EABKid)                                     // overridden
-	require.Equal(t, "eabHmac2", merged1.EABHmac)                                   // overridden
+	require.Equal(t, strutils.Redacted("eabHmac2"), merged1.EABHmac)                // overridden
 	// Inherited field:
 	require.Equal(t, cfg.HTTPClient, merged1.HTTPClient) // inherited
 	require.Nil(t, merged1.Extra)
