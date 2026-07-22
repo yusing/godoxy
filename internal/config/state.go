@@ -520,9 +520,9 @@ func (state *state) loadRouteProviders() error {
 
 	errs.Add(state.initWebUIRoute())
 
-	state.tmpLog.Info().Msg(results.String())
+	state.logLoadedRouteProviders(results.String())
 	state.printRoutesByProvider(lenLongestName)
-	state.printState()
+	state.logStartupSummary()
 	return errs.Wait().Error()
 }
 
@@ -686,8 +686,46 @@ func (state *state) printRoutesByProvider(lenLongestName int) {
 	}
 }
 
-func (state *state) printState() {
-	state.tmpLog.Info().Msg("active config:")
-	yamlRepr, _ := yaml.Marshal(state.Config)
-	state.tmpLog.Info().Msgf("%s", yamlRepr) // prevent copying when casting to string
+func (state *state) logLoadedRouteProviders(message string) {
+	numRoutes := 0
+	for _, p := range state.providers.Range {
+		numRoutes += p.NumRoutes()
+	}
+
+	state.tmpLog.Info().
+		Int("route_providers", state.providers.Size()).
+		Int("routes", numRoutes).
+		Msg(message)
+}
+
+func (state *state) logStartupSummary() {
+	enabledSubsystems := make([]string, 0, 8)
+	if state.ACL.Valid() {
+		enabledSubsystems = append(enabledSubsystems, "acl")
+	}
+	if state.autocertProvider != nil {
+		enabledSubsystems = append(enabledSubsystems, "autocert")
+	}
+	if len(state.Config.Entrypoint.Middlewares) > 0 {
+		enabledSubsystems = append(enabledSubsystems, "entrypoint_middlewares")
+	}
+	if state.Config.Entrypoint.AccessLog != nil {
+		enabledSubsystems = append(enabledSubsystems, "access_log")
+	}
+	if len(state.Config.InboundMTLSProfiles) > 0 {
+		enabledSubsystems = append(enabledSubsystems, "inbound_mtls")
+	}
+	if state.notifDispatcher != nil {
+		enabledSubsystems = append(enabledSubsystems, "notifications")
+	}
+	if state.Config.Providers.MaxMind != nil {
+		enabledSubsystems = append(enabledSubsystems, "maxmind")
+	}
+	if len(state.Config.Providers.Proxmox) > 0 {
+		enabledSubsystems = append(enabledSubsystems, "proxmox")
+	}
+
+	state.tmpLog.Info().
+		Strs("enabled_subsystems", enabledSubsystems).
+		Msg("startup configuration summary")
 }

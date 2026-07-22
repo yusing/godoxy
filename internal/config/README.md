@@ -258,8 +258,8 @@ for _, p := range config.GetState().IterProviders() {
 
 - Configuration parsing and validation errors
 - Provider initialization results
-- Route loading summary
-- Full configuration dump (at debug level)
+- Route provider names, route counts, total route metrics, and validated route endpoints
+- Allowlisted startup summary of enabled subsystems
 
 ### Metrics
 
@@ -270,7 +270,8 @@ No metrics are currently exposed.
 - Configuration file permissions should be restricted (contains secrets)
 - TLS certificates are loaded from files specified in config
 - Agent credentials are passed via configuration
-- No secrets are logged (except in debug mode with full config dump)
+- Startup diagnostics never serialize or recursively traverse the configuration object
+- Credential values are excluded from startup diagnostics at every log level
 
 ### Built-in WebUI route
 
