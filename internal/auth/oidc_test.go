@@ -3,19 +3,16 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/yusing/godoxy/internal/common"
 	"golang.org/x/oauth2"
-	"golang.org/x/time/rate"
 
 	expect "github.com/yusing/goutils/testing"
 )
@@ -24,40 +21,14 @@ import (
 func setupMockOIDC(t *testing.T) {
 	t.Helper()
 
-	provider := (&oidc.ProviderConfig{}).NewProvider(t.Context())
-	defaultAuth = &OIDCProvider{
-		oauthConfig: &oauth2.Config{
-			ClientID:     "test-client",
-			ClientSecret: "test-secret",
-			RedirectURL:  "http://localhost/callback",
-			Endpoint: oauth2.Endpoint{
-				AuthURL:  "http://mock-provider/auth",
-				TokenURL: "http://mock-provider/token",
-			},
-			Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
-		},
-		endSessionURL: expect.Must(url.Parse("http://mock-provider/logout")),
-		oidcProvider:  provider,
-		oidcVerifier: provider.Verifier(&oidc.Config{
-			ClientID: "test-client",
-		}),
-		allowedUsers:  []string{"test-user"},
-		allowedGroups: []string{"test-group1", "test-group2"},
-		rateLimit:     rate.NewLimiter(rate.Every(common.OIDCRateLimitPeriod), common.OIDCRateLimit),
-	}
-}
-
-// discoveryDocument returns a mock OIDC discovery document.
-func discoveryDocument(t *testing.T, server *httptest.Server) map[string]any {
-	t.Helper()
-
-	discovery := map[string]any{
-		"issuer":                 server.URL,
-		"authorization_endpoint": server.URL + "/auth",
-		"token_endpoint":         server.URL + "/token",
-	}
-
-	return discovery
+	provider := setupProvider(t)
+	defaultAuth = expect.Must(NewOIDCProvider(
+		provider.server.URL,
+		clientID,
+		"test-secret",
+		[]string{"test-user"},
+		[]string{"test-group1", "test-group2"},
+	))
 }
 
 const (
@@ -66,19 +37,17 @@ const (
 )
 
 type provider struct {
-	ts       *httptest.Server
+	server   *httptest.Server
 	key      *rsa.PrivateKey
 	verifier *oidc.IDTokenVerifier
 }
 
-func (j *provider) SignClaims(t *testing.T, claims jwt.Claims) string {
+func (j *provider) SignClaims(t *testing.T, claims map[string]any) string {
 	t.Helper()
 
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = keyID
-	signed, err := token.SignedString(j.key)
+	rawClaims, err := json.Marshal(claims)
 	expect.NoError(t, err)
-	return signed
+	return oidctest.SignIDToken(j.key, keyID, oidc.RS256, string(rawClaims))
 }
 
 func setupProvider(t *testing.T) *provider {
@@ -88,49 +57,28 @@ func setupProvider(t *testing.T) *provider {
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	expect.NoError(t, err)
 
-	// Build the matching public JWK that will be served by the endpoint.
-	jwk := buildRSAJWK(t, &privKey.PublicKey, keyID)
+	mockServer := &oidctest.Server{
+		PublicKeys: []oidctest.PublicKey{
+			{
+				PublicKey: privKey.Public(),
+				KeyID:     keyID,
+				Algorithm: oidc.RS256,
+			},
+		},
+	}
+	server := httptest.NewServer(mockServer)
+	t.Cleanup(server.Close)
+	mockServer.SetIssuer(server.URL)
 
-	// Start a test server that serves the JWKS endpoint.
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/.well-known/jwks.json":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"keys": []any{jwk},
-			})
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(ts.Close)
-
-	// Create a test OIDCProvider.
-	providerCtx := oidc.ClientContext(t.Context(), ts.Client())
-	keySet := oidc.NewRemoteKeySet(providerCtx, ts.URL+"/.well-known/jwks.json")
+	oidcProvider, err := oidc.NewProvider(t.Context(), server.URL)
+	expect.NoError(t, err)
 
 	return &provider{
-		ts:  ts,
-		key: privKey,
-		verifier: oidc.NewVerifier(ts.URL, keySet, &oidc.Config{
-			ClientID: clientID, // matches audience in the token
+		server: server,
+		key:    privKey,
+		verifier: oidcProvider.Verifier(&oidc.Config{
+			ClientID: clientID,
 		}),
-	}
-}
-
-// buildRSAJWK is a helper to construct a minimal JWK for the JWKS endpoint.
-func buildRSAJWK(t *testing.T, pub *rsa.PublicKey, kid string) map[string]any {
-	t.Helper()
-
-	nBytes := pub.N.Bytes()
-	eBytes := []byte{0x01, 0x00, 0x01} // Usually 65537
-
-	return map[string]any{
-		"kty": "RSA",
-		"alg": "RS256",
-		"use": "sig",
-		"kid": kid,
-		"n":   base64.RawURLEncoding.EncodeToString(nBytes),
-		"e":   base64.RawURLEncoding.EncodeToString(eBytes),
 	}
 }
 
@@ -241,17 +189,7 @@ func TestOIDCCallbackHandler(t *testing.T) {
 }
 
 func TestInitOIDC(t *testing.T) {
-	setupMockOIDC(t)
-	// Create a test server that serves the discovery document
-	var server *httptest.Server
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		expect.NoError(t, json.NewEncoder(w).Encode(discoveryDocument(t, server)))
-	})
-	server = httptest.NewServer(mux)
-	t.Cleanup(server.Close)
-	t.Cleanup(cleanup)
+	provider := setupProvider(t)
 
 	tests := []struct {
 		name          string
@@ -270,7 +208,7 @@ func TestInitOIDC(t *testing.T) {
 		},
 		{
 			name:         "Success - Valid configuration with users",
-			issuerURL:    server.URL,
+			issuerURL:    provider.server.URL,
 			clientID:     "client_id",
 			clientSecret: "client_secret",
 			allowedUsers: []string{"user1", "user2"},
@@ -278,7 +216,7 @@ func TestInitOIDC(t *testing.T) {
 		},
 		{
 			name:          "Success - Valid configuration with groups",
-			issuerURL:     server.URL,
+			issuerURL:     provider.server.URL,
 			clientID:      "client_id",
 			clientSecret:  "client_secret",
 			allowedGroups: []string{"group1", "group2"},
@@ -286,7 +224,7 @@ func TestInitOIDC(t *testing.T) {
 		},
 		{
 			name:          "Success - Valid configuration with users, groups and logout URL",
-			issuerURL:     server.URL,
+			issuerURL:     provider.server.URL,
 			clientID:      "client_id",
 			clientSecret:  "client_secret",
 			logoutURL:     "https://example.com/logout",
@@ -320,14 +258,14 @@ func TestCheckToken(t *testing.T) {
 		name          string
 		allowedUsers  []string
 		allowedGroups []string
-		claims        jwt.Claims
+		claims        map[string]any
 		wantErr       error
 	}{
 		{
 			name:         "Success - Valid token with allowed user",
 			allowedUsers: []string{"user1"},
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -337,8 +275,8 @@ func TestCheckToken(t *testing.T) {
 		{
 			name:          "Success - Valid token with allowed group",
 			allowedGroups: []string{"group1"},
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -348,8 +286,8 @@ func TestCheckToken(t *testing.T) {
 		{
 			name:         "Success - Server omits groups, but user is allowed",
 			allowedUsers: []string{"user1"},
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -358,8 +296,8 @@ func TestCheckToken(t *testing.T) {
 		{
 			name:          "Success - Server omits preferred_username, but group is allowed",
 			allowedGroups: []string{"group1"},
-			claims: jwt.MapClaims{
-				"iss":    provider.ts.URL,
+			claims: map[string]any{
+				"iss":    provider.server.URL,
 				"aud":    clientID,
 				"exp":    time.Now().Add(time.Hour).Unix(),
 				"groups": []string{"group1"},
@@ -369,8 +307,8 @@ func TestCheckToken(t *testing.T) {
 			name:          "Success - Valid token with allowed user and group",
 			allowedUsers:  []string{"user1"},
 			allowedGroups: []string{"group1"},
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -381,8 +319,8 @@ func TestCheckToken(t *testing.T) {
 			name:          "Error - User not allowed",
 			allowedUsers:  []string{"user2", "user3"},
 			allowedGroups: []string{"group2", "group3"},
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -392,7 +330,7 @@ func TestCheckToken(t *testing.T) {
 		},
 		{
 			name: "Error - Server returns incorrect issuer",
-			claims: jwt.MapClaims{
+			claims: map[string]any{
 				"iss":                "https://example.com",
 				"aud":                clientID,
 				"exp":                time.Now().Add(time.Hour).Unix(),
@@ -403,8 +341,8 @@ func TestCheckToken(t *testing.T) {
 		},
 		{
 			name: "Error - Server returns incorrect audience",
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                "some-other-audience",
 				"exp":                time.Now().Add(time.Hour).Unix(),
 				"preferred_username": "user1",
@@ -414,8 +352,8 @@ func TestCheckToken(t *testing.T) {
 		},
 		{
 			name: "Error - Server returns expired token",
-			claims: jwt.MapClaims{
-				"iss":                provider.ts.URL,
+			claims: map[string]any{
+				"iss":                provider.server.URL,
 				"aud":                clientID,
 				"exp":                time.Now().Add(-time.Hour).Unix(),
 				"preferred_username": "user1",

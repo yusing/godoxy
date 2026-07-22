@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/godoxy/internal/api"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
@@ -95,6 +96,9 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to initialize authentication")
 	}
 	rules.InitAuthHandler(auth.AuthOrProceed)
+	if err := api.RegisterHandlers(); err != nil {
+		log.Fatal().Err(err).Msg("failed to register API handlers")
+	}
 
 	listenDebugServer()
 

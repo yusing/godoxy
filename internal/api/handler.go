@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 
@@ -167,13 +168,34 @@ func NewHandler(requireAuth bool) *gin.Engine {
 	return r
 }
 
-func init() {
-	if !rules.RegisterHandler("api", NewHandler(true)) {
-		panic("failed to register api handler")
+// RegisterHandlers installs the API handlers used by route rules.
+// Authentication must be initialized before calling this function because
+// NewHandler fixes its route set and middleware chain at construction time.
+func RegisterHandlers() error {
+	specs := [...]struct {
+		name        string
+		requireAuth bool
+	}{
+		{name: "api", requireAuth: true},
+		{name: "local_api", requireAuth: false},
 	}
-	if !rules.RegisterHandler("local_api", NewHandler(false)) {
-		panic("failed to register local_api handler")
+
+	for _, spec := range specs {
+		if _, exists := rules.GetHandler(spec.name); exists {
+			return fmt.Errorf("api rule handler %q is already registered", spec.name)
+		}
 	}
+
+	for i, spec := range specs {
+		if rules.RegisterHandler(spec.name, NewHandler(spec.requireAuth)) {
+			continue
+		}
+		for _, registered := range specs[:i] {
+			rules.ReplaceHandler(registered.name, nil)
+		}
+		return fmt.Errorf("register API rule handler %q", spec.name)
+	}
+	return nil
 }
 
 func NoCache() gin.HandlerFunc {
