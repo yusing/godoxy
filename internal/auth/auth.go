@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/yusing/godoxy/internal/common"
@@ -8,8 +9,17 @@ import (
 
 var defaultAuth Provider
 
+var errMissingUserPassCredentials = errors.New(
+	"GODOXY_API_USER and GODOXY_API_PASSWORD must be set when authentication is enabled without OIDC",
+)
+
 // Initialize sets up authentication providers.
 func Initialize() error {
+	// Validate before IsEnabled: omitting the JWT secret is not an explicit
+	// request to disable authentication.
+	if err := validateUserPassCredentials(); err != nil {
+		return err
+	}
 	if !IsEnabled() {
 		return nil
 	}
@@ -23,6 +33,16 @@ func Initialize() error {
 	}
 
 	return err
+}
+
+func validateUserPassCredentials() error {
+	if common.DebugDisableAuth || IsOIDCEnabled() {
+		return nil
+	}
+	if common.APIUser == "" || common.APIPassword == "" {
+		return errMissingUserPassCredentials
+	}
+	return nil
 }
 
 func GetDefaultAuth() Provider {

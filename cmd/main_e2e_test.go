@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -94,6 +95,25 @@ func TestAuthCallbackStartupMatrix(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestStartupRejectsMissingBasicAuthCredentials(t *testing.T) {
+	address := unusedLoopbackAddresses(t, 1)[0]
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestGodoxyE2EProcess$")
+	cmd.Dir = t.TempDir()
+	cmd.Env = godoxyE2EEnvironment(godoxyE2EProcessConfig{
+		apiAddr:         address,
+		proxyAddr:       "127.0.0.1:0",
+		omitCredentials: true,
+	})
+	output, err := cmd.CombinedOutput()
+
+	require.Error(t, err, "GoDoxy started without basic-auth credentials")
+	require.NoError(t, ctx.Err(), "timed out waiting for GoDoxy to reject its configuration")
+	assert.Contains(t, string(output), "GODOXY_API_USER and GODOXY_API_PASSWORD must be set")
 }
 
 type authCallbackScope struct {
@@ -211,10 +231,11 @@ func responseBody(t *testing.T, resp *http.Response) string {
 }
 
 type godoxyE2EProcessConfig struct {
-	apiAddr   string
-	proxyAddr string
-	oidcURL   string
-	envJWTKey bool
+	apiAddr         string
+	proxyAddr       string
+	oidcURL         string
+	envJWTKey       bool
+	omitCredentials bool
 }
 
 type godoxyE2EProcess struct {
@@ -281,8 +302,6 @@ func godoxyE2EEnvironment(cfg godoxyE2EProcessConfig) []string {
 		"GODOXY_API_ADDR="+cfg.apiAddr,
 		"GODOXY_HTTP_ADDR="+cfg.proxyAddr,
 		"GODOXY_HTTPS_ADDR=127.0.0.1:0",
-		"GODOXY_API_USER="+e2eUser,
-		"GODOXY_API_PASSWORD="+e2ePassword,
 		"GODOXY_API_JWT_SECURE=false",
 		"GODOXY_DEBUG_DISABLE_AUTH=false",
 		"GODOXY_FRONTEND_ALIASES="+e2eRuleHost,
@@ -290,6 +309,12 @@ func godoxyE2EEnvironment(cfg godoxyE2EProcessConfig) []string {
 		"GODOXY_DEBUG=false",
 		"GODOXY_TRACE=false",
 	)
+	if !cfg.omitCredentials {
+		env = append(env,
+			"GODOXY_API_USER="+e2eUser,
+			"GODOXY_API_PASSWORD="+e2ePassword,
+		)
+	}
 	if cfg.envJWTKey {
 		key := base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
 		env = append(env, "GODOXY_API_JWT_SECRET="+key)

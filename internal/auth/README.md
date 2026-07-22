@@ -67,7 +67,7 @@ type UserPassAuth struct {
 func Initialize() error
 ```
 
-Sets up authentication providers based on environment configuration. Returns error if OIDC issuer is configured but cannot be reached.
+Sets up authentication providers based on environment configuration. Returns an error when username/password authentication is selected without both `API_USER` and `API_PASSWORD`, or when an OIDC issuer is configured but cannot be reached.
 
 ```go
 func IsEnabled() bool
@@ -205,8 +205,8 @@ sequenceDiagram
 | ------------------------ | ----------------------------------------------------------- |
 | `DEBUG_DISABLE_AUTH`     | Set to "true" to disable auth for debugging                 |
 | `API_JWT_SECRET`         | Secret key for JWT token validation (enables userpass auth) |
-| `API_USER`               | Username for userpass authentication                        |
-| `API_PASSWORD`           | Password for userpass authentication                        |
+| `API_USER`               | Required username for userpass authentication               |
+| `API_PASSWORD`           | Required password for userpass authentication               |
 | `API_JWT_TOKEN_TTL`      | Token TTL duration (default: 24h)                           |
 | `OIDC_ISSUER_URL`        | OIDC provider URL (enables OIDC)                            |
 | `OIDC_CLIENT_ID`         | OIDC client ID                                              |
@@ -221,6 +221,8 @@ sequenceDiagram
 ### Hot-reloading
 
 Authentication configuration requires restart. No dynamic reconfiguration is supported.
+
+When authentication is enabled and `OIDC_ISSUER_URL` is empty, startup requires both `API_USER` and `API_PASSWORD`. Neither credential has a default. OIDC-only setups and setups with `DEBUG_DISABLE_AUTH=true` do not require these fields.
 
 ## Dependency and Integration Map
 

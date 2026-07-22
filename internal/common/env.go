@@ -41,8 +41,8 @@ var (
 	APIJWTSecure   = env.GetEnvBool("API_JWT_SECURE", true)
 	APIJWTSecret   = decodeJWTKey(env.GetEnvString("API_JWT_SECRET", ""))
 	APIJWTTokenTTL = env.GetEnvDuation("API_JWT_TOKEN_TTL", 24*time.Hour)
-	APIUser        = env.GetEnvString("API_USER", "admin")
-	APIPassword    = env.GetEnvString("API_PASSWORD", "password")
+	APIUser        = env.GetEnvString("API_USER", "")
+	APIPassword    = env.GetEnvString("API_PASSWORD", "")
 
 	APISkipOriginCheck = env.GetEnvBool("API_SKIP_ORIGIN_CHECK", false) // skip this in UI Demo
 
