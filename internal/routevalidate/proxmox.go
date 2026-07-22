@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	config "github.com/yusing/godoxy/internal/config/types"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
@@ -17,7 +18,8 @@ import (
 
 // ResolveProxmox applies explicit or inferred Proxmox metadata to a route and
 // its idlewatcher config without contacting the Proxmox API.
-func ResolveProxmox(r *route.Route) {
+func ResolveProxmox(r *route.Route) proxmox.DiscoveryKind {
+	var discovery proxmox.DiscoveryKind
 	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 		r.Proxmox = &proxmox.NodeConfig{
 			Node: r.Idlewatcher.Proxmox.Node,
@@ -44,7 +46,7 @@ func ResolveProxmox(r *route.Route) {
 					r.Proxmox.Node = nodeName
 					r.Proxmox.VMID = &zero
 					r.Proxmox.VMName = ""
-					log.Info().EmbedObject(r).Msg("found proxmox node")
+					discovery = proxmox.DiscoveryNode
 					break
 				}
 
@@ -57,18 +59,18 @@ func ResolveProxmox(r *route.Route) {
 					r.Proxmox.Node = resource.Node
 					r.Proxmox.VMID = &vmid
 					r.Proxmox.VMName = resource.Name
-					log.Info().EmbedObject(r).Msg("found proxmox resource")
+					discovery = proxmox.DiscoveryResource
 					break
 				}
 			}
 		}
 		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
-			log.Warn().EmbedObject(r).Msg("no proxmox node / resource found")
+			loadLogger().Warn().EmbedObject(r).Msg("no proxmox node / resource found")
 		}
 	}
 
 	if r.Proxmox == nil || r.Idlewatcher == nil {
-		return
+		return discovery
 	}
 	r.Idlewatcher.Proxmox = &idlewatcher.ProxmoxConfig{
 		Node: r.Proxmox.Node,
@@ -76,27 +78,28 @@ func ResolveProxmox(r *route.Route) {
 	if r.Proxmox.VMID != nil {
 		r.Idlewatcher.Proxmox.VMID = *r.Proxmox.VMID
 	}
+	return discovery
 }
 
-func validateProxmox(r *route.Route) {
-	l := log.With().EmbedObject(r).Logger()
+func validateProxmox(r *route.Route) bool {
+	l := loadLogger().With().EmbedObject(r).Logger()
 
 	nodeName := r.Proxmox.Node
 	vmid := r.Proxmox.VMID
 	if nodeName == "" || vmid == nil {
 		l.Error().Msg("node (proxmox node name) is required")
-		return
+		return false
 	}
 
 	workingState := config.WorkingState.Load()
 	if workingState == nil {
 		l.Error().Msg("proxmox node pool is unavailable")
-		return
+		return false
 	}
 	node, err := proxmox.NodeFromCtx(workingState.Context(), nodeName)
 	if err != nil {
 		l.Error().Err(err).Msgf("failed to resolve proxmox node %s", nodeName)
-		return
+		return false
 	}
 
 	// Node-level route (VMID = 0)
@@ -114,7 +117,7 @@ func validateProxmox(r *route.Route) {
 		res, err := node.Client().GetResource("lxc", *vmid)
 		if err != nil { // ErrResourceNotFound
 			l.Error().Err(err).Msgf("failed to get resource %d", *vmid)
-			return
+			return false
 		}
 
 		r.Proxmox.VMName = res.Name
@@ -123,44 +126,52 @@ func validateProxmox(r *route.Route) {
 			containerName := res.Name
 			// get ip addresses of the vmid
 
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(workingState.Context(), 5*time.Second)
 			defer cancel()
 
 			ips := res.IPs
 			if len(ips) == 0 {
 				l.Warn().Msgf("no ip addresses found for %s, make sure you have set static ip address for container instead of dhcp", containerName)
-				return
+				return false
 			}
 
-			l.Info().Str("container", containerName).Msg("checking if container is running")
 			running, err := node.LXCIsRunning(ctx, *vmid)
 			if err != nil {
 				l.Error().Err(err).Msgf("failed to check container state")
-				return
+				return false
 			}
 
 			if !running {
 				l.Info().Msg("starting container")
 				if err := node.LXCAction(ctx, *vmid, proxmox.LXCStart); err != nil {
 					l.Error().Err(err).Msg("failed to start container")
-					return
+					return false
 				}
 			}
 
-			l.Info().Msg("finding reachable ip addresses")
 			errs := gperr.NewBuilder("failed to find reachable ip addresses")
 			for _, ip := range ips {
 				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
 					errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
 				} else {
 					r.Host = ip.String()
-					l.Info().Msgf("using ip %s", r.Host)
 					break
 				}
 			}
 			if r.Host == route.DefaultHost {
 				l.Warn().Err(errs.Error()).Msgf("no reachable ip addresses found, tried %d IPs", len(ips))
+				return false
 			}
 		}
 	}
+	return true
+}
+
+func loadLogger() *zerolog.Logger {
+	if workingState := config.WorkingState.Load(); workingState != nil {
+		if diagnostics, ok := workingState.(config.LoadDiagnostics); ok {
+			return diagnostics.LoadLogger()
+		}
+	}
+	return &log.Logger
 }

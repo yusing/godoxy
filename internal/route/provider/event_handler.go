@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/watcher"
@@ -12,7 +13,8 @@ import (
 type EventHandler struct {
 	provider *Provider
 
-	errs gperr.Builder
+	errs               gperr.Builder
+	proxmoxDiscoveries []proxmox.Discovery
 }
 
 func (p *Provider) newEventHandler() *EventHandler {
@@ -88,7 +90,9 @@ func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 	err := handler.provider.startRoute(parent, route)
 	if err != nil {
 		handler.errs.AddSubjectf(err, "add")
+		return
 	}
+	handler.recordProxmoxDiscovery(route)
 }
 
 func (handler *EventHandler) Remove(route *route.Route) {
@@ -100,11 +104,26 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 	err := handler.provider.startRoute(parent, newRoute)
 	if err != nil {
 		handler.errs.AddSubjectf(err, "update")
+		return
 	}
+	handler.recordProxmoxDiscovery(newRoute)
 }
 
 func (handler *EventHandler) Log() {
 	if err := handler.errs.Error(); err != nil {
 		handler.provider.Logger().Error().Msg(err.Error())
+	}
+	if len(handler.proxmoxDiscoveries) == 0 {
+		return
+	}
+	if handler.provider.diagnostics == nil {
+		return
+	}
+	handler.provider.diagnostics.LogProxmoxDiscoveries(handler.proxmoxDiscoveries)
+}
+
+func (handler *EventHandler) recordProxmoxDiscovery(rt *route.Route) {
+	if discovery, ok := rt.ProxmoxDiscovery(); ok {
+		handler.proxmoxDiscoveries = append(handler.proxmoxDiscoveries, discovery)
 	}
 }

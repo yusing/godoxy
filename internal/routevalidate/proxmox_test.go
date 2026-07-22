@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	config "github.com/yusing/godoxy/internal/config/types"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
@@ -43,4 +44,20 @@ func TestResolveProxmoxUsesExplicitIdlewatcherBindingForRoute(t *testing.T) {
 
 	require.Equal(t, "pve", r.Proxmox.Node)
 	require.Equal(t, uint64(119), *r.Proxmox.VMID)
+}
+
+func TestFailedProxmoxValidationDoesNotMarkDiscovery(t *testing.T) {
+	require.Nil(t, config.WorkingState.Load())
+
+	vmid := uint64(147)
+	r := &route.Route{
+		Alias:   "radarr",
+		Proxmox: &proxmox.NodeConfig{Node: "pve", VMID: &vmid},
+	}
+	if validateProxmox(r) {
+		r.MarkProxmoxDiscovered(proxmox.DiscoveryResource)
+	}
+
+	_, ok := r.ProxmoxDiscovery()
+	require.False(t, ok)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routing"
@@ -26,9 +27,10 @@ type (
 	Provider struct {
 		ProviderImpl
 
-		t        routing.ProviderType
-		routes   route.Routes
-		routesMu sync.RWMutex
+		t           routing.ProviderType
+		routes      route.Routes
+		routesMu    sync.RWMutex
+		diagnostics config.LoadDiagnostics
 
 		watcher W.Watcher
 	}
@@ -99,6 +101,9 @@ func (p *Provider) MarshalText() ([]byte, error) {
 
 // Start implements task.TaskStarter.
 func (p *Provider) Start(parent task.Parent) error {
+	if state := config.WorkingState.Load(); state != nil {
+		p.diagnostics, _ = state.(config.LoadDiagnostics)
+	}
 	errs := gperr.NewGroup("routes error")
 
 	t := parent.Subtask("provider."+p.String(), false)

@@ -31,7 +31,7 @@ type State interface {
 	NumProviders() int
 	StartProviders() error
 
-	FlushTmpLog()
+	FlushTmpLog() error
 
 	StartAPIServers()
 	StartMetrics()

@@ -493,7 +493,7 @@ func (s *verifyTestState) IterProviders() iter.Seq2[string, routing.Provider] {
 }
 func (s *verifyTestState) NumProviders() int     { return len(s.providers) }
 func (s *verifyTestState) StartProviders() error { return nil }
-func (s *verifyTestState) FlushTmpLog()          {}
+func (s *verifyTestState) FlushTmpLog() error    { return nil }
 func (s *verifyTestState) StartAPIServers()      {}
 func (s *verifyTestState) StartMetrics()         {}
 

@@ -68,6 +68,7 @@ func Load() error {
 	if initErr != nil {
 		// if error is critical, notify and return it without starting providers
 		if criticalErr, ok := errors.AsType[CriticalError](initErr); ok {
+			state.discardTmpLog()
 			logNotifyError("init", criticalErr.err)
 			return criticalErr
 		}
@@ -90,7 +91,9 @@ func Load() error {
 	SetState(state)
 
 	// flush temporary log
-	state.FlushTmpLog()
+	if err := state.FlushTmpLog(); err != nil {
+		logNotifyWarn("diagnostics", err)
+	}
 	return nil
 }
 
@@ -106,13 +109,16 @@ func Reload() error {
 
 	err := newState.InitFromFile(common.ConfigPath)
 	if err != nil {
+		newState.discardTmpLog()
 		newState.Task().FinishAndWait(err)
 		config.WorkingState.Store(GetState())
 		return gperr.Wrap(err, ansi.Warning("using last config"))
 	}
 
 	// flush temporary log
-	newState.FlushTmpLog()
+	if err := newState.FlushTmpLog(); err != nil {
+		logNotifyWarn("diagnostics", err)
+	}
 	notif.SetDispatcher(newState.notifDispatcher)
 
 	// cancel all current subtasks -> wait

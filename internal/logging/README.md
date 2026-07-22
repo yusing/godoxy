@@ -7,6 +7,7 @@ Structured logging capabilities for GoDoxy, including application logging, HTTP 
 This package provides structured logging for GoDoxy with three distinct subsystems:
 
 - **Application Logger**: Zerolog-based console logger with level-aware formatting
+- **Scoped Load Logger**: Synchronous, operation-owned buffering with serialized commit/discard semantics
 - **Access Logger**: HTTP request/response logging with configurable formats, filters, and destinations
 - **In-Memory Logger**: Circular buffer with WebSocket streaming for real-time log viewing
 
@@ -47,6 +48,8 @@ graph TB
     subgraph "Application Logger"
         L[logging.go] --> Z[zerolog.Logger]
         Z --> CW[ConsoleWriter]
+        CW --> SW[Serialized Process Writer]
+        BL[Scoped Buffer] -->|Flush atomically| SW
     end
 
     subgraph "Access Log Pipeline"
@@ -92,6 +95,18 @@ See [memlogger/README.md](./memlogger/README.md) for configuration options.
 - `golang.org/x/time/rate` - Error rate limiting
 
 ## Observability
+
+Configuration loads use `NewBufferedLogger` so concurrent producers write to a
+state-owned buffer. A successful load flushes the complete buffer through the
+same synchronous, serialized destination as ordinary application and subprocess
+logs; a failed load discards its pending and late records. Partial writes consume
+only the confirmed prefix for each process destination and retry only that
+destination's remainder. Persistent failures are reported before the active
+logger switches to direct passthrough, so it cannot remain silently pending.
+This prevents multiline startup summaries from
+interleaving with or overtaking server, provider, or development-tool output.
+Loggers with an explicit independent destination serialize only that destination,
+so a slow rule log file cannot block the shared process log.
 
 ### Logs
 

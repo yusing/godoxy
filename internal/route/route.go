@@ -104,7 +104,8 @@ type (
 
 		provider routing.Provider
 
-		agent *agentpool.Agent
+		agent            *agentpool.Agent
+		proxmoxDiscovery proxmox.DiscoveryKind
 
 		started      chan struct{}
 		onceStart    sync.Once
@@ -287,6 +288,27 @@ func (r *Route) ListenURL() *nettypes.URL {
 
 func (r *Route) TargetURL() *nettypes.URL {
 	return r.ProxyURL
+}
+
+func (r *Route) MarkProxmoxDiscovered(kind proxmox.DiscoveryKind) {
+	r.proxmoxDiscovery = kind
+}
+
+func (r *Route) ProxmoxDiscovery() (proxmox.Discovery, bool) {
+	if r.proxmoxDiscovery == "" || r.Proxmox == nil || r.Proxmox.VMID == nil {
+		return proxmox.Discovery{}, false
+	}
+	discovery := proxmox.Discovery{
+		Kind:   r.proxmoxDiscovery,
+		Node:   r.Proxmox.Node,
+		Alias:  r.Alias,
+		VMID:   *r.Proxmox.VMID,
+		VMName: r.Proxmox.VMName,
+	}
+	if r.ProxyURL != nil {
+		discovery.Target = r.ProxyURL.String()
+	}
+	return discovery, true
 }
 
 func (r *Route) References() []string {

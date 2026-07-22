@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/watcher"
@@ -16,6 +17,19 @@ import (
 
 type eventHandlerTestProviderImpl struct {
 	err error
+}
+
+type eventHandlerTestDiagnostics struct {
+	logger      zerolog.Logger
+	discoveries [][]proxmox.Discovery
+}
+
+func (d *eventHandlerTestDiagnostics) LoadLogger() *zerolog.Logger {
+	return &d.logger
+}
+
+func (d *eventHandlerTestDiagnostics) LogProxmoxDiscoveries(discoveries []proxmox.Discovery) {
+	d.discoveries = append(d.discoveries, discoveries)
 }
 
 func (eventHandlerTestProviderImpl) String() string { return "test-provider" }
@@ -92,4 +106,44 @@ func TestHasForceReload(t *testing.T) {
 		Type:   watcherEvents.EventTypeDocker,
 		Action: watcherEvents.ActionContainerStart,
 	}}))
+}
+
+func TestEventHandlerCollectsOnlyMarkedProxmoxDiscoveries(t *testing.T) {
+	handler := new(EventHandler)
+	vmid := uint64(147)
+	unmarked := &route.Route{
+		Alias:   "rejected",
+		Proxmox: &proxmox.NodeConfig{Node: "pve", VMID: &vmid},
+	}
+	marked := &route.Route{
+		Alias:   "successful",
+		Proxmox: &proxmox.NodeConfig{Node: "pve", VMID: &vmid},
+	}
+	marked.MarkProxmoxDiscovered(proxmox.DiscoveryResource)
+
+	handler.recordProxmoxDiscovery(unmarked)
+	handler.recordProxmoxDiscovery(marked)
+	require.Equal(t, []proxmox.Discovery{{
+		Kind:  proxmox.DiscoveryResource,
+		Node:  "pve",
+		Alias: "successful",
+		VMID:  147,
+	}}, handler.proxmoxDiscoveries)
+}
+
+func TestEventHandlerEmitsItsProxmoxDiscoveryBatch(t *testing.T) {
+	diagnostics := &eventHandlerTestDiagnostics{logger: zerolog.Nop()}
+	discoveries := []proxmox.Discovery{{
+		Kind:  proxmox.DiscoveryResource,
+		Node:  "pve",
+		Alias: "radarr",
+		VMID:  147,
+	}}
+	handler := &EventHandler{
+		provider:           &Provider{diagnostics: diagnostics},
+		proxmoxDiscoveries: discoveries,
+	}
+
+	handler.Log()
+	require.Equal(t, [][]proxmox.Discovery{discoveries}, diagnostics.discoveries)
 }

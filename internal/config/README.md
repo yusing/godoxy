@@ -68,7 +68,7 @@ type State interface {
     StartAPIServers()
     StartMetrics()
 
-    FlushTmpLog()
+    FlushTmpLog() error
 }
 ```
 
@@ -117,6 +117,17 @@ func (state *state) Init(data []byte) error
 ```
 
 Initializes state from raw YAML data. Validates, then initializes MaxMind, Proxmox, providers, AutoCert, notifications, access logger, entrypoint, and the built-in embedded WebUI route.
+
+Each load owns buffered diagnostics until its state transition is decided.
+Successful loads serialize one flush through the application log destination;
+failed loads discard both pending and late diagnostics. A persistent flush
+failure is reported and switches the active state to direct logging rather than
+leaving later diagnostics trapped in the buffer. Successfully validated
+inferred Proxmox routes carry discovery metadata on the route itself. Startup
+and watcher event batches collect only their successful routes, sort them by
+node and alias, and emit one multiline summary instead of per-resource progress
+chatter. Proxmox warnings and errors use the same load-owned logger, with the
+process logger as a fallback for standalone validation.
 
 ```go
 func (state *state) StartProviders() error

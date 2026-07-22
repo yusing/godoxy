@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/loadbalancer"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routevalidate"
@@ -62,6 +63,32 @@ func TestHomepageItemContainerControls(t *testing.T) {
 			require.Equal(t, tt.wantProxmox, item.Proxmox)
 		})
 	}
+}
+
+func TestProxmoxDiscoveryRequiresSuccessfulMark(t *testing.T) {
+	vmid := uint64(147)
+	target, err := nettypes.ParseURL("http://10.0.10.90:7878")
+	require.NoError(t, err)
+	r := &route.Route{
+		Alias:    "radarr",
+		Proxmox:  &proxmox.NodeConfig{Node: "pve", VMID: &vmid, VMName: "radarr-service"},
+		Metadata: route.Metadata{ProxyURL: target},
+	}
+
+	_, ok := r.ProxmoxDiscovery()
+	require.False(t, ok, "resolved metadata alone must not report a successful discovery")
+
+	r.MarkProxmoxDiscovered(proxmox.DiscoveryResource)
+	discovery, ok := r.ProxmoxDiscovery()
+	require.True(t, ok)
+	require.Equal(t, proxmox.Discovery{
+		Kind:   proxmox.DiscoveryResource,
+		Node:   "pve",
+		Alias:  "radarr",
+		VMID:   147,
+		VMName: "radarr-service",
+		Target: "http://10.0.10.90:7878",
+	}, discovery)
 }
 
 func TestRouteValidate(t *testing.T) {

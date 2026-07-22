@@ -1,7 +1,7 @@
 package config
 
 import (
-	"bytes"
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -65,7 +65,7 @@ type state struct {
 
 	// used for temporary logging
 	// discarded on failed reload
-	tmpLogBuf *bytes.Buffer
+	tmpLogBuf *logging.Buffer
 	tmpLog    zerolog.Logger
 }
 
@@ -82,12 +82,12 @@ func (e CriticalError) Unwrap() error {
 }
 
 func NewState() *state {
-	tmpLogBuf := bytes.NewBuffer(make([]byte, 0, 4096))
+	tmpLogBuf, tmpLog := logging.NewBufferedLogger(zerolog.InfoLevel)
 	state := &state{
 		providers: xsync.NewMap[string, routing.Provider](),
 		task:      task.RootTask("config", false),
 		tmpLogBuf: tmpLogBuf,
-		tmpLog:    logging.NewLoggerWithFixedLevel(zerolog.InfoLevel, tmpLogBuf),
+		tmpLog:    tmpLog,
 	}
 	proxmox.SetCtx(state.task, proxmox.NewNodePool())
 	return state
@@ -213,9 +213,24 @@ func (state *state) NumProviders() int {
 	return state.providers.Size()
 }
 
-func (state *state) FlushTmpLog() {
-	_, _ = state.tmpLogBuf.WriteTo(os.Stdout)
-	state.tmpLogBuf.Reset()
+func (state *state) FlushTmpLog() error {
+	firstErr := state.tmpLogBuf.Flush()
+	if firstErr == nil {
+		return nil
+	}
+	if retryErr := state.tmpLogBuf.Flush(); retryErr != nil {
+		state.tmpLogBuf.Passthrough()
+		return fmt.Errorf("flush configuration diagnostics: %w", errors.Join(firstErr, retryErr))
+	}
+	return nil
+}
+
+func (state *state) discardTmpLog() {
+	state.tmpLogBuf.Discard()
+}
+
+func (state *state) LoadLogger() *zerolog.Logger {
+	return &state.tmpLog
 }
 
 func (state *state) StartAPIServers() {
@@ -520,10 +535,115 @@ func (state *state) loadRouteProviders() error {
 
 	errs.Add(state.initWebUIRoute())
 
+	state.LogProxmoxDiscoveries(state.proxmoxDiscoveries())
 	state.logLoadedRouteProviders(results.String())
 	state.printRoutesByProvider(lenLongestName)
 	state.logStartupSummary()
 	return errs.Wait().Error()
+}
+
+func (state *state) LogProxmoxDiscoveries(discoveries []proxmox.Discovery) {
+	if len(discoveries) == 0 {
+		return
+	}
+	discoveries = slices.Clone(discoveries)
+
+	slices.SortFunc(discoveries, func(a, b proxmox.Discovery) int {
+		if a.Node != b.Node {
+			return strings.Compare(a.Node, b.Node)
+		}
+		if a.Alias != b.Alias {
+			return strings.Compare(a.Alias, b.Alias)
+		}
+		if a.Kind != b.Kind {
+			return strings.Compare(string(a.Kind), string(b.Kind))
+		}
+		return cmp.Compare(a.VMID, b.VMID)
+	})
+
+	longestName := 0
+	for _, discovery := range discoveries {
+		longestName = max(longestName, len(proxmoxDiscoveryName(discovery)))
+	}
+
+	var result strings.Builder
+	result.Grow(len(discoveries) * 64)
+	result.WriteString("discovered proxmox routes\n")
+	for start := 0; start < len(discoveries); {
+		node := discoveries[start].Node
+		end := start + 1
+		for end < len(discoveries) && discoveries[end].Node == node {
+			end++
+		}
+
+		count := end - start
+		noun := "routes"
+		if count == 1 {
+			noun = "route"
+		}
+		fmt.Fprintf(&result, "> %s %d %s:\n", diagnosticText(node, "unknown node"), count, noun)
+		for _, discovery := range discoveries[start:end] {
+			fmt.Fprintf(
+				&result,
+				"  - %-"+strconv.Itoa(longestName)+"s  %s\n",
+				proxmoxDiscoveryName(discovery),
+				proxmoxDiscoveryTarget(discovery),
+			)
+		}
+		start = end
+	}
+
+	state.tmpLog.Info().Msg(result.String())
+}
+
+type proxmoxDiscoveryRoute interface {
+	ProxmoxDiscovery() (proxmox.Discovery, bool)
+}
+
+func (state *state) proxmoxDiscoveries() []proxmox.Discovery {
+	var discoveries []proxmox.Discovery
+	for _, provider := range state.providers.Range {
+		for _, rt := range provider.IterRoutes {
+			source, ok := rt.(proxmoxDiscoveryRoute)
+			if !ok {
+				continue
+			}
+			if discovery, ok := source.ProxmoxDiscovery(); ok {
+				discoveries = append(discoveries, discovery)
+			}
+		}
+	}
+	return discoveries
+}
+
+func proxmoxDiscoveryName(discovery proxmox.Discovery) string {
+	alias := diagnosticText(discovery.Alias, "unnamed route")
+	if discovery.VMName == "" || discovery.VMName == discovery.Alias {
+		return alias
+	}
+	return fmt.Sprintf("%s (%s)", diagnosticText(discovery.VMName, "unnamed resource"), alias)
+}
+
+func proxmoxDiscoveryTarget(discovery proxmox.Discovery) string {
+	kind := diagnosticText(string(discovery.Kind), "unknown")
+	var target string
+	if discovery.Kind == proxmox.DiscoveryNode {
+		target = kind
+	} else {
+		target = fmt.Sprintf("%s %d", kind, discovery.VMID)
+	}
+	if discovery.Target != "" {
+		target += " -> " + diagnosticText(discovery.Target, "unknown target")
+	}
+	return target
+}
+
+func diagnosticText(value, placeholder string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	if value == "" {
+		return "<" + placeholder + ">"
+	}
+	return value
 }
 
 func (state *state) initWebUIRoute() error {

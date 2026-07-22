@@ -2,12 +2,15 @@ package config
 
 import (
 	"bytes"
+	"errors"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
+	"github.com/yusing/godoxy/internal/logging"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
@@ -121,4 +124,117 @@ func TestStartupDiagnosticsAllowlist(t *testing.T) {
 	} {
 		require.False(t, strings.Contains(output, secret), "startup diagnostics exposed %q", secret)
 	}
+}
+
+func TestProxmoxDiscoveryDiagnosticsAreGroupedAndFutureCompatible(t *testing.T) {
+	state := NewState()
+	t.Cleanup(func() { state.Task().Finish(nil) })
+
+	var diagnostics bytes.Buffer
+	state.tmpLog = zerolog.New(&diagnostics).Level(zerolog.InfoLevel)
+	state.LogProxmoxDiscoveries([]proxmox.Discovery{
+		{
+			Kind:   proxmox.DiscoveryResource,
+			Node:   "pve-b",
+			Alias:  "radarr",
+			VMID:   147,
+			VMName: "radarr-service",
+			Target: "http://10.0.10.90:7878",
+		},
+		{
+			Kind:   proxmox.DiscoveryNode,
+			Node:   "pve-a",
+			Alias:  "proxmox",
+			Target: "https://10.0.0.1:8006",
+		},
+		{
+			Kind:   "future-resource-kind",
+			VMID:   42,
+			VMName: "malformed\nresource",
+		},
+	})
+
+	output := diagnostics.String()
+
+	require.Equal(t, 1, strings.Count(strings.TrimSpace(output), "\n")+1, "summary must be one log record")
+	require.Contains(t, output, "discovered proxmox routes")
+	require.Contains(t, output, "> pve-a 1 route:")
+	require.Contains(t, output, "proxmox")
+	require.Contains(t, output, "node -> https://10.0.0.1:8006")
+	require.Contains(t, output, "> pve-b 1 route:")
+	require.Contains(t, output, "radarr-service (radarr)")
+	require.Contains(t, output, "resource 147 -> http://10.0.10.90:7878")
+	require.Contains(t, output, "> <unknown node> 1 route:")
+	require.Contains(t, output, "<unnamed route>")
+	require.Contains(t, output, "malformed resource (<unnamed route>)")
+	require.Contains(t, output, "future-resource-kind 42")
+	require.Less(t, strings.Index(output, "> <unknown node>"), strings.Index(output, "> pve-a"))
+	require.Less(t, strings.Index(output, "> pve-a"), strings.Index(output, "> pve-b"))
+	require.NotContains(t, output, "found proxmox resource")
+}
+
+func TestProxmoxDiscoveryDiagnosticsSkipEmptyWork(t *testing.T) {
+	state := NewState()
+	t.Cleanup(func() { state.Task().Finish(nil) })
+
+	var diagnostics bytes.Buffer
+	state.tmpLog = zerolog.New(&diagnostics).Level(zerolog.InfoLevel)
+	state.LogProxmoxDiscoveries(nil)
+	require.Empty(t, diagnostics.String())
+}
+
+func TestProxmoxDiscoveriesIncludeOnlySuccessfullyMarkedRoutes(t *testing.T) {
+	state := NewState()
+	t.Cleanup(func() { state.Task().Finish(nil) })
+
+	successful := &route.Route{Scheme: route.SchemeHTTP, Host: "successful.example", Port: route.Port{Proxy: 80}}
+	rejected := &route.Route{Scheme: route.SchemeHTTP, Host: "rejected.example", Port: route.Port{Proxy: 80}}
+	provider := provider.NewStaticProvider("discoveries", route.Routes{
+		"successful": successful,
+		"rejected":   rejected,
+	})
+	require.NoError(t, provider.LoadRoutes())
+
+	vmid := uint64(147)
+	successful.Proxmox = &proxmox.NodeConfig{Node: "pve", VMID: &vmid, VMName: "successful-vm"}
+	successful.MarkProxmoxDiscovered(proxmox.DiscoveryResource)
+	rejected.Proxmox = &proxmox.NodeConfig{Node: "pve", VMID: &vmid, VMName: "rejected-vm"}
+	state.providers.Store(provider.String(), provider)
+
+	require.Equal(t, []proxmox.Discovery{{
+		Kind:   proxmox.DiscoveryResource,
+		Node:   "pve",
+		Alias:  "successful",
+		VMID:   147,
+		VMName: "successful-vm",
+		Target: "http://successful.example:80",
+	}}, state.proxmoxDiscoveries())
+}
+
+func TestFlushTmpLogReportsPersistentFailureAndEnablesLatePassthrough(t *testing.T) {
+	output := &toggleErrorWriter{err: errors.New("diagnostic sink unavailable")}
+	logging.InitLogger(output)
+	t.Cleanup(func() { logging.InitLogger(os.Stdout) })
+
+	state := NewState()
+	t.Cleanup(func() { state.Task().Finish(nil) })
+	state.tmpLog.Info().Msg("pending diagnostics")
+
+	require.ErrorContains(t, state.FlushTmpLog(), "diagnostic sink unavailable")
+	output.err = nil
+	state.tmpLog.Info().Msg("late active diagnostic")
+	require.NotContains(t, output.String(), "pending diagnostics")
+	require.Contains(t, output.String(), "late active diagnostic")
+}
+
+type toggleErrorWriter struct {
+	bytes.Buffer
+	err error
+}
+
+func (w *toggleErrorWriter) Write(p []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
+	return w.Buffer.Write(p)
 }

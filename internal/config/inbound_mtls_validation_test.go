@@ -87,7 +87,7 @@ func (s *stubState) IterProviders() iter.Seq2[string, routing.Provider] {
 }
 func (s *stubState) NumProviders() int     { return 0 }   // no-op: test stub
 func (s *stubState) StartProviders() error { return nil } // no-op: test stub
-func (s *stubState) FlushTmpLog()          { /* no-op: test stub */ }
+func (s *stubState) FlushTmpLog() error    { return nil }
 func (s *stubState) StartAPIServers()      { /* no-op: test stub */ }
 func (s *stubState) StartMetrics()         { /* no-op: test stub */ }
 

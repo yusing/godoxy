@@ -52,10 +52,10 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 		}
 	}
 
-	ResolveProxmox(r)
+	discovery := ResolveProxmox(r)
 
-	if r.Proxmox != nil {
-		validateProxmox(r)
+	if r.Proxmox != nil && !validateProxmox(r) {
+		discovery = ""
 	}
 
 	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
@@ -157,6 +157,9 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 	r.Excluded = r.ShouldExclude()
 	if r.Excluded {
 		r.ExcludedReason = r.FindExcludedReason()
+	}
+	if discovery != "" {
+		r.MarkProxmoxDiscovered(discovery)
 	}
 	return
 }
