@@ -59,7 +59,7 @@ type (
 )
 
 const (
-	ContainerWakeTimeoutDefault = 30 * time.Second
+	ContainerWakeTimeoutDefault = 3 * time.Minute
 	ContainerStopTimeoutDefault = 1 * time.Minute
 
 	ContainerStopMethodPause ContainerStopMethod = "pause"
