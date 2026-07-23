@@ -19,6 +19,7 @@ import (
 	"github.com/yusing/godoxy/internal/route/provider"
 	"github.com/yusing/godoxy/internal/routing"
 	apitypes "github.com/yusing/goutils/apitypes"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/task"
 )
 
@@ -27,12 +28,13 @@ type VerifyNewAgentRequest struct {
 	CA               PEMPairResponse        `json:"ca"`
 	Client           PEMPairResponse        `json:"client"`
 	ContainerRuntime agent.ContainerRuntime `json:"container_runtime"`
-	AddToConfig      bool                   `json:"add_to_config,omitempty"`
+	AddToConfig      bool                   `json:"add_to_config,omitempty" extensions:"x-omitempty"`
 } // @name VerifyNewAgentRequest
 
 type VerifyNewAgentResponse struct {
-	Message string               `json:"message"`
-	Agents  []*agent.AgentConfig `json:"agents"`
+	Message    string                     `json:"message"`
+	Agents     []*agent.AgentConfig       `json:"agents"`
+	Activation routing.ProviderActivation `json:"activation"`
 } // @name VerifyNewAgentResponse
 
 var (
@@ -49,6 +51,19 @@ var (
 	}
 )
 
+func listAgentConfigs(ctx context.Context) []*agent.AgentConfig {
+	agents := agentpool.FromCtx(ctx)
+	if agents == nil {
+		return nil
+	}
+	entries := agents.List()
+	configs := make([]*agent.AgentConfig, len(entries))
+	for i, agentInfo := range entries {
+		configs[i] = agentInfo.AgentConfig
+	}
+	return configs
+}
+
 // @x-id          "verify"
 // @BasePath		/api/v1
 // @Summary		Verify a new agent
@@ -60,6 +75,7 @@ var (
 // @Success		200		{object}	VerifyNewAgentResponse
 // @Failure		400		{object}	ErrorResponse
 // @Failure		403		{object}	ErrorResponse
+// @Failure		409		{object}	ErrorResponse
 // @Failure		500		{object}	ErrorResponse
 // @Router			/agent/verify [post]
 func Verify(c *gin.Context) {
@@ -90,7 +106,21 @@ func Verify(c *gin.Context) {
 		return
 	}
 
-	nRoutesAdded, cleanupStartedAgent, err := verifyStartNewAgentFunc(c.Request.Context(), request.Host, ca, client, request.ContainerRuntime)
+	ctx := c.Request.Context()
+	runtimeState := configtypes.FromCtx(ctx)
+	coordinator := configtypes.RuntimeMutationCoordinatorFromCtx(ctx)
+	if runtimeState == nil || coordinator == nil {
+		c.JSON(http.StatusConflict, apitypes.Error("runtime unavailable", nil))
+		return
+	}
+	release, err := coordinator.BeginRuntimeMutation(runtimeState)
+	if err != nil {
+		c.JSON(http.StatusConflict, apitypes.Error("runtime changed", err))
+		return
+	}
+	defer release()
+
+	activation, cleanupStartedAgent, err := verifyStartNewAgentFunc(ctx, runtimeState, request.Host, ca, client, request.ContainerRuntime)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
 		return
@@ -119,9 +149,14 @@ func Verify(c *gin.Context) {
 		}
 	}
 
+	message := fmt.Sprintf("Added %d routes", activation.ActiveRoutes)
+	if len(activation.FailedRoutes) > 0 {
+		message = fmt.Sprintf("Added %d routes, %d failed", activation.ActiveRoutes, len(activation.FailedRoutes))
+	}
 	c.JSON(http.StatusOK, VerifyNewAgentResponse{
-		Message: fmt.Sprintf("Added %d routes", nRoutesAdded),
-		Agents:  listAgentsFunc(),
+		Message:    message,
+		Agents:     listAgentsFunc(ctx),
+		Activation: activation,
 	})
 }
 
@@ -224,40 +259,40 @@ func configAgentEntryMatchesHost(entry any, host string) bool {
 	}
 }
 
-func listAgentConfigs() []*agent.AgentConfig {
-	agents := agentpool.List()
-	configs := make([]*agent.AgentConfig, 0, len(agents))
-	for _, agentInfo := range agents {
-		configs = append(configs, agentInfo.AgentConfig)
+func verifyStartNewAgent(ctx context.Context, cfgState configtypes.State, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (routing.ProviderActivation, func(reason any), error) {
+	if cfgState == nil {
+		return routing.ProviderActivation{}, nil, errors.New("runtime state not found in request context")
 	}
-	return configs
-}
-
-func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, func(reason any), error) {
+	if cause := context.Cause(ctx); cause != nil {
+		return routing.ProviderActivation{}, nil, cause
+	}
 	var agentCfg agent.AgentConfig
 	agentCfg.Addr = host
 	agentCfg.Runtime = containerRuntime
 
 	// check if agent host exists in the config
-	cfgState := configtypes.ActiveState.Load()
+	agents := agentpool.FromCtx(cfgState.Context())
+	if agents == nil {
+		return routing.ProviderActivation{}, nil, errors.New("agent pool not initialized")
+	}
 	for _, a := range cfgState.Value().Providers.Agents {
 		if a.Addr == host {
-			return 0, nil, errAgentAlreadyExists
+			return routing.ProviderActivation{}, nil, errAgentAlreadyExists
 		}
 	}
 	// check if agent host exists in the agent pool
-	if agentpool.Has(&agentCfg) {
-		return 0, nil, errAgentAlreadyExists
+	if agents.Has(&agentCfg) {
+		return routing.ProviderActivation{}, nil, errAgentAlreadyExists
 	}
 
 	err := initAgentConfigWithCertsFunc(&agentCfg, ctx, ca.Cert, client.Cert, client.Key)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to initialize agent config: %w", err)
+		return routing.ProviderActivation{}, nil, fmt.Errorf("failed to initialize agent config: %w", err)
 	}
 
 	provider := newAgentProviderFunc(&agentCfg)
 	if _, loaded := cfgState.LoadOrStoreProvider(provider.String(), provider); loaded {
-		return 0, nil, fmt.Errorf("provider %s already exists", provider.String())
+		return routing.ProviderActivation{}, nil, fmt.Errorf("provider %s already exists", provider.String())
 	}
 
 	agentAdded := false
@@ -268,31 +303,40 @@ func verifyStartNewAgent(ctx context.Context, host string, ca agent.PEMPair, cli
 		}
 		cfgState.DeleteProvider(provider.String())
 		if agentAdded {
-			agentpool.Remove(&agentCfg)
+			agents.Remove(&agentCfg)
 		}
 	}
 
 	// agent must be added before loading routes
-	added := agentpool.Add(&agentCfg)
+	added := agents.Add(&agentCfg)
 	if !added {
 		cleanupProvider(errAgentAlreadyExists)
-		return 0, nil, errAgentAlreadyExists
+		return routing.ProviderActivation{}, nil, errAgentAlreadyExists
 	}
 	agentAdded = true
-	err = provider.LoadRoutes()
-	if err != nil {
-		cleanupProvider(err)
-		return 0, nil, fmt.Errorf("failed to load routes: %w", err)
-	}
+	loadErr := provider.LoadRoutes(ctx)
 
 	providerTaskParent = cfgState.Task().Subtask("verify_agent."+provider.String(), false)
-	err = provider.Start(providerTaskParent)
-	if err != nil {
-		if provider.NumRoutes() == 0 {
-			cleanupProvider(err)
-		}
-		return 0, nil, fmt.Errorf("failed to start routes: %w", err)
+	activation := provider.Activate(providerTaskParent)
+	// Provider.LoadRoutes can retain valid routes while returning validation
+	// errors for invalid siblings. Provider implementations normally carry
+	// those details into activation; preserve an otherwise unrepresented load
+	// failure so a zero-active result still fails closed.
+	if loadErr != nil && activation.InfrastructureError == nil && len(activation.FailedRoutes) == 0 {
+		activation.InfrastructureError = gperr.Wrap(loadErr)
+	}
+	var activationErrs []error
+	if activation.InfrastructureError != nil {
+		activationErrs = append(activationErrs, activation.InfrastructureError)
+	}
+	for _, route := range activation.FailedRoutes {
+		activationErrs = append(activationErrs, route.Err)
+	}
+	err = errors.Join(activationErrs...)
+	if err != nil && activation.ActiveRoutes == 0 {
+		cleanupProvider(err)
+		return activation, nil, fmt.Errorf("failed to start routes: %w", err)
 	}
 
-	return provider.NumRoutes(), cleanupProvider, nil
+	return activation, cleanupProvider, nil
 }

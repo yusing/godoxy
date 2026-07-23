@@ -18,9 +18,9 @@ func TestOnConfigChangeManagedConfigReloadSuppression(t *testing.T) {
 	previousReloadConfig := reloadConfig
 	reloadCalls := 0
 
-	reloadConfig = func() error {
+	reloadConfig = func() configtypes.ReloadResult {
 		reloadCalls++
-		return nil
+		return configtypes.ReloadResult{}
 	}
 	t.Cleanup(func() {
 		reloadConfig = previousReloadConfig
@@ -82,11 +82,6 @@ func TestOnConfigChangeManagedConfigReloadSuppression(t *testing.T) {
 }
 
 func TestNotificationDispatcherActivationLifecycle(t *testing.T) {
-	notif.SetDispatcher(nil)
-	t.Cleanup(func() {
-		notif.SetDispatcher(nil)
-	})
-
 	oldHits := make(chan string, 4)
 	oldServer := newNotificationTestServer(t, oldHits)
 	newHits := make(chan string, 4)
@@ -95,28 +90,26 @@ func TestNotificationDispatcherActivationLifecycle(t *testing.T) {
 	oldState := newNotificationTestState(t, oldServer.URL)
 	defer oldState.Task().FinishAndWait(nil)
 	require.NoError(t, oldState.initNotification())
-	notif.SetDispatcher(oldState.notifDispatcher)
 
 	newState := newNotificationTestState(t, newServer.URL)
 	defer newState.Task().FinishAndWait(nil)
 	require.NoError(t, newState.initNotification())
 
-	notif.Notify(&notif.LogMessage{Title: "before-activation", Body: notif.MessageBody("before-activation")})
+	notif.FromCtx(oldState.Context()).Notify(&notif.LogMessage{Title: "before-activation", Body: notif.MessageBody("before-activation")})
 	require.Equal(t, "before-activation", receiveNotification(t, oldHits))
 	requireNoNotification(t, newHits)
 
 	newState.Task().FinishAndWait(assertErr("failed reload"))
-	notif.Notify(&notif.LogMessage{Title: "after-failed-reload", Body: notif.MessageBody("after-failed-reload")})
+	notif.FromCtx(oldState.Context()).Notify(&notif.LogMessage{Title: "after-failed-reload", Body: notif.MessageBody("after-failed-reload")})
 	require.Equal(t, "after-failed-reload", receiveNotification(t, oldHits))
 	requireNoNotification(t, newHits)
 
 	nextState := newNotificationTestState(t, newServer.URL)
 	defer nextState.Task().FinishAndWait(nil)
 	require.NoError(t, nextState.initNotification())
-	notif.SetDispatcher(nextState.notifDispatcher)
 	oldState.Task().FinishAndWait(configtypes.ErrConfigChanged)
 
-	notif.Notify(&notif.LogMessage{Title: "after-activation", Body: notif.MessageBody("after-activation")})
+	notif.FromCtx(nextState.Context()).Notify(&notif.LogMessage{Title: "after-activation", Body: notif.MessageBody("after-activation")})
 	require.Equal(t, "after-activation", receiveNotification(t, newHits))
 	requireNoNotification(t, oldHits)
 }

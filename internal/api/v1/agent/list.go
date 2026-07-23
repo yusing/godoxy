@@ -23,11 +23,12 @@ import (
 // @Failure		403	{object}	apitypes.ErrorResponse
 // @Router			/agent/list [get]
 func List(c *gin.Context) {
+	agents := agentpool.FromCtx(c.Request.Context())
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 10*time.Second, func() (any, error) {
-			return agentpool.List(), nil
+			return agents.List(), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, agentpool.List())
+		c.JSON(http.StatusOK, agents.List())
 	}
 }

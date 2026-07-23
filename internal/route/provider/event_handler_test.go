@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -38,7 +39,7 @@ func (eventHandlerTestProviderImpl) ShortName() string { return "test" }
 
 func (eventHandlerTestProviderImpl) IsExplicitOnly() bool { return false }
 
-func (impl eventHandlerTestProviderImpl) loadRoutesImpl() (route.Routes, error) {
+func (impl eventHandlerTestProviderImpl) loadRoutesImpl(context.Context) (route.Routes, error) {
 	return nil, impl.err
 }
 

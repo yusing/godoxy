@@ -51,6 +51,7 @@ func (p provider) HasIcon(u *icons.URL) bool {
 }
 
 func init() {
+	iconsCache.Store(NewIconMap())
 	icons.SetProvider(provider{})
 }
 

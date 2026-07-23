@@ -27,7 +27,7 @@ func setup() {
 	t := task.RootTask("error_page", false)
 	dirWatcher = watcher.NewDirectoryWatcher(t, errPagesBasePath)
 	loadContent()
-	go watchDir()
+	go watchDir(t)
 }
 
 func GetStaticFile(filename string) ([]byte, bool) {
@@ -68,13 +68,13 @@ func loadContent() {
 	}
 }
 
-func watchDir() {
-	eventCh, errCh := dirWatcher.Events(task.RootContext())
+func watchDir(parent task.Parent) {
+	stream := dirWatcher.Watch(parent)
 	for {
 		select {
-		case <-task.RootContextCanceled():
+		case <-parent.Context().Done():
 			return
-		case event, ok := <-eventCh:
+		case event, ok := <-stream.Events:
 			if !ok {
 				return
 			}
@@ -91,7 +91,7 @@ func watchDir() {
 				fileContentMap.Delete(filename)
 				loadContent()
 			}
-		case err := <-errCh:
+		case err := <-stream.Errors:
 			log.Err(err).Msg("error watching error page directory")
 		}
 	}

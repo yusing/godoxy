@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
+	"github.com/yusing/goutils/task"
 )
 
 type (
@@ -34,8 +35,8 @@ type DockerFilter = filters.KeyValuePair
 var (
 	NewDockerFilter        = filters.Arg
 	NewDockerFilters       = filters.NewArgs
-	newDockerWatcherClient = func(cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
-		return docker.NewClient(cfg, true)
+	newDockerWatcherClient = func(ctx context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return docker.NewClient(ctx, cfg, true)
 	}
 	dockerWatcherCheckConnection = checkConnection
 )
@@ -61,6 +62,7 @@ var (
 
 	dockerWatcherRetryInterval = 3 * time.Second
 	ErrDockerEventStreamClosed = errors.New("docker watcher: event stream closed")
+	ErrDockerWatcherConnection = errors.New("docker watcher: initial connection failed")
 
 	reloadTrigger = Event{
 		Type:            watcherEvents.EventTypeDocker,
@@ -83,30 +85,52 @@ func NewDockerWatcher(dockerCfg types.DockerProviderConfig) DockerWatcher {
 
 var _ Watcher = (*DockerWatcher)(nil)
 
-// Events implements the Watcher interface.
-func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan error) {
-	return w.EventsWithOptions(ctx, optionsDefault)
+// Watch implements the Watcher interface.
+func (w DockerWatcher) Watch(parent task.Parent) Stream {
+	return w.EventsWithOptions(parent.Context(), optionsDefault)
 }
 
-func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan error) {
+func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) Stream {
 	eventCh := make(chan Event)
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
+	readyCh := make(chan error, 1)
 
 	go func() {
-		client, err := newDockerWatcherClient(w.cfg)
+		defer close(eventCh)
+		defer close(errCh)
+
+		signalReady := func(err error) {
+			readyCh <- err
+			close(readyCh)
+		}
+		initializationFailed := func(err error) {
+			signalReady(err)
+			errCh <- err
+		}
+		client, err := newDockerWatcherClient(ctx, w.cfg)
 		if err != nil {
-			errCh <- fmt.Errorf("docker watcher: failed to initialize client: %w", err)
+			initializationFailed(fmt.Errorf("docker watcher: failed to initialize client: %w", err))
+			return
+		}
+		if !dockerWatcherCheckConnection(ctx, client) {
+			client.Close()
+			initializationFailed(ErrDockerWatcherConnection)
 			return
 		}
 
 		defer func() {
-			close(eventCh)
-			close(errCh)
 			if client != nil {
 				client.Close()
 			}
 		}()
 
+		// docker.Client.Events blocks until the daemon (or an intermediary
+		// proxy) sends the event-stream response headers. Some valid proxies do
+		// not flush those headers until the first event, so waiting for Events
+		// to return would make runtime activation depend on unrelated Docker
+		// activity. The bounded connection check above is the initialization
+		// boundary; stream failures after it are handled by the reconnect loop.
+		signalReady(nil)
 		msgCh, dErrCh := client.Events(ctx, options)
 		defer log.Debug().Str("host", client.DaemonHost()).Msg("docker watcher closed")
 		for {
@@ -138,7 +162,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 		}
 	}()
 
-	return eventCh, errCh
+	return Stream{Events: eventCh, Errors: errCh, Ready: readyCh}
 }
 
 func receiveDockerStreamResult(ctx context.Context, msgCh <-chan dockerEvents.Message, streamErrCh <-chan error) dockerStreamResult {
@@ -194,9 +218,9 @@ func (w DockerWatcher) handleEvent(event dockerEvents.Message, ch chan<- Event) 
 func checkConnection(ctx context.Context, client *docker.SharedClient) bool {
 	ctx, cancel := context.WithTimeout(ctx, dockerWatcherRetryInterval)
 	defer cancel()
-	err := client.CheckConnection(ctx)
+	_, err := client.Ping(ctx)
 	if err != nil {
-		log.Debug().Err(err).Str("host", client.DaemonHost()).Msg("docker watcher: connection failed")
+		log.Debug().Err(err).Str("host", client.DaemonHost()).Msg("docker watcher: API check failed")
 		return false
 	}
 	return true
@@ -211,7 +235,7 @@ func reconnectDockerWatcherClient(ctx context.Context, cfg types.DockerProviderC
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-retry.C:
-			client, err := newDockerWatcherClient(cfg)
+			client, err := newDockerWatcherClient(ctx, cfg)
 			if err != nil {
 				select {
 				case errCh <- fmt.Errorf("docker watcher: failed to reinitialize client: %w", err):

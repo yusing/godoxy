@@ -190,7 +190,7 @@ func TestRegisterHandlersWithDisabledAuthOmitsAuthRoutes(t *testing.T) {
 		common.OIDCIssuerURL = prevIssuerURL
 	})
 
-	require.NoError(t, auth.Initialize())
+	require.NoError(t, auth.Initialize(t.Context()))
 	require.NoError(t, RegisterHandlers())
 	registered, ok := rules.GetHandler("api")
 	require.True(t, ok)

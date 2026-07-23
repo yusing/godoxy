@@ -1,6 +1,7 @@
 package routevalidate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -18,31 +19,35 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 )
 
-func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err error) {
+func Validate(ctx context.Context, r *route.Route) (impl routing.Route, agent *agentpool.Agent, err error) {
 	if r.Agent != "" {
 		if r.Container != nil {
 			return nil, nil, errors.New("specifying agent is not allowed for docker container routes")
 		}
+		pool := agentpool.FromCtx(ctx)
+		if pool == nil {
+			return nil, nil, errors.New("agent pool not initialized")
+		}
 		var ok bool
 		// by agent address
-		agent, ok = agentpool.Get(r.Agent)
+		agent, ok = pool.Get(r.Agent)
 		if !ok {
 			// fallback to get agent by name
-			agent, ok = agentpool.GetAgent(r.Agent)
+			agent, ok = pool.GetAgent(r.Agent)
 			if !ok {
 				return nil, nil, fmt.Errorf("agent %s not found", r.Agent)
 			}
 		}
 	}
 
-	if workingState := config.WorkingState.Load(); workingState != nil {
-		cfg := workingState.Value()
+	if state := config.FromCtx(ctx); state != nil {
+		cfg := state.Value()
 		if err := entrypoint.ValidateInboundMTLSProfileRef(r.InboundMTLSProfile, cfg.Entrypoint.InboundMTLSProfile, cfg.InboundMTLSProfiles); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	finalize(r)
+	finalize(ctx, r)
 
 	if r.InboundMTLSProfile != "" {
 		switch r.Scheme {
@@ -52,9 +57,9 @@ func Validate(r *route.Route) (impl routing.Route, agent *agentpool.Agent, err e
 		}
 	}
 
-	discovery := ResolveProxmox(r)
+	discovery := ResolveProxmox(ctx, r)
 
-	if r.Proxmox != nil && !validateProxmox(r) {
+	if r.Proxmox != nil && !validateProxmox(ctx, r) {
 		discovery = ""
 	}
 

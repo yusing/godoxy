@@ -3,27 +3,22 @@ package config
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	config "github.com/yusing/godoxy/internal/config/types"
+	configtypes "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
-	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/eventqueue"
 	"github.com/yusing/goutils/events"
-	"github.com/yusing/goutils/strings/ansi"
 	"github.com/yusing/goutils/task"
 )
 
 var (
-	cfgWatcher watcher.Watcher
-	reloadMu   sync.Mutex
-
+	cfgWatcher   watcher.Watcher
 	reloadConfig = Reload
 )
 
@@ -34,143 +29,59 @@ var (
 	errCfgDeleteWarn = errors.New(`config file deleted, not reloading; You may run "ls-config" to show or dump the current config`)
 )
 
-func logNotifyError(action string, err error) {
-	log.Error().Err(err).Msg("config " + action + " error")
-	notif.Notify(&notif.LogMessage{
-		Level: zerolog.ErrorLevel,
-		Title: fmt.Sprintf("Config %s error", action),
+func logNotify(level zerolog.Level, action string, err error) {
+	ctx := task.RootContext()
+	if state := defaultRuntimeManager.RuntimeState(); state != nil {
+		ctx = state.Context()
+	}
+
+	log.WithLevel(level).Err(err).Msg("config " + action)
+	notif.FromCtx(ctx).Notify(&notif.LogMessage{
+		Level: level,
+		Title: fmt.Sprintf("Config %s", action),
 		Body:  notif.ErrorBody(err),
 	})
-	events.Global.Add(events.NewEvent(events.LevelError, "config", action, err))
-}
-
-func logNotifyWarn(action string, err error) {
-	log.Warn().Err(err).Msg("config " + action + " warning")
-	notif.Notify(&notif.LogMessage{
-		Level: zerolog.WarnLevel,
-		Title: fmt.Sprintf("Config %s warning", action),
-		Body:  notif.ErrorBody(err),
-	})
-	events.Global.Add(events.NewEvent(events.LevelWarn, "config", action, err))
-}
-
-func Load() error {
-	if HasState() {
-		panic(errors.New("config already loaded"))
+	eventLevel := events.LevelWarn
+	if level >= zerolog.ErrorLevel {
+		eventLevel = events.LevelError
 	}
-	state := NewState()
-	config.WorkingState.Store(state)
-
-	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
-
-	initErr := state.InitFromFile(common.ConfigPath)
-	notif.SetDispatcher(state.notifDispatcher)
-	if initErr != nil {
-		// if error is critical, notify and return it without starting providers
-		if criticalErr, ok := errors.AsType[CriticalError](initErr); ok {
-			state.discardTmpLog()
-			logNotifyError("init", criticalErr.err)
-			return criticalErr
-		}
-	}
-
-	// disable pool logging temporary since we already have pretty logging
-	state.Entrypoint().DisablePoolsLog(true)
-	defer func() {
-		state.Entrypoint().DisablePoolsLog(false)
-	}()
-
-	err := errors.Join(initErr, state.StartProviders())
-	if err != nil {
-		logNotifyError("init", err)
-	}
-
-	state.StartAPIServers()
-	state.StartMetrics()
-
-	SetState(state)
-
-	// flush temporary log
-	if err := state.FlushTmpLog(); err != nil {
-		logNotifyWarn("diagnostics", err)
-	}
-	return nil
-}
-
-func Reload() error {
-	events.Global.Add(events.NewEvent(events.LevelInfo, "config", "reload", nil))
-
-	// avoid race between config change and API reload request
-	reloadMu.Lock()
-	defer reloadMu.Unlock()
-
-	newState := NewState()
-	config.WorkingState.Store(newState)
-
-	err := newState.InitFromFile(common.ConfigPath)
-	if err != nil {
-		newState.discardTmpLog()
-		newState.Task().FinishAndWait(err)
-		config.WorkingState.Store(GetState())
-		return gperr.Wrap(err, ansi.Warning("using last config"))
-	}
-
-	// flush temporary log
-	if err := newState.FlushTmpLog(); err != nil {
-		logNotifyWarn("diagnostics", err)
-	}
-	notif.SetDispatcher(newState.notifDispatcher)
-
-	// cancel all current subtasks -> wait
-	// -> replace config -> start new subtasks
-	GetState().Task().FinishAndWait(config.ErrConfigChanged)
-	SetState(newState)
-
-	if err := newState.StartProviders(); err != nil {
-		logNotifyError("start providers", err)
-		return nil // continue
-	}
-
-	newState.StartAPIServers()
-	newState.StartMetrics()
-	return nil
+	defaultRuntimeManager.history.Add(events.NewEvent(eventLevel, "config", action, err))
 }
 
 func WatchChanges() {
+	cfgWatcher = watcher.NewConfigFileWatcher(common.ConfigFileName)
 	opts := eventqueue.Options[watcherEvents.Event]{
 		FlushInterval: configEventFlushInterval,
 		OnFlush:       OnConfigChange,
 		OnError: func(err error) {
-			logNotifyError("reload", err)
+			logNotify(zerolog.ErrorLevel, "reload", err)
 		},
 		Debug: common.IsDebug,
 	}
 	t := task.RootTask("config_watcher", true)
 	eventQueue := eventqueue.New(t, opts)
-	eventQueue.Start(cfgWatcher.Events(t.Context()))
+	stream := cfgWatcher.Watch(t)
+	eventQueue.Start(stream.Events, stream.Errors)
 }
 
 func OnConfigChange(ev []watcherEvents.Event) {
 	if len(ev) == 0 {
 		return
 	}
-	if config.ConsumeSuppressedConfigReload(ev, common.ConfigFileName) {
+	if configtypes.ConsumeSuppressedConfigReload(ev, common.ConfigFileName) {
 		return
 	}
 
-	// no matter how many events during the interval
-	// just reload once and check the last event
+	// No matter how many events arrive during the interval, reload once and
+	// classify the final filesystem action.
 	switch ev[len(ev)-1].Action {
 	case watcherEvents.ActionFileRenamed:
-		logNotifyWarn("rename", errCfgRenameWarn)
+		logNotify(zerolog.WarnLevel, "rename", errCfgRenameWarn)
 		return
 	case watcherEvents.ActionFileDeleted:
-		logNotifyWarn("delete", errCfgDeleteWarn)
+		logNotify(zerolog.WarnLevel, "delete", errCfgDeleteWarn)
 		return
 	}
 
-	if err := reloadConfig(); err != nil {
-		// recovered in event queue
-		panic(err)
-	}
+	reloadConfig()
 }

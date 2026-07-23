@@ -310,13 +310,16 @@ stream.ListenAndServe(ctx,
 ### ACL Integration
 
 ```go
-stream := tcpStream
-if acl := acl.ActiveConfig.Load(); acl != nil {
-    stream.listener = acl.WrapTCP(stream.listener)
+aclConfig := acl.FromCtx(ctx)
+if aclConfig != nil {
+    tcpListener = aclConfig.WrapTCP(tcpListener)
     // or for UDP
-    stream.listener = acl.WrapUDP(stream.listener)
+    udpListener = aclConfig.WrapUDP(udpListener)
 }
 ```
+
+The ACL configuration is resolved from the runtime context that owns the
+stream; it is not read from a process-global pointer.
 
 ## Performance Considerations
 

@@ -1,6 +1,7 @@
 package fileapi
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -44,14 +45,14 @@ func Validate(c *gin.Context) {
 	}
 	c.Request.Body.Close()
 
-	if valErr := validateFile(request.FileType, content); valErr != nil {
+	if valErr := validateFile(c.Request.Context(), request.FileType, content); valErr != nil {
 		c.JSON(http.StatusExpectationFailed, valErr)
 		return
 	}
 	c.JSON(http.StatusOK, apitypes.Success("file validated"))
 }
 
-func validateFile(fileType FileType, content []byte) error {
+func validateFile(ctx context.Context, fileType FileType, content []byte) error {
 	switch fileType {
 	case FileTypeConfig:
 		return config.Validate(content)
@@ -60,5 +61,5 @@ func validateFile(fileType FileType, content []byte) error {
 		middleware.BuildMiddlewaresFromYAML("", content, &errs)
 		return errs.Error()
 	}
-	return provider.Validate(content)
+	return provider.Validate(ctx, content)
 }

@@ -21,7 +21,7 @@ var listOptions = container.ListOptions{
 }
 
 func ListContainers(ctx context.Context, dockerCfg types.DockerProviderConfig) ([]container.Summary, error) {
-	dockerClient, err := NewClient(dockerCfg)
+	dockerClient, err := NewClient(ctx, dockerCfg)
 	if err != nil {
 		return nil, err
 	}

@@ -32,11 +32,8 @@ import (
 	entrypointctx "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
-	homepagetypes "github.com/yusing/godoxy/internal/homepage/types"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/maxmind"
-	"github.com/yusing/godoxy/internal/metrics/systeminfo"
-	"github.com/yusing/godoxy/internal/metrics/uptime"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
@@ -50,6 +47,7 @@ import (
 	"github.com/yusing/godoxy/webui"
 	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
+	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -59,9 +57,15 @@ type state struct {
 	providers        *xsync.Map[string, routing.Provider]
 	autocertProvider *autocert.Provider
 	entrypoint       *entrypoint.Entrypoint
-	notifDispatcher  *notif.Dispatcher
+	agentPool        *agentpool.Pool
 
 	task *task.Task
+
+	status     synk.Value[config.RuntimeStatus]
+	activation synk.Value[config.ActivationReport]
+
+	preparationIssues   []config.ActivationIssue
+	providerPreparation []routing.ProviderActivation
 
 	// used for temporary logging
 	// discarded on failed reload
@@ -69,15 +73,20 @@ type state struct {
 	tmpLog    zerolog.Logger
 }
 
-type CriticalError struct {
+// RejectingError prevents configuration acceptance.
+//
+// It is reserved for errors that make the candidate configuration unusable as
+// a runtime definition. Provider and route activation failures are not
+// RejectingError values.
+type RejectingError struct {
 	err error
 }
 
-func (e CriticalError) Error() string {
+func (e RejectingError) Error() string {
 	return e.err.Error()
 }
 
-func (e CriticalError) Unwrap() error {
+func (e RejectingError) Unwrap() error {
 	return e.err
 }
 
@@ -86,34 +95,15 @@ func NewState() *state {
 	state := &state{
 		providers: xsync.NewMap[string, routing.Provider](),
 		task:      task.RootTask("config", false),
+		agentPool: agentpool.NewPool(),
 		tmpLogBuf: tmpLogBuf,
 		tmpLog:    tmpLog,
 	}
+	state.status.Store(config.RuntimePreparing)
+	config.SetCtx(state.task, state)
+	agentpool.SetCtx(state.task, state.agentPool)
 	proxmox.SetCtx(state.task, proxmox.NewNodePool())
 	return state
-}
-
-var stateMu sync.RWMutex
-
-func GetState() config.State {
-	return config.ActiveState.Load()
-}
-
-func SetState(state config.State) {
-	stateMu.Lock()
-	defer stateMu.Unlock()
-
-	cfg := state.Value()
-	config.ActiveState.Store(state)
-	homepagetypes.ActiveConfig.Store(&cfg.Homepage)
-}
-
-func HasState() bool {
-	return config.ActiveState.Load() != nil
-}
-
-func Value() *config.Config {
-	return config.ActiveState.Load().Value()
 }
 
 func (state *state) InitFromFile(filename string) error {
@@ -122,32 +112,83 @@ func (state *state) InitFromFile(filename string) error {
 		if errors.Is(err, fs.ErrNotExist) {
 			state.Config = config.DefaultConfig()
 		} else {
-			return CriticalError{err}
+			state.addPreparationIssue("config", config.IssueRejecting, err)
+			return RejectingError{err}
 		}
 	}
 	return state.Init(data)
 }
 
 func (state *state) Init(data []byte) error {
+	state.preparationIssues = nil
+
 	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
 	if err != nil {
-		return CriticalError{err}
+		state.addPreparationIssue("config", config.IssueRejecting, err)
+		return RejectingError{err}
 	}
 
-	g := gperr.NewGroup("config load error")
-	g.Go(state.initMaxMind)
-	g.Go(state.initProxmox)
-	g.Go(state.initAutoCert)
-
-	errs := g.Wait()
-	// these won't benefit from running on goroutines
-	errs.Add(state.initNotification())
-	errs.Add(state.initACL())
-	if err := state.initEntrypoint(); err != nil {
-		errs.Add(CriticalError{err})
+	var errs []error
+	if err := state.prepareComponent("notifications", config.IssueDegraded, state.initNotification); err != nil {
+		errs = append(errs, err)
 	}
-	errs.Add(state.loadRouteProviders())
-	return errs.Error()
+
+	optionalComponents := [...]struct {
+		name string
+		init func() error
+	}{
+		{name: "maxmind", init: state.initMaxMind},
+		{name: "proxmox", init: state.initProxmox},
+		{name: "autocert", init: state.initAutoCert},
+	}
+	optionalResults := make([]error, len(optionalComponents))
+	var wg sync.WaitGroup
+	for i, component := range optionalComponents {
+		wg.Go(func() {
+			optionalResults[i] = component.init()
+		})
+	}
+	wg.Wait()
+	for i, err := range optionalResults {
+		if err != nil {
+			state.addPreparationIssue(optionalComponents[i].name, config.IssueDegraded, err)
+			errs = append(errs, err)
+		}
+	}
+
+	if err := state.prepareComponent("acl", config.IssueRejecting, state.initACL); err != nil {
+		errs = append(errs, RejectingError{err})
+	}
+	if err := state.prepareComponent("entrypoint", config.IssueRejecting, state.initEntrypoint); err != nil {
+		errs = append(errs, RejectingError{err})
+	}
+	// Provider construction and route loading failures are represented by the
+	// structured provider activation report. Do not also add one aggregate
+	// preparation issue for the same failures.
+	if err := state.loadRouteProviders(); err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
+}
+
+func (state *state) prepareComponent(component string, severity config.IssueSeverity, fn func() error) error {
+	err := fn()
+	if err != nil {
+		state.addPreparationIssue(component, severity, err)
+	}
+	return err
+}
+
+func (state *state) addPreparationIssue(component string, severity config.IssueSeverity, err error) {
+	state.preparationIssues = append(state.preparationIssues, config.ActivationIssue{
+		Component: component,
+		Severity:  severity,
+		Err:       gperr.Wrap(err),
+	})
+}
+
+func (state *state) PreparationIssues() []config.ActivationIssue {
+	return slices.Clone(state.preparationIssues)
 }
 
 func (state *state) Task() *task.Task {
@@ -199,14 +240,38 @@ func (state *state) IterProviders() iter.Seq2[string, routing.Provider] {
 	}
 }
 
-func (state *state) StartProviders() error {
-	errs := gperr.NewGroup("provider errors")
+func (state *state) ActivateProviders(parent task.Parent) routing.ProviderActivationReport {
+	if parent == nil {
+		parent = state.Task()
+	}
+	if state.entrypoint != nil {
+		// Route inventory diagnostics already summarize the initial bulk load.
+		// Pool event history remains enabled while duplicate console records are
+		// suppressed, and later dynamic additions are logged normally.
+		state.entrypoint.DisablePoolsLog(true)
+		defer state.entrypoint.DisablePoolsLog(false)
+	}
+	providers := make([]routing.Provider, 0, state.providers.Size())
 	for _, p := range state.providers.Range {
-		errs.Go(func() error {
-			return p.Start(state.Task())
+		providers = append(providers, p)
+	}
+	activations := make([]routing.ProviderActivation, len(providers))
+	var wg sync.WaitGroup
+	for i, p := range providers {
+		wg.Go(func() {
+			activations[i] = p.Activate(parent)
 		})
 	}
-	return errs.Wait().Error()
+	wg.Wait()
+
+	var report routing.ProviderActivationReport
+	for _, activation := range state.providerPreparation {
+		report.Add(activation)
+	}
+	for _, activation := range activations {
+		report.Add(activation)
+	}
+	return report
 }
 
 func (state *state) NumProviders() int {
@@ -233,37 +298,63 @@ func (state *state) LoadLogger() *zerolog.Logger {
 	return &state.tmpLog
 }
 
-func (state *state) StartAPIServers() {
+func (state *state) ActivateAPIServers(parent task.Parent) config.APIActivationReport {
+	if parent == nil {
+		parent = state.Task()
+	}
+	report := config.APIActivationReport{
+		Main: config.ComponentActivation{Configured: true, Required: true},
+		Local: config.ComponentActivation{
+			Configured: common.LocalAPIHTTPAddr != "",
+		},
+	}
+	if cause := context.Cause(parent.Context()); cause != nil {
+		report.Main.Err = gperr.Wrap(cause)
+		if report.Local.Configured {
+			report.Local.Err = gperr.Wrap(cause)
+		}
+		return report
+	}
+
 	// API Handler needs to start after auth is initialized.
-	_, err := server.StartServer(state.task.Subtask("api_server", false), server.Options{
+	report.Main.Ready, report.Main.Err = activateAPIServer(parent, "api_server", server.Options{
 		Name:     "api",
 		HTTPAddr: common.APIHTTPAddr,
 		Handler:  api.NewHandler(true),
 	})
-	if err != nil {
-		log.Err(err).Msg("failed to start API server")
-	}
 
 	// Local API Handler is used for unauthenticated access.
 	if common.LocalAPIHTTPAddr != "" {
 		if err := validateLocalAPIAddr(common.LocalAPIHTTPAddr, common.LocalAPIAllowNonLoopback); err != nil {
-			log.Err(err).Str("addr", common.LocalAPIHTTPAddr).Msg("refusing to start local API server")
-			return
+			report.Local.Err = gperr.Wrap(err)
+			return report
 		}
 		if common.LocalAPIAllowNonLoopback && !isLoopbackLocalAPIHost(common.LocalAPIHTTPAddr) {
 			log.Warn().
 				Str("addr", common.LocalAPIHTTPAddr).
 				Msg("local API server is allowed to bind to non-loopback addresses")
 		}
-		_, err := server.StartServer(state.task.Subtask("local_api_server", false), server.Options{
+		report.Local.Ready, report.Local.Err = activateAPIServer(parent, "local_api_server", server.Options{
 			Name:     "local_api",
 			HTTPAddr: common.LocalAPIHTTPAddr,
 			Handler:  api.NewHandler(false),
 		})
-		if err != nil {
-			log.Err(err).Msg("failed to start local API server")
-		}
 	}
+	return report
+}
+
+func activateAPIServer(parent task.Parent, taskName string, opts server.Options) (bool, gperr.Error) {
+	if cause := context.Cause(parent.Context()); cause != nil {
+		return false, gperr.Wrap(cause)
+	}
+
+	serverTask := parent.Subtask(taskName, false)
+	_, err := server.StartServer(serverTask, opts)
+	if err != nil {
+		serverTask.FinishAndWait(err)
+		return false, gperr.Wrap(err)
+	}
+	return true, nil
 }
 
 func validateLocalAPIAddr(addr string, allowNonLoopback bool) error {
@@ -311,9 +402,43 @@ func isLoopbackLocalAPIHost(addr string) bool {
 	return err == nil && ip.IsLoopback()
 }
 
-func (state *state) StartMetrics() {
-	systeminfo.Poller.Start(state.task)
-	uptime.Poller.Start(state.task)
+func (state *state) setActivation(report config.ActivationReport, health config.ActivationHealth) {
+	state.activation.Store(report)
+	switch health {
+	case config.ActivationHealthy:
+		state.status.Store(config.RuntimeHealthy)
+	case config.ActivationDegraded:
+		state.status.Store(config.RuntimeDegraded)
+	case config.ActivationFailed:
+		state.status.Store(config.RuntimeFailed)
+	}
+}
+
+func (state *state) setStatus(status config.RuntimeStatus) {
+	state.status.Store(status)
+}
+
+func (state *state) RuntimeSnapshot() config.RuntimeSnapshot {
+	status := state.status.Load()
+	var health config.ActivationHealth
+	switch status {
+	case config.RuntimeHealthy:
+		health = config.ActivationHealthy
+	case config.RuntimeDegraded:
+		health = config.ActivationDegraded
+	case config.RuntimeFailed:
+		health = config.ActivationFailed
+	}
+	return config.RuntimeSnapshot{
+		Status:     status,
+		Health:     health,
+		Activation: state.activation.Load(),
+	}
+}
+
+func (state *state) Stop(reason any) {
+	state.status.Store(config.RuntimeStopping)
+	state.task.FinishAndWait(reason)
 }
 
 // initACL initializes the ACL.
@@ -395,9 +520,15 @@ func getAutoCertDefaultDomain(p *autocert.Provider) string {
 
 func (state *state) initMaxMind() error {
 	maxmindCfg := state.Providers.MaxMind
-	if maxmindCfg != nil {
-		return maxmind.SetInstance(state.task, maxmindCfg)
+	if maxmindCfg == nil {
+		return nil
 	}
+
+	instance, err := maxmind.New(state.task, maxmindCfg)
+	if err != nil {
+		return err
+	}
+	maxmind.SetCtx(state.task, instance)
 	return nil
 }
 
@@ -411,7 +542,7 @@ func (state *state) initNotification() error {
 	for _, notifier := range notifCfg {
 		dispatcher.RegisterProvider(notifier)
 	}
-	state.notifDispatcher = dispatcher
+	notif.SetCtx(state.task, dispatcher)
 	return nil
 }
 
@@ -464,13 +595,19 @@ func (state *state) initProxmox() error {
 
 func (state *state) loadRouteProviders() error {
 	providers := state.Providers
-	errs := gperr.NewGroup("route provider errors")
+	errs := gperr.NewBuilder("route provider errors")
+	state.providerPreparation = nil
 
-	agentpool.RemoveAll()
+	state.agentPool.RemoveAll()
 
 	registerProvider := func(p routing.Provider) {
 		if actual, loaded := state.providers.LoadOrStore(p.String(), p); loaded {
-			errs.Addf("provider %s already exists, first: %s, second: %s", p.String(), actual.GetType(), p.GetType())
+			err := fmt.Errorf("provider %s already exists, first: %s, second: %s", p.String(), actual.GetType(), p.GetType())
+			errs.Add(err)
+			state.providerPreparation = append(state.providerPreparation, routing.ProviderActivation{
+				Provider:            p.String(),
+				InfrastructureError: gperr.Wrap(err),
+			})
 		}
 	}
 
@@ -480,7 +617,7 @@ func (state *state) loadRouteProviders() error {
 			if err := a.Init(state.task.Context()); err != nil {
 				return gperr.PrependSubject(err, a.String())
 			}
-			agentpool.Add(a)
+			state.agentPool.Add(a)
 			return nil
 		})
 	}
@@ -496,8 +633,13 @@ func (state *state) loadRouteProviders() error {
 	for _, filename := range providers.Files {
 		p, err := provider.NewFileProvider(filename)
 		if err != nil {
-			errs.Add(gperr.PrependSubject(err, filename))
-			return err
+			err = gperr.PrependSubject(err, filename)
+			errs.Add(err)
+			state.providerPreparation = append(state.providerPreparation, routing.ProviderActivation{
+				Provider:            filename,
+				InfrastructureError: gperr.Wrap(err),
+			})
+			continue
 		}
 		registerProvider(p)
 	}
@@ -517,29 +659,42 @@ func (state *state) loadRouteProviders() error {
 	loadErrs := gperr.NewGroup("route load errors")
 
 	results := gperr.NewBuilder("loaded route providers")
-	resultsMu := sync.Mutex{}
+	providerList := make([]routing.Provider, 0, state.providers.Size())
 	for _, p := range state.providers.Range {
+		providerList = append(providerList, p)
+	}
+	loadedResults := make([]string, len(providerList))
+	for i, p := range providerList {
 		loadErrs.Go(func() error {
-			if err := p.LoadRoutes(); err != nil {
+			if err := p.LoadRoutes(state.Context()); err != nil {
 				return gperr.PrependSubject(err, p.String())
 			}
-			resultsMu.Lock()
-			results.Addf("%-"+strconv.Itoa(lenLongestName)+"s %d routes", p.String(), p.NumRoutes())
-			resultsMu.Unlock()
+			loadedResults[i] = fmt.Sprintf("%-"+strconv.Itoa(lenLongestName)+"s %d routes", p.String(), p.NumRoutes())
 			return nil
 		})
 	}
 	if err := loadErrs.Wait().Error(); err != nil {
 		errs.Add(err)
 	}
+	for _, result := range loadedResults {
+		if result != "" {
+			results.Adds(result)
+		}
+	}
 
-	errs.Add(state.initWebUIRoute())
+	if err := state.initWebUIRoute(); err != nil {
+		errs.Add(err)
+		state.providerPreparation = append(state.providerPreparation, routing.ProviderActivation{
+			Provider:            "webui",
+			InfrastructureError: gperr.Wrap(err),
+		})
+	}
 
 	state.LogProxmoxDiscoveries(state.proxmoxDiscoveries())
 	state.logLoadedRouteProviders(results.String())
 	state.printRoutesByProvider(lenLongestName)
 	state.logStartupSummary()
-	return errs.Wait().Error()
+	return errs.Error()
 }
 
 func (state *state) LogProxmoxDiscoveries(discoveries []proxmox.Discovery) {
@@ -689,7 +844,7 @@ func (state *state) initWebUIRoute() error {
 	}
 
 	webuiProvider := provider.NewStaticProvider("webui", routes)
-	if err := webuiProvider.LoadRoutes(); err != nil {
+	if err := webuiProvider.LoadRoutes(state.Context()); err != nil {
 		return err
 	}
 	if actual, loaded := state.providers.LoadAndStore(webuiProvider.String(), webuiProvider); loaded {
@@ -835,7 +990,7 @@ func (state *state) logStartupSummary() {
 	if len(state.Config.InboundMTLSProfiles) > 0 {
 		enabledSubsystems = append(enabledSubsystems, "inbound_mtls")
 	}
-	if state.notifDispatcher != nil {
+	if len(state.Config.Providers.Notification) > 0 {
 		enabledSubsystems = append(enabledSubsystems, "notifications")
 	}
 	if state.Config.Providers.MaxMind != nil {

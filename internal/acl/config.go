@@ -64,6 +64,9 @@ type config struct {
 
 	// will be nil if both Log and Notify.To are empty
 	logNotifyCh chan ipLog
+
+	runtimeCtx context.Context
+	notifier   notif.Notifier
 }
 
 type checkCache struct {
@@ -143,6 +146,8 @@ func (c *Config) Start(parent task.Parent) error {
 		}
 		c.logger = logger
 	}
+	c.runtimeCtx = parent.Context()
+	c.notifier = notif.FromCtx(c.runtimeCtx)
 
 	if c.needLogOrNotify() {
 		c.logNotifyCh = make(chan ipLog, 100)
@@ -169,9 +174,9 @@ func (c *Config) Start(parent task.Parent) error {
 	return nil
 }
 
-func (c *Config) newCheckCache(info *maxmind.IPInfo, allow bool, reason string) *checkCache {
+func (c *Config) newCheckCache(ctx context.Context, info *maxmind.IPInfo, allow bool, reason string) *checkCache {
 	if common.ForceResolveCountry && info.City == nil {
-		maxmind.LookupCity(info)
+		maxmind.LookupCity(ctx, info)
 	}
 	return &checkCache{
 		IPInfo: info,
@@ -180,25 +185,25 @@ func (c *Config) newCheckCache(info *maxmind.IPInfo, allow bool, reason string) 
 	}
 }
 
-func (c *Config) evaluateIP(_ context.Context, ipStr string) (*checkCache, error) {
+func (c *Config) evaluateIP(ctx context.Context, ipStr string) (*checkCache, error) {
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
 		return nil, fmt.Errorf("invalid IP: %q", ipStr)
 	}
 
 	ipInfo := &maxmind.IPInfo{IP: ip, Str: ipStr}
-	if index := c.Deny.MatchedIndex(ipInfo); index != -1 {
-		return c.newCheckCache(ipInfo, false, "blocked by deny rule: "+c.Deny[index].raw), nil
+	if index := c.Deny.MatchedIndex(ctx, ipInfo); index != -1 {
+		return c.newCheckCache(ctx, ipInfo, false, "blocked by deny rule: "+c.Deny[index].raw), nil
 	}
-	if index := c.Allow.MatchedIndex(ipInfo); index != -1 {
-		return c.newCheckCache(ipInfo, true, "allowed by allow rule: "+c.Allow[index].raw), nil
+	if index := c.Allow.MatchedIndex(ctx, ipInfo); index != -1 {
+		return c.newCheckCache(ctx, ipInfo, true, "allowed by allow rule: "+c.Allow[index].raw), nil
 	}
 
 	reason := "denied by default"
 	if c.defaultAllow {
 		reason = "allowed by default"
 	}
-	return c.newCheckCache(ipInfo, c.defaultAllow, reason), nil
+	return c.newCheckCache(ctx, ipInfo, c.defaultAllow, reason), nil
 }
 
 func (c *Config) needLogOrNotify() bool {
@@ -214,7 +219,7 @@ func (c *Config) needNotify() bool {
 }
 
 func (c *Config) getCachedCity(ip string) string {
-	record, err := c.ipCache(context.Background(), ip)
+	record, err := c.ipCache(c.runtimeCtx, ip)
 	if err != nil {
 		return "unknown location"
 	}
@@ -253,7 +258,7 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 				}
 			}
 			if !req.allowed {
-				aclevents.Blocked(req.info.Str, req.reason)
+				aclevents.Blocked(parent.Context(), req.info.Str, req.reason)
 			}
 		case <-c.notifyTicker.C: // will never tick when notify is disabled
 			total := len(c.allowedCount) + len(c.blockedCount)
@@ -273,7 +278,7 @@ func (c *Config) logNotifyLoop(parent task.Parent) {
 				fieldsBody[i] = fmt.Sprintf("%s (%s): blocked %d times", ip, c.getCachedCity(ip), count)
 				i++
 			}
-			notif.Notify(&notif.LogMessage{
+			c.notifier.Notify(&notif.LogMessage{
 				Level: zerolog.InfoLevel,
 				Title: "ACL Summary for last " + strutils.FormatDuration(c.Notify.Interval),
 				Body:  fieldsBody,
@@ -308,10 +313,10 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipStr := ip.String()
-	record, err := c.ipCache(context.Background(), ipStr)
+	record, err := c.ipCache(c.runtimeCtx, ipStr)
 	if err != nil {
 		log.Warn().Err(err).Str("ip", ipStr).Msg("unexpected ACL cache lookup error")
-		record = c.newCheckCache(&maxmind.IPInfo{IP: ip, Str: ipStr}, c.defaultAllow, "invalid ACL cache lookup")
+		record = c.newCheckCache(c.runtimeCtx, &maxmind.IPInfo{IP: ip, Str: ipStr}, c.defaultAllow, "invalid ACL cache lookup")
 	}
 	c.logAndNotify(record.IPInfo, record.allow, record.reason)
 	return record.allow

@@ -50,9 +50,10 @@ func SystemInfo(c *gin.Context) {
 	}
 	c.Request.URL.RawQuery = query.Encode()
 
-	agent, ok := agentpool.Get(agentAddr)
+	agents := agentpool.FromCtx(c.Request.Context())
+	agent, ok := agents.Get(agentAddr)
 	if !ok {
-		agent, ok = agentpool.GetAgent(agentName)
+		agent, ok = agents.GetAgent(agentName)
 	}
 	if !ok {
 		c.JSON(http.StatusNotFound, apitypes.Error("agent_addr or agent_name not found"))

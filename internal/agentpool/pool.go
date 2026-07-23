@@ -1,35 +1,30 @@
 package agentpool
 
 import (
+	"context"
 	"iter"
-	"os"
-	"strings"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 )
 
-var agentPool = xsync.NewMap[string, *Agent](xsync.WithPresize(10))
-
-func init() {
-	if strings.HasSuffix(os.Args[0], ".test") {
-		agentPool.Store("test-agent", &Agent{
-			AgentConfig: &agent.AgentConfig{
-				Addr: "test-agent",
-			},
-		})
-	}
+type Pool struct {
+	agents *xsync.Map[string, *Agent]
 }
 
-func Get(agentAddrOrDockerHost string) (*Agent, bool) {
+func NewPool() *Pool {
+	return &Pool{agents: xsync.NewMap[string, *Agent](xsync.WithPresize(10))}
+}
+
+func (pool *Pool) Get(agentAddrOrDockerHost string) (*Agent, bool) {
 	if !agent.IsDockerHostAgent(agentAddrOrDockerHost) {
-		return getAgentByAddr(agentAddrOrDockerHost)
+		return pool.getAgentByAddr(agentAddrOrDockerHost)
 	}
-	return getAgentByAddr(agent.GetAgentAddrFromDockerHost(agentAddrOrDockerHost))
+	return pool.getAgentByAddr(agent.GetAgentAddrFromDockerHost(agentAddrOrDockerHost))
 }
 
-func GetAgent(name string) (*Agent, bool) {
-	for _, agent := range agentPool.Range {
+func (pool *Pool) GetAgent(name string) (*Agent, bool) {
+	for _, agent := range pool.agents.Range {
 		if agent.Name == name {
 			return agent, true
 		}
@@ -37,43 +32,54 @@ func GetAgent(name string) (*Agent, bool) {
 	return nil, false
 }
 
-func Add(cfg *agent.AgentConfig) (added bool) {
-	_, loaded := agentPool.LoadOrCompute(cfg.Addr, func() (*Agent, bool) {
+func (pool *Pool) Add(cfg *agent.AgentConfig) (added bool) {
+	_, loaded := pool.agents.LoadOrCompute(cfg.Addr, func() (*Agent, bool) {
 		return newAgent(cfg), false
 	})
 	return !loaded
 }
 
-func Has(cfg *agent.AgentConfig) bool {
-	_, ok := agentPool.Load(cfg.Addr)
+func (pool *Pool) Has(cfg *agent.AgentConfig) bool {
+	_, ok := pool.agents.Load(cfg.Addr)
 	return ok
 }
 
-func Remove(cfg *agent.AgentConfig) {
-	agentPool.Delete(cfg.Addr)
+func (pool *Pool) Remove(cfg *agent.AgentConfig) {
+	pool.agents.Delete(cfg.Addr)
 }
 
-func RemoveAll() {
-	agentPool.Clear()
+func (pool *Pool) RemoveAll() {
+	pool.agents.Clear()
 }
 
-func List() []*Agent {
-	agents := make([]*Agent, 0, agentPool.Size())
-	for _, agent := range agentPool.Range {
+func (pool *Pool) List() []*Agent {
+	agents := make([]*Agent, 0, pool.agents.Size())
+	for _, agent := range pool.agents.Range {
 		agents = append(agents, agent)
 	}
 	return agents
 }
 
-func Iter() iter.Seq2[string, *Agent] {
-	return agentPool.Range
+func (pool *Pool) Iter() iter.Seq2[string, *Agent] {
+	return pool.agents.Range
 }
 
-func Num() int {
-	return agentPool.Size()
+func (pool *Pool) Num() int {
+	return pool.agents.Size()
 }
 
-func getAgentByAddr(addr string) (agent *Agent, ok bool) {
-	agent, ok = agentPool.Load(addr)
+func (pool *Pool) getAgentByAddr(addr string) (agent *Agent, ok bool) {
+	agent, ok = pool.agents.Load(addr)
 	return agent, ok
+}
+
+type poolContextKey struct{}
+
+func SetCtx(target interface{ SetValue(any, any) }, pool *Pool) {
+	target.SetValue(poolContextKey{}, pool)
+}
+
+func FromCtx(ctx context.Context) *Pool {
+	pool, _ := ctx.Value(poolContextKey{}).(*Pool)
+	return pool
 }

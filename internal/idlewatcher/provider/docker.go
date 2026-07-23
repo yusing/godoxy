@@ -17,8 +17,8 @@ type DockerProvider struct {
 	containerID string
 }
 
-func NewDockerProvider(dockerCfg types.DockerProviderConfig, containerID string) (idlewatcher.Provider, error) {
-	client, err := docker.NewClient(dockerCfg)
+func NewDockerProvider(ctx context.Context, dockerCfg types.DockerProviderConfig, containerID string) (idlewatcher.Provider, error) {
+	client, err := docker.NewClient(ctx, dockerCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (p *DockerProvider) ContainerStatus(ctx context.Context) (idlewatcher.Conta
 }
 
 func (p *DockerProvider) Watch(ctx context.Context) (eventCh <-chan watcher.Event, errCh <-chan error) {
-	return p.watcher.EventsWithOptions(ctx, watcher.DockerListOptions{
+	stream := p.watcher.EventsWithOptions(ctx, watcher.DockerListOptions{
 		Filters: watcher.NewDockerFilters(
 			watcher.DockerFilterContainer,
 			watcher.DockerFilterContainerNameID(p.containerID),
@@ -85,6 +85,7 @@ func (p *DockerProvider) Watch(ctx context.Context) (eventCh <-chan watcher.Even
 			watcher.DockerFilterUnpause,
 		),
 	})
+	return stream.Events, stream.Errors
 }
 
 func (p *DockerProvider) Close() {

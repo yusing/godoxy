@@ -209,7 +209,7 @@ func newAuthenticatedHandler(t *testing.T) *gin.Engine {
 		common.APISkipOriginCheck = prevSkipOriginCheck
 	})
 
-	require.NoError(t, auth.Initialize())
+	require.NoError(t, auth.Initialize(t.Context()))
 	return NewHandler(true)
 }
 

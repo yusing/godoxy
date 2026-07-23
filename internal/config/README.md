@@ -1,350 +1,165 @@
 # internal/config
 
-Centralized YAML configuration management with thread-safe state access and provider initialization.
+Owns configuration preparation, acceptance, runtime activation, reload
+serialization, and lifecycle diagnostics.
 
-## Overview
+## Lifecycle contract
 
-The config package implements the core configuration management system for GoDoxy, handling YAML configuration loading, provider initialization, route loading, and state transitions. It uses atomic pointers for thread-safe state access and integrates all configuration components.
+A candidate configuration has separate persistence, commitment, and activation
+outcomes. Once preparation finishes without a rejecting issue, the candidate is
+authoritative. The previous runtime is stopped, `RuntimeManager.commitState`
+publishes the candidate with status `activating`, and every independent subsystem is
+activated. Provider or route failures after that boundary never restore the old
+configuration.
 
-### Primary consumers
-
-- `cmd/main.go` - Initializes configuration state on startup
-- `internal/route/provider` - Accesses configuration for route creation
-- `internal/api/v1` - Exposes configuration via REST API
-- All packages that need to access active configuration
-
-### Non-goals
-
-- Dynamic provider registration after initialization (require config reload)
-
-### Stability
-
-Stable internal package. Public API consists of `State` interface and state management functions.
-
-## Public API
-
-### Exported types
-
-```go
-type Config struct {
-    ACL             *acl.Config
-    AutoCert        *autocert.Config
-    Entrypoint      entrypoint.Config
-    InboundMTLSProfiles map[string]types.InboundMTLSProfile
-    Providers       Providers
-    MatchDomains    []string
-    Homepage        homepage.Config
-    Defaults        Defaults
-    TimeoutShutdown int
-}
-
-type Providers struct {
-    Files        []string
-    Docker       map[string]types.DockerProviderConfig
-    Agents       []*agent.AgentConfig
-    Notification []*notif.NotificationConfig
-    Proxmox      []proxmox.Config
-    MaxMind      *maxmind.Config
-}
+```mermaid
+flowchart TD
+    A[Read and prepare candidate] --> B{Rejecting issue?}
+    B -->|yes| C[Discard candidate]
+    C --> D[Keep current runtime]
+    B -->|no| E[Stop previous runtime]
+    E --> F[Commit candidate: activating]
+    F --> G[Activate providers]
+    F --> H[Activate main and local APIs]
+    F --> I[Activate process metrics]
+    G --> J[Aggregate final report]
+    H --> J
+    I --> J
+    J --> K[healthy, degraded, or failed]
 ```
 
-### State interface
+`Load` and `Reload` share this transition through `RuntimeManager`. Expected
+rejections and degraded or failed activations are returned as `ReloadResult`;
+they are not transported through panics.
+
+```go
+type ReloadResult struct {
+    Committed bool
+    Health    ActivationHealth
+    Issues    []ActivationIssue
+    ActivationReport
+}
+
+func Load(initializeRuntime func(context.Context) error) ReloadResult
+func Reload() ReloadResult
+```
+
+The final report contains provider ready/degraded/failed counts, route
+active/failed counts, separate main/local API results, metrics readiness, and
+classified component issues. `RuntimeSnapshot` exposes the current runtime
+status through `/api/v1/stats`.
+
+## Error ownership and classification
+
+`RejectingError` is reserved for preparation failures that make the candidate
+unsafe to accept: unreadable root configuration, invalid YAML or root semantics,
+and inability to build required entrypoint state. Optional provider,
+notification, MaxMind, Proxmox, certificate, and route-source failures are
+recorded as non-rejecting preparation issues.
+
+Issues retain their original `error` values. Classification uses the wrapped
+error chain, and JSON, logging, and notification formatting occurs only at the
+final presentation boundary. This preserves nested GoDoxy plain, Markdown, and
+JSON error formats and keeps `errors.Is`/`errors.As` usable. Unknown preparation
+classifications fail closed; unknown activation severities produce failed
+health.
+
+Exactly one final lifecycle result is written to the pretty log, runtime event
+history, and the notifier chosen by commitment:
+
+- rejected candidate: the current runtime notifier;
+- committed candidate: the new runtime notifier.
+
+## State ownership
+
+Every state owns a root `task.Task` and its runtime-specific dependencies:
+
+- route providers and entrypoint;
+- agent pool;
+- Proxmox node pool;
+- MaxMind instance and lookup cache;
+- notification dispatcher;
+- event history reference;
+- autocert provider;
+- buffered preparation diagnostics.
+
+These dependencies are installed on the state task and inherited by provider,
+route, server, and request contexts. Candidate preparation therefore cannot
+mutate registries belonging to the active runtime. There is no global working
+state. The committed-state synchronization cell belongs to the owning
+`RuntimeManager`, rather than to the package.
+Request handlers use `types.FromCtx`; process-lifetime services that must follow
+runtime replacement use an explicit `RuntimeStateSource` installed on their
+task by `RuntimeManager`.
 
 ```go
 type State interface {
     Task() *task.Task
     Context() context.Context
     Value() *Config
-    Entrypoint() entrypoint.Entrypoint
-    ShortLinkMatcher() config.ShortLinkMatcher
-    AutoCertProvider() server.CertProvider
-    LoadOrStoreProvider(key string, value types.RouteProvider) (actual types.RouteProvider, loaded bool)
-    DeleteProvider(key string)
-    IterProviders() iter.Seq2[string, types.RouteProvider]
-    StartProviders() error
-    NumProviders() int
 
-    // Lifecycle management
-    StartAPIServers()
-    StartMetrics()
-
-    FlushTmpLog() error
+    ActivateProviders(task.Parent) routing.ProviderActivationReport
+    ActivateAPIServers(task.Parent) APIActivationReport
+    RuntimeSnapshot() RuntimeSnapshot
+    Stop(reason any)
 }
 ```
 
-`StartAPIServers` starts the authenticated API from `common.APIHTTPAddr` and, when `LOCAL_API_ADDR` is set, an additional **unauthenticated** local listener from `common.LocalAPIHTTPAddr`. That address is validated for loopback binds (with optional DNS resolution); non-loopback requires `LOCAL_API_ALLOW_NON_LOOPBACK` and logs a warning. See [`internal/api/v1/README.md`](../api/v1/README.md#configuration-surface).
+## Preparation
 
-### Exported functions
+`state.Init` validates the root YAML, creates context-owned dependencies, builds
+the entrypoint, and loads all route providers with the candidate context.
+Provider files and agents are attempted independently; one failed source does
+not prevent other sources from being represented in the candidate.
 
-```go
-func NewState() config.State
-```
+Preparation diagnostics remain buffered until the lifecycle decision. Rejected
+candidates discard the buffer. Accepted candidates flush it once; persistent
+flush failure degrades the runtime and enables direct logging for subsequent
+diagnostics.
 
-Creates a new configuration state with empty providers map.
+## Activation
 
-```go
-func GetState() config.State
-```
+`state.ActivateProviders` activates providers concurrently and aggregates their
+structured reports. On initial load, provider routes become reachable before
+the `initializeRuntime` callback performs authentication discovery and
+registers API handlers. This supports OIDC issuers routed through GoDoxy
+without exposing API listeners before authentication is ready.
 
-Returns the active configuration state. Thread-safe via atomic load.
+`state.ActivateAPIServers` then reports the mandatory main API and optional
+local API separately and cleans a failed server task before returning. The
+runtime manager owns metrics as a process-lifetime service, so reload does not
+start duplicate mutable pollers.
 
-```go
-func SetState(state config.State)
-```
+## Hot reload and task ownership
 
-Sets the active configuration state. Also updates active configs for ACL, entrypoint, homepage, and autocert.
-
-```go
-func HasState() bool
-```
-
-Returns true if a state is currently active.
-
-```go
-func Value() *config.Config
-```
-
-Returns the current configuration values.
-
-```go
-func (state *state) InitFromFile(filename string) error
-```
-
-Initializes state from a YAML file. Uses default config if file doesn't exist.
-
-```go
-func (state *state) Init(data []byte) error
-```
-
-Initializes state from raw YAML data. Validates, then initializes MaxMind, Proxmox, providers, AutoCert, notifications, access logger, entrypoint, and the built-in embedded WebUI route.
-
-Each load owns buffered diagnostics until its state transition is decided.
-Successful loads serialize one flush through the application log destination;
-failed loads discard both pending and late diagnostics. A persistent flush
-failure is reported and switches the active state to direct logging rather than
-leaving later diagnostics trapped in the buffer. Successfully validated
-inferred Proxmox routes carry discovery metadata on the route itself. Startup
-and watcher event batches collect only their successful routes, sort them by
-node and alias, and emit one multiline summary instead of per-resource progress
-chatter. Proxmox warnings and errors use the same load-owned logger, with the
-process logger as a fallback for standalone validation.
-
-```go
-func (state *state) StartProviders() error
-```
-
-Starts all route providers concurrently.
-
-```go
-func (state *state) IterProviders() iter.Seq2[string, types.RouteProvider]
-```
-
-Returns an iterator over all providers.
-
-## Architecture
-
-### Core components
-
-```mermaid
-graph TD
-    A[config.yml] --> B[State]
-    B --> C{Initialize}
-    C --> D[Validate YAML]
-    C --> E[Init MaxMind]
-    C --> F[Init Proxmox]
-    C --> G[Load Route Providers]
-    C --> H[Init AutoCert]
-    C --> I[Init Notifications]
-    C --> J[Init Entrypoint]
-
-    K[ActiveConfig] -.-> B
-
-    subgraph Providers
-        G --> L[Docker Provider]
-        G --> M[File Provider]
-        G --> N[Agent Provider]
-        G --> O[Built-in WebUI Static Provider]
-    end
-
-    subgraph State Management
-        B --> O[xsync.Map Providers]
-        B --> P[Entrypoint]
-        B --> Q[AutoCert Provider]
-        B --> R[task.Task]
-    end
-```
-
-### Initialization pipeline
-
-```mermaid
-sequenceDiagram
-    participant YAML
-    participant State
-    participant MaxMind
-    participant Proxmox
-    participant Providers
-    participant AutoCert
-    participant Notif
-    participant Entrypoint
-
-    YAML->>State: Parse & Validate
-    par Initialize in parallel
-        State->>MaxMind: Initialize
-        State->>Proxmox: Initialize
-    and
-        State->>Providers: Load Route Providers
-        Providers->>State: Store Providers
-    end
-    State->>AutoCert: Initialize
-    State->>Notif: Initialize
-    State->>Entrypoint: Configure
-    State->>State: Start Providers
-```
-
-### Thread safety model
-
-```go
-var stateMu sync.RWMutex
-
-func GetState() config.State {
-    return config.ActiveState.Load()
-}
-
-func SetState(state config.State) {
-    stateMu.Lock()
-    defer stateMu.Unlock()
-    config.ActiveState.Store(state)
-}
-```
-
-Uses `sync.RWMutex` for write synchronization and `sync/atomic` for read operations.
-
-## Configuration Surface
-
-### Config sources
-
-Configuration is loaded from `config/config.yml`.
-
-### Hot-reloading
-
-Configuration supports hot-reloading via editing `config/config.yml`.
-
-## Dependency and Integration Map
-
-### Internal dependencies
-
-- `internal/acl` - Access control configuration
-- `internal/autocert` - SSL certificate management
-- `internal/entrypoint` - HTTP entrypoint setup (now via interface)
-- `internal/route/provider` - Route providers (Docker, file, agent)
-- `internal/maxmind` - GeoIP configuration
-- `internal/notif` - Notification providers
-- `internal/proxmox` - LXC container management
-- `internal/homepage/types` - Dashboard configuration
-- `internal/api` - REST API servers
-- `internal/metrics/systeminfo` - System metrics polling
-- `internal/metrics/uptime` - Uptime tracking
-- `github.com/yusing/goutils/task` - Object lifecycle management
-
-### External dependencies
-
-- `github.com/goccy/go-yaml` - YAML parsing
-- `github.com/puzpuzpuz/xsync/v4` - Concurrent map
-
-### Integration points
-
-```go
-// API uses config/query to access state
-providers := statequery.RouteProviderList()
-
-// Route providers access config state
-for _, p := range config.GetState().IterProviders() {
-    // Process provider
-}
-```
+The config watcher filters rename, delete, and managed-write suppression events,
+then calls `Reload` directly. It never panics for an expected lifecycle result.
+Each candidate owns its configuration task. An accepted candidate owns one
+durable activation subtask containing its providers, routes, watchers, and API
+servers. Reload stops the previous candidate task only after the replacement
+passes preparation; process shutdown reaches candidates directly through the
+root task.
 
 ## Observability
 
-### Logs
+The final human log is a compact multiline summary:
 
-- Configuration parsing and validation errors
-- Provider initialization results
-- Route provider names, route counts, total route metrics, and validated route endpoints
-- Allowlisted startup summary of enabled subsystems
-
-### Metrics
-
-No metrics are currently exposed.
-
-## Security Considerations
-
-- Configuration file permissions should be restricted (contains secrets)
-- TLS certificates are loaded from files specified in config
-- Agent credentials are passed via configuration
-- Startup diagnostics never serialize or recursively traverse the configuration object
-- Credential values are excluded from startup diagnostics at every log level
-
-### Built-in WebUI route
-
-The built-in WebUI route is added after configured providers are loaded. It serves the embedded `webui/dist/client` assets as a `fileserver` route named by `webui.aliases`, falling back to legacy `GODOXY_FRONTEND_ALIASES` / `FRONTEND_ALIASES` when aliases are not configured. If an alias conflicts with an existing route, config loading logs a warning and the embedded WebUI route is allowed to win.
-
-## Failure Modes and Recovery
-
-| Failure                       | Behavior                            | Recovery                   |
-| ----------------------------- | ----------------------------------- | -------------------------- |
-| Invalid YAML                  | Init returns error                  | Fix YAML syntax            |
-| Missing required fields       | Validation fails                    | Add required fields        |
-| Provider initialization fails | Error aggregated and returned       | Fix provider configuration |
-| Duplicate provider key        | Error logged, first provider kept   | Rename provider            |
-| Route loading fails           | Error aggregated, other routes load | Fix route configuration    |
-| WebUI alias conflict          | Warning logged, embedded WebUI wins | Change `webui.aliases` or remove conflicting route |
-
-## Performance Characteristics
-
-- Providers are loaded concurrently
-- Routes are loaded concurrently per provider
-- The embedded WebUI static provider is loaded after configured providers
-- State access is lock-free for reads
-- Atomic pointer for state swap
-
-## Usage Examples
-
-### Loading configuration
-
-```go
-state := config.NewState()
-err := state.InitFromFile("config.yml")
-if err != nil {
-    log.Fatal(err)
-}
-
-config.SetState(state)
+```text
+config committed: degraded
+providers: 4 ready, 1 degraded, 1 failed
+routes: 37 active, 3 failed
+api: main ready, local failed
+metrics: ready
 ```
 
-### Accessing configuration
+The event and API boundaries retain the full machine-readable result. The stats
+endpoint includes runtime status and the latest activation report.
 
-```go
-if config.HasState() {
-    cfg := config.Value()
-    log.Printf("Entrypoint middleware count: %d", len(cfg.Entrypoint.Middlewares))
-    log.Printf("Docker providers: %d", len(cfg.Providers.Docker))
-}
-```
+## Security
 
-### Iterating providers
-
-```go
-for name, provider := range config.GetState().IterProviders() {
-    log.Printf("Provider: %s, Routes: %d", name, provider.NumRoutes())
-}
-```
-
-### Accessing entrypoint handler
-
-```go
-state := config.GetState()
-// Get entrypoint interface for route management
-ep := state.Entrypoint()
-// Add routes directly to entrypoint
-ep.AddRoute(route)
-```
+- Configuration files contain credentials and require restricted permissions.
+- Startup diagnostics are allowlisted and never recursively serialize config.
+- Runtime contexts prevent a candidate from inheriting or overwriting the old
+  state's agents, MaxMind reader, notifier, Proxmox nodes, or event sink.
+- Local unauthenticated API binds remain loopback-only unless explicitly
+  allowed by `LOCAL_API_ALLOW_NON_LOOPBACK`.

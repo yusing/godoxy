@@ -1,7 +1,6 @@
 package watcher
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -67,13 +66,13 @@ func NewDirectoryWatcher(parent task.Parent, dirPath string) *DirWatcher {
 
 var _ Watcher = (*DirWatcher)(nil)
 
-// Events implements the Watcher interface.
-func (h *DirWatcher) Events(ctx context.Context) (<-chan Event, <-chan error) {
+// Watch implements the Watcher interface.
+func (h *DirWatcher) Watch(parent task.Parent) Stream {
 	h.eventSubscribers.Add(1)
-	context.AfterFunc(ctx, func() {
+	parent.OnCancel("remove directory watcher subscriber", func() {
 		h.eventSubscribers.Add(-1)
 	})
-	return h.eventCh, h.errCh
+	return Stream{Events: h.eventCh, Errors: h.errCh, Ready: Ready()}
 }
 
 func (h *DirWatcher) Add(relPath string) Watcher {

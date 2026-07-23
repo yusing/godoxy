@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"errors"
 
 	"github.com/yusing/godoxy/internal/agentpool"
@@ -10,7 +11,7 @@ import (
 
 var ErrBuilderNotInitialized = errors.New("route builder not initialized")
 
-type BuildFunc func(route *Route) (impl routing.Route, agent *agentpool.Agent, err error)
+type BuildFunc func(context.Context, *Route) (impl routing.Route, agent *agentpool.Agent, err error)
 type HealthMonitorFunc func(route routing.Route) health.HealthMonitor
 
 var build BuildFunc

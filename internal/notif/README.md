@@ -115,16 +115,14 @@ type Ntfy struct {
 ### Dispatcher Management
 
 ```go
-// StartNotifDispatcher initializes the notification dispatcher.
-func StartNotifDispatcher(parent task.Parent) *Dispatcher
+func NewDispatcher(parent task.Parent) *Dispatcher
+func SetCtx(target interface{ SetValue(any, any) }, notifier Notifier)
+func FromCtx(ctx context.Context) Notifier
 ```
 
-### Notification
-
-```go
-// Notify sends a log message to all providers.
-func Notify(msg *LogMessage)
-```
+The dispatcher belongs to one runtime task. `FromCtx` returns that runtime's
+`Notifier`; when no notifier is configured it returns a no-op implementation.
+There is no mutable process-global dispatcher.
 
 ### Dispatcher Methods
 
@@ -138,7 +136,7 @@ func (disp *Dispatcher) RegisterProvider(cfg *NotificationConfig)
 ### Basic Notification
 
 ```go
-notif.Notify(&notif.LogMessage{
+notif.FromCtx(ctx).Notify(&notif.LogMessage{
     Level: zerolog.InfoLevel,
     Title: "Container Started",
     Body: notif.ListBody{
@@ -151,7 +149,7 @@ notif.Notify(&notif.LogMessage{
 ### Provider-Specific Notification
 
 ```go
-notif.Notify(&notif.LogMessage{
+notif.FromCtx(ctx).Notify(&notif.LogMessage{
     Level:    zerolog.WarnLevel,
     Title:    "High Memory Usage",
     Body:     notif.MessageBody("Memory: 85%"),
@@ -163,7 +161,8 @@ notif.Notify(&notif.LogMessage{
 ### Registering Providers
 
 ```go
-dispatcher := notif.StartNotifDispatcher(parent)
+dispatcher := notif.NewDispatcher(parent)
+notif.SetCtx(parent, dispatcher)
 
 dispatcher.RegisterProvider(&notif.NotificationConfig{
     ProviderName: notif.ProviderWebhook,

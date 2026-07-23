@@ -60,8 +60,8 @@ func NewMonitor(r routing.Route) Monitor {
 			displayURL,
 			container.ContainerID,
 			mon,
-			func() (*docker.SharedClient, error) {
-				client, err := docker.NewClient(container.DockerCfg, true)
+			func(ctx context.Context) (*docker.SharedClient, error) {
+				client, err := docker.NewClient(ctx, container.DockerCfg, true)
 				if err != nil {
 					return nil, err
 				}
@@ -118,7 +118,7 @@ func NewDockerHealthMonitor(config health.HealthCheckConfig, client *docker.Shar
 		displayURL,
 		containerID,
 		fallback,
-		func() (*docker.SharedClient, error) { return client, nil },
+		func(context.Context) (*docker.SharedClient, error) { return client, nil },
 	)
 }
 
@@ -127,7 +127,7 @@ func newDockerHealthMonitor(
 	displayURL *url.URL,
 	containerID string,
 	fallback Monitor,
-	newClient func() (*docker.SharedClient, error),
+	newClient func(context.Context) (*docker.SharedClient, error),
 ) Monitor {
 	logger := log.With().Str("host", displayURL.Host).Str("container_id", containerID).Logger()
 	isFirstFailure := true
@@ -140,7 +140,7 @@ func newDockerHealthMonitor(
 		defer stateMu.Unlock()
 
 		if state == nil {
-			client, clientErr := newClient()
+			client, clientErr := newClient(mon.Context())
 			if clientErr != nil {
 				err = fmt.Errorf("initialize docker health check: %w", clientErr)
 			} else if client == nil {

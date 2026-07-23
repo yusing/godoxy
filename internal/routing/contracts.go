@@ -73,8 +73,8 @@ type (
 		Stream() nettypes.Stream
 	}
 	Provider interface {
-		Start(parent task.Parent) error
-		LoadRoutes() error
+		Activate(parent task.Parent) ProviderActivation
+		LoadRoutes(ctx context.Context) error
 		GetRoute(alias string) (r Route, ok bool)
 		IterRoutes(yield func(alias string, r Route) bool)
 		NumRoutes() int

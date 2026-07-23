@@ -58,8 +58,8 @@ func (p *DockerProvider) NewWatcher() watcher.Watcher {
 	return watcher.NewDockerWatcher(p.dockerCfg)
 }
 
-func (p *DockerProvider) loadRoutesImpl() (route.Routes, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (p *DockerProvider) loadRoutesImpl(parentCtx context.Context) (route.Routes, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 5*time.Second)
 	defer cancel()
 
 	containers, err := docker.ListContainers(ctx, p.dockerCfg)
@@ -71,7 +71,7 @@ func (p *DockerProvider) loadRoutesImpl() (route.Routes, error) {
 	routes := make(route.Routes)
 
 	for _, c := range containers {
-		container := docker.FromDocker(&c, p.dockerCfg)
+		container := docker.FromDocker(ctx, &c, p.dockerCfg)
 
 		if container.Errors != nil {
 			errs.AddSubject(container.Errors, container.ContainerName)

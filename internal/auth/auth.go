@@ -1,38 +1,57 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/yusing/godoxy/internal/common"
 )
 
-var defaultAuth Provider
+type providerHolder struct {
+	provider Provider
+}
+
+var defaultAuth atomic.Pointer[providerHolder]
 
 var errMissingUserPassCredentials = errors.New(
 	"GODOXY_API_USER and GODOXY_API_PASSWORD must be set when authentication is enabled without OIDC",
 )
 
 // Initialize sets up authentication providers.
-func Initialize() error {
+func Initialize(ctx context.Context) error {
 	// Validate before IsEnabled: omitting the JWT secret is not an explicit
 	// request to disable authentication.
 	if err := validateUserPassCredentials(); err != nil {
 		return err
 	}
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
 	if !IsEnabled() {
+		setDefaultAuth(nil)
 		return nil
 	}
 
-	var err error
+	var (
+		provider Provider
+		err      error
+	)
 	// Initialize OIDC if configured.
 	if common.OIDCIssuerURL != "" {
-		defaultAuth, err = NewOIDCProviderFromEnv()
+		provider, err = NewOIDCProviderFromEnv(ctx)
 	} else {
-		defaultAuth, err = NewUserPassAuthFromEnv()
+		provider, err = NewUserPassAuthFromEnv()
 	}
-
-	return err
+	if err != nil {
+		return err
+	}
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
+	setDefaultAuth(provider)
+	return nil
 }
 
 func validateUserPassCredentials() error {
@@ -46,7 +65,19 @@ func validateUserPassCredentials() error {
 }
 
 func GetDefaultAuth() Provider {
-	return defaultAuth
+	holder := defaultAuth.Load()
+	if holder == nil {
+		return nil
+	}
+	return holder.provider
+}
+
+func setDefaultAuth(provider Provider) {
+	if provider == nil {
+		defaultAuth.Store(nil)
+		return
+	}
+	defaultAuth.Store(&providerHolder{provider: provider})
 }
 
 func IsEnabled() bool {
@@ -71,25 +102,31 @@ func ProceedNext(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	if defaultAuth == nil {
+	provider := GetDefaultAuth()
+	if provider == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
-	err := defaultAuth.CheckToken(r)
+	err := provider.CheckToken(r)
 	if err != nil {
-		defaultAuth.LoginHandler(w, r)
+		provider.LoginHandler(w, r)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func AuthOrProceed(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	if defaultAuth == nil {
+	provider := GetDefaultAuth()
+	if provider == nil {
+		if IsEnabled() {
+			http.Error(w, "authentication is initializing", http.StatusServiceUnavailable)
+			return false
+		}
 		return true
 	}
-	err := defaultAuth.CheckToken(r)
+	err := provider.CheckToken(r)
 	if err != nil {
-		defaultAuth.LoginHandler(w, r)
+		provider.LoginHandler(w, r)
 		return false
 	}
 	return true

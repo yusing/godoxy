@@ -44,7 +44,7 @@ func TestMatchers(t *testing.T) {
 			t.Fatalf("invalid ip: %s", test.ip)
 		}
 
-		got := mathers.Match(&maxmind.IPInfo{
+		got := mathers.Match(t.Context(), &maxmind.IPInfo{
 			IP:  ip,
 			Str: test.ip,
 		})

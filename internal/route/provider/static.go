@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/route"
 	W "github.com/yusing/godoxy/internal/watcher"
+	"github.com/yusing/goutils/task"
 )
 
 type StaticProvider struct {
@@ -34,16 +35,16 @@ func (p *StaticProvider) IsExplicitOnly() bool { return false }
 
 func (p *StaticProvider) Logger() *zerolog.Logger { return &p.l }
 
-func (p *StaticProvider) loadRoutesImpl() (route.Routes, error) { return p.routes, nil }
+func (p *StaticProvider) loadRoutesImpl(context.Context) (route.Routes, error) { return p.routes, nil }
 
 func (p *StaticProvider) NewWatcher() W.Watcher { return noopWatcher{} }
 
 type noopWatcher struct{}
 
-func (noopWatcher) Events(context.Context) (<-chan W.Event, <-chan error) {
+func (noopWatcher) Watch(task.Parent) W.Stream {
 	eventCh := make(chan W.Event)
 	errCh := make(chan error)
 	close(eventCh)
 	close(errCh)
-	return eventCh, errCh
+	return W.Stream{Events: eventCh, Errors: errCh, Ready: W.Ready()}
 }

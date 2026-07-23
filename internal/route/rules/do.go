@@ -610,14 +610,6 @@ var commands = map[string]struct {
 			}
 
 			phase |= req1 | req2
-			// TODO: validate provider
-			// currently it is not possible, because rule validation happens on UnmarshalYAMLValidate
-			// and we cannot call config.ActiveConfig.Load() because it will cause import cycle
-
-			// err = validateNotifProvider(args[1])
-			// if err != nil {
-			// 	return nil, err
-			// }
 			return phase, &onNotifyArgs{level, args[1], titleTmpl, bodyTmpl}, nil
 		},
 		build: func(args any) HandlerFunc {
@@ -638,7 +630,7 @@ var commands = map[string]struct {
 				}
 
 				s := respBuf.String()
-				notif.Notify(&notif.LogMessage{
+				notif.FromCtx(r.Context()).Notify(&notif.LogMessage{
 					Level: level,
 					Title: s[:titleLen],
 					Body:  notif.MessageBodyBytes(s[titleLen:]),

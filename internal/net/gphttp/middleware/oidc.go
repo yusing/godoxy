@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -40,15 +41,15 @@ func (amw *oidcMiddleware) finalize() error {
 	return nil
 }
 
-func (amw *oidcMiddleware) init() error {
+func (amw *oidcMiddleware) init(ctx context.Context) error {
 	if atomic.LoadInt32(&amw.isInitialized) == 1 {
 		return nil
 	}
 
-	return amw.initSlow()
+	return amw.initSlow(ctx)
 }
 
-func (amw *oidcMiddleware) initSlow() error {
+func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 	amw.initMu.Lock()
 	if atomic.LoadInt32(&amw.isInitialized) == 1 {
 		amw.initMu.Unlock()
@@ -57,7 +58,7 @@ func (amw *oidcMiddleware) initSlow() error {
 	defer amw.initMu.Unlock()
 
 	// Always start with the global OIDC provider (for issuer discovery)
-	authProvider, err := auth.NewOIDCProviderFromEnv()
+	authProvider, err := auth.NewOIDCProviderFromEnv(ctx)
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 		return true
 	}
 
-	if err := amw.init(); err != nil {
+	if err := amw.init(r.Context()); err != nil {
 		// no need to log here, main OIDC should've already failed and logged
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false

@@ -1,8 +1,6 @@
 package watcher
 
-import (
-	"context"
-)
+import "github.com/yusing/goutils/task"
 
 type fileWatcher struct {
 	relPath string
@@ -12,7 +10,7 @@ type fileWatcher struct {
 
 var _ Watcher = (*fileWatcher)(nil)
 
-// Events implements the Watcher interface.
-func (fw *fileWatcher) Events(ctx context.Context) (<-chan Event, <-chan error) {
-	return fw.eventCh, fw.errCh
+// Watch implements the Watcher interface.
+func (fw *fileWatcher) Watch(task.Parent) Stream {
+	return Stream{Events: fw.eventCh, Errors: fw.errCh, Ready: Ready()}
 }

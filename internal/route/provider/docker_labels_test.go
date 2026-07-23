@@ -22,7 +22,7 @@ func TestParseDockerLabels(t *testing.T) {
 	expect.NoError(t, yaml.Unmarshal(testDockerLabelsYAML, &labels))
 
 	routes, err := provider.routesFromContainerLabels(
-		docker.FromDocker(&container.Summary{
+		docker.FromDocker(t.Context(), &container.Summary{
 			Names:  []string{"container"},
 			Labels: labels,
 			State:  "running",

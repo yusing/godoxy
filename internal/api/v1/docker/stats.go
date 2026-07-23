@@ -55,7 +55,7 @@ func Stats(c *gin.Context) {
 		return
 	}
 
-	dockerClient, err := docker.NewClient(dockerCfg)
+	dockerClient, err := docker.NewClient(c.Request.Context(), dockerCfg)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to create docker client"))
 		return

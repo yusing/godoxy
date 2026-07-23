@@ -10,7 +10,6 @@ import (
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	config "github.com/yusing/godoxy/internal/config/types"
-	entrypoint "github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	metricsutils "github.com/yusing/godoxy/internal/metrics/utils"
@@ -43,7 +42,11 @@ type (
 var Poller = period.NewPoller("uptime", getStatuses, aggregateStatuses)
 
 func getStatuses(ctx context.Context, _ StatusByAlias) (StatusByAlias, error) {
-	ep := entrypoint.FromCtx(ctx)
+	state := config.RuntimeStateFromCtx(ctx)
+	if state == nil {
+		return StatusByAlias{}, errors.New("active runtime not found")
+	}
+	ep := state.Entrypoint()
 	if ep == nil {
 		return StatusByAlias{}, errors.New("entrypoint not found in context")
 	}
@@ -134,14 +137,8 @@ func (rs RouteStatuses) aggregate(limit int, offset int) Aggregated {
 		up, down, idle, latency := rs.calculateInfo(statuses)
 
 		status := health.StatusUnknown
-		if state := config.ActiveState.Load(); state != nil {
-			r, ok := entrypoint.FromCtx(state.Context()).GetRoute(alias)
-			if ok {
-				mon := r.HealthMonitor()
-				if mon != nil {
-					status = mon.Status()
-				}
-			}
+		if len(statuses) > 0 {
+			status = statuses[len(statuses)-1].Status
 		}
 
 		result[i] = RouteAggregate{

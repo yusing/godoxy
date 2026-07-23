@@ -120,7 +120,7 @@ func TestDockerHealthMonitorCancellationDoesNotStartFallback(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := docker.NewClient(types.DockerProviderConfig{URL: server.URL}, true)
+	client, err := docker.NewClient(t.Context(), types.DockerProviderConfig{URL: server.URL}, true)
 	require.NoError(t, err)
 	t.Cleanup(client.Close)
 	fallback, fallbackRequests := newHTTPFallback(t)
@@ -250,7 +250,7 @@ func newDockerClient(t *testing.T, response func() (status int, body string)) *d
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := docker.NewClient(types.DockerProviderConfig{URL: server.URL}, true)
+	client, err := docker.NewClient(t.Context(), types.DockerProviderConfig{URL: server.URL}, true)
 	require.NoError(t, err)
 	t.Cleanup(client.Close)
 	return client

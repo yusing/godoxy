@@ -26,7 +26,7 @@ func TestValidateIdlewatcherUsesRouteProxmoxBinding(t *testing.T) {
     idle_timeout: 30m
 `)
 
-	require.NoError(t, Validate(data))
+	require.NoError(t, Validate(t.Context(), data))
 }
 
 func TestValidateIdlewatcherRequiresBoundProvider(t *testing.T) {
@@ -36,6 +36,6 @@ func TestValidateIdlewatcherRequiresBoundProvider(t *testing.T) {
     idle_timeout: 30m
 `)
 
-	err := Validate(data)
+	err := Validate(t.Context(), data)
 	require.ErrorContains(t, err, "missing idlewatcher provider config")
 }

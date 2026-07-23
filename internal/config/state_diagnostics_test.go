@@ -2,14 +2,20 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
+	"github.com/yusing/godoxy/internal/common"
+	configtypes "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/health"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/logging"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -19,7 +25,68 @@ import (
 	strutils "github.com/yusing/goutils/strings"
 )
 
+func TestBulkActivationSuppressesDuplicateRouteLogs(t *testing.T) {
+	previousHTTPAddr := common.ProxyHTTPAddr
+	previousHTTPSAddr := common.ProxyHTTPSAddr
+	common.ProxyHTTPAddr = "127.0.0.1:0"
+	common.ProxyHTTPSAddr = ""
+	t.Cleanup(func() {
+		common.ProxyHTTPAddr = previousHTTPAddr
+		common.ProxyHTTPSAddr = previousHTTPSAddr
+	})
+
+	state := NewState()
+	t.Cleanup(func() { state.Stop(nil) })
+	state.Config = configtypes.DefaultConfig()
+	require.NoError(t, state.initEntrypoint())
+
+	newProvider := func(name, alias string) (*provider.Provider, *route.Route) {
+		routeConfig := &route.Route{
+			Scheme: route.SchemeHTTP,
+			Host:   "backend.example.com",
+			Port:   route.Port{Proxy: 8080},
+			HealthCheck: health.HealthCheckConfig{
+				Disable: true,
+			},
+		}
+		p := provider.NewStaticProvider(name, route.Routes{
+			alias: routeConfig,
+		})
+		require.NoError(t, p.LoadRoutes(state.Context()))
+		return p, routeConfig
+	}
+
+	bulk, bulkRoute := newProvider("bulk", "bulk-route")
+	state.providers.Store(bulk.String(), bulk)
+
+	var runtimeLogs bytes.Buffer
+	previousLogger := log.Logger
+	log.Logger = zerolog.New(&runtimeLogs).Level(zerolog.InfoLevel)
+	t.Cleanup(func() { log.Logger = previousLogger })
+
+	report := state.ActivateProviders(state.Task())
+	require.Equal(t, 1, report.ActiveRoutes)
+	require.NoError(t, context.Cause(bulkRoute.Task().Context()), "successful activation must leave the route running")
+	require.NotContains(t, runtimeLogs.String(), "added Bulk Route (bulk-route)")
+
+	var inventory bytes.Buffer
+	state.tmpLog = zerolog.New(&inventory).Level(zerolog.InfoLevel)
+	state.printRoutesByProvider(len(bulk.String()))
+	require.Contains(t, inventory.String(), "routes by provider")
+	require.Contains(t, inventory.String(), "bulk-route")
+
+	dynamic, dynamicRoute := newProvider("dynamic", "dynamic-route")
+	dynamicActivation := dynamic.Activate(state.Task())
+	require.Equal(t, 1, dynamicActivation.ActiveRoutes)
+	require.NoError(t, context.Cause(dynamicRoute.Task().Context()), "successful dynamic activation must leave the route running")
+	require.Contains(t, runtimeLogs.String(), "added Dynamic Route (dynamic-route)")
+
+	bulkRoute.FinishAndWait(nil)
+	dynamicRoute.FinishAndWait(nil)
+}
+
 func TestStartupDiagnosticsAllowlist(t *testing.T) {
+	iconlist.InitCache()
 	const (
 		eabHMAC           = "eab-hmac-credential-sentinel"
 		dnsOption         = "dns-option-credential-sentinel"
@@ -81,7 +148,7 @@ func TestStartupDiagnosticsAllowlist(t *testing.T) {
 			Port:   route.Port{Proxy: 8080},
 		},
 	})
-	require.NoError(t, routeProvider.LoadRoutes())
+	require.NoError(t, routeProvider.LoadRoutes(t.Context()))
 	state.providers.Store(providerName, routeProvider)
 
 	var diagnostics bytes.Buffer
@@ -184,6 +251,7 @@ func TestProxmoxDiscoveryDiagnosticsSkipEmptyWork(t *testing.T) {
 }
 
 func TestProxmoxDiscoveriesIncludeOnlySuccessfullyMarkedRoutes(t *testing.T) {
+	iconlist.InitCache()
 	state := NewState()
 	t.Cleanup(func() { state.Task().Finish(nil) })
 
@@ -193,7 +261,7 @@ func TestProxmoxDiscoveriesIncludeOnlySuccessfullyMarkedRoutes(t *testing.T) {
 		"successful": successful,
 		"rejected":   rejected,
 	})
-	require.NoError(t, provider.LoadRoutes())
+	require.NoError(t, provider.LoadRoutes(t.Context()))
 
 	vmid := uint64(147)
 	successful.Proxmox = &proxmox.NodeConfig{Node: "pve", VMID: &vmid, VMName: "successful-vm"}

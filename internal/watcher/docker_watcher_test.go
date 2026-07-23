@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/task"
 )
 
 func TestReceiveDockerStreamResultClosedMessageChannelReturnsStreamClosed(t *testing.T) {
@@ -55,7 +56,7 @@ func TestReconnectDockerWatcherClientCreatesFreshClientPerRetry(t *testing.T) {
 
 	cfg := types.DockerProviderConfig{URL: "unix:///var/run/docker.sock"}
 	var created []*docker.SharedClient
-	newDockerWatcherClient = func(cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+	newDockerWatcherClient = func(_ context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
 		c := &docker.SharedClient{}
 		created = append(created, c)
 		return c, nil
@@ -79,6 +80,105 @@ func TestReconnectDockerWatcherClientCreatesFreshClientPerRetry(t *testing.T) {
 	require.NotSame(t, created[0], created[1])
 }
 
+func TestDockerWatcherReportsInitializationFailureBeforeReadiness(t *testing.T) {
+	oldFactory := newDockerWatcherClient
+	t.Cleanup(func() { newDockerWatcherClient = oldFactory })
+
+	sentinel := errors.New("malformed docker endpoint")
+	newDockerWatcherClient = func(context.Context, types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return nil, sentinel
+	}
+
+	stream := NewDockerWatcher(types.DockerProviderConfig{}).Watch(task.GetTestTask(t))
+	require.ErrorIs(t, <-stream.Ready, sentinel)
+	require.ErrorIs(t, <-stream.Errors, sentinel)
+	_, eventsOpen := <-stream.Events
+	require.False(t, eventsOpen)
+}
+
+func TestDockerWatcherReportsInitialConnectionFailure(t *testing.T) {
+	oldFactory := newDockerWatcherClient
+	oldCheck := dockerWatcherCheckConnection
+	t.Cleanup(func() {
+		newDockerWatcherClient = oldFactory
+		dockerWatcherCheckConnection = oldCheck
+	})
+
+	newDockerWatcherClient = func(context.Context, types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return &docker.SharedClient{}, nil
+	}
+	dockerWatcherCheckConnection = func(context.Context, *docker.SharedClient) bool { return false }
+
+	stream := NewDockerWatcher(types.DockerProviderConfig{}).Watch(task.GetTestTask(t))
+	require.ErrorIs(t, <-stream.Ready, ErrDockerWatcherConnection)
+	require.ErrorIs(t, <-stream.Errors, ErrDockerWatcherConnection)
+}
+
+func TestDockerWatcherReadinessDoesNotWaitForEventStreamHeaders(t *testing.T) {
+	oldFactory := newDockerWatcherClient
+	oldCheck := dockerWatcherCheckConnection
+	t.Cleanup(func() {
+		newDockerWatcherClient = oldFactory
+		dockerWatcherCheckConnection = oldCheck
+	})
+
+	eventsRequested := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/_ping"):
+			w.Header().Set("API-Version", "1.51")
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/events"):
+			close(eventsRequested)
+			<-r.Context().Done()
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	cfg := types.DockerProviderConfig{URL: srv.URL}
+	newDockerWatcherClient = func(ctx context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return docker.NewClient(ctx, cfg, true)
+	}
+
+	watcherTask := task.GetTestTask(t).Subtask("docker-watcher", false)
+	t.Cleanup(func() { watcherTask.Finish(nil) })
+	stream := NewDockerWatcher(cfg).Watch(watcherTask)
+
+	select {
+	case err := <-stream.Ready:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("watcher readiness waited for Docker event-stream headers")
+	}
+
+	select {
+	case <-eventsRequested:
+	case <-time.After(time.Second):
+		t.Fatal("Docker event stream was not requested")
+	}
+}
+
+func TestDockerWatcherReportsRejectedDockerAPI(t *testing.T) {
+	oldFactory := newDockerWatcherClient
+	t.Cleanup(func() { newDockerWatcherClient = oldFactory })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "denied", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+
+	cfg := types.DockerProviderConfig{URL: srv.URL}
+	newDockerWatcherClient = func(ctx context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+		return docker.NewClient(ctx, cfg, true)
+	}
+
+	stream := NewDockerWatcher(cfg).Watch(task.GetTestTask(t))
+	require.ErrorIs(t, <-stream.Ready, ErrDockerWatcherConnection)
+	require.ErrorIs(t, <-stream.Errors, ErrDockerWatcherConnection)
+}
+
 func TestReconnectDockerWatcherClientRetriesAfterFactoryError(t *testing.T) {
 	oldFactory := newDockerWatcherClient
 	oldCheck := dockerWatcherCheckConnection
@@ -92,7 +192,7 @@ func TestReconnectDockerWatcherClientRetriesAfterFactoryError(t *testing.T) {
 
 	cfg := types.DockerProviderConfig{URL: "unix:///var/run/docker.sock"}
 	factoryCalls := 0
-	newDockerWatcherClient = func(cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+	newDockerWatcherClient = func(_ context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
 		factoryCalls++
 		if factoryCalls == 1 {
 			return nil, errors.New("boom")
@@ -154,9 +254,9 @@ func TestDockerWatcherReconnectsAfterEventStreamEOF(t *testing.T) {
 
 	cfg := types.DockerProviderConfig{URL: srv.URL}
 	var clientCreations atomic.Int32
-	newDockerWatcherClient = func(cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
+	newDockerWatcherClient = func(ctx context.Context, cfg types.DockerProviderConfig) (*docker.SharedClient, error) {
 		clientCreations.Add(1)
-		return docker.NewClient(cfg, true)
+		return docker.NewClient(ctx, cfg, true)
 	}
 	dockerWatcherCheckConnection = func(ctx context.Context, client *docker.SharedClient) bool {
 		return true
@@ -166,17 +266,18 @@ func TestDockerWatcherReconnectsAfterEventStreamEOF(t *testing.T) {
 	defer cancel()
 
 	w := NewDockerWatcher(cfg)
-	eventCh, errCh := w.EventsWithOptions(ctx, optionsDefault)
+	stream := w.EventsWithOptions(ctx, optionsDefault)
+	require.NoError(t, <-stream.Ready)
 
 	select {
-	case err := <-errCh:
+	case err := <-stream.Errors:
 		require.Error(t, err)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for watcher error")
 	}
 
 	select {
-	case ev := <-eventCh:
+	case ev := <-stream.Events:
 		require.Equal(t, reloadTrigger, ev)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for reload trigger")
@@ -189,4 +290,22 @@ func TestDockerWatcherReconnectsAfterEventStreamEOF(t *testing.T) {
 
 	close(releaseSecondStream)
 	cancel()
+
+	events := stream.Events
+	errs := stream.Errors
+	timeout := time.After(2 * time.Second)
+	for events != nil || errs != nil {
+		select {
+		case _, ok := <-events:
+			if !ok {
+				events = nil
+			}
+		case _, ok := <-errs:
+			if !ok {
+				errs = nil
+			}
+		case <-timeout:
+			t.Fatal("timed out waiting for watcher shutdown")
+		}
+	}
 }

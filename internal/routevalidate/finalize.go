@@ -1,19 +1,19 @@
 package routevalidate
 
 import (
+	"context"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/common"
 	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
-	homepagecfg "github.com/yusing/godoxy/internal/homepage/types"
 	"github.com/yusing/godoxy/internal/route"
 	strutils "github.com/yusing/goutils/strings"
 )
 
 // finalize fill in missing fields with proper values.
-func finalize(r *route.Route) {
+func finalize(ctx context.Context, r *route.Route) {
 	r.Alias = strings.ToLower(strings.TrimSpace(r.Alias))
 	r.Host = strings.ToLower(strings.TrimSpace(r.Host))
 
@@ -113,21 +113,17 @@ func finalize(r *route.Route) {
 	r.CanResolveDockerProxyPort = canResolveDockerProxyPort(r)
 	r.CheckedDockerProxyPort = true
 
-	workingState := config.WorkingState.Load()
-	if workingState == nil {
-		if common.IsTest { // in tests, working state might be nil
-			return
-		}
-		panic("bug: working state is nil")
+	state := config.FromCtx(ctx)
+	if state == nil {
+		r.HealthCheck.ApplyDefaults(health.HealthCheckConfig{})
+	} else {
+		r.HealthCheck.ApplyDefaults(state.Value().Defaults.HealthCheck)
 	}
 
-	// TODO: default value from context
-	r.HealthCheck.ApplyDefaults(workingState.Value().Defaults.HealthCheck)
-
-	finalizeHomepageConfig(r)
+	finalizeHomepageConfig(ctx, r)
 }
 
-func finalizeHomepageConfig(r *route.Route) {
+func finalizeHomepageConfig(ctx context.Context, r *route.Route) {
 	if r.Alias == "" {
 		panic("alias is empty")
 	}
@@ -171,7 +167,11 @@ func finalizeHomepageConfig(r *route.Route) {
 	}
 
 	if hp.Category == "" {
-		if homepagecfg.ActiveConfig.Load().UseDefaultCategories {
+		useDefaultCategories := true
+		if state := config.FromCtx(ctx); state != nil {
+			useDefaultCategories = state.Value().Homepage.UseDefaultCategories
+		}
+		if useDefaultCategories {
 			for _, ref := range refs {
 				if category, ok := homepage.PredefinedCategories[ref]; ok {
 					hp.Category = category

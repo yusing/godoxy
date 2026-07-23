@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -13,6 +13,7 @@ import (
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/config"
+	configtypes "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/dnsproviders"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/health/monitor"
@@ -84,20 +85,12 @@ func main() {
 		return monitor.NewMonitor(r)
 	})
 
-	err := config.Load()
-	if err != nil {
-		if criticalErr, ok := errors.AsType[config.CriticalError](err); ok {
-			log.Fatal().Err(criticalErr).Msg("critical error in config")
-		}
-		log.Warn().Err(err).Msg("errors in config")
-	}
-
-	if err := auth.Initialize(); err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize authentication")
-	}
 	rules.InitAuthHandler(auth.AuthOrProceed)
-	if err := api.RegisterHandlers(); err != nil {
-		log.Fatal().Err(err).Msg("failed to register API handlers")
+	result := config.Load(initializeRuntimeServices)
+	if !initialRuntimeReady(result) {
+		// RuntimeManager already emitted the complete lifecycle report. Keep
+		// process policy separate so issue diagnostics are rendered exactly once.
+		log.Fatal().Msg("runtime activation failed, exiting")
 	}
 
 	listenDebugServer()
@@ -106,7 +99,27 @@ func main() {
 
 	close(done)
 
-	task.WaitExit(config.Value().TimeoutShutdown)
+	task.WaitExit(config.ShutdownTimeout())
+}
+
+func initializeRuntimeServices(ctx context.Context) error {
+	if err := auth.Initialize(ctx); err != nil {
+		return fmt.Errorf("initialize authentication: %w", err)
+	}
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
+	if err := api.RegisterHandlers(); err != nil {
+		return fmt.Errorf("register API handlers: %w", err)
+	}
+	return nil
+}
+
+func initialRuntimeReady(result configtypes.ReloadResult) bool {
+	if !result.Committed {
+		return false
+	}
+	return result.Health == configtypes.ActivationHealthy || result.Health == configtypes.ActivationDegraded
 }
 
 func prepareDirectory(dir string) {

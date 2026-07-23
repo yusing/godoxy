@@ -24,11 +24,12 @@ import (
 // @Failure		500	{object}	apitypes.ErrorResponse
 // @Router			/route/providers [get]
 func Providers(c *gin.Context) {
+	ctx := c.Request.Context()
 	if httpheaders.IsWebsocket(c.Request.Header) {
 		websocket.PeriodicWrite(c, 5*time.Second, func() (any, error) {
-			return statequery.RouteProviderList(), nil
+			return statequery.RouteProviderList(ctx), nil
 		})
 	} else {
-		c.JSON(http.StatusOK, statequery.RouteProviderList())
+		c.JSON(http.StatusOK, statequery.RouteProviderList(ctx))
 	}
 }

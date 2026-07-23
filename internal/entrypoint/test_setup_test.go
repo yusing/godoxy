@@ -1,6 +1,7 @@
 package entrypoint
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -73,7 +74,7 @@ func (r *testHTTPRoute) Start(parent task.Parent) error {
 }
 
 func TestMain(m *testing.M) {
-	route.InitBuilder(func(r *route.Route) (routing.Route, *agentpool.Agent, error) {
+	route.InitBuilder(func(_ context.Context, r *route.Route) (routing.Route, *agentpool.Agent, error) {
 		if r.Homepage == nil {
 			r.Homepage = &homepage.ItemConfig{Name: r.Alias, Show: true}
 		}

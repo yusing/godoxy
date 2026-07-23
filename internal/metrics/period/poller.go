@@ -147,13 +147,15 @@ func (p *Poller[T, AggregateT]) pollWithTimeout(ctx context.Context) {
 	p.lastResult.Store(data)
 }
 
-func (p *Poller[T, AggregateT]) Start(parent task.Parent) {
+func (p *Poller[T, AggregateT]) Start(parent task.Parent) error {
 	t := parent.Subtask("poller."+p.name, true)
 	l := log.With().Str("name", p.name).Logger()
-	err := p.load()
-	if err != nil {
-		if !os.IsNotExist(err) {
-			l.Err(err).Msg("failed to load last metrics data")
+	loadErr := p.load()
+	if loadErr != nil {
+		if os.IsNotExist(loadErr) {
+			loadErr = nil
+		} else {
+			l.Err(loadErr).Msg("failed to load last metrics data")
 		}
 	} else {
 		l.Debug().Int("entries", p.period.Total()).Msgf("Loaded last metrics data")
@@ -204,6 +206,7 @@ func (p *Poller[T, AggregateT]) Start(parent task.Parent) {
 			}
 		}
 	}()
+	return loadErr
 }
 
 func (p *Poller[T, AggregateT]) Get(filter Filter) ([]T, bool) {

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
@@ -49,7 +50,7 @@ func validate(data []byte) (routes route.Routes, err error) {
 	return routes, err
 }
 
-func Validate(data []byte) (err error) {
+func Validate(ctx context.Context, data []byte) (err error) {
 	routes, err := validate(data)
 	var errs gperr.Builder
 	errs.Add(err)
@@ -58,7 +59,7 @@ func Validate(data []byte) (err error) {
 			continue
 		}
 		r.Alias = alias
-		routevalidate.ResolveProxmox(r)
+		routevalidate.ResolveProxmox(ctx, r)
 		if r.Idlewatcher != nil {
 			if err := r.Idlewatcher.ValidateResolved(); err != nil {
 				errs.AddSubject(gperr.PrependSubject(err, "idlewatcher"), alias)
@@ -84,7 +85,7 @@ func (p *FileProvider) Logger() *zerolog.Logger {
 	return &p.l
 }
 
-func (p *FileProvider) loadRoutesImpl() (route.Routes, error) {
+func (p *FileProvider) loadRoutesImpl(context.Context) (route.Routes, error) {
 	data, err := os.ReadFile(p.path)
 	if err != nil {
 		return nil, err

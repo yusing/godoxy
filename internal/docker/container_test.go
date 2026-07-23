@@ -37,7 +37,7 @@ func TestContainerExplicit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := FromDocker(&container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, types.DockerProviderConfig{})
+			c := FromDocker(t.Context(), &container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, types.DockerProviderConfig{})
 			expect.Equal(t, c.IsExplicit, tt.isExplicit)
 		})
 	}
@@ -74,7 +74,7 @@ func TestContainerHostNetworkMode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := FromDocker(tt.container, types.DockerProviderConfig{})
+			c := FromDocker(t.Context(), tt.container, types.DockerProviderConfig{})
 			expect.Equal(t, c.IsHostNetworkMode, tt.isHostNetworkMode)
 		})
 	}
@@ -94,7 +94,7 @@ func TestContainerHealthCheckEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.status, func(t *testing.T) {
-			c := FromDocker(&container.Summary{Names: []string{"test"}, Status: tt.status}, types.DockerProviderConfig{})
+			c := FromDocker(t.Context(), &container.Summary{Names: []string{"test"}, Status: tt.status}, types.DockerProviderConfig{})
 			expect.Equal(t, c.HealthCheckEnabled, tt.enabled)
 		})
 	}

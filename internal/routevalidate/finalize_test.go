@@ -36,7 +36,7 @@ func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) 
 
 	require.False(t, r.ShouldExclude())
 
-	finalize(r)
+	finalize(t.Context(), r)
 
 	require.False(t, r.ShouldExclude())
 	require.Equal(t, 8080, r.Port.Proxy)

@@ -316,11 +316,8 @@ The homepage package integrates with:
 
 ## Configuration
 
-### Active Configuration
-
-```go
-var ActiveConfig atomic.Pointer[Config]
-```
+Homepage configuration belongs to the runtime state carried by the caller's
+context; the package does not publish a process-global active configuration.
 
 ### Configuration Structure
 

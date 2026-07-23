@@ -1,6 +1,7 @@
 package maxmind
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,11 +10,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/notif"
+	"github.com/yusing/goutils/cache"
 	"github.com/yusing/goutils/task"
 	"golang.org/x/time/rate"
 )
-
-var instance *MaxMind
 
 var (
 	warnOnce               sync.Once
@@ -21,9 +21,9 @@ var (
 	errLogSuppressedCounts = xsync.NewMap[string, *atomic.Int64](xsync.WithPresize(32))
 )
 
-func warnNotConfigured() {
+func warnNotConfigured(ctx context.Context) {
 	log.Warn().Msg("MaxMind not configured, geo lookup will fail")
-	notif.Notify(&notif.LogMessage{
+	notif.FromCtx(ctx).Notify(&notif.LogMessage{
 		Level: zerolog.WarnLevel,
 		Title: "MaxMind not configured",
 		Body:  notif.MessageBody("MaxMind is not configured, geo lookup will fail"),
@@ -31,26 +31,29 @@ func warnNotConfigured() {
 	})
 }
 
-func SetInstance(parent task.Parent, cfg *Config) error {
-	newInstance := &MaxMind{Config: cfg}
-	if err := newInstance.LoadMaxMindDB(parent); err != nil {
-		return err
+func New(parent task.Parent, cfg *Config) (*MaxMind, error) {
+	instance := &MaxMind{Config: cfg}
+	instance.lookupCity = cache.NewKeyFunc(func(_ context.Context, ip string) (*City, error) {
+		return instance.lookupCityReal(ip)
+	}).WithMaxEntries(1000).Build()
+	if err := instance.LoadMaxMindDB(parent); err != nil {
+		return nil, err
 	}
-	instance = newInstance
-	return nil
+	return instance, nil
 }
 
-func LookupCity(ip *IPInfo) (*City, bool) {
+func LookupCity(ctx context.Context, ip *IPInfo) (*City, bool) {
 	if ip.City != nil {
 		return ip.City, false
 	}
 
+	instance := FromCtx(ctx)
 	if instance == nil {
-		warnOnce.Do(warnNotConfigured)
+		warnOnce.Do(func() { warnNotConfigured(ctx) })
 		return nil, false
 	}
 
-	city, err := lookupCityNoContext(ip.Str)
+	city, err := instance.lookupCity(ctx, ip.Str)
 	if err != nil {
 		logLookupCityError(ip.Str, err)
 		return nil, false

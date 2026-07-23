@@ -6,19 +6,24 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/loadbalancer"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routevalidate"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/task"
 )
 
 func TestMain(m *testing.M) {
+	iconlist.InitCache()
 	route.InitBuilder(routevalidate.Validate)
 	os.Exit(m.Run())
 }
@@ -279,6 +284,12 @@ func TestDockerRouteDisallowAgent(t *testing.T) {
 }
 
 func TestRouteAgent(t *testing.T) {
+	parent := task.GetTestTask(t).Subtask("runtime", true)
+	agents := agentpool.NewPool()
+	agentConfig := &agent.AgentConfig{Addr: "127.0.0.1:8890"}
+	agentConfig.Name = "test-agent"
+	agents.Add(agentConfig)
+	agentpool.SetCtx(parent, agents)
 	r := &route.Route{
 		Alias:  "test",
 		Scheme: route.SchemeHTTP,
@@ -286,7 +297,7 @@ func TestRouteAgent(t *testing.T) {
 		Port:   route.Port{Proxy: 80},
 		Agent:  "test-agent",
 	}
-	err := r.Validate()
+	err := r.ValidateContext(parent.Context())
 	require.NoError(t, err, "Validate should not return error for valid route with agent")
 	require.NotNil(t, r.GetAgent(), "GetAgent should return agent")
 }

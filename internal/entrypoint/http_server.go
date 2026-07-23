@@ -19,6 +19,7 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/routing"
+	"github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/server"
 )
@@ -131,6 +132,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	srv.stopFunc = task.FinishAndWait
 	srv.addr = addr
 	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
+	srv.routes.SetEventHistory(events.FromCtx(srv.ep.task.Context()))
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	return nil
 }

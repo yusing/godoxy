@@ -46,6 +46,7 @@ graph TD
 ```go
 type MaxMind struct {
     *Config
+    lookupCity cache.CachedContextKeyFunc[*City, string]
     lastUpdate time.Time
     db         struct {
         *maxminddb.Reader
@@ -98,15 +99,16 @@ type Location struct {
 ### Initialization
 
 ```go
-// LoadMaxMindDB loads or downloads the MaxMind database.
-func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error
+func New(parent task.Parent, cfg *Config) (*MaxMind, error)
+func SetCtx(target interface{ SetValue(any, any) }, instance *MaxMind)
+func FromCtx(ctx context.Context) *MaxMind
 ```
 
 ### Lookup
 
 ```go
 // LookupCity looks up city information for an IP.
-func LookupCity(info *IPInfo) (city *City, ok bool)
+func LookupCity(ctx context.Context, info *IPInfo) (city *City, loaded bool)
 ```
 
 ## Usage
@@ -120,10 +122,11 @@ maxmindCfg := &maxmind.Config{
     LicenseKey: "your-license-key",
 }
 
-err := maxmindCfg.LoadMaxMindDB(parent)
+instance, err := maxmind.New(parent, maxmindCfg)
 if err != nil {
     log.Fatal(err)
 }
+maxmind.SetCtx(parent, instance)
 ```
 
 ### IP Lookup
@@ -136,13 +139,17 @@ ipInfo := &maxmind.IPInfo{
 }
 
 // Lookup city
-city, ok := maxmind.LookupCity(ipInfo)
+city, ok := maxmind.LookupCity(parent.Context(), ipInfo)
 if ok {
     fmt.Printf("Country: %s\n", city.Country.IsoCode)
     fmt.Printf("City: %s\n", city.Name)
     fmt.Printf("Timezone: %s\n", city.Location.TimeZone)
 }
 ```
+
+Every runtime owns its MaxMind reader and lookup cache. Removing MaxMind from a
+new configuration therefore yields no instance in the new context instead of
+silently inheriting a process-global reader from the previous runtime.
 
 ### Database Types
 
@@ -163,7 +170,7 @@ sequenceDiagram
     participant Cache
     participant UpdateScheduler
 
-    Config->>MaxMind: LoadMaxMindDB()
+    Config->>MaxMind: New(parent, config)
     MaxMind->>Database: Open()
     alt Database Missing
         MaxMind->>MaxMind: Download()
@@ -183,7 +190,7 @@ sequenceDiagram
     end
 
     participant Lookup
-    Lookup->>MaxMind: LookupCity(ip)
+    Lookup->>MaxMind: LookupCity(runtime context, ip)
     MaxMind->>Cache: Check
     alt Cache Hit
         Cache-->>Lookup: City Info

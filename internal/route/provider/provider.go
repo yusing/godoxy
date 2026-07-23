@@ -1,10 +1,12 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"path"
+	"slices"
 	"sync"
 	"time"
 
@@ -31,6 +33,7 @@ type (
 		routes      route.Routes
 		routesMu    sync.RWMutex
 		diagnostics config.LoadDiagnostics
+		preparation routing.ProviderActivation
 
 		watcher W.Watcher
 	}
@@ -38,7 +41,7 @@ type (
 		fmt.Stringer
 		ShortName() string
 		IsExplicitOnly() bool
-		loadRoutesImpl() (route.Routes, error)
+		loadRoutesImpl(context.Context) (route.Routes, error)
 		NewWatcher() W.Watcher
 		Logger() *zerolog.Logger
 	}
@@ -49,6 +52,8 @@ const (
 )
 
 var ErrEmptyProviderName = errors.New("empty provider name")
+
+var ErrWatcherStreamUnavailable = errors.New("watcher returned an incomplete stream")
 
 var _ routing.Provider = (*Provider)(nil)
 
@@ -99,28 +104,54 @@ func (p *Provider) MarshalText() ([]byte, error) {
 	return []byte(p.String()), nil
 }
 
-// Start implements task.TaskStarter.
-func (p *Provider) Start(parent task.Parent) error {
-	if state := config.WorkingState.Load(); state != nil {
+// Activate starts every valid route, keeps successful siblings active when
+// others fail, and starts the provider watcher so later changes can recover a
+// partially failed initial load. An infrastructure failure is retained in the
+// report; a zero-route provider without such a failure is ready.
+func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
+	activation := p.preparation
+	activation.Provider = p.String()
+	activation.FailedRoutes = slices.Clone(activation.FailedRoutes)
+	if state := config.FromCtx(parent.Context()); state != nil {
 		p.diagnostics, _ = state.(config.LoadDiagnostics)
 	}
-	errs := gperr.NewGroup("routes error")
-
-	t := parent.Subtask("provider."+p.String(), false)
 
 	// no need to lock here because we are not modifying the routes map.
 	routeSlice := make([]*route.Route, 0, len(p.routes))
 	for _, r := range p.routes {
 		routeSlice = append(routeSlice, r)
 	}
+	activation.AttemptedRoutes = len(routeSlice)
+	if cause := context.Cause(parent.Context()); cause != nil {
+		activation.AttemptedRoutes = 0
+		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, cause)
+		return activation
+	}
+	t := parent.Subtask("provider."+p.String(), false)
 
-	for _, r := range routeSlice {
-		errs.Go(func() error {
-			return p.startRoute(t, r)
+	var wg sync.WaitGroup
+	routeErrors := make([]error, len(routeSlice))
+	for i, r := range routeSlice {
+		wg.Go(func() {
+			routeErrors[i] = p.startRoute(t, r)
 		})
 	}
+	wg.Wait()
+	for i, err := range routeErrors {
+		if err == nil {
+			activation.ActiveRoutes++
+		} else {
+			activation.FailedRoutes = append(activation.FailedRoutes, routing.RouteActivationIssue{
+				Route: routeSlice[i].Alias,
+				Err:   gperr.Wrap(err),
+			})
+		}
+	}
 
-	err := errs.Wait().Error()
+	if cause := context.Cause(t.Context()); cause != nil {
+		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, cause)
+		return activation
+	}
 
 	opts := eventqueue.Options[watcherEvents.Event]{
 		FlushInterval: providerEventFlushInterval,
@@ -130,6 +161,10 @@ func (p *Provider) Start(parent task.Parent) error {
 			handler.Handle(t, evs)
 			handler.Log()
 
+			history := events.FromCtx(t.Context())
+			if history == nil {
+				return
+			}
 			globalEvents := make([]events.Event, len(evs))
 			for i, ev := range evs {
 				globalEvents[i] = events.NewEvent(events.LevelInfo, "provider_event", ev.Action.String(), map[string]any{
@@ -138,24 +173,79 @@ func (p *Provider) Start(parent task.Parent) error {
 					"actor":    ev.ActorName, // file path / container name
 				})
 			}
-			events.Global.AddAll(globalEvents)
+			history.AddAll(globalEvents)
 		},
 		OnError: func(err error) {
 			p.Logger().Err(err).Msg("event error")
 		},
 	}
-	eventQueue := eventqueue.New(t.Subtask("event_queue", false), opts)
-	eventQueue.Start(p.watcher.Events(t.Context()))
-
-	if err != nil {
-		return err.Subject(p.String())
+	watcherTask := t.Subtask("watcher", false)
+	stream := p.watcher.Watch(watcherTask)
+	if stream.Ready == nil || stream.Events == nil || stream.Errors == nil {
+		watcherTask.FinishAndWait(ErrWatcherStreamUnavailable)
+		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, ErrWatcherStreamUnavailable)
+		return activation
 	}
-	return nil
+
+	var readyErr error
+	select {
+	case readyErr = <-stream.Ready:
+	case <-t.Context().Done():
+		readyErr = context.Cause(t.Context())
+	}
+	if readyErr != nil {
+		watcherTask.FinishAndWait(readyErr)
+		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, readyErr)
+		return activation
+	}
+	if cause := context.Cause(t.Context()); cause != nil {
+		watcherTask.FinishAndWait(cause)
+		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, cause)
+		return activation
+	}
+
+	eventQueue := eventqueue.New(watcherTask.Subtask("event_queue", false), opts)
+	eventQueue.Start(stream.Events, stream.Errors)
+	activation.EventLoopReady = true
+	return activation
 }
 
-func (p *Provider) LoadRoutes() (err error) {
-	p.routes, err = p.loadRoutes()
+func (p *Provider) LoadRoutes(ctx context.Context) (err error) {
+	p.routes, err = p.loadRoutes(ctx)
 	return err
+}
+
+func (p *Provider) loadRoutes(ctx context.Context) (route.Routes, error) {
+	routes, infrastructureErr := p.loadRoutesImpl(ctx)
+	if routes == nil {
+		routes = make(route.Routes)
+	}
+	p.preparation = routing.ProviderActivation{
+		Provider:            p.String(),
+		DesiredRoutes:       len(routes),
+		InfrastructureError: gperr.Wrap(infrastructureErr),
+	}
+
+	errs := gperr.NewBuilder("routes error")
+	errs.Add(infrastructureErr)
+	for alias, r := range routes {
+		if r == nil {
+			r = new(route.Route)
+			routes[alias] = r
+		}
+		r.Alias = alias
+		r.SetProvider(p)
+		if err := r.ValidateContext(ctx); err != nil {
+			subjectErr := gperr.PrependSubject(err, alias)
+			errs.Add(subjectErr)
+			p.preparation.FailedRoutes = append(p.preparation.FailedRoutes, routing.RouteActivationIssue{
+				Route: alias,
+				Err:   subjectErr,
+			})
+			delete(routes, alias)
+		}
+	}
+	return routes, errs.Error()
 }
 
 func (p *Provider) NumRoutes() int {
@@ -203,31 +293,6 @@ func (p *Provider) GetRoute(alias string) (routing.Route, bool) {
 		return nil, false
 	}
 	return r.Impl(), true
-}
-
-func (p *Provider) loadRoutes() (routes route.Routes, err error) {
-	routes, err = p.loadRoutesImpl()
-	if err != nil && len(routes) == 0 {
-		return route.Routes{}, err
-	}
-	errs := gperr.NewBuilder("routes error")
-	errs.Add(err)
-	// check for exclusion
-	// set alias and provider, then validate
-	for alias, r := range routes {
-		if r == nil {
-			r = new(route.Route)
-			routes[alias] = r
-		}
-		r.Alias = alias
-		r.SetProvider(p)
-		if err := r.Validate(); err != nil {
-			errs.AddSubject(err, alias)
-			delete(routes, alias)
-			continue
-		}
-	}
-	return routes, errs.Error()
 }
 
 func (p *Provider) startRoute(parent task.Parent, r *route.Route) error {

@@ -2,6 +2,7 @@ package acl
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 )
 
-type MatcherFunc func(*maxmind.IPInfo) bool
+type MatcherFunc func(context.Context, *maxmind.IPInfo) bool
 
 type Matcher struct {
 	match MatcherFunc
@@ -80,18 +81,18 @@ func (matcher *Matcher) Parse(s string) error {
 	return nil
 }
 
-func (matchers Matchers) Match(ip *maxmind.IPInfo) bool {
+func (matchers Matchers) Match(ctx context.Context, ip *maxmind.IPInfo) bool {
 	for _, m := range matchers {
-		if m.match(ip) {
+		if m.match(ctx, ip) {
 			return true
 		}
 	}
 	return false
 }
 
-func (matchers Matchers) MatchedIndex(ip *maxmind.IPInfo) int {
+func (matchers Matchers) MatchedIndex(ctx context.Context, ip *maxmind.IPInfo) int {
 	for i, m := range matchers {
-		if m.match(ip) {
+		if m.match(ctx, ip) {
 			return i
 		}
 	}
@@ -111,20 +112,20 @@ func (matchers Matchers) MarshalText() ([]byte, error) {
 }
 
 func matchIP(ip net.IP) MatcherFunc {
-	return func(ip2 *maxmind.IPInfo) bool {
+	return func(_ context.Context, ip2 *maxmind.IPInfo) bool {
 		return ip.Equal(ip2.IP)
 	}
 }
 
 func matchCIDR(n *net.IPNet) MatcherFunc {
-	return func(ip *maxmind.IPInfo) bool {
+	return func(_ context.Context, ip *maxmind.IPInfo) bool {
 		return n.Contains(ip.IP)
 	}
 }
 
 func matchTimeZone(tz string) MatcherFunc {
-	return func(ip *maxmind.IPInfo) bool {
-		city, ok := maxmind.LookupCity(ip)
+	return func(ctx context.Context, ip *maxmind.IPInfo) bool {
+		city, ok := maxmind.LookupCity(ctx, ip)
 		if !ok {
 			return false
 		}
@@ -133,8 +134,8 @@ func matchTimeZone(tz string) MatcherFunc {
 }
 
 func matchISOCode(iso string) MatcherFunc {
-	return func(ip *maxmind.IPInfo) bool {
-		city, ok := maxmind.LookupCity(ip)
+	return func(ctx context.Context, ip *maxmind.IPInfo) bool {
+		city, ok := maxmind.LookupCity(ctx, ip)
 		if !ok {
 			return false
 		}

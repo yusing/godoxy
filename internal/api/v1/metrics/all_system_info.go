@@ -80,9 +80,10 @@ func AllSystemInfo(c *gin.Context) {
 
 	query := c.Request.URL.Query()
 	queryEncoded := query.Encode()
+	agents := agentpool.FromCtx(c.Request.Context())
 
 	// leave 5 extra slots for buffering in case new agents are added.
-	dataCh := make(chan systemInfoData, 1+agentpool.Num()+5)
+	dataCh := make(chan systemInfoData, 1+agents.Num()+5)
 
 	ticker := time.NewTicker(req.Interval)
 	defer ticker.Stop()
@@ -90,7 +91,7 @@ func AllSystemInfo(c *gin.Context) {
 	go streamSystemInfo(manager, dataCh)
 
 	// write system info immediately once.
-	if hasSuccess, err := collectSystemInfoRound(manager, req, query, queryEncoded, dataCh); handleRoundResult(c, hasSuccess, err, false) {
+	if hasSuccess, err := collectSystemInfoRound(manager, agents, req, query, queryEncoded, dataCh); handleRoundResult(c, hasSuccess, err, false) {
 		return
 	}
 
@@ -100,7 +101,7 @@ func AllSystemInfo(c *gin.Context) {
 		case <-manager.Done():
 			return
 		case <-ticker.C:
-			if hasSuccess, err := collectSystemInfoRound(manager, req, query, queryEncoded, dataCh); handleRoundResult(c, hasSuccess, err, true) {
+			if hasSuccess, err := collectSystemInfoRound(manager, agents, req, query, queryEncoded, dataCh); handleRoundResult(c, hasSuccess, err, true) {
 				return
 			}
 		}
@@ -131,6 +132,7 @@ func queueSystemInfo(manager *websocket.Manager, dataCh chan<- systemInfoData, d
 
 func collectSystemInfoRound(
 	manager *websocket.Manager,
+	agents *agentpool.Pool,
 	req AllSystemInfoRequest,
 	query url.Values,
 	queryEncoded string,
@@ -154,7 +156,7 @@ func collectSystemInfoRound(
 		return nil
 	})
 
-	for _, a := range agentpool.Iter() {
+	for _, a := range agents.Iter() {
 		totalAgents++
 
 		errs.Go(func() error {

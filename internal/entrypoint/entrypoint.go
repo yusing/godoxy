@@ -14,6 +14,7 @@ import (
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/routing"
+	"github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/server"
 	"github.com/yusing/goutils/task"
@@ -71,6 +72,9 @@ func NewEntrypoint(parent task.Parent, cfg *Config) *Entrypoint {
 		servers:             xsync.NewMap[string, *httpServer](),
 		inboundMTLSProfiles: make(map[string]*x509.CertPool),
 	}
+	history := events.FromCtx(parent.Context())
+	ep.streamRoutes.SetEventHistory(history)
+	ep.excludedRoutes.SetEventHistory(history)
 	ep.sni = newSNIRouter(ep)
 	return ep
 }

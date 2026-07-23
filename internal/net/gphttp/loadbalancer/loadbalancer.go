@@ -13,6 +13,7 @@ import (
 	lbconfig "github.com/yusing/godoxy/internal/loadbalancer"
 	"github.com/yusing/godoxy/internal/types"
 	gperr "github.com/yusing/goutils/errs"
+	"github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/pool"
 	"github.com/yusing/goutils/task"
 )
@@ -61,6 +62,7 @@ func New(cfg *lbconfig.Config) *LoadBalancer {
 func (lb *LoadBalancer) Start(parent task.Parent) error {
 	lb.startTime = time.Now()
 	lb.task = parent.Subtask("loadbalancer."+lb.Link, true)
+	lb.pool.SetEventHistory(events.FromCtx(parent.Context()))
 	lb.task.OnCancel("cleanup", func() {
 		if lb.impl != nil {
 			for _, srv := range lb.pool.Iter {

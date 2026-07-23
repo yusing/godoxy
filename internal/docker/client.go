@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -123,7 +124,7 @@ func Clients() map[string]*SharedClient {
 // Returns:
 //   - Client: the Docker client connection.
 //   - error: an error if the connection failed.
-func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, error) {
+func NewClient(ctx context.Context, cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, error) {
 	initClientCleanerOnce.Do(initClientCleaner)
 
 	u := false
@@ -150,7 +151,11 @@ func NewClient(cfg types.DockerProviderConfig, unique ...bool) (*SharedClient, e
 	var dial func(ctx context.Context) (net.Conn, error)
 
 	if agent.IsDockerHostAgent(host) {
-		a, ok := agentpool.Get(host)
+		pool := agentpool.FromCtx(ctx)
+		if pool == nil {
+			return nil, errors.New("agent pool not initialized")
+		}
+		a, ok := pool.Get(host)
 		if !ok {
 			return nil, fmt.Errorf("agent %q not found", host)
 		}
@@ -239,13 +244,6 @@ func (c *SharedClient) GetHTTPClient() **http.Client {
 func (c *SharedClient) InterceptHTTPClient(intercept httputils.InterceptFunc) {
 	httpClient := *c.GetHTTPClient()
 	httpClient.Transport = httputils.NewInterceptedTransport(httpClient.Transport, intercept)
-}
-
-func (c *SharedClient) CloneUnique() *SharedClient {
-	// there will be no error here
-	// since we are using the same host from a valid client.
-	c, _ = NewClient(c.cfg, true)
-	return c
 }
 
 func (c *SharedClient) Key() string {

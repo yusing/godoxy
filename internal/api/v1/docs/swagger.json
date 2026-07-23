@@ -154,6 +154,12 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -5827,6 +5833,11 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "runtime": {
+          "$ref": "#/definitions/config.RuntimeSnapshot",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "uptime": {
           "type": "integer",
           "x-nullable": false,
@@ -5999,8 +6010,8 @@
       "properties": {
         "add_to_config": {
           "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-omitempty": true,
+          "x-nullable": true
         },
         "ca": {
           "$ref": "#/definitions/PEMPairResponse",
@@ -6029,6 +6040,11 @@
     "VerifyNewAgentResponse": {
       "type": "object",
       "properties": {
+        "activation": {
+          "$ref": "#/definitions/routing.ProviderActivation",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "agents": {
           "type": "array",
           "items": {
@@ -6213,6 +6229,133 @@
           "x-omitempty": false
         }
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.APIActivationReport": {
+      "type": "object",
+      "properties": {
+        "local": {
+          "$ref": "#/definitions/config.ComponentActivation",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "main": {
+          "$ref": "#/definitions/config.ComponentActivation",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.ActivationHealth": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "failed"
+      ],
+      "x-enum-varnames": [
+        "ActivationHealthy",
+        "ActivationDegraded",
+        "ActivationFailed"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.ActivationReport": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "$ref": "#/definitions/config.APIActivationReport",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "metrics": {
+          "$ref": "#/definitions/config.ComponentActivation",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "providers": {
+          "$ref": "#/definitions/routing.ProviderActivationReport",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.ComponentActivation": {
+      "type": "object",
+      "properties": {
+        "configured": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "error": {
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "ready": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "required": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.RuntimeSnapshot": {
+      "type": "object",
+      "properties": {
+        "activation": {
+          "$ref": "#/definitions/config.ActivationReport",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "health": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/config.ActivationHealth"
+            }
+          ],
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "status": {
+          "$ref": "#/definitions/config.RuntimeStatus",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.RuntimeStatus": {
+      "type": "string",
+      "enum": [
+        "preparing",
+        "activating",
+        "healthy",
+        "degraded",
+        "failed",
+        "stopping"
+      ],
+      "x-enum-varnames": [
+        "RuntimePreparing",
+        "RuntimeActivating",
+        "RuntimeHealthy",
+        "RuntimeDegraded",
+        "RuntimeFailed",
+        "RuntimeStopping"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -6998,6 +7141,116 @@
         "type": "array",
         "items": {
           "$ref": "#/definitions/Route"
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "routing.ProviderActivation": {
+      "type": "object",
+      "properties": {
+        "active_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "attempted_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "desired_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "event_loop_ready": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "failed_routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routing.RouteActivationIssue"
+          },
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "infrastructure_error": {
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "provider": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "routing.ProviderActivationReport": {
+      "type": "object",
+      "properties": {
+        "active_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "attempted_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "degraded_providers": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "desired_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "failed_providers": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "failed_routes": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routing.ProviderActivation"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "ready_providers": {
+          "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "routing.RouteActivationIssue": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "route": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
         }
       },
       "x-nullable": false,

@@ -17,6 +17,7 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/goutils/cache"
 	"github.com/yusing/goutils/task"
 )
 
@@ -28,6 +29,7 @@ refactor(maxmind): switch to Country database
 
 type MaxMind struct {
 	*Config
+	lookupCity cache.CachedContextKeyFunc[*City, string]
 
 	lastUpdate time.Time
 	db         struct {

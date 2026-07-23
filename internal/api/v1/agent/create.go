@@ -51,7 +51,7 @@ func Create(c *gin.Context) {
 	}
 
 	hostport := net.JoinHostPort(request.Host, strconv.Itoa(request.Port))
-	if _, ok := agentpool.Get(hostport); ok {
+	if _, ok := agentpool.FromCtx(c.Request.Context()).Get(hostport); ok {
 		c.JSON(http.StatusConflict, apitypes.Error("agent already exists"))
 		return
 	}

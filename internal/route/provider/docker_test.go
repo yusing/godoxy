@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 	}
 	cont.ID = "test"
 	p.name = "test"
-	routes := expect.Must(p.routesFromContainerLabels(docker.FromDocker(cont, types.DockerProviderConfig{URL: host})))
+	routes := expect.Must(p.routesFromContainerLabels(docker.FromDocker(context.Background(), cont, types.DockerProviderConfig{URL: host})))
 	for _, r := range routes {
 		_ = r.Validate()
 	}
@@ -294,7 +295,7 @@ func TestApplyLabelWithRefH2C(t *testing.T) {
 }
 
 func TestApplyLabelWithRefIndexError(t *testing.T) {
-	c := docker.FromDocker(&container.Summary{
+	c := docker.FromDocker(t.Context(), &container.Summary{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{
@@ -308,7 +309,7 @@ func TestApplyLabelWithRefIndexError(t *testing.T) {
 	_, err := p.routesFromContainerLabels(c)
 	expect.ErrorIs(t, ErrAliasRefIndexOutOfRange, err)
 
-	c = docker.FromDocker(&container.Summary{
+	c = docker.FromDocker(t.Context(), &container.Summary{
 		Names: dummyNames,
 		State: "running",
 		Labels: map[string]string{

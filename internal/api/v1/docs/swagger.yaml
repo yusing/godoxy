@@ -1203,6 +1203,8 @@ definitions:
     properties:
       proxies:
         $ref: '#/definitions/ProxyStats'
+      runtime:
+        $ref: '#/definitions/config.RuntimeSnapshot'
       uptime:
         type: integer
     type: object
@@ -1295,6 +1297,7 @@ definitions:
     properties:
       add_to_config:
         type: boolean
+        x-omitempty: true
       ca:
         $ref: '#/definitions/PEMPairResponse'
       client:
@@ -1306,6 +1309,8 @@ definitions:
     type: object
   VerifyNewAgentResponse:
     properties:
+      activation:
+        $ref: '#/definitions/routing.ProviderActivation'
       agents:
         items:
           $ref: '#/definitions/Agent'
@@ -1391,6 +1396,70 @@ definitions:
       username:
         type: string
     type: object
+  config.APIActivationReport:
+    properties:
+      local:
+        $ref: '#/definitions/config.ComponentActivation'
+      main:
+        $ref: '#/definitions/config.ComponentActivation'
+    type: object
+  config.ActivationHealth:
+    enum:
+    - healthy
+    - degraded
+    - failed
+    type: string
+    x-enum-varnames:
+    - ActivationHealthy
+    - ActivationDegraded
+    - ActivationFailed
+  config.ActivationReport:
+    properties:
+      api:
+        $ref: '#/definitions/config.APIActivationReport'
+      metrics:
+        $ref: '#/definitions/config.ComponentActivation'
+      providers:
+        $ref: '#/definitions/routing.ProviderActivationReport'
+    type: object
+  config.ComponentActivation:
+    properties:
+      configured:
+        type: boolean
+      error:
+        x-omitempty: true
+      ready:
+        type: boolean
+      required:
+        type: boolean
+    type: object
+  config.RuntimeSnapshot:
+    properties:
+      activation:
+        $ref: '#/definitions/config.ActivationReport'
+      health:
+        allOf:
+        - $ref: '#/definitions/config.ActivationHealth'
+        x-omitempty: true
+      status:
+        $ref: '#/definitions/config.RuntimeStatus'
+    type: object
+  config.RuntimeStatus:
+    enum:
+    - preparing
+    - activating
+    - healthy
+    - degraded
+    - failed
+    - stopping
+    type: string
+    x-enum-varnames:
+    - RuntimePreparing
+    - RuntimeActivating
+    - RuntimeHealthy
+    - RuntimeDegraded
+    - RuntimeFailed
+    - RuntimeStopping
   container.BlkioStatEntry:
     properties:
       major:
@@ -1828,11 +1897,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_15m:
+        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
-        type: string
-      load_avg_15m:
         type: string
       mem_pct:
         type: string
@@ -1856,6 +1925,53 @@ definitions:
       items:
         $ref: '#/definitions/Route'
       type: array
+    type: object
+  routing.ProviderActivation:
+    properties:
+      active_routes:
+        type: integer
+      attempted_routes:
+        type: integer
+      desired_routes:
+        type: integer
+      event_loop_ready:
+        type: boolean
+      failed_routes:
+        items:
+          $ref: '#/definitions/routing.RouteActivationIssue'
+        type: array
+        x-omitempty: true
+      infrastructure_error:
+        x-omitempty: true
+      provider:
+        type: string
+    type: object
+  routing.ProviderActivationReport:
+    properties:
+      active_routes:
+        type: integer
+      attempted_routes:
+        type: integer
+      degraded_providers:
+        type: integer
+      desired_routes:
+        type: integer
+      failed_providers:
+        type: integer
+      failed_routes:
+        type: integer
+      providers:
+        items:
+          $ref: '#/definitions/routing.ProviderActivation'
+        type: array
+      ready_providers:
+        type: integer
+    type: object
+  routing.RouteActivationIssue:
+    properties:
+      error: {}
+      route:
+        type: string
     type: object
   rules.Rule:
     properties:
@@ -2012,6 +2128,10 @@ paths:
             $ref: '#/definitions/ErrorResponse'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/ErrorResponse'
         "500":

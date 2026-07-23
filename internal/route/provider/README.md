@@ -32,6 +32,7 @@ type Provider struct {
     t        provider.Type
     routes   route.Routes
     routesMu sync.RWMutex
+    loadErr  error
     watcher  W.Watcher
 }
 
@@ -39,7 +40,7 @@ type ProviderImpl interface {
     fmt.Stringer
     ShortName() string
     IsExplicitOnly() bool
-    loadRoutesImpl() (route.Routes, error)
+    loadRoutesImpl(context.Context) (route.Routes, error)
     NewWatcher() W.Watcher
     Logger() *zerolog.Logger
 }
@@ -69,8 +70,8 @@ func NewStaticProvider(name string, routes route.Routes) *Provider
 
 ```go
 func (p *Provider) GetType() provider.Type
-func (p *Provider) Start(parent task.Parent) error
-func (p *Provider) LoadRoutes() error
+func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation
+func (p *Provider) LoadRoutes(ctx context.Context) error
 func (p *Provider) IterRoutes(yield func(string, types.Route) bool)
 func (p *Provider) GetRoute(alias string) (types.Route, bool)
 func (p *Provider) FindService(project, service string) (types.Route, bool)
@@ -87,8 +88,8 @@ classDiagram
         +t provider.Type
         +routes route.Routes
         +watcher W.Watcher
-        +Start(parent) error
-        +LoadRoutes() error
+        +Activate(parent) ProviderActivation
+        +LoadRoutes(ctx) error
         +IterRoutes(yield)
     }
 
@@ -97,7 +98,7 @@ classDiagram
         +String() string
         +ShortName() string
         +IsExplicitOnly() bool
-        +loadRoutesImpl() (route.Routes, error)
+        +loadRoutesImpl(ctx) (route.Routes, error)
         +NewWatcher() W.Watcher
         +Logger() *zerolog.Logger
     }
@@ -106,20 +107,20 @@ classDiagram
         +name string
         +dockerCfg types.DockerProviderConfig
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, error)
+        +loadRoutesImpl(ctx) (route.Routes, error)
     }
 
     class FileProviderImpl {
         +filename string
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, error)
+        +loadRoutesImpl(ctx) (route.Routes, error)
     }
 
     class AgentProviderImpl {
         +*agent.AgentConfig
         +docker DockerProviderImpl
         +ShortName() string
-        +loadRoutesImpl() (route.Routes, error)
+        +loadRoutesImpl(ctx) (route.Routes, error)
     }
 
     Provider --> ProviderImpl : wraps
@@ -156,11 +157,13 @@ sequenceDiagram
     participant Watcher as Watcher
     participant Routes as Route Registry
 
-    Main->>Provider: Start()
-    Provider->>Provider: LoadRoutes()
-    Provider->>Impl: loadRoutesImpl()
+    Main->>Provider: LoadRoutes(candidate context)
+    Provider->>Impl: loadRoutesImpl(context)
     Impl-->>Provider: Routes
     Provider->>Routes: Validate & Add Routes
+    Main->>Provider: Activate()
+    Provider->>Routes: Start every desired route
+    Provider-->>Main: Structured activation report
 
     loop Event Loop
         Watcher->>Provider: Container/Config Changed
@@ -289,14 +292,30 @@ provider := provider.NewDockerProvider("default", types.DockerProviderConfig{
     URL: "unix:///var/run/docker.sock",
 })
 
-if err := provider.LoadRoutes(); err != nil {
+if err := provider.LoadRoutes(runtimeContext); err != nil {
     return err
 }
 
-if err := provider.Start(parentTask); err != nil {
-    return err
-}
+activation := provider.Activate(parentTask)
 ```
+
+## Activation and recovery semantics
+
+`Activate` starts every desired route concurrently. A failed route is cleaned
+at the outer route lifecycle boundary; successful siblings remain active. The
+report retains original errors and exact desired, attempted, active, and failed
+route counts.
+
+The provider watcher starts even after a partial initial route failure or a
+load-time infrastructure error so later file/container events can recover the
+provider. A dynamic provider with zero routes and no infrastructure error is
+ready. A provider with attempted routes and no active route is failed. Provider
+task cancellation removes its event queue and all active routes.
+
+All loading and validation receives the owning state context. Agent pools,
+Proxmox nodes, MaxMind, notifications, events, entrypoint state, and candidate
+defaults are therefore selected from the correct runtime rather than a global
+working-state pointer.
 
 ### Creating a File Provider
 
@@ -306,9 +325,10 @@ if err != nil {
     return err
 }
 
-if err := provider.Start(parentTask); err != nil {
-    return err
+if err := provider.LoadRoutes(runtimeContext); err != nil {
+    log.Warn().Err(err).Msg("file provider loaded with issues")
 }
+activation := provider.Activate(parentTask)
 ```
 
 ### Iterating Over Routes

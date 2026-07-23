@@ -28,7 +28,7 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 	oldRoutes := handler.provider.lockCloneRoutes()
 	forceReload := hasForceReload(events)
 
-	newRoutes, err := handler.provider.loadRoutes()
+	newRoutes, err := handler.provider.loadRoutes(parent.Context())
 	if err != nil {
 		handler.errs.Add(err)
 		if len(newRoutes) == 0 {
@@ -111,7 +111,7 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 
 func (handler *EventHandler) Log() {
 	if err := handler.errs.Error(); err != nil {
-		handler.provider.Logger().Error().Msg(err.Error())
+		handler.provider.Logger().Err(err).Msg("provider event failed")
 	}
 	if len(handler.proxmoxDiscoveries) == 0 {
 		return

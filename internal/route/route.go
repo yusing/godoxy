@@ -157,6 +157,10 @@ func (r *Route) SetTask(task *task.Task) {
 }
 
 func (r *Route) Validate() error {
+	return r.ValidateContext(task.RootContext())
+}
+
+func (r *Route) ValidateContext(ctx context.Context) error {
 	// wait for alias to be set
 	if r.Alias == "" {
 		return nil
@@ -177,7 +181,7 @@ func (r *Route) Validate() error {
 			r.valErr.Set(ErrBuilderNotInitialized)
 			return
 		}
-		impl, agent, err := build(r)
+		impl, agent, err := build(ctx, r)
 		if err != nil {
 			r.valErr.Set(err)
 			return
@@ -198,7 +202,11 @@ func (r *Route) Task() *task.Task {
 
 func (r *Route) Start(parent task.Parent) error {
 	r.onceStart.Do(func() {
-		r.startErr.Set(r.start(parent))
+		err := r.start(parent)
+		if err != nil && r.task != nil {
+			r.task.FinishAndWait(err)
+		}
+		r.startErr.Set(err)
 	})
 	return r.startErr.Get()
 }

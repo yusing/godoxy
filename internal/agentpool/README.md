@@ -4,7 +4,7 @@ Thread-safe pool for managing remote Docker agent connections.
 
 ## Overview
 
-The agentpool package provides a centralized pool for storing and retrieving remote agent configurations. It enables GoDoxy to connect to Docker hosts via agent connections instead of direct socket access, enabling secure remote container management.
+The agentpool package provides a runtime-owned pool for storing and retrieving remote agent configurations. It enables GoDoxy to connect to Docker hosts via agent connections instead of direct socket access, enabling secure remote container management.
 
 ### Primary consumers
 
@@ -34,58 +34,67 @@ type Agent struct {
 }
 ```
 
-### Exported functions
+### Pool and context API
 
 ```go
-func Add(cfg *agent.AgentConfig) (added bool)
+func NewPool() *Pool
+func SetCtx(target interface{ SetValue(any, any) }, pool *Pool)
+func FromCtx(ctx context.Context) *Pool
 ```
 
-Adds an agent to the pool. Returns `true` if added, `false` if already exists. Uses `LoadOrCompute` to prevent duplicates.
+Each committed or candidate configuration owns a distinct pool installed on its
+root task. Docker, route-validation, agent API, and metrics consumers resolve
+the pool from their owning task or request context. Candidate initialization
+cannot clear or populate the active runtime's agents.
+
+Pool methods are `Add`, `Has`, `Remove`, `RemoveAll`, `Get`, `GetAgent`, `List`,
+`Iter`, and `Num`.
 
 ```go
-func Has(cfg *agent.AgentConfig) bool
+func (pool *Pool) Add(cfg *agent.AgentConfig) bool
 ```
 
-Checks if an agent exists in the pool.
+Adds an agent unless its address already exists and reports whether it was added.
 
 ```go
-func Remove(cfg *agent.AgentConfig)
+func (pool *Pool) Has(cfg *agent.AgentConfig) bool
+func (pool *Pool) Remove(cfg *agent.AgentConfig)
 ```
 
-Removes an agent from the pool.
+Checks for or removes an agent by address.
 
 ```go
-func RemoveAll()
+func (pool *Pool) RemoveAll()
 ```
 
 Removes all agents from the pool. Called during configuration reload.
 
 ```go
-func Get(agentAddrOrDockerHost string) (*Agent, bool)
+func (pool *Pool) Get(agentAddrOrDockerHost string) (*Agent, bool)
 ```
 
 Retrieves an agent by address or Docker host URL. Automatically detects if the input is an agent address or Docker host URL and resolves accordingly.
 
 ```go
-func GetAgent(name string) (*Agent, bool)
+func (pool *Pool) GetAgent(name string) (*Agent, bool)
 ```
 
 Retrieves an agent by name. O(n) iteration over pool contents.
 
 ```go
-func List() []*Agent
+func (pool *Pool) List() []*Agent
 ```
 
 Returns all agents as a slice. Creates a new copy for thread safety.
 
 ```go
-func Iter() iter.Seq2[string, *Agent]
+func (pool *Pool) Iter() iter.Seq2[string, *Agent]
 ```
 
 Returns an iterator over all agents. Uses `xsync.Map.Range`.
 
 ```go
-func Num() int
+func (pool *Pool) Num() int
 ```
 
 Returns the number of agents in the pool.
@@ -127,21 +136,8 @@ The pool uses `xsync.Map[string, *Agent]` for concurrent-safe operations:
 - `Iter`: Consistent snapshot iteration via `Range`
 - `Remove`: Thread-safe deletion
 
-### Test mode
-
-When running tests (binary ends with `.test`), a test agent is automatically added:
-
-```go
-func init() {
-    if strings.HasSuffix(os.Args[0], ".test") {
-        agentPool.Store("test-agent", &Agent{
-            AgentConfig: &agent.AgentConfig{
-                Addr: "test-agent",
-            },
-        })
-    }
-}
-```
+Tests construct a pool explicitly and install it on a test task. Production has
+no test-only agent or global compatibility fallback.
 
 ## Configuration Surface
 
@@ -174,14 +170,15 @@ providers:
 ```go
 // Docker package uses agent pool for remote connections
 if agent.IsDockerHostAgent(host) {
-    a, ok := agentpool.Get(host)
-    if !ok {
-        panic(fmt.Errorf("agent %q not found", host))
-    }
-    opt := []client.Opt{
-        client.WithHost(agent.DockerHost),
-        client.WithHTTPClient(a.HTTPClient()),
-    }
+	pool := agentpool.FromCtx(ctx)
+	a, ok := pool.Get(host)
+  if !ok {
+		return nil, fmt.Errorf("agent %q not found", host)
+  }
+  opt := []client.Opt{
+    client.WithHost(agent.DockerHost),
+    client.WithHTTPClient(a.HTTPClient()),
+  }
 }
 ```
 
@@ -223,13 +220,13 @@ No metrics are currently exposed.
 
 ```go
 agentConfig := &agent.AgentConfig{
-    Addr: "agent.example.com:443",
-    Name: "my-agent",
+  Addr: "agent.example.com:443",
+  Name: "my-agent",
 }
 
 added := agentpool.Add(agentConfig)
 if !added {
-    log.Println("Agent already exists")
+  log.Println("Agent already exists")
 }
 ```
 
@@ -239,19 +236,19 @@ if !added {
 // By address
 agent, ok := agentpool.Get("agent.example.com:443")
 if !ok {
-    log.Fatal("Agent not found")
+  log.Fatal("Agent not found")
 }
 
 // By Docker host URL
 agent, ok := agentpool.Get("http://docker-host:2375")
 if !ok {
-    log.Fatal("Agent not found")
+  log.Fatal("Agent not found")
 }
 
 // By name
 agent, ok := agentpool.GetAgent("my-agent")
 if !ok {
-    log.Fatal("Agent not found")
+  log.Fatal("Agent not found")
 }
 ```
 
@@ -259,7 +256,7 @@ if !ok {
 
 ```go
 for addr, agent := range agentpool.Iter() {
-    log.Printf("Agent: %s at %s", agent.Name, addr)
+  log.Printf("Agent: %s at %s", agent.Name, addr)
 }
 ```
 
@@ -268,14 +265,14 @@ for addr, agent := range agentpool.Iter() {
 ```go
 // When creating a Docker client with an agent host
 if agent.IsDockerHostAgent(host) {
-    a, ok := agentpool.Get(host)
-    if !ok {
-        panic(fmt.Errorf("agent %q not found", host))
-    }
-    opt := []client.Opt{
-        client.WithHost(agent.DockerHost),
-        client.WithHTTPClient(a.HTTPClient()),
-    }
-    dockerClient, err := client.New(opt...)
+  a, ok := agentpool.Get(host)
+  if !ok {
+    panic(fmt.Errorf("agent %q not found", host))
+  }
+  opt := []client.Opt{
+    client.WithHost(agent.DockerHost),
+    client.WithHTTPClient(a.HTTPClient()),
+  }
+  dockerClient, err := client.New(opt...)
 }
 ```

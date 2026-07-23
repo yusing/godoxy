@@ -1,5 +1,6 @@
-# This script aims to fix the swagger.json file by setting the x-nullable flag to False if not present for all objects and arrays.
-# This prevents from generating optional (undefined) fields in the generated API client.
+# Normalize Swagger extensions for the TypeScript generator. Fields are
+# non-nullable and required by default; explicit x-omitempty fields remain
+# optional in the generated client.
 import json
 
 path = "internal/api/v1/docs/swagger.json"
@@ -25,7 +26,10 @@ def set_non_nullable(data):
     if not isinstance(data, dict):
         return
     if "x-nullable" not in data:
-        data["x-nullable"] = False
+        # swagger-typescript-api v13 no longer derives optional properties
+        # from x-omitempty. It still uses x-nullable for that distinction, so
+        # preserve the backend's omission contract in generated clients.
+        data["x-nullable"] = bool(data.get("x-omitempty", False))
     if "x-omitempty" not in data and not data["x-nullable"]:
         data["x-omitempty"] = False
     if "type" not in data:

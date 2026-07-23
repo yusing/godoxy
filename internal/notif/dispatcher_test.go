@@ -9,39 +9,36 @@ import (
 	"github.com/yusing/goutils/task"
 )
 
-func TestNotifySendsToCurrentDispatcher(t *testing.T) {
+func testDispatcher(t *testing.T, parent *task.Task, name string, size int) *Dispatcher {
+	t.Helper()
 	disp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("notification", true),
-		logCh: make(chan *LogMessage, 1),
+		task:  parent.Subtask(name, true),
+		logCh: make(chan *LogMessage, size),
 	}
-	SetDispatcher(disp)
-	t.Cleanup(func() {
-		clearDispatcher(disp)
-		disp.task.Finish(nil)
-	})
+	t.Cleanup(func() { disp.task.Finish(nil) })
+	return disp
+}
+
+func TestNotifierFromContextSendsToOwnedDispatcher(t *testing.T) {
+	parent := task.GetTestTask(t).Subtask("runtime", true)
+	disp := testDispatcher(t, parent, "notification", 1)
+	SetCtx(parent, disp)
 
 	msg := &LogMessage{Title: "test"}
-	Notify(msg)
+	FromCtx(parent.Context()).Notify(msg)
 
 	require.Same(t, msg, <-disp.logCh)
 }
 
-func TestNotifyReturnsWhenDispatcherIsCanceled(t *testing.T) {
-	disp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("notification", true),
-		logCh: make(chan *LogMessage),
-	}
-	SetDispatcher(disp)
-	t.Cleanup(func() {
-		clearDispatcher(disp)
-		disp.task.Finish(nil)
-	})
-
+func TestNotifierReturnsWhenDispatcherIsCanceled(t *testing.T) {
+	parent := task.GetTestTask(t).Subtask("runtime", true)
+	disp := testDispatcher(t, parent, "notification", 0)
+	SetCtx(parent, disp)
 	disp.task.Finish(nil)
 
 	done := make(chan struct{})
 	go func() {
-		Notify(&LogMessage{Title: "test"})
+		FromCtx(parent.Context()).Notify(&LogMessage{Title: "test"})
 		close(done)
 	}()
 
@@ -52,57 +49,38 @@ func TestNotifyReturnsWhenDispatcherIsCanceled(t *testing.T) {
 	}
 }
 
-func TestNotifyReturnsWhenLogChannelIsClosed(t *testing.T) {
-	disp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("notification", true),
-		logCh: make(chan *LogMessage),
-	}
-	SetDispatcher(disp)
-	t.Cleanup(func() {
-		clearDispatcher(disp)
-		disp.task.Finish(nil)
-	})
-
+func TestNotifierReturnsWhenLogChannelIsClosed(t *testing.T) {
+	parent := task.GetTestTask(t).Subtask("runtime", true)
+	disp := testDispatcher(t, parent, "notification", 0)
+	SetCtx(parent, disp)
 	disp.closeLogCh()
 
-	Notify(&LogMessage{Title: "test"})
+	FromCtx(parent.Context()).Notify(&LogMessage{Title: "test"})
 }
 
-func TestNotifyUsesCurrentDispatcherWhenPreviousDispatcherIsClosed(t *testing.T) {
-	oldDisp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("old-notification", true),
-		logCh: make(chan *LogMessage),
-	}
-	newDisp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("new-notification", true),
-		logCh: make(chan *LogMessage, 1),
-	}
-	SetDispatcher(oldDisp)
-	t.Cleanup(func() {
-		clearDispatcher(newDisp)
-		oldDisp.task.Finish(nil)
-		newDisp.task.Finish(nil)
-	})
+func TestNotifierContextsRemainIsolated(t *testing.T) {
+	root := task.GetTestTask(t)
+	oldRuntime := root.Subtask("old-runtime", true)
+	newRuntime := root.Subtask("new-runtime", true)
+	oldDisp := testDispatcher(t, oldRuntime, "notification", 1)
+	newDisp := testDispatcher(t, newRuntime, "notification", 1)
+	SetCtx(oldRuntime, oldDisp)
+	SetCtx(newRuntime, newDisp)
 
-	oldDisp.closeLogCh()
-	SetDispatcher(newDisp)
+	oldMsg := &LogMessage{Title: "old"}
+	newMsg := &LogMessage{Title: "new"}
+	FromCtx(oldRuntime.Context()).Notify(oldMsg)
+	FromCtx(newRuntime.Context()).Notify(newMsg)
 
-	msg := &LogMessage{Title: "test"}
-	Notify(msg)
-
-	require.Same(t, msg, <-newDisp.logCh)
+	require.Same(t, oldMsg, <-oldDisp.logCh)
+	require.Same(t, newMsg, <-newDisp.logCh)
 }
 
-func TestNotifyDoesNotRaceWithLogChannelClose(t *testing.T) {
-	disp := &Dispatcher{
-		task:  task.GetTestTask(t).Subtask("notification", true),
-		logCh: make(chan *LogMessage, 1),
-	}
-	SetDispatcher(disp)
-	t.Cleanup(func() {
-		clearDispatcher(disp)
-		disp.task.Finish(nil)
-	})
+func TestNotifierDoesNotRaceWithLogChannelClose(t *testing.T) {
+	parent := task.GetTestTask(t).Subtask("runtime", true)
+	disp := testDispatcher(t, parent, "notification", 1)
+	SetCtx(parent, disp)
+	notifier := FromCtx(parent.Context())
 
 	var wg sync.WaitGroup
 	readDone := make(chan struct{})
@@ -113,7 +91,7 @@ func TestNotifyDoesNotRaceWithLogChannelClose(t *testing.T) {
 	}()
 	for range 100 {
 		wg.Go(func() {
-			Notify(&LogMessage{Title: "test"})
+			notifier.Notify(&LogMessage{Title: "test"})
 		})
 	}
 	wg.Go(disp.closeLogCh)
@@ -132,33 +110,14 @@ func TestNotifyDoesNotRaceWithLogChannelClose(t *testing.T) {
 	}
 }
 
-func TestStoppedDispatcherDoesNotClearCurrentDispatcher(t *testing.T) {
-	oldDisp := &Dispatcher{task: task.GetTestTask(t).Subtask("old-notification", true)}
-	newDisp := &Dispatcher{task: task.GetTestTask(t).Subtask("new-notification", true)}
-	SetDispatcher(newDisp)
-	t.Cleanup(func() {
-		clearDispatcher(newDisp)
-		oldDisp.task.Finish(nil)
-		newDisp.task.Finish(nil)
-	})
+func TestNewDispatcherIsNotVisibleOutsideOwningContext(t *testing.T) {
+	root := task.GetTestTask(t)
+	runtime := root.Subtask("runtime", true)
+	disp := NewDispatcher(runtime)
+	t.Cleanup(func() { disp.task.Finish(nil) })
 
-	clearDispatcher(oldDisp)
-
-	require.Same(t, newDisp, dispatcher.Load())
-}
-
-func TestNewDispatcherDoesNotPublish(t *testing.T) {
-	oldDisp := &Dispatcher{task: task.GetTestTask(t).Subtask("old-notification", true)}
-	SetDispatcher(oldDisp)
-	t.Cleanup(func() {
-		clearDispatcher(oldDisp)
-		oldDisp.task.Finish(nil)
-	})
-
-	newDisp := NewDispatcher(task.GetTestTask(t))
-	t.Cleanup(func() {
-		newDisp.task.Finish(nil)
-	})
-
-	require.Same(t, oldDisp, dispatcher.Load())
+	require.IsType(t, noopNotifier{}, FromCtx(runtime.Context()))
+	SetCtx(runtime, disp)
+	require.Same(t, disp, FromCtx(runtime.Context()))
+	require.IsType(t, noopNotifier{}, FromCtx(root.Context()))
 }

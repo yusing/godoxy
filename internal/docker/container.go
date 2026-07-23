@@ -30,7 +30,7 @@ var (
 	ErrNoNetwork       = errors.New("no network found")
 )
 
-func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res *Container) {
+func FromDocker(ctx context.Context, c *container.Summary, dockerCfg types.DockerProviderConfig) (res *Container) {
 	actualLabels := maps.Clone(c.Labels)
 
 	_, isExplicit := c.Labels[LabelAliases]
@@ -73,7 +73,10 @@ func FromDocker(c *container.Summary, dockerCfg types.DockerProviderConfig) (res
 
 	if agent.IsDockerHostAgent(dockerCfg.URL) {
 		var ok bool
-		res.Agent, ok = agentpool.Get(dockerCfg.URL)
+		pool := agentpool.FromCtx(ctx)
+		if pool != nil {
+			res.Agent, ok = pool.Get(dockerCfg.URL)
+		}
 		if !ok {
 			addError(res, fmt.Errorf("agent %q not found", dockerCfg.URL))
 		}
@@ -100,7 +103,7 @@ func IsBlacklisted(c *Container) bool {
 }
 
 func UpdatePorts(ctx context.Context, c *Container) error {
-	dockerClient, err := NewClient(c.DockerCfg)
+	dockerClient, err := NewClient(ctx, c.DockerCfg)
 	if err != nil {
 		return err
 	}

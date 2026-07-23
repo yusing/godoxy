@@ -23,8 +23,9 @@ import (
 // @Failure		500		{object}	apitypes.ErrorResponse "Internal Server Error: internal error"
 // @Router			/events [get]
 func Events(c *gin.Context) {
+	history := events.FromCtx(c.Request.Context())
 	if !httpheaders.IsWebsocket(c.Request.Header) {
-		c.JSON(http.StatusOK, events.Global.Get())
+		c.JSON(http.StatusOK, history.Get())
 		return
 	}
 
@@ -36,7 +37,7 @@ func Events(c *gin.Context) {
 	defer manager.Close()
 
 	writer := manager.NewWriter(websocket.TextMessage)
-	err = events.Global.ListenJSON(c.Request.Context(), writer)
+	err = history.ListenJSON(c.Request.Context(), writer)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		c.Error(apitypes.InternalServerError(err, "failed to listen to events"))
 		return

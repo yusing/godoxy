@@ -22,13 +22,14 @@ func setupMockOIDC(t *testing.T) {
 	t.Helper()
 
 	provider := setupProvider(t)
-	defaultAuth = expect.Must(NewOIDCProvider(
+	setDefaultAuth(expect.Must(NewOIDCProvider(
+		t.Context(),
 		provider.server.URL,
 		clientID,
 		"test-secret",
 		[]string{"test-user"},
 		[]string{"test-group1", "test-group2"},
-	))
+	)))
 }
 
 const (
@@ -83,7 +84,7 @@ func setupProvider(t *testing.T) *provider {
 }
 
 func cleanup() {
-	defaultAuth = nil
+	setDefaultAuth(nil)
 }
 
 func TestOIDCLoginHandler(t *testing.T) {
@@ -109,7 +110,7 @@ func TestOIDCLoginHandler(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, OIDCAuthInitPath, nil)
 			w := httptest.NewRecorder()
 
-			defaultAuth.(*OIDCProvider).HandleAuth(w, req)
+			GetDefaultAuth().(*OIDCProvider).HandleAuth(w, req)
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCLoginHandler() status = %v, want %v", got, tt.wantStatus)
@@ -164,13 +165,13 @@ func TestOIDCCallbackHandler(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/auth/callback?code="+tt.code+"&state="+tt.state, nil)
 			if tt.state != "" {
 				req.AddCookie(&http.Cookie{
-					Name:  defaultAuth.(*OIDCProvider).getAppScopedCookieName(CookieOauthState),
+					Name:  GetDefaultAuth().(*OIDCProvider).getAppScopedCookieName(CookieOauthState),
 					Value: tt.state,
 				})
 			}
 			w := httptest.NewRecorder()
 
-			defaultAuth.(*OIDCProvider).PostAuthCallbackHandler(w, req)
+			GetDefaultAuth().(*OIDCProvider).PostAuthCallbackHandler(w, req)
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCCallbackHandler() status = %v, want %v", got, tt.wantStatus)
@@ -243,7 +244,7 @@ func TestInitOIDC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewOIDCProvider(tt.issuerURL, tt.clientID, tt.clientSecret, tt.allowedUsers, tt.allowedGroups)
+			_, err := NewOIDCProvider(t.Context(), tt.issuerURL, tt.clientID, tt.clientSecret, tt.allowedUsers, tt.allowedGroups)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitOIDC() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -410,7 +411,7 @@ func TestLogoutHandler(t *testing.T) {
 		Value: "test-session-token",
 	})
 
-	defaultAuth.(*OIDCProvider).LogoutHandler(w, req)
+	GetDefaultAuth().(*OIDCProvider).LogoutHandler(w, req)
 
 	if got := w.Code; got != http.StatusFound {
 		t.Errorf("LogoutHandler() status = %v, want %v", got, http.StatusFound)

@@ -5,7 +5,6 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -34,9 +33,10 @@ type (
 	}
 
 	NotifyFunc func(msg *LogMessage)
+	Notifier   interface {
+		Notify(msg *LogMessage)
+	}
 )
-
-var dispatcher atomic.Pointer[Dispatcher]
 
 const (
 	retryInterval     = time.Second
@@ -44,14 +44,7 @@ const (
 	backoffMultiplier = 2.0
 )
 
-// StartNotifDispatcher creates, starts, and publishes a notification dispatcher.
-func StartNotifDispatcher(parent task.Parent) *Dispatcher {
-	disp := NewDispatcher(parent)
-	SetDispatcher(disp)
-	return disp
-}
-
-// NewDispatcher creates and starts a dispatcher without publishing it globally.
+// NewDispatcher creates and starts a dispatcher owned by parent.
 func NewDispatcher(parent task.Parent) *Dispatcher {
 	disp := &Dispatcher{
 		task:        parent.Subtask("notification", true),
@@ -64,24 +57,8 @@ func NewDispatcher(parent task.Parent) *Dispatcher {
 	return disp
 }
 
-// SetDispatcher sets the global notification dispatcher; nil disables notification.
-func SetDispatcher(disp *Dispatcher) {
-	dispatcher.Store(disp)
-}
-
-func Notify(msg *LogMessage) {
-	for {
-		disp := dispatcher.Load()
-		if disp == nil {
-			return
-		}
-		if disp.enqueue(msg) {
-			return
-		}
-		if dispatcher.Load() == disp {
-			return
-		}
-	}
+func (disp *Dispatcher) Notify(msg *LogMessage) {
+	disp.enqueue(msg)
 }
 
 func (disp *Dispatcher) enqueue(msg *LogMessage) bool {
@@ -104,7 +81,6 @@ func (disp *Dispatcher) RegisterProvider(cfg *NotificationConfig) {
 
 func (disp *Dispatcher) start() {
 	defer func() {
-		clearDispatcher(disp)
 		disp.providers.Clear()
 		disp.closeLogCh()
 		disp.retryTicker.Stop()
@@ -124,10 +100,6 @@ func (disp *Dispatcher) start() {
 			disp.processRetries()
 		}
 	}
-}
-
-func clearDispatcher(disp *Dispatcher) {
-	dispatcher.CompareAndSwap(disp, nil)
 }
 
 func (disp *Dispatcher) closeLogCh() {

@@ -12,7 +12,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/goutils/events"
@@ -51,15 +50,10 @@ var healthMonitorJitterDelay = func() time.Duration {
 }
 
 func (mon *monitor) init(u *url.URL, cfg health.HealthCheckConfig, healthCheckFunc HealthCheckFunc) {
-	if state := config.WorkingState.Load(); state != nil {
-		cfg.ApplyDefaults(state.Value().Defaults.HealthCheck)
-	} else {
-		cfg.ApplyDefaults(health.HealthCheckConfig{}) // use defaults from constants
-	}
+	cfg.ApplyDefaults(health.HealthCheckConfig{})
 	mon.config = cfg
 	mon.checkHealth = healthCheckFunc
 	mon.startTime = time.Now()
-	mon.notifyFunc = notif.Notify
 	mon.status.Store(health.StatusHealthy)
 	mon.lastResult.Store(health.HealthCheckResult{Healthy: true, Detail: "started"})
 
@@ -77,7 +71,7 @@ func (mon *monitor) Context() context.Context {
 	if mon.task != nil {
 		return mon.task.Context()
 	}
-	return context.Background()
+	return task.RootContext()
 }
 
 func (mon *monitor) CheckHealth() (health.HealthCheckResult, error) {
@@ -91,6 +85,9 @@ func (mon *monitor) Start(parent task.Parent) error {
 	}
 
 	mon.task = parent.Subtask("health_monitor", true)
+	if mon.notifyFunc == nil {
+		mon.notifyFunc = notif.FromCtx(parent.Context()).Notify
+	}
 
 	mon.service = parent.Name()
 	if displayName, ok := parent.GetValue(health.DisplayNameKey{}).(string); ok {
@@ -290,7 +287,11 @@ func (mon *monitor) notifyServiceUp(logger *zerolog.Logger, result *health.Healt
 		Body:  extras,
 		Color: notif.ColorSuccess,
 	})
-	events.Global.Add(events.NewEvent(events.LevelInfo, "health", "service_up", mon))
+	if mon.task != nil {
+		if history := events.FromCtx(mon.task.Context()); history != nil {
+			history.Add(events.NewEvent(events.LevelInfo, "health", "service_up", mon))
+		}
+	}
 }
 
 func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *health.HealthCheckResult) {
@@ -303,7 +304,11 @@ func (mon *monitor) notifyServiceDown(logger *zerolog.Logger, result *health.Hea
 		Body:  extras,
 		Color: notif.ColorError,
 	})
-	events.Global.Add(events.NewEvent(events.LevelWarn, "health", "service_down", mon))
+	if mon.task != nil {
+		if history := events.FromCtx(mon.task.Context()); history != nil {
+			history.Add(events.NewEvent(events.LevelWarn, "health", "service_down", mon))
+		}
+	}
 }
 
 func (mon *monitor) buildNotificationExtras(result *health.HealthCheckResult) notif.FieldsBody {

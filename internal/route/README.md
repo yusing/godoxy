@@ -20,7 +20,8 @@ Concrete request handling is intentionally outside this package:
 
 - Define route config fields and JSON/OpenAPI shape.
 - Track provider, Docker/proxmox, homepage, health, and runtime metadata.
-- Expose lifecycle methods (`Validate`, `Start`, `Finish`) used by providers.
+- Expose context-aware validation and lifecycle methods (`ValidateContext`,
+  `Start`, `Finish`) used by providers.
 - Delegate implementation construction through the package builder hook.
 - Register excluded routes and route health monitors during start.
 - Provide shared route helpers such as `ShouldExclude`, `UseHealthCheck`, `Key`, and `References`.
@@ -35,7 +36,8 @@ Concrete request handling is intentionally outside this package:
 
 ## Runtime Wiring
 
-`Route.Validate` calls a package-level builder registered by the application:
+`Route.ValidateContext` calls a package-level builder registered by the
+application:
 
 ```go
 route.InitBuilder(routevalidate.Validate)
@@ -103,9 +105,17 @@ flowchart TD
     H --> I[entrypoint registers HTTP or stream route]
 ```
 
-`Validate` is guarded by `sync.Once`; callers should treat route config as fixed
-after validation. `Start` is also guarded by `sync.Once`; errors are retained for
-later reads.
+`ValidateContext` is guarded by `sync.Once`; callers should treat route config as
+fixed after validation. The context selects candidate-owned defaults, agents,
+Proxmox nodes, and other runtime dependencies. The no-argument `Validate` is for
+standalone callers and uses the process root context.
+
+`Start` is also guarded by `sync.Once`; errors are retained for later reads. The
+outer lifecycle enforces component-local cleanup: if any concrete start path
+fails after creating a route task or registering cancellation callbacks, it
+finishes and waits for that task exactly once. This removes failed listeners,
+health monitors, pool entries, and container registrations while leaving
+successful sibling routes owned by the provider active.
 
 ## Exclusion
 

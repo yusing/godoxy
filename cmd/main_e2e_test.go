@@ -97,6 +97,38 @@ func TestAuthCallbackStartupMatrix(t *testing.T) {
 	}
 }
 
+func TestStartupSupportsOIDCIssuerRoutedThroughGodoxy(t *testing.T) {
+	oidcProvider := &oidctest.Server{}
+	oidcUpstream := httptest.NewServer(oidcProvider)
+	t.Cleanup(oidcUpstream.Close)
+
+	addresses := unusedLoopbackAddresses(t, 2)
+	apiAddr, proxyAddr := addresses[0], addresses[1]
+	_, proxyPort, err := net.SplitHostPort(proxyAddr)
+	require.NoError(t, err)
+	issuerURL := "http://localhost:" + proxyPort
+	oidcProvider.SetIssuer(issuerURL)
+
+	process := startGodoxyE2EProcess(t, godoxyE2EProcessConfig{
+		apiAddr:         apiAddr,
+		proxyAddr:       proxyAddr,
+		oidcURL:         issuerURL,
+		oidcUpstreamURL: oidcUpstream.URL,
+		envJWTKey:       true,
+	})
+
+	directBaseURL := "http://" + apiAddr
+	// This regression exercises the proxy route as an internal startup
+	// dependency. The direct API is the post-initialization readiness boundary;
+	// this custom config intentionally does not install the WebUI API route.
+	process.waitReady(t, directBaseURL, directBaseURL)
+	exerciseAuthCallback(t, authCallbackScope{
+		baseURL: directBaseURL,
+		host:    apiAddr,
+		oidcURL: issuerURL,
+	})
+}
+
 func TestStartupRejectsMissingBasicAuthCredentials(t *testing.T) {
 	address := unusedLoopbackAddresses(t, 1)[0]
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -234,6 +266,7 @@ type godoxyE2EProcessConfig struct {
 	apiAddr         string
 	proxyAddr       string
 	oidcURL         string
+	oidcUpstreamURL string
 	envJWTKey       bool
 	omitCredentials bool
 }
@@ -249,6 +282,7 @@ func startGodoxyE2EProcess(t *testing.T, cfg godoxyE2EProcessConfig) *godoxyE2EP
 	workDir := t.TempDir()
 	logFile, err := os.Create(filepath.Join(workDir, "godoxy.log"))
 	require.NoError(t, err)
+	writeOIDCProxyConfig(t, workDir, cfg.oidcUpstreamURL)
 
 	cmd := exec.Command(os.Args[0], "-test.run=^TestGodoxyE2EProcess$")
 	cmd.Dir = workDir
@@ -267,6 +301,36 @@ func startGodoxyE2EProcess(t *testing.T, cfg godoxyE2EProcessConfig) *godoxyE2EP
 		process.stop(t)
 	})
 	return process
+}
+
+func writeOIDCProxyConfig(t *testing.T, workDir, upstreamURL string) {
+	t.Helper()
+	if upstreamURL == "" {
+		return
+	}
+
+	upstream, err := url.Parse(upstreamURL)
+	require.NoError(t, err)
+	host, port, err := net.SplitHostPort(upstream.Host)
+	require.NoError(t, err)
+
+	configDir := filepath.Join(workDir, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(configDir, "config.yml"),
+		[]byte("providers:\n  include:\n    - oidc.yml\n"),
+		0o600,
+	))
+	routeConfig := fmt.Sprintf(
+		"localhost:\n  scheme: http\n  host: %s\n  port: %s\n",
+		host,
+		port,
+	)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(configDir, "oidc.yml"),
+		[]byte(routeConfig),
+		0o600,
+	))
 }
 
 func godoxyE2EEnvironment(cfg godoxyE2EProcessConfig) []string {

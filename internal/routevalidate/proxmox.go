@@ -18,7 +18,7 @@ import (
 
 // ResolveProxmox applies explicit or inferred Proxmox metadata to a route and
 // its idlewatcher config without contacting the Proxmox API.
-func ResolveProxmox(r *route.Route) proxmox.DiscoveryKind {
+func ResolveProxmox(ctx context.Context, r *route.Route) proxmox.DiscoveryKind {
 	var discovery proxmox.DiscoveryKind
 	if r.Proxmox == nil && r.Idlewatcher != nil && r.Idlewatcher.Proxmox != nil {
 		r.Proxmox = &proxmox.NodeConfig{
@@ -29,10 +29,9 @@ func ResolveProxmox(r *route.Route) proxmox.DiscoveryKind {
 
 	if (r.Proxmox == nil || r.Proxmox.Node == "" || r.Proxmox.VMID == nil) && r.Container == nil {
 		wasNotNil := r.Proxmox != nil
-		workingState := config.WorkingState.Load()
 		var proxmoxProviders []*proxmox.Config
-		if workingState != nil {
-			proxmoxProviders = workingState.Value().Providers.Proxmox
+		if state := config.FromCtx(ctx); state != nil {
+			proxmoxProviders = state.Value().Providers.Proxmox
 		}
 		if len(proxmoxProviders) > 0 {
 			hostname := r.Host
@@ -65,7 +64,7 @@ func ResolveProxmox(r *route.Route) proxmox.DiscoveryKind {
 			}
 		}
 		if wasNotNil && (r.Proxmox.Node == "" || r.Proxmox.VMID == nil) {
-			loadLogger().Warn().EmbedObject(r).Msg("no proxmox node / resource found")
+			loadLogger(ctx).Warn().EmbedObject(r).Msg("no proxmox node / resource found")
 		}
 	}
 
@@ -81,8 +80,8 @@ func ResolveProxmox(r *route.Route) proxmox.DiscoveryKind {
 	return discovery
 }
 
-func validateProxmox(r *route.Route) bool {
-	l := loadLogger().With().EmbedObject(r).Logger()
+func validateProxmox(ctx context.Context, r *route.Route) bool {
+	l := loadLogger(ctx).With().EmbedObject(r).Logger()
 
 	nodeName := r.Proxmox.Node
 	vmid := r.Proxmox.VMID
@@ -91,12 +90,7 @@ func validateProxmox(r *route.Route) bool {
 		return false
 	}
 
-	workingState := config.WorkingState.Load()
-	if workingState == nil {
-		l.Error().Msg("proxmox node pool is unavailable")
-		return false
-	}
-	node, err := proxmox.NodeFromCtx(workingState.Context(), nodeName)
+	node, err := proxmox.NodeFromCtx(ctx, nodeName)
 	if err != nil {
 		l.Error().Err(err).Msgf("failed to resolve proxmox node %s", nodeName)
 		return false
@@ -126,7 +120,7 @@ func validateProxmox(r *route.Route) bool {
 			containerName := res.Name
 			// get ip addresses of the vmid
 
-			ctx, cancel := context.WithTimeout(workingState.Context(), 5*time.Second)
+			lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 
 			ips := res.IPs
@@ -135,7 +129,7 @@ func validateProxmox(r *route.Route) bool {
 				return false
 			}
 
-			running, err := node.LXCIsRunning(ctx, *vmid)
+			running, err := node.LXCIsRunning(lookupCtx, *vmid)
 			if err != nil {
 				l.Error().Err(err).Msgf("failed to check container state")
 				return false
@@ -143,7 +137,7 @@ func validateProxmox(r *route.Route) bool {
 
 			if !running {
 				l.Info().Msg("starting container")
-				if err := node.LXCAction(ctx, *vmid, proxmox.LXCStart); err != nil {
+				if err := node.LXCAction(lookupCtx, *vmid, proxmox.LXCStart); err != nil {
 					l.Error().Err(err).Msg("failed to start container")
 					return false
 				}
@@ -151,7 +145,7 @@ func validateProxmox(r *route.Route) bool {
 
 			errs := gperr.NewBuilder("failed to find reachable ip addresses")
 			for _, ip := range ips {
-				if err := netutils.PingTCP(ctx, ip, r.Port.Proxy); err != nil {
+				if err := netutils.PingTCP(lookupCtx, ip, r.Port.Proxy); err != nil {
 					errs.Add(gperr.Unwrap(err).Subjectf("%s:%d", ip, r.Port.Proxy))
 				} else {
 					r.Host = ip.String()
@@ -167,9 +161,9 @@ func validateProxmox(r *route.Route) bool {
 	return true
 }
 
-func loadLogger() *zerolog.Logger {
-	if workingState := config.WorkingState.Load(); workingState != nil {
-		if diagnostics, ok := workingState.(config.LoadDiagnostics); ok {
+func loadLogger(ctx context.Context) *zerolog.Logger {
+	if state := config.FromCtx(ctx); state != nil {
+		if diagnostics, ok := state.(config.LoadDiagnostics); ok {
 			return diagnostics.LoadLogger()
 		}
 	}

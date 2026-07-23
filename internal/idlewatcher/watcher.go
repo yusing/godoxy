@@ -268,7 +268,7 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	var kind string
 	switch {
 	case cfg.Docker != nil:
-		p, err = newDockerProvider(cfg.Docker.DockerCfg, cfg.Docker.ContainerID)
+		p, err = newDockerProvider(parent.Context(), cfg.Docker.DockerCfg, cfg.Docker.ContainerID)
 		kind = "docker"
 	default:
 		p, err = newProxmoxProvider(parent.Context(), cfg.Proxmox.Node, cfg.Proxmox.VMID)

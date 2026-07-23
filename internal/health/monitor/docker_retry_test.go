@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -32,7 +33,7 @@ func TestDockerHealthMonitorRetriesClientInitializationWithoutFallback(t *testin
 	}))
 	t.Cleanup(dockerServer.Close)
 
-	client, err := docker.NewClient(types.DockerProviderConfig{URL: dockerServer.URL}, true)
+	client, err := docker.NewClient(t.Context(), types.DockerProviderConfig{URL: dockerServer.URL}, true)
 	require.NoError(t, err)
 	t.Cleanup(client.Close)
 
@@ -53,7 +54,7 @@ func TestDockerHealthMonitorRetriesClientInitializationWithoutFallback(t *testin
 		&url.URL{Scheme: "docker", Host: dockerServer.URL, Path: "/containers/test/json"},
 		"test",
 		fallback,
-		func() (*docker.SharedClient, error) {
+		func(context.Context) (*docker.SharedClient, error) {
 			if attempts.Add(1) == 1 {
 				return nil, errors.New("temporarily unavailable")
 			}

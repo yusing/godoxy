@@ -88,12 +88,12 @@ func generateState() string {
 	return base64.URLEncoding.EncodeToString(b)[:oidcStateLength]
 }
 
-func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
+func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
 	if len(allowedUsers)+len(allowedGroups) == 0 {
 		return nil, errors.New("oidc.allowed_users or oidc.allowed_groups are both empty")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
@@ -129,8 +129,9 @@ func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, all
 }
 
 // NewOIDCProviderFromEnv creates a new OIDCProvider from environment variables.
-func NewOIDCProviderFromEnv() (*OIDCProvider, error) {
+func NewOIDCProviderFromEnv(ctx context.Context) (*OIDCProvider, error) {
 	return NewOIDCProvider(
+		ctx,
 		common.OIDCIssuerURL,
 		common.OIDCClientID,
 		common.OIDCClientSecret,

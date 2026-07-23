@@ -1,6 +1,12 @@
 package config
 
-import "testing"
+import (
+	"net"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
+)
 
 func TestValidateLocalAPIAddr(t *testing.T) {
 	tests := []struct {
@@ -74,4 +80,29 @@ func TestValidateLocalAPIAddr(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestActivateAPIServersAttemptsLocalWhenMainPortIsOccupied(t *testing.T) {
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, occupied.Close()) })
+
+	previousMainAddr := common.APIHTTPAddr
+	previousLocalAddr := common.LocalAPIHTTPAddr
+	common.APIHTTPAddr = occupied.Addr().String()
+	common.LocalAPIHTTPAddr = "127.0.0.1:0"
+	t.Cleanup(func() {
+		common.APIHTTPAddr = previousMainAddr
+		common.LocalAPIHTTPAddr = previousLocalAddr
+	})
+
+	state := NewState()
+	t.Cleanup(func() { state.Stop(nil) })
+	report := state.ActivateAPIServers(state.Task())
+
+	require.False(t, report.Main.Ready)
+	require.Error(t, report.Main.Err)
+	require.True(t, report.Main.Required)
+	require.True(t, report.Local.Ready)
+	require.NoError(t, report.Local.Err)
 }

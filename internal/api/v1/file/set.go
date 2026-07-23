@@ -38,7 +38,7 @@ func Set(c *gin.Context) {
 		return
 	}
 
-	if valErr := validateFile(request.FileType, content); valErr != nil {
+	if valErr := validateFile(c.Request.Context(), request.FileType, content); valErr != nil {
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid file", valErr))
 		return
 	}

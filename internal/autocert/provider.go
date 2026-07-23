@@ -497,6 +497,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 	timer := time.NewTimer(time.Until(p.ShouldRenewOn()))
 	task := parent.Subtask("cert-renew-scheduler:"+filepath.Base(p.cfg.CertPath), true)
+	notifier := notif.FromCtx(parent.Context())
 
 	renew := func(renewMode RenewMode) {
 		defer func() {
@@ -508,17 +509,17 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 		renewed, err := p.renew(renewMode)
 		if err != nil {
 			log.Warn().Err(p.fmtError(err)).Msg("autocert: cert renew failed")
-			notif.Notify(&notif.LogMessage{
+			notifier.Notify(&notif.LogMessage{
 				Level: zerolog.ErrorLevel,
 				Title: "SSL certificate renewal failed for " + p.GetName(),
-				Body:  notif.MessageBody(err.Error()),
+				Body:  notif.ErrorBody(err),
 			})
 			return
 		}
 		if renewed {
 			p.rebuildSNIMatcher()
 
-			notif.Notify(&notif.LogMessage{
+			notifier.Notify(&notif.LogMessage{
 				Level: zerolog.InfoLevel,
 				Title: "SSL certificate renewed for " + p.GetName(),
 				Body:  notif.ListBody(p.cfg.Domains),

@@ -37,17 +37,24 @@ Alias to `events.Event` for convenience.
 #### Watcher Interface
 
 ```go
+type Stream struct {
+    Events <-chan Event
+    Errors <-chan error
+    Ready  <-chan error
+}
+
 type Watcher interface {
-    // Events returns channels for receiving events and errors.
-    // The channels are closed when the context is cancelled.
-    Events(ctx context.Context) (<-chan Event, <-chan error)
+    Watch(parent task.Parent) Stream
 }
 ```
 
-Core interface that all watchers implement. Callers receive:
+Core interface that all watchers implement. The subscribing task owns the
+stream lifetime and its cancellation. Callers receive:
 
-- `<-chan Event` - Events as they occur
-- `<-chan error` - Errors during event watching
+- `Events` - Events as they occur
+- `Errors` - Errors during event watching
+- `Ready` - Exactly one initialization result; `nil` means the event source is
+  ready
 
 ### Docker Watcher
 
@@ -62,11 +69,13 @@ Creates a Docker watcher for the given Docker configuration.
 #### Event Streaming
 
 ```go
-func (w DockerWatcher) Events(ctx context.Context) (<-chan Event, <-chan error)
-func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) (<-chan Event, <-chan error)
+func (w DockerWatcher) Watch(parent task.Parent) Stream
+func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerListOptions) Stream
 ```
 
-Returns event and error channels. `Events` uses default filters; `EventsWithOptions` allows custom filters.
+`Watch` binds the default event stream to the supplied task.
+`EventsWithOptions` remains the lower-level context-based API for consumers
+that need custom Docker filters.
 
 #### Predefined Filters
 

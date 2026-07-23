@@ -91,7 +91,7 @@ func TestNewWatcherReloadKeepsDependenciesAfterProviderError(t *testing.T) {
 	w, parent, mainRoute, providerCloses := newDependencyReloadTest(t, "provider-error", []string{"old"})
 	require.Len(t, w.dependsOn, 1)
 
-	newDockerProvider = func(godoxytypes.DockerProviderConfig, string) (idlewatchertypes.Provider, error) {
+	newDockerProvider = func(context.Context, godoxytypes.DockerProviderConfig, string) (idlewatchertypes.Provider, error) {
 		return nil, errors.New("provider unavailable")
 	}
 
@@ -115,7 +115,7 @@ func newDependencyReloadTest(t *testing.T, id string, dependsOn []string) (*Watc
 	oldDockerProvider := newDockerProvider
 	oldProxmoxProvider := newProxmoxProvider
 	providerCloses := &atomic.Int64{}
-	newDockerProvider = func(godoxytypes.DockerProviderConfig, string) (idlewatchertypes.Provider, error) {
+	newDockerProvider = func(context.Context, godoxytypes.DockerProviderConfig, string) (idlewatchertypes.Provider, error) {
 		return &idlewatcherTestRuntimeProvider{closes: providerCloses}, nil
 	}
 	newProxmoxProvider = func(context.Context, string, uint64) (idlewatchertypes.Provider, error) {
@@ -172,12 +172,15 @@ func (*idlewatcherTestRuntimeProvider) ContainerStart(context.Context) error   {
 func (*idlewatcherTestRuntimeProvider) ContainerStop(context.Context, idlewatchertypes.Signal, int) error {
 	return nil
 }
+
 func (*idlewatcherTestRuntimeProvider) ContainerKill(context.Context, idlewatchertypes.Signal) error {
 	return nil
 }
+
 func (*idlewatcherTestRuntimeProvider) ContainerStatus(context.Context) (idlewatchertypes.ContainerStatus, error) {
 	return idlewatchertypes.ContainerStatusStopped, nil
 }
+
 func (*idlewatcherTestRuntimeProvider) Watch(ctx context.Context) (<-chan watcherEvents.Event, <-chan error) {
 	eventCh := make(chan watcherEvents.Event)
 	errCh := make(chan error)
@@ -188,6 +191,7 @@ func (*idlewatcherTestRuntimeProvider) Watch(ctx context.Context) (<-chan watche
 	}()
 	return eventCh, errCh
 }
+
 func (p *idlewatcherTestRuntimeProvider) Close() {
 	p.closes.Add(1)
 }
@@ -196,12 +200,15 @@ type idlewatcherTestRouteProvider struct {
 	routes map[string]routing.Route
 }
 
-func (p *idlewatcherTestRouteProvider) Start(task.Parent) error { return nil }
-func (p *idlewatcherTestRouteProvider) LoadRoutes() error       { return nil }
+func (p *idlewatcherTestRouteProvider) Activate(task.Parent) routing.ProviderActivation {
+	return routing.ProviderActivation{Provider: p.String(), EventLoopReady: true}
+}
+func (p *idlewatcherTestRouteProvider) LoadRoutes(context.Context) error { return nil }
 func (p *idlewatcherTestRouteProvider) GetRoute(alias string) (routing.Route, bool) {
 	r, ok := p.routes[alias]
 	return r, ok
 }
+
 func (p *idlewatcherTestRouteProvider) IterRoutes(yield func(string, routing.Route) bool) {
 	for alias, r := range p.routes {
 		if !yield(alias, r) {
@@ -213,9 +220,11 @@ func (p *idlewatcherTestRouteProvider) NumRoutes() int { return len(p.routes) }
 func (p *idlewatcherTestRouteProvider) FindService(_, service string) (routing.Route, bool) {
 	return p.GetRoute(service)
 }
+
 func (p *idlewatcherTestRouteProvider) Statistics() routing.ProviderStats {
 	return routing.ProviderStats{Type: routing.ProviderTypeDocker}
 }
+
 func (p *idlewatcherTestRouteProvider) GetType() routing.ProviderType {
 	return routing.ProviderTypeDocker
 }

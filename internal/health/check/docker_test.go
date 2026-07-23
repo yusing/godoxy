@@ -153,7 +153,7 @@ func newDockerHealthcheckState(t *testing.T, status int, body string) *DockerHea
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := docker.NewClient(types.DockerProviderConfig{URL: server.URL}, true)
+	client, err := docker.NewClient(t.Context(), types.DockerProviderConfig{URL: server.URL}, true)
 	require.NoError(t, err)
 	t.Cleanup(client.Close)
 

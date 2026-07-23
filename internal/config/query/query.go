@@ -1,6 +1,8 @@
 package statequery
 
 import (
+	"context"
+
 	config "github.com/yusing/godoxy/internal/config/types"
 )
 
@@ -9,8 +11,11 @@ type RouteProviderListResponse struct {
 	FullName  string `json:"full_name"`
 } // @name RouteProvider
 
-func RouteProviderList() []RouteProviderListResponse {
-	state := config.ActiveState.Load()
+func RouteProviderList(ctx context.Context) []RouteProviderListResponse {
+	state := config.FromCtx(ctx)
+	if state == nil {
+		return nil
+	}
 	list := make([]RouteProviderListResponse, 0, state.NumProviders())
 	for _, p := range state.IterProviders() {
 		list = append(list, RouteProviderListResponse{

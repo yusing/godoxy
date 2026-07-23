@@ -17,8 +17,8 @@ import (
 	"github.com/yusing/godoxy/internal/agentpool"
 	configtypes "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/routing"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/server"
-	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -92,14 +92,22 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 	})
 
 	verifyNewAgentCalls := 0
-	verifyStartNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, func(any), error) {
+	verifyStartNewAgentFunc = func(ctx context.Context, state configtypes.State, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (routing.ProviderActivation, func(any), error) {
 		verifyNewAgentCalls++
 		require.Equal(t, "10.0.0.1:8890", host)
 		require.Equal(t, []byte("ca-cert"), ca.Cert)
 		require.Equal(t, []byte("client-cert"), client.Cert)
 		require.Equal(t, []byte("client-key"), client.Key)
 		require.Equal(t, agent.ContainerRuntimeDocker, containerRuntime)
-		return 2, func(any) {}, nil
+		return routing.ProviderActivation{
+			Provider:       "agent-1",
+			ActiveRoutes:   2,
+			EventLoopReady: true,
+			FailedRoutes: []routing.RouteActivationIssue{{
+				Route: "failed-route",
+				Err:   gperr.New("listener unavailable"),
+			}},
+		}, func(any) {}, nil
 	}
 
 	persistCalls := 0
@@ -126,7 +134,7 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 		return nil
 	}
 
-	listAgentsFunc = func() []*agent.AgentConfig {
+	listAgentsFunc = func(context.Context) []*agent.AgentConfig {
 		return []*agent.AgentConfig{
 			{
 				AgentInfo: agent.AgentInfo{
@@ -156,6 +164,10 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent/verify", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	runtimeState := newVerifyTestState(t)
+	coordinator := &verifyTestCoordinator{active: runtimeState}
+	configtypes.SetRuntimeMutationCoordinator(runtimeState.task, coordinator)
+	req = req.WithContext(runtimeState.Context())
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
@@ -168,16 +180,24 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 	require.Equal(t, 0, suppressCalls)
 	require.Equal(t, 0, clearCalls)
 	require.Equal(t, 1, writeAgentCertZipCalls)
+	require.Equal(t, 1, coordinator.beginCalls)
+	require.Equal(t, 1, coordinator.releaseCalls)
 
 	var response struct {
-		Message string `json:"message"`
-		Agents  []struct {
+		Message    string `json:"message"`
+		Activation struct {
+			ActiveRoutes int               `json:"active_routes"`
+			FailedRoutes []json.RawMessage `json:"failed_routes"`
+		} `json:"activation"`
+		Agents []struct {
 			Name string `json:"name"`
 			Addr string `json:"addr"`
 		} `json:"agents"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
-	require.Equal(t, "Added 2 routes", response.Message)
+	require.Equal(t, "Added 2 routes, 1 failed", response.Message)
+	require.Equal(t, 2, response.Activation.ActiveRoutes)
+	require.Len(t, response.Activation.FailedRoutes, 1)
 	require.Len(t, response.Agents, 1)
 	require.Equal(t, "agent-1", response.Agents[0].Name)
 	require.Equal(t, "10.0.0.1:8890", response.Agents[0].Addr)
@@ -203,10 +223,10 @@ func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testin
 
 	verifyNewAgentCalls := 0
 	cleanupCalls := 0
-	verifyStartNewAgentFunc = func(ctx context.Context, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (int, func(any), error) {
+	verifyStartNewAgentFunc = func(ctx context.Context, state configtypes.State, host string, ca agent.PEMPair, client agent.PEMPair, containerRuntime agent.ContainerRuntime) (routing.ProviderActivation, func(any), error) {
 		verifyNewAgentCalls++
 		require.Equal(t, "10.0.0.1:8890", host)
-		return 2, func(reason any) {
+		return routing.ProviderActivation{ActiveRoutes: 2}, func(reason any) {
 			cleanupCalls++
 			require.EqualError(t, reason.(error), "persist failed")
 		}, nil
@@ -237,7 +257,7 @@ func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testin
 		clearCalls++
 	}
 
-	listAgentsFunc = func() []*agent.AgentConfig {
+	listAgentsFunc = func(context.Context) []*agent.AgentConfig {
 		require.Fail(t, "listAgentsFunc should not be called after config persistence failure")
 		return nil
 	}
@@ -260,6 +280,10 @@ func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testin
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent/verify", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	runtimeState := newVerifyTestState(t)
+	coordinator := &verifyTestCoordinator{active: runtimeState}
+	configtypes.SetRuntimeMutationCoordinator(runtimeState.task, coordinator)
+	req = req.WithContext(runtimeState.Context())
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
@@ -272,32 +296,66 @@ func TestVerifyClearsConfigReloadSuppressionWhenConfigPersistenceFails(t *testin
 	require.Equal(t, 1, suppressCalls)
 	require.Equal(t, 1, clearCalls)
 	require.Equal(t, 1, cleanupCalls)
+	require.Equal(t, 1, coordinator.beginCalls)
+	require.Equal(t, 1, coordinator.releaseCalls)
 	require.Len(t, c.Errors, 1)
 	require.Contains(t, c.Errors[0].Error(), "failed to update config: persist failed")
+}
+
+func TestVerifyRejectsRequestWhenRuntimeTransitionOwnsMutationGate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	previousVerifyNewAgentFunc := verifyStartNewAgentFunc
+	t.Cleanup(func() { verifyStartNewAgentFunc = previousVerifyNewAgentFunc })
+	verifyCalls := 0
+	verifyStartNewAgentFunc = func(context.Context, configtypes.State, string, agent.PEMPair, agent.PEMPair, agent.ContainerRuntime) (routing.ProviderActivation, func(any), error) {
+		verifyCalls++
+		return routing.ProviderActivation{}, nil, nil
+	}
+
+	caPair := agent.PEMPair{Cert: []byte("ca-cert"), Key: []byte("ca-key")}
+	encCA, err := caPair.Encrypt(getEncryptionKey())
+	require.NoError(t, err)
+	clientPair := agent.PEMPair{Cert: []byte("client-cert"), Key: []byte("client-key")}
+	encClient, err := clientPair.Encrypt(getEncryptionKey())
+	require.NoError(t, err)
+	body, err := json.Marshal(VerifyNewAgentRequest{
+		Host:             "10.0.0.3:8890",
+		CA:               toPEMPairResponse(encCA),
+		Client:           toPEMPairResponse(encClient),
+		ContainerRuntime: agent.ContainerRuntimeDocker,
+	})
+	require.NoError(t, err)
+
+	runtimeState := newVerifyTestState(t)
+	coordinator := &verifyTestCoordinator{
+		active: runtimeState,
+		err:    configtypes.ErrRuntimeTransitioning,
+	}
+	configtypes.SetRuntimeMutationCoordinator(runtimeState.task, coordinator)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent/verify", bytes.NewReader(body)).WithContext(runtimeState.Context())
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = req
+
+	Verify(c)
+
+	require.Equal(t, http.StatusConflict, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "runtime changed")
+	require.Zero(t, verifyCalls)
+	require.Equal(t, 1, coordinator.beginCalls)
+	require.Zero(t, coordinator.releaseCalls)
 }
 
 func TestVerifyStartNewAgentCleansUpWhenProviderStartFails(t *testing.T) {
 	previousInitAgentConfigWithCertsFunc := initAgentConfigWithCertsFunc
 	previousNewAgentProviderFunc := newAgentProviderFunc
-	previousState := configtypes.ActiveState.Load()
-	previousAgents := agentpool.List()
-
 	testState := newVerifyTestState(t)
-	configtypes.ActiveState.Store(testState)
-	agentpool.RemoveAll()
 
 	t.Cleanup(func() {
 		initAgentConfigWithCertsFunc = previousInitAgentConfigWithCertsFunc
 		newAgentProviderFunc = previousNewAgentProviderFunc
-		if previousState != nil {
-			configtypes.ActiveState.Store(previousState)
-		} else {
-			configtypes.ActiveState = synk.Value[configtypes.State]{}
-		}
-		agentpool.RemoveAll()
-		for _, agentInfo := range previousAgents {
-			agentpool.Add(agentInfo.AgentConfig)
-		}
 	})
 
 	const host = "10.0.0.9:8890"
@@ -313,47 +371,33 @@ func TestVerifyStartNewAgentCleansUpWhenProviderStartFails(t *testing.T) {
 		return fakeProvider
 	}
 
-	nRoutes, cleanup, err := verifyStartNewAgent(t.Context(), host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
-	require.Equal(t, 0, nRoutes)
+	activation, cleanup, err := verifyStartNewAgent(t.Context(), testState, host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
+	require.Equal(t, 0, activation.ActiveRoutes)
 	require.Nil(t, cleanup)
 	require.ErrorContains(t, err, "failed to start routes: start failed")
 	require.Equal(t, 1, fakeProvider.loadRoutesCalls)
 	require.Equal(t, 1, fakeProvider.startCalls)
-	require.False(t, agentpool.Has(&agent.AgentConfig{Addr: host}))
+	require.False(t, testState.agents.Has(&agent.AgentConfig{Addr: host}))
 	require.Equal(t, 0, testState.NumProviders())
 
 	fakeProvider = &verifyTestProvider{name: "agent.start-fails", numRoutes: 3}
 
-	nRoutes, cleanup, err = verifyStartNewAgent(t.Context(), host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
+	activation, cleanup, err = verifyStartNewAgent(t.Context(), testState, host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
 	require.NoError(t, err)
-	require.Equal(t, 3, nRoutes)
+	require.Equal(t, 3, activation.ActiveRoutes)
 	require.NotNil(t, cleanup)
-	require.True(t, agentpool.Has(&agent.AgentConfig{Addr: host}))
+	require.True(t, testState.agents.Has(&agent.AgentConfig{Addr: host}))
 	require.Equal(t, 1, testState.NumProviders())
 }
 
 func TestVerifyStartNewAgentCleanupStopsStartedAgentRoutes(t *testing.T) {
 	previousInitAgentConfigWithCertsFunc := initAgentConfigWithCertsFunc
 	previousNewAgentProviderFunc := newAgentProviderFunc
-	previousState := configtypes.ActiveState.Load()
-	previousAgents := agentpool.List()
-
 	testState := newVerifyTestState(t)
-	configtypes.ActiveState.Store(testState)
-	agentpool.RemoveAll()
 
 	t.Cleanup(func() {
 		initAgentConfigWithCertsFunc = previousInitAgentConfigWithCertsFunc
 		newAgentProviderFunc = previousNewAgentProviderFunc
-		if previousState != nil {
-			configtypes.ActiveState.Store(previousState)
-		} else {
-			configtypes.ActiveState = synk.Value[configtypes.State]{}
-		}
-		agentpool.RemoveAll()
-		for _, agentInfo := range previousAgents {
-			agentpool.Add(agentInfo.AgentConfig)
-		}
 	})
 
 	const host = "10.0.0.11:8890"
@@ -374,11 +418,11 @@ func TestVerifyStartNewAgentCleanupStopsStartedAgentRoutes(t *testing.T) {
 		return fakeProvider
 	}
 
-	nRoutes, cleanup, err := verifyStartNewAgent(t.Context(), host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
+	activation, cleanup, err := verifyStartNewAgent(t.Context(), testState, host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
 	require.NoError(t, err)
-	require.Equal(t, 2, nRoutes)
+	require.Equal(t, 2, activation.ActiveRoutes)
 	require.NotNil(t, cleanup)
-	require.True(t, agentpool.Has(&agent.AgentConfig{Addr: host}))
+	require.True(t, testState.agents.Has(&agent.AgentConfig{Addr: host}))
 	require.Equal(t, 1, testState.NumProviders())
 	require.NotNil(t, fakeProvider.task)
 
@@ -392,33 +436,19 @@ func TestVerifyStartNewAgentCleanupStopsStartedAgentRoutes(t *testing.T) {
 			return false
 		}
 	}, time.Second, 10*time.Millisecond)
-	require.False(t, agentpool.Has(&agent.AgentConfig{Addr: host}))
+	require.False(t, testState.agents.Has(&agent.AgentConfig{Addr: host}))
 	require.Equal(t, 0, testState.NumProviders())
 	require.ErrorIs(t, context.Cause(fakeProvider.task.Context()), cleanupErr)
 }
 
-func TestVerifyStartNewAgentKeepsPartiallyStartedProvider(t *testing.T) {
+func TestVerifyStartNewAgentReturnsDegradedPartialValidation(t *testing.T) {
 	previousInitAgentConfigWithCertsFunc := initAgentConfigWithCertsFunc
 	previousNewAgentProviderFunc := newAgentProviderFunc
-	previousState := configtypes.ActiveState.Load()
-	previousAgents := agentpool.List()
-
 	testState := newVerifyTestState(t)
-	configtypes.ActiveState.Store(testState)
-	agentpool.RemoveAll()
 
 	t.Cleanup(func() {
 		initAgentConfigWithCertsFunc = previousInitAgentConfigWithCertsFunc
 		newAgentProviderFunc = previousNewAgentProviderFunc
-		if previousState != nil {
-			configtypes.ActiveState.Store(previousState)
-		} else {
-			configtypes.ActiveState = synk.Value[configtypes.State]{}
-		}
-		agentpool.RemoveAll()
-		for _, agentInfo := range previousAgents {
-			agentpool.Add(agentInfo.AgentConfig)
-		}
 	})
 
 	const host = "10.0.0.10:8890"
@@ -427,22 +457,29 @@ func TestVerifyStartNewAgentKeepsPartiallyStartedProvider(t *testing.T) {
 		return nil
 	}
 
-	startErr := errors.New("some routes failed")
-	fakeProvider := &verifyTestProvider{name: "agent.partial-start", startErr: startErr, numRoutes: 2}
+	validationErr := errors.New("some routes failed validation")
+	fakeProvider := &verifyTestProvider{
+		name:      "agent.partial-start",
+		loadErr:   validationErr,
+		startErr:  validationErr,
+		numRoutes: 2,
+	}
 	newAgentProviderFunc = func(cfg *agent.AgentConfig) routing.Provider {
 		require.Equal(t, host, cfg.Addr)
 		return fakeProvider
 	}
 
-	nRoutes, cleanup, err := verifyStartNewAgent(t.Context(), host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
-	require.Equal(t, 0, nRoutes)
-	require.Nil(t, cleanup)
-	require.ErrorContains(t, err, "failed to start routes: some routes failed")
-	require.True(t, agentpool.Has(&agent.AgentConfig{Addr: host}))
+	activation, cleanup, err := verifyStartNewAgent(t.Context(), testState, host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
+	require.NoError(t, err)
+	require.Equal(t, 2, activation.ActiveRoutes)
+	require.Len(t, activation.FailedRoutes, 1)
+	require.ErrorIs(t, activation.FailedRoutes[0].Err, validationErr)
+	require.NotNil(t, cleanup)
+	require.True(t, testState.agents.Has(&agent.AgentConfig{Addr: host}))
 	require.Equal(t, 1, testState.NumProviders())
 
-	nRoutes, cleanup, err = verifyStartNewAgent(t.Context(), host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
-	require.Equal(t, 0, nRoutes)
+	activation, cleanup, err = verifyStartNewAgent(t.Context(), testState, host, agent.PEMPair{}, agent.PEMPair{}, agent.ContainerRuntimeDocker)
+	require.Equal(t, 0, activation.ActiveRoutes)
 	require.Nil(t, cleanup)
 	require.ErrorIs(t, err, errAgentAlreadyExists)
 }
@@ -451,15 +488,38 @@ type verifyTestState struct {
 	cfg       configtypes.Config
 	task      *task.Task
 	providers map[string]routing.Provider
+	agents    *agentpool.Pool
+}
+
+type verifyTestCoordinator struct {
+	active       configtypes.State
+	err          error
+	beginCalls   int
+	releaseCalls int
+}
+
+func (coordinator *verifyTestCoordinator) BeginRuntimeMutation(expected configtypes.State) (func(), error) {
+	coordinator.beginCalls++
+	if coordinator.err != nil {
+		return nil, coordinator.err
+	}
+	if coordinator.active == nil || expected == nil || coordinator.active.Task() != expected.Task() {
+		return nil, configtypes.ErrConfigChanged
+	}
+	return func() { coordinator.releaseCalls++ }, nil
 }
 
 func newVerifyTestState(t *testing.T) *verifyTestState {
 	t.Helper()
-	return &verifyTestState{
+	state := &verifyTestState{
 		cfg:       configtypes.DefaultConfig(),
 		task:      task.GetTestTask(t),
 		providers: make(map[string]routing.Provider),
+		agents:    agentpool.NewPool(),
 	}
+	agentpool.SetCtx(state.task, state.agents)
+	configtypes.SetCtx(state.task, state)
+	return state
 }
 
 func (s *verifyTestState) InitFromFile(string) error      { return nil }
@@ -479,9 +539,11 @@ func (s *verifyTestState) LoadOrStoreProvider(key string, value routing.Provider
 	s.providers[key] = value
 	return value, false
 }
+
 func (s *verifyTestState) DeleteProvider(key string) {
 	delete(s.providers, key)
 }
+
 func (s *verifyTestState) IterProviders() iter.Seq2[string, routing.Provider] {
 	return func(yield func(string, routing.Provider) bool) {
 		for key, provider := range s.providers {
@@ -491,11 +553,19 @@ func (s *verifyTestState) IterProviders() iter.Seq2[string, routing.Provider] {
 		}
 	}
 }
-func (s *verifyTestState) NumProviders() int     { return len(s.providers) }
-func (s *verifyTestState) StartProviders() error { return nil }
-func (s *verifyTestState) FlushTmpLog() error    { return nil }
-func (s *verifyTestState) StartAPIServers()      {}
-func (s *verifyTestState) StartMetrics()         {}
+func (s *verifyTestState) NumProviders() int { return len(s.providers) }
+func (s *verifyTestState) ActivateProviders(task.Parent) routing.ProviderActivationReport {
+	return routing.ProviderActivationReport{}
+}
+func (s *verifyTestState) FlushTmpLog() error { return nil }
+func (s *verifyTestState) ActivateAPIServers(task.Parent) configtypes.APIActivationReport {
+	return configtypes.APIActivationReport{}
+}
+
+func (s *verifyTestState) RuntimeSnapshot() configtypes.RuntimeSnapshot {
+	return configtypes.RuntimeSnapshot{}
+}
+func (s *verifyTestState) Stop(reason any) { s.task.FinishAndWait(reason) }
 
 var _ configtypes.State = (*verifyTestState)(nil)
 
@@ -504,6 +574,7 @@ type verifyTestProvider struct {
 	loadRoutesCalls int
 	startCalls      int
 	startErr        error
+	loadErr         error
 	numRoutes       int
 	createTask      bool
 	task            *task.Task
@@ -511,7 +582,7 @@ type verifyTestProvider struct {
 	cancelled       chan struct{}
 }
 
-func (p *verifyTestProvider) Start(parent task.Parent) error {
+func (p *verifyTestProvider) Activate(parent task.Parent) routing.ProviderActivation {
 	p.startCalls++
 	if p.createTask {
 		p.task = parent.Subtask("provider."+p.name, false)
@@ -524,11 +595,25 @@ func (p *verifyTestProvider) Start(parent task.Parent) error {
 			})
 		}
 	}
-	return p.startErr
+	report := routing.ProviderActivation{
+		Provider:        p.name,
+		DesiredRoutes:   p.numRoutes,
+		AttemptedRoutes: p.numRoutes,
+		ActiveRoutes:    p.numRoutes,
+		EventLoopReady:  true,
+	}
+	if p.startErr != nil {
+		report.FailedRoutes = []routing.RouteActivationIssue{{Route: p.name, Err: gperr.Wrap(p.startErr)}}
+		if p.numRoutes == 0 {
+			report.ActiveRoutes = 0
+		}
+	}
+	return report
 }
-func (p *verifyTestProvider) LoadRoutes() error {
+
+func (p *verifyTestProvider) LoadRoutes(context.Context) error {
 	p.loadRoutesCalls++
-	return nil
+	return p.loadErr
 }
 func (p *verifyTestProvider) GetRoute(string) (routing.Route, bool) { return nil, false }
 func (p *verifyTestProvider) IterRoutes(func(string, routing.Route) bool) {
@@ -537,6 +622,7 @@ func (p *verifyTestProvider) NumRoutes() int { return p.numRoutes }
 func (p *verifyTestProvider) FindService(string, string) (routing.Route, bool) {
 	return nil, false
 }
+
 func (p *verifyTestProvider) Statistics() routing.ProviderStats {
 	return routing.ProviderStats{Type: routing.ProviderTypeAgent}
 }

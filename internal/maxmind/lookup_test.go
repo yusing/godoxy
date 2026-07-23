@@ -14,28 +14,28 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/goutils/cache"
+	"github.com/yusing/goutils/task"
 	"golang.org/x/time/rate"
 )
 
 func TestLookupCityPropagatesContext(t *testing.T) {
-	oldLookupCityFn := lookupCityFn
-	t.Cleanup(func() {
-		lookupCityFn = oldLookupCityFn
-	})
-
 	type contextKey string
 	const wantIP = "1.1.1.1"
 	const wantValue contextKey = "trace-id"
 
-	lookupCityFn = func(ctx context.Context, ipStr string) (*City, error) {
+	instance := &MaxMind{}
+	instance.lookupCity = cache.NewKeyFunc(func(ctx context.Context, ipStr string) (*City, error) {
 		require.Equal(t, wantIP, ipStr)
 		require.Equal(t, "trace-123", ctx.Value(wantValue))
 		return &City{}, nil
-	}
+	}).Build()
+	parent := task.GetTestTask(t)
+	SetCtx(parent, instance)
 
-	ctx := context.WithValue(t.Context(), wantValue, "trace-123")
-	city, err := lookupCityFn(ctx, wantIP)
-	require.NoError(t, err)
+	ctx := context.WithValue(parent.Context(), wantValue, "trace-123")
+	city, loaded := LookupCity(ctx, &IPInfo{Str: wantIP})
+	require.True(t, loaded)
 	require.NotNil(t, city)
 }
 
