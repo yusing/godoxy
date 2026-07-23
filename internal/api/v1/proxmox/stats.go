@@ -1,13 +1,13 @@
 package proxmoxapi
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
-	"github.com/yusing/goutils/http/websocket"
 )
 
 type StatsRequest ActionRequest
@@ -39,38 +39,32 @@ func NodeStats(c *gin.Context) {
 	}
 
 	isWs := httpheaders.IsWebsocket(c.Request.Header)
+	if isWs {
+		streamProxmoxWebSocket(
+			c,
+			func(ctx context.Context) (io.ReadCloser, error) {
+				return node.NodeStats(ctx, true)
+			},
+			"failed to get stats",
+			"failed to copy stats",
+		)
+		return
+	}
 
-	reader, err := node.NodeStats(c.Request.Context(), isWs)
+	reader, err := node.NodeStats(c.Request.Context(), false)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get stats"))
 		return
 	}
 	defer reader.Close()
 
-	if !isWs {
-		var line [512]byte
-		n, err := reader.Read(line[:])
-		if err != nil {
-			c.Error(apitypes.InternalServerError(err, "failed to copy stats"))
-			return
-		}
-		c.Data(http.StatusOK, "application/json", line[:n])
-		return
-	}
-
-	manager, err := websocket.NewManagerWithUpgrade(c)
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
-		return
-	}
-	defer manager.Close()
-
-	writer := manager.NewWriter(websocket.TextMessage)
-	_, err = io.Copy(writer, reader)
+	var line [512]byte
+	n, err := reader.Read(line[:])
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to copy stats"))
 		return
 	}
+	c.Data(http.StatusOK, "application/json", line[:n])
 }
 
 // @x-id			"vmStats"
@@ -100,36 +94,30 @@ func VMStats(c *gin.Context) {
 	}
 
 	isWs := httpheaders.IsWebsocket(c.Request.Header)
+	if isWs {
+		streamProxmoxWebSocket(
+			c,
+			func(ctx context.Context) (io.ReadCloser, error) {
+				return node.LXCStats(ctx, request.VMID, true)
+			},
+			"failed to get stats",
+			"failed to copy stats",
+		)
+		return
+	}
 
-	reader, err := node.LXCStats(c.Request.Context(), request.VMID, isWs)
+	reader, err := node.LXCStats(c.Request.Context(), request.VMID, false)
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to get stats"))
 		return
 	}
 	defer reader.Close()
 
-	if !isWs {
-		var line [128]byte
-		n, err := reader.Read(line[:])
-		if err != nil {
-			c.Error(apitypes.InternalServerError(err, "failed to copy stats"))
-			return
-		}
-		c.Data(http.StatusOK, "text/plain; charset=utf-8", line[:n])
-		return
-	}
-
-	manager, err := websocket.NewManagerWithUpgrade(c)
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
-		return
-	}
-	defer manager.Close()
-
-	writer := manager.NewWriter(websocket.TextMessage)
-	_, err = io.Copy(writer, reader)
+	var line [128]byte
+	n, err := reader.Read(line[:])
 	if err != nil {
 		c.Error(apitypes.InternalServerError(err, "failed to copy stats"))
 		return
 	}
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", line[:n])
 }

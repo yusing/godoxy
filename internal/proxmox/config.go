@@ -35,8 +35,9 @@ const (
 	SessionRefreshInterval = 1 * time.Minute
 	RequestTimeout         = 30 * time.Second
 
-	maxConcurrentResourceLookups = 8
-	proxmoxMaxConnsPerHost       = maxConcurrentResourceLookups
+	maxConcurrentResourceLookups = 3
+	proxmoxConnectionHeadroom    = 3
+	proxmoxMaxConnsPerHost       = maxConcurrentResourceLookups + proxmoxConnectionHeadroom
 )
 
 // NodeStatsPollInterval controls how often node stats are streamed when streaming is enabled.
@@ -49,23 +50,32 @@ func (c *Config) Client() *Client {
 	return c.client
 }
 
-func (c *Config) Init(ctx context.Context) error {
+func newProxmoxHTTPClient(noTLSVerify bool) *http.Client {
 	dialer := net.Dialer{
 		Timeout: 10 * time.Second,
 	}
-	tr := http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		DialContext:         dialer.DialContext,
-		TLSHandshakeTimeout: 10 * time.Second,
-		IdleConnTimeout:     90 * time.Second,
+	tr := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		MaxIdleConns:          proxmoxMaxConnsPerHost,
+		MaxIdleConnsPerHost:   proxmoxMaxConnsPerHost,
+		MaxConnsPerHost:       proxmoxMaxConnsPerHost,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: RequestTimeout,
+		IdleConnTimeout:       90 * time.Second,
 	}
-	tr.MaxConnsPerHost = proxmoxMaxConnsPerHost
-	if c.NoTLSVerify {
+	if noTLSVerify {
 		tr.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec
-
 		}
 	}
+	return &http.Client{
+		Transport: tr,
+		Timeout:   RequestTimeout,
+	}
+}
+
+func (c *Config) Init(ctx context.Context) error {
 
 	c.URL = strings.TrimSuffix(c.URL, "/")
 	if !strings.HasSuffix(c.URL, "/api2/json") {
@@ -73,9 +83,7 @@ func (c *Config) Init(ctx context.Context) error {
 	}
 
 	opts := []proxmox.Option{
-		proxmox.WithHTTPClient(&http.Client{
-			Transport: &tr,
-		}),
+		proxmox.WithHTTPClient(newProxmoxHTTPClient(c.NoTLSVerify)),
 	}
 	useCredentials := false
 	if c.Username != "" && c.Password != "" {

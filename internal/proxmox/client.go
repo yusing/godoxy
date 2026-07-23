@@ -130,14 +130,14 @@ func (c *Client) UpdateResources(ctx context.Context) error {
 		vmResource := vmResources[i]
 		oldResource := oldResources[resource.ID]
 		workers.Go(func() error {
+			vmid, ok := strings.CutPrefix(resource.ID, "lxc/")
+			if !ok {
+				return nil // not a lxc resource
+			}
 			node, ok := nodes[resource.Node]
 			if !ok {
 				lookupErrs.Addf("%s: node %s not found", resource.ID, resource.Node)
 				return nil
-			}
-			vmid, ok := strings.CutPrefix(resource.ID, "lxc/")
-			if !ok {
-				return nil // not a lxc resource
 			}
 			vmidInt, err := strconv.Atoi(vmid)
 			if err != nil {

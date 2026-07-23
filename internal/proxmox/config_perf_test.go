@@ -1,11 +1,14 @@
 package proxmox
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	goproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
@@ -228,4 +231,105 @@ func TestUpdateResourcesDropsCachedIPsWhenStatusChangesAndLookupFails(t *testing
 	require.Equal(t, "stopped", stopped.Status)
 	require.Empty(t, stopped.IPs)
 	require.True(t, stopped.IPsFetchedAt.IsZero())
+}
+
+func TestUpdateResourcesRecoversAfterMalformedResponseAndPreservesFutureResource(t *testing.T) {
+	var resourcesCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if resourcesCalls.Add(1) == 1 {
+			_, _ = w.Write([]byte(`{"data":`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{
+			"id":"future/999",
+			"name":"future-resource",
+			"node":"pve",
+			"status":"running",
+			"vmid":999
+		}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	httpClient := srv.Client()
+	transport := httpClient.Transport.(*http.Transport).Clone()
+	transport.MaxConnsPerHost = 1
+	httpClient.Transport = transport
+
+	client := NewClient(srv.URL, goproxmox.WithHTTPClient(httpClient))
+	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
+
+	require.Error(t, client.UpdateResources(t.Context()))
+	require.NoError(t, client.UpdateResources(t.Context()))
+	require.EqualValues(t, 2, resourcesCalls.Load())
+
+	resource, err := client.GetResource("future", 999)
+	require.NoError(t, err)
+	require.Equal(t, "future-resource", resource.Name)
+	require.Empty(t, resource.IPs)
+}
+
+func TestUpdateResourcesLeavesConnectionHeadroom(t *testing.T) {
+	lookupsStarted := make(chan struct{}, maxConcurrentResourceLookups)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cluster/resources":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[
+				{"id":"lxc/101","node":"pve","status":"running","vmid":101},
+				{"id":"lxc/102","node":"pve","status":"running","vmid":102},
+				{"id":"lxc/103","node":"pve","status":"running","vmid":103}
+			]}`))
+		case "/nodes/pve/lxc/101/interfaces",
+			"/nodes/pve/lxc/102/interfaces",
+			"/nodes/pve/lxc/103/interfaces":
+			lookupsStarted <- struct{}{}
+			<-r.Context().Done()
+		case "/probe":
+			_, _ = io.WriteString(w, "ok")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	httpClient := newProxmoxHTTPClient(false)
+	httpClient.Timeout = 2 * time.Second
+	transport := httpClient.Transport.(*http.Transport)
+	transport.Proxy = nil
+	transport.ResponseHeaderTimeout = 2 * time.Second
+
+	client := NewClient(srv.URL, goproxmox.WithHTTPClient(httpClient))
+	client.Cluster = (&goproxmox.Cluster{}).New(client.Client)
+	node := NewNode(client, "pve", "node/pve")
+	client.nodes[node.name] = node
+
+	updateCtx, cancelUpdate := context.WithCancel(t.Context())
+	updateErr := make(chan error, 1)
+	go func() {
+		updateErr <- client.UpdateResources(updateCtx)
+	}()
+
+	for range maxConcurrentResourceLookups {
+		select {
+		case <-lookupsStarted:
+		case <-time.After(time.Second):
+			t.Fatal("resource lookups did not fill their concurrency budget")
+		}
+	}
+
+	response, err := httpClient.Get(srv.URL + "/probe")
+	require.NoError(t, err)
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.NoError(t, response.Body.Close())
+	require.Equal(t, "ok", string(body))
+
+	cancelUpdate()
+	select {
+	case err := <-updateErr:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("resource update did not stop after cancellation")
+	}
 }

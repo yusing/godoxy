@@ -1,13 +1,13 @@
 package proxmoxapi
 
 import (
+	"context"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
-	"github.com/yusing/goutils/http/websocket"
 )
 
 // e.g. ws://localhost:8889/api/v1/proxmox/tail?node=pve&vmid=127&file=/var/log/immich/web.log&file=/var/log/immich/ml.log&limit=10
@@ -53,30 +53,15 @@ func Tail(c *gin.Context) {
 
 	c.Status(http.StatusContinue)
 
-	var reader io.ReadCloser
-	var err error
-	if request.VMID == nil {
-		reader, err = node.NodeTail(c.Request.Context(), request.Files, request.Limit)
-	} else {
-		reader, err = node.LXCTail(c.Request.Context(), *request.VMID, request.Files, request.Limit)
-	}
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to get journalctl output"))
-		return
-	}
-	defer reader.Close()
-
-	manager, err := websocket.NewManagerWithUpgrade(c)
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to upgrade to websocket"))
-		return
-	}
-	defer manager.Close()
-
-	writer := manager.NewWriter(websocket.TextMessage)
-	_, err = io.Copy(writer, reader)
-	if err != nil {
-		c.Error(apitypes.InternalServerError(err, "failed to copy journalctl output"))
-		return
-	}
+	streamProxmoxWebSocket(
+		c,
+		func(ctx context.Context) (io.ReadCloser, error) {
+			if request.VMID == nil {
+				return node.NodeTail(ctx, request.Files, request.Limit)
+			}
+			return node.LXCTail(ctx, *request.VMID, request.Files, request.Limit)
+		},
+		"failed to get journalctl output",
+		"failed to copy journalctl output",
+	)
 }

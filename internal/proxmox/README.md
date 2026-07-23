@@ -17,6 +17,7 @@ The proxmox package implements Proxmox API client management, node discovery, an
 - Journalctl streaming for LXC containers
 - Reverse resource lookup by IP, hostname, or alias
 - Reverse node lookup by hostname, IP, or alias
+- Bounded API requests with reserved connection capacity for interactive operations
 - TLS configuration options
 - Token and username/password authentication
 
@@ -80,7 +81,8 @@ type Client struct {
 
 type VMResource struct {
     *proxmox.ClusterResource
-    IPs []net.IP
+    IPs          []net.IP
+    IPsFetchedAt time.Time
 }
 
 // NewClient creates a new Proxmox client.
@@ -111,12 +113,25 @@ Each configuration state stores its own `NodePool` in its task context. Nodes
 with the same name from different providers are retained as an ambiguity and
 cannot be selected accidentally.
 
+### Request Lifetimes and Capacity
+
+Regular Proxmox API calls use a shared HTTP client with bounded dial, TLS,
+response-header, and end-to-end request timeouts. Resource refreshes limit LXC
+IP lookups to three concurrent requests, while the transport reserves three
+additional per-host connection slots for session refresh and interactive
+operations. Idle capacity matches the total connection limit to avoid
+discarding reusable connections after each lookup wave.
+
+Long-lived stats and command streams remain bound to their API WebSocket
+lifetime. Closing the WebSocket cancels any in-flight Proxmox request and
+closes the corresponding backend stream.
+
 ### NodeConfig
 
 ```go
 type NodeConfig struct {
     Node     string   `json:"node" validate:"required"`
-    VMID     *int     `json:"vmid"` // nil: auto discover; 0: node-level route; >0: lxc/qemu resource route
+    VMID     *uint64  `json:"vmid"` // nil: auto discover; 0: node-level route; >0: lxc/qemu resource route
     VMName   string   `json:"vmname,omitempty"`
     Services []string `json:"services,omitempty" aliases:"service"`
     Files    []string `json:"files,omitempty" aliases:"file"`
@@ -148,7 +163,7 @@ func (c *Client) UpdateClusterInfo(ctx context.Context) error
 func (c *Client) UpdateResources(ctx context.Context) error
 
 // GetResource gets a resource by kind and id.
-func (c *Client) GetResource(kind string, id int) (*VMResource, error)
+func (c *Client) GetResource(kind string, id uint64) (*VMResource, error)
 
 // ReverseLookupResource looks up a resource by IP, hostname, or alias.
 func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string) (*VMResource, error)
