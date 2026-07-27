@@ -391,11 +391,7 @@ var checkers = map[string]struct {
 		builder: func(args any) CheckFunc {
 			matcher := args.(Matcher)
 			return func(w *httputils.ResponseModifier, r *http.Request) bool {
-				reqPath := r.URL.Path
-				if len(reqPath) > 0 && reqPath[0] != '/' {
-					reqPath = "/" + reqPath
-				}
-				return matcher(reqPath)
+				return matcher(canonicalURLPath(r.URL.Path))
 			}
 		},
 	},

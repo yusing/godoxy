@@ -144,12 +144,45 @@ func validateURLPath(args []string) (any, gperr.Error) {
 	return p, nil
 }
 
+func canonicalURLPath(p string) string {
+	if p == "" || p[0] != '/' {
+		p = "/" + p
+	}
+	preserveTrailingSlash := len(p) > 1 &&
+		(strings.HasSuffix(p, "/") || strings.HasSuffix(p, "/.") || strings.HasSuffix(p, "/.."))
+	p = path.Clean(p)
+	if preserveTrailingSlash && p != "/" {
+		p += "/"
+	}
+	return p
+}
+
 func validateURLPathMatcher(args []string) (any, gperr.Error) {
-	path, err := validateURLPath(args)
+	validated, err := validateURLPath(args)
 	if err != nil {
 		return nil, err
 	}
-	return ParseMatcher(path.(string))
+
+	validatedPath := validated.(string)
+	matcherExpr, negated := strings.CutPrefix(validatedPath, "!")
+	matcherType, expr, err := ExtractExpr(matcherExpr)
+	if err != nil {
+		return nil, err
+	}
+	if matcherType != MatcherTypeString {
+		return ParseMatcher(validatedPath)
+	}
+
+	pattern := canonicalURLPath(expr)
+	patternMatchesTrailingSlash := pattern != "/" && !strings.HasSuffix(pattern, "/")
+	return Matcher(func(requestPath string) bool {
+		matched := requestPath == pattern ||
+			(patternMatchesTrailingSlash && requestPath == pattern+"/")
+		if negated {
+			return !matched
+		}
+		return matched
+	}), nil
 }
 
 // validateFSPath returns string with the path validated.

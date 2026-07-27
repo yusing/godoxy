@@ -397,3 +397,44 @@ func TestOnCorrectness(t *testing.T) {
 		})
 	}
 }
+
+func TestOnPathMatchesCanonicalRequestPath(t *testing.T) {
+	var on RuleOn
+	err := on.Parse("path /admin")
+	expect.NoError(t, err)
+
+	w := httputils.NewResponseModifier(httptest.NewRecorder())
+	for _, target := range []string{
+		"/admin",
+		"/admin/.",
+		"/./admin",
+		"/admin/",
+		"/%2e/admin",
+		"/public/../admin",
+		"/%2e%2e/admin",
+	} {
+		t.Run("matches_"+target, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			expect.True(t, on.Check(w, req), target)
+		})
+	}
+
+	for _, target := range []string{"/", "/admin/child", "/administrator"} {
+		t.Run("does_not_match_"+target, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			expect.False(t, on.Check(w, req), target)
+		})
+	}
+
+	var trailingSlash RuleOn
+	err = trailingSlash.Parse("path /admin/")
+	expect.NoError(t, err)
+	for _, target := range []string{"/admin/", "/admin/."} {
+		t.Run("trailing_slash_pattern_matches_"+target, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			expect.True(t, trailingSlash.Check(w, req), target)
+		})
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	expect.False(t, trailingSlash.Check(w, req), "/admin")
+}
