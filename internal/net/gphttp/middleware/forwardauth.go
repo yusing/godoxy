@@ -29,13 +29,16 @@ type (
 	}
 )
 
-var ForwardAuth = NewMiddleware[forwardAuthMiddleware]()
+var (
+	ForwardAuth                       = NewMiddleware[forwardAuthMiddleware]()
+	forwardAuthDefaultIdentityHeaders = []string{"Remote-User", "Remote-Name", "Remote-Email", "Remote-Groups"}
+)
 
 func (m *forwardAuthMiddleware) setup() {
 	m.ForwardAuthMiddlewareOpts = ForwardAuthMiddlewareOpts{
 		Route:               "tinyauth",
 		AuthEndpoint:        "/api/auth/traefik",
-		AuthResponseHeaders: []string{"Remote-User", "Remote-Name", "Remote-Email", "Remote-Groups"},
+		AuthResponseHeaders: forwardAuthDefaultIdentityHeaders,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 			// do not follow redirects, we handle them in the middleware
@@ -140,9 +143,13 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 		return false
 	}
 
+	// Remove client-provided identity before copying the auth server's authoritative values.
+	for _, h := range forwardAuthDefaultIdentityHeaders {
+		r.Header.Del(h)
+	}
 	for _, h := range m.AuthResponseHeaders {
+		r.Header.Del(h)
 		if v := resp.Header.Get(h); v != "" {
-			// NOTE: need to set the header to the original request to forward to upstream
 			r.Header.Set(h, v)
 		}
 	}
