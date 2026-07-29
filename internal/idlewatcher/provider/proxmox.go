@@ -16,9 +16,10 @@ import (
 type ProxmoxProvider struct {
 	*proxmox.Node
 
-	vmid    uint64
-	lxcName string
-	running bool
+	vmid               uint64
+	lxcName            string
+	running            bool
+	stateCheckInterval time.Duration
 }
 
 const proxmoxStateCheckInterval = 1 * time.Second
@@ -85,14 +86,11 @@ func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-ch
 		defer close(eventCh)
 		defer close(errCh)
 
-		var err error
-		p.running, err = p.LXCIsRunning(ctx, p.vmid)
-		if err != nil {
-			errCh <- err
-			return
+		interval := p.stateCheckInterval
+		if interval == 0 {
+			interval = proxmoxStateCheckInterval
 		}
-
-		ticker := time.NewTicker(proxmoxStateCheckInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
 		event := watcher.Event{
@@ -100,26 +98,39 @@ func (p *ProxmoxProvider) Watch(ctx context.Context) (<-chan watcher.Event, <-ch
 			ActorID:   strconv.FormatUint(p.vmid, 10),
 			ActorName: p.lxcName,
 		}
+		initialized := false
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				status, err := p.ContainerStatus(ctx)
-				if err != nil {
-					errCh <- err
+			status, err := p.ContainerStatus(ctx)
+			if err != nil {
+				select {
+				case <-ctx.Done():
 					return
+				case errCh <- err:
 				}
+			} else {
 				running := status == idlewatcher.ContainerStatusRunning
-				if p.running != running {
+				if !initialized {
+					p.running = running
+					initialized = true
+				} else if p.running != running {
 					p.running = running
 					if running {
 						event.Action = watcherEvents.ActionContainerStart
 					} else {
 						event.Action = watcherEvents.ActionContainerStop
 					}
-					eventCh <- event
+					select {
+					case <-ctx.Done():
+						return
+					case eventCh <- event:
+					}
 				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
 			}
 		}
 	}()
