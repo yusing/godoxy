@@ -115,6 +115,7 @@ const (
 var (
 	errCauseReload           = errors.New("reloaded")
 	errCauseContainerDestroy = errors.New("container destroyed")
+	errWatcherStreamsClosed  = errors.New("watcher streams closed")
 )
 
 const reqTimeout = 3 * time.Second
@@ -652,14 +653,37 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 	}
 	defer p.Close()
 	eventCh, errCh := p.Watch(w.Task().Context())
+	var lastWatchErr error
 
 	for {
+		if eventCh == nil && errCh == nil {
+			if w.task.Context().Err() != nil {
+				return w.task.FinishCause()
+			}
+			if lastWatchErr != nil {
+				return lastWatchErr
+			}
+			return errWatcherStreamsClosed
+		}
+
 		select {
 		case <-w.task.Context().Done():
 			return w.task.FinishCause()
-		case err := <-errCh:
-			w.l.Err(err).Msg("watcher error")
-		case e := <-eventCh:
+		case err, ok := <-errCh:
+			if !ok {
+				errCh = nil
+				continue
+			}
+			if err != nil {
+				lastWatchErr = err
+				w.l.Err(err).Msg("watcher error")
+			}
+		case e, ok := <-eventCh:
+			if !ok {
+				eventCh = nil
+				continue
+			}
+			lastWatchErr = nil
 			w.l.Debug().Stringer("action", e.Action).Msg("state changed")
 			switch e.Action {
 			case watcherEvents.ActionContainerDestroy:
