@@ -82,13 +82,13 @@ func (w *Watcher) Detail() string {
 	if state.err != nil {
 		return state.err.Error()
 	}
-	if !state.ready {
-		return "not ready"
+	if state.ready {
+		return string(health.StatusHealthyStr)
 	}
 	if state.status == idlewatcher.ContainerStatusRunning {
-		return "starting"
+		return string(health.StatusStartingStr)
 	}
-	return "napping"
+	return string(health.StatusNappingStr)
 }
 
 // MarshalJSON implements health.HealthMonitor.

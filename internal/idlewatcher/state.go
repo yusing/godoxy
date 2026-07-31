@@ -58,8 +58,9 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 }
 
 func (w *Watcher) setError(err error) {
+	state := w.state.Load()
 	w.storeState(&containerState{
-		status:      idlewatcher.ContainerStatusError,
+		status:      state.status,
 		ready:       false,
 		err:         err,
 		startedAt:   time.Time{},

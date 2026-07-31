@@ -1,6 +1,7 @@
 package idlewatcher
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -48,4 +49,53 @@ func TestSleepInHiddenWhenNotReadyOrExpired(t *testing.T) {
 	})
 	w.lastReset.Store(time.Now().Add(-2 * time.Minute))
 	require.Zero(t, w.SleepIn())
+}
+
+func TestDetailReflectsCurrentState(t *testing.T) {
+	testErr := errors.New("readiness timed out")
+	tests := []struct {
+		name  string
+		state *containerState
+		want  string
+	}{
+		{
+			name: "healthy",
+			state: &containerState{
+				status: idlewatchertypes.ContainerStatusRunning,
+				ready:  true,
+			},
+			want: "healthy",
+		},
+		{
+			name: "starting",
+			state: &containerState{
+				status: idlewatchertypes.ContainerStatusRunning,
+			},
+			want: "starting",
+		},
+		{
+			name: "napping",
+			state: &containerState{
+				status: idlewatchertypes.ContainerStatusStopped,
+			},
+			want: "napping",
+		},
+		{
+			name: "error",
+			state: &containerState{
+				status: idlewatchertypes.ContainerStatusRunning,
+				err:    testErr,
+			},
+			want: testErr.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &Watcher{}
+			w.state.Store(tt.state)
+
+			require.Equal(t, tt.want, w.Detail())
+		})
+	}
 }
