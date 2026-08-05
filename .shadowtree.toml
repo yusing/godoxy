@@ -135,7 +135,7 @@ GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
+go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
 '''
 
 [recipes.race-test]
@@ -150,7 +150,7 @@ GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -v -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
+go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
 '''
 
 [recipes.tcp-echo-test]
