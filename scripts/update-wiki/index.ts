@@ -19,7 +19,6 @@ type ImplDoc = {
 const excludedReadmeRoots = [
   "internal/go-oidc/",
   "internal/gopsutil/",
-  "internal/go-proxmox/",
   "scripts/",
   "webui/",
 ];

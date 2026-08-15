@@ -6,9 +6,7 @@ import { basename, dirname, join } from "node:path";
 type Kind = "html" | "js";
 
 function isIgnored(path: string): boolean {
-  return (
-    path.startsWith("internal/go-proxmox") || basename(path).includes(".min.")
-  );
+  return basename(path).includes(".min.");
 }
 
 function globAssets(extension: Kind): Promise<string[]> {

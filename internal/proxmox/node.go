@@ -47,7 +47,7 @@ func NewNode(client *Client, name, id string) *Node {
 }
 
 func (n *Node) providerKey() string {
-	return n.client.Client.GetBaseURL()
+	return n.client.BaseURL.String()
 }
 
 func (n *Node) Key() string {

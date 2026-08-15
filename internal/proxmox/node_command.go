@@ -13,11 +13,11 @@ import (
 // NodeCommand connects to the Proxmox VNC websocket and streams command output.
 // It returns an io.ReadCloser that streams the command output.
 func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, error) {
-	if !n.client.HasSession() {
+	if n.client.Session() == nil {
 		return nil, ErrNoSession
 	}
 
-	node := proxmox.NewNode(n.client.Client, n.name)
+	node := new(proxmox.Node).New(n.client.Client, n.name)
 	term, err := node.TermProxy(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get term proxy: %w", err)
@@ -26,14 +26,6 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 	send, recv, errs, closeWS, err := node.TermWebSocket(term)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to term websocket: %w", err)
-	}
-
-	// Wrap the websocket closer to also close HTTP transport connections.
-	// This prevents goroutine leaks when streaming connections are interrupted.
-	httpClient := n.client.GetHTTPClient()
-	closeFn := func() error {
-		closeTransportConnections(httpClient)
-		return closeWS()
 	}
 
 	handleSend := func(data []byte) error {
@@ -50,7 +42,7 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 	// Send command
 	cmd := []byte(command + "\n")
 	if err := handleSend(cmd); err != nil {
-		closeFn()
+		closeWS()
 		return nil, err
 	}
 
@@ -62,7 +54,7 @@ func (n *Node) NodeCommand(ctx context.Context, command string) (io.ReadCloser, 
 
 	// Start a goroutine to read from websocket and write to pipe
 	go func() {
-		defer closeFn()
+		defer closeWS()
 		defer pw.Close()
 
 		seenCommand := false

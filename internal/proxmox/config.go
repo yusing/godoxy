@@ -76,7 +76,6 @@ func newProxmoxHTTPClient(noTLSVerify bool) *http.Client {
 }
 
 func (c *Config) Init(ctx context.Context) error {
-
 	c.URL = strings.TrimSuffix(c.URL, "/")
 	if !strings.HasSuffix(c.URL, "/api2/json") {
 		c.URL += "/api2/json"
@@ -132,6 +131,23 @@ func (c *Config) Init(ctx context.Context) error {
 	return nil
 }
 
+func (c *Config) refreshSession(ctx context.Context) error {
+	if _, err := c.client.Client.Version(ctx); err == nil {
+		return nil
+	}
+	if err := c.client.RefreshTicket(ctx); err == nil {
+		return nil
+	}
+	// CreateSession refuses to replace a locally unexpired session, so force
+	// full reauthentication through the public ticket endpoint.
+	_, err := c.client.Ticket(ctx, &proxmox.Credentials{
+		Username: c.Username,
+		Password: c.Password.String(),
+		Realm:    c.Realm,
+	})
+	return err
+}
+
 func (c *Config) updateResourcesLoop(ctx context.Context) {
 	ticker := time.NewTicker(ResourcePollInterval)
 	defer ticker.Stop()
@@ -162,7 +178,6 @@ func (c *Config) refreshSessionLoop(ctx context.Context) {
 	log.Trace().Str("cluster", c.client.Cluster.Name).Msg("[proxmox] starting session refresh loop")
 
 	numRetries := 0
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -170,11 +185,10 @@ func (c *Config) refreshSessionLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			reqCtx, reqCtxCancel := context.WithTimeout(ctx, RequestTimeout)
-			err := c.client.RefreshSession(reqCtx)
+			err := c.refreshSession(reqCtx)
 			reqCtxCancel()
 			if err != nil {
 				log.Err(err).Str("cluster", c.client.Cluster.Name).Msg("[proxmox] failed to refresh session")
-				// exponential backoff
 				numRetries++
 				backoff := 10 * time.Second
 				if numRetries <= 3 {

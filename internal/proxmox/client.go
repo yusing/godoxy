@@ -41,26 +41,21 @@ type VMResource struct {
 	IPsFetchedAt time.Time
 }
 
-var (
-	ErrResourceNotFound = errors.New("resource not found")
-)
+var ErrResourceNotFound = errors.New("resource not found")
 
 const lxcIPRefreshInterval = 30 * time.Second
 
 func NewClient(baseURL string, opts ...proxmox.Option) *Client {
+	parsedBaseURL, _ := url.Parse(baseURL)
 	return &Client{
 		Client:    proxmox.NewClient(baseURL, opts...),
+		BaseURL:   parsedBaseURL,
 		nodes:     make(map[string]*Node),
 		resources: make(map[string]*VMResource),
 	}
 }
 
 func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
-	baseURL, err := url.Parse(c.Client.GetBaseURL())
-	if err != nil {
-		return err
-	}
-	c.BaseURL = baseURL
 	c.Version, err = c.Client.Version(ctx)
 	if err != nil {
 		return err
@@ -84,7 +79,7 @@ func (c *Client) UpdateClusterInfo(ctx context.Context) (err error) {
 	c.nodesMu.Lock()
 	c.nodes = nodes
 	c.nodesMu.Unlock()
-	nodePool.replaceProvider(c.Client.GetBaseURL(), nodes)
+	nodePool.replaceProvider(c.BaseURL.String(), nodes)
 	if cluster.Name == "" && len(c.Cluster.Nodes) == 1 {
 		cluster.Name = c.Cluster.Nodes[0].Name
 	}

@@ -514,7 +514,10 @@ Username/password authentication is required for:
 
 - WebSocket connections (command execution, journalctl streaming)
 
-Both methods support TLS verification options.
+The session refresh loop uses the upstream client's public APIs to validate and
+renew username/password tickets. If ticket renewal fails, it falls back to the
+configured credentials so a server-rejected but locally unexpired session can
+recover. Both methods support TLS verification options.
 
 ## Error Handling
 
