@@ -95,23 +95,29 @@ COPY goutils ./goutils
 ARG VERSION
 ENV VERSION=${VERSION}
 
-ARG SHADOWTREE_ARGS
-ENV SHADOWTREE_ARGS=${SHADOWTREE_ARGS}
-
 ARG BRANCH
 ENV BRANCH=${BRANCH}
 
 ENV GOPATH=/root/go
 ENV GOCACHE=/root/.cache/go-build
 
-# Stage 8: non-main builder
-FROM binary-source AS non-main-builder
+# Stage 8: agent builder
+FROM binary-source AS agent-builder
 
+ARG SHADOWTREE_ARGS="component=agent"
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
   shadowtree build ${SHADOWTREE_ARGS} docker=true
 
-# Stage 9: main builder
+# Stage 9: socket proxy builder
+FROM binary-source AS socket-proxy-builder
+
+ARG SHADOWTREE_ARGS="component=socket-proxy"
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/root/go/pkg/mod \
+  shadowtree build ${SHADOWTREE_ARGS} docker=true
+
+# Stage 10: main builder
 FROM binary-source AS main-builder
 
 # libgcc and libstdc++ are needed for bun
@@ -126,20 +132,21 @@ COPY webui/embed.go ./webui/embed.go
 COPY webui/embed_dev.go ./webui/embed_dev.go
 COPY --from=webui-build /src/dist/client ./webui/dist/client
 
+ARG SHADOWTREE_ARGS="component=godoxy"
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/root/go/pkg/mod \
   shadowtree build ${SHADOWTREE_ARGS} docker=true
 
-# Stage 10: agent image
+# Stage 11: agent image
 FROM scratch AS agent
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
 LABEL proxy.#1.healthcheck.disable=true
 
-COPY --from=non-main-builder /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=non-main-builder /app/run /app/run
-COPY --from=non-main-builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=agent-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=agent-builder /app/run /app/run
+COPY --from=agent-builder /etc/ssl/certs /etc/ssl/certs
 
 ENV DOCKER_HOST=unix:///var/run/docker.sock
 
@@ -147,16 +154,16 @@ WORKDIR /app
 
 CMD ["/app/run"]
 
-# Stage 11: socket proxy image
+# Stage 12: socket proxy image
 FROM scratch AS socket-proxy
 
 LABEL maintainer="yusing@6uo.me"
 LABEL proxy.exclude=1
 LABEL proxy.#1.healthcheck.disable=true
 
-COPY --from=non-main-builder /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=non-main-builder /app/run /app/run
-COPY --from=non-main-builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=socket-proxy-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=socket-proxy-builder /app/run /app/run
+COPY --from=socket-proxy-builder /etc/ssl/certs /etc/ssl/certs
 
 ENV LISTEN_ADDR=0.0.0.0:2375
 
@@ -164,7 +171,7 @@ WORKDIR /app
 
 CMD ["/app/run"]
 
-# Stage 12: main image
+# Stage 13: main image
 FROM scratch AS main
 
 LABEL maintainer="yusing@6uo.me"

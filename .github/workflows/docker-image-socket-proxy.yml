@@ -7,7 +7,8 @@ on:
     paths:
       - ".shadowtree.toml"
       - "socket-proxy/**"
-      - "socket-proxy.Dockerfile"
+      - "Dockerfile"
+      - ".github/workflows/docker-image.yml"
       - ".github/workflows/docker-image-socket-proxy.yml"
     tags-ignore:
       - "**"
@@ -20,4 +21,4 @@ jobs:
       image_name: ${{ github.repository_owner }}/socket-proxy
       tag: latest
       target: socket-proxy
-      dockerfile: socket-proxy.Dockerfile
+      dockerfile: Dockerfile
