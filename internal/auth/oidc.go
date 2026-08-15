@@ -172,14 +172,6 @@ func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clien
 	}, nil
 }
 
-func (auth *OIDCProvider) SetAllowedUsers(users []string) {
-	auth.allowedUsers = users
-}
-
-func (auth *OIDCProvider) SetAllowedGroups(groups []string) {
-	auth.allowedGroups = groups
-}
-
 func (auth *OIDCProvider) SetScopes(scopes []string) {
 	auth.oauthConfig.Scopes = scopes
 }

@@ -8,19 +8,21 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
+	"github.com/yusing/godoxy/internal/common"
+	gperr "github.com/yusing/goutils/errs"
 	httpevents "github.com/yusing/goutils/events/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	strutils "github.com/yusing/goutils/strings"
 )
 
 type oidcMiddleware struct {
+	IssuerURL     string            `json:"issuer_url"`
 	AllowedUsers  []string          `json:"allowed_users"`
 	AllowedGroups []string          `json:"allowed_groups"`
 	ClientID      strutils.Redacted `json:"client_id"`
 	ClientSecret  strutils.Redacted `json:"client_secret"`
-	Scopes        string            `json:"scopes"`
+	Scopes        []string          `json:"scopes"`
 
 	auth *auth.OIDCProvider
 
@@ -35,10 +37,38 @@ func isOIDCAuthPath(r *http.Request) bool {
 }
 
 func (amw *oidcMiddleware) finalize() error {
-	if !auth.IsOIDCEnabled() {
-		log.Error().Msg("OIDC not enabled but OIDC middleware is used")
+	errs := gperr.NewBuilder("oidc middleware error")
+	if amw.IssuerURL == "" {
+		amw.IssuerURL = common.OIDCIssuerURL
 	}
-	return nil
+	if amw.IssuerURL == "" {
+		errs.Adds("oidc: middleware is used with no issuer provided")
+	}
+	if len(amw.AllowedUsers) == 0 {
+		amw.AllowedUsers = common.OIDCAllowedUsers
+	}
+	if len(amw.AllowedGroups) == 0 {
+		amw.AllowedGroups = common.OIDCAllowedGroups
+	}
+	if len(amw.AllowedUsers) == 0 && len(amw.AllowedGroups) == 0 {
+		errs.Adds("oidc: middleware is used with no user or group allowed")
+	}
+	if amw.ClientID == "" {
+		amw.ClientID = strutils.Redacted(common.OIDCClientID)
+	}
+	if amw.ClientID == "" {
+		errs.Adds("oidc: middleware requires client_id")
+	}
+	if amw.ClientSecret == "" {
+		amw.ClientSecret = strutils.Redacted(common.OIDCClientSecret)
+	}
+	if amw.ClientSecret == "" {
+		errs.Adds("oidc: middleware requires client_secret")
+	}
+	if len(amw.Scopes) == 0 && len(common.OIDCScopes) == 0 {
+		errs.Adds("oidc: middleware requires scopes")
+	}
+	return errs.Error()
 }
 
 func (amw *oidcMiddleware) init(ctx context.Context) error {
@@ -57,43 +87,27 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 	}
 	defer amw.initMu.Unlock()
 
-	// Always start with the global OIDC provider (for issuer discovery)
-	authProvider, err := auth.NewOIDCProviderFromEnv(ctx)
+	// If no custom credentials, authProvider remains the global one
+	authProvider, err := auth.NewOIDCProvider(
+		ctx,
+		amw.IssuerURL,
+		amw.ClientID.String(),
+		amw.ClientSecret.String(),
+		amw.AllowedUsers,
+		amw.AllowedGroups,
+	)
 	if err != nil {
 		return err
 	}
-
-	// Check if custom client credentials are provided
-	if amw.ClientID != "" && amw.ClientSecret != "" {
-		// Use custom client credentials
-		customProvider, err := auth.NewOIDCProviderWithCustomClient(
-			authProvider,
-			amw.ClientID.String(),
-			amw.ClientSecret.String(),
-		)
-		if err != nil {
-			return err
-		}
-		authProvider = customProvider
-	}
-	// If no custom credentials, authProvider remains the global one
 
 	// Always trigger login on unknown paths.
 	// This prevents falling back to the default login page, which applies bypass rules.
 	// Without this, redirecting to the global login page could circumvent the intended route restrictions.
 	authProvider.SetOnUnknownPathHandler(authProvider.LoginHandler)
 
-	// Apply per-route user/group restrictions (these always override global)
-	if len(amw.AllowedUsers) > 0 {
-		authProvider.SetAllowedUsers(amw.AllowedUsers)
-	}
-	if len(amw.AllowedGroups) > 0 {
-		authProvider.SetAllowedGroups(amw.AllowedGroups)
-	}
-
 	// Apply custom scopes if provided
-	if amw.Scopes != "" {
-		authProvider.SetScopes(strings.Split(amw.Scopes, ","))
+	if len(amw.Scopes) > 0 {
+		authProvider.SetScopes(amw.Scopes)
 	}
 
 	amw.auth = authProvider
@@ -102,10 +116,6 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 }
 
 func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
-	if !auth.IsOIDCEnabled() {
-		return true
-	}
-
 	if err := amw.init(r.Context()); err != nil {
 		// no need to log here, main OIDC should've already failed and logged
 		http.Error(w, err.Error(), http.StatusInternalServerError)
