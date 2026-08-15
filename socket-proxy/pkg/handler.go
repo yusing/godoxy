@@ -34,10 +34,7 @@ func dockerSocketHandler(socket string) http.HandlerFunc {
 		},
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Transfer-Encoding", "chunked")
-		rp.ServeHTTP(w, r)
-	}
+	return rp.ServeHTTP
 }
 
 func endpointNotAllowed(w http.ResponseWriter, _ *http.Request) {

@@ -204,6 +204,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	removeHopByHopHeaders(res.Header)
 
 	copyHeader(rw.Header(), res.Header)
+	if res.ContentLength < 0 {
+		for _, encoding := range res.TransferEncoding {
+			if strings.EqualFold(encoding, "chunked") {
+				rw.Header().Set("Transfer-Encoding", "chunked")
+				break
+			}
+		}
+	}
 
 	// The "Trailer" header isn't included in the Transport's response,
 	// at least for *http.Transport. Build it up from Trailer.
