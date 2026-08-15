@@ -15,10 +15,14 @@ type WebUIConfig struct {
 	AccessLog          *accesslog.RequestLoggerConfig `json:"access_log,omitempty" extensions:"x-nullable"`
 	Rules              rules.Rules                    `json:"rules,omitempty" extensions:"x-nullable"`
 
-	Aliases []string `json:"aliases"`
+	DisplayName string   `json:"display_name"`
+	Aliases     []string `json:"aliases"`
 }
 
 func (cfg *WebUIConfig) Validate() error {
+	if cfg.DisplayName == "" {
+		cfg.DisplayName = "GoDoxy"
+	}
 	for _, alias := range cfg.Aliases {
 		if strings.TrimSpace(alias) == "" {
 			return errors.New("empty alias is not allowed")

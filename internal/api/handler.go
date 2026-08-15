@@ -19,6 +19,7 @@ import (
 	metricsApi "github.com/yusing/godoxy/internal/api/v1/metrics"
 	proxmoxApi "github.com/yusing/godoxy/internal/api/v1/proxmox"
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
+	webuiApi "github.com/yusing/godoxy/internal/api/v1/webui"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/route/rules"
@@ -101,6 +102,11 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			file.PUT("/content", fileApi.Set)
 			file.POST("/content", fileApi.Set)
 			file.POST("/validate", fileApi.Validate)
+		}
+
+		webui := v1.Group("/webui")
+		{
+			webui.GET("/config", webuiApi.Config)
 		}
 
 		homepage := v1.Group("/homepage")

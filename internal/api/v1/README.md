@@ -42,6 +42,7 @@ Types are defined in `goutils/apitypes`:
 | `metrics`  | System metrics and uptime information          |
 | `homepage` | Homepage items and category management         |
 | `file`     | Configuration file read/write operations       |
+| `webui`    | WebUI operations                               |
 | `auth`     | Authentication and session management          |
 | `agent`    | Remote agent creation and management           |
 | `proxmox`  | Proxmox API management and monitoring          |
@@ -91,11 +92,11 @@ API listening address is configured with `GODOXY_API_ADDR` environment variable.
 
 ### External Dependencies
 
-| Package                        | Purpose                     |
-| ------------------------------ | --------------------------- |
-| `github.com/gin-gonic/gin`     | HTTP routing and middleware |
-| `github.com/gorilla/websocket` | WebSocket support           |
-| `github.com/docker/docker/client`  | Docker API client           |
+| Package                           | Purpose                     |
+| --------------------------------- | --------------------------- |
+| `github.com/gin-gonic/gin`        | HTTP routing and middleware |
+| `github.com/gorilla/websocket`    | WebSocket support           |
+| `github.com/docker/docker/client` | Docker API client           |
 
 ## Observability
 

@@ -18,6 +18,7 @@ import (
 	homepageApi "github.com/yusing/godoxy/internal/api/v1/homepage"
 	metricsApi "github.com/yusing/godoxy/internal/api/v1/metrics"
 	routeApi "github.com/yusing/godoxy/internal/api/v1/route"
+	webuiApi "github.com/yusing/godoxy/internal/api/v1/webui"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/idlewatcher"
 	idlewatcherTypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
@@ -211,6 +212,11 @@ func newAPIHandler(debugMux *debugMux) *gin.Engine {
 			registerGinRoute(file, "PUT", "Set file", "/content", fileApi.Set)
 			registerGinRoute(file, "POST", "Set file", "/content", fileApi.Set)
 			registerGinRoute(file, "POST", "Validate file", "/validate", fileApi.Validate)
+		}
+
+		webui := v1.Group("/webui")
+		{
+			registerGinRoute(webui, "GET", "WebUI Config", "/config", webuiApi.Config)
 		}
 
 		homepage := v1.Group("/homepage")

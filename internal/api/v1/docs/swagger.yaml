@@ -1460,6 +1460,31 @@ definitions:
     - RuntimeDegraded
     - RuntimeFailed
     - RuntimeStopping
+  config.WebUIConfig:
+    properties:
+      access_log:
+        allOf:
+        - $ref: '#/definitions/RequestLoggerConfig'
+        x-nullable: true
+      aliases:
+        items:
+          type: string
+        type: array
+      display_name:
+        type: string
+      inbound_mtls_profile:
+        type: string
+      middlewares:
+        additionalProperties:
+          $ref: '#/definitions/types.LabelMap'
+        type: object
+        x-nullable: true
+      rules:
+        items:
+          $ref: '#/definitions/rules.Rule'
+        type: array
+        x-nullable: true
+    type: object
   container.BlkioStatEntry:
     properties:
       major:
@@ -1897,11 +1922,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_5m:
+        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
-        type: string
-      load_avg_5m:
         type: string
       mem_pct:
         type: string
@@ -4243,4 +4268,30 @@ paths:
       tags:
       - v1
       x-id: version
+  /webui/config:
+    get:
+      description: Get WebUI config
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: WebUI Config
+          schema:
+            $ref: '#/definitions/config.WebUIConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Get WebUI config
+      tags:
+      - webui
+      x-id: config
 swagger: "2.0"

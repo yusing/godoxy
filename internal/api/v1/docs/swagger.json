@@ -3319,6 +3319,46 @@
         "x-id": "version",
         "operationId": "version"
       }
+    },
+    "/webui/config": {
+      "get": {
+        "description": "Get WebUI config",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "webui"
+        ],
+        "summary": "Get WebUI config",
+        "responses": {
+          "200": {
+            "description": "WebUI Config",
+            "schema": {
+              "$ref": "#/definitions/config.WebUIConfig"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "config",
+        "operationId": "config"
+      }
     }
   },
   "definitions": {
@@ -6356,6 +6396,53 @@
         "RuntimeFailed",
         "RuntimeStopping"
       ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "config.WebUIConfig": {
+      "type": "object",
+      "properties": {
+        "access_log": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequestLoggerConfig"
+            }
+          ],
+          "x-nullable": true
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "display_name": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "inbound_mtls_profile": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "middlewares": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/types.LabelMap"
+          },
+          "x-nullable": true
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rules.Rule"
+          },
+          "x-nullable": true
+        }
+      },
       "x-nullable": false,
       "x-omitempty": false
     },
