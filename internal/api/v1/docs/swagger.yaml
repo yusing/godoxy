@@ -1742,33 +1742,18 @@ definitions:
       iops:
         type: integer
       name:
-        description: |-
-          ReadCount        uint64 `json:"readCount"`
-          MergedReadCount  uint64 `json:"mergedReadCount"`
-          WriteCount       uint64 `json:"writeCount"`
-          MergedWriteCount uint64 `json:"mergedWriteCount"`
-          ReadBytes        uint64 `json:"readBytes"`
-          WriteBytes       uint64 `json:"writeBytes"`
-          ReadTime         uint64 `json:"readTime"`
-          WriteTime        uint64 `json:"writeTime"`
-          IopsInProgress   uint64 `json:"iopsInProgress"`
-          IoTime           uint64 `json:"ioTime"`
-          WeightedIO       uint64 `json:"weightedIO"`
         type: string
-      read_bytes:
-        description: |-
-          SerialNumber     string `json:"serialNumber"`
-          Label            string `json:"label"`
+      readBytes:
         type: integer
-      read_count:
+      readCount:
         type: integer
-      read_speed:
+      readSpeed:
         type: number
-      write_bytes:
+      writeBytes:
         type: integer
-      write_count:
+      writeCount:
         type: integer
-      write_speed:
+      writeSpeed:
         type: number
     type: object
   disk.UsageStat:
@@ -1776,10 +1761,10 @@ definitions:
       free:
         type: integer
       fstype:
-        description: interned
         type: string
+      inodesUsedPercent:
+        type: number
       path:
-        description: interned
         type: string
       total:
         type: number
@@ -1905,7 +1890,7 @@ definitions:
         description: number of bytes received
         type: integer
       bytes_sent:
-        description: Name      string `json:"name"`       // interface name
+        description: number of bytes sent
         type: integer
       download_speed:
         description: godoxy
@@ -1922,11 +1907,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_1m:
+        type: string
       load_avg_5m:
         type: string
       load_avg_15m:
-        type: string
-      load_avg_1m:
         type: string
       mem_pct:
         type: string
@@ -2014,7 +1999,6 @@ definitions:
       high:
         type: number
       name:
-        description: interned
         type: string
       temperature:
         type: number

@@ -6895,38 +6895,36 @@
           "x-omitempty": false
         },
         "name": {
-          "description": "ReadCount        uint64 `json:\"readCount\"`\nMergedReadCount  uint64 `json:\"mergedReadCount\"`\nWriteCount       uint64 `json:\"writeCount\"`\nMergedWriteCount uint64 `json:\"mergedWriteCount\"`\nReadBytes        uint64 `json:\"readBytes\"`\nWriteBytes       uint64 `json:\"writeBytes\"`\nReadTime         uint64 `json:\"readTime\"`\nWriteTime        uint64 `json:\"writeTime\"`\nIopsInProgress   uint64 `json:\"iopsInProgress\"`\nIoTime           uint64 `json:\"ioTime\"`\nWeightedIO       uint64 `json:\"weightedIO\"`",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "read_bytes": {
-          "description": "SerialNumber     string `json:\"serialNumber\"`\nLabel            string `json:\"label\"`",
+        "readBytes": {
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "read_count": {
+        "readCount": {
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "read_speed": {
+        "readSpeed": {
           "type": "number",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "write_bytes": {
+        "writeBytes": {
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "write_count": {
+        "writeCount": {
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
         },
-        "write_speed": {
+        "writeSpeed": {
           "type": "number",
           "x-nullable": false,
           "x-omitempty": false
@@ -6944,13 +6942,16 @@
           "x-omitempty": false
         },
         "fstype": {
-          "description": "interned",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         },
+        "inodesUsedPercent": {
+          "type": "number",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "path": {
-          "description": "interned",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
@@ -7124,7 +7125,7 @@
           "x-omitempty": false
         },
         "bytes_sent": {
-          "description": "Name      string `json:\"name\"`       // interface name",
+          "description": "number of bytes sent",
           "type": "integer",
           "x-nullable": false,
           "x-omitempty": false
@@ -7379,7 +7380,6 @@
           "x-omitempty": false
         },
         "name": {
-          "description": "interned",
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
