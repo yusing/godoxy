@@ -165,8 +165,11 @@ providers:
 
 # Embedded WebUI route.
 webui:
+  # The display name in server list
+  display_name: GoDoxy
+  # Short or FQDNs
   aliases:
-    - godoxy
+    - godoxy # godoxy.domain.com
   # middlewares:
   #   cidr_whitelist:
   #     status: 403
