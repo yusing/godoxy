@@ -65,8 +65,10 @@ services:
     ports:
       - 127.0.0.1:2375:2375
   app-test:
-    image: godoxy-dev
-    build: .
+    image: godoxy-test
+    build:
+      context: .
+      target: main
     container_name: godoxy-proxy-dev-test
     restart: unless-stopped
     env_file: .env
