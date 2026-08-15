@@ -18,6 +18,43 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+func TestAgentHandlerDoesNotExposeProxyPrefixWhenPathHasRepeatedSlash(t *testing.T) {
+	gotBackendURI := make(chan string, 1)
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBackendURI <- r.RequestURI
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(backend.Close)
+
+	backendURL, err := url.Parse(backend.URL)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://agent.local"+agent.APIEndpointBase+agent.EndpointProxyHTTP+"//api/v1/points",
+		strings.NewReader("request-body"),
+	)
+	(&agentproxy.Config{
+		Scheme: "http",
+		Host:   backendURL.Host,
+	}).SetAgentProxyConfigHeaders(req.Header)
+
+	rec := httptest.NewRecorder()
+	handler.NewAgentHandler().ServeHTTP(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Empty(t, res.Header.Get("Location"))
+
+	select {
+	case requestURI := <-gotBackendURI:
+		require.Equal(t, "//api/v1/points", requestURI)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for backend request URI")
+	}
+}
+
 func TestProxyHTTPH2C(t *testing.T) {
 	gotBackendProto := make(chan int, 1)
 	backend := httptest.NewUnstartedServer(h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

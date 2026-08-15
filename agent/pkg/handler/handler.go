@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -43,7 +44,6 @@ func NewAgentHandler() http.Handler {
 		})
 	}
 
-	mux.HandleFunc(agent.EndpointProxyHTTP+"/{path...}", ProxyHTTP)
 	mux.HandleFunc(agent.EndpointInfo, func(w http.ResponseWriter, r *http.Request) {
 		agentInfo := agent.AgentInfo{
 			Version: version.Get(),
@@ -56,5 +56,17 @@ func NewAgentHandler() http.Handler {
 	mux.HandleEndpoint("GET", agent.EndpointHealth, CheckHealth)
 	mux.HandleEndpoint("GET", agent.EndpointSystemInfo, metricsHandler.ServeHTTP)
 	mux.ServeMux.HandleFunc("/", socketproxy.DockerSocketHandler(env.DockerSocket))
-	return mux
+
+	// ServeMux canonicalizes paths containing repeated slashes before dispatch
+	// and would expose the private proxy prefix in its redirect Location. Match
+	// proxy requests first so ProxyHTTP can remove the prefix before the origin
+	// decides whether the public path needs canonicalization.
+	proxyPrefix := agent.APIEndpointBase + agent.EndpointProxyHTTP + "/"
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, proxyPrefix) {
+			ProxyHTTP(w, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
