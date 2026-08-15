@@ -390,6 +390,22 @@ func TestNoPortExcludedDockerRouteDisablesHealthCheck(t *testing.T) {
 	expect.False(t, r.UseHealthCheck())
 }
 
+func TestStoppedIdlewatcherRouteRemainsVisibleWithoutDockerNetworkOrPorts(t *testing.T) {
+	c := &container.Summary{
+		Names: dummyNames,
+		State: "exited",
+		Labels: map[string]string{
+			docker.LabelIdleTimeout: "10m",
+		},
+	}
+
+	r, ok := makeRoutes(c)["a"]
+	expect.True(t, ok)
+	expect.True(t, r.UseIdleWatcher())
+	expect.False(t, r.ShouldExclude())
+	expect.True(t, r.Homepage.Show)
+}
+
 func TestPublicIPRemote(t *testing.T) {
 	c := &container.Summary{Names: dummyNames, State: "running"}
 	raw, ok := makeRoutes(c, testIP)["a"]

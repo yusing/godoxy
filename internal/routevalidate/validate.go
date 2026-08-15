@@ -47,6 +47,10 @@ func Validate(ctx context.Context, r *route.Route) (impl routing.Route, agent *a
 		}
 	}
 
+	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
+		r.Idlewatcher = r.Container.IdlewatcherConfig
+	}
+
 	finalize(ctx, r)
 
 	if r.InboundMTLSProfile != "" {
@@ -61,10 +65,6 @@ func Validate(ctx context.Context, r *route.Route) (impl routing.Route, agent *a
 
 	if r.Proxmox != nil && !validateProxmox(ctx, r) {
 		discovery = ""
-	}
-
-	if r.Container != nil && r.Container.IdlewatcherConfig != nil {
-		r.Idlewatcher = r.Container.IdlewatcherConfig
 	}
 
 	var errs gperr.Builder
