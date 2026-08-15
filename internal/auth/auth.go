@@ -72,6 +72,18 @@ func GetDefaultAuth() Provider {
 	return holder.provider
 }
 
+func globalOIDCProvider() *OIDCProvider {
+	oidc, _ := GetDefaultAuth().(*OIDCProvider)
+	return oidc
+}
+
+func GlobalOIDCProviderHash() string {
+	if oidc := globalOIDCProvider(); oidc != nil {
+		return oidc.hash
+	}
+	return ""
+}
+
 func setDefaultAuth(provider Provider) {
 	if provider == nil {
 		defaultAuth.Store(nil)

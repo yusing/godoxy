@@ -8,8 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
 	httpevents "github.com/yusing/goutils/events/http"
 	"github.com/yusing/goutils/http/httpheaders"
@@ -24,7 +26,8 @@ type oidcMiddleware struct {
 	ClientSecret  strutils.Redacted `json:"client_secret"`
 	Scopes        []string          `json:"scopes"`
 
-	auth *auth.OIDCProvider
+	authHash string
+	auth     *auth.OIDCProvider
 
 	isInitialized int32
 	initMu        sync.Mutex
@@ -65,9 +68,13 @@ func (amw *oidcMiddleware) finalize() error {
 	if amw.ClientSecret == "" {
 		errs.Adds("oidc: middleware requires client_secret")
 	}
-	if len(amw.Scopes) == 0 && len(common.OIDCScopes) == 0 {
+	if len(amw.Scopes) == 0 {
+		amw.Scopes = common.OIDCScopes
+	}
+	if len(amw.Scopes) == 0 {
 		errs.Adds("oidc: middleware requires scopes")
 	}
+	amw.authHash = auth.OIDCProviderHash(amw.IssuerURL, amw.ClientID.String())
 	return errs.Error()
 }
 
@@ -93,6 +100,7 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 		amw.IssuerURL,
 		amw.ClientID.String(),
 		amw.ClientSecret.String(),
+		amw.Scopes,
 		amw.AllowedUsers,
 		amw.AllowedGroups,
 	)
@@ -105,11 +113,6 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 	// Without this, redirecting to the global login page could circumvent the intended route restrictions.
 	authProvider.SetOnUnknownPathHandler(authProvider.LoginHandler)
 
-	// Apply custom scopes if provided
-	if len(amw.Scopes) > 0 {
-		authProvider.SetScopes(amw.Scopes)
-	}
-
 	amw.auth = authProvider
 	atomic.StoreInt32(&amw.isInitialized, 1)
 	return nil
@@ -117,8 +120,19 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 
 func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	if err := amw.init(r.Context()); err != nil {
-		// no need to log here, main OIDC should've already failed and logged
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if amw.authHash != auth.GlobalOIDCProviderHash() {
+			event := log.Err(err)
+			if route := routes.TryGetRoute(r); route != nil {
+				event.Str("route", route.Name())
+			}
+			event.Str("issuer_url", amw.IssuerURL)
+			event.Msg("failed to initialize oidc middleware")
+		} else {
+			// do not log here, global OIDC failure is logged in main()
+		}
+
+		code := http.StatusInternalServerError
+		http.Error(w, http.StatusText(code), code)
 		return false
 	}
 

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -24,6 +25,9 @@ import (
 
 type (
 	OIDCProvider struct {
+		hash      string // unique identity: sha256(issuer_url\nclient_id)
+		issuerURL string
+
 		oauthConfig   *oauth2.Config
 		oidcProvider  *oidc.Provider
 		oidcVerifier  *oidc.IDTokenVerifier
@@ -73,10 +77,10 @@ const (
 )
 
 var (
-	errMissingIDToken = errors.New("missing id_token field from oauth token")
+	errMissingIDToken = errors.New("oidc: missing id_token field from oauth token")
 
-	ErrMissingOAuthToken = errors.New("missing oauth token")
-	ErrInvalidOAuthToken = errors.New("invalid oauth token")
+	ErrMissingOAuthToken = errors.New("oidc: missing oauth token")
+	ErrInvalidOAuthToken = errors.New("oidc: invalid oauth token")
 )
 
 // generateState generates a random string for OIDC state.
@@ -88,16 +92,50 @@ func generateState() string {
 	return base64.URLEncoding.EncodeToString(b)[:oidcStateLength]
 }
 
-func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
+// OIDCProviderHash returns the identity of an issuer and client pair.
+func OIDCProviderHash(issuerURL, clientID string) string {
+	hasher := sha256.New()
+	fmt.Fprintf(hasher, "%s\n%s", issuerURL, clientID)
+
+	var hash [sha256.Size]byte
+	return hex.EncodeToString(hasher.Sum(hash[:0]))
+}
+
+func newOIDCProviderFromGlobal(global *OIDCProvider, clientSecret string, scopes, allowedUsers, allowedGroups []string) *OIDCProvider {
+	oauthConfig := *global.oauthConfig
+	oauthConfig.ClientSecret = clientSecret
+	oauthConfig.Scopes = scopes
+
+	return &OIDCProvider{
+		hash:          global.hash,
+		issuerURL:     global.issuerURL,
+		oauthConfig:   &oauthConfig,
+		oidcProvider:  global.oidcProvider,
+		oidcVerifier:  global.oidcVerifier,
+		endSessionURL: global.endSessionURL,
+		allowedUsers:  allowedUsers,
+		allowedGroups: allowedGroups,
+		rateLimit:     global.rateLimit,
+	}
+}
+
+// NewOIDCProvider initializes an OIDC provider, reusing matching global
+// discovery state while preserving per-route authorization settings.
+func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret string, scopes, allowedUsers, allowedGroups []string) (*OIDCProvider, error) {
 	if len(allowedUsers)+len(allowedGroups) == 0 {
-		return nil, errors.New("oidc.allowed_users or oidc.allowed_groups are both empty")
+		return nil, errors.New("oidc: allowed_users or allowed_groups are both empty")
+	}
+
+	hash := OIDCProviderHash(issuerURL, clientID)
+	if global := globalOIDCProvider(); global != nil && global.hash == hash {
+		return newOIDCProviderFromGlobal(global, clientSecret, scopes, allowedUsers, allowedGroups), nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize OIDC provider: %w", err)
+		return nil, fmt.Errorf("oidc: failed to initialize OIDC provider: %w", err)
 	}
 
 	endSessionURL, err := url.Parse(provider.EndSessionEndpoint())
@@ -110,12 +148,14 @@ func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret stri
 	}
 
 	return &OIDCProvider{
+		hash:      hash,
+		issuerURL: issuerURL,
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			RedirectURL:  "",
 			Endpoint:     provider.Endpoint(),
-			Scopes:       common.OIDCScopes,
+			Scopes:       scopes,
 		},
 		oidcProvider: provider,
 		oidcVerifier: provider.Verifier(&oidc.Config{
@@ -135,6 +175,7 @@ func NewOIDCProviderFromEnv(ctx context.Context) (*OIDCProvider, error) {
 		common.OIDCIssuerURL,
 		common.OIDCClientID,
 		common.OIDCClientSecret,
+		common.OIDCScopes,
 		common.OIDCAllowedUsers,
 		common.OIDCAllowedGroups,
 	)
@@ -144,7 +185,7 @@ func NewOIDCProviderFromEnv(ctx context.Context) (*OIDCProvider, error) {
 // based on an existing provider (for issuer discovery)
 func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clientSecret string) (*OIDCProvider, error) {
 	if clientID == "" || clientSecret == "" {
-		return nil, errors.New("client ID and client secret are required")
+		return nil, errors.New("oidc: client ID and client secret are required")
 	}
 
 	// Create a new OIDC verifier with the custom client ID
@@ -162,6 +203,8 @@ func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clien
 	}
 
 	return &OIDCProvider{
+		hash:          OIDCProviderHash(baseProvider.issuerURL, clientID),
+		issuerURL:     baseProvider.issuerURL,
 		oauthConfig:   oauthConfig,
 		oidcProvider:  baseProvider.oidcProvider,
 		oidcVerifier:  oidcVerifier,
@@ -172,8 +215,8 @@ func NewOIDCProviderWithCustomClient(baseProvider *OIDCProvider, clientID, clien
 	}, nil
 }
 
-func (auth *OIDCProvider) SetScopes(scopes []string) {
-	auth.oauthConfig.Scopes = scopes
+func (auth *OIDCProvider) Hash() string {
+	return auth.hash
 }
 
 func (auth *OIDCProvider) SetOnUnknownPathHandler(handler http.HandlerFunc) {
@@ -194,7 +237,7 @@ func (auth *OIDCProvider) getIDToken(ctx context.Context, oauthToken *oauth2.Tok
 	}
 	idToken, err := auth.oidcVerifier.Verify(ctx, idTokenJWT)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to verify ID token: %w", err)
+		return "", nil, fmt.Errorf("oidc: failed to verify ID token: %w", err)
 	}
 	return idTokenJWT, idToken, nil
 }
@@ -264,11 +307,11 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {
 	var claim IDTokenClaims
 	if err := idToken.Claims(&claim); err != nil {
-		return nil, fmt.Errorf("failed to parse claims: %w", err)
+		return nil, fmt.Errorf("oidc: failed to parse claims: %w", err)
 	}
 	// Username is optional if groups are present
 	if claim.Username == "" && len(claim.Groups) == 0 {
-		return nil, errors.New("missing username in ID token")
+		return nil, errors.New("oidc: missing username in ID token")
 	}
 	return &claim, nil
 }

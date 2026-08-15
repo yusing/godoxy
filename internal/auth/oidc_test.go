@@ -27,6 +27,7 @@ func setupMockOIDC(t *testing.T) {
 		provider.server.URL,
 		clientID,
 		"test-secret",
+		common.OIDCScopes,
 		[]string{"test-user"},
 		[]string{"test-group1", "test-group2"},
 	)))
@@ -244,12 +245,57 @@ func TestInitOIDC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewOIDCProvider(t.Context(), tt.issuerURL, tt.clientID, tt.clientSecret, tt.allowedUsers, tt.allowedGroups)
+			_, err := NewOIDCProvider(t.Context(), tt.issuerURL, tt.clientID, tt.clientSecret, common.OIDCScopes, tt.allowedUsers, tt.allowedGroups)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitOIDC() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+func TestNewOIDCProviderReusesGlobalInitialization(t *testing.T) {
+	provider := setupProvider(t)
+	previousDefault := GetDefaultAuth()
+	t.Cleanup(func() { setDefaultAuth(previousDefault) })
+
+	globalScopes := []string{"openid", "profile"}
+	global, err := NewOIDCProvider(
+		t.Context(),
+		provider.server.URL,
+		clientID,
+		"test-secret",
+		globalScopes,
+		[]string{"global-user"},
+		nil,
+	)
+	expect.NoError(t, err)
+	setDefaultAuth(global)
+
+	routeUsers := []string{"route-user"}
+	customScopes := []string{"openid", "custom"}
+	reused, err := NewOIDCProvider(
+		t.Context(),
+		provider.server.URL,
+		clientID,
+		"test-secret",
+		customScopes,
+		routeUsers,
+		nil,
+	)
+	expect.NoError(t, err)
+
+	if reused == global {
+		t.Fatal("route provider reused the mutable global wrapper")
+	}
+	if reused.oauthConfig == global.oauthConfig {
+		t.Fatal("route provider reused the mutable global OAuth config")
+	}
+	if reused.oidcProvider != global.oidcProvider || reused.oidcVerifier != global.oidcVerifier {
+		t.Fatal("route provider did not reuse matching global discovery state")
+	}
+	expect.Equal(t, reused.allowedUsers, routeUsers)
+	expect.Equal(t, reused.oauthConfig.Scopes, customScopes)
+	expect.Equal(t, global.oauthConfig.Scopes, globalScopes)
 }
 
 func TestCheckToken(t *testing.T) {
