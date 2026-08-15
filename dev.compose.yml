@@ -40,7 +40,30 @@ services:
       - ./dev-data/data:/app/data
       - ./dev-data/logs:/app/logs
       - ./dev-data/assets:/app/assets
-      - ~/certs/myCA.pem:/etc/ssl/certs/ca.crt:ro
+      - ./myCA.pem:/etc/ssl/certs/ca.crt:ro
+  socket-proxy-test:
+    image: socket-proxy-dev
+    container_name: socket-proxy-dev-test
+    build:
+      context: .
+      target: socket-proxy
+    environment:
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+      - ALLOW_RESTARTS=1
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - PING=1
+      - POST=1
+      - VERSION=1
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    restart: unless-stopped
+    tmpfs:
+      - /run
+    ports:
+      - 127.0.0.1:2375:2375
   app-test:
     image: godoxy-dev
     build: .
@@ -48,11 +71,13 @@ services:
     restart: unless-stopped
     env_file: .env
     network_mode: host
+    depends_on:
+      socket-proxy-test:
+        condition: service_started
     environment:
-      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_HOST: tcp://127.0.0.1:2375
     volumes:
       - /etc/ssl/certs/myCA.pem:/etc/ssl/certs/myCA.pem:ro
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./dev-data/config:/app/config
       - ./dev-data/certs:/app/certs
       - ./dev-data/error_pages:/app/error_pages:ro
@@ -100,6 +125,14 @@ services:
       - USERS=user:$$2a$$10$$UdLYoJ5lgPsC0RKqYH/jMua7zIn0g9kPqWmhYayJYLaZQ/FTmH2/u # user:password
     labels:
       proxy.tinyauth.port: "3000"
+  forward_auth_test:
+    image: nginx
+    container_name: fatest
+    restart: no
+    labels:
+      proxy.fatest.middlewares.forward_auth:
+    depends_on:
+      - tinyauth
   jotty: # issue #182
     image: ghcr.io/fccview/jotty:latest
     container_name: jotty

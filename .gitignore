@@ -35,3 +35,7 @@ CLAUDE.md
 
 # generated CLI commands
 cmd/cli/generated_commands.go
+
+patches/
+
+*.pem
