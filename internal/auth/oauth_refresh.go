@@ -46,7 +46,7 @@ type sessionClaims struct {
 
 type sessionID string
 
-var oauthRefreshTokens jsonstore.MapStore[*oauthRefreshToken]
+var oauthRefreshTokens = jsonstore.Store[*oauthRefreshToken]("oauth_refresh_tokens")
 
 var (
 	defaultRefreshTokenExpiry = 30 * 24 * time.Hour // 1 month
@@ -59,12 +59,6 @@ var (
 )
 
 const sessionTokenIssuer = "GoDoxy"
-
-func init() {
-	if IsOIDCEnabled() {
-		oauthRefreshTokens = jsonstore.Store[*oauthRefreshToken]("oauth_refresh_tokens")
-	}
-}
 
 func (token *oauthRefreshToken) expired() bool {
 	return time.Now().After(token.Expiry)
