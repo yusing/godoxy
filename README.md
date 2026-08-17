@@ -215,4 +215,4 @@ sh -c "$(curl -fsSL https://github.com/yusing/godoxy/raw/refs/heads/main/scripts
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yusing/godoxy&type=Date)](https://www.star-history.com/#yusing/godoxy&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=yusing/godoxy&type=Date)](https://star-history.dera.page/#yusing/godoxy&Date)
