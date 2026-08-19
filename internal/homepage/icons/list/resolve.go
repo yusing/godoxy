@@ -13,28 +13,14 @@ var nameSanitizer = strings.NewReplacer(
 	")", "",
 )
 
-// Longer suffixes first so "immich-machine-learning" strips as a unit.
-var knownServiceSuffixes = []string{
-	"-machine-learning",
-	"-frontend",
-	"-backend",
-	"-server",
-	"-client",
-	"-worker",
-	"-service",
-	"-web",
-	"-app",
-	"-api",
-	"-ui",
-	"-ml",
-}
-
 func sanitizeRef(name string) string {
 	return strings.ToLower(nameSanitizer.Replace(name))
 }
 
 // ExpandRefs returns sanitized lookup names for icon/category matching.
-// "immich-server" also yields "immich".
+// Names combine the app with a role or a qualifier of the user's own, so each
+// trailing segment is dropped in turn and the shorter names are offered too:
+// "immich-server" and "sonarr-tv" also yield "immich" and "sonarr".
 func ExpandRefs(refs []string) []string {
 	seen := make(map[string]struct{}, len(refs)*2)
 	out := make([]string, 0, len(refs)*2)
@@ -51,14 +37,13 @@ func ExpandRefs(refs []string) []string {
 	for _, ref := range refs {
 		ref = sanitizeRef(ref)
 		add(ref)
-		for _, suffix := range knownServiceSuffixes {
-			if strings.HasSuffix(ref, suffix) {
-				trimmed := strings.TrimSuffix(ref, suffix)
-				if trimmed != "" {
-					add(trimmed)
-				}
+		for {
+			dash := strings.LastIndexByte(ref, '-')
+			if dash <= 0 {
 				break
 			}
+			ref = ref[:dash]
+			add(ref)
 		}
 	}
 	return out

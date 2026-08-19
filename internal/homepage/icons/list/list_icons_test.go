@@ -2,6 +2,7 @@ package iconlist
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage/icons"
@@ -181,25 +182,18 @@ func TestListSelfhstIcons(t *testing.T) {
 	runTests(t, m, test)
 }
 
-func TestExpandRefsStripsServiceSuffix(t *testing.T) {
-	got := ExpandRefs([]string{"immich-server", "Immich_Server", "arcane"})
-	if len(got) < 3 {
-		t.Fatalf("expected expanded refs, got %v", got)
+func TestExpandRefsDropsTrailingSegments(t *testing.T) {
+	got := ExpandRefs([]string{"immich-machine-learning", "Sonarr_TV", "arcane"})
+	want := []string{
+		"immich-machine-learning",
+		"immich-machine",
+		"immich",
+		"sonarr-tv",
+		"sonarr",
+		"arcane",
 	}
-	want := map[string]bool{
-		"immich-server": false,
-		"immich":        false,
-		"arcane":        false,
-	}
-	for _, ref := range got {
-		if _, ok := want[ref]; ok {
-			want[ref] = true
-		}
-	}
-	for ref, found := range want {
-		if !found {
-			t.Fatalf("missing ref %q in %v", ref, got)
-		}
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
@@ -216,6 +210,37 @@ func TestSearchIconsMatchesSuffixedKeyword(t *testing.T) {
 	}
 	if results[0].Ref != "immich" {
 		t.Fatalf("expected immich first, got %s", results[0].Ref)
+	}
+}
+
+func TestSearchIconsMatchesIconReference(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "immich"), &Meta{SVG: true, Light: true, DisplayName: "Immich"})
+	m.Store(NewKey(SourceWalkXCode, "immich"), &Meta{PNG: true})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	keywords := []string{
+		"@selfhst/immich",
+		"@selfhst/immich.svg",
+		"@selfhst/immich-light.svg",
+		// partially typed or edited extensions still match the same icon
+		"@selfhst/immich.",
+		"@selfhst/immich.sv",
+		"@selfhst/immich-light.we",
+	}
+	for _, keyword := range keywords {
+		results := SearchIcons(keyword, 5)
+		if len(results) != 1 {
+			t.Fatalf("expected 1 icon for %q, got %d", keyword, len(results))
+		}
+		if results[0].Source != SourceSelfhSt || results[0].Ref != "immich" {
+			t.Fatalf("unexpected icon for %q: %s/%s", keyword, results[0].Source, results[0].Ref)
+		}
+	}
+
+	if results := SearchIcons("@unknown/immich", 5); len(results) != 0 {
+		t.Fatalf("expected no icon for unknown source, got %d", len(results))
 	}
 }
 
@@ -238,6 +263,25 @@ func TestResolveImmichServer(t *testing.T) {
 	}
 	if u == nil || u.String() != "@selfhst/immich.svg" {
 		t.Fatalf("unexpected icon %v", u)
+	}
+}
+
+func TestResolvePrefersLongestExistingRef(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "sonarr"), &Meta{SVG: true, DisplayName: "Sonarr"})
+	m.Store(NewKey(SourceSelfhSt, "home-assistant"), &Meta{PNG: true, DisplayName: "Home Assistant"})
+	m.Store(NewKey(SourceSelfhSt, "home"), &Meta{PNG: true, DisplayName: "Home"})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	u, meta, ok := Resolve([]string{"sonarr-tv"})
+	if !ok || u == nil || u.String() != "@selfhst/sonarr.svg" || meta.DisplayName != "Sonarr" {
+		t.Fatalf("unexpected resolve for sonarr-tv: %v %+v", u, meta)
+	}
+
+	u, meta, ok = Resolve([]string{"home-assistant"})
+	if !ok || u == nil || u.String() != "@selfhst/home-assistant.png" || meta.DisplayName != "Home Assistant" {
+		t.Fatalf("unexpected resolve for home-assistant: %v %+v", u, meta)
 	}
 }
 

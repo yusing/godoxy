@@ -233,8 +233,6 @@ func (cfg Item) GetOverride() Item {
 }
 ```
 
-A missing override icon does not replace an auto-detected icon.
-
 ## Sorting Methods
 
 ### Clicks Sort

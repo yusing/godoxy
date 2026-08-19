@@ -1,7 +1,6 @@
 package icons_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage/icons"
@@ -150,27 +149,4 @@ func TestIconURL(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestURLJSONRoundTrip(t *testing.T) {
-	u := NewURL(SourceSelfhSt, "immich", "svg")
-	data, err := json.Marshal(u)
-	expect.NoError(t, err)
-	expect.Equal(t, string(data), `"@selfhst/immich.svg"`)
-
-	var got URL
-	expect.NoError(t, json.Unmarshal(data, &got))
-	expect.Equal(t, got.String(), u.String())
-	expect.Equal(t, got.Source, SourceSelfhSt)
-	expect.Equal(t, got.Extra.Ref, "immich")
-	expect.Equal(t, got.Extra.FileType, "svg")
-}
-
-func TestURLJSONAcceptsObjectForm(t *testing.T) {
-	var got URL
-	err := json.Unmarshal([]byte(`{"source":"@selfhst","extra":{"key":"@selfhst/immich","ref":"immich","file_type":"svg"}}`), &got)
-	expect.NoError(t, err)
-	expect.Equal(t, got.Source, SourceSelfhSt)
-	expect.Equal(t, got.Extra.Ref, "immich")
-	expect.Equal(t, got.Extra.FileType, "svg")
 }

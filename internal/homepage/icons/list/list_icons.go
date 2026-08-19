@@ -128,7 +128,45 @@ func ListAvailableIcons() IconMap {
 	return iconsCache.Load()
 }
 
+// isExtensionPrefix reports whether s begins an image extension, so a reference
+// that is still being typed or edited ("immich.sv") matches like a complete one.
+func isExtensionPrefix(s string) bool {
+	for _, ext := range []string{"svg", "png", "webp"} {
+		if strutils.HasPrefixFold(ext, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseKeyword splits an icon reference such as "@selfhst/immich-dark.svg" into
+// the source it names and the bare reference to match against.
+// Keywords that are not icon references are returned unchanged with an empty source.
+func parseKeyword(keyword string) (icons.Source, string) {
+	prefix, ref, ok := strings.Cut(keyword, "/")
+	if !ok || !strings.HasPrefix(prefix, "@") {
+		return "", keyword
+	}
+	source := icons.Source(strings.ToLower(prefix))
+	switch source {
+	case icons.SourceWalkXCode, icons.SourceSelfhSt:
+	default:
+		return "", keyword
+	}
+	if dot := strings.LastIndexByte(ref, '.'); dot != -1 && isExtensionPrefix(ref[dot+1:]) {
+		ref = ref[:dot]
+	}
+	for _, variant := range []string{"-light", "-dark"} {
+		if strutils.HasSuffixFold(ref, variant) {
+			ref = ref[:len(ref)-len(variant)]
+			break
+		}
+	}
+	return source, ref
+}
+
 func SearchIcons(keyword string, limit int) []*IconMetaSearch {
+	sourceFilter, keyword := parseKeyword(keyword)
 	if keyword == "" {
 		return []*IconMetaSearch{}
 	}
@@ -151,6 +189,9 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 	icons := ListAvailableIcons()
 	for k, icon := range icons.Range {
 		source, ref := k.SourceRef()
+		if sourceFilter != "" && source != sourceFilter {
+			continue
+		}
 
 		var rank int
 		switch {
