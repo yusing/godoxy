@@ -160,6 +160,9 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 		case strutils.HasPrefixFold(ref, dashedKeyword):
 			// prefix match: rank by how much extra the name has (shorter = better)
 			rank = 100 + len(ref) - len(dashedKeyword)
+		case strutils.HasPrefixFold(dashedKeyword, ref+"-"):
+			// keyword is a suffixed form of the icon: immich-server -> immich
+			rank = 200 + len(dashedKeyword) - len(ref)
 		case strutils.ContainsFold(ref, dashedKeyword) || strutils.ContainsFold(icon.DisplayName, whitespacedKeyword):
 			// contains match
 			rank = 500 + len(ref) - len(dashedKeyword)
@@ -178,9 +181,6 @@ func SearchIcons(keyword string, limit int) []*IconMetaSearch {
 			rank:   rank,
 		}
 		results = append(results, ranked)
-		if len(results) == searchLimit {
-			break
-		}
 	}
 
 	slices.SortStableFunc(results, sortByRank)

@@ -303,6 +303,12 @@ func ListAvailableIcons() IconMap
 // SearchIcons performs fuzzy search on icon names
 func SearchIcons(keyword string, limit int) []*IconMetaSearch
 
+// ExpandRefs sanitizes refs and adds suffix-stripped candidates (immich-server -> immich)
+func ExpandRefs(refs []string) []string
+
+// Resolve finds catalog metadata and/or an icon URL from route references
+func Resolve(refs []string) (u *URL, meta HomepageMeta, ok bool)
+
 // HasIcon checks if an icon exists in the catalog
 func HasIcon(icon *URL) bool
 ```
@@ -312,6 +318,7 @@ func HasIcon(icon *URL) bool
 - Updates from walkxcode and selfh.st CDNs every 2 hours
 - Persists cache to disk for fast startup
 - Fuzzy search uses Levenshtein distance ranking
+- Suffixed names (`immich-server`) match the base icon (`immich`)
 
 ## Configuration
 

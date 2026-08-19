@@ -181,6 +181,66 @@ func TestListSelfhstIcons(t *testing.T) {
 	runTests(t, m, test)
 }
 
+func TestExpandRefsStripsServiceSuffix(t *testing.T) {
+	got := ExpandRefs([]string{"immich-server", "Immich_Server", "arcane"})
+	if len(got) < 3 {
+		t.Fatalf("expected expanded refs, got %v", got)
+	}
+	want := map[string]bool{
+		"immich-server": false,
+		"immich":        false,
+		"arcane":        false,
+	}
+	for _, ref := range got {
+		if _, ok := want[ref]; ok {
+			want[ref] = true
+		}
+	}
+	for ref, found := range want {
+		if !found {
+			t.Fatalf("missing ref %q in %v", ref, got)
+		}
+	}
+}
+
+func TestSearchIconsMatchesSuffixedKeyword(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "immich"), &Meta{SVG: true, DisplayName: "Immich"})
+	m.Store(NewKey(SourceWalkXCode, "unrelated"), &Meta{PNG: true})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	results := SearchIcons("immich-server", 5)
+	if len(results) == 0 {
+		t.Fatal("expected immich icon for immich-server")
+	}
+	if results[0].Ref != "immich" {
+		t.Fatalf("expected immich first, got %s", results[0].Ref)
+	}
+}
+
+func TestResolveImmichServer(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "immich"), &Meta{
+		SVG:         true,
+		DisplayName: "Immich",
+		Tag:         "Media",
+	})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	u, meta, ok := Resolve([]string{"immich-server"})
+	if !ok {
+		t.Fatal("expected resolve to succeed")
+	}
+	if meta.DisplayName != "Immich" || meta.Tag != "Media" {
+		t.Fatalf("unexpected meta: %+v", meta)
+	}
+	if u == nil || u.String() != "@selfhst/immich.svg" {
+		t.Fatalf("unexpected icon %v", u)
+	}
+}
+
 func mockHTTPGet(tb testing.TB, body []byte) {
 	tb.Helper()
 

@@ -41,3 +41,25 @@ func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) 
 	require.False(t, r.ShouldExclude())
 	require.Equal(t, 8080, r.Port.Proxy)
 }
+
+func TestFinalizeHomepage_ImmichServerUsesImmichCategory(t *testing.T) {
+	r := &route.Route{
+		Alias: "immich-server",
+		Metadata: route.Metadata{
+			Container: &docker.Container{
+				ContainerName:   "immich-server",
+				Image:           &docker.Image{Name: "immich-server"},
+				PrivateHostname: "172.18.0.2",
+				PrivatePortMapping: docker.PortMapping{
+					2283: container.Port{PrivatePort: 2283, Type: "tcp"},
+				},
+			},
+		},
+	}
+
+	finalize(t.Context(), r)
+
+	require.NotNil(t, r.Homepage)
+	require.Equal(t, "Media", r.Homepage.Category)
+	require.Equal(t, "Immich Server", r.Homepage.Name)
+}

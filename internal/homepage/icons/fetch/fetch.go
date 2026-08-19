@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/vincent-petithory/dataurl"
 	"github.com/yusing/godoxy/internal/homepage/icons"
+	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/cache"
 	httputils "github.com/yusing/goutils/http"
@@ -135,17 +136,6 @@ var FetchIconAbsolute = cache.NewKeyFunc(func(ctx context.Context, url string) (
 	return res, nil
 }).WithMaxEntries(200).WithRetriesExponentialBackoff(3).WithTTL(4 * time.Hour).Build()
 
-var nameSanitizer = strings.NewReplacer(
-	"_", "-",
-	" ", "-",
-	"(", "",
-	")", "",
-)
-
-func sanitizeName(name string) string {
-	return strings.ToLower(nameSanitizer.Replace(name))
-}
-
 func fetchKnownIcon(ctx context.Context, url *icons.URL) (Result, error) {
 	// if icon isn't in the list, no need to fetch
 	if !url.HasIcon() {
@@ -177,8 +167,7 @@ type contextValue struct {
 type contextKey struct{}
 
 func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (Result, error) {
-	for _, ref := range r.References() {
-		ref = sanitizeName(ref)
+	for _, ref := range iconlist.ExpandRefs(r.References()) {
 		if variant != icons.VariantNone {
 			ref += "-" + string(variant)
 		}

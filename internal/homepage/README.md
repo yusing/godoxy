@@ -223,7 +223,8 @@ homepageMap.Add(item)
 
 ## Override Configuration
 
-Items can have override configurations for customization:
+Items can have override configurations for customization. WebUI edits live in
+the homepage jsonstore and are flushed on shutdown.
 
 ```go
 // GetOverride returns the effective configuration
@@ -231,6 +232,8 @@ func (cfg Item) GetOverride() Item {
     return overrideConfigInstance.GetOverride(cfg)
 }
 ```
+
+A missing override icon does not replace an auto-detected icon.
 
 ## Sorting Methods
 

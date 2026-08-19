@@ -1,6 +1,7 @@
 package homepage_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	. "github.com/yusing/godoxy/internal/homepage"
@@ -135,4 +136,55 @@ func TestOverrideItems_Bulk(t *testing.T) {
 	expect.Equal(t, gb.Name, "B*")
 	expect.Equal(t, gb.Category, "BY")
 	expect.Equal(t, gb.Show, false)
+}
+
+func TestGetOverride_KeepsDiscoveredIconWhenOverrideHasNone(t *testing.T) {
+	discovered := &icons.URL{
+		FullURL: new("/favicon.ico"),
+		Source:  icons.SourceRelative,
+	}
+	a := &Item{
+		Alias: "immich-server",
+		ItemConfig: ItemConfig{
+			Show: true,
+			Name: "Immich",
+			Icon: discovered,
+		},
+	}
+	overrides := GetOverrideConfig()
+	overrides.Initialize()
+	overrides.OverrideItem(a.Alias, ItemConfig{
+		Show:     true,
+		Name:     "Immich Photos",
+		Category: "Media",
+	})
+
+	got := a.GetOverride()
+	expect.Equal(t, got.Name, "Immich Photos")
+	expect.Equal(t, got.Icon, discovered)
+}
+
+func TestOverrideIconJSONRoundTrip(t *testing.T) {
+	cfg := &OverrideConfig{}
+	cfg.Initialize()
+	cfg.ItemOverrides["arcane"] = ItemConfig{
+		Show: true,
+		Name: "Arcane",
+		Icon: icons.NewURL(icons.SourceSelfhSt, "arcane", "svg"),
+	}
+
+	data, err := json.Marshal(cfg)
+	expect.NoError(t, err)
+
+	loaded := &OverrideConfig{}
+	loaded.Initialize()
+	expect.NoError(t, json.Unmarshal(data, loaded))
+
+	got, ok := loaded.ItemOverrides["arcane"]
+	if !ok {
+		t.Fatal("expected arcane override")
+	}
+	if got.Icon == nil || got.Icon.String() != "@selfhst/arcane.svg" {
+		t.Fatalf("icon not restored: %+v", got.Icon)
+	}
 }

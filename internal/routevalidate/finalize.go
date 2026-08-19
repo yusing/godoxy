@@ -144,16 +144,15 @@ func finalizeHomepageConfig(ctx context.Context, r *route.Route) {
 
 	hp := r.Homepage
 	refs := r.References()
-	for _, ref := range refs {
-		meta, ok := iconlist.GetMetadata(ref)
-		if ok {
-			if hp.Name == "" {
-				hp.Name = meta.DisplayName
-			}
-			if hp.Category == "" {
-				hp.Category = meta.Tag
-			}
-			break
+	if u, meta, ok := iconlist.Resolve(refs); ok {
+		if hp.Name == "" && meta.DisplayName != "" {
+			hp.Name = meta.DisplayName
+		}
+		if hp.Category == "" && meta.Tag != "" {
+			hp.Category = meta.Tag
+		}
+		if hp.Icon == nil {
+			hp.Icon = u
 		}
 	}
 
@@ -172,7 +171,7 @@ func finalizeHomepageConfig(ctx context.Context, r *route.Route) {
 			useDefaultCategories = state.Value().Homepage.UseDefaultCategories
 		}
 		if useDefaultCategories {
-			for _, ref := range refs {
+			for _, ref := range iconlist.ExpandRefs(refs) {
 				if category, ok := homepage.PredefinedCategories[ref]; ok {
 					hp.Category = category
 					break
