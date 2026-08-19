@@ -241,6 +241,21 @@ const (
 
 Log context includes: `alias`, `key`, `provider`, `method`
 
+### Live Activity
+
+Every idlewatcher state change is published to the global event history used by `/api/v1/events`. Loading-page SSE wake progress still uses the per-watcher history, and the same wake steps are also mirrored to Live Activity.
+
+| Category     | Action           | When                                         |
+| ------------ | ---------------- | -------------------------------------------- |
+| `idle_event` | `starting`       | Container enters the starting state          |
+| `idle_event` | `waking_dep`     | A dependency wake begins                     |
+| `idle_event` | `dep_ready`      | A dependency is awake                        |
+| `idle_event` | `container_woke` | Container start/unpause succeeded            |
+| `idle_event` | `waiting_ready`  | Waiting for health to pass                   |
+| `idle_event` | `ready`          | Container is ready                           |
+| `idle_event` | `napping`        | Container stopped or paused                  |
+| `idle_event` | `error`          | Wake, health, or idle-stop failed            |
+
 ### Metrics
 
 No metrics exposed directly; health check metrics available via `internal/health/monitor`.

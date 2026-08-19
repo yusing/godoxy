@@ -71,8 +71,9 @@ type (
 		task           *task.Task
 
 		// Per-watcher event history (for SSE and debug)
-		events   *gevents.History
-		eventsMu sync.Mutex
+		events         *gevents.History
+		eventsMu       sync.Mutex
+		lastIdleAction synk.Value[string]
 
 		dependenciesMu    sync.RWMutex
 		dependsOn         []*dependency
@@ -369,7 +370,11 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 
 			w.idleTicker.Stop()
 			w.healthTicker.Stop()
-			w.setReady()
+			// Unblock waiters without publishing a ready Live Activity event.
+			w.storeState(&containerState{
+				status: idlewatcher.ContainerStatusRunning,
+				ready:  true,
+			})
 			w.task.Finish(cause)
 		}()
 	}
@@ -735,6 +740,7 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 						err = errors.New("timeout waiting for container to stop, please set a higher value for `stop_timeout`")
 					}
 					w.l.Err(err).Msgf("container stop with method %q failed", w.cfg.StopMethod)
+					w.emitIdleActivity(gevents.LevelError, IdleEventActionError, w.cfg.ContainerName()+" failed to sleep", err)
 				default:
 					w.l.Info().Msg("idle timeout")
 				}

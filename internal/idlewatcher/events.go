@@ -25,6 +25,26 @@ const (
 	WakeEventError         WakeEventType = "error"
 )
 
+const (
+	IdleEventCategory            = "idle_event"
+	IdleEventActionStarting      = string(WakeEventStarting)
+	IdleEventActionWakingDep     = string(WakeEventWakingDep)
+	IdleEventActionDepReady      = string(WakeEventDepReady)
+	IdleEventActionContainerWoke = string(WakeEventContainerWoke)
+	IdleEventActionWaitingReady  = string(WakeEventWaitingReady)
+	IdleEventActionReady         = string(WakeEventReady)
+	IdleEventActionError         = string(WakeEventError)
+	IdleEventActionNapping       = "napping"
+)
+
+type IdleActivityEvent struct {
+	Container string `json:"container"`
+	Route     string `json:"route,omitempty"`
+	Status    string `json:"status,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
 func writeSSE(w io.Writer, v any) error {
 	data, err := strutils.MarshalJSON(v)
 	if err != nil {
@@ -85,4 +105,38 @@ func (w *Watcher) sendEvent(eventType WakeEventType, message string, err error) 
 		string(eventType),
 		wakeEvent,
 	))
+	w.emitIdleActivity(level, string(eventType), message, err)
+}
+
+func (w *Watcher) emitIdleActivity(level gevents.Level, action, message string, err error) {
+	if w.task == nil {
+		return
+	}
+	if w.task.Context().Err() != nil {
+		return
+	}
+	history := gevents.FromCtx(w.task.Context())
+	if history == nil {
+		return
+	}
+
+	if err == nil && w.lastIdleAction.Load() == action {
+		return
+	}
+	w.lastIdleAction.Store(action)
+
+	data := &IdleActivityEvent{
+		Container: w.cfg.ContainerName(),
+		Message:   message,
+	}
+	if state := w.state.Load(); state != nil && state.status != "" {
+		data.Status = string(state.status)
+	}
+	if w.route != nil {
+		data.Route = w.route.Name()
+	}
+	if err != nil {
+		data.Error = err.Error()
+	}
+	history.Add(gevents.NewEvent(level, IdleEventCategory, action, data))
 }

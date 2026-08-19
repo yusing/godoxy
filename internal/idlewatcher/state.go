@@ -5,6 +5,7 @@ import (
 	"time"
 
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	gevents "github.com/yusing/goutils/events"
 )
 
 func (w *Watcher) running() bool {
@@ -37,6 +38,7 @@ func (w *Watcher) setReady() {
 }
 
 func (w *Watcher) setStarting() {
+	alreadyStarting := w.wakeInProgress()
 	now := time.Now()
 	w.storeState(&containerState{
 		status:    idlewatcher.ContainerStatusRunning,
@@ -45,6 +47,9 @@ func (w *Watcher) setStarting() {
 	})
 	w.healthTicker.Reset(idleWakerCheckInterval)
 	w.l.Debug().Time("started_at", now).Msg("container starting")
+	if !alreadyStarting {
+		w.emitIdleActivity(gevents.LevelInfo, IdleEventActionStarting, w.cfg.ContainerName()+" is starting...", nil)
+	}
 }
 
 func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
@@ -55,6 +60,11 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 		startedAt:   time.Time{},
 		healthTries: 0,
 	})
+	message := w.cfg.ContainerName() + " went to sleep"
+	if status == idlewatcher.ContainerStatusPaused {
+		message = w.cfg.ContainerName() + " was paused"
+	}
+	w.emitIdleActivity(gevents.LevelInfo, IdleEventActionNapping, message, nil)
 }
 
 func (w *Watcher) setError(err error) {
