@@ -335,7 +335,7 @@ help = "Build a dev binary and restart the development compose app."
 sandboxed = false
 pre = ["@build[component=godoxy,mode=dev]"]
 cmd = '''
-docker compose -f dev.compose.yml up -t 0 -d app --force-recreate
+docker compose -f dev.compose.yml up -t 5 -d app --force-recreate
 docker compose logs -f -n200 app
 '''
 
