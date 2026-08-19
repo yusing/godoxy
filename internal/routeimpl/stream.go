@@ -48,7 +48,9 @@ func (r *StreamRoute) Start(parent task.Parent) error {
 	}
 	r.stream = stream
 
-	r.Init(parent, "stream."+r.Name(), !r.ShouldExclude())
+	// Stream work is cancel-driven: ListenAndServe returns after starting the
+	// accept loop, so there is no Serve-like owner that calls Finish.
+	r.Init(parent, "stream."+r.Name(), false)
 	r.Task().SetValue(health.DisplayNameKey{}, r.DisplayName())
 
 	switch {
