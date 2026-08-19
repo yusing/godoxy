@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/health/monitor"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
+	"github.com/yusing/godoxy/internal/jsonstore"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/logging/memlogger"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
@@ -100,6 +101,10 @@ func main() {
 	close(done)
 
 	task.WaitExit(config.ShutdownTimeout())
+
+	// after WaitExit, so a shutdown that gives up on stuck tasks cannot exit
+	// while the write is still in flight
+	jsonstore.Save()
 }
 
 func initializeRuntimeServices(ctx context.Context) error {

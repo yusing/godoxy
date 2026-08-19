@@ -271,25 +271,17 @@ func loadNS[T store](ns namespace) T {
 
 ### Automatic Saving
 
-On program exit, all stores are saved:
+The shutdown write is `jsonstore.Save()`, called by `cmd/main.go` **after**
+`task.WaitExit` returns. It must not be a `task.OnProgramExit` callback:
+those run in detached goroutines, and `WaitExit` stops waiting for them as soon
+as a child task exceeds the shutdown timeout (it logs `root stucked callbacks`
+and returns), so the process can exit while the write is still in flight.
 
 ```go
-func init() {
-    task.OnProgramExit("save_stores", func() {
-        if err := save(); err != nil {
-            log.Error().Err(err).Msg("failed to save stores")
-        }
-    })
-}
-
-func save() error {
-    for ns, store := range stores {
-        path := filepath.Join(storesPath, string(ns)+".json")
-        if err := serialization.SaveFile(path, &store, 0o644, strutils.MarshalJSON); err != nil {
-            return err
-        }
+func Save() {
+    if err := save(); err != nil {
+        log.Error().Err(err).Msg("failed to save stores")
     }
-    return nil
 }
 ```
 
@@ -340,7 +332,7 @@ func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 The jsonstore package integrates with:
 
 - **Serialization**: JSON marshaling/unmarshaling
-- **Task Management**: Program exit callbacks
+- **Task Management**: `Save()` after `task.WaitExit`
 - **Common**: Data directory configuration
 
 ## Error Handling
@@ -360,4 +352,4 @@ if err := strutils.UnmarshalJSON(data, &tmp); err != nil {
 - Uses `xsync.Map` for lock-free reads
 - Presizes maps based on input data
 - JSON via `github.com/yusing/goutils/strings` helpers (in godoxy, sonic is registered as the backend from `internal/serialization`)
-- Background save on program exit (non-blocking)
+- Save on program exit after `WaitExit`

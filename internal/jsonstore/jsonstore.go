@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
-	"github.com/yusing/goutils/task"
 )
 
 type namespace string
@@ -40,12 +39,16 @@ var (
 	storesPath = common.DataDir
 )
 
-func init() {
-	task.OnProgramExit("save_stores", func() {
-		if err := save(); err != nil {
-			log.Error().Err(err).Msg("failed to save stores")
-		}
-	})
+// Save writes every store to disk.
+//
+// The caller must invoke this on the shutdown path once task.WaitExit returns.
+// Registering it as an OnProgramExit callback is not enough: those callbacks
+// run in detached goroutines that WaitExit stops waiting for as soon as a child
+// task exceeds the shutdown timeout, so the process can exit mid-write.
+func Save() {
+	if err := save(); err != nil {
+		log.Error().Err(err).Msg("failed to save stores")
+	}
 }
 
 func loadNS[T store](ns namespace) T {
