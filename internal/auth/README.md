@@ -40,6 +40,8 @@ type Provider interface {
 
 ```go
 type OIDCProvider struct {
+    hash          string // sha256(issuer_url\nclient_id)
+    issuerURL     string
     oauthConfig   *oauth2.Config
     oidcProvider  *oidc.Provider
     oidcVerifier  *oidc.IDTokenVerifier
@@ -118,16 +120,16 @@ func NewUserPassAuthFromEnv() (*UserPassAuth, error)
 Creates username/password auth from environment variables `API_USER`, `API_PASSWORD`, `API_JWT_SECRET`.
 
 ```go
-func NewOIDCProvider(issuerURL, clientID, clientSecret string, allowedUsers, allowedGroups []string) (*OIDCProvider, error)
+func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret string, scopes, allowedUsers, allowedGroups []string) (*OIDCProvider, error)
 ```
 
-Creates a new OIDC provider. Returns error if issuer cannot be reached or no allowed users/groups are configured.
+Creates a new OIDC provider. When a global provider is already initialized for the same issuer and client ID, discovery and verifier state are reused while the supplied secret, scopes, and allow lists stay on the new provider. Returns an error if the issuer cannot be reached or no allowed users/groups are configured. Route middleware can call this without enabling global OIDC.
 
 ```go
-func NewOIDCProviderFromEnv() (*OIDCProvider, error)
+func NewOIDCProviderFromEnv(ctx context.Context) (*OIDCProvider, error)
 ```
 
-Creates OIDC provider from environment variables `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, etc.
+Creates OIDC provider from environment variables `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, etc.
 
 ## Architecture
 
@@ -214,9 +216,9 @@ sequenceDiagram
 | `OIDC_REDIRECT_URL`      | OIDC redirect URL                                           |
 | `OIDC_ALLOWED_USERS`     | Comma-separated list of allowed users                       |
 | `OIDC_ALLOWED_GROUPS`    | Comma-separated list of allowed groups                      |
-| `OIDC_SCOPES`            | Comma-separated OIDC scopes (default: openid,profile,email) |
+| `OIDC_SCOPES`            | Comma-separated OIDC scopes (default: openid, profile, email, groups) |
 | `OIDC_RATE_LIMIT`        | Rate limit requests (default: 10)                           |
-| `OIDC_RATE_LIMIT_PERIOD` | Rate limit period (default: 1m)                             |
+| `OIDC_RATE_LIMIT_PERIOD` | Rate limit period (default: 1s)                             |
 
 ### Hot-reloading
 
@@ -325,9 +327,11 @@ http.HandleFunc("/api/", auth.AuthCheckHandler(apiHandler))
 
 ```go
 provider, err := auth.NewOIDCProvider(
+    ctx,
     "https://your-idp.com",
     "your-client-id",
     "your-client-secret",
+    []string{"openid", "profile", "email", "groups"},
     []string{"user1", "user2"},
     []string{"group1"},
 )

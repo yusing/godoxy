@@ -49,6 +49,14 @@ The socket proxy is configured via environment variables:
 DOCKER_SOCKET=/var/run/docker.sock LISTEN_ADDR=:2375 go run main.go
 ```
 
+## Building the image
+
+Socket-proxy images build from the shared repository `Dockerfile` `socket-proxy` target:
+
+```bash
+docker build --target socket-proxy -t ghcr.io/yusing/socket-proxy:latest .
+```
+
 ## Related Packages
 
 - `socketproxy/pkg` - Core proxy implementation with route handling and reverse proxy logic

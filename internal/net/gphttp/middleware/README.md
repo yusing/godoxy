@@ -184,7 +184,7 @@ entrypoint:
 | Name                            | Type     | Description                                |
 | ------------------------------- | -------- | ------------------------------------------ |
 | `redirecthttp`                  | Request  | Redirect HTTP to HTTPS                     |
-| `oidc`                          | Request  | OIDC authentication                        |
+| `oidc`                          | Request  | OIDC authentication; optional standalone issuer, credentials, scopes, and allow lists |
 | `forwardauth`                   | Request  | Forward authentication to external service |
 | `modifyrequest` / `request`     | Request  | Modify request headers and path            |
 | `modifyresponse` / `response`   | Response | Modify response headers                    |
@@ -258,8 +258,14 @@ if err != nil {
   burst: 200
 
 - use: oidc
+  issuer_url: https://auth.example.com/application/o/app-b/
   allowed_users:
     - user@example.com
+  scopes:
+    - openid
+    - profile
+    - email
+    - groups
 ```
 
 ```go
