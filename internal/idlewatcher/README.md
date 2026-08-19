@@ -78,7 +78,8 @@ func (w *Watcher) Wake(ctx context.Context) error
 func (w *Watcher) Start(parent task.Parent) error
 
 // ServeHTTP promptly serves the loading page while wake-up continues on the watcher task;
-// non-HTML and no_loading_page requests wait so the original request can be proxied
+// non-HTML and no_loading_page requests wait so the original request can be proxied.
+// FindIcon scrapes skip wake and, when the container is not ready, return 503.
 func (w *Watcher) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 
 // ListenAndServe handles stream connections with idle detection

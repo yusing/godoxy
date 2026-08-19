@@ -100,6 +100,17 @@ func serveStaticContent(rw http.ResponseWriter, status int, contentType string, 
 }
 
 func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldNext bool) {
+	// FindIcon scrapes through ServeHTTP. Do not treat that as user traffic:
+	// GET / has no Accept header and would otherwise wake the container, and
+	// a follow-up /favicon.ico would re-enter getFavIcon.
+	if iconfetch.IsFetch(r.Context()) {
+		if w.ready() {
+			return true
+		}
+		http.Error(rw, "service unavailable", http.StatusServiceUnavailable)
+		return false
+	}
+
 	w.resetIdleTimer()
 
 	// handle static files

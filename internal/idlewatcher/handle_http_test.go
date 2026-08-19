@@ -15,7 +15,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/health"
+	"github.com/yusing/godoxy/internal/homepage/icons"
+	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gevents "github.com/yusing/goutils/events"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -153,6 +156,98 @@ func TestServeHTTPLoadingPageDoesNotWaitForWake(t *testing.T) {
 	require.EqualValues(t, 1, provider.starts.Load(), "concurrent loading requests must share one wake operation")
 
 	close(provider.release)
+}
+
+func TestServeHTTPIconFetchDoesNotWake(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req = req.WithContext(iconfetch.ContextWithFetch(req.Context()))
+
+	w.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	select {
+	case <-provider.started:
+		t.Fatal("icon fetch woke a napping container")
+	default:
+	}
+}
+
+func TestServeHTTPIconFetchReadyProxiesWithoutWaking(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("Content-Type", "image/png")
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("proxied-icon"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	targetURL, err := url.Parse(upstream.URL)
+	require.NoError(t, err)
+
+	w, provider := newBlockingWakeWatcher(t)
+	w.rp = reverseproxy.NewReverseProxy("idlewatcher-icon-fetch", targetURL, upstream.Client().Transport)
+	w.setReady()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/favicon.ico", nil)
+	req = req.WithContext(iconfetch.ContextWithFetch(req.Context()))
+
+	w.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "proxied-icon", rec.Body.String())
+	require.Zero(t, provider.starts.Load())
+}
+
+func TestServeHTTPFavIconDoesNotWakeNappingContainer(t *testing.T) {
+	w, provider := newBlockingWakeWatcher(t)
+	route := newIdlewatcherTestRoute("favicon-napping", nil, nil)
+	route.healthMon = w
+	w.route = &iconHTTPRoute{idlewatcherTestRoute: route, handler: w}
+
+	rec := httptest.NewRecorder()
+	w.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://example.com"+idlewatchertypes.FavIconPath, nil))
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	select {
+	case <-provider.started:
+		t.Fatal("favicon request woke a napping container")
+	default:
+	}
+}
+
+func TestFindIconDoesNotWakeOrRecurseThroughFavIcon(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == idlewatchertypes.FavIconPath {
+			rw.Header().Set("Content-Type", "image/png")
+			rw.WriteHeader(http.StatusOK)
+			_, _ = rw.Write([]byte("upstream-icon"))
+			return
+		}
+		rw.Header().Set("Content-Type", "text/html")
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte(`<html><head><link rel="icon" href="/favicon.ico"></head></html>`))
+	}))
+	t.Cleanup(upstream.Close)
+
+	targetURL, err := url.Parse(upstream.URL)
+	require.NoError(t, err)
+
+	w, provider := newBlockingWakeWatcher(t)
+	w.rp = reverseproxy.NewReverseProxy("idlewatcher-icon-recurse", targetURL, upstream.Client().Transport)
+	w.setReady()
+	route := newIdlewatcherTestRoute("favicon-recurse", nil, nil)
+	route.targetURL = nettypes.NewURL(targetURL)
+	route.healthMon = w
+	httpRoute := &iconHTTPRoute{idlewatcherTestRoute: route, handler: w}
+	w.route = httpRoute
+
+	result, err := iconfetch.FindIcon(t.Context(), httpRoute, "/", icons.VariantNone)
+
+	require.NoError(t, err)
+	require.Equal(t, []byte("upstream-icon"), result.Icon)
+	require.Zero(t, provider.starts.Load(), "icon scrape must not start the container")
 }
 
 func TestServeHTTPLoadingPageRequestClassification(t *testing.T) {
@@ -696,6 +791,15 @@ func TestWaitForReadyBroadcastsReadyToAllWaiters(t *testing.T) {
 			t.Fatal("ready transition did not release every waiter")
 		}
 	}
+}
+
+type iconHTTPRoute struct {
+	*idlewatcherTestRoute
+	handler http.Handler
+}
+
+func (r *iconHTTPRoute) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	r.handler.ServeHTTP(rw, req)
 }
 
 func newTestWatcher(t *testing.T) *Watcher {

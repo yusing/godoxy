@@ -280,6 +280,7 @@ func FindIcon(ctx context.Context, r route, uri string, variant Variant) (Result
 - `FetchIconAbsolute` is cached with 200 entries and 4-hour TTL
 - `findIconSlow` has infinite retries with 15-second backoff
 - HTML parsing fallback extracts `<link rel=icon>` from target pages
+- HTML scrape runs only when the route health monitor reports healthy, so a dashboard favicon fetch cannot wake a napping or starting idle container
 
 ### list/
 

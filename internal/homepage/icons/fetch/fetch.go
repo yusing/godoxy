@@ -18,6 +18,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"github.com/vincent-petithory/dataurl"
+	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	apitypes "github.com/yusing/goutils/apitypes"
@@ -166,6 +167,20 @@ type contextValue struct {
 
 type contextKey struct{}
 
+// IsFetch reports whether ctx belongs to an in-progress FindIcon scrape.
+func IsFetch(ctx context.Context) bool {
+	_, ok := ctx.Value(contextKey{}).(contextValue)
+	return ok
+}
+
+// ContextWithFetch marks ctx as an in-progress FindIcon scrape.
+func ContextWithFetch(ctx context.Context) context.Context {
+	if IsFetch(ctx) {
+		return ctx
+	}
+	return context.WithValue(ctx, contextKey{}, contextValue{})
+}
+
 func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (Result, error) {
 	for _, ref := range iconlist.ExpandRefs(r.References()) {
 		if variant != icons.VariantNone {
@@ -177,7 +192,9 @@ func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (
 		}
 	}
 	if r, ok := r.(httpRoute); ok {
-		if mon := r.HealthMonitor(); mon != nil && !mon.Status().Good() {
+		// Napping and starting are "good" for routing, but scraping "/" would
+		// wake an idle container or re-enter the loading-page favicon handler.
+		if mon := r.HealthMonitor(); mon != nil && mon.Status() != health.StatusHealthy {
 			return FetchResultWithErrorf(http.StatusServiceUnavailable, "service unavailable")
 		}
 		// fallback to parse html
