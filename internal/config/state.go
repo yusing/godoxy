@@ -108,19 +108,21 @@ func NewState() *state {
 
 func (state *state) InitFromFile(filename string) error {
 	data, err := os.ReadFile(filename)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			state.Config = config.DefaultConfig()
-		} else {
-			state.addPreparationIssue("config", config.IssueRejecting, err)
-			return RejectingError{err}
-		}
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		state.addPreparationIssue("config", config.IssueRejecting, err)
+		return RejectingError{err}
 	}
+	// A missing file means every value comes from the defaults, which Init applies.
 	return state.Init(data)
 }
 
 func (state *state) Init(data []byte) error {
 	state.preparationIssues = nil
+
+	// The document only carries overrides, so every field it leaves out keeps its
+	// default. Without this, an existing config file silently zeroed defaults such
+	// as timeout_shutdown and homepage.use_default_categories.
+	state.Config = config.DefaultConfig()
 
 	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
 	if err != nil {

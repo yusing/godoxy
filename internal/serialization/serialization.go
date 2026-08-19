@@ -674,6 +674,12 @@ func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc,
 	if err := unmarshaler(data, &m); err != nil {
 		return err
 	}
+	if m == nil {
+		// An empty document (blank file, comments only) carries no fields, so the
+		// target keeps the values it already holds, like LoadFileIfExist does.
+		// MapUnmarshalValidate zeroes its target when handed a nil map.
+		m = make(map[string]any)
+	}
 	for _, intercept := range interceptFns {
 		if err := intercept(m); err != nil {
 			return err
