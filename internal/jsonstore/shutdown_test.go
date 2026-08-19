@@ -64,6 +64,8 @@ func TestMain(m *testing.M) {
 
 	go func() {
 		time.Sleep(50 * time.Millisecond)
+		// the change lands after the ticker would have fired, so only the
+		// shutdown write can persist it
 		store.Store("a", "1")
 		_ = syscall.Kill(os.Getpid(), syscall.SIGTERM)
 	}()

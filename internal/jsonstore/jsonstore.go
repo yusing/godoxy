@@ -1,17 +1,21 @@
 package jsonstore
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
+	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
-	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/task"
 )
 
 type namespace string
@@ -34,10 +38,20 @@ type store interface {
 	json.Unmarshaler
 }
 
+// saveInterval bounds how much of a store is lost when the process is killed
+// without running the shutdown callbacks (SIGKILL, OOM, host reset).
+const saveInterval = 30 * time.Second
+
 var (
+	mu         sync.Mutex // guards stores and lastSaved
 	stores     = make(map[namespace]store)
+	lastSaved  = make(map[namespace][]byte)
 	storesPath = common.DataDir
 )
+
+func init() {
+	go saveEvery(task.RootContext(), saveInterval)
+}
 
 // Save writes every store to disk.
 //
@@ -48,6 +62,22 @@ var (
 func Save() {
 	if err := save(); err != nil {
 		log.Error().Err(err).Msg("failed to save stores")
+	}
+}
+
+func saveEvery(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := save(); err != nil {
+				log.Error().Err(err).Msg("failed to save stores")
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
@@ -79,17 +109,51 @@ func loadNS[T store](ns namespace) T {
 }
 
 func save() error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	errs := gperr.NewBuilder("failed to save data stores")
 	for ns, store := range stores {
-		path := filepath.Join(storesPath, string(ns)+".json")
-		if err := serialization.SaveFile(path, &store, 0o644, strutils.MarshalJSON); err != nil {
+		if err := saveNS(ns, store); err != nil {
 			errs.Add(err)
 		}
 	}
 	return errs.Error()
 }
 
+// saveNS writes the store atomically, and skips the write when its content is
+// unchanged since the last successful save.
+func saveNS(ns namespace, store store) error {
+	data, err := strutils.MarshalJSON(store)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(lastSaved[ns], data) {
+		return nil
+	}
+
+	path := filepath.Join(storesPath, string(ns)+".json")
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+
+	lastSaved[ns] = data
+	log.Debug().
+		Str("namespace", string(ns)).
+		Str("path", path).
+		Msg("saved store")
+	return nil
+}
+
 func Store[VT any](namespace namespace) MapStore[VT] {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if _, ok := stores[namespace]; ok {
 		log.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}
@@ -99,6 +163,9 @@ func Store[VT any](namespace namespace) MapStore[VT] {
 }
 
 func Object[Ptr Initializer](namespace namespace) Ptr {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if _, ok := stores[namespace]; ok {
 		log.Fatal().Str("namespace", string(namespace)).Msg("namespace already exists")
 	}

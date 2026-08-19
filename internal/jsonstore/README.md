@@ -11,7 +11,7 @@ The jsonstore package implements a simple yet powerful JSON storage system for G
 - Namespace-based storage
 - Thread-safe concurrent map operations (xsync)
 - Automatic JSON loading on initialization
-- Automatic JSON saving on program exit
+- Automatic JSON saving, periodically and on program exit
 - Generic type support
 - Marshal/Unmarshal integration
 
@@ -30,9 +30,10 @@ graph TD
     H --> I[Parse JSON]
     I --> J[xsync.Map or Object]
 
-    K[Program Exit] --> L[Save All]
+    K[Ticker / Program Exit] --> L[Save All]
     L --> M[Serialize to JSON]
-    M --> N[Write Files]
+    M --> N[Write Temp File]
+    N --> O[Rename Over Store File]
 ```
 
 ## Core Components
@@ -136,7 +137,7 @@ var config = jsonstore.Object[*AppConfig]("app_config")
 // Access the object
 fmt.Printf("App: %s v%d\n", config.Name, config.Version)
 
-// Modify and save (automatic on exit)
+// Modify and save (automatic, periodic + on exit)
 config.Version = 2
 ```
 
@@ -172,7 +173,7 @@ func main() {
     settings.Theme = "light"
     cache.Store("key1", "value1")
 
-    // On program exit, all stores are automatically saved
+    // Stores are automatically saved periodically and on program exit
 }
 ```
 
@@ -198,7 +199,7 @@ sequenceDiagram
     Store->>File: Marshal JSON
     File-->>Store: Success
 
-    Note over Store,File: On program exit
+    Note over Store,File: Periodically and on program exit
     Store->>File: Save all stores
     File-->>Store: Complete
 ```
@@ -271,19 +272,30 @@ func loadNS[T store](ns namespace) T {
 
 ### Automatic Saving
 
+All stores are saved every `saveInterval`, and once more on the shutdown path.
+Callers never save individual changes; a kill that skips shutdown loses at most
+one interval of changes.
+
+```go
+func init() {
+    go saveEvery(task.RootContext(), saveInterval)
+}
+```
+
 The shutdown write is `jsonstore.Save()`, called by `cmd/main.go` **after**
 `task.WaitExit` returns. It must not be a `task.OnProgramExit` callback:
 those run in detached goroutines, and `WaitExit` stops waiting for them as soon
 as a child task exceeds the shutdown timeout (it logs `root stucked callbacks`
 and returns), so the process can exit while the write is still in flight.
 
-```go
-func Save() {
-    if err := save(); err != nil {
-        log.Error().Err(err).Msg("failed to save stores")
-    }
-}
-```
+Each namespace is written to `{namespace}.json.tmp` and renamed over
+`{namespace}.json`, so a kill during the write cannot truncate the live file.
+A namespace whose marshaled content is unchanged since the last successful save
+is skipped.
+
+Because saving runs while the process serves requests, a store type that is not
+inherently concurrency-safe (unlike `MapStore`, which wraps `xsync.Map`) must
+serialize itself under its own lock — see `homepage.OverrideConfig.MarshalJSON`.
 
 ## Thread Safety
 
@@ -332,7 +344,7 @@ func (s *MapStore[VT]) UnmarshalJSON(data []byte) error {
 The jsonstore package integrates with:
 
 - **Serialization**: JSON marshaling/unmarshaling
-- **Task Management**: `Save()` after `task.WaitExit`
+- **Task Management**: Program exit callbacks
 - **Common**: Data directory configuration
 
 ## Error Handling
@@ -352,4 +364,4 @@ if err := strutils.UnmarshalJSON(data, &tmp); err != nil {
 - Uses `xsync.Map` for lock-free reads
 - Presizes maps based on input data
 - JSON via `github.com/yusing/goutils/strings` helpers (in godoxy, sonic is registered as the backend from `internal/serialization`)
-- Save on program exit after `WaitExit`
+- Background periodic save plus a save on program exit; unchanged namespaces are skipped

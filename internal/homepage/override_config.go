@@ -6,6 +6,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/jsonstore"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 type OverrideConfig struct {
@@ -35,6 +36,18 @@ func (c *OverrideConfig) Initialize() {
 	c.ItemClicks = make(map[string]int)
 	c.ItemVisibility = make(map[string]bool)
 	c.ItemFavorite = make(map[string]bool)
+}
+
+// MarshalJSON implements json.Marshaler.
+//
+// The periodic jsonstore flush runs while the API is serving, so the maps must
+// not be read without the lock.
+func (c *OverrideConfig) MarshalJSON() ([]byte, error) {
+	type overrideConfig OverrideConfig // no marshaler, to avoid recursion
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return strutils.MarshalJSON((*overrideConfig)(c))
 }
 
 func (c *OverrideConfig) OverrideItem(alias string, override ItemConfig) {

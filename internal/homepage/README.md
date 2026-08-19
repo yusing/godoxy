@@ -224,7 +224,7 @@ homepageMap.Add(item)
 ## Override Configuration
 
 Items can have override configurations for customization. WebUI edits live in
-the homepage jsonstore and are flushed on shutdown.
+the homepage jsonstore, which is flushed periodically and on shutdown.
 
 ```go
 // GetOverride returns the effective configuration
