@@ -24,6 +24,7 @@ import (
 type (
 	IconMap  = *xsync.Map[icons.Key, *icons.Meta]
 	IconList []string
+	iconData map[icons.Key]*icons.Meta
 
 	IconMetaSearch struct {
 		*icons.Meta
@@ -56,23 +57,10 @@ func init() {
 }
 
 func InitCache() {
-	m := NewIconMap()
-	err := serialization.LoadFileIfExist(common.IconListCachePath, &m, strutils.UnmarshalJSON)
+	m, migrated, err := loadIconCache(common.IconListCachePath)
 	switch {
 	case err != nil:
-		// backward compatible
-		oldFormat := struct {
-			Icons      IconMap
-			LastUpdate time.Time
-		}{}
-		err = serialization.LoadFileIfExist(common.IconListCachePath, &oldFormat, strutils.UnmarshalJSON)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to load icons")
-		} else {
-			m = oldFormat.Icons
-			// store it to disk immediately
-			_ = serialization.SaveFile(common.IconListCachePath, &m, 0o644, strutils.MarshalJSON)
-		}
+		log.Error().Err(err).Msg("failed to load icons")
 	case m.Size() > 0:
 		log.Info().
 			Int("icons", m.Size()).
@@ -82,12 +70,18 @@ func InitCache() {
 			log.Error().Err(err).Msg("failed to update icons")
 		}
 	}
+	if migrated {
+		if err := saveIconCache(common.IconListCachePath, m); err != nil {
+			log.Warn().Err(err).Msg("failed to migrate icons cache")
+		}
+	}
 
 	iconsCache.Store(m)
 
 	task.OnProgramExit("save_icons_cache", func() {
-		icons := iconsCache.Load()
-		_ = serialization.SaveFile(common.IconListCachePath, &icons, 0o644, strutils.MarshalJSON)
+		if err := saveIconCache(common.IconListCachePath, iconsCache.Load()); err != nil {
+			log.Warn().Err(err).Msg("failed to save icons cache")
+		}
 	})
 
 	go backgroundUpdateIcons()
@@ -95,6 +89,40 @@ func InitCache() {
 
 func NewIconMap(options ...func(*xsync.MapConfig)) *xsync.Map[icons.Key, *icons.Meta] {
 	return xsync.NewMap[icons.Key, *icons.Meta](options...)
+}
+
+func loadIconCache(path string) (IconMap, bool, error) {
+	data := make(iconData)
+	currentErr := serialization.LoadFileIfExist(path, &data, strutils.UnmarshalJSON)
+	if currentErr == nil {
+		return newIconMap(data), false, nil
+	}
+
+	// Backward compatible with the cache wrapper used before the plain map format.
+	oldFormat := struct {
+		Icons      iconData
+		LastUpdate time.Time
+	}{}
+	legacyErr := serialization.LoadFileIfExist(path, &oldFormat, strutils.UnmarshalJSON)
+	if legacyErr != nil {
+		return NewIconMap(), false, gperr.Multiline().
+			Addf("current format: %v", currentErr).
+			Addf("legacy format: %v", legacyErr)
+	}
+	return newIconMap(oldFormat.Icons), true, nil
+}
+
+func newIconMap(data iconData) IconMap {
+	m := NewIconMap(xsync.WithPresize(len(data)))
+	for key, meta := range data {
+		m.Store(key, meta)
+	}
+	return m
+}
+
+func saveIconCache(path string, m IconMap) error {
+	data := xsync.ToPlainMap(m)
+	return serialization.SaveFile(path, &data, 0o644, strutils.MarshalJSON)
 }
 
 func backgroundUpdateIcons() {
@@ -112,7 +140,7 @@ func backgroundUpdateIcons() {
 				// swap old cache with new cache
 				iconsCache.Store(newCache)
 				// save it to disk
-				err := serialization.SaveFile(common.IconListCachePath, &newCache, 0o644, strutils.MarshalJSON)
+				err := saveIconCache(common.IconListCachePath, newCache)
 				if err != nil {
 					log.Warn().Err(err).Msg("failed to save icons")
 				}

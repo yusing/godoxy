@@ -2,9 +2,12 @@ package iconlist
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	. "github.com/yusing/godoxy/internal/homepage/icons"
 )
 
@@ -168,6 +171,66 @@ func TestListSelfhstIcons(t *testing.T) {
 		},
 	}
 	runTests(t, m, test)
+}
+
+func TestIconCacheRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "icons.json")
+	key := NewKey(SourceSelfhSt, "immich")
+	want := &Meta{SVG: true, PNG: true, Light: true}
+	m := NewIconMap()
+	m.Store(key, want)
+
+	require.NoError(t, saveIconCache(path, m))
+
+	got, migrated, err := loadIconCache(path)
+	require.NoError(t, err)
+	require.False(t, migrated)
+	require.Equal(t, 1, got.Size())
+	meta, ok := got.Load(key)
+	require.True(t, ok)
+	require.Equal(t, want, meta)
+}
+
+func TestLoadIconCacheAlwaysInitializesMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     string
+		migrated bool
+		wantSize int
+	}{
+		{name: "empty object", data: `{}`},
+		{name: "null", data: `null`},
+		{
+			name:     "legacy wrapper",
+			data:     `{"Icons":{"selfhst/immich":{"SVG":true}},"LastUpdate":"2026-05-01T00:00:00Z"}`,
+			migrated: true,
+			wantSize: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "icons.json")
+			require.NoError(t, os.WriteFile(path, []byte(tt.data), 0o600))
+
+			m, migrated, err := loadIconCache(path)
+			require.NoError(t, err)
+			require.NotNil(t, m)
+			require.Equal(t, tt.migrated, migrated)
+			require.Equal(t, tt.wantSize, m.Size())
+		})
+	}
+}
+
+func TestLoadIconCacheMalformed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "icons.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{`), 0o600))
+
+	m, migrated, err := loadIconCache(path)
+	require.Error(t, err)
+	require.NotNil(t, m)
+	require.False(t, migrated)
+	require.Zero(t, m.Size())
 }
 
 func TestExpandRefsDropsTrailingSegments(t *testing.T) {
