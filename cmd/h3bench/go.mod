@@ -1,6 +1,6 @@
 module h3bench
 
-go 1.26.5
+go 1.27.0
 
 require github.com/quic-go/quic-go v0.61.0
 

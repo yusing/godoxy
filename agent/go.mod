@@ -1,6 +1,6 @@
 module github.com/yusing/godoxy/agent
 
-go 1.26.5
+go 1.27.0
 
 replace (
 	github.com/shirou/gopsutil/v4 => ../internal/gopsutil
@@ -92,7 +92,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.73.0 // indirect
 	github.com/yusing/ds v0.4.1 // indirect
-	github.com/yusing/gointernals v0.2.0 // indirect
+	github.com/yusing/gointernals v0.2.1 // indirect
 	github.com/yusing/goutils/http/websocket v0.0.0-20260729070603-e4c7e978cbc2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect

@@ -196,8 +196,8 @@ github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZ
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yusing/ds v0.4.1 h1:syMCh7hO6Yw8xfcFkEaln3W+lVeWB/U/meYv6Wf2/Ig=
 github.com/yusing/ds v0.4.1/go.mod h1:XhKV4l7cZwBbbl7lRzNC9zX27zvCM0frIwiuD40ULRk=
-github.com/yusing/gointernals v0.2.0 h1:jyWB3kdUPkuU6s0r8QY/sS5h2WNBF4Kfisly8dtSVvg=
-github.com/yusing/gointernals v0.2.0/go.mod h1:xGzNbPGMm5Z8kG0t4JYISMscw+gMQlgghkLxlgRZv5Y=
+github.com/yusing/gointernals v0.2.1 h1:QlajBlRG6qbqfzjHmRq774pi+CUW/DILjFM6GjveHuM=
+github.com/yusing/gointernals v0.2.1/go.mod h1:xGzNbPGMm5Z8kG0t4JYISMscw+gMQlgghkLxlgRZv5Y=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.mongodb.org/mongo-driver/v2 v2.8.0 h1:CxWDGQYY8QQwNjAl/aq2sfWakdnWZynnqJ9F4DhHbP8=

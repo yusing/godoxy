@@ -112,11 +112,9 @@ func invalidateOAuthRefreshToken(sessionID sessionID) {
 
 func (auth *OIDCProvider) setSessionTokenCookie(w http.ResponseWriter, r *http.Request, session Session) {
 	claims := &sessionClaims{
-		Session: session,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    sessionTokenIssuer,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(common.APIJWTTokenTTL)),
-		},
+		Session:   session,
+		Issuer:    sessionTokenIssuer,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(common.APIJWTTokenTTL)),
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	signed, err := jwtToken.SignedString(common.APIJWTSecret)
