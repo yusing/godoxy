@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-acme/lego/v4/certcrypto"
+	"github.com/go-acme/lego/v5/certcrypto"
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/autocert"
@@ -38,6 +38,23 @@ func TestEABConfigRequired(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRegisteredProviderKeys(t *testing.T) {
+	dnsproviders.InitProviders()
+
+	// lego v5 renamed the rfc2136 package to dnsupdate; both keys stay valid so
+	// existing `provider: rfc2136` configs keep working.
+	for _, key := range []string{"rfc2136", "dnsupdate"} {
+		t.Run("registered/"+key, func(t *testing.T) {
+			require.Contains(t, autocert.Providers, key)
+		})
+	}
+
+	// lego v5 dropped googledomains after Google shut the service down.
+	t.Run("googledomains removed", func(t *testing.T) {
+		require.NotContains(t, autocert.Providers, "googledomains")
+	})
 }
 
 func TestEABHmacSerializationRedacted(t *testing.T) {
@@ -87,20 +104,37 @@ func TestExtraCertKeyPathsUnique(t *testing.T) {
 }
 
 func TestCertificateKeyType(t *testing.T) {
-	t.Run("default is EC256 in lego config", func(t *testing.T) {
+	t.Run("default is EC256", func(t *testing.T) {
 		cfg := &autocert.Config{Provider: autocert.ProviderLocal}
 		require.NoError(t, cfg.Validate())
-		_, legoCfg, err := cfg.GetLegoConfig()
+		_, _, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
-		require.Equal(t, certcrypto.EC256, legoCfg.Certificate.KeyType)
+		require.Equal(t, certcrypto.EC256, cfg.CertKeyType())
 	})
 
 	t.Run("rsa2048 alias", func(t *testing.T) {
 		cfg := &autocert.Config{Provider: autocert.ProviderLocal, CertificateKeyType: "rsa2048"}
 		require.NoError(t, cfg.Validate())
-		_, legoCfg, err := cfg.GetLegoConfig()
+		_, _, err := cfg.GetLegoConfig()
 		require.NoError(t, err)
-		require.Equal(t, certcrypto.RSA2048, legoCfg.Certificate.KeyType)
+		require.Equal(t, certcrypto.RSA2048, cfg.CertKeyType())
+	})
+
+	t.Run("legacy lego tokens still accepted", func(t *testing.T) {
+		// lego v5 renamed the KeyType enum values (P256 -> EC256, 2048 -> RSA2048).
+		// The old spellings stay valid as godoxy config values.
+		for token, want := range map[string]certcrypto.KeyType{
+			"P256": certcrypto.EC256,
+			"P384": certcrypto.EC384,
+			"2048": certcrypto.RSA2048,
+			"3072": certcrypto.RSA3072,
+			"4096": certcrypto.RSA4096,
+			"8192": certcrypto.RSA8192,
+		} {
+			cfg := &autocert.Config{Provider: autocert.ProviderLocal, CertificateKeyType: token}
+			require.NoError(t, cfg.Validate(), token)
+			require.Equal(t, want, cfg.CertKeyType(), token)
+		}
 	})
 
 	t.Run("invalid rejected at validate", func(t *testing.T) {
@@ -116,8 +150,8 @@ func TestCertificateKeyType(t *testing.T) {
 		}
 		require.NoError(t, main.Validate())
 		extra := main.Extra[0].AsConfig()
-		_, legoCfg, err := extra.GetLegoConfig()
+		_, _, err := extra.GetLegoConfig()
 		require.NoError(t, err)
-		require.Equal(t, certcrypto.RSA4096, legoCfg.Certificate.KeyType)
+		require.Equal(t, certcrypto.RSA4096, extra.CertKeyType())
 	})
 }

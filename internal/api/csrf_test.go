@@ -272,7 +272,7 @@ func (p *stubAutocertProvider) GetCertInfos() ([]autocert.CertInfo, error) {
 
 func (p *stubAutocertProvider) ScheduleRenewalAll(task.Parent) {}
 
-func (p *stubAutocertProvider) ObtainCertAll() error {
+func (p *stubAutocertProvider) ObtainCertAll(context.Context) error {
 	return nil
 }
 

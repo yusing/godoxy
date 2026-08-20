@@ -44,7 +44,7 @@ type Config struct {
     ACMEKeyPath string                       // ACME account private key
     Provider    string                       // DNS provider name
     Options     map[string]strutils.Redacted // Provider options
-    Resolvers   []string                     // DNS resolvers
+    Resolvers   []string                     // DNS resolvers (process-wide, see note below)
     CADirURL    string                       // Custom ACME CA directory
     CACerts     []string                     // Custom CA certificates
     EABKid      string                       // External Account Binding Key ID
@@ -86,7 +86,7 @@ func (p *Provider) GetCertInfos() ([]CertInfo, error)
 func (p *Provider) GetName() string
 
 // Obtain certificate if not exists
-func (p *Provider) ObtainCertIfNotExistsAll() error
+func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error
 
 // Force immediate renewal
 func (p *Provider) ForceExpiryAll() bool
@@ -102,9 +102,9 @@ func (p *Provider) PrintCertExpiriesAll()
 
 ```go
 type User struct {
-    Email        string                    // Account email
-    Registration *registration.Resource    // ACME registration
-    Key          crypto.PrivateKey         // Account key
+    Email        string                 // Account email
+    Registration *acme.ExtendedAccount  // ACME registration
+    Key          crypto.Signer          // Account key
 }
 ```
 
@@ -239,6 +239,11 @@ autocert:
     - 1.1.1.1:53
 ```
 
+`resolvers` sets the recursive nameservers used for the dns-01 propagation check.
+lego applies it to a process-wide DNS client, so when extra providers each set
+their own list, the last provider to initialise its ACME client wins. Set one
+list on the main provider unless you know all providers agree.
+
 ### Extra Providers
 
 ```yaml
@@ -264,7 +269,7 @@ autocert:
 
 ### External Dependencies
 
-- `github.com/go-acme/lego/v4` - ACME protocol implementation
+- `github.com/go-acme/lego/v5` - ACME protocol implementation
 - `github.com/rs/zerolog` - Structured logging
 
 ### Internal Dependencies

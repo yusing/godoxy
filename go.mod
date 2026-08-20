@@ -20,7 +20,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.20.0 // oidc authentication
 	github.com/fsnotify/fsnotify v1.10.1 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
-	github.com/go-acme/lego/v4 v4.35.2 // acme client
+	github.com/go-acme/lego/v5 v5.3.1 // acme client
 	github.com/go-playground/validator/v10 v10.30.3 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/gorilla/websocket v1.5.3 // websocket for API and agent
@@ -209,4 +209,5 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	golang.org/x/arch v0.30.0 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
 )

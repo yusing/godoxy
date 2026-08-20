@@ -8,8 +8,9 @@ def unquote(s: str) -> str:
     return s.strip().strip('"')
 
 
-url = "https://raw.githubusercontent.com/go-acme/lego/refs/heads/master/providers/dns/zz_gen_dns_providers.go"
-import_prefix = "github.com/go-acme/lego/v4/providers/dns/"
+# lego's default branch is "main" (v5); "master" is the v4 maintenance branch.
+url = "https://raw.githubusercontent.com/go-acme/lego/refs/heads/main/providers/dns/zz_gen_dns_providers.go"
+import_prefix = "github.com/go-acme/lego/v5/providers/dns/"
 response = requests.get(url)
 data: list[str] = [unquote(i) for i in response.text.split("\n") if import_prefix in i]
 data_map = {item.split("/")[-1]: item for item in data}
@@ -33,11 +34,11 @@ allowlist = [
     "clouddns",
     "desec",
     "digitalocean",
+    "dnsupdate",
     "duckdns",
     "edgedns",
     "gcloud",
     "godaddy",
-    "googledomains",
     "hetzner",
     "hostinger",
     "httpreq",
@@ -50,7 +51,6 @@ allowlist = [
     "oraclecloud",
     "ovh",
     "porkbun",
-    "rfc2136",
     # "route53",
     "scaleway",
     "spaceship",
@@ -59,14 +59,26 @@ allowlist = [
     "timewebcloud",
 ]
 
-for name in allowlist:
-    import_str = data_map.get(name)
-    if import_str is None:
-        continue
-    imports.append(f'"{import_str}"')
-    genMap.append(
-        f'autocert.Providers["{name}"] = autocert.DNSProvider({name}.NewDefaultConfig, {name}.NewDNSProviderConfig)'
+# Extra config keys kept so existing user configs keep working after lego renamed
+# the package: package name -> additional provider keys.
+aliases = {
+    "dnsupdate": ["rfc2136"],
+}
+
+missing = [name for name in allowlist if name not in data_map]
+if missing:
+    raise SystemExit(
+        f"allowlisted providers not found upstream: {', '.join(missing)}\n"
+        f"they were renamed or removed in lego; update the allowlist ({url})"
     )
+
+for name in allowlist:
+    import_str = data_map[name]
+    imports.append(f'"{import_str}"')
+    for key in [name, *aliases.get(name, [])]:
+        genMap.append(
+            f'autocert.Providers["{key}"] = autocert.DNSProvider({name}.NewDefaultConfig, {name}.NewDNSProviderConfig)'
+        )
 
 with open("providers.go", "w") as f:
     f.write(header)
