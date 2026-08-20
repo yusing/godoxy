@@ -72,6 +72,12 @@ func Logs(c *gin.Context) {
 	}
 	defer dockerClient.Close()
 
+	container, err := dockerClient.ContainerInspect(c.Request.Context(), id)
+	if err != nil {
+		c.Error(apitypes.InternalServerError(err, "failed to inspect container"))
+		return
+	}
+
 	opts := ContainerLogsOptions{
 		ShowStdout: queryParams.Stdout,
 		ShowStderr: queryParams.Stderr,
@@ -98,10 +104,17 @@ func Logs(c *gin.Context) {
 		return
 	}
 	defer manager.Close()
+	stopCloseLogs := context.AfterFunc(manager.Context(), func() {
+		_ = logs.Close()
+	})
+	defer stopCloseLogs()
 
-	writer := manager.NewWriter(websocket.TextMessage)
-
-	_, err = stdcopy.StdCopy(writer, writer, logs) // de-multiplex logs
+	if container.Config != nil && container.Config.Tty {
+		err = manager.CopyTextLines(logs)
+	} else {
+		writer := manager.NewWriter(websocket.TextMessage)
+		_, err = stdcopy.StdCopy(writer, writer, logs)
+	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, task.ErrProgramExiting) {
 			return
@@ -109,6 +122,6 @@ func Logs(c *gin.Context) {
 		log.Err(err).
 			Str("server", dockerCfg.URL).
 			Str("container", id).
-			Msg("failed to de-multiplex logs")
+			Msg("failed to stream logs")
 	}
 }
