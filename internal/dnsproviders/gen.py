@@ -43,6 +43,7 @@ allowlist = [
     "hostinger",
     "httpreq",
     "ionos",
+    "infomaniak",
     "inwx",
     "linode",
     "namecheap",
