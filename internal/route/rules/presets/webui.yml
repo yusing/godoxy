@@ -2,11 +2,10 @@ path /login {
   pass
 }
 
-!path glob("/api/v1/auth/*") &
+!path glob("/api/v1/*") &
 !path glob("/auth/*") &
 !path glob("/__tsr/*") &
 !path regex("(?i)\\.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot)$") &
-!path /api/v1/version &
 !path /apple-icon.png &
 !path /favicon.ico &
 !path /icon0.svg &
