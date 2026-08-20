@@ -124,8 +124,9 @@ func (auth *UserPassAuth) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusOK)
 }
 
-func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *UserPassAuth) LoginHandler(w http.ResponseWriter, r *http.Request) LoginResult {
 	http.Redirect(w, r, "/login", http.StatusFound)
+	return LoginResponseHandled
 }
 
 func (auth *UserPassAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {

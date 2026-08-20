@@ -1,12 +1,15 @@
 package middleware
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -78,4 +81,25 @@ func TestOIDCMiddlewareRetriesAfterInitFailure(t *testing.T) {
 		require.Nil(t, middleware.auth)
 		require.Equal(t, int32(0), middleware.isInitialized)
 	})
+}
+
+func TestShouldHandleOIDCLogin(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "missing token", err: auth.ErrMissingOAuthToken, want: true},
+		{name: "invalid token", err: auth.ErrInvalidOAuthToken, want: true},
+		{name: "wrapped invalid token", err: fmt.Errorf("expired: %w", auth.ErrInvalidOAuthToken), want: true},
+		{name: "user not allowed", err: auth.ErrUserNotAllowed, want: false},
+		{name: "unrelated error", err: errors.New("provider failure"), want: false},
+		{name: "nil", err: nil, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldHandleOIDCLogin(tt.err))
+		})
+	}
 }

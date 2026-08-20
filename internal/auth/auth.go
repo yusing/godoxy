@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"sync/atomic"
 
 	"github.com/yusing/godoxy/internal/common"
+	httputils "github.com/yusing/goutils/http"
+	"github.com/yusing/goutils/http/httpheaders"
 )
 
 type providerHolder struct {
@@ -100,19 +103,6 @@ func IsOIDCEnabled() bool {
 	return common.OIDCIssuerURL != ""
 }
 
-type nextHandler struct{}
-
-var nextHandlerContextKey = nextHandler{}
-
-func ProceedNext(w http.ResponseWriter, r *http.Request) {
-	next, ok := r.Context().Value(nextHandlerContextKey).(http.HandlerFunc)
-	if ok {
-		next(w, r)
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
 func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	provider := GetDefaultAuth()
 	if provider == nil {
@@ -121,7 +111,9 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := provider.CheckToken(r)
 	if err != nil {
-		provider.LoginHandler(w, r)
+		if provider.LoginHandler(w, r) == LoginSessionRefreshed {
+			w.WriteHeader(http.StatusOK)
+		}
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -138,8 +130,33 @@ func AuthOrProceed(w http.ResponseWriter, r *http.Request) (proceed bool) {
 	}
 	err := provider.CheckToken(r)
 	if err != nil {
-		provider.LoginHandler(w, r)
+		if provider.LoginHandler(w, r) == LoginSessionRefreshed {
+			if r.Method == http.MethodGet &&
+				httputils.GetAccept(r.Header).AcceptHTML() &&
+				!httpheaders.IsWebsocket(r.Header) {
+				RedirectToRequestURI(w, r)
+			} else {
+				http.Error(w, "authentication is required", http.StatusForbidden)
+			}
+		}
 		return false
 	}
 	return true
+}
+
+// RedirectToRequestURI redirects to the request path and query only when they
+// form a local origin-form target.
+func RedirectToRequestURI(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, localRequestURI(r), http.StatusFound)
+}
+
+func localRequestURI(r *http.Request) string {
+	path := r.URL.EscapedPath()
+	if path == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+		return "/"
+	}
+	if r.URL.ForceQuery || r.URL.RawQuery != "" {
+		return path + "?" + r.URL.RawQuery
+	}
+	return path
 }

@@ -28,13 +28,22 @@ Stable internal package. Public API consists of the `Provider` interface and ini
 ### Exported types
 
 ```go
+type LoginResult uint8
+
+const (
+    LoginResponseHandled LoginResult = iota
+    LoginSessionRefreshed
+)
+
 type Provider interface {
     CheckToken(r *http.Request) error
-    LoginHandler(w http.ResponseWriter, r *http.Request)
+    LoginHandler(w http.ResponseWriter, r *http.Request) LoginResult
     PostAuthCallbackHandler(w http.ResponseWriter, r *http.Request)
     LogoutHandler(w http.ResponseWriter, r *http.Request)
 }
 ```
+
+`LoginSessionRefreshed` means the provider verified the refreshed identity and authorization, set fresh authentication cookies, but did not commit a status, body, or redirect. The caller must complete the response according to the request boundary it owns. All `LoginResponseHandled` branches have already written their complete response.
 
 ### OIDC Provider
 
@@ -95,17 +104,13 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request)
 
 HTTP handler that checks if the request has a valid token. Returns 200 if valid, invokes login handler otherwise.
 
+When an OIDC session is refreshed, it returns 200 with the fresh cookies instead of applying browser-navigation behavior.
+
 ```go
 func AuthOrProceed(w http.ResponseWriter, r *http.Request) bool
 ```
 
-Authenticates request or proceeds if valid. Returns `false` if login handler was invoked, `true` if authenticated.
-
-```go
-func ProceedNext(w http.ResponseWriter, r *http.Request)
-```
-
-Continues to the next handler after successful authentication.
+Authenticates request or proceeds if valid. Returns `true` only when the incoming token is already valid. After an OIDC refresh it returns `false` and completes the current response: eligible HTML `GET` requests receive a local redirect, while unsafe methods, non-HTML requests, and WebSocket upgrades are rejected without replay.
 
 ```go
 func NewUserPassAuth(username, password string, secret []byte, tokenTTL time.Duration) (*UserPassAuth, error)
@@ -280,7 +285,7 @@ No metrics are currently exposed.
 | ------------------------ | ------------------------------ | ----------------------------- |
 | OIDC issuer unreachable  | Initialize returns error       | Fix network/URL configuration |
 | Invalid JWT secret       | Initialize uses API_JWT_SECRET | Provide correct secret        |
-| Token expired            | CheckToken returns error       | User must re-authenticate     |
+| Token expired            | Refreshes an eligible OIDC session or starts login | Retry through the response selected by the owning request boundary |
 | User not in allowed list | Returns ErrUserNotAllowed      | Add user to allowed list      |
 | Rate limit exceeded      | Returns 429 Too Many Requests  | Wait for rate limit reset     |
 

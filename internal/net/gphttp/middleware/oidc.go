@@ -166,11 +166,18 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 		OIDC.LogWarn(r).Msgf("[OIDC] %s request blocked.\nConsider adding bypass rule for this path if needed", reqType)
 		emitBlockedEvent()
 		return false
-	case errors.Is(err, auth.ErrMissingOAuthToken):
-		amw.auth.HandleAuth(w, r)
+	case shouldHandleOIDCLogin(err):
+		if amw.auth.HandleAuth(w, r) == auth.LoginSessionRefreshed {
+			auth.RedirectToRequestURI(w, r)
+		}
 	default:
 		auth.WriteBlockPage(w, http.StatusForbidden, err.Error(), "Logout", auth.OIDCLogoutPath)
 		emitBlockedEvent()
 	}
 	return false
+}
+
+func shouldHandleOIDCLogin(err error) bool {
+	return errors.Is(err, auth.ErrMissingOAuthToken) ||
+		errors.Is(err, auth.ErrInvalidOAuthToken)
 }

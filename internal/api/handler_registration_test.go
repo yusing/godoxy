@@ -98,6 +98,30 @@ func TestRegisteredHandlerServesEmbeddedWebUIAPI(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name: "unauthenticated API GET reaches API authentication",
+			request: func() *http.Request {
+				return httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "unauthenticated API POST is not redirected",
+			request: func() *http.Request {
+				return httptest.NewRequest(http.MethodPost, "/api/v1/route/playground", strings.NewReader("sentinel"))
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "unauthenticated WebSocket upgrade is not redirected",
+			request: func() *http.Request {
+				req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+				req.Header.Set("Connection", "Upgrade")
+				req.Header.Set("Upgrade", "websocket")
+				return req
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name: "unknown future API route",
 			request: func() *http.Request {
 				req := httptest.NewRequest(http.MethodGet, "/api/v1/future", nil)

@@ -37,7 +37,7 @@ type (
 
 		rateLimit *rate.Limiter
 
-		onUnknownPathHandler http.HandlerFunc
+		onUnknownPathHandler func(http.ResponseWriter, *http.Request) LoginResult
 	}
 
 	IDTokenClaims struct {
@@ -219,7 +219,7 @@ func (auth *OIDCProvider) Hash() string {
 	return auth.hash
 }
 
-func (auth *OIDCProvider) SetOnUnknownPathHandler(handler http.HandlerFunc) {
+func (auth *OIDCProvider) SetOnUnknownPathHandler(handler func(http.ResponseWriter, *http.Request) LoginResult) {
 	auth.onUnknownPathHandler = handler
 }
 
@@ -242,59 +242,58 @@ func (auth *OIDCProvider) getIDToken(ctx context.Context, oauthToken *oauth2.Tok
 	return idTokenJWT, idToken, nil
 }
 
-func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) {
+func (auth *OIDCProvider) HandleAuth(w http.ResponseWriter, r *http.Request) LoginResult {
 	if r.URL.Path == "" {
 		r.URL.Path = OIDCAuthInitPath
 	}
 	if r.TLS == nil && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		r.URL.Scheme = "https"
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
-		return
+		return LoginResponseHandled
 	}
 	switch r.URL.Path {
 	case OIDCAuthInitPath:
-		auth.LoginHandler(w, r)
+		return auth.LoginHandler(w, r)
 	case OIDCPostAuthPath:
 		auth.PostAuthCallbackHandler(w, r)
 	case OIDCLogoutPath:
 		auth.LogoutHandler(w, r)
 	default:
 		if auth.onUnknownPathHandler != nil {
-			auth.onUnknownPathHandler(w, r)
-			return
+			return auth.onUnknownPathHandler(w, r)
 		}
 		http.Redirect(w, r, OIDCAuthInitPath, http.StatusFound)
 	}
+	return LoginResponseHandled
 }
 
-func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) LoginResult {
 	if !httputils.GetAccept(r.Header).AcceptHTML() {
 		http.Error(w, "authentication is required", http.StatusForbidden)
-		return
+		return LoginResponseHandled
 	}
 
 	// check for session token
 	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
 	if err == nil { // session token exists
 		result, err := auth.TryRefreshToken(r.Context(), sessionToken.Value)
-		// redirect back to where they requested
-		// when token refresh is ok
+		// The caller owns the response after refresh because document, API, and
+		// protocol requests require different completion behavior.
 		if err == nil {
 			auth.setIDTokenCookie(w, r, result.jwt, time.Until(result.jwtExpiry))
 			auth.setSessionTokenCookie(w, r, result.newSession)
-			ProceedNext(w, r)
-			return
+			return LoginSessionRefreshed
 		}
 		// clear cookies then redirect to home
 		log.Err(err).Msg("failed to refresh token")
 		auth.clearCookie(w, r)
 		http.Redirect(w, r, "/", http.StatusFound)
-		return
+		return LoginResponseHandled
 	}
 
 	if !auth.rateLimit.Allow() {
 		WriteBlockPage(w, http.StatusTooManyRequests, "auth rate limit exceeded", "Try again", OIDCAuthInitPath)
-		return
+		return LoginResponseHandled
 	}
 
 	state := generateState()
@@ -302,6 +301,7 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// redirect user to Idp
 	url := auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r))
 	http.Redirect(w, r, url, http.StatusFound)
+	return LoginResponseHandled
 }
 
 func parseClaims(idToken *oidc.IDToken) (*IDTokenClaims, error) {

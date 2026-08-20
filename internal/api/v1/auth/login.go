@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/godoxy/internal/auth"
 )
@@ -15,5 +17,7 @@ import (
 // @Failure    429 {string} string "Too Many Requests"
 // @Router     /auth/login [post]
 func Login(c *gin.Context) {
-	auth.GetDefaultAuth().LoginHandler(c.Writer, c.Request)
+	if auth.GetDefaultAuth().LoginHandler(c.Writer, c.Request) == auth.LoginSessionRefreshed {
+		http.Redirect(c.Writer, c.Request, "/", http.StatusFound)
+	}
 }

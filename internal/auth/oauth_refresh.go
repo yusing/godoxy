@@ -191,6 +191,15 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
 		return nil, refreshToken.err
 	}
+	refreshedClaims, err := parseClaims(idToken)
+	if err != nil {
+		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, err)
+		return nil, refreshToken.err
+	}
+	if !auth.checkAllowed(refreshedClaims.Username, refreshedClaims.Groups) {
+		refreshToken.err = fmt.Errorf("session: %s - %w: %w", claims.SessionID, ErrRefreshTokenFailure, ErrUserNotAllowed)
+		return nil, refreshToken.err
+	}
 
 	// in case there're multiple requests for the same session to refresh
 	// invalidate the token after a short delay
@@ -201,14 +210,14 @@ func (auth *OIDCProvider) doRefreshToken(ctx context.Context, refreshToken *oaut
 
 	sessionID := newSessionID()
 
-	log.Debug().Str("username", claims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
-	storeOAuthRefreshToken(sessionID, claims.Username, newToken.RefreshToken)
+	log.Debug().Str("username", refreshedClaims.Username).Time("expiry", newToken.Expiry).Msg("refreshed token")
+	storeOAuthRefreshToken(sessionID, refreshedClaims.Username, newToken.RefreshToken)
 
 	refreshToken.result = &RefreshResult{
 		newSession: Session{
 			SessionID: sessionID,
-			Username:  claims.Username,
-			Groups:    claims.Groups,
+			Username:  refreshedClaims.Username,
+			Groups:    refreshedClaims.Groups,
 		},
 		jwt:       idTokenJWT,
 		jwtExpiry: idToken.Expiry,

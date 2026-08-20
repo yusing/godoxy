@@ -111,7 +111,10 @@ func TestOIDCLoginHandler(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, OIDCAuthInitPath, nil)
 			w := httptest.NewRecorder()
 
-			GetDefaultAuth().(*OIDCProvider).HandleAuth(w, req)
+			result := GetDefaultAuth().(*OIDCProvider).HandleAuth(w, req)
+			if result != LoginResponseHandled {
+				t.Errorf("OIDCLoginHandler() result = %v, want %v", result, LoginResponseHandled)
+			}
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCLoginHandler() status = %v, want %v", got, tt.wantStatus)
@@ -128,6 +131,150 @@ func TestOIDCLoginHandler(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestOIDCLoginHandlerRefresh(t *testing.T) {
+	previousSecret := common.APIJWTSecret
+	common.APIJWTSecret = []byte("test-secret")
+	t.Cleanup(func() {
+		common.APIJWTSecret = previousSecret
+	})
+
+	auth := &OIDCProvider{
+		oauthConfig: &oauth2.Config{
+			ClientID: clientID,
+		},
+		allowedUsers: []string{"test-user"},
+	}
+
+	t.Run("returns refreshed without committing a response", func(t *testing.T) {
+		session := newSession("test-user", nil)
+		storeRefreshResult(t, session)
+
+		req := httptest.NewRequest(http.MethodGet, "/routes?section=apps", nil)
+		req.Header.Set("Accept", "text/html")
+		req.AddCookie(sessionCookie(t, auth, req, session))
+		recorder := httptest.NewRecorder()
+		writer := &writeTrackingResponseWriter{ResponseWriter: recorder}
+
+		result := auth.LoginHandler(writer, req)
+
+		if result != LoginSessionRefreshed {
+			t.Errorf("LoginHandler() result = %v, want %v", result, LoginSessionRefreshed)
+		}
+		if writer.wrote {
+			t.Error("LoginHandler() committed a response after refreshing")
+		}
+		if location := recorder.Header().Get("Location"); location != "" {
+			t.Errorf("LoginHandler() redirect = %q, want none", location)
+		}
+		assertSetCookies(t, recorder, auth)
+	})
+
+	t.Run("clears cookies when refreshing fails", func(t *testing.T) {
+		session := newSession("test-user", nil)
+		req := httptest.NewRequest(http.MethodGet, "/routes", nil)
+		req.Header.Set("Accept", "text/html")
+		req.AddCookie(sessionCookie(t, auth, req, session))
+		recorder := httptest.NewRecorder()
+
+		result := auth.LoginHandler(recorder, req)
+
+		if result != LoginResponseHandled {
+			t.Errorf("LoginHandler() result = %v, want %v", result, LoginResponseHandled)
+		}
+		if recorder.Code != http.StatusFound {
+			t.Fatalf("LoginHandler() status = %d, want %d", recorder.Code, http.StatusFound)
+		}
+		if location := recorder.Header().Get("Location"); location != "/" {
+			t.Errorf("LoginHandler() redirect = %q, want %q", location, "/")
+		}
+		assertClearedCookies(t, recorder, auth)
+	})
+}
+
+type writeTrackingResponseWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (w *writeTrackingResponseWriter) WriteHeader(statusCode int) {
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *writeTrackingResponseWriter) Write(p []byte) (int, error) {
+	w.wrote = true
+	return w.ResponseWriter.Write(p)
+}
+
+func storeRefreshResult(t *testing.T, session Session) {
+	t.Helper()
+	refreshedSession := newSession(session.Username, session.Groups)
+	oauthRefreshTokens.Store(string(session.SessionID), &oauthRefreshToken{
+		Username: session.Username,
+		Expiry:   time.Now().Add(time.Hour),
+		result: &RefreshResult{
+			newSession: refreshedSession,
+			jwt:        "refreshed-id-token",
+			jwtExpiry:  time.Now().Add(time.Hour),
+		},
+	})
+	t.Cleanup(func() {
+		oauthRefreshTokens.Delete(string(session.SessionID))
+		oauthRefreshTokens.Delete(string(refreshedSession.SessionID))
+	})
+}
+
+func sessionCookie(t *testing.T, auth *OIDCProvider, req *http.Request, session Session) *http.Cookie {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	auth.setSessionTokenCookie(recorder, req, session)
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("setSessionTokenCookie() wrote %d cookies, want 1", len(cookies))
+	}
+	return cookies[0]
+}
+
+func assertSetCookies(t *testing.T, recorder *httptest.ResponseRecorder, auth *OIDCProvider) {
+	t.Helper()
+	wantNames := map[string]bool{
+		auth.getAppScopedCookieName(CookieOauthToken):        false,
+		auth.getAppScopedCookieName(CookieOauthSessionToken): false,
+	}
+	for _, cookie := range recorder.Result().Cookies() {
+		if _, ok := wantNames[cookie.Name]; ok {
+			wantNames[cookie.Name] = true
+		}
+	}
+	for name, found := range wantNames {
+		if !found {
+			t.Errorf("LoginHandler() did not set cookie %q", name)
+		}
+	}
+}
+
+func assertClearedCookies(t *testing.T, recorder *httptest.ResponseRecorder, auth *OIDCProvider) {
+	t.Helper()
+	wantNames := map[string]bool{
+		auth.getAppScopedCookieName(CookieOauthToken):        false,
+		auth.getAppScopedCookieName(CookieOauthSessionToken): false,
+	}
+	for _, cookie := range recorder.Result().Cookies() {
+		if _, ok := wantNames[cookie.Name]; !ok {
+			continue
+		}
+		wantNames[cookie.Name] = true
+		if cookie.MaxAge != -1 {
+			t.Errorf("LoginHandler() cookie %q MaxAge = %d, want -1", cookie.Name, cookie.MaxAge)
+		}
+	}
+	for name, found := range wantNames {
+		if !found {
+			t.Errorf("LoginHandler() did not clear cookie %q", name)
+		}
 	}
 }
 
