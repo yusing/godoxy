@@ -1,13 +1,20 @@
 package proxmoxapi
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"testing/iotest"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/proxmox"
+	gpwebsocket "github.com/yusing/goutils/http/websocket"
 	"github.com/yusing/goutils/task"
 )
 
@@ -60,4 +67,46 @@ func TestNodeFromRequestReportsMissingContextAsInternalError(t *testing.T) {
 	_, ok := nodeFromRequest(c, "pve")
 	require.False(t, ok)
 	require.Len(t, c.Errors, 1)
+}
+
+func TestStreamProxmoxWebSocketFramesTextLines(t *testing.T) {
+	handlerErrors := make(chan int, 1)
+	router := gin.New()
+	router.GET("/stream", func(c *gin.Context) {
+		streamProxmoxWebSocket(
+			c,
+			func(context.Context) (io.ReadCloser, error) {
+				reader := iotest.OneByteReader(strings.NewReader("first line\nsecond line\n"))
+				return io.NopCloser(reader), nil
+			},
+			(*gpwebsocket.Manager).CopyTextLines,
+			"failed to open stream",
+			"failed to copy stream",
+		)
+		handlerErrors <- len(c.Errors)
+	})
+
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/stream"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
+
+	for _, want := range []string{"first line\n", "second line\n"} {
+		messageType, data, err := conn.ReadMessage()
+		require.NoError(t, err)
+		require.Equal(t, websocket.TextMessage, messageType)
+		require.Equal(t, want, string(data))
+	}
+
+	select {
+	case numErrors := <-handlerErrors:
+		require.Zero(t, numErrors)
+	case <-time.After(time.Second):
+		t.Fatal("stream handler did not return after EOF")
+	}
 }

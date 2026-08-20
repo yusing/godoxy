@@ -15,6 +15,7 @@ import (
 	goproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/proxmox"
+	gpwebsocket "github.com/yusing/goutils/http/websocket"
 	"github.com/yusing/goutils/task"
 )
 
@@ -51,6 +52,7 @@ func TestStreamProxmoxWebSocketCloseCancelsAndClosesReader(t *testing.T) {
 				readerOpened <- reader
 				return reader, nil
 			},
+			(*gpwebsocket.Manager).CopyTextLines,
 			"failed to open stream",
 			"failed to copy stream",
 		)

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 type StatsRequest ActionRequest
@@ -45,6 +46,7 @@ func NodeStats(c *gin.Context) {
 			func(ctx context.Context) (io.ReadCloser, error) {
 				return node.NodeStats(ctx, true)
 			},
+			(*websocket.Manager).CopyJSONStream,
 			"failed to get stats",
 			"failed to copy stats",
 		)
@@ -100,6 +102,7 @@ func VMStats(c *gin.Context) {
 			func(ctx context.Context) (io.ReadCloser, error) {
 				return node.LXCStats(ctx, request.VMID, true)
 			},
+			(*websocket.Manager).CopyTextLines,
 			"failed to get stats",
 			"failed to copy stats",
 		)

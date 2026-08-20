@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 // e.g. ws://localhost:8889/api/v1/proxmox/tail?node=pve&vmid=127&file=/var/log/immich/web.log&file=/var/log/immich/ml.log&limit=10
@@ -61,6 +62,7 @@ func Tail(c *gin.Context) {
 			}
 			return node.LXCTail(ctx, *request.VMID, request.Files, request.Limit)
 		},
+		(*websocket.Manager).CopyTextLines,
 		"failed to get journalctl output",
 		"failed to copy journalctl output",
 	)

@@ -20,6 +20,7 @@ type ActionRequest struct {
 func streamProxmoxWebSocket(
 	c *gin.Context,
 	open func(context.Context) (io.ReadCloser, error),
+	copyStream func(*websocket.Manager, io.Reader) error,
 	openError string,
 	copyError string,
 ) {
@@ -42,8 +43,7 @@ func streamProxmoxWebSocket(
 	stopStreamCancel := context.AfterFunc(manager.Context(), streamCancel)
 	defer stopStreamCancel()
 
-	writer := manager.NewWriter(websocket.TextMessage)
-	if _, err := io.Copy(writer, reader); err != nil && manager.Context().Err() == nil {
+	if err := copyStream(manager, reader); err != nil && manager.Context().Err() == nil {
 		c.Error(apitypes.InternalServerError(err, copyError))
 	}
 }

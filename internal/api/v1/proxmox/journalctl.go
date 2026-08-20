@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
+	"github.com/yusing/goutils/http/websocket"
 )
 
 // e.g. ws://localhost:8889/api/v1/proxmox/journalctl?node=pve&vmid=127&service=pveproxy&service=pvedaemon&limit=10
@@ -73,6 +74,7 @@ func Journalctl(c *gin.Context) {
 			}
 			return node.LXCJournalctl(ctx, *request.VMID, request.Services, *request.Limit)
 		},
+		(*websocket.Manager).CopyTextLines,
 		"failed to get journalctl output",
 		"failed to copy journalctl output",
 	)

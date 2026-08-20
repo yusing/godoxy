@@ -13,7 +13,6 @@ import (
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
 	"github.com/yusing/goutils/http/websocket"
-	"github.com/yusing/goutils/synk"
 	"github.com/yusing/goutils/task"
 )
 
@@ -76,25 +75,18 @@ func Stats(c *gin.Context) {
 			return
 		}
 		defer manager.Close()
+		stopCloseStats := context.AfterFunc(manager.Context(), func() {
+			_ = stats.Body.Close()
+		})
+		defer stopCloseStats()
 
-		buf := synk.GetSizedBytesPool().GetSized(4096)
-		defer synk.GetSizedBytesPool().Put(buf)
-
-		for {
-			select {
-			case <-manager.Done():
+		if err := manager.CopyJSONStream(stats.Body); err != nil {
+			if manager.Context().Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, task.ErrProgramExiting) {
 				return
-			default:
-				_, err = io.CopyBuffer(manager.NewWriter(websocket.TextMessage), stats.Body, buf)
-				if err != nil {
-					if errors.Is(err, context.Canceled) || errors.Is(err, task.ErrProgramExiting) {
-						return
-					}
-					c.Error(apitypes.InternalServerError(err, "failed to copy container stats"))
-					return
-				}
 			}
+			c.Error(apitypes.InternalServerError(err, "failed to copy container stats"))
 		}
+		return
 	}
 
 	stats, err := dockerClient.ContainerStats(c.Request.Context(), id, false)
