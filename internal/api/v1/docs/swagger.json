@@ -239,8 +239,8 @@
               "type": "string"
             }
           },
-          "302": {
-            "description": "Redirects to login page or IdP",
+          "401": {
+            "description": "Authentication is required",
             "schema": {
               "type": "string"
             }
