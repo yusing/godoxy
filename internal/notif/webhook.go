@@ -149,5 +149,5 @@ func validateJSONPayload(payload string) bool {
 		"$color", "",
 	)
 	payload = replacer.Replace(payload)
-	return strutils.ValidJSON([]byte(payload))
+	return strutils.ValidJSONString(payload)
 }

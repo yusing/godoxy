@@ -2,8 +2,6 @@ package handler
 
 import (
 	"container/list"
-	jsonv1 "encoding/json"
-	jsonv2 "encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const maxCachedProxies = 64
@@ -81,11 +80,10 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func cachedReverseProxy(cfg agentproxy.Config, targetURL *url.URL) (*reverseproxy.ReverseProxy, error) {
-	keyBytes, err := jsonv2.Marshal(cfg, jsonv1.FormatDurationAsNano(true))
+	key, err := strutils.MarshalString(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy config: %w", err)
 	}
-	key := string(keyBytes)
 
 	proxyCache.Lock()
 	defer proxyCache.Unlock()

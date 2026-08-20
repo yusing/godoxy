@@ -363,5 +363,6 @@ if err := strutils.UnmarshalJSON(data, &tmp); err != nil {
 
 - Uses `xsync.Map` for lock-free reads
 - Presizes maps based on input data
-- JSON via `github.com/yusing/goutils/strings` helpers (in godoxy, `encoding/json/v2` is registered as the backend from `internal/serialization`)
+- JSON via `github.com/yusing/goutils/strings` helpers (`encoding/json/v2`)
+
 - Background periodic save plus a save on program exit; unchanged namespaces are skipped

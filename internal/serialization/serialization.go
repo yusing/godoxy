@@ -33,7 +33,6 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
 }
 
 func init() {
-	setupJSONV2()
 	strutils.SetYAMLMarshaler(yaml.Marshal)
 	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
 }

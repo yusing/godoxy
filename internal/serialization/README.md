@@ -213,8 +213,8 @@ autocert:
 - `github.com/goccy/go-yaml` - YAML parsing
 - `github.com/go-playground/validator/v10` - Validation
 - `github.com/puzpuzpuz/xsync/v4` - Type cache
-- `github.com/yusing/goutils/strings` - Pluggable JSON marshal/unmarshal/streaming API used across godoxy
-- `encoding/json/v2` and `encoding/json/jsontext` - JSON backend registered in `init()` (`setupJSONV2()`). `time.Duration` keeps v1 nanosecond numbers via `encoding/json.FormatDurationAsNano`.
+- `github.com/yusing/goutils/strings` - JSON marshal/unmarshal/streaming API (`encoding/json/v2`; `time.Duration` as nanosecond numbers)
+
 
 ### Internal Dependencies
 
