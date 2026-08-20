@@ -87,11 +87,9 @@ func TestEventHandlerShouldUpdateRouteOnForceReloadEvenWithoutMatchingContainerE
 		ActorID:   "other-id",
 		ActorName: "other-name",
 	}}, &route.Route{
-		Metadata: route.Metadata{
-			Container: &docker.Container{
-				ContainerID:   "app-id",
-				ContainerName: "app-name",
-			},
+		Container: &docker.Container{
+			ContainerID:   "app-id",
+			ContainerName: "app-name",
 		},
 	})
 

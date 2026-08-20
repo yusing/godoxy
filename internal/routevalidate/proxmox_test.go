@@ -30,11 +30,9 @@ func TestResolveProxmoxBindsResolvedRouteToIdlewatcher(t *testing.T) {
 func TestResolveProxmoxUsesExplicitIdlewatcherBindingForRoute(t *testing.T) {
 	r := &route.Route{
 		Idlewatcher: &idlewatcher.Config{
-			IdlewatcherProviderConfig: idlewatcher.ProviderConfig{
-				Proxmox: &idlewatcher.ProxmoxConfig{
-					Node: "pve",
-					VMID: 119,
-				},
+			Proxmox: &idlewatcher.ProxmoxConfig{
+				Node: "pve",
+				VMID: 119,
 			},
 		},
 	}

@@ -59,10 +59,8 @@ func (auth *UserPassAuth) TokenCookieName() string {
 
 func (auth *UserPassAuth) NewToken() (token string, err error) {
 	claim := &UserPassClaims{
-		Username: auth.username,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(auth.tokenTTL)),
-		},
+		Username:  auth.username,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(auth.tokenTTL)),
 	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS512, claim)
 	token, err = tok.SignedString(auth.secret)

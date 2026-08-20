@@ -115,8 +115,7 @@ func initPtr(dst reflect.Value) {
 func ValidateWithFieldTags(s any) error {
 	var errs gperr.Builder
 	err := validate.Struct(s)
-	var valErrs validator.ValidationErrors
-	if errors.As(err, &valErrs) {
+	if valErrs, ok := errors.AsType[validator.ValidationErrors](err); ok {
 		for _, e := range valErrs {
 			detail := e.ActualTag()
 			if e.Param() != "" {

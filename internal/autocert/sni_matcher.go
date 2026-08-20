@@ -2,6 +2,7 @@ package autocert
 
 import (
 	"crypto/x509"
+	"slices"
 	"strings"
 )
 
@@ -36,11 +37,11 @@ func (m *sniMatcher) matchSuffixTree(serverName string) *Provider {
 	labels := strings.Split(serverName, ".")
 
 	var best *Provider
-	for i := len(labels) - 1; i >= 0; i-- {
+	for i, label := range slices.Backward(labels) {
 		if n.children == nil {
 			break
 		}
-		next := n.children[labels[i]]
+		next := n.children[label]
 		if next == nil {
 			break
 		}
@@ -116,14 +117,14 @@ func (m *sniMatcher) insertWildcardSuffix(suffix string, p *Provider) {
 	}
 	n := &m.root
 	labels := strings.Split(suffix, ".")
-	for i := len(labels) - 1; i >= 0; i-- {
+	for _, label := range slices.Backward(labels) {
 		if n.children == nil {
 			n.children = make(map[string]*sniTreeNode)
 		}
-		next := n.children[labels[i]]
+		next := n.children[label]
 		if next == nil {
 			next = &sniTreeNode{}
-			n.children[labels[i]] = next
+			n.children[label] = next
 		}
 		n = next
 	}

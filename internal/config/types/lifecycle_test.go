@@ -25,11 +25,9 @@ func TestLifecycleErrorsNeedNoCustomJSONMarshalers(t *testing.T) {
 			Severity:  IssueDegraded,
 			Err:       gperr.Wrap(sentinel),
 		}},
-		ActivationReport: ActivationReport{
-			Metrics: ComponentActivation{
-				Configured: true,
-				Err:        gperr.Wrap(sentinel),
-			},
+		Metrics: ComponentActivation{
+			Configured: true,
+			Err:        gperr.Wrap(sentinel),
 		},
 	}
 

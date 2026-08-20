@@ -131,8 +131,8 @@ var FetchIconAbsolute = cache.NewKeyFunc(func(ctx context.Context, url string) (
 		}
 	}
 
-	res := Result{Icon: icon}
-	res.contentType = ct
+	res := Result{Icon: icon,
+		contentType: ct}
 	// else leave it empty
 	return res, nil
 }).WithMaxEntries(200).WithRetriesExponentialBackoff(3).WithTTL(4 * time.Hour).Build()

@@ -153,8 +153,8 @@ func parseKeyword(keyword string) (icons.Source, string) {
 	default:
 		return "", keyword
 	}
-	if dot := strings.LastIndexByte(ref, '.'); dot != -1 && isExtensionPrefix(ref[dot+1:]) {
-		ref = ref[:dot]
+	if name, extension, ok := strings.CutLast(ref, "."); ok && isExtensionPrefix(extension) {
+		ref = name
 	}
 	for _, variant := range []string{"-light", "-dark"} {
 		if strutils.HasSuffixFold(ref, variant) {

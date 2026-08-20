@@ -92,8 +92,7 @@ func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error {
 		case errors.Is(err, os.ErrNotExist):
 		default:
 			// ignore invalid error, just download it again
-			var invalidErr maxminddb.InvalidDatabaseError
-			if !errors.As(err, &invalidErr) {
+			if _, ok := errors.AsType[maxminddb.InvalidDatabaseError](err); !ok {
 				return err
 			}
 		}

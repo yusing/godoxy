@@ -161,16 +161,14 @@ func TestNewMonitorDoesNotProbeWhenDockerClientInitializationFails(t *testing.T)
 				Alias:       "test",
 				Scheme:      route.SchemeHTTP,
 				HealthCheck: testHealthConfig(disabled),
-				Metadata: route.Metadata{
-					ProxyURL: targetURL,
-					Container: &docker.Container{
-						ContainerID:        "test",
-						HealthCheckEnabled: true,
-						DockerCfg: types.DockerProviderConfig{
-							URL: "https://127.0.0.1:2376",
-						},
-						Running: true,
+				ProxyURL:    targetURL,
+				Container: &docker.Container{
+					ContainerID:        "test",
+					HealthCheckEnabled: true,
+					DockerCfg: types.DockerProviderConfig{
+						URL: "https://127.0.0.1:2376",
 					},
+					Running: true,
 				},
 			}
 			reverseProxyRoute, err := routeimpl.NewReverseProxyRoute(base)
@@ -199,15 +197,13 @@ func TestNewMonitorSkipsDockerWhenHealthCheckWasNotEnabledAtLoad(t *testing.T) {
 		Alias:       "test",
 		Scheme:      route.SchemeHTTP,
 		HealthCheck: testHealthConfig(false),
-		Metadata: route.Metadata{
-			ProxyURL: targetURL,
-			Container: &docker.Container{
-				ContainerID: "test",
-				DockerCfg: types.DockerProviderConfig{
-					URL: "https://127.0.0.1:2376",
-				},
-				Running: true,
+		ProxyURL:    targetURL,
+		Container: &docker.Container{
+			ContainerID: "test",
+			DockerCfg: types.DockerProviderConfig{
+				URL: "https://127.0.0.1:2376",
 			},
+			Running: true,
 		},
 	}
 	reverseProxyRoute, err := routeimpl.NewReverseProxyRoute(base)

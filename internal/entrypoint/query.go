@@ -56,20 +56,16 @@ func getHealthInfo(r routing.Route) health.HealthInfo {
 	mon := r.HealthMonitor()
 	if mon == nil {
 		return health.HealthInfo{
-			HealthInfoWithoutDetail: health.HealthInfoWithoutDetail{
-				Status: health.StatusUnknown,
-			},
+			Status: health.StatusUnknown,
 			Detail: "n/a",
 		}
 	}
 	return health.HealthInfo{
-		HealthInfoWithoutDetail: health.HealthInfoWithoutDetail{
-			Status:  mon.Status(),
-			Uptime:  mon.Uptime(),
-			Latency: mon.Latency(),
-			SleepIn: sleepIn(mon),
-		},
-		Detail: mon.Detail(),
+		Status:  mon.Status(),
+		Uptime:  mon.Uptime(),
+		Latency: mon.Latency(),
+		SleepIn: sleepIn(mon),
+		Detail:  mon.Detail(),
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -196,8 +197,8 @@ func rotateLogFileByPolicy(file supportRotate, config *Retention, result *Rotate
 	// Read each line and write it to the beginning of the file
 	writePos := int64(0)
 	// in reverse order to keep the order of the lines (from old to new)
-	for i := len(linesToKeep) - 1; i >= 0; i-- {
-		line := linesToKeep[i]
+	for _, line := range slices.Backward(linesToKeep) {
+
 		n := line.Size
 
 		if err := fileContentMove(file, line.Pos, writePos, int(n)); err != nil {

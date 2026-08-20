@@ -81,10 +81,8 @@ func TestStreamRouteCancelFinishesTask(t *testing.T) {
 				Alias:       "echo-" + tt.name,
 				Scheme:      tt.scheme,
 				HealthCheck: health.HealthCheckConfig{Disable: true},
-				Metadata: route.Metadata{
-					LisURL:   lisURL,
-					ProxyURL: proxyURL,
-				},
+				LisURL:      lisURL,
+				ProxyURL:    proxyURL,
 			})
 			require.NoError(t, err)
 			require.NoError(t, impl.Start(parent))
@@ -151,10 +149,8 @@ func TestStreamRouteListenErrorFinishesTask(t *testing.T) {
 		Alias:       "busy-tcp",
 		Scheme:      route.SchemeTCP,
 		HealthCheck: health.HealthCheckConfig{Disable: true},
-		Metadata: route.Metadata{
-			LisURL:   lisURL,
-			ProxyURL: proxyURL,
-		},
+		LisURL:      lisURL,
+		ProxyURL:    proxyURL,
 	})
 	require.NoError(t, err)
 	require.Error(t, impl.Start(parent))

@@ -38,11 +38,11 @@ func ExpandRefs(refs []string) []string {
 		ref = sanitizeRef(ref)
 		add(ref)
 		for {
-			dash := strings.LastIndexByte(ref, '-')
-			if dash <= 0 {
+			prefix, _, ok := strings.CutLast(ref, "-")
+			if !ok || prefix == "" {
 				break
 			}
-			ref = ref[:dash]
+			ref = prefix
 			add(ref)
 		}
 	}

@@ -245,9 +245,7 @@ func (r *ReverseProxyRoute) addToLoadBalancer(parent task.Parent, ep routing.Ent
 				Alias:    cfg.Link,
 				Homepage: r.Homepage,
 				Bind:     r.Bind,
-				Metadata: route.Metadata{
-					LisURL: r.ListenURL(),
-				},
+				LisURL:   r.ListenURL(),
 			},
 			loadBalancer: lb,
 			handler:      lb,

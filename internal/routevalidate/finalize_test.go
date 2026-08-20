@@ -23,13 +23,11 @@ func TestPreferredPort(t *testing.T) {
 func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) {
 	r := &route.Route{
 		Alias: "app",
-		Metadata: route.Metadata{
-			Container: &docker.Container{
-				Image:           &docker.Image{Name: "custom-app"},
-				PrivateHostname: "172.18.0.2",
-				PrivatePortMapping: docker.PortMapping{
-					8080: container.Port{PrivatePort: 8080, Type: "tcp"},
-				},
+		Container: &docker.Container{
+			Image:           &docker.Image{Name: "custom-app"},
+			PrivateHostname: "172.18.0.2",
+			PrivatePortMapping: docker.PortMapping{
+				8080: container.Port{PrivatePort: 8080, Type: "tcp"},
 			},
 		},
 	}
@@ -45,14 +43,12 @@ func TestDockerRouteWithResolvablePortIsNotExcludedBeforeFinalize(t *testing.T) 
 func TestFinalizeHomepage_ImmichServerUsesImmichCategory(t *testing.T) {
 	r := &route.Route{
 		Alias: "immich-server",
-		Metadata: route.Metadata{
-			Container: &docker.Container{
-				ContainerName:   "immich-server",
-				Image:           &docker.Image{Name: "immich-server"},
-				PrivateHostname: "172.18.0.2",
-				PrivatePortMapping: docker.PortMapping{
-					2283: container.Port{PrivatePort: 2283, Type: "tcp"},
-				},
+		Container: &docker.Container{
+			ContainerName:   "immich-server",
+			Image:           &docker.Image{Name: "immich-server"},
+			PrivateHostname: "172.18.0.2",
+			PrivatePortMapping: docker.PortMapping{
+				2283: container.Port{PrivatePort: 2283, Type: "tcp"},
 			},
 		},
 	}

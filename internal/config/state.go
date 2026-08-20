@@ -874,11 +874,9 @@ func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 		Homepage: &homepage.ItemConfig{
 			Show: false,
 		},
-		Metadata: routeimpl.Metadata{
-			Provider:         "webui",
-			RootFS:           webui.Dist(),
-			ForceConflictWin: true,
-		},
+		Provider:           "webui",
+		RootFS:             webui.Dist(),
+		ForceConflictWin:   true,
 		InboundMTLSProfile: state.WebUI.InboundMTLSProfile,
 		Middlewares:        state.WebUI.Middlewares,
 		AccessLog:          state.WebUI.AccessLog,

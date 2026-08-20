@@ -39,8 +39,8 @@ func TestHomepageItemContainerControls(t *testing.T) {
 		{
 			name: "docker container",
 			route: &route.Route{
-				Homepage: &homepage.ItemConfig{},
-				Metadata: route.Metadata{Container: &docker.Container{ContainerID: "container-id"}},
+				Homepage:  &homepage.ItemConfig{},
+				Container: &docker.Container{ContainerID: "container-id"},
 			},
 			wantContainerID: "container-id",
 		},
@@ -77,7 +77,7 @@ func TestProxmoxDiscoveryRequiresSuccessfulMark(t *testing.T) {
 	r := &route.Route{
 		Alias:    "radarr",
 		Proxmox:  &proxmox.NodeConfig{Node: "pve", VMID: &vmid, VMName: "radarr-service"},
-		Metadata: route.Metadata{ProxyURL: target},
+		ProxyURL: target,
 	}
 
 	_, ok := r.ProxmoxDiscovery()
@@ -222,12 +222,10 @@ func TestRouteValidate(t *testing.T) {
 			Scheme: route.SchemeHTTP,
 			Host:   "example.com",
 			Port:   route.Port{Proxy: 80},
-			Metadata: route.Metadata{
-				Container: &docker.Container{
-					ContainerID: "test-id",
-					Image: &docker.Image{
-						Name: "test-image",
-					},
+			Container: &docker.Container{
+				ContainerID: "test-id",
+				Image: &docker.Image{
+					Name: "test-image",
 				},
 			},
 		}
@@ -269,12 +267,10 @@ func TestDockerRouteDisallowAgent(t *testing.T) {
 		Host:   "example.com",
 		Port:   route.Port{Proxy: 80},
 		Agent:  "test-agent",
-		Metadata: route.Metadata{
-			Container: &docker.Container{
-				ContainerID: "test-id",
-				Image: &docker.Image{
-					Name: "test-image",
-				},
+		Container: &docker.Container{
+			ContainerID: "test-id",
+			Image: &docker.Image{
+				Name: "test-image",
 			},
 		},
 	}

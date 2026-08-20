@@ -12,15 +12,13 @@ import (
 func TestOverrideItem(t *testing.T) {
 	a := &Item{
 		Alias: "foo",
-		ItemConfig: ItemConfig{
-			Show: false,
-			Name: "Foo",
-			Icon: &icons.URL{
-				FullURL: new("/favicon.ico"),
-				Source:  icons.SourceRelative,
-			},
-			Category: "App",
+		Show:  false,
+		Name:  "Foo",
+		Icon: &icons.URL{
+			FullURL: new("/favicon.ico"),
+			Source:  icons.SourceRelative,
 		},
+		Category: "App",
 	}
 	want := ItemConfig{
 		Show:     true,
@@ -44,11 +42,9 @@ func TestOverrideItem(t *testing.T) {
 func TestOverrideItem_PreservesURL(t *testing.T) {
 	a := &Item{
 		Alias: "svc",
-		ItemConfig: ItemConfig{
-			Show: true,
-			Name: "Service",
-			URL:  "http://origin.local",
-		},
+		Show:  true,
+		Name:  "Service",
+		URL:   "http://origin.local",
 	}
 	wantCfg := ItemConfig{
 		Show: true,
@@ -66,13 +62,11 @@ func TestOverrideItem_PreservesURL(t *testing.T) {
 
 func TestVisibilityFavoriteAndSortOrders(t *testing.T) {
 	a := &Item{
-		Alias: "alpha",
-		ItemConfig: ItemConfig{
-			Show:     true,
-			Name:     "Alpha",
-			Category: "Apps",
-			Favorite: false,
-		},
+		Alias:    "alpha",
+		Show:     true,
+		Name:     "Alpha",
+		Category: "Apps",
+		Favorite: false,
 	}
 	overrides := GetOverrideConfig()
 	overrides.Initialize()
@@ -93,10 +87,8 @@ func TestVisibilityFavoriteAndSortOrders(t *testing.T) {
 func TestCategoryDefaultedWhenEmpty(t *testing.T) {
 	a := &Item{
 		Alias: "no-cat",
-		ItemConfig: ItemConfig{
-			Show: true,
-			Name: "NoCat",
-		},
+		Show:  true,
+		Name:  "NoCat",
 	}
 	got := a.GetOverride()
 	expect.Equal(t, got.Category, CategoryOthers)
@@ -104,20 +96,16 @@ func TestCategoryDefaultedWhenEmpty(t *testing.T) {
 
 func TestOverrideItems_Bulk(t *testing.T) {
 	a := &Item{
-		Alias: "bulk-1",
-		ItemConfig: ItemConfig{
-			Show:     true,
-			Name:     "Bulk1",
-			Category: "X",
-		},
+		Alias:    "bulk-1",
+		Show:     true,
+		Name:     "Bulk1",
+		Category: "X",
 	}
 	b := &Item{
-		Alias: "bulk-2",
-		ItemConfig: ItemConfig{
-			Show:     true,
-			Name:     "Bulk2",
-			Category: "Y",
-		},
+		Alias:    "bulk-2",
+		Show:     true,
+		Name:     "Bulk2",
+		Category: "Y",
 	}
 
 	overrides := GetOverrideConfig()

@@ -229,8 +229,8 @@ github.com/vultr/govultr/v3 v3.32.0/go.mod h1:2zyUw9yADQaGwKnwDesmIOlBNLrm7edsCf
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfSfmXjznFBSZNN13rSJjlIOI1fUNAtF7rmI=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/yusing/gointernals v0.2.0 h1:jyWB3kdUPkuU6s0r8QY/sS5h2WNBF4Kfisly8dtSVvg=
-github.com/yusing/gointernals v0.2.0/go.mod h1:xGzNbPGMm5Z8kG0t4JYISMscw+gMQlgghkLxlgRZv5Y=
+github.com/yusing/gointernals v0.2.1 h1:QlajBlRG6qbqfzjHmRq774pi+CUW/DILjFM6GjveHuM=
+github.com/yusing/gointernals v0.2.1/go.mod h1:xGzNbPGMm5Z8kG0t4JYISMscw+gMQlgghkLxlgRZv5Y=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0 h1:yI1/OhfEPy7J9eoa6Sj051C7n5dvpj0QX8g4sRchg04=

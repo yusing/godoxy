@@ -24,11 +24,9 @@ func TestNotificationConfig(t *testing.T) {
 				"url":      "https://example.com",
 			},
 			expected: &Webhook{
-				ProviderBase: ProviderBase{
-					Name:   "test",
-					URL:    "https://example.com",
-					Format: LogFormatMarkdown,
-				},
+				Name:      "test",
+				URL:       "https://example.com",
+				Format:    LogFormatMarkdown,
 				Template:  "discord",
 				Method:    http.MethodPost,
 				MIMEType:  "application/json",
@@ -47,12 +45,10 @@ func TestNotificationConfig(t *testing.T) {
 				"format":   "plain",
 			},
 			expected: &GotifyClient{
-				ProviderBase: ProviderBase{
-					Name:   "test",
-					URL:    "https://example.com",
-					Token:  "token",
-					Format: LogFormatPlain,
-				},
+				Name:   "test",
+				URL:    "https://example.com",
+				Token:  "token",
+				Format: LogFormatPlain,
 			},
 			wantErr: false,
 		},
@@ -65,12 +61,10 @@ func TestNotificationConfig(t *testing.T) {
 				"url":      "https://example.com",
 			},
 			expected: &GotifyClient{
-				ProviderBase: ProviderBase{
-					Name:   "test",
-					URL:    "https://example.com",
-					Token:  "token",
-					Format: LogFormatMarkdown,
-				},
+				Name:   "test",
+				URL:    "https://example.com",
+				Token:  "token",
+				Format: LogFormatMarkdown,
 			},
 			wantErr: false,
 		},

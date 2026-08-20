@@ -43,11 +43,11 @@ func TestEmbeddedWebUIRouteSmoke(t *testing.T) {
 	require.True(t, ok)
 
 	fileServer, err := NewFileServer(&route.Route{
-		Root:     "embed://webui",
-		Metadata: route.Metadata{RootFS: webui.Dist()},
-		SPA:      true,
-		Index:    "_shell.html",
-		Rules:    webuiRules,
+		Root:   "embed://webui",
+		RootFS: webui.Dist(),
+		SPA:    true,
+		Index:  "_shell.html",
+		Rules:  webuiRules,
 	})
 	require.NoError(t, err)
 
@@ -142,12 +142,12 @@ func TestEmbeddedWebUIRouteMiddlewaresWrapRules(t *testing.T) {
 	require.True(t, ok)
 
 	fileServer, err := NewFileServer(&route.Route{
-		Alias:    "godoxy",
-		Root:     "embed://webui",
-		Metadata: route.Metadata{RootFS: webui.Dist()},
-		SPA:      true,
-		Index:    "_shell.html",
-		Rules:    webuiRules,
+		Alias:  "godoxy",
+		Root:   "embed://webui",
+		RootFS: webui.Dist(),
+		SPA:    true,
+		Index:  "_shell.html",
+		Rules:  webuiRules,
 		Middlewares: map[string]types.LabelMap{
 			"themed": {
 				"css": "https://css.tyleo.dev/gdx/global.css",

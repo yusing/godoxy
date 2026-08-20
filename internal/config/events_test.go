@@ -127,11 +127,9 @@ func newNotificationTestState(t *testing.T, url string) *state {
 		{
 			ProviderName: notif.ProviderWebhook,
 			Provider: &notif.Webhook{
-				ProviderBase: notif.ProviderBase{
-					Name:   "test",
-					URL:    url,
-					Format: notif.LogFormatPlain,
-				},
+				Name:     "test",
+				URL:      url,
+				Format:   notif.LogFormatPlain,
 				Payload:  "$message",
 				Method:   http.MethodPost,
 				MIMEType: notif.MimeTypeText,
