@@ -71,7 +71,7 @@ func TestMultipleCertificatesLifecycle(t *testing.T) {
 	os.MkdirAll("certs", 0o755)
 	defer os.RemoveAll("certs")
 
-	err = provider.ObtainCertIfNotExistsAll()
+	err = provider.ObtainCertIfNotExistsAll(t.Context())
 	require.NoError(t, err)
 
 	require.Equal(t, 1, acmeServer.certRequestCount["main.example.com"])

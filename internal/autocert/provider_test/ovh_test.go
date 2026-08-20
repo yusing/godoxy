@@ -3,7 +3,7 @@ package provider_test
 import (
 	"testing"
 
-	"github.com/go-acme/lego/v4/providers/dns/ovh"
+	"github.com/go-acme/lego/v5/providers/dns/ovh"
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/serialization"

@@ -558,6 +558,6 @@ func (p *staticCertProvider) GetCertInfos() ([]autocert.CertInfo, error) { retur
 func (p *staticCertProvider) ScheduleRenewalAll(task.Parent) {
 	// no-op: test stub
 }
-func (p *staticCertProvider) ObtainCertAll() error                 { return nil }
+func (p *staticCertProvider) ObtainCertAll(context.Context) error  { return nil }
 func (p *staticCertProvider) ForceExpiryAll() bool                 { return false }
 func (p *staticCertProvider) WaitRenewalDone(context.Context) bool { return true }

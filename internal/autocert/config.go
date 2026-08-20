@@ -14,10 +14,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/challenge"
-	"github.com/go-acme/lego/v4/challenge/dns01"
-	"github.com/go-acme/lego/v4/lego"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/challenge"
+	"github.com/go-acme/lego/v5/challenge/dns01"
+	"github.com/go-acme/lego/v5/lego"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	gperr "github.com/yusing/goutils/errs"
@@ -46,13 +46,15 @@ type (
 		EABKid  string            `json:"eab_kid,omitempty" validate:"required_with=EABHmac"`
 		EABHmac strutils.Redacted `json:"eab_hmac,omitempty" validate:"required_with=EABKid"` // base64 encoded
 
-		// CertificateKeyType is the private key algorithm for ACME-issued TLS certificates (lego Certificate.KeyType).
+		// CertificateKeyType is the private key algorithm for ACME-issued TLS certificates
+		// (lego certificate.ObtainRequest.KeyType).
 		// Default is EC256. Use RSA2048 (or rsa2048) for clients that do not support ECDSA certificates.
 		CertificateKeyType string `json:"certificate_key_type,omitempty"`
 
 		HTTPClient *http.Client `json:"-"` // for tests only
 
 		challengeProvider challenge.Provider
+		certKeyType       certcrypto.KeyType // parsed CertificateKeyType, set by validate
 
 		idx int // 0: main, 1+: extra[i]
 	}
@@ -165,10 +167,10 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
 	}
 
-	if cfg.CertificateKeyType != "" {
-		if _, err := parseCertificateKeyType(cfg.CertificateKeyType); err != nil {
-			b.Add(err)
-		}
+	if keyType, err := parseCertificateKeyType(cfg.CertificateKeyType); err != nil {
+		b.Add(err)
+	} else {
+		cfg.certKeyType = keyType
 	}
 
 	if len(cfg.Extra) > 0 {
@@ -184,10 +186,29 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	return b.Error()
 }
 
-func (cfg *Config) dns01Options() []dns01.ChallengeOption {
-	return []dns01.ChallengeOption{
-		dns01.CondOption(len(cfg.Resolvers) > 0, dns01.AddRecursiveNameservers(cfg.Resolvers)),
+// applyResolvers installs the configured recursive nameservers as lego's default
+// DNS client, used for the dns-01 propagation checks.
+//
+// lego v5 takes recursive nameservers through a process-wide default client
+// instead of a per-challenge option. This is not a narrowing: lego v4's
+// dns01.AddRecursiveNameservers wrote to a package-level global too, so with
+// several providers configured the last one to initialise its client has always
+// won. An empty list is left alone so lego keeps its own resolv.conf fallback.
+func (cfg *Config) applyResolvers() {
+	if len(cfg.Resolvers) == 0 {
+		return
 	}
+	dns01.SetDefaultClient(dns01.NewClient(&dns01.Options{RecursiveNameservers: cfg.Resolvers}))
+}
+
+// CertKeyType returns the private key algorithm to request for ACME-issued
+// certificates. Invalid values are rejected by validate and by GetLegoConfig,
+// so the fallback only applies to a config that went through neither.
+func (cfg *Config) CertKeyType() certcrypto.KeyType {
+	if cfg.certKeyType == "" {
+		return certcrypto.EC256
+	}
+	return cfg.certKeyType
 }
 
 func parseCertificateKeyType(s string) (certcrypto.KeyType, error) {
@@ -247,7 +268,7 @@ func (cfg *Config) GetLegoConfig() (*User, *lego.Config, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	legoCfg.Certificate.KeyType = keyType
+	cfg.certKeyType = keyType
 
 	if cfg.HTTPClient != nil {
 		legoCfg.HTTPClient = cloneHTTPClient(cfg.HTTPClient)
