@@ -17,7 +17,6 @@ replace (
 require (
 	github.com/PuerkitoBio/goquery v1.12.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
-	github.com/bytedance/sonic v1.15.2 // fast json parsing
 	github.com/cenkalti/backoff/v5 v5.0.3 // backoff for retrying operations
 	github.com/coreos/go-oidc/v3 v3.20.0 // oidc authentication
 	github.com/docker/cli v29.7.2+incompatible // needs docker/cli/cli/connhelper connection helper for docker client
@@ -83,6 +82,7 @@ require (
 	github.com/bodgit/tsig v1.3.1 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
+	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect

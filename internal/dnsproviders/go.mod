@@ -28,12 +28,8 @@ require (
 	github.com/bodgit/gssapi v0.0.4 // indirect
 	github.com/bodgit/tsig v1.3.1 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
-	github.com/bytedance/gopkg v0.1.4 // indirect
-	github.com/bytedance/sonic v1.15.2 // indirect
-	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
@@ -67,7 +63,6 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
-	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
@@ -96,7 +91,6 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/vultr/govultr/v3 v3.32.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusing/gointernals v0.2.1 // indirect
@@ -107,7 +101,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
-	golang.org/x/arch v0.30.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/mod v0.40.0 // indirect
 	golang.org/x/net v0.58.0 // indirect

@@ -214,17 +214,7 @@ autocert:
 - `github.com/go-playground/validator/v10` - Validation
 - `github.com/puzpuzpuz/xsync/v4` - Type cache
 - `github.com/yusing/goutils/strings` - Pluggable JSON marshal/unmarshal/streaming API used across godoxy
-- `github.com/bytedance/sonic` - Optional JSON backend for that API: registered in `init()` when **`USE_SONIC_JSON`** is true (process env via `env.GetEnvBool`, default **true**).
-- Set **`USE_SONIC_JSON=false`** if the binary hits **`SIGILL: illegal instruction`** on hardware that lacks the assumptions Sonic relies on.
-
-### `USE_SONIC_JSON`
-
-| Value            | Behavior                                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------- |
-| `true` (default) | `setupSonic()` wires Sonic into `strutils` for marshal, unmarshal, indent, and encoder helpers. |
-| `false`          | Sonic is not registered; JSON uses whatever default `strutils` provides without explicit setup. |
-
-Documented in repository `.env.example`, `rootless.env.example`, agent compose template (`agent/pkg/agent/templates/agent.compose.yml.tmpl`), and `scripts/install-agent.sh`.
+- `encoding/json/v2` and `encoding/json/jsontext` - JSON backend registered in `init()` (`setupJSONV2()`). `time.Duration` keeps v1 nanosecond numbers via `encoding/json.FormatDurationAsNano`.
 
 ### Internal Dependencies
 

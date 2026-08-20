@@ -223,4 +223,4 @@ if resp.StatusCode != http.StatusOK {
 ## Related Packages
 
 - `internal/homepage/widgets` - Widget framework and interface
-- `github.com/yusing/goutils/strings` - String utilities and JSON helpers (`MarshalJSON`, `NewJSONDecoder`; backend: sonic via `internal/serialization`)
+- `github.com/yusing/goutils/strings` - String utilities and JSON helpers (`MarshalJSON`, `NewJSONDecoder`; backend: `encoding/json/v2` via `internal/serialization`)

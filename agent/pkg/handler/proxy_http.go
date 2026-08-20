@@ -2,6 +2,8 @@ package handler
 
 import (
 	"container/list"
+	jsonv1 "encoding/json"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -80,7 +81,7 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func cachedReverseProxy(cfg agentproxy.Config, targetURL *url.URL) (*reverseproxy.ReverseProxy, error) {
-	keyBytes, err := sonic.Marshal(cfg)
+	keyBytes, err := jsonv2.Marshal(cfg, jsonv1.FormatDurationAsNano(true))
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy config: %w", err)
 	}

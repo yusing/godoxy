@@ -16,7 +16,6 @@ replace (
 exclude github.com/containerd/nerdctl/mod/tigron v0.0.0
 
 require (
-	github.com/bytedance/sonic v1.15.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/dtls/v3 v3.1.5
@@ -34,6 +33,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
+	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
