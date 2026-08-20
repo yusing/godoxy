@@ -18,6 +18,7 @@ import (
 	"github.com/go-acme/lego/v5/providers/dns/hetzner"
 	"github.com/go-acme/lego/v5/providers/dns/hostinger"
 	"github.com/go-acme/lego/v5/providers/dns/httpreq"
+	"github.com/go-acme/lego/v5/providers/dns/infomaniak"
 	"github.com/go-acme/lego/v5/providers/dns/inwx"
 	"github.com/go-acme/lego/v5/providers/dns/ionos"
 	"github.com/go-acme/lego/v5/providers/dns/linode"
@@ -59,6 +60,7 @@ func InitProviders() {
 	autocert.Providers["hetzner"] = autocert.DNSProvider(hetzner.NewDefaultConfig, hetzner.NewDNSProviderConfig)
 	autocert.Providers["hostinger"] = autocert.DNSProvider(hostinger.NewDefaultConfig, hostinger.NewDNSProviderConfig)
 	autocert.Providers["httpreq"] = autocert.DNSProvider(httpreq.NewDefaultConfig, httpreq.NewDNSProviderConfig)
+	autocert.Providers["infomaniak"] = autocert.DNSProvider(infomaniak.NewDefaultConfig, infomaniak.NewDNSProviderConfig)
 	autocert.Providers["ionos"] = autocert.DNSProvider(ionos.NewDefaultConfig, ionos.NewDNSProviderConfig)
 	autocert.Providers["inwx"] = autocert.DNSProvider(inwx.NewDefaultConfig, inwx.NewDNSProviderConfig)
 	autocert.Providers["linode"] = autocert.DNSProvider(linode.NewDefaultConfig, linode.NewDNSProviderConfig)
