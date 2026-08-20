@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -13,7 +12,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/bytedance/sonic"
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
 	"github.com/puzpuzpuz/xsync/v4"
@@ -22,8 +20,6 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
-
-var EnvUseSonic = env.GetEnvBool("USE_SONIC_JSON", true)
 
 type SerializedObject = map[string]any
 
@@ -37,28 +33,8 @@ func ToSerializedObject[VT any](m map[string]VT) SerializedObject {
 }
 
 func init() {
-	if EnvUseSonic {
-		setupSonic()
-	}
-	// default values uses std json
 	strutils.SetYAMLMarshaler(yaml.Marshal)
 	strutils.SetYAMLUnmarshaler(yaml.Unmarshal)
-}
-
-func setupSonic() {
-	strutils.SetJSONMarshaler(sonic.Marshal)
-	strutils.SetJSONUnmarshaler(sonic.Unmarshal)
-	strutils.SetJSONMarshalIndent(sonic.MarshalIndent)
-	strutils.SetJSONNewEncoder(func(w io.Writer) strutils.Encoder {
-		return sonic.ConfigDefault.NewEncoder(w)
-	})
-	strutils.SetJSONNewDecoder(func(r io.Reader) strutils.Decoder {
-		return sonic.ConfigDefault.NewDecoder(r)
-	})
-	strutils.SetJSONValid(sonic.Valid)
-	strutils.SetJSONMarshalString(sonic.MarshalString)
-	strutils.SetJSONUnmarshalString(sonic.UnmarshalString)
-	strutils.SetJSONValidString(sonic.ValidString)
 }
 
 type MapUnmarshaller interface {

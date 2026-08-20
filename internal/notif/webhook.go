@@ -141,6 +141,7 @@ func (webhook *Webhook) MarshalMessage(logMsg *LogMessage) ([]byte, error) {
 	return []byte(pl), nil
 }
 
+// validateJSONPayload reports whether a webhook payload is valid JSON after replacing supported placeholders with JSON-compatible values.
 func validateJSONPayload(payload string) bool {
 	replacer := strings.NewReplacer(
 		"$title", `""`,
@@ -149,5 +150,5 @@ func validateJSONPayload(payload string) bool {
 		"$color", "",
 	)
 	payload = replacer.Replace(payload)
-	return strutils.ValidJSON([]byte(payload))
+	return strutils.ValidJSONString(payload)
 }

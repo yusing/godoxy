@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agentproxy"
 	"github.com/yusing/goutils/http/reverseproxy"
+	strutils "github.com/yusing/goutils/strings"
 )
 
 const maxCachedProxies = 64
@@ -40,6 +40,10 @@ func NewTransport() *http.Transport {
 	}
 }
 
+// ProxyHTTP forwards an HTTP request to the configured proxy destination.
+// It reads the proxy configuration from request headers and responds with
+// status 400 for invalid configuration or status 500 if the proxy cannot be
+// built.
 func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	cfg, err := agentproxy.ConfigFromHeaders(r.Header)
 	if err != nil {
@@ -79,12 +83,12 @@ func ProxyHTTP(w http.ResponseWriter, r *http.Request) {
 	rp.ServeHTTP(w, r)
 }
 
+// cachedReverseProxy retrieves or creates a reverse proxy for the specified configuration and target URL, caching the result for reuse. It returns an error if the configuration cannot be serialized or its TLS configuration cannot be built.
 func cachedReverseProxy(cfg agentproxy.Config, targetURL *url.URL) (*reverseproxy.ReverseProxy, error) {
-	keyBytes, err := sonic.Marshal(cfg)
+	key, err := strutils.MarshalString(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy config: %w", err)
 	}
-	key := string(keyBytes)
 
 	proxyCache.Lock()
 	defer proxyCache.Unlock()

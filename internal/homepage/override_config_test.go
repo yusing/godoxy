@@ -14,8 +14,8 @@ import (
 // The periodic jsonstore flush marshals the config while the API keeps writing
 // to it, so marshaling must hold the lock.
 //
-// encoding/json is used instead of the sonic-backed strutils.MarshalJSON
-// because sonic's generated encoder is not instrumented for the race detector.
+// encoding/json is used instead of strutils.MarshalJSON so the test stays on
+// the standard library encoder under the race detector.
 func TestOverrideConfigMarshalIsConcurrentSafe(t *testing.T) {
 	aliases := []string{"a", "b", "c"}
 
