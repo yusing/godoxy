@@ -16,6 +16,10 @@ type providerHolder struct {
 	provider Provider
 }
 
+type sessionRefresher interface {
+	refreshSession(http.ResponseWriter, *http.Request) error
+}
+
 var defaultAuth atomic.Pointer[providerHolder]
 
 var errMissingUserPassCredentials = errors.New(
@@ -110,13 +114,16 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := provider.CheckToken(r)
-	if err != nil {
-		if provider.LoginHandler(w, r) == LoginSessionRefreshed {
-			w.WriteHeader(http.StatusOK)
-		}
-	} else {
+	if err == nil {
 		w.WriteHeader(http.StatusOK)
+		return
 	}
+	refresher, ok := provider.(sessionRefresher)
+	if !ok || refresher.refreshSession(w, r) != nil {
+		http.Error(w, "authentication is required", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func AuthOrProceed(w http.ResponseWriter, r *http.Request) (proceed bool) {

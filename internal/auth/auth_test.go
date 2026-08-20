@@ -100,6 +100,17 @@ func TestAuthCheckHandlesRefreshedSession(t *testing.T) {
 	assert.Empty(t, recorder.Header().Get("Location"))
 }
 
+func TestAuthCheckRejectsSessionThatRequiresLogin(t *testing.T) {
+	preserveAuthConfig(t)
+	setDefaultAuth(allowAuthProvider{checkErr: errors.New("login required")})
+	recorder := httptest.NewRecorder()
+
+	AuthCheckHandler(recorder, httptest.NewRequest(http.MethodHead, "/api/v1/auth/check", nil))
+
+	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
+	assert.Empty(t, recorder.Header().Get("Location"))
+}
+
 func TestAuthOrProceedMapsRefreshedSessionByRequestType(t *testing.T) {
 	preserveAuthConfig(t)
 	setDefaultAuth(refreshAuthProvider{})
@@ -248,9 +259,11 @@ func TestAuthenticationProviderPublicationIsConcurrentSafe(t *testing.T) {
 	wg.Wait()
 }
 
-type allowAuthProvider struct{}
+type allowAuthProvider struct {
+	checkErr error
+}
 
-func (allowAuthProvider) CheckToken(*http.Request) error { return nil }
+func (provider allowAuthProvider) CheckToken(*http.Request) error { return provider.checkErr }
 func (allowAuthProvider) LoginHandler(http.ResponseWriter, *http.Request) LoginResult {
 	return LoginResponseHandled
 }
@@ -264,6 +277,7 @@ func (refreshAuthProvider) CheckToken(*http.Request) error { return errors.New("
 func (refreshAuthProvider) LoginHandler(http.ResponseWriter, *http.Request) LoginResult {
 	return LoginSessionRefreshed
 }
+func (refreshAuthProvider) refreshSession(http.ResponseWriter, *http.Request) error    { return nil }
 func (refreshAuthProvider) PostAuthCallbackHandler(http.ResponseWriter, *http.Request) {}
 func (refreshAuthProvider) LogoutHandler(http.ResponseWriter, *http.Request)           {}
 

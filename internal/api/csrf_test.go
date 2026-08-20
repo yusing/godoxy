@@ -18,7 +18,7 @@ import (
 	"github.com/yusing/goutils/task"
 )
 
-func TestAuthCheckIssuesCSRFCookie(t *testing.T) {
+func TestAuthCheckReturnsUnauthorizedAndIssuesCSRFCookie(t *testing.T) {
 	handler := newAuthenticatedHandler(t)
 
 	req := httptest.NewRequest(http.MethodHead, "/api/v1/auth/check", nil)
@@ -27,7 +27,7 @@ func TestAuthCheckIssuesCSRFCookie(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 
 	csrfCookie := findCookie(rec.Result().Cookies(), auth.CSRFCookieName)
 	require.NotNil(t, csrfCookie)

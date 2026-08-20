@@ -12,7 +12,7 @@ import (
 // @Tags			auth
 // @Produce		plain
 // @Success		200	{string}	string	"OK"
-// @Failure		302	{string}	string	"Redirects to login page or IdP"
+// @Failure		401	{string}	string	"Authentication is required"
 // @Router			/auth/check [head]
 func Check(c *gin.Context) {
 	auth.AuthCheckHandler(c.Writer, c.Request)

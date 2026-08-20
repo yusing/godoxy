@@ -285,23 +285,30 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) L
 		return LoginResponseHandled
 	}
 
-	// check for session token
-	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
-	if err == nil { // session token exists
-		result, err := auth.TryRefreshToken(r.Context(), sessionToken.Value)
+	if err := auth.refreshSession(w, r); err == nil {
 		// The caller owns the response after refresh because document, API, and
 		// protocol requests require different completion behavior.
-		if err == nil {
-			auth.setIDTokenCookie(w, r, result.jwt, time.Until(result.jwtExpiry))
-			auth.setSessionTokenCookie(w, r, result.newSession)
-			return LoginSessionRefreshed
-		}
+		return LoginSessionRefreshed
+	} else if !errors.Is(err, ErrMissingSessionToken) {
 		// Discard the invalid session and restart login for this document.
 		log.Err(err).Msg("failed to refresh token")
-		auth.clearCookie(w, r)
-		return auth.startLogin(w, r)
 	}
 	return auth.startLogin(w, r)
+}
+
+func (auth *OIDCProvider) refreshSession(w http.ResponseWriter, r *http.Request) error {
+	sessionToken, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthSessionToken))
+	if err != nil {
+		return ErrMissingSessionToken
+	}
+	result, err := auth.TryRefreshToken(r.Context(), sessionToken.Value)
+	if err != nil {
+		auth.clearCookie(w, r)
+		return err
+	}
+	auth.setIDTokenCookie(w, r, result.jwt, time.Until(result.jwtExpiry))
+	auth.setSessionTokenCookie(w, r, result.newSession)
+	return nil
 }
 
 func (auth *OIDCProvider) startLogin(w http.ResponseWriter, r *http.Request) LoginResult {

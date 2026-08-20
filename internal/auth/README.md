@@ -106,7 +106,7 @@ func AuthCheckHandler(w http.ResponseWriter, r *http.Request)
 
 HTTP handler that checks if the request has a valid token. Returns 200 if valid, invokes login handler otherwise.
 
-When an OIDC session is refreshed, it returns 200 with the fresh cookies instead of applying browser-navigation behavior.
+When an OIDC session is refreshed, it returns 200 with the fresh cookies instead of applying browser-navigation behavior. When no session can be refreshed, it returns 401 without starting an interactive login redirect, allowing API and WebSocket clients to choose their own recovery behavior.
 
 ```go
 func AuthOrProceed(w http.ResponseWriter, r *http.Request) bool
