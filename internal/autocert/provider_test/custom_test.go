@@ -492,7 +492,7 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 		require.NotNil(t, provider)
 
 		// Test obtaining certificate
-		err = provider.ObtainCert()
+		err = provider.ObtainCert(t.Context())
 		require.NoError(t, err)
 
 		// Verify certificate was obtained
@@ -534,7 +534,7 @@ func TestObtainCertFromCustomProvider(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 
-		err = provider.ObtainCert()
+		err = provider.ObtainCert(t.Context())
 		require.NoError(t, err)
 
 		cert, err := provider.GetCert(nil)

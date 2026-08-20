@@ -7,7 +7,7 @@ replace github.com/yusing/godoxy => ../..
 replace github.com/yusing/goutils => ../../goutils
 
 require (
-	github.com/go-acme/lego/v4 v4.35.2
+	github.com/go-acme/lego/v5 v5.3.1
 	github.com/yusing/godoxy v0.30.2
 )
 
@@ -123,4 +123,5 @@ require (
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
 )

@@ -1,7 +1,7 @@
 package autocert
 
 import (
-	"github.com/go-acme/lego/v4/challenge"
+	"github.com/go-acme/lego/v5/challenge"
 	"github.com/yusing/godoxy/internal/serialization"
 	strutils "github.com/yusing/goutils/strings"
 )

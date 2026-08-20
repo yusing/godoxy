@@ -25,7 +25,7 @@ require (
 	github.com/docker/go-connections v0.8.1
 	github.com/fsnotify/fsnotify v1.10.1 // file watcher
 	github.com/gin-gonic/gin v1.12.0 // api server
-	github.com/go-acme/lego/v4 v4.35.2 // acme client
+	github.com/go-acme/lego/v5 v5.3.1 // acme client
 	github.com/go-playground/validator/v10 v10.30.3 // validator
 	github.com/gobwas/glob v0.2.3 // glob matcher for route rules
 	github.com/goccy/go-yaml v1.19.2 // yaml parsing for different config files
@@ -200,4 +200,5 @@ require (
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
 )

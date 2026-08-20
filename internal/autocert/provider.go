@@ -17,9 +17,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
+	"github.com/go-acme/lego/v5/certificate"
+	"github.com/go-acme/lego/v5/lego"
+	"github.com/go-acme/lego/v5/registration"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
@@ -220,12 +220,26 @@ func (p *Provider) allProviders() []*Provider {
 }
 
 // ObtainCertIfNotExistsAll obtains a new certificate for this provider and all extra providers if they do not exist.
-func (p *Provider) ObtainCertIfNotExistsAll() error {
+func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error {
+	// Serialize initClient calls to prevent concurrent process-wide DNS resolver changes
+	for _, provider := range p.allProviders() {
+		if provider.cfg.Provider != ProviderLocal && provider.cfg.Provider != ProviderPseudo {
+			provider.mu.RLock()
+			client := provider.client
+			provider.mu.RUnlock()
+			if client == nil {
+				if err := provider.initClient(); err != nil {
+					return provider.fmtError(err)
+				}
+			}
+		}
+	}
+
 	errs := gperr.NewGroup("obtain cert error")
 
 	for _, provider := range p.allProviders() {
 		errs.Go(func() error {
-			if err := provider.obtainCertIfNotExists(); err != nil {
+			if err := provider.obtainCertIfNotExists(ctx); err != nil {
 				return gperr.PrependSubject(err, provider.GetName())
 			}
 			return nil
@@ -238,7 +252,7 @@ func (p *Provider) ObtainCertIfNotExistsAll() error {
 }
 
 // obtainCertIfNotExists obtains a new certificate for this provider if it does not exist.
-func (p *Provider) obtainCertIfNotExists() error {
+func (p *Provider) obtainCertIfNotExists(ctx context.Context) error {
 	err := p.loadCert()
 	if err == nil {
 		return nil
@@ -258,15 +272,15 @@ func (p *Provider) obtainCertIfNotExists() error {
 	}
 
 	p.logger.Info().Msg("cert not found, obtaining new cert")
-	return p.ObtainCert()
+	return p.ObtainCert(ctx)
 }
 
 // ObtainCertAll renews existing certificates or obtains new certificates for this provider and all extra providers.
-func (p *Provider) ObtainCertAll() error {
+func (p *Provider) ObtainCertAll(ctx context.Context) error {
 	errs := gperr.NewGroup("obtain cert error")
 	for _, provider := range p.allProviders() {
 		errs.Go(func() error {
-			if err := provider.obtainCertIfNotExists(); err != nil {
+			if err := provider.obtainCertIfNotExists(ctx); err != nil {
 				return gperr.PrependSubject(err, provider.GetName())
 			}
 			return nil
@@ -279,7 +293,7 @@ func (p *Provider) ObtainCertAll() error {
 }
 
 // ObtainCert renews existing certificate or obtains a new certificate for this provider.
-func (p *Provider) ObtainCert() error {
+func (p *Provider) ObtainCert(ctx context.Context) error {
 	p.obtain.Lock()
 	defer p.obtain.Unlock()
 
@@ -319,7 +333,7 @@ func (p *Provider) ObtainCert() error {
 	}
 
 	if !userRegistered {
-		if err := p.registerACME(); err != nil {
+		if err := p.registerACME(ctx); err != nil {
 			return err
 		}
 	}
@@ -328,7 +342,7 @@ func (p *Provider) ObtainCert() error {
 	var err error
 
 	if legoCert != nil {
-		cert, err = client.Certificate.RenewWithOptions(*legoCert, &certificate.RenewOptions{
+		cert, err = client.Certificate.Renew(ctx, *legoCert, &certificate.RenewOptions{
 			Bundle: true,
 		})
 		if err != nil {
@@ -344,9 +358,10 @@ func (p *Provider) ObtainCert() error {
 	}
 
 	if cert == nil {
-		cert, err = client.Certificate.Obtain(certificate.ObtainRequest{
+		cert, err = client.Certificate.Obtain(ctx, certificate.ObtainRequest{
 			Domains: p.cfg.Domains,
 			Bundle:  true,
+			KeyType: p.cfg.CertKeyType(),
 		})
 		if err != nil {
 			return err
@@ -506,7 +521,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 			}
 		}()
 
-		renewed, err := p.renew(renewMode)
+		renewed, err := p.renew(task.Context(), renewMode)
 		if err != nil {
 			log.Warn().Err(p.fmtError(err)).Msg("autocert: cert renew failed")
 			notifier.Notify(&notif.LogMessage{
@@ -556,7 +571,9 @@ func (p *Provider) initClient() error {
 		return err
 	}
 
-	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider, p.cfg.dns01Options()...)
+	p.cfg.applyResolvers()
+
+	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider)
 	if err != nil {
 		return err
 	}
@@ -567,7 +584,7 @@ func (p *Provider) initClient() error {
 	return nil
 }
 
-func (p *Provider) registerACME() error {
+func (p *Provider) registerACME(ctx context.Context) error {
 	p.mu.RLock()
 	registrationExists := p.user.Registration != nil
 	client := p.client
@@ -576,7 +593,7 @@ func (p *Provider) registerACME() error {
 		return nil
 	}
 
-	reg, err := client.Registration.ResolveAccountByKey()
+	reg, err := client.Registration.ResolveAccountByKey(ctx)
 	if err == nil {
 		p.user.Registration = reg
 		log.Info().Msg("reused acme registration from private key")
@@ -584,13 +601,13 @@ func (p *Provider) registerACME() error {
 	}
 
 	if p.cfg.EABKid != "" && p.cfg.EABHmac != "" {
-		reg, err = client.Registration.RegisterWithExternalAccountBinding(registration.RegisterEABOptions{
+		reg, err = client.Registration.RegisterWithExternalAccountBinding(ctx, registration.RegisterEABOptions{
 			TermsOfServiceAgreed: true,
 			Kid:                  p.cfg.EABKid,
 			HmacEncoded:          p.cfg.EABHmac.String(),
 		})
 	} else {
-		reg, err = client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
+		reg, err = client.Registration.Register(ctx, registration.RegisterOptions{TermsOfServiceAgreed: true})
 	}
 	if err != nil {
 		return err
@@ -654,7 +671,7 @@ func (p *Provider) certState() CertState {
 	return CertStateValid
 }
 
-func (p *Provider) renew(mode RenewMode) (renewed bool, err error) {
+func (p *Provider) renew(ctx context.Context, mode RenewMode) (renewed bool, err error) {
 	if p.cfg.Provider == ProviderLocal {
 		return false, nil
 	}
@@ -686,7 +703,7 @@ func (p *Provider) renew(mode RenewMode) (renewed bool, err error) {
 		log.Info().Msg("force renewing cert by user request")
 	}
 
-	if err := p.ObtainCert(); err != nil {
+	if err := p.ObtainCert(ctx); err != nil {
 		return false, err
 	}
 	return true, nil

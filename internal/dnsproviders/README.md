@@ -90,7 +90,6 @@ graph TD
 | DuckDNS        | `duckdns`       | DuckDNS               |
 | EdgeDNS        | `edgedns`       | Akamai EdgeDNS        |
 | GoDaddy        | `godaddy`       | GoDaddy DNS           |
-| Google Domains | `googledomains` | Google Domains DNS    |
 | Hetzner        | `hetzner`       | Hetzner DNS           |
 | Hostinger      | `hostinger`     | Hostinger DNS         |
 | HTTP Request   | `httpreq`       | Generic HTTP provider |
@@ -103,13 +102,27 @@ graph TD
 | OVH            | `ovh`           | OVHcloud DNS          |
 | Oracle Cloud   | `oraclecloud`   | Oracle Cloud DNS      |
 | Porkbun        | `porkbun`       | Porkbun DNS           |
-| RFC 2136       | `rfc2136`       | BIND/named (RFC 2136) |
+| DNS Update     | `dnsupdate`     | BIND/named (RFC 2136) |
 | Scaleway       | `scaleway`      | Scaleway DNS          |
 | SpaceShip      | `spaceship`     | SpaceShip DNS         |
 | Timeweb Cloud  | `timewebcloud`  | Timeweb Cloud DNS     |
 | Vercel         | `vercel`        | Vercel DNS            |
 | Vultr          | `vultr`         | Vultr DNS             |
 | Google Cloud   | `gcloud`        | Google Cloud DNS      |
+
+`rfc2136` is accepted as an alias for `dnsupdate`, which lego renamed in v5.
+
+Provider options are the fields of the matching lego provider `Config` struct, so
+lego v5 changed some of them:
+
+| Provider    | Change                                     |
+| ----------- | ------------------------------------------ |
+| `scaleway`  | `token` renamed to `secret_key`            |
+| `netcup`    | `ttl` removed                              |
+| `namecheap` | `debug` removed                            |
+| `vultr`     | `http_timeout` removed                     |
+
+`googledomains` is gone: lego v5 dropped it after Google shut the service down.
 
 ## Configuration Surface
 
@@ -142,7 +155,7 @@ Supports hot-reloading via editing `config/config.yml`.
 
 ### External dependencies
 
-- `github.com/go-acme/lego/v4/providers/dns/*` - All lego DNS providers
+- `github.com/go-acme/lego/v5/providers/dns/*` - All lego DNS providers
 
 ### Integration points
 

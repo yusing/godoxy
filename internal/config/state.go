@@ -565,7 +565,7 @@ func (state *state) initAutoCert() error {
 		return err
 	}
 
-	if err := p.ObtainCertIfNotExistsAll(); err != nil {
+	if err := p.ObtainCertIfNotExistsAll(state.task.Context()); err != nil {
 		return err
 	}
 
