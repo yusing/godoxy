@@ -221,6 +221,20 @@ func (p *Provider) allProviders() []*Provider {
 
 // ObtainCertIfNotExistsAll obtains a new certificate for this provider and all extra providers if they do not exist.
 func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error {
+	// Serialize initClient calls to prevent concurrent process-wide DNS resolver changes
+	for _, provider := range p.allProviders() {
+		if provider.cfg.Provider != ProviderLocal && provider.cfg.Provider != ProviderPseudo {
+			provider.mu.RLock()
+			client := provider.client
+			provider.mu.RUnlock()
+			if client == nil {
+				if err := provider.initClient(); err != nil {
+					return provider.fmtError(err)
+				}
+			}
+		}
+	}
+
 	errs := gperr.NewGroup("obtain cert error")
 
 	for _, provider := range p.allProviders() {

@@ -338,7 +338,7 @@ if err != nil {
     return fmt.Errorf("autocert error: %w", err)
 }
 
-if err := provider.ObtainCertIfNotExistsAll(); err != nil {
+if err := provider.ObtainCertIfNotExistsAll(state.Task().Context()); err != nil {
     return fmt.Errorf("failed to obtain certificates: %w", err)
 }
 

@@ -8,8 +8,8 @@ def unquote(s: str) -> str:
     return s.strip().strip('"')
 
 
-# lego's default branch is "main" (v5); "master" is the v4 maintenance branch.
-url = "https://raw.githubusercontent.com/go-acme/lego/refs/heads/main/providers/dns/zz_gen_dns_providers.go"
+# Pin to v5.3.1 tag to match go.mod dependency version for immutable source reference
+url = "https://raw.githubusercontent.com/go-acme/lego/refs/tags/v5.3.1/providers/dns/zz_gen_dns_providers.go"
 import_prefix = "github.com/go-acme/lego/v5/providers/dns/"
 response = requests.get(url)
 data: list[str] = [unquote(i) for i in response.text.split("\n") if import_prefix in i]
