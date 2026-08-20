@@ -25,7 +25,7 @@ const fakeOIDCClientID = "webui-e2e-client"
 
 func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	idp := newFakeOIDCIdP(t, fakeOIDCClientID)
-	appURL := setupOIDCWebUI(t, idp)
+	appURL := setupOIDCWebUI(t, idp, "webui.yml")
 
 	t.Run("expired document session refreshes and reaches the SPA", func(t *testing.T) {
 		client := authenticatedOIDCClient(t, appURL, idp)
@@ -165,7 +165,37 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	})
 }
 
-func setupOIDCWebUI(t *testing.T, idp *fakeOIDCIdP) string {
+func TestDevWebUIAPIBypassesDocumentAuthenticationE2E(t *testing.T) {
+	idp := newFakeOIDCIdP(t, fakeOIDCClientID)
+	appURL := setupOIDCWebUI(t, idp, "webui_dev.yml")
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	for _, request := range []struct {
+		name    string
+		headers map[string]string
+	}{
+		{name: "JSON API", headers: map[string]string{"Accept": "application/json"}},
+		{name: "WebSocket", headers: map[string]string{"Connection": "Upgrade", "Upgrade": "websocket"}},
+	} {
+		t.Run(request.name, func(t *testing.T) {
+			response := doOIDCRequest(t, client, http.MethodGet, appURL+"/api/v1/health", "", request.headers)
+			closeOIDCResponse(t, response)
+
+			require.Equal(t, http.StatusUnauthorized, response.StatusCode)
+			require.Empty(t, response.Header.Get("Location"))
+			assertNoCookiePrefix(t, response, auth.CookieOauthState)
+		})
+	}
+}
+
+func setupOIDCWebUI(t *testing.T, idp *fakeOIDCIdP, presetName string) string {
 	t.Helper()
 
 	previous := struct {
@@ -219,7 +249,7 @@ func setupOIDCWebUI(t *testing.T, idp *fakeOIDCIdP) string {
 	rules.InitAuthHandler(auth.AuthOrProceed)
 	rules.ReplaceHandler("api", oidcE2EAPIHandler())
 
-	webuiRules, ok := rulepresets.GetRulePreset("webui.yml")
+	webuiRules, ok := rulepresets.GetRulePreset(presetName)
 	require.True(t, ok)
 	fileServer, err := routeimpl.NewFileServer(&route.Route{
 		Root:   "embed://webui",
@@ -421,4 +451,13 @@ func assertClearedCookiePrefix(t *testing.T, response *http.Response, prefix str
 		}
 	}
 	t.Errorf("response did not clear cookie with prefix %q", prefix)
+}
+
+func assertNoCookiePrefix(t *testing.T, response *http.Response, prefix string) {
+	t.Helper()
+	for _, cookie := range response.Cookies() {
+		if strings.HasPrefix(cookie.Name, prefix+"_") || cookie.Name == prefix {
+			t.Errorf("response unexpectedly set cookie %q", cookie.Name)
+		}
+	}
 }
