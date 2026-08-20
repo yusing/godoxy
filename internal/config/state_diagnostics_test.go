@@ -133,11 +133,10 @@ func TestStartupDiagnosticsAllowlist(t *testing.T) {
 	}
 	state.Config.Providers.Notification = []*notif.NotificationConfig{{
 		ProviderName: notif.ProviderWebhook,
-		Provider: &notif.Webhook{ProviderBase: notif.ProviderBase{
+		Provider: &notif.Webhook{
 			Name:  "operations",
 			URL:   "https://notifications.example.com",
-			Token: notificationToken,
-		}},
+			Token: notificationToken},
 	}}
 
 	const providerName = "password-reset-token-service"

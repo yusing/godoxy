@@ -137,11 +137,9 @@ func TestVerifyReturnsManagedResponseAndSkipsConfigPersistence(t *testing.T) {
 	listAgentsFunc = func(context.Context) []*agent.AgentConfig {
 		return []*agent.AgentConfig{
 			{
-				AgentInfo: agent.AgentInfo{
-					Name:    "agent-1",
-					Runtime: agent.ContainerRuntimeDocker,
-				},
-				Addr: "10.0.0.1:8890",
+				Name:    "agent-1",
+				Runtime: agent.ContainerRuntimeDocker,
+				Addr:    "10.0.0.1:8890",
 			},
 		}
 	}

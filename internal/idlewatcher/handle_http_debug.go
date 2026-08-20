@@ -15,10 +15,8 @@ func DebugHandler(rw http.ResponseWriter, r *http.Request) {
 	w := &Watcher{
 		events: gevents.NewHistory(),
 		cfg: &idlewatcher.Config{
-			IdlewatcherProviderConfig: idlewatcher.ProviderConfig{
-				Docker: &idlewatcher.DockerConfig{
-					ContainerName: "test",
-				},
+			Docker: &idlewatcher.DockerConfig{
+				ContainerName: "test",
 			},
 		},
 	}

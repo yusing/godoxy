@@ -109,29 +109,23 @@ func TestListWalkxCodeIcons(t *testing.T) {
 	}
 	test := []testCases{
 		{
-			Key: NewKey(SourceWalkXCode, "app1"),
-			Meta: Meta{
-				SVG:   true,
-				PNG:   true,
-				WebP:  true,
-				Light: true,
-			},
+			Key:   NewKey(SourceWalkXCode, "app1"),
+			SVG:   true,
+			PNG:   true,
+			WebP:  true,
+			Light: true,
 		},
 		{
-			Key: NewKey(SourceWalkXCode, "app2"),
-			Meta: Meta{
-				PNG:  true,
-				WebP: true,
-			},
+			Key:  NewKey(SourceWalkXCode, "app2"),
+			PNG:  true,
+			WebP: true,
 		},
 		{
-			Key: NewKey(SourceWalkXCode, "karakeep"),
-			Meta: Meta{
-				SVG:  true,
-				PNG:  true,
-				WebP: true,
-				Dark: true,
-			},
+			Key:  NewKey(SourceWalkXCode, "karakeep"),
+			SVG:  true,
+			PNG:  true,
+			WebP: true,
+			Dark: true,
 		},
 	}
 	runTests(t, m, test)
@@ -148,35 +142,29 @@ func TestListSelfhstIcons(t *testing.T) {
 	}
 	test := []testCases{
 		{
-			Key: NewKey(SourceSelfhSt, "2fauth"),
-			Meta: Meta{
-				SVG:         true,
-				PNG:         true,
-				WebP:        true,
-				Light:       true,
-				Dark:        true,
-				DisplayName: "2FAuth",
-			},
+			Key:         NewKey(SourceSelfhSt, "2fauth"),
+			SVG:         true,
+			PNG:         true,
+			WebP:        true,
+			Light:       true,
+			Dark:        true,
+			DisplayName: "2FAuth",
 		},
 		{
-			Key: NewKey(SourceSelfhSt, "dittofeed"),
-			Meta: Meta{
-				PNG:         true,
-				WebP:        true,
-				DisplayName: "Dittofeed",
-			},
+			Key:         NewKey(SourceSelfhSt, "dittofeed"),
+			PNG:         true,
+			WebP:        true,
+			DisplayName: "Dittofeed",
 		},
 		{
-			Key: NewKey(SourceSelfhSt, "ars-technica"),
-			Meta: Meta{
-				SVG:         true,
-				PNG:         true,
-				WebP:        true,
-				Light:       true,
-				Dark:        true,
-				DisplayName: "Ars Technica",
-				Tag:         "News",
-			},
+			Key:         NewKey(SourceSelfhSt, "ars-technica"),
+			SVG:         true,
+			PNG:         true,
+			WebP:        true,
+			Light:       true,
+			Dark:        true,
+			DisplayName: "Ars Technica",
+			Tag:         "News",
 		},
 	}
 	runTests(t, m, test)

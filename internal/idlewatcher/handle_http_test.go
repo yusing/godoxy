@@ -817,16 +817,12 @@ func newTestWatcher(t *testing.T) *Watcher {
 
 	w := &Watcher{
 		cfg: &idlewatchertypes.Config{
-			IdlewatcherProviderConfig: idlewatchertypes.ProviderConfig{
-				Docker: &idlewatchertypes.DockerConfig{
-					ContainerID:   containerName,
-					ContainerName: containerName,
-				},
+			Docker: &idlewatchertypes.DockerConfig{
+				ContainerID:   containerName,
+				ContainerName: containerName,
 			},
-			IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
-				IdleTimeout: time.Hour,
-				WakeTimeout: time.Second,
-			},
+			IdleTimeout: time.Hour,
+			WakeTimeout: time.Second,
 		},
 		idleTicker:     idleTicker,
 		healthTicker:   healthTicker,

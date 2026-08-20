@@ -12,9 +12,7 @@ import (
 func TestSleepIn(t *testing.T) {
 	w := &Watcher{
 		cfg: &Config{
-			IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
-				IdleTimeout: time.Minute,
-			},
+			IdleTimeout: time.Minute,
 		},
 	}
 	w.state.Store(&containerState{
@@ -31,9 +29,7 @@ func TestSleepIn(t *testing.T) {
 func TestSleepInHiddenWhenNotReadyOrExpired(t *testing.T) {
 	w := &Watcher{
 		cfg: &Config{
-			IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
-				IdleTimeout: time.Minute,
-			},
+			IdleTimeout: time.Minute,
 		},
 	}
 	w.state.Store(&containerState{

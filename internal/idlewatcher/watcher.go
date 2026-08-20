@@ -150,10 +150,8 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 			stateChangedCh: make(chan struct{}),
 			events:         gevents.NewHistory(),
 			cfg:            cfg,
-			routeHelper: routeHelper{
-				hc: monitor.NewMonitor(r),
-			},
-			dependsOn: make([]*dependency, 0, len(cfg.DependsOn)),
+			hc:             monitor.NewMonitor(r),
+			dependsOn:      make([]*dependency, 0, len(cfg.DependsOn)),
 		}
 	}
 

@@ -133,10 +133,10 @@ func TestEmbeddedFileServerUsesNginxTryFilesOrder(t *testing.T) {
 	}
 
 	fileServer, err := NewFileServer(&route.Route{
-		Root:     "embed://webui",
-		Metadata: route.Metadata{RootFS: fsys},
-		SPA:      true,
-		Index:    "_shell.html",
+		Root:   "embed://webui",
+		RootFS: fsys,
+		SPA:    true,
+		Index:  "_shell.html",
 	})
 	expect.NoError(t, err)
 

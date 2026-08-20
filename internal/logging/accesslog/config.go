@@ -110,10 +110,8 @@ func (cfg *Config) ShouldLogRequest(req *http.Request, res *http.Response) bool 
 
 func DefaultRequestLoggerConfig() *RequestLoggerConfig {
 	return &RequestLoggerConfig{
-		ConfigBase: ConfigBase{
-			Retention: &Retention{Days: 30},
-		},
-		Format: FormatCombined,
+		Retention: &Retention{Days: 30},
+		Format:    FormatCombined,
 		Fields: Fields{
 			Headers: FieldConfig{
 				Default: FieldModeDrop,
@@ -130,9 +128,7 @@ func DefaultRequestLoggerConfig() *RequestLoggerConfig {
 
 func DefaultACLLoggerConfig() *ACLLoggerConfig {
 	return &ACLLoggerConfig{
-		ConfigBase: ConfigBase{
-			Retention: &Retention{Days: 30},
-		},
+		Retention: &Retention{Days: 30},
 	}
 }
 

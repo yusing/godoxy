@@ -162,10 +162,8 @@ func TestRotateKeepDaysRollsRealFile(t *testing.T) {
 	expect.NoError(t, err)
 
 	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
-		Format: FormatJSON,
-		ConfigBase: ConfigBase{
-			Retention: strutils.MustParse[*Retention]("30 days"),
-		},
+		Format:    FormatJSON,
+		Retention: strutils.MustParse[*Retention]("30 days"),
 	})
 	defer logger.Close()
 
@@ -209,10 +207,8 @@ func TestRotateKeepDaysPreservesActiveFileMode(t *testing.T) {
 	expect.NoError(t, err)
 
 	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
-		Format: FormatJSON,
-		ConfigBase: ConfigBase{
-			Retention: strutils.MustParse[*Retention]("30 days"),
-		},
+		Format:    FormatJSON,
+		Retention: strutils.MustParse[*Retention]("30 days"),
 	})
 	defer logger.Close()
 
@@ -238,10 +234,8 @@ func TestRotateKeepDaysFlushesSharedFileLoggers(t *testing.T) {
 	expect.NoError(t, err)
 
 	cfg := &RequestLoggerConfig{
-		Format: FormatJSON,
-		ConfigBase: ConfigBase{
-			Retention: strutils.MustParse[*Retention]("30 days"),
-		},
+		Format:    FormatJSON,
+		Retention: strutils.MustParse[*Retention]("30 days"),
 	}
 	logger1 := NewFileAccessLogger(task.RootTask("test", false), file1, cfg)
 	defer logger1.Close()
@@ -269,10 +263,8 @@ func TestRotateKeepDaysDeletesExpiredArchives(t *testing.T) {
 	expect.NoError(t, err)
 
 	logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
-		Format: FormatJSON,
-		ConfigBase: ConfigBase{
-			Retention: strutils.MustParse[*Retention]("30 days"),
-		},
+		Format:    FormatJSON,
+		Retention: strutils.MustParse[*Retention]("30 days"),
 	})
 	defer logger.Close()
 
@@ -410,10 +402,8 @@ func BenchmarkRotate(b *testing.B) {
 		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := newMockFile(true)
 			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
-				ConfigBase: ConfigBase{
-					Retention: retention,
-				},
-				Format: FormatJSON,
+				Retention: retention,
+				Format:    FormatJSON,
 			})
 			for i := range 100 {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -100+i+1))
@@ -444,10 +434,8 @@ func BenchmarkRotateWithInvalidTime(b *testing.B) {
 		b.Run(fmt.Sprintf("retention_%s", retention.String()), func(b *testing.B) {
 			file := newMockFile(true)
 			logger := NewFileAccessLogger(task.RootTask("test", false), file, &RequestLoggerConfig{
-				ConfigBase: ConfigBase{
-					Retention: retention,
-				},
-				Format: FormatJSON,
+				Retention: retention,
+				Format:    FormatJSON,
 			})
 			for i := range 10000 {
 				mockable.MockTimeNow(testTime.AddDate(0, 0, -10000+i+1))

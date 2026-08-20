@@ -147,18 +147,14 @@ func newDependencyReloadTest(t *testing.T, id string, dependsOn []string) (*Watc
 
 func idlewatcherTestConfig(id string, dependsOn []string) *idlewatchertypes.Config {
 	return &idlewatchertypes.Config{
-		IdlewatcherProviderConfig: idlewatchertypes.ProviderConfig{
-			Docker: &idlewatchertypes.DockerConfig{
-				ContainerID:   id,
-				ContainerName: id + "-container",
-			},
+		Docker: &idlewatchertypes.DockerConfig{
+			ContainerID:   id,
+			ContainerName: id + "-container",
 		},
-		IdlewatcherConfigBase: idlewatchertypes.ConfigBase{
-			IdleTimeout: time.Hour,
-			WakeTimeout: time.Second,
-			StopTimeout: time.Second,
-		},
-		DependsOn: dependsOn,
+		IdleTimeout: time.Hour,
+		WakeTimeout: time.Second,
+		StopTimeout: time.Second,
+		DependsOn:   dependsOn,
 	}
 }
 
