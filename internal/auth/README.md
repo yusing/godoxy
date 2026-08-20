@@ -47,6 +47,8 @@ type Provider interface {
 
 ### OIDC Provider
 
+Each OIDC login stores its initiating local `GET` path and query in a short-lived, signed, HTTP-only transaction cookie selected by the OAuth state. The callback validates and consumes only that transaction before redirecting, so overlapping tabs remain independent. Signed malformed, absolute, and network-path targets fall back to `/`; missing, expired, or tampered transactions fail state validation.
+
 ```go
 type OIDCProvider struct {
     hash          string // sha256(issuer_url\nclient_id)

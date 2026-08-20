@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/yusing/godoxy/internal/common"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
 
 	expect "github.com/yusing/goutils/testing"
 )
@@ -132,6 +135,7 @@ func TestOIDCLoginHandler(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 func TestOIDCLoginHandlerRefresh(t *testing.T) {
@@ -144,8 +148,10 @@ func TestOIDCLoginHandlerRefresh(t *testing.T) {
 	auth := &OIDCProvider{
 		oauthConfig: &oauth2.Config{
 			ClientID: clientID,
+			Endpoint: oauth2.Endpoint{AuthURL: "https://idp.example/authorize"},
 		},
 		allowedUsers: []string{"test-user"},
+		rateLimit:    rate.NewLimiter(rate.Inf, 1),
 	}
 
 	t.Run("returns refreshed without committing a response", func(t *testing.T) {
@@ -187,11 +193,163 @@ func TestOIDCLoginHandlerRefresh(t *testing.T) {
 		if recorder.Code != http.StatusFound {
 			t.Fatalf("LoginHandler() status = %d, want %d", recorder.Code, http.StatusFound)
 		}
-		if location := recorder.Header().Get("Location"); location != "/" {
-			t.Errorf("LoginHandler() redirect = %q, want %q", location, "/")
+		if location := recorder.Header().Get("Location"); !strings.HasPrefix(location, "https://idp.example/authorize?") {
+			t.Errorf("LoginHandler() redirect = %q, want IdP authorization URL", location)
 		}
 		assertClearedCookies(t, recorder, auth)
+		assertCookiePrefixSet(t, recorder, CookieOauthState)
 	})
+}
+
+func TestOIDCLoginTransaction(t *testing.T) {
+	previousSecret := common.APIJWTSecret
+	common.APIJWTSecret = []byte("test-secret")
+	t.Cleanup(func() {
+		common.APIJWTSecret = previousSecret
+	})
+
+	auth := &OIDCProvider{oauthConfig: &oauth2.Config{ClientID: clientID}}
+	tests := []struct {
+		name       string
+		method     string
+		requestURI string
+		returnTo   string
+		want       string
+	}{
+		{name: "path and repeated query", method: http.MethodGet, requestURI: "/config?tab=certs&tab=trust", want: "/config?tab=certs&tab=trust"},
+		{name: "explicit empty query", method: http.MethodGet, requestURI: "/config?", want: "/config?"},
+		{name: "unsafe method", method: http.MethodPost, requestURI: "/config", want: "/"},
+		{name: "signed network path", method: http.MethodGet, requestURI: "/", returnTo: "//evil.example/path", want: "/"},
+		{name: "signed absolute URL", method: http.MethodGet, requestURI: "/", returnTo: "https://evil.example/path", want: "/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := generateState()
+			initialRequest := httptest.NewRequest(tt.method, tt.requestURI, nil)
+			initialRecorder := httptest.NewRecorder()
+			expect.NoError(t, auth.setLoginTransactionCookie(initialRecorder, initialRequest, state))
+			transactionCookie := findResponseCookie(t, initialRecorder, auth.loginTransactionCookieName(state))
+			if tt.returnTo != "" {
+				transactionCookie.Value = signedLoginTransaction(t, state, tt.returnTo)
+			}
+
+			callbackRequest := httptest.NewRequest(http.MethodGet, OIDCPostAuthPath, nil)
+			callbackRequest.AddCookie(transactionCookie)
+			callbackRecorder := httptest.NewRecorder()
+
+			got, err := auth.consumeLoginTransaction(callbackRecorder, callbackRequest, state)
+			if err != nil {
+				t.Fatalf("consumeLoginTransaction() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("consumeLoginTransaction() = %q, want %q", got, tt.want)
+			}
+			assertCookieCleared(t, callbackRecorder, auth.loginTransactionCookieName(state))
+		})
+	}
+
+	t.Run("tampered return target", func(t *testing.T) {
+		state := generateState()
+		request := httptest.NewRequest(http.MethodGet, "/config", nil)
+		setRecorder := httptest.NewRecorder()
+		expect.NoError(t, auth.setLoginTransactionCookie(setRecorder, request, state))
+		cookie := findResponseCookie(t, setRecorder, auth.loginTransactionCookieName(state))
+		cookie.Value = cookie.Value[:len(cookie.Value)-1] + "x"
+
+		callbackRequest := httptest.NewRequest(http.MethodGet, OIDCPostAuthPath, nil)
+		callbackRequest.AddCookie(cookie)
+		callbackRecorder := httptest.NewRecorder()
+
+		if _, err := auth.consumeLoginTransaction(callbackRecorder, callbackRequest, state); err == nil {
+			t.Error("consumeLoginTransaction() accepted a tampered transaction")
+		}
+		assertCookieCleared(t, callbackRecorder, auth.loginTransactionCookieName(state))
+	})
+
+	t.Run("concurrent transactions remain independent", func(t *testing.T) {
+		stateA, stateB := generateState(), generateState()
+		cookieA := setLoginTransactionForTest(t, auth, stateA, "/config")
+		cookieB := setLoginTransactionForTest(t, auth, stateB, "/routes")
+
+		for _, transaction := range []struct {
+			state  string
+			cookie *http.Cookie
+			want   string
+		}{{state: stateB, cookie: cookieB, want: "/routes"}, {state: stateA, cookie: cookieA, want: "/config"}} {
+			request := httptest.NewRequest(http.MethodGet, OIDCPostAuthPath, nil)
+			request.AddCookie(cookieA)
+			request.AddCookie(cookieB)
+			recorder := httptest.NewRecorder()
+			got, err := auth.consumeLoginTransaction(recorder, request, transaction.state)
+			expect.NoError(t, err)
+			expect.Equal(t, got, transaction.want)
+			assertCookieCleared(t, recorder, auth.loginTransactionCookieName(transaction.state))
+		}
+	})
+}
+
+func signedLoginTransaction(t *testing.T, state, returnTo string) string {
+	t.Helper()
+	now := time.Now()
+	claims := oidcLoginTransactionClaims{
+		State:    state,
+		ReturnTo: returnTo,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    oidcLoginTransactionIssuer,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(oidcLoginCookieTTL)),
+		},
+	}
+	return expect.Must(jwt.NewWithClaims(jwt.SigningMethodHS512, claims).SignedString(common.APIJWTSecret))
+}
+
+func setLoginTransactionForTest(t *testing.T, auth *OIDCProvider, state, requestURI string) *http.Cookie {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	expect.NoError(t, auth.setLoginTransactionCookie(
+		recorder,
+		httptest.NewRequest(http.MethodGet, requestURI, nil),
+		state,
+	))
+	return findResponseCookie(t, recorder, auth.loginTransactionCookieName(state))
+}
+
+func findResponseCookie(t *testing.T, recorder *httptest.ResponseRecorder, name string) *http.Cookie {
+	t.Helper()
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	t.Fatalf("response did not set cookie %q", name)
+	return nil
+}
+
+func assertCookieSet(t *testing.T, recorder *httptest.ResponseRecorder, name string) {
+	t.Helper()
+	cookie := findResponseCookie(t, recorder, name)
+	if cookie.MaxAge == -1 || cookie.Value == "" {
+		t.Errorf("response cookie %q was cleared, want a value", name)
+	}
+}
+
+func assertCookiePrefixSet(t *testing.T, recorder *httptest.ResponseRecorder, prefix string) {
+	t.Helper()
+	for _, cookie := range recorder.Result().Cookies() {
+		if strings.HasPrefix(cookie.Name, prefix) && cookie.MaxAge != -1 && cookie.Value != "" {
+			return
+		}
+	}
+	t.Errorf("response did not set cookie with prefix %q", prefix)
+}
+
+func assertCookieCleared(t *testing.T, recorder *httptest.ResponseRecorder, name string) {
+	t.Helper()
+	cookie := findResponseCookie(t, recorder, name)
+	if cookie.MaxAge != -1 {
+		t.Errorf("response cookie %q MaxAge = %d, want -1", name, cookie.MaxAge)
+	}
 }
 
 type writeTrackingResponseWriter struct {
@@ -284,17 +442,19 @@ func TestOIDCCallbackHandler(t *testing.T) {
 	t.Cleanup(cleanup)
 	tests := []struct {
 		name       string
-		state      string
+		hasState   bool
 		code       string
 		setupMocks bool
 		wantStatus int
+		wantTarget string
 	}{
 		{
 			name:       "Success - Valid callback",
-			state:      "valid-state",
+			hasState:   true,
 			code:       "valid-code",
 			setupMocks: true,
 			wantStatus: http.StatusFound,
+			wantTarget: "/config?section=certificates",
 		},
 		{
 			name:       "Failure - Missing state",
@@ -310,28 +470,28 @@ func TestOIDCCallbackHandler(t *testing.T) {
 				setupMockOIDC(t)
 			}
 
-			req := httptest.NewRequest(http.MethodGet, "/auth/callback?code="+tt.code+"&state="+tt.state, nil)
-			if tt.state != "" {
-				req.AddCookie(&http.Cookie{
-					Name:  GetDefaultAuth().(*OIDCProvider).getAppScopedCookieName(CookieOauthState),
-					Value: tt.state,
-				})
+			auth := GetDefaultAuth().(*OIDCProvider)
+			state := ""
+			var transactionCookie *http.Cookie
+			if tt.hasState {
+				state = generateState()
+				transactionCookie = setLoginTransactionForTest(t, auth, state, tt.wantTarget)
+			}
+			req := httptest.NewRequest(http.MethodGet, "/auth/callback?code="+tt.code+"&state="+state, nil)
+			if transactionCookie != nil {
+				req.AddCookie(transactionCookie)
 			}
 			w := httptest.NewRecorder()
 
-			GetDefaultAuth().(*OIDCProvider).PostAuthCallbackHandler(w, req)
+			auth.PostAuthCallbackHandler(w, req)
 
 			if got := w.Code; got != tt.wantStatus {
 				t.Errorf("OIDCCallbackHandler() status = %v, want %v", got, tt.wantStatus)
 			}
 
-			if tt.wantStatus == http.StatusTemporaryRedirect {
-				setCookie := expect.Must(http.ParseSetCookie(w.Header().Get("Set-Cookie")))
-				expect.Equal(t, setCookie.Name, CookieOauthToken)
-				expect.True(t, setCookie.Value != "")
-				expect.Equal(t, setCookie.Path, "/")
-				expect.Equal(t, setCookie.SameSite, http.SameSiteLaxMode)
-				expect.Equal(t, setCookie.HttpOnly, true)
+			if tt.wantTarget != "" {
+				expect.Equal(t, w.Header().Get("Location"), tt.wantTarget)
+				assertCookiePrefixSet(t, w, CookieOauthToken)
 			}
 		})
 	}

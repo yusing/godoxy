@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/utils"
@@ -44,6 +45,12 @@ type (
 		Username string   `json:"preferred_username"`
 		Groups   []string `json:"groups"`
 	}
+
+	oidcLoginTransactionClaims struct {
+		State    string `json:"state"`
+		ReturnTo string `json:"return_to"`
+		jwt.RegisteredClaims
+	}
 )
 
 var _ Provider = (*OIDCProvider)(nil)
@@ -53,6 +60,11 @@ const (
 	CookieOauthState        = "godoxy_oidc_state"
 	CookieOauthToken        = "godoxy_oauth_token"   //nolint:gosec
 	CookieOauthSessionToken = "godoxy_session_token" //nolint:gosec
+)
+
+const (
+	oidcLoginCookieTTL         = 5 * time.Minute
+	oidcLoginTransactionIssuer = "GoDoxy OIDC Login"
 )
 
 // getAppScopedCookieName returns a cookie name scoped to the specific application
@@ -284,20 +296,26 @@ func (auth *OIDCProvider) LoginHandler(w http.ResponseWriter, r *http.Request) L
 			auth.setSessionTokenCookie(w, r, result.newSession)
 			return LoginSessionRefreshed
 		}
-		// clear cookies then redirect to home
+		// Discard the invalid session and restart login for this document.
 		log.Err(err).Msg("failed to refresh token")
 		auth.clearCookie(w, r)
-		http.Redirect(w, r, "/", http.StatusFound)
-		return LoginResponseHandled
+		return auth.startLogin(w, r)
 	}
+	return auth.startLogin(w, r)
+}
 
+func (auth *OIDCProvider) startLogin(w http.ResponseWriter, r *http.Request) LoginResult {
 	if !auth.rateLimit.Allow() {
 		WriteBlockPage(w, http.StatusTooManyRequests, "auth rate limit exceeded", "Try again", OIDCAuthInitPath)
 		return LoginResponseHandled
 	}
 
 	state := generateState()
-	SetTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthState), state, 300*time.Second)
+	if err := auth.setLoginTransactionCookie(w, r, state); err != nil {
+		WriteBlockPage(w, http.StatusInternalServerError, "failed to start oauth login", "Try again", OIDCAuthInitPath)
+		log.Err(err).Msg("failed to sign oauth login transaction")
+		return LoginResponseHandled
+	}
 	// redirect user to Idp
 	url := auth.oauthConfig.AuthCodeURL(state, optRedirectPostAuth(r))
 	http.Redirect(w, r, url, http.StatusFound)
@@ -357,14 +375,9 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	// verify state
-	state, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthState))
+	state := r.URL.Query().Get("state")
+	returnTo, err := auth.consumeLoginTransaction(w, r, state)
 	if err != nil {
-		auth.clearCookie(w, r)
-		WriteBlockPage(w, http.StatusBadRequest, "missing state cookie", "Back to Login", OIDCAuthInitPath)
-		return
-	}
-	if r.URL.Query().Get("state") != state.Value {
 		auth.clearCookie(w, r)
 		WriteBlockPage(w, http.StatusBadRequest, "invalid oauth state", "Back to Login", OIDCAuthInitPath)
 		return
@@ -401,8 +414,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	}
 	auth.setIDTokenCookie(w, r, idTokenJWT, time.Until(idToken.Expiry))
 
-	// Redirect to home page
-	http.Redirect(w, r, "/", http.StatusFound)
+	http.Redirect(w, r, returnTo, http.StatusFound)
 }
 
 func (auth *OIDCProvider) LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -442,15 +454,83 @@ func (auth *OIDCProvider) clearCookie(w http.ResponseWriter, r *http.Request) {
 	ClearTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthSessionToken))
 }
 
+func (auth *OIDCProvider) loginTransactionCookieName(state string) string {
+	return auth.getAppScopedCookieName(CookieOauthState + "_" + state)
+}
+
+func (auth *OIDCProvider) setLoginTransactionCookie(w http.ResponseWriter, r *http.Request, state string) error {
+	returnTo := "/"
+	if r.Method == http.MethodGet {
+		returnTo = localRequestURI(r)
+	}
+	now := time.Now()
+	claims := oidcLoginTransactionClaims{
+		State:    state,
+		ReturnTo: returnTo,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    oidcLoginTransactionIssuer,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(oidcLoginCookieTTL)),
+		},
+	}
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS512, claims).SignedString(common.APIJWTSecret)
+	if err != nil {
+		return err
+	}
+	SetTokenCookie(w, r, auth.loginTransactionCookieName(state), signed, oidcLoginCookieTTL)
+	return nil
+}
+
+func (auth *OIDCProvider) consumeLoginTransaction(w http.ResponseWriter, r *http.Request, state string) (string, error) {
+	if !validOIDCState(state) {
+		return "/", errors.New("invalid oauth state format")
+	}
+	cookieName := auth.loginTransactionCookieName(state)
+	defer ClearTokenCookie(w, r, cookieName)
+	cookie, err := r.Cookie(cookieName)
+	if err != nil {
+		return "/", err
+	}
+	claims := &oidcLoginTransactionClaims{}
+	token, err := jwt.ParseWithClaims(cookie.Value, claims, func(token *jwt.Token) (any, error) {
+		if token.Method != jwt.SigningMethodHS512 {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return common.APIJWTSecret, nil
+	}, jwt.WithIssuer(oidcLoginTransactionIssuer), jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}))
+	if err != nil {
+		return "/", err
+	}
+	if !token.Valid || claims.State != state {
+		return "/", errors.New("oauth login transaction does not match state")
+	}
+	raw := claims.ReturnTo
+	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return "/", nil
+	}
+	target, err := url.ParseRequestURI(raw)
+	if err != nil || target.IsAbs() || target.Host != "" {
+		return "/", nil
+	}
+	return localRequestURI(&http.Request{URL: target}), nil
+}
+
+func validOIDCState(state string) bool {
+	if len(state) != oidcStateLength {
+		return false
+	}
+	return strings.IndexFunc(state, func(r rune) bool {
+		return !('a' <= r && r <= 'z') &&
+			!('A' <= r && r <= 'Z') &&
+			!('0' <= r && r <= '9') &&
+			r != '-' && r != '_'
+	}) == -1
+}
+
 // handleTestCallback handles OIDC callback in test environment.
 func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Request) {
-	state, err := r.Cookie(auth.getAppScopedCookieName(CookieOauthState))
+	returnTo, err := auth.consumeLoginTransaction(w, r, r.URL.Query().Get("state"))
 	if err != nil {
-		http.Error(w, "missing state cookie", http.StatusBadRequest)
-		return
-	}
-
-	if r.URL.Query().Get("state") != state.Value {
 		http.Error(w, "invalid oauth state", http.StatusBadRequest)
 		return
 	}
@@ -458,5 +538,5 @@ func (auth *OIDCProvider) handleTestCallback(w http.ResponseWriter, r *http.Requ
 	// Create test JWT token
 	SetTokenCookie(w, r, auth.getAppScopedCookieName(CookieOauthToken), "test", time.Hour)
 
-	http.Redirect(w, r, "/", http.StatusFound)
+	http.Redirect(w, r, returnTo, http.StatusFound)
 }

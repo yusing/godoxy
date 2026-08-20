@@ -28,7 +28,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	appURL := setupOIDCWebUI(t, idp, "webui.yml")
 
 	t.Run("expired document session refreshes and reaches the SPA", func(t *testing.T) {
-		client := authenticatedOIDCClient(t, appURL, idp)
+		client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 		replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 		before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
 
@@ -50,6 +50,51 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 		require.Equal(t, before+1, idp.refreshCallCount(), "the redirected document request must not refresh again")
 	})
 
+	t.Run("full login returns to the original config document", func(t *testing.T) {
+		authenticatedOIDCClient(t, appURL, idp, "/config?section=certificates&view=trust")
+	})
+
+	for _, order := range []struct {
+		name  string
+		first int
+	}{
+		{name: "older callback first", first: 0},
+		{name: "newer callback first", first: 1},
+	} {
+		t.Run("concurrent login transactions complete independently - "+order.name, func(t *testing.T) {
+			jar, err := cookiejar.New(nil)
+			require.NoError(t, err)
+			client := &http.Client{
+				Jar: jar,
+				CheckRedirect: func(*http.Request, []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
+			targets := []string{"/config?section=certificates", "/routes?tab=servers"}
+			callbacks := make([]string, len(targets))
+			for i, target := range targets {
+				loginResponse := doOIDCRequest(t, client, http.MethodGet, appURL+target, "text/html", nil)
+				closeOIDCResponse(t, loginResponse)
+				require.Equal(t, http.StatusFound, loginResponse.StatusCode)
+				require.True(t, strings.HasPrefix(loginResponse.Header.Get("Location"), idp.server.URL+"/auth?"))
+
+				providerResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, loginResponse), "text/html", nil)
+				closeOIDCResponse(t, providerResponse)
+				require.Equal(t, http.StatusFound, providerResponse.StatusCode)
+				callbacks[i] = resolveOIDCLocation(t, providerResponse)
+			}
+
+			second := 1 - order.first
+			for _, i := range []int{order.first, second} {
+				callbackResponse := doOIDCRequest(t, client, http.MethodGet, callbacks[i], "text/html", nil)
+				closeOIDCResponse(t, callbackResponse)
+				require.Equal(t, http.StatusFound, callbackResponse.StatusCode)
+				require.Equal(t, targets[i], callbackResponse.Header.Get("Location"))
+				registerOIDCSessionCleanup(t, callbackResponse)
+			}
+		})
+	}
+
 	for _, scenario := range []struct {
 		name string
 		mode fakeOIDCRefreshMode
@@ -59,7 +104,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 		{name: "refreshed identity is no longer allowed", mode: fakeOIDCRefreshDisallowed},
 	} {
 		t.Run(scenario.name+" without a redirect loop", func(t *testing.T) {
-			client := authenticatedOIDCClient(t, appURL, idp)
+			client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 			replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 			before := idp.setRefreshMode(scenario.mode)
 
@@ -67,22 +112,30 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 			closeOIDCResponse(t, failureResponse)
 
 			require.Equal(t, http.StatusFound, failureResponse.StatusCode)
-			require.Equal(t, "/", failureResponse.Header.Get("Location"))
+			require.True(t, strings.HasPrefix(failureResponse.Header.Get("Location"), idp.server.URL+"/auth?"))
 			require.Greater(t, idp.refreshCallCount(), before)
 			assertClearedCookiePrefix(t, failureResponse, auth.CookieOauthToken)
 			assertClearedCookiePrefix(t, failureResponse, auth.CookieOauthSessionToken)
 
-			loginResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, failureResponse), "text/html", nil)
-			closeOIDCResponse(t, loginResponse)
+			providerResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, failureResponse), "text/html", nil)
+			closeOIDCResponse(t, providerResponse)
+			require.Equal(t, http.StatusFound, providerResponse.StatusCode)
+			require.True(t, strings.HasPrefix(providerResponse.Header.Get("Location"), appURL+auth.OIDCPostAuthPath+"?"))
 
-			require.Equal(t, http.StatusFound, loginResponse.StatusCode)
-			require.True(t, strings.HasPrefix(loginResponse.Header.Get("Location"), idp.server.URL+"/auth?"))
-			require.NotEqual(t, "/routes", loginResponse.Header.Get("Location"))
+			callbackResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, providerResponse), "text/html", nil)
+			closeOIDCResponse(t, callbackResponse)
+			require.Equal(t, http.StatusFound, callbackResponse.StatusCode)
+			require.Equal(t, "/routes", callbackResponse.Header.Get("Location"))
+
+			documentResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, callbackResponse), "text/html", nil)
+			documentBody := closeOIDCResponse(t, documentResponse)
+			require.Equal(t, http.StatusOK, documentResponse.StatusCode)
+			require.Contains(t, documentBody, "<!DOCTYPE html>")
 		})
 	}
 
 	t.Run("expired token without a refresh session starts the IdP flow", func(t *testing.T) {
-		client := authenticatedOIDCClient(t, appURL, idp)
+		client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 		replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 		removeAppCookie(t, client, appURL, auth.CookieOauthSessionToken)
 		before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
@@ -104,7 +157,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 			{name: "WebSocket", headers: map[string]string{"Connection": "Upgrade", "Upgrade": "websocket"}},
 		} {
 			t.Run(request.name, func(t *testing.T) {
-				client := authenticatedOIDCClient(t, appURL, idp)
+				client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 				replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 				before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
 
@@ -119,7 +172,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	})
 
 	t.Run("unsafe document request is refreshed but never replayed", func(t *testing.T) {
-		client := authenticatedOIDCClient(t, appURL, idp)
+		client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 		replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 		before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
 
@@ -137,7 +190,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	})
 
 	t.Run("non-HTML document request is rejected without refresh", func(t *testing.T) {
-		client := authenticatedOIDCClient(t, appURL, idp)
+		client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 		replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 		before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
 
@@ -150,7 +203,7 @@ func TestEmbeddedWebUIOIDCRefreshE2E(t *testing.T) {
 	})
 
 	t.Run("auth check refreshes without browser navigation", func(t *testing.T) {
-		client := authenticatedOIDCClient(t, appURL, idp)
+		client := authenticatedOIDCClient(t, appURL, idp, "/routes")
 		replaceAppCookie(t, client, appURL, auth.CookieOauthToken, idp.expiredIDToken())
 		before := idp.setRefreshMode(fakeOIDCRefreshAllowed)
 
@@ -318,7 +371,7 @@ func oidcE2EAPIHandler() http.Handler {
 	})
 }
 
-func authenticatedOIDCClient(t *testing.T, appURL string, idp *fakeOIDCIdP) *http.Client {
+func authenticatedOIDCClient(t *testing.T, appURL string, idp *fakeOIDCIdP, startPath string) *http.Client {
 	t.Helper()
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
@@ -329,7 +382,7 @@ func authenticatedOIDCClient(t *testing.T, appURL string, idp *fakeOIDCIdP) *htt
 		},
 	}
 
-	loginResponse := doOIDCRequest(t, client, http.MethodGet, appURL+"/routes", "text/html", nil)
+	loginResponse := doOIDCRequest(t, client, http.MethodGet, appURL+startPath, "text/html", nil)
 	closeOIDCResponse(t, loginResponse)
 	require.Equal(t, http.StatusFound, loginResponse.StatusCode)
 	require.True(t, strings.HasPrefix(loginResponse.Header.Get("Location"), idp.server.URL+"/auth?"))
@@ -342,14 +395,14 @@ func authenticatedOIDCClient(t *testing.T, appURL string, idp *fakeOIDCIdP) *htt
 	callbackResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, providerResponse), "text/html", nil)
 	closeOIDCResponse(t, callbackResponse)
 	require.Equal(t, http.StatusFound, callbackResponse.StatusCode)
-	require.Equal(t, "/", callbackResponse.Header.Get("Location"))
+	require.Equal(t, startPath, callbackResponse.Header.Get("Location"))
 	assertSetCookiePrefix(t, callbackResponse, auth.CookieOauthToken)
 	assertSetCookiePrefix(t, callbackResponse, auth.CookieOauthSessionToken)
 
-	homeResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, callbackResponse), "text/html", nil)
-	homeBody := closeOIDCResponse(t, homeResponse)
-	require.Equal(t, http.StatusOK, homeResponse.StatusCode)
-	require.Contains(t, homeBody, "<!DOCTYPE html>")
+	documentResponse := doOIDCRequest(t, client, http.MethodGet, resolveOIDCLocation(t, callbackResponse), "text/html", nil)
+	documentBody := closeOIDCResponse(t, documentResponse)
+	require.Equal(t, http.StatusOK, documentResponse.StatusCode)
+	require.Contains(t, documentBody, "<!DOCTYPE html>")
 
 	initialSessionCookies := appCookiesWithPrefix(t, client, appURL, auth.CookieOauthSessionToken)
 	t.Cleanup(func() {
@@ -370,6 +423,24 @@ func authenticatedOIDCClient(t *testing.T, appURL string, idp *fakeOIDCIdP) *htt
 		}
 	})
 	return client
+}
+
+func registerOIDCSessionCleanup(t *testing.T, response *http.Response) {
+	t.Helper()
+	for _, cookie := range response.Cookies() {
+		if !strings.HasPrefix(cookie.Name, auth.CookieOauthSessionToken) {
+			continue
+		}
+		t.Cleanup(func() {
+			provider := auth.GetDefaultAuth()
+			if provider == nil {
+				return
+			}
+			req := httptest.NewRequest(http.MethodGet, auth.OIDCLogoutPath, nil)
+			req.AddCookie(cookie)
+			provider.LogoutHandler(httptest.NewRecorder(), req)
+		})
+	}
 }
 
 func doOIDCRequest(t *testing.T, client *http.Client, method, requestURL, accept string, headers map[string]string) *http.Response {
