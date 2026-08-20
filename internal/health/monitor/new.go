@@ -159,17 +159,17 @@ func newDockerHealthMonitor(
 		if errors.Is(err, context.Canceled) {
 			return Result{}, err
 		}
-		if errors.Is(err, healthcheck.ErrDockerHealthCheckNotAvailable) && !config.Disable && fallback != nil {
-			if err := mon.Context().Err(); err != nil {
-				return Result{}, err
-			}
-			return fallback.CheckHealth()
-		}
 		if isFirstFailure {
 			isFirstFailure = false
 			if !errors.Is(err, healthcheck.ErrDockerHealthCheckNotAvailable) {
 				logger.Err(err).Msg("docker health check failed")
 			}
+		}
+		if !config.Disable && fallback != nil {
+			if err := mon.Context().Err(); err != nil {
+				return Result{}, err
+			}
+			return fallback.CheckHealth()
 		}
 		return Result{Detail: err.Error()}, nil
 	})

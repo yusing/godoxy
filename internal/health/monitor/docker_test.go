@@ -36,6 +36,38 @@ func TestDockerHealthMonitorUsesDockerWithoutFallback(t *testing.T) {
 	require.Zero(t, fallbackRequests.Load())
 }
 
+func TestDockerHealthMonitorNegotiatesAPIVersionBeforeInspect(t *testing.T) {
+	var inspectRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/_ping":
+			w.Header().Set("API-Version", "1.43")
+			w.WriteHeader(http.StatusOK)
+		case "/v1.43/containers/test/json":
+			inspectRequests.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, healthyDockerInspectResponse)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"message":"client version 1.51 is too new. Maximum supported API version is 1.43"}`)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := docker.NewClient(t.Context(), types.DockerProviderConfig{URL: server.URL}, true)
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	fallback, fallbackRequests := newHTTPFallback(t)
+
+	result, err := monitor.NewDockerHealthMonitor(testHealthConfig(false), client, "test", fallback).CheckHealth()
+
+	require.NoError(t, err)
+	require.True(t, result.Healthy)
+	require.EqualValues(t, 1, inspectRequests.Load())
+	require.Zero(t, fallbackRequests.Load())
+}
+
 func TestDockerHealthMonitorFallsBackWhenDockerHealthIsUnavailable(t *testing.T) {
 	client := newDockerClient(t, func() (int, string) {
 		return http.StatusOK, `{"State":{"Status":"running"}}`
@@ -89,9 +121,9 @@ func TestDockerHealthMonitorDoesNotFallbackOnMalformedResponseWhenDisabled(t *te
 	require.Zero(t, fallbackRequests.Load())
 }
 
-func TestDockerHealthMonitorDoesNotMaskMalformedResponseWithFallback(t *testing.T) {
+func TestDockerHealthMonitorFallsBackOnInspectFailure(t *testing.T) {
 	client := newDockerClient(t, func() (int, string) {
-		return http.StatusOK, `{"State":`
+		return http.StatusInternalServerError, `{"message":"daemon unavailable"}`
 	})
 	fallback, fallbackRequests := newHTTPFallback(t)
 
@@ -99,8 +131,20 @@ func TestDockerHealthMonitorDoesNotMaskMalformedResponseWithFallback(t *testing.
 	result, err := mon.CheckHealth()
 
 	require.NoError(t, err)
+	require.True(t, result.Healthy)
+	require.EqualValues(t, 1, fallbackRequests.Load())
+}
+
+func TestDockerHealthMonitorDoesNotFallbackOnValidUnhealthyResult(t *testing.T) {
+	client := newDockerClient(t, func() (int, string) {
+		return http.StatusOK, `{"State":{"Status":"running","Health":{"Status":"unhealthy"}}}`
+	})
+	fallback, fallbackRequests := newHTTPFallback(t)
+
+	result, err := monitor.NewDockerHealthMonitor(testHealthConfig(false), client, "test", fallback).CheckHealth()
+
+	require.NoError(t, err)
 	require.False(t, result.Healthy)
-	require.Contains(t, result.Detail, "inspect docker container \"test\"")
 	require.Zero(t, fallbackRequests.Load())
 }
 
@@ -147,11 +191,13 @@ func TestDockerHealthMonitorCancellationDoesNotStartFallback(t *testing.T) {
 	require.Zero(t, fallbackRequests.Load())
 }
 
-func TestNewMonitorDoesNotProbeWhenDockerClientInitializationFails(t *testing.T) {
+func TestNewMonitorFallsBackWhenDockerClientInitializationFailsUnlessDisabled(t *testing.T) {
 	for _, disabled := range []bool{false, true} {
 		t.Run(fmt.Sprintf("disabled=%v", disabled), func(t *testing.T) {
-			backend := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-				t.Error("unexpected fallback probe")
+			var fallbackRequests atomic.Int32
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				fallbackRequests.Add(1)
+				w.WriteHeader(http.StatusOK)
 			}))
 			t.Cleanup(backend.Close)
 			targetURL, err := nettypes.ParseURL(backend.URL)
@@ -178,9 +224,15 @@ func TestNewMonitorDoesNotProbeWhenDockerClientInitializationFails(t *testing.T)
 			result, err := mon.CheckHealth()
 
 			require.NoError(t, err)
-			require.False(t, result.Healthy)
-			require.Contains(t, result.Detail, "initialize docker health check")
-			require.Contains(t, result.Detail, "TLS config is not set")
+			if disabled {
+				require.False(t, result.Healthy)
+				require.Contains(t, result.Detail, "initialize docker health check")
+				require.Contains(t, result.Detail, "TLS config is not set")
+				require.Zero(t, fallbackRequests.Load())
+			} else {
+				require.True(t, result.Healthy)
+				require.EqualValues(t, 1, fallbackRequests.Load())
+			}
 		})
 	}
 }

@@ -45,9 +45,10 @@ For Docker routes with a configured Docker healthcheck, the route-specific monit
 is a fallback only. Docker health availability is detected from the container-list
 response during provider load, avoiding an inspect request just to select a monitor.
 `healthcheck.disable: true` suppresses the fallback probe while retaining configured
-Docker health monitoring. Docker client initialization, API, decoding, timeout, and
-other inspection failures remain visible as unhealthy diagnostics and are retried on
-later intervals.
+Docker health monitoring. When fallback is enabled, missing Docker health data and
+Docker client initialization, API, decoding, timeout, or other inspection failures
+use the route-specific monitor while Docker is retried on later intervals. A valid
+unhealthy Docker result remains authoritative and does not trigger fallback.
 
 Direct constructors:
 
@@ -74,9 +75,9 @@ flowchart TD
     G --> H
     H -->|yes| I[docker health wrapper]
     H -->|no| J[monitor]
-    I --> K{docker health available?}
+    I --> K{valid docker result?}
     K -->|yes| L[docker result only]
-    K -->|no, fallback enabled| M[route fallback check]
+    K -->|no, fallback enabled| M[route fallback check, retry Docker later]
     K -->|no, fallback disabled| N[unhealthy diagnostic, retry Docker later]
 ```
 

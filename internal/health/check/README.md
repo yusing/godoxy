@@ -136,6 +136,8 @@ flowchart TD
 Docker health monitors use a unique client whose transport decodes only the top-level
 `State` envelope. This preserves the low-allocation inspect path instead of decoding
 the full container configuration, mounts, and network settings on every interval.
+The transport scopes interception to the selected container-inspect endpoint so the
+Docker client's API negotiation ping and other API responses pass through unchanged.
 
 ```mermaid
 flowchart TD

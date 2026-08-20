@@ -18,7 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/types"
 )
 
-func TestDockerHealthMonitorRetriesClientInitializationWithoutFallback(t *testing.T) {
+func TestDockerHealthMonitorFallsBackWhileRetryingClientInitialization(t *testing.T) {
 	dockerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/_ping":
@@ -64,13 +64,12 @@ func TestDockerHealthMonitorRetriesClientInitializationWithoutFallback(t *testin
 
 	first, err := mon.CheckHealth()
 	require.NoError(t, err)
-	require.False(t, first.Healthy)
-	require.Contains(t, first.Detail, "initialize docker health check: temporarily unavailable")
-	require.Zero(t, fallbackRequests.Load())
+	require.True(t, first.Healthy)
+	require.EqualValues(t, 1, fallbackRequests.Load())
 
 	second, err := mon.CheckHealth()
 	require.NoError(t, err)
 	require.True(t, second.Healthy)
 	require.EqualValues(t, 2, attempts.Load())
-	require.Zero(t, fallbackRequests.Load())
+	require.EqualValues(t, 1, fallbackRequests.Load())
 }

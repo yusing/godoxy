@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -27,7 +28,7 @@ var (
 func NewDockerHealthcheckState(client *docker.SharedClient, containerID string) *DockerHealthcheckState {
 	// Health monitors use unique clients, so intercepting the inspect response here
 	// avoids decoding the rest of the large container-inspect payload on every poll.
-	client.InterceptHTTPClient(interceptDockerInspectResponse)
+	client.InterceptHTTPClient(interceptDockerInspectResponse(containerID))
 	return &DockerHealthcheckState{
 		client:      client,
 		containerID: containerID,
@@ -93,28 +94,31 @@ func dockerHealthInspect(ctx context.Context, client *docker.SharedClient, conta
 	return state, nil
 }
 
-func interceptDockerInspectResponse(resp *http.Response) (intercepted bool, err error) {
-	if resp.StatusCode != http.StatusOK {
-		return false, nil
-	}
+func interceptDockerInspectResponse(containerID string) httputils.InterceptFunc {
+	inspectPath := "/containers/" + containerID + "/json"
+	return func(resp *http.Response) (intercepted bool, err error) {
+		if resp.StatusCode != http.StatusOK || !strings.HasSuffix(resp.Request.URL.Path, inspectPath) {
+			return false, nil
+		}
 
-	body, release, err := httputils.ReadAllBody(resp)
-	resp.Body.Close()
-	if err != nil {
-		return false, err
-	}
+		body, release, err := httputils.ReadAllBody(resp)
+		resp.Body.Close()
+		if err != nil {
+			return false, err
+		}
 
-	var inspect struct {
-		State *container.State `json:"State"`
-	}
-	err = strutils.UnmarshalJSON(body, &inspect)
-	release(body)
-	if err != nil {
-		return false, err
-	}
-	if inspect.State == nil {
-		return true, ErrDockerContainerStateNotAvailable
-	}
+		var inspect struct {
+			State *container.State `json:"State"`
+		}
+		err = strutils.UnmarshalJSON(body, &inspect)
+		release(body)
+		if err != nil {
+			return false, err
+		}
+		if inspect.State == nil {
+			return true, ErrDockerContainerStateNotAvailable
+		}
 
-	return true, httputils.NewRequestInterceptedError(resp, *inspect.State)
+		return true, httputils.NewRequestInterceptedError(resp, *inspect.State)
+	}
 }
