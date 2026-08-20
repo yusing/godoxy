@@ -105,11 +105,6 @@ configure_build_mode() {
 	esac
 }
 
-ensure_webui_dist() {
-	if [ "$is_godoxy" = true ] && [ ! -f "{webui_dir}/dist/client/_shell.html" ]; then
-		@build-webui
-	fi
-}
 '''
 
 [enum_sets]
@@ -127,30 +122,36 @@ docs_dir="{webui_dir}/wiki"
 [recipes.test]
 sandboxed = false
 cmd = '''
-configure_component godoxy ""
-ensure_webui_dist
 configure_build_mode production
 CGO_ENABLED="$cgo_enabled" \
 GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
+go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg} {@}
 '''
 
-[recipes.race-test]
+[recipes.test-race]
 help = "Run tests with the race detector."
 sandboxed = false
 cmd = '''
-configure_component godoxy ""
-ensure_webui_dist
 configure_build_mode race
 CGO_ENABLED=1 \
 GODOXY_DEBUG="$godoxy_debug" \
 GODOXY_TRACE="$godoxy_trace" \
 GODEBUG="$go_debug" \
 GORACE="$go_race" \
-go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg}
+go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg} {@}
+'''
+
+[recipes.ensure-webui-dist]
+help = "Build the embedded WebUI when building the GoDoxy module."
+sandboxed = false
+cmd = '''
+if [ "$(go list -m 2>/dev/null)" = "github.com/yusing/godoxy" ] &&
+	[ ! -f "{webui_dir}/dist/client/_shell.html" ]; then
+	@build-webui
+fi
 '''
 
 [recipes.tcp-echo-test]
@@ -233,7 +234,9 @@ help = "Build a GoDoxy binary."
 sandboxed = false
 cmd = '''
 configure_component "{component}" "{name}"
-ensure_webui_dist
+if [ "$is_godoxy" = true ]; then
+	@ensure-webui-dist
+fi
 
 if [ "$is_godoxy" = true ]; then
 	@minify component=godoxy
