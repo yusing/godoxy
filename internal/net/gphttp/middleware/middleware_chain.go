@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -39,6 +40,9 @@ func (m *middlewareChain) before(w http.ResponseWriter, r *http.Request) (procee
 		return true
 	}
 	for _, b := range m.befores {
+		if gphttp.IsNonUserRequest(r.Context()) && isAuthLikeMiddleware(b) {
+			continue
+		}
 		if proceedNext = b.before(w, r); !proceedNext {
 			return false
 		}

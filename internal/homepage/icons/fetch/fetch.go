@@ -21,6 +21,7 @@ import (
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/cache"
 	httputils "github.com/yusing/goutils/http"
@@ -167,20 +168,6 @@ type contextValue struct {
 
 type contextKey struct{}
 
-// IsFetch reports whether ctx belongs to an in-progress FindIcon scrape.
-func IsFetch(ctx context.Context) bool {
-	_, ok := ctx.Value(contextKey{}).(contextValue)
-	return ok
-}
-
-// ContextWithFetch marks ctx as an in-progress FindIcon scrape.
-func ContextWithFetch(ctx context.Context) context.Context {
-	if IsFetch(ctx) {
-		return ctx
-	}
-	return context.WithValue(ctx, contextKey{}, contextValue{})
-}
-
 func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (Result, error) {
 	for _, ref := range iconlist.ExpandRefs(r.References()) {
 		if variant != icons.VariantNone {
@@ -198,7 +185,8 @@ func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (
 			return FetchResultWithErrorf(http.StatusServiceUnavailable, "service unavailable")
 		}
 		// fallback to parse html
-		return findIconSlowCached(context.WithValue(ctx, contextKey{}, contextValue{r: r, uri: uri}), r.Key())
+		ctx = context.WithValue(ctx, contextKey{}, contextValue{r: r, uri: uri})
+		return findIconSlowCached(gphttp.WithNonUserRequest(ctx), r.Key())
 	}
 	return FetchResultWithErrorf(http.StatusNotFound, "no icon found")
 }

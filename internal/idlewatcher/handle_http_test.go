@@ -18,6 +18,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gevents "github.com/yusing/goutils/events"
@@ -162,7 +163,7 @@ func TestServeHTTPIconFetchDoesNotWake(t *testing.T) {
 	w, provider := newBlockingWakeWatcher(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-	req = req.WithContext(iconfetch.ContextWithFetch(req.Context()))
+	req = req.WithContext(gphttp.WithNonUserRequest(req.Context()))
 
 	w.ServeHTTP(rec, req)
 
@@ -191,7 +192,7 @@ func TestServeHTTPIconFetchReadyProxiesWithoutWaking(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/favicon.ico", nil)
-	req = req.WithContext(iconfetch.ContextWithFetch(req.Context()))
+	req = req.WithContext(gphttp.WithNonUserRequest(req.Context()))
 
 	w.ServeHTTP(rec, req)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconfetch "github.com/yusing/godoxy/internal/homepage/icons/fetch"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	httputils "github.com/yusing/goutils/http"
 
 	_ "unsafe"
@@ -103,7 +104,7 @@ func (w *Watcher) wakeFromHTTP(rw http.ResponseWriter, r *http.Request) (shouldN
 	// FindIcon scrapes through ServeHTTP. Do not treat that as user traffic:
 	// GET / has no Accept header and would otherwise wake the container, and
 	// a follow-up /favicon.ico would re-enter getFavIcon.
-	if iconfetch.IsFetch(r.Context()) {
+	if gphttp.IsNonUserRequest(r.Context()) {
 		if w.ready() {
 			return true
 		}

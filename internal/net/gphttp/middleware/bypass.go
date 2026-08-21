@@ -173,6 +173,19 @@ func getModReqCheckBypassFuncs(modReq RequestModifier) (checks []checkReqFunc) {
 	return checks
 }
 
+func isAuthLikeMiddleware(modReq RequestModifier) bool {
+	if bypass, ok := modReq.(*checkBypass); ok {
+		modReq = bypass.modReq
+	}
+
+	switch modReq.(type) {
+	case *oidcMiddleware, *forwardAuthMiddleware, *crowdsecMiddleware, *hCaptcha, *cidrWhitelist:
+		return true
+	default:
+		return false
+	}
+}
+
 func getModResCheckEnforceFuncs(modRes ResponseModifier) []checkRespFunc {
 	// TODO: add enforce checks for response modifiers if needed.
 	return nil

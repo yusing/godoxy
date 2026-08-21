@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/goutils/task"
 )
 
@@ -41,11 +42,30 @@ type (
 	}
 )
 
+type nonUserRequestFilteredLogger struct {
+	AccessLogger
+}
+
+func (l *nonUserRequestFilteredLogger) LogRequest(req *http.Request, res *http.Response) {
+	if !gphttp.IsNonUserRequest(req.Context()) {
+		l.AccessLogger.LogRequest(req, res)
+	}
+}
+
+func (l *nonUserRequestFilteredLogger) LogError(req *http.Request, err error) {
+	if !gphttp.IsNonUserRequest(req.Context()) {
+		l.AccessLogger.LogError(req, err)
+	}
+}
+
 func NewAccessLogger(parent task.Parent, cfg AnyConfig) (AccessLogger, error) {
 	writers, err := cfg.Writers()
 	if err != nil {
 		return nil, err
 	}
 
-	return NewMultiAccessLogger(parent, cfg, writers), nil
+	// avoid logging internal requests like icon fetching.
+	return &nonUserRequestFilteredLogger{
+		AccessLogger: NewMultiAccessLogger(parent, cfg, writers),
+	}, nil
 }

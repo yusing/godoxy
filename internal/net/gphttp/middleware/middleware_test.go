@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	ioutils "github.com/yusing/goutils/io"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -47,6 +49,56 @@ func (t testBodyRewrite) modifyResponse(resp *http.Response) error {
 }
 
 func (testBodyRewrite) isBodyResponseModifier() {}
+
+func TestMiddlewareChainBypassesAuthLikeMiddlewareForIconFetch(t *testing.T) {
+	t.Run("icon fetch bypasses wrapped OIDC and keeps non-auth middleware", func(t *testing.T) {
+		chain := &middlewareChain{befores: []RequestModifier{
+			&checkBypass{modReq: &oidcMiddleware{}},
+			testPriority{Value: 7},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+		req = req.WithContext(gphttp.WithNonUserRequest(req.Context()))
+		recorder := httptest.NewRecorder()
+
+		require.True(t, chain.before(recorder, req))
+		require.Equal(t, "7", recorder.Header().Get("Test-Value"))
+	})
+
+	t.Run("normal request still applies access control", func(t *testing.T) {
+		chain := &middlewareChain{befores: []RequestModifier{
+			&cidrWhitelist{CIDRWhitelistOpts: cidrWhitelistDefaults},
+			testPriority{Value: 7},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+		recorder := httptest.NewRecorder()
+
+		require.False(t, chain.before(recorder, req))
+		require.Equal(t, http.StatusForbidden, recorder.Code)
+		require.Empty(t, recorder.Header().Get("Test-Value"))
+	})
+}
+
+func TestIsAuthLikeMiddleware(t *testing.T) {
+	tests := []struct {
+		name       string
+		middleware RequestModifier
+		want       bool
+	}{
+		{name: "oidc", middleware: &oidcMiddleware{}, want: true},
+		{name: "wrapped oidc", middleware: &checkBypass{modReq: &oidcMiddleware{}}, want: true},
+		{name: "forward auth", middleware: &forwardAuthMiddleware{}, want: true},
+		{name: "crowdsec", middleware: &crowdsecMiddleware{}, want: true},
+		{name: "hcaptcha", middleware: &hCaptcha{}, want: true},
+		{name: "cidr whitelist", middleware: &cidrWhitelist{}, want: true},
+		{name: "request modifier", middleware: testPriority{}, want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, isAuthLikeMiddleware(test.middleware))
+		})
+	}
+}
 
 func TestMiddlewarePriority(t *testing.T) {
 	priorities := []int{4, 7, 9, 0}

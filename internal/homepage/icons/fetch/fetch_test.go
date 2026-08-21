@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage/icons"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/task"
 )
@@ -59,7 +60,7 @@ func TestFindIconFaviconHrefDoesNotRecurseIntoFindIcon(t *testing.T) {
 	r.mon.status = health.StatusHealthy
 	r.handler = func(rw http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/favicon.ico" {
-			require.True(t, IsFetch(req.Context()), "favicon follow-up must stay on the scrape context")
+			require.True(t, gphttp.IsNonUserRequest(req.Context()), "favicon follow-up must stay on the non-user request context")
 			rw.Header().Set("Content-Type", "image/png")
 			rw.WriteHeader(http.StatusOK)
 			_, _ = rw.Write([]byte("from-href"))
@@ -75,14 +76,6 @@ func TestFindIconFaviconHrefDoesNotRecurseIntoFindIcon(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("from-href"), result.Icon)
 	require.EqualValues(t, 2, r.served)
-}
-
-func TestContextWithFetch(t *testing.T) {
-	ctx := t.Context()
-	require.False(t, IsFetch(ctx))
-	ctx = ContextWithFetch(ctx)
-	require.True(t, IsFetch(ctx))
-	require.True(t, IsFetch(ContextWithFetch(ctx)))
 }
 
 type stubIconRoute struct {
