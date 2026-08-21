@@ -62,15 +62,40 @@ func preferredFileType(meta *icons.Meta) string {
 	}
 }
 
-// LookupURL returns a catalog icon for an exact reference, preferring selfh.st.
+// lookupCatalogIcon prefers an exact reference and otherwise accepts a unique
+// match that differs only by hyphen separators.
+func lookupCatalogIcon(source icons.Source, ref string) (string, *icons.Meta, bool) {
+	iconsMap := ListAvailableIcons()
+	if meta, ok := iconsMap.Load(icons.NewKey(source, ref)); ok {
+		return ref, meta, true
+	}
+
+	compactRef := strings.ReplaceAll(ref, "-", "")
+	var matchedRef string
+	var matchedMeta *icons.Meta
+	for key, meta := range iconsMap.Range {
+		candidateSource, candidateRef := key.SourceRef()
+		if candidateSource != source || strings.ReplaceAll(candidateRef, "-", "") != compactRef {
+			continue
+		}
+		if matchedRef != "" {
+			return "", nil, false
+		}
+		matchedRef = candidateRef
+		matchedMeta = meta
+	}
+	return matchedRef, matchedMeta, matchedRef != ""
+}
+
+// LookupURL returns a catalog icon matching ref, preferring selfh.st and exact
+// references within each source.
 func LookupURL(ref string) *icons.URL {
 	ref = sanitizeRef(ref)
 	if ref == "" {
 		return nil
 	}
-	iconsMap := ListAvailableIcons()
 	for _, source := range []icons.Source{icons.SourceSelfhSt, icons.SourceWalkXCode} {
-		meta, ok := iconsMap.Load(icons.NewKey(source, ref))
+		matchedRef, meta, ok := lookupCatalogIcon(source, ref)
 		if !ok {
 			continue
 		}
@@ -78,7 +103,7 @@ func LookupURL(ref string) *icons.URL {
 		if ft == "" {
 			continue
 		}
-		return icons.NewURL(source, ref, ft)
+		return icons.NewURL(source, matchedRef, ft)
 	}
 	return nil
 }

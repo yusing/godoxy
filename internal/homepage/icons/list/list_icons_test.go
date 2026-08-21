@@ -317,6 +317,53 @@ func TestResolveImmichServer(t *testing.T) {
 	}
 }
 
+func TestResolveIgnoresHyphenSeparators(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "pocket-id"), &Meta{
+		SVG:         true,
+		DisplayName: "Pocket ID",
+		Tag:         "Security",
+	})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	u, meta, ok := Resolve([]string{"pocketid"})
+	if !ok {
+		t.Fatal("expected resolve to succeed")
+	}
+	if meta.DisplayName != "Pocket ID" || meta.Tag != "Security" {
+		t.Fatalf("unexpected meta: %+v", meta)
+	}
+	if u == nil || u.String() != "@selfhst/pocket-id.svg" {
+		t.Fatalf("unexpected icon %v", u)
+	}
+
+	m.Store(NewKey(SourceSelfhSt, "pocketid"), &Meta{
+		PNG:         true,
+		DisplayName: "PocketID",
+		Tag:         "Exact",
+	})
+	u, meta, ok = Resolve([]string{"pocketid"})
+	if !ok || meta.DisplayName != "PocketID" || meta.Tag != "Exact" {
+		t.Fatalf("expected exact metadata match, got %v %+v", ok, meta)
+	}
+	if u == nil || u.String() != "@selfhst/pocketid.png" {
+		t.Fatalf("expected exact icon match, got %v", u)
+	}
+}
+
+func TestResolveRejectsAmbiguousHyphenSeparatorMatch(t *testing.T) {
+	m := NewIconMap()
+	m.Store(NewKey(SourceSelfhSt, "pocket-id"), &Meta{SVG: true})
+	m.Store(NewKey(SourceSelfhSt, "pocketi-d"), &Meta{SVG: true})
+	prev := iconsCache.Swap(m)
+	t.Cleanup(func() { iconsCache.Store(prev) })
+
+	if u, meta, ok := Resolve([]string{"pocketid"}); ok {
+		t.Fatalf("expected ambiguous match to fail, got %v %+v", u, meta)
+	}
+}
+
 func TestResolvePrefersLongestExistingRef(t *testing.T) {
 	m := NewIconMap()
 	m.Store(NewKey(SourceSelfhSt, "sonarr"), &Meta{SVG: true, DisplayName: "Sonarr"})

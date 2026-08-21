@@ -287,7 +287,7 @@ type HomepageMeta struct {
 }
 
 func GetMetadata(ref string) (HomepageMeta, bool) {
-	meta, ok := ListAvailableIcons().Load(icons.NewKey(icons.SourceSelfhSt, ref))
+	_, meta, ok := lookupCatalogIcon(icons.SourceSelfhSt, ref)
 	// these info is not available in walkxcode
 	// if !ok {
 	// 	meta, ok = iconsCache.Icons[icons.NewIconKey(icons.IconSourceWalkXCode, ref)]
