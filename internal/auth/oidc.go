@@ -472,13 +472,11 @@ func (auth *OIDCProvider) setLoginTransactionCookie(w http.ResponseWriter, r *ht
 	}
 	now := time.Now()
 	claims := oidcLoginTransactionClaims{
-		State:    state,
-		ReturnTo: returnTo,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    oidcLoginTransactionIssuer,
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(oidcLoginCookieTTL)),
-		},
+		State:     state,
+		ReturnTo:  returnTo,
+		Issuer:    oidcLoginTransactionIssuer,
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(oidcLoginCookieTTL)),
 	}
 	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS512, claims).SignedString(common.APIJWTSecret)
 	if err != nil {

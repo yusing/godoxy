@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -56,9 +57,7 @@ func TestDoRefreshTokenValidatesRefreshedIdentity(t *testing.T) {
 				"aud": clientID,
 				"exp": time.Now().Add(time.Hour).Unix(),
 			}
-			for name, value := range tt.claims {
-				claims[name] = value
-			}
+			maps.Copy(claims, tt.claims)
 			signedIDToken := provider.SignClaims(t, claims)
 			tokenResponse, err := json.Marshal(map[string]any{
 				"access_token":  "refreshed-access-token",
