@@ -1,12 +1,14 @@
 package healthcheck
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 )
 
 func TestHTTPReturnsUnhealthyForInvalidURL(t *testing.T) {
@@ -47,4 +49,26 @@ func TestH2CReturnsUnhealthyForInvalidURL(t *testing.T) {
 			require.Equal(t, tt.detail, result.Detail)
 		})
 	}
+}
+
+func TestProcessHealthResponseCompactsRedundantDialError(t *testing.T) {
+	dialer := fasthttp.TCPDialer{DisableDNSResolution: true}
+	_, err := dialer.DialTimeout("127.0.0.1:0", time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "error when dialing 127.0.0.1:0:")
+
+	innerErr := errors.Unwrap(err)
+	require.Error(t, innerErr)
+
+	result := processHealthResponse(time.Second, err, func() int { return 0 })
+	require.Equal(t, innerErr.Error(), result.Detail)
+	require.Equal(t, time.Second, result.Latency)
+}
+
+func TestProcessHealthResponsePreservesNonDialError(t *testing.T) {
+	err := errors.New("request failed")
+
+	result := processHealthResponse(time.Second, err, func() int { return 0 })
+	require.Equal(t, err.Error(), result.Detail)
+	require.Equal(t, time.Second, result.Latency)
 }

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -113,6 +114,21 @@ func processHealthResponse(lat time.Duration, err error, getStatusCode func() in
 	if err != nil {
 		var tlsErr *tls.CertificateVerificationError
 		if ok := errors.As(err, &tlsErr); !ok {
+			var dialErr *fasthttp.ErrDialWithUpstream
+			if errors.As(err, &dialErr) {
+				innerErr := errors.Unwrap(dialErr)
+				if innerErr != nil {
+					innerDetail := innerErr.Error()
+					upstreamHost, _, splitErr := net.SplitHostPort(dialErr.Upstream)
+					if splitErr != nil {
+						upstreamHost = dialErr.Upstream
+					}
+					if strings.Contains(innerDetail, "dial") ||
+						(upstreamHost != "" && strings.Contains(innerDetail, upstreamHost)) {
+						err = innerErr
+					}
+				}
+			}
 			return health.HealthCheckResult{
 				Latency: lat,
 				Detail:  err.Error(),
