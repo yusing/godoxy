@@ -3,6 +3,7 @@ package iconfetch
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	"github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/goutils/task"
 )
 
@@ -76,6 +78,31 @@ func TestFindIconFaviconHrefDoesNotRecurseIntoFindIcon(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("from-href"), result.Icon)
 	require.EqualValues(t, 2, r.served)
+}
+
+func TestFindIconInstallsScrapedRouteContext(t *testing.T) {
+	scrapedRoute := newStubIconRoute(t)
+	scrapedRoute.mon.status = health.StatusHealthy
+	scrapedRoute.handler = func(rw http.ResponseWriter, req *http.Request) {
+		require.Same(t, scrapedRoute, routes.TryGetRoute(req))
+		require.Equal(t, scrapedRoute.Name(), routes.TryGetUpstreamName(req))
+		require.Equal(t, scrapedRoute.TargetURL().Host, routes.TryGetUpstreamHostPort(req))
+		rw.Header().Set("Content-Type", "image/png")
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("png-bytes"))
+	}
+
+	callerRoute := newStubIconRoute(t)
+	callerRoute.key = "caller"
+	callerRoute.target = nettypes.NewURL(&url.URL{Scheme: "http", Host: "caller.test"})
+	callerRequest := httptest.NewRequest(http.MethodGet, "http://dashboard.test/api/v1/favicon", nil)
+	callerRequest = routes.WithRouteContext(callerRequest, callerRoute)
+
+	result, err := FindIcon(callerRequest.Context(), scrapedRoute, "/", icons.VariantNone)
+
+	require.NoError(t, err)
+	require.Equal(t, []byte("png-bytes"), result.Icon)
+	require.EqualValues(t, 1, scrapedRoute.served)
 }
 
 type stubIconRoute struct {

@@ -22,6 +22,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/route/routes"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/cache"
 	httputils "github.com/yusing/goutils/http"
@@ -224,6 +225,7 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) 
 	newReq.URL.RawPath = u.RawPath
 	newReq.URL.RawQuery = u.RawQuery
 	newReq.RequestURI = u.String()
+	newReq = routes.WithRouteContext(newReq, r)
 
 	c := newContent()
 	r.ServeHTTP(c, newReq)
