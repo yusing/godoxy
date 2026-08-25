@@ -187,5 +187,13 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 		}
 	}
 
+	if container.ExcludeFlags&docker.ExcludeHealthCheck != 0 {
+		// Apply after label parsing so this container-level setting covers every declared and
+		// dynamically discovered alias and cannot be undone by a route-specific false value.
+		for _, r := range routes {
+			r.HealthCheck.Disable = true
+		}
+	}
+
 	return routes, errs.Error()
 }

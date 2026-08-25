@@ -3505,6 +3505,17 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "exclude": {
+          "type": "string",
+          "enum": [
+            "none",
+            "proxy",
+            "healthcheck",
+            "all"
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "idlewatcher_config": {
           "$ref": "#/definitions/IdlewatcherConfig",
           "x-nullable": false,
@@ -3512,11 +3523,6 @@
         },
         "image": {
           "$ref": "#/definitions/ContainerImage",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
-        "is_excluded": {
-          "type": "boolean",
           "x-nullable": false,
           "x-omitempty": false
         },

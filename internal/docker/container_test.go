@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
@@ -39,6 +40,80 @@ func TestContainerExplicit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := FromDocker(t.Context(), &container.Summary{Names: []string{"test"}, State: "test", Labels: tt.labels}, types.DockerProviderConfig{})
 			expect.Equal(t, c.IsExplicit, tt.isExplicit)
+		})
+	}
+}
+
+func TestContainerExclude(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		wantFlags ExcludeFlag
+		wantError string
+	}{
+		{name: "boolean true", value: "true", wantFlags: ExcludeProxy},
+		{name: "boolean false", value: "false"},
+		{name: "proxy", value: "proxy", wantFlags: ExcludeProxy},
+		{name: "healthcheck", value: "healthcheck", wantFlags: ExcludeHealthCheck},
+		{name: "proxy and healthcheck", value: " proxy, healthcheck ", wantFlags: ExcludeAll},
+		{name: "all", value: "all", wantFlags: ExcludeAll},
+		{name: "unknown", value: "unknown", wantError: "expected a boolean or a comma-separated list"},
+		{name: "empty", wantError: "expected a boolean or a comma-separated list"},
+		{name: "all with proxy", value: "all,proxy", wantError: "all cannot be combined with other values"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			labels := map[string]string{LabelExclude: tt.value}
+			c := FromDocker(t.Context(), &container.Summary{
+				Names:  []string{"test"},
+				State:  "created",
+				Labels: labels,
+			}, types.DockerProviderConfig{})
+
+			expect.Equal(t, c.ExcludeFlags, tt.wantFlags)
+			_, excludeLabelRetained := labels[LabelExclude]
+			expect.False(t, excludeLabelRetained)
+			if tt.wantError == "" {
+				expect.Nil(t, c.Errors)
+			} else {
+				expect.ErrorContains(t, c.Errors, tt.wantError)
+			}
+		})
+	}
+
+	t.Run("absent", func(t *testing.T) {
+		c := FromDocker(t.Context(), &container.Summary{
+			Names:  []string{"test"},
+			State:  "created",
+			Labels: map[string]string{},
+		}, types.DockerProviderConfig{})
+		expect.Equal(t, c.ExcludeFlags, ExcludeFlag(0))
+		expect.Nil(t, c.Errors)
+	})
+}
+
+func TestContainerExcludeJSON(t *testing.T) {
+	tests := []struct {
+		flags ExcludeFlag
+		want  string
+	}{
+		{want: "none"},
+		{flags: ExcludeProxy, want: "proxy"},
+		{flags: ExcludeHealthCheck, want: "healthcheck"},
+		{flags: ExcludeAll, want: "all"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			data := expect.Must(json.Marshal(&Container{ExcludeFlags: tt.flags}))
+			var decoded map[string]any
+			expect.NoError(t, json.Unmarshal(data, &decoded))
+			exclude, ok := decoded["exclude"].(string)
+			expect.True(t, ok)
+			expect.Equal(t, exclude, tt.want)
+			_, hasLegacyField := decoded["is_excluded"]
+			expect.False(t, hasLegacyField)
 		})
 	}
 }

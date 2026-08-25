@@ -1,5 +1,35 @@
 package docker
 
+import "strconv"
+
+type ExcludeFlag uint8
+
+const (
+	ExcludeProxy ExcludeFlag = 1 << iota
+	ExcludeHealthCheck
+	// ExcludeAll must remain last so it includes every defined exclusion flag.
+	ExcludeAll ExcludeFlag = 1<<iota - 1
+)
+
+func (flags ExcludeFlag) String() string {
+	switch flags {
+	case 0:
+		return "none"
+	case ExcludeProxy:
+		return "proxy"
+	case ExcludeHealthCheck:
+		return "healthcheck"
+	case ExcludeAll:
+		return "all"
+	default:
+		return "unknown"
+	}
+}
+
+func (flags ExcludeFlag) MarshalJSON() ([]byte, error) {
+	return strconv.AppendQuote(nil, flags.String()), nil
+}
+
 const (
 	WildcardAlias = "*"
 

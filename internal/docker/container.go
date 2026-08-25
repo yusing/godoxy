@@ -46,7 +46,9 @@ func FromDocker(ctx context.Context, c *container.Summary, dockerCfg types.Docke
 	}
 	network := helper.getDeleteLabel(LabelNetwork)
 
-	isExcluded, _ := strconv.ParseBool(helper.getDeleteLabel(LabelExclude))
+	excludeValue, hasExclude := c.Labels[LabelExclude]
+	delete(c.Labels, LabelExclude)
+	excludeFlags, excludeErr := parseExcludeLabel(excludeValue, hasExclude)
 	res = &Container{
 		DockerCfg:     dockerCfg,
 		Image:         helper.parseImage(),
@@ -63,12 +65,15 @@ func FromDocker(ctx context.Context, c *container.Summary, dockerCfg types.Docke
 		PrivatePortMapping: helper.getPrivatePortMapping(),
 
 		Aliases:            helper.getAliases(),
-		IsExcluded:         isExcluded,
+		ExcludeFlags:       excludeFlags,
 		IsExplicit:         isExplicit,
 		IsHostNetworkMode:  c.HostConfig.NetworkMode == "host",
 		HealthCheckEnabled: hasHealthCheck(c.Status),
 		Running:            c.Status == "running" || c.State == "running",
 		State:              c.State,
+	}
+	if excludeErr != nil {
+		addError(res, excludeErr)
 	}
 
 	if agent.IsDockerHostAgent(dockerCfg.URL) {
@@ -90,6 +95,46 @@ func FromDocker(ctx context.Context, c *container.Summary, dockerCfg types.Docke
 		addError(res, ErrNoNetwork)
 	}
 	return res
+}
+
+func parseExcludeLabel(value string, present bool) (ExcludeFlag, error) {
+	if !present {
+		return 0, nil
+	}
+
+	if boolValue, boolErr := strconv.ParseBool(value); boolErr == nil {
+		if boolValue {
+			return ExcludeProxy, nil
+		}
+		return 0, nil
+	}
+
+	var flags ExcludeFlag
+	var all, other bool
+	for item := range strings.SplitSeq(value, ",") {
+		switch strings.TrimSpace(item) {
+		case "proxy":
+			flags |= ExcludeProxy
+			other = true
+		case "healthcheck":
+			flags |= ExcludeHealthCheck
+			other = true
+		case "all":
+			flags |= ExcludeAll
+			all = true
+		default:
+			return 0, fmt.Errorf(
+				"invalid %s value %q: expected a boolean or a comma-separated list of proxy, healthcheck, or all",
+				LabelExclude,
+				value,
+			)
+		}
+	}
+
+	if all && other {
+		return 0, fmt.Errorf("invalid %s value %q: all cannot be combined with other values", LabelExclude, value)
+	}
+	return flags, nil
 }
 
 func hasHealthCheck(status string) bool {

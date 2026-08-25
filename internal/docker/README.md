@@ -53,7 +53,7 @@ type Container struct {
     PublicPortMapping   map[int]PortSummary
     PrivatePortMapping  map[int]PortSummary
     Aliases             []string
-    IsExcluded          bool
+    ExcludeFlags        ExcludeFlag
     IsExplicit          bool
     IsHostNetworkMode   bool
     HealthCheckEnabled  bool
@@ -246,19 +246,23 @@ providers:
 
 Route labels use the format `proxy.<alias>.<field>` where `<alias>` is the route alias (or `*` for wildcard). The base labels apply to all routes.
 
-| Label                  | Description                     | Example                         |
-| ---------------------- | ------------------------------- | ------------------------------- |
-| `proxy.aliases`        | Route aliases (comma-separated) | `proxy.aliases: www,app`        |
-| `proxy.exclude`        | Exclude from routing            | `proxy.exclude: true`           |
-| `proxy.network`        | Docker network                  | `proxy.network: frontend`       |
-| `proxy.<alias>.host`   | Override hostname               | `proxy.app.host: 192.168.1.100` |
-| `proxy.<alias>.port`   | Target port                     | `proxy.app.port: 8080`          |
-| `proxy.<alias>.scheme` | HTTP scheme                     | `proxy.app.scheme: https`       |
-| `proxy.<alias>.*`      | Any route-specific setting      | `proxy.app.no_tls_verify: true` |
+| Label                  | Description                                  | Example                              |
+| ---------------------- | -------------------------------------------- | ------------------------------------ |
+| `proxy.aliases`        | Route aliases (comma-separated)              | `proxy.aliases: www,app`             |
+| `proxy.exclude`        | Exclude proxying and/or GoDoxy healthchecks  | `proxy.exclude: proxy,healthcheck`   |
+| `proxy.network`        | Docker network                               | `proxy.network: frontend`            |
+| `proxy.<alias>.host`   | Override hostname                            | `proxy.app.host: 192.168.1.100`      |
+| `proxy.<alias>.port`   | Target port                                  | `proxy.app.port: 8080`               |
+| `proxy.<alias>.scheme` | HTTP scheme                                  | `proxy.app.scheme: https`            |
+| `proxy.<alias>.*`      | Any route-specific setting                   | `proxy.app.no_tls_verify: true`      |
+
+`proxy.exclude` accepts a boolean or a comma-separated list containing `proxy` and `healthcheck`. `true` is equivalent to `proxy`, preserving the original route-exclusion behavior. `all` is equivalent to `proxy,healthcheck` and cannot be combined with another value. The `healthcheck` value applies the same route setting as `proxy.*.healthcheck.disable: true` to every alias; Docker health monitoring remains enabled when the container defines a Docker healthcheck.
 
 #### Label parser normalization
 
 `ParseLabels` normalizes route labels before building the nested `types.LabelMap` consumed by `internal/route/provider`:
+
+`FromDocker` consumes container-level control labels such as `proxy.exclude` before this normalization. They do not become route fields.
 
 1. `ExpandScalarShortcuts` rewrites root-level comma-separated shortcut labels into indexed `proxy.#N.<field>` labels.
 2. `ExpandWildcard` rewrites wildcard and named-alias labels into indexed labels.

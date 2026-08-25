@@ -570,7 +570,7 @@ func (r *Route) FindExcludedReason() ExcludedReason {
 	}
 	if r.Container != nil {
 		switch {
-		case r.Container.IsExcluded:
+		case r.Container.ExcludeFlags&docker.ExcludeProxy != 0:
 			return ExcludedReasonManual
 		case r.CheckedDockerProxyPort && !r.CanResolveDockerProxyPort && !r.UseIdleWatcher():
 			return ExcludedReasonNoPortContainer

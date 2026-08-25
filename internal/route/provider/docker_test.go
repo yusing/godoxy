@@ -502,6 +502,78 @@ func TestExplicitExclude(t *testing.T) {
 	expect.True(t, r.ShouldExclude())
 }
 
+func TestExcludeModes(t *testing.T) {
+	t.Run("proxy preserves health monitoring", func(t *testing.T) {
+		r, ok := makeRoutes(&container.Summary{
+			Names: dummyNames,
+			State: "running",
+			Labels: map[string]string{
+				docker.LabelExclude: "proxy",
+				"proxy.a.port":      "1234",
+			},
+		})["a"]
+		expect.True(t, ok)
+		expect.True(t, r.ShouldExclude())
+		expect.False(t, r.HealthCheck.Disable)
+		expect.True(t, r.UseHealthCheck())
+	})
+
+	t.Run("healthcheck applies to every alias", func(t *testing.T) {
+		routes := makeRoutes(&container.Summary{
+			Names: dummyNames,
+			State: "running",
+			Labels: map[string]string{
+				docker.LabelAliases:                 "a,b",
+				docker.LabelExclude:                 "healthcheck",
+				"proxy.a.healthcheck.disable":       "false",
+				"proxy.dynamic.healthcheck.disable": "false",
+				"proxy.a.port":                      "1234",
+				"proxy.b.port":                      "1234",
+				"proxy.dynamic.port":                "1234",
+				"proxy.dynamic.no_tls_verify":       "true",
+			},
+		})
+
+		for _, alias := range []string{"a", "b", "dynamic"} {
+			r, ok := routes[alias]
+			expect.True(t, ok)
+			expect.False(t, r.ShouldExclude())
+			expect.True(t, r.HealthCheck.Disable)
+			expect.False(t, r.UseHealthCheck())
+		}
+	})
+
+	t.Run("all excludes proxy and fallback healthcheck", func(t *testing.T) {
+		r, ok := makeRoutes(&container.Summary{
+			Names: dummyNames,
+			State: "running",
+			Labels: map[string]string{
+				docker.LabelExclude: "all",
+				"proxy.a.port":      "1234",
+			},
+		})["a"]
+		expect.True(t, ok)
+		expect.True(t, r.ShouldExclude())
+		expect.True(t, r.HealthCheck.Disable)
+		expect.False(t, r.UseHealthCheck())
+	})
+
+	t.Run("docker healthcheck remains enabled", func(t *testing.T) {
+		r, ok := makeRoutes(&container.Summary{
+			Names:  dummyNames,
+			State:  "running",
+			Status: "Up 10 seconds (healthy)",
+			Labels: map[string]string{
+				docker.LabelExclude: "healthcheck",
+				"proxy.a.port":      "1234",
+			},
+		})["a"]
+		expect.True(t, ok)
+		expect.True(t, r.HealthCheck.Disable)
+		expect.True(t, r.UseHealthCheck())
+	})
+}
+
 func TestImplicitExcludeDatabase(t *testing.T) {
 	t.Run("mount path detection", func(t *testing.T) {
 		r, ok := makeRoutes(&container.Summary{

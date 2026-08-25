@@ -65,12 +65,17 @@ definitions:
         $ref: '#/definitions/DockerProviderConfig'
       errors:
         type: string
+      exclude:
+        enum:
+        - none
+        - proxy
+        - healthcheck
+        - all
+        type: string
       idlewatcher_config:
         $ref: '#/definitions/IdlewatcherConfig'
       image:
         $ref: '#/definitions/ContainerImage'
-      is_excluded:
-        type: boolean
       is_explicit:
         type: boolean
       is_host_network_mode:
@@ -1907,11 +1912,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_1m:
+        type: string
       load_avg_5m:
         type: string
       load_avg_15m:
-        type: string
-      load_avg_1m:
         type: string
       mem_pct:
         type: string
