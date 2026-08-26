@@ -15,7 +15,7 @@
 <a href="https://docs.godoxy.dev">網站</a> | <a href="https://docs.godoxy.dev/Home.html">文檔</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
 </h5>
 
-<h5><a href="README.md">EN</a> | 中文</h5>
+<h5><a href="README.md">EN</a> | <a href="README_CHS.md">简体中文</a> | 繁體中文</h5>
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
