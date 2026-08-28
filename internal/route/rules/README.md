@@ -224,9 +224,20 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 | ------------------------------ | ---------------------- |
 | `rewrite <from> <to>`          | Rewrite request path   |
 | `require_auth`                 | Require authentication |
+| `middleware <name>`            | Run request middleware   |
 | `set <target> <field> <value>` | Set header/variable    |
 | `add <target> <field> <value>` | Add header/variable    |
 | `remove <target> <field>`      | Remove header/variable |
+
+`middleware <name>` runs built-in or composed middleware with default options.
+A `middleware <name> { ... }` block accepts the middleware's normal properties,
+including nested values. The name is the action target; the block contains only
+that target's options. Only middleware with a request phase is supported;
+response-only middleware is rejected while parsing the rules. A
+middleware that permits the request continues to the next action, while one
+that handles the request terminates the rule chain.
+Request middleware is rejected in response-phase rules and nested action blocks because those run after the upstream response.
+
 
 **Response Actions**:
 
@@ -295,18 +306,19 @@ block       := '{' do_body '}'
 ```text
 // Elif/Else chains can appear in do_body
 do_stmt       := command_line | command_block | nested_block | elif_else_chain
-command_block := command ws* '{' option_lines '}'
-elif_else_chain := nested_block { elif_clause } [else_clause]
+command_block := command { ws+ command_arg } ws* '{' option_lines '}'
+elif_else_chain  := nested_block { elif_clause } [else_clause]
 elif_clause    := 'elif' ws* on_expr ws* '{' do_body '}'
 else_clause    := 'else' ws* '{' do_body '}'
 ```
 
 #### Command option blocks
 
-Every `do` command can be written with an option block. Each line maps a named
-argument to one scalar value, in the same positional order the command expects.
-The parser converts the block back into positional args before running the
-command's normal validator.
+A `do` command block contains the command name, any header arguments owned by
+that command, and a YAML-like property block. Commands whose block properties
+map to positional arguments can omit header arguments. For example, middleware
+uses its name as a header argument and accepts its normal properties, including
+nested lists and mappings.
 
 ```bash
 path glob("/admin/*") {
@@ -323,9 +335,11 @@ path glob("/admin/*") {
 }
 ```
 
-Option blocks do not accept inline positional arguments. Missing keys, unknown
-keys, duplicate keys, and non-scalar values are rejected before command
-validation.
+Each command owns its header arguments and accepted property shapes. For scalar
+option blocks, missing keys, unknown keys, and duplicate keys are rejected
+before command validation. Property values must be scalars unless the command
+accepts structured data; middleware configuration, for example, may contain
+nested lists and mappings.
 
 #### Nested blocks (inline conditionals inside `do`)
 

@@ -39,6 +39,7 @@ const (
 	CommandUpstreamOld2 = "pass"
 
 	CommandRequireAuth      = "require_auth"
+	CommandMiddleware       = "middleware"
 	CommandRewrite          = "rewrite"
 	CommandHandle           = "handle"
 	CommandServe            = "serve"
@@ -55,9 +56,16 @@ const (
 	CommandNotify           = "notify"
 )
 
-type AuthHandler func(w http.ResponseWriter, r *http.Request) (proceed bool)
+type (
+	AuthHandler               func(w http.ResponseWriter, r *http.Request) (proceed bool)
+	RequestMiddleware         func(w http.ResponseWriter, r *http.Request) (proceed bool)
+	RequestMiddlewareResolver func(name string, options map[string]any) (RequestMiddleware, error)
+)
 
-var authHandler AuthHandler
+var (
+	authHandler               AuthHandler
+	requestMiddlewareResolver RequestMiddlewareResolver
+)
 
 func InitAuthHandler(handler AuthHandler) {
 	authHandler = handler
@@ -67,16 +75,23 @@ func GetAuthHandler() AuthHandler {
 	return authHandler
 }
 
+// InitRequestMiddlewareResolver connects rule actions to request middleware without creating a package import cycle.
+func InitRequestMiddlewareResolver(resolver RequestMiddlewareResolver) {
+	requestMiddlewareResolver = resolver
+}
+
 func init() {
 	commands[CommandUpstreamOld] = commands[CommandUpstream]
 	commands[CommandUpstreamOld2] = commands[CommandUpstream]
 }
 
 var commands = map[string]struct {
-	help      Help
-	validate  ValidateFunc
-	build     func(args any) HandlerFunc
-	terminate bool
+	help             Help
+	validate         ValidateFunc
+	validateBlock    func(args []string, body string) (PhaseFlag, any, error)
+	build            func(args any) HandlerFunc
+	requestPhaseOnly bool
+	terminate        bool
 }{
 	CommandUpstream: {
 		help: Help{
@@ -123,6 +138,63 @@ var commands = map[string]struct {
 			}
 		},
 	},
+	CommandMiddleware: {
+		requestPhaseOnly: true,
+		help: Help{
+			command:     CommandMiddleware,
+			description: makeLines("Run a request middleware and continue if it permits the request"),
+			args: helpArgs(
+				helpArg{"name", "the built-in or composed middleware name"},
+			),
+		},
+		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
+			phase = PhasePre
+			if len(args) != 1 {
+				return phase, nil, ErrExpectOneArg
+			}
+			if requestMiddlewareResolver == nil {
+				return phase, nil, errors.New("request middleware resolver is not initialized")
+			}
+
+			middleware, err := requestMiddlewareResolver(args[0], nil)
+			if err != nil {
+				return phase, nil, err
+			}
+			return phase, middleware, nil
+		},
+		validateBlock: func(args []string, body string) (phase PhaseFlag, parsedArgs any, err error) {
+			phase = PhasePre
+			if len(args) != 1 {
+				return phase, nil, ErrExpectOneArg
+			}
+			if requestMiddlewareResolver == nil {
+				return phase, nil, errors.New("request middleware resolver is not initialized")
+			}
+
+			options, err := parseMiddlewareOptionsBlock(body)
+			if err != nil {
+				return phase, nil, err
+			}
+
+			middleware, err := requestMiddlewareResolver(args[0], options)
+			if err != nil {
+				return phase, nil, err
+			}
+
+			return phase, middleware, nil
+		},
+		build: func(args any) HandlerFunc {
+
+			middleware := args.(RequestMiddleware)
+			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
+				if proceed := middleware(w, r); !proceed {
+					return errTerminateRule
+				}
+				return nil
+			}
+		},
+	},
+
 	CommandRewrite: {
 		help: Help{
 			command: CommandRewrite,

@@ -71,6 +71,10 @@ func (rules Rules) Validate() gperr.Error {
 			// set name to index if name is empty
 			rules[i].Name = fmt.Sprintf("rule[%d]", i)
 		}
+		if commandsContainRequestPhaseOnly(rule.Do.post) ||
+			(rule.On.phase.IsPostRule() && commandsContainRequestPhaseOnly(rule.Do.pre)) {
+			return ErrInvalidArguments.Withf("rule[%d]: request middleware cannot be used in a response-phase rule or action block", i)
+		}
 	}
 	if len(defaultRulesFound) > 1 {
 		return ErrMultipleDefaultRules.Withf("found %d", len(defaultRulesFound))
@@ -143,6 +147,51 @@ func commandTerminatesInPre(cmd CommandHandler) bool {
 	default:
 		return false
 	}
+}
+
+func commandsContainRequestPhaseOnly(cmds []CommandHandler) bool {
+	for _, cmd := range cmds {
+		switch c := cmd.(type) {
+		case Handler:
+			if c.requestPhaseOnly {
+				return true
+			}
+		case *Handler:
+			if c != nil && c.requestPhaseOnly {
+				return true
+			}
+		case IfBlockCommand:
+			if commandsContainRequestPhaseOnly(c.Do) {
+				return true
+			}
+		case *IfBlockCommand:
+			if c != nil && commandsContainRequestPhaseOnly(c.Do) {
+				return true
+			}
+		case IfElseBlockCommand:
+			for _, branch := range c.Ifs {
+				if commandsContainRequestPhaseOnly(branch.Do) {
+					return true
+				}
+			}
+			if commandsContainRequestPhaseOnly(c.Else) {
+				return true
+			}
+		case *IfElseBlockCommand:
+			if c == nil {
+				continue
+			}
+			for _, branch := range c.Ifs {
+				if commandsContainRequestPhaseOnly(branch.Do) {
+					return true
+				}
+			}
+			if commandsContainRequestPhaseOnly(c.Else) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func ifElseBlockTerminatesInPre(cmd IfElseBlockCommand) bool {

@@ -1,9 +1,13 @@
 package rules
 
 import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -192,4 +196,214 @@ func TestParseCommandServeFileRejectsDirectory(t *testing.T) {
 	cmd := Command{}
 	err := cmd.Parse("serve_file " + t.TempDir())
 	expect.ErrorIs(t, ErrInvalidArguments, err)
+}
+func TestMiddlewareCommandExecutesInDeclarationOrder(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+
+	var order []string
+	InitRequestMiddlewareResolver(func(name string, _ map[string]any) (RequestMiddleware, error) {
+		return func(_ http.ResponseWriter, r *http.Request) bool {
+			order = append(order, name)
+			r.Header.Add("X-Middleware", name)
+			return true
+		}, nil
+	})
+
+	var configured Rules
+	require.NoError(t, configured.Parse(`
+default {
+	middleware first
+	middleware second
+}
+`))
+
+	fallbackCalled := false
+	handler := configured.BuildHandler(func(w http.ResponseWriter, _ *http.Request) {
+		fallbackCalled = true
+		order = append(order, "fallback")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	request := httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusNoContent, response.Code)
+	require.True(t, fallbackCalled)
+	require.Equal(t, []string{"first", "second", "fallback"}, order)
+	require.Equal(t, []string{"first", "second"}, request.Header.Values("X-Middleware"))
+}
+
+func TestMiddlewareCommandTerminatesWhenMiddlewareHandlesRequest(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+
+	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
+		return func(w http.ResponseWriter, _ *http.Request) bool {
+			http.Error(w, "blocked", http.StatusForbidden)
+			return false
+		}, nil
+	})
+
+	var configured Rules
+	require.NoError(t, configured.Parse(`
+default {
+	middleware blocker
+}
+`))
+
+	fallbackCalled := false
+	handler := configured.BuildHandler(func(http.ResponseWriter, *http.Request) {
+		fallbackCalled = true
+	})
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil))
+
+	require.Equal(t, http.StatusForbidden, response.Code)
+	require.False(t, fallbackCalled)
+}
+
+func TestMiddlewareCommandValidation(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+
+	resolveErr := errors.New("middleware unavailable")
+	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
+		return nil, resolveErr
+	})
+
+	tests := []struct {
+		name    string
+		command string
+		wantErr error
+	}{
+		{name: "missing name", command: "middleware", wantErr: ErrInvalidArguments},
+		{name: "too many names", command: "middleware first second", wantErr: ErrInvalidArguments},
+		{name: "resolver error", command: "middleware unknown", wantErr: resolveErr},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var command Command
+			require.ErrorIs(t, command.Parse(test.command), test.wantErr)
+		})
+	}
+}
+
+func TestRulesValidateRejectsMiddlewareAfterResponseMatcher(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
+		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+	})
+
+	tests := map[string]string{
+		"direct": `status 404 {
+			middleware test
+		}`,
+		"block action": `status 404 {
+			middleware test {
+			}
+		}`,
+		"nested action block": `status 404 {
+			method GET {
+				middleware test
+			}
+		}`,
+		"nested response matcher": `default {
+			status 404 {
+				middleware test
+			}
+		}`,
+		"mixed-phase action block": `default {
+			method GET {
+				middleware test
+				set resp_header X-Test yes
+			}
+		}`,
+	}
+	for name, config := range tests {
+		t.Run(name, func(t *testing.T) {
+			var configured Rules
+			require.NoError(t, configured.Parse(config))
+			require.ErrorContains(t, configured.Validate(), "request middleware cannot be used in a response-phase rule or action block")
+		})
+	}
+}
+
+func TestMiddlewareCommandBlockProperties(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+
+	var resolvedName string
+	var resolvedOptions map[string]any
+	InitRequestMiddlewareResolver(func(name string, options map[string]any) (RequestMiddleware, error) {
+		resolvedName = name
+		resolvedOptions = options
+		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+	})
+
+	var configured Rules
+	require.NoError(t, configured.Parse(`
+default {
+	middleware RealIP {
+		header: X-Forwarded-For
+		from:
+			- 127.0.0.1/32
+		recursive: true
+	}
+}
+`))
+
+	require.Equal(t, "RealIP", resolvedName)
+	require.Equal(t, "X-Forwarded-For", resolvedOptions["header"])
+	require.Equal(t, []any{"127.0.0.1/32"}, resolvedOptions["from"])
+	require.Equal(t, true, resolvedOptions["recursive"])
+}
+
+func TestMiddlewareCommandBlockDoesNotRewriteQuotedTabs(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+
+	var resolvedHeader any
+	InitRequestMiddlewareResolver(func(_ string, options map[string]any) (RequestMiddleware, error) {
+		resolvedHeader = options["header"]
+		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+	})
+
+	var configured Rules
+	err := configured.Parse(`
+default {
+	middleware RealIP {
+		header: "X-Forwarded	For"
+	}
+}
+`)
+	require.NoError(t, err)
+	require.Equal(t, "X-Forwarded	For", resolvedHeader)
+}
+
+func TestMiddlewareCommandBlockRequiresName(t *testing.T) {
+	var configured Rules
+	err := configured.Parse(`
+default {
+	middleware {
+		header: X-Forwarded-For
+	}
+}
+`)
+	require.ErrorIs(t, err, ErrInvalidArguments)
 }
