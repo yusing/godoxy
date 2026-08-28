@@ -101,9 +101,10 @@ entrypoint:
   # customize behavior for non-existent routes, e.g. pass over to another proxy
   #
   # rules:
-  #   not_found:
-  #     - name: default
-  #       do: proxy http://other-proxy:8080
+  #   not_found: |
+  #     default {
+  #       proxy http://other-proxy:8080
+  #     }
 
 defaults:
   healthcheck:
