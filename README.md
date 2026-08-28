@@ -15,7 +15,7 @@ A lightweight, simple, and performant reverse proxy with WebUI.
 <a href="https://docs.godoxy.dev">Website</a> | <a href="https://docs.godoxy.dev/Home.html">Wiki</a> | <a href="https://discord.gg/umReR62nRd">Discord</a>
 </h5>
 
-<h5>EN | <a href="README_CHT.md">中文</a></h5>
+<h5>EN | <a href="README_CHS.md">简体中文</a> | <a href="README_CHT.md">繁體中文</a></h5>
 
 <img src="screenshots/webui.jpg" style="max-width: 650">
 
