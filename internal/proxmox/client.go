@@ -207,8 +207,13 @@ func (c *Client) ReverseLookupResource(ip net.IP, hostname string, alias string)
 }
 
 // ReverseLookupNode looks up a node by name or IP address.
-// Returns the node name if found.
+// It returns the node name if found, or an empty string when cluster
+// information is unavailable.
 func (c *Client) ReverseLookupNode(hostname string, ip net.IP, alias string) string {
+	if c.Cluster == nil {
+		return ""
+	}
+
 	shouldCheckHostname := hostname != ""
 	shouldCheckIP := ip != nil && !ip.IsLoopback() && !ip.IsUnspecified()
 	shouldCheckAlias := alias != ""

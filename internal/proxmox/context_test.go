@@ -1,6 +1,7 @@
 package proxmox
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -75,6 +76,26 @@ func TestNodePoolReplacesTheSameProvidersNode(t *testing.T) {
 func TestNodeFromContextReportsMissingPool(t *testing.T) {
 	_, err := NodeFromCtx(t.Context(), "pve")
 	require.ErrorIs(t, err, ErrNodePoolUnavailable)
+}
+
+func TestReverseLookupNodeReturnsNoMatchWithoutClusterInfo(t *testing.T) {
+	client := NewClient("https://proxmox.example/api2/json")
+
+	require.Empty(t, client.ReverseLookupNode("pve", net.ParseIP("10.0.0.1"), "pve"))
+}
+
+func TestReverseLookupNodeMatchesInitializedCluster(t *testing.T) {
+	client := NewClient("https://proxmox.example/api2/json")
+	client.Cluster = &goproxmox.Cluster{
+		Nodes: goproxmox.NodeStatuses{
+			{Name: "pve", IP: "10.0.0.1"},
+		},
+	}
+
+	require.Equal(t, "pve", client.ReverseLookupNode("pve.example.com", nil, ""))
+	require.Equal(t, "pve", client.ReverseLookupNode("", net.ParseIP("10.0.0.1"), ""))
+	require.Equal(t, "pve", client.ReverseLookupNode("", nil, "pve"))
+	require.Empty(t, client.ReverseLookupNode("other.example.com", net.ParseIP("10.0.0.2"), "other"))
 }
 
 func TestUpdateClusterInfoRegistersNodesInTheContextPoolAndClient(t *testing.T) {
