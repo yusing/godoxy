@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/net/gphttp"
 	"github.com/yusing/godoxy/internal/route/rules"
 )
 
@@ -110,4 +111,46 @@ default {
 	require.Equal(t, http.StatusNoContent, response.Code)
 	require.Equal(t, "198.51.100.10:1234", request.RemoteAddr)
 	require.Equal(t, "198.51.100.10", request.Header.Get("X-Real-IP"))
+}
+
+func TestRuleMiddlewareResolverPreservesNonUserAuthBypass(t *testing.T) {
+	var configured rules.Rules
+	require.NoError(t, configured.Parse(`
+default {
+	middleware CIDRWhitelist {
+	}
+}
+`))
+
+	t.Run("non-user request bypasses access control", func(t *testing.T) {
+		fallbackCalled := false
+		handler := configured.BuildHandler(func(w http.ResponseWriter, _ *http.Request) {
+			fallbackCalled = true
+			w.WriteHeader(http.StatusNoContent)
+		})
+		request := httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil)
+		request.RemoteAddr = "203.0.113.10:1234"
+		request = request.WithContext(gphttp.WithNonUserRequest(request.Context()))
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		require.True(t, fallbackCalled)
+		require.Equal(t, http.StatusNoContent, response.Code)
+	})
+
+	t.Run("user request still applies access control", func(t *testing.T) {
+		fallbackCalled := false
+		handler := configured.BuildHandler(func(http.ResponseWriter, *http.Request) {
+			fallbackCalled = true
+		})
+		request := httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil)
+		request.RemoteAddr = "203.0.113.10:1234"
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		require.False(t, fallbackCalled)
+		require.Equal(t, http.StatusForbidden, response.Code)
+	})
 }

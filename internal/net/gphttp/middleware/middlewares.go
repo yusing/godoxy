@@ -66,7 +66,7 @@ func init() {
 			return nil, fmt.Errorf("middleware %q has no request phase", name)
 		}
 
-		return middleware.TryModifyRequest, nil
+		return NewMiddlewareChain(name, []*Middleware{middleware}).TryModifyRequest, nil
 	})
 }
 

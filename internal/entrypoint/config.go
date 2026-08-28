@@ -23,6 +23,9 @@ type Config struct {
 }
 
 func (cfg *Config) Validate() error {
+	if err := cfg.Rules.NotFound.Validate(); err != nil {
+		return err
+	}
 	if cfg.ProxyProtocol == nil {
 		return nil
 	}

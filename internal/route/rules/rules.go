@@ -150,48 +150,28 @@ func commandTerminatesInPre(cmd CommandHandler) bool {
 }
 
 func commandsContainRequestPhaseOnly(cmds []CommandHandler) bool {
-	for _, cmd := range cmds {
-		switch c := cmd.(type) {
-		case Handler:
-			if c.requestPhaseOnly {
-				return true
-			}
-		case *Handler:
-			if c != nil && c.requestPhaseOnly {
-				return true
-			}
-		case IfBlockCommand:
-			if commandsContainRequestPhaseOnly(c.Do) {
-				return true
-			}
-		case *IfBlockCommand:
-			if c != nil && commandsContainRequestPhaseOnly(c.Do) {
-				return true
-			}
-		case IfElseBlockCommand:
-			for _, branch := range c.Ifs {
-				if commandsContainRequestPhaseOnly(branch.Do) {
-					return true
-				}
-			}
-			if commandsContainRequestPhaseOnly(c.Else) {
-				return true
-			}
-		case *IfElseBlockCommand:
-			if c == nil {
-				continue
-			}
-			for _, branch := range c.Ifs {
-				if commandsContainRequestPhaseOnly(branch.Do) {
-					return true
-				}
-			}
-			if commandsContainRequestPhaseOnly(c.Else) {
-				return true
-			}
-		}
+	return slices.ContainsFunc(cmds, commandContainsRequestPhaseOnly)
+}
+
+func commandContainsRequestPhaseOnly(cmd CommandHandler) bool {
+	switch c := cmd.(type) {
+	case Handler:
+		return c.requestPhaseOnly
+	case *Handler:
+		return c != nil && c.requestPhaseOnly
+	case IfBlockCommand:
+		return commandsContainRequestPhaseOnly(c.Do)
+	case *IfBlockCommand:
+		return c != nil && commandContainsRequestPhaseOnly(*c)
+	case IfElseBlockCommand:
+		return slices.ContainsFunc(c.Ifs, func(branch IfBlockCommand) bool {
+			return commandsContainRequestPhaseOnly(branch.Do)
+		}) || commandsContainRequestPhaseOnly(c.Else)
+	case *IfElseBlockCommand:
+		return c != nil && commandContainsRequestPhaseOnly(*c)
+	default:
+		return false
 	}
-	return false
 }
 
 func ifElseBlockTerminatesInPre(cmd IfElseBlockCommand) bool {
@@ -461,7 +441,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		if !rm.HasStatus() {
 			if hasError {
 				http.Error(rm, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			} else { // call upstream if no WriteHeader or Write was called and no error occurred
+			} else if !preTerminated && !defaultTerminatedInPre {
 				up(rm, r)
 			}
 		}

@@ -218,16 +218,16 @@ path regex("/api/v[0-9]+/.*")  // regex pattern
 | `proxy <url>`                  | Proxy to upstream                         |
 | `require_basic_auth <realm>`   | Return 401 challenge                      |
 
-**Non-Terminating Actions** (modify and continue):
+**Request Actions**:
 
-| Command                        | Description            |
-| ------------------------------ | ---------------------- |
-| `rewrite <from> <to>`          | Rewrite request path   |
-| `require_auth`                 | Require authentication |
-| `middleware <name>`            | Run request middleware   |
-| `set <target> <field> <value>` | Set header/variable    |
-| `add <target> <field> <value>` | Add header/variable    |
-| `remove <target> <field>`      | Remove header/variable |
+| Command                        | Description                                         |
+| ------------------------------ | --------------------------------------------------- |
+| `rewrite <from> <to>`          | Rewrite request path                                |
+| `require_auth`                 | Require authentication                              |
+| `middleware <name>`            | Run request middleware; terminate if it handles it |
+| `set <target> <field> <value>` | Set header/variable                                 |
+| `add <target> <field> <value>` | Add header/variable                                 |
+| `remove <target> <field>`      | Remove header/variable                              |
 
 `middleware <name>` runs built-in or composed middleware with default options.
 A `middleware <name> { ... }` block accepts the middleware's normal properties,
@@ -236,7 +236,7 @@ that target's options. Only middleware with a request phase is supported;
 response-only middleware is rejected while parsing the rules. A
 middleware that permits the request continues to the next action, while one
 that handles the request terminates the rule chain.
-Request middleware is rejected in response-phase rules and nested action blocks because those run after the upstream response.
+Request middleware is rejected in response-phase rules and action blocks that run in the response phase.
 
 
 **Response Actions**:

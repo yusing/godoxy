@@ -268,6 +268,67 @@ default {
 	require.Equal(t, http.StatusForbidden, response.Code)
 	require.False(t, fallbackCalled)
 }
+func TestMiddlewareCommandTerminationDoesNotFallThroughWithoutResponse(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
+		return func(http.ResponseWriter, *http.Request) bool {
+			return false
+		}, nil
+	})
+
+	var configured Rules
+	require.NoError(t, configured.Parse(`
+default {
+	middleware blocker
+}
+`))
+
+	fallbackCalled := false
+	handler := configured.BuildHandler(func(http.ResponseWriter, *http.Request) {
+		fallbackCalled = true
+	})
+
+	handler.ServeHTTP(
+		httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil),
+	)
+
+	require.False(t, fallbackCalled)
+}
+
+func TestMatchedMiddlewareTerminationDoesNotFallThroughWithoutResponse(t *testing.T) {
+	previousResolver := requestMiddlewareResolver
+	t.Cleanup(func() {
+		InitRequestMiddlewareResolver(previousResolver)
+	})
+	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
+		return func(http.ResponseWriter, *http.Request) bool {
+			return false
+		}, nil
+	})
+
+	var configured Rules
+	require.NoError(t, configured.Parse(`
+path / {
+	middleware blocker
+}
+`))
+
+	fallbackCalled := false
+	handler := configured.BuildHandler(func(http.ResponseWriter, *http.Request) {
+		fallbackCalled = true
+	})
+
+	handler.ServeHTTP(
+		httptest.NewRecorder(),
+		httptest.NewRequest(http.MethodGet, "http://unknown.example/", nil),
+	)
+
+	require.False(t, fallbackCalled)
+}
 
 func TestMiddlewareCommandValidation(t *testing.T) {
 	previousResolver := requestMiddlewareResolver

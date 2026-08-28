@@ -97,3 +97,43 @@ default {
 	require.Equal(t, "127.0.0.1:1234", request.RemoteAddr)
 	require.Equal(t, "127.0.0.1:1234", logger.remoteAddr)
 }
+
+func TestConfigValidateRejectsNotFoundMiddlewareInResponsePhase(t *testing.T) {
+	tests := []struct {
+		name      string
+		rules     string
+		wantError bool
+	}{
+		{
+			name: "request phase",
+			rules: `default {
+				middleware CloudflareRealIP {
+				}
+			}`,
+		},
+		{
+			name: "response phase",
+			rules: `status 404 {
+				middleware CloudflareRealIP {
+				}
+			}`,
+			wantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var notFoundRules rules.Rules
+			require.NoError(t, notFoundRules.Parse(test.rules))
+
+			cfg := Config{}
+			cfg.Rules.NotFound = notFoundRules
+			err := cfg.Validate()
+			if test.wantError {
+				require.ErrorContains(t, err, "request middleware cannot be used in a response-phase rule or action block")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
