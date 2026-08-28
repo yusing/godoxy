@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"path"
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/route/rules"
 	gperr "github.com/yusing/goutils/errs"
 	fsutils "github.com/yusing/goutils/fs"
 	strutils "github.com/yusing/goutils/strings"
@@ -47,6 +49,44 @@ var (
 	ErrUnknownMiddleware       = errors.New("unknown middleware")
 	ErrMiddlewareAlreadyExists = errors.New("middleware with the same name already exists")
 )
+
+func init() {
+	rules.InitRequestMiddlewareResolver(func(name string, options map[string]any) (rules.RequestMiddleware, error) {
+		definition, err := Get(name)
+		if err != nil {
+			return nil, err
+		}
+
+		middleware, err := definition.New(OptionsRaw(options))
+		if err != nil {
+			return nil, err
+		}
+
+		if !hasRequestPhase(middleware.impl) {
+			return nil, fmt.Errorf("middleware %q has no request phase", name)
+		}
+
+		return NewMiddlewareChain(name, []*Middleware{middleware}).TryModifyRequest, nil
+	})
+}
+
+func hasRequestPhase(impl any) bool {
+	switch impl := impl.(type) {
+	case *checkBypass:
+		return impl.modReq != nil && hasRequestPhase(impl.modReq)
+	case *middlewareChain:
+		for _, before := range impl.befores {
+			if hasRequestPhase(before) {
+				return true
+			}
+		}
+		return false
+	case RequestModifier:
+		return true
+	default:
+		return false
+	}
+}
 
 func Get(name string) (*Middleware, error) {
 	middleware, ok := allMiddlewares[strutils.ToLowerNoSnake(name)]

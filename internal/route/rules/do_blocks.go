@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/goccy/go-yaml"
+	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
 )
@@ -393,7 +395,9 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 		}
 
 		h := builder.build(validArgs)
-		handlers = append(handlers, Handler{fn: h, phase: phase, terminate: builder.terminate})
+		handlers = append(handlers, Handler{
+			fn: h, phase: phase, terminate: builder.terminate, requestPhaseOnly: builder.requestPhaseOnly,
+		})
 		return nil
 	}
 
@@ -414,24 +418,33 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 				}
 				return false, nil
 			}
-			if !bodyLooksLikeOptionBlock(body) {
-				return false, nil
+			if builder.validateBlock == nil {
+				if !bodyLooksLikeOptionBlock(body) {
+					return false, nil
+				}
+				return true, ErrInvalidArguments.Withf("option block does not accept inline args")
 			}
-			return true, ErrInvalidArguments.Withf("option block does not accept inline args")
 		}
 
-		flatArgs, err := parseCommandBlockArgs(builder.help, body)
-		if err != nil {
-			return true, gperr.PrependSubject(err, directive).With(builder.help.Error())
+		var phase PhaseFlag
+		var validArgs any
+		if builder.validateBlock != nil {
+			phase, validArgs, err = builder.validateBlock(args, body)
+		} else {
+			var flatArgs []string
+			flatArgs, err = parseCommandBlockArgs(builder.help, body)
+			if err == nil {
+				phase, validArgs, err = builder.validate(flatArgs)
+			}
 		}
-
-		phase, validArgs, err := builder.validate(flatArgs)
 		if err != nil {
 			return true, gperr.PrependSubject(err, directive).With(builder.help.Error())
 		}
 
 		h := builder.build(validArgs)
-		handlers = append(handlers, Handler{fn: h, phase: phase, terminate: builder.terminate})
+		handlers = append(handlers, Handler{
+			fn: h, phase: phase, terminate: builder.terminate, requestPhaseOnly: builder.requestPhaseOnly,
+		})
 		return true, nil
 	}
 
@@ -611,4 +624,35 @@ func parseCommandBlockScalar(v string) (string, error) {
 		return "", fmt.Errorf("expected a single scalar value")
 	}
 	return args[0], nil
+}
+
+func parseMiddlewareOptionsBlock(body string) (map[string]any, error) {
+	// Rule blocks accept tab indentation, while YAML property blocks do not.
+	var normalized strings.Builder
+	normalized.Grow(len(body))
+	indent := true
+	for i := range len(body) {
+		switch {
+		case body[i] == '\n':
+			normalized.WriteByte(body[i])
+			indent = true
+		case indent && body[i] == '\t':
+			normalized.WriteString("  ")
+		default:
+			normalized.WriteByte(body[i])
+			if body[i] != ' ' && body[i] != '\r' {
+				indent = false
+			}
+		}
+	}
+	body = normalized.String()
+
+	options := make(map[string]any)
+	if strings.TrimSpace(body) == "" {
+		return options, nil
+	}
+	if err := serialization.UnmarshalValidate([]byte(body), &options, yaml.Unmarshal); err != nil {
+		return nil, ErrInvalidArguments.With(err)
+	}
+	return options, nil
 }

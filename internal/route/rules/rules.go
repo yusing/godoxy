@@ -71,6 +71,10 @@ func (rules Rules) Validate() gperr.Error {
 			// set name to index if name is empty
 			rules[i].Name = fmt.Sprintf("rule[%d]", i)
 		}
+		if commandsContainRequestPhaseOnly(rule.Do.post) ||
+			(rule.On.phase.IsPostRule() && commandsContainRequestPhaseOnly(rule.Do.pre)) {
+			return ErrInvalidArguments.Withf("rule[%d]: request middleware cannot be used in a response-phase rule or action block", i)
+		}
 	}
 	if len(defaultRulesFound) > 1 {
 		return ErrMultipleDefaultRules.Withf("found %d", len(defaultRulesFound))
@@ -140,6 +144,31 @@ func commandTerminatesInPre(cmd CommandHandler) bool {
 		return ifElseBlockTerminatesInPre(c)
 	case *IfElseBlockCommand:
 		return c != nil && ifElseBlockTerminatesInPre(*c)
+	default:
+		return false
+	}
+}
+
+func commandsContainRequestPhaseOnly(cmds []CommandHandler) bool {
+	return slices.ContainsFunc(cmds, commandContainsRequestPhaseOnly)
+}
+
+func commandContainsRequestPhaseOnly(cmd CommandHandler) bool {
+	switch c := cmd.(type) {
+	case Handler:
+		return c.requestPhaseOnly
+	case *Handler:
+		return c != nil && c.requestPhaseOnly
+	case IfBlockCommand:
+		return commandsContainRequestPhaseOnly(c.Do)
+	case *IfBlockCommand:
+		return c != nil && commandContainsRequestPhaseOnly(*c)
+	case IfElseBlockCommand:
+		return slices.ContainsFunc(c.Ifs, func(branch IfBlockCommand) bool {
+			return commandsContainRequestPhaseOnly(branch.Do)
+		}) || commandsContainRequestPhaseOnly(c.Else)
+	case *IfElseBlockCommand:
+		return c != nil && commandContainsRequestPhaseOnly(*c)
 	default:
 		return false
 	}
@@ -412,7 +441,7 @@ func (rules Rules) BuildHandler(up http.HandlerFunc) http.HandlerFunc {
 		if !rm.HasStatus() {
 			if hasError {
 				http.Error(rm, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			} else { // call upstream if no WriteHeader or Write was called and no error occurred
+			} else if !preTerminated && !defaultTerminatedInPre {
 				up(rm, r)
 			}
 		}

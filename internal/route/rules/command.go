@@ -12,9 +12,10 @@ var errTerminateRule = errors.New("terminate rule")
 type (
 	HandlerFunc func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error
 	Handler     struct {
-		fn        HandlerFunc
-		phase     PhaseFlag
-		terminate bool
+		fn               HandlerFunc
+		phase            PhaseFlag
+		requestPhaseOnly bool
+		terminate        bool
 	}
 
 	CommandHandler interface {
