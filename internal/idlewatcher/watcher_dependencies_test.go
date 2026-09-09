@@ -298,3 +298,38 @@ func (r *idlewatcherTestRoute) ReverseProxy() *reverseproxy.ReverseProxy {
 }
 func (r *idlewatcherTestRoute) ServeHTTP(http.ResponseWriter, *http.Request) {}
 func (r *idlewatcherTestRoute) MarshalZerologObject(*zerolog.Event)          {}
+
+// A watcher that is both its own idle route and another route's dependency gets
+// NewWatcher called a second time with a dependency-synthesized config. That
+// config carries neverTick so the dependency never auto-sleeps, and adopting it
+// would silently disable the route's own idle timeout.
+func TestNewWatcherReloadIgnoresDependencyConfig(t *testing.T) {
+	w, parent, mainRoute, _ := newDependencyReloadTest(t, "dep-clobber", nil)
+	require.Equal(t, time.Hour, w.cfg.IdleTimeout)
+
+	depCfg := idlewatcherTestConfig("dep-clobber", nil)
+	depCfg.IdleTimeout = neverTick
+	depCfg.WakeTimeout = 42 * time.Second
+
+	reloaded, err := NewWatcher(parent, mainRoute, depCfg)
+	require.NoError(t, err)
+	require.Same(t, w, reloaded)
+	require.Equal(t, time.Hour, reloaded.cfg.IdleTimeout, "route keeps its own idle timeout")
+	require.Equal(t, time.Second, reloaded.cfg.WakeTimeout, "and the rest of its own base config")
+}
+
+// A genuine reload must still be adopted.
+func TestNewWatcherReloadAdoptsUpdatedConfig(t *testing.T) {
+	w, parent, mainRoute, _ := newDependencyReloadTest(t, "adopt-cfg", nil)
+	require.Equal(t, time.Hour, w.cfg.IdleTimeout)
+
+	newCfg := idlewatcherTestConfig("adopt-cfg", nil)
+	newCfg.IdleTimeout = 2 * time.Hour
+	newCfg.WakeTimeout = 5 * time.Second
+
+	reloaded, err := NewWatcher(parent, mainRoute, newCfg)
+	require.NoError(t, err)
+	require.Same(t, w, reloaded)
+	require.Equal(t, 2*time.Hour, reloaded.cfg.IdleTimeout)
+	require.Equal(t, 5*time.Second, reloaded.cfg.WakeTimeout)
+}
