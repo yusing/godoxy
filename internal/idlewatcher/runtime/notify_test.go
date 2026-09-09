@@ -3,6 +3,7 @@ package runtime
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/serialization"
 )
@@ -262,4 +263,35 @@ func TestNotifyDeserialization(t *testing.T) {
 		}, cfg)
 		require.ErrorIs(t, err, ErrInvalidNotifyEvent)
 	})
+}
+
+// Guards the `defaults.idlewatcher` shape documented in config.example.yml.
+func TestIdlewatcherDefaultsDeserialization(t *testing.T) {
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(`
+notify:
+  enabled: true
+  to: [gotify, ntfy]
+  events: [sleep, wake]
+`), &raw))
+
+	var defaults IdlewatcherDefaults
+	require.NoError(t, serialization.MapUnmarshalValidate(raw, &defaults))
+
+	require.NotNil(t, defaults.Notify.Enabled)
+	require.True(t, *defaults.Notify.Enabled)
+	require.Equal(t, []string{"gotify", "ntfy"}, defaults.Notify.To)
+	require.Equal(t, NotifyEventsDefault, defaults.Notify.Events)
+
+	// A route with nothing configured inherits the whole thing.
+	route := IdlewatcherNotifyConfig{}
+	route.ApplyDefaults(defaults.Notify)
+	require.True(t, route.Wants(NotifyEventSleep))
+	require.True(t, route.Wants(NotifyEventWake))
+	require.False(t, route.Wants(NotifyEventReady))
+
+	// A route can opt back out of an enabled global default.
+	optedOut := IdlewatcherNotifyConfig{Enabled: ptr(false)}
+	optedOut.ApplyDefaults(defaults.Notify)
+	require.False(t, optedOut.Wants(NotifyEventSleep))
 }
