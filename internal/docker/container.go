@@ -306,12 +306,12 @@ func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 		if value == "" {
 			continue
 		}
-		cfg[key] = value
+		setNestedKey(cfg, key, value)
 		switch lbl {
 		case LabelIdleTimeout:
 			hasIdleTimeout = true
 		case LabelDependsOn:
-			cfg[key] = Dependencies(c)
+			setNestedKey(cfg, key, Dependencies(c))
 		}
 	}
 
@@ -329,6 +329,25 @@ func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 		} else {
 			c.IdlewatcherConfig = idwCfg
 		}
+	}
+}
+
+// setNestedKey assigns value at a dot separated key path, creating intermediate
+// objects as needed. serialization.Convert only recurses into map[string]any, so
+// the intermediates must be exactly that type.
+func setNestedKey(m map[string]any, path string, value any) {
+	for {
+		head, rest, nested := strings.Cut(path, ".")
+		if !nested {
+			m[head] = value
+			return
+		}
+		child, ok := m[head].(map[string]any)
+		if !ok {
+			child = make(map[string]any)
+			m[head] = child
+		}
+		m, path = child, rest
 	}
 }
 
