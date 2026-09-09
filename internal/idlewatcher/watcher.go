@@ -22,6 +22,7 @@ import (
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/routing"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -74,6 +75,11 @@ type (
 		events         *gevents.History
 		eventsMu       sync.Mutex
 		lastIdleAction synk.Value[string]
+
+		// Sleep/wake notifications. notify is bound once from the task context;
+		// notifyPhase edge triggers it. See notify.go.
+		notify      notif.NotifyFunc
+		notifyPhase atomic.Uint32
 
 		dependenciesMu    sync.RWMutex
 		dependsOn         []*dependency
@@ -347,6 +353,12 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	if !exists {
 		watcherMapMu.Lock()
 		w.task = parent.Subtask("idlewatcher."+r.Name(), true)
+		if w.notify == nil { // tests inject their own
+			w.notify = notif.FromCtx(parent.Context()).Notify
+		}
+		// Seed the edge detector so an already running container does not report
+		// a wake that happened before this watcher existed.
+		w.notifyPhase.Store(uint32(initialNotifyPhase(status)))
 		watcherMap[key] = w
 		watcherMapMu.Unlock()
 
@@ -456,6 +468,7 @@ func (w *Watcher) wake(ctx context.Context) error {
 	// and cancellation ownership match the container start itself.
 	if err := w.wakeDependencies(ctx); err != nil {
 		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
+		w.notifyTransition(notifyPhaseErrored, idlewatcher.NotifyEventError, "dependency wake failed", err)
 		return err
 	}
 
@@ -463,6 +476,7 @@ func (w *Watcher) wake(ctx context.Context) error {
 	err := w.wakeIfStopped(ctx)
 	if err != nil {
 		w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
+		w.notifyTransition(notifyPhaseErrored, idlewatcher.NotifyEventError, "container start failed", err)
 	} else {
 		w.sendEvent(WakeEventContainerWoke, containerName+" started successfully", nil)
 		w.sendEvent(WakeEventWaitingReady, "Waiting for "+containerName+" to be ready...", nil)
@@ -739,6 +753,7 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 					}
 					w.l.Err(err).Msgf("container stop with method %q failed", w.cfg.StopMethod)
 					w.emitIdleActivity(gevents.LevelError, IdleEventActionError, w.cfg.ContainerName()+" failed to sleep", err)
+					w.notifyOneShot(idlewatcher.NotifyEventSleepFailed, "", err)
 				default:
 					w.l.Info().Msg("idle timeout")
 				}

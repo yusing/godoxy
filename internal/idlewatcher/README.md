@@ -197,6 +197,7 @@ type IdlewatcherConfigBase struct {
     DependsOn    []string               // Container dependencies
     StartEndpoint string                // Optional path restriction
     NoLoadingPage bool                  // Skip loading page
+    Notify       runtime.IdlewatcherNotifyConfig // Sleep/wake notifications
 }
 ```
 
@@ -255,6 +256,42 @@ Every idlewatcher state change is published to the global event history used by 
 | `idle_event` | `ready`          | Container is ready                           |
 | `idle_event` | `napping`        | Container stopped or paused                  |
 | `idle_event` | `error`          | Wake, health, or idle-stop failed            |
+
+### Notifications
+
+Sleep/wake transitions can additionally be sent through the providers configured
+under `providers.notification`. This is opt-in, per route or globally via
+`defaults.idlewatcher.notify`, and off by default. See `notify.go`.
+
+| Event          | Hook                        | Level | In the default event set |
+| -------------- | --------------------------- | ----- | ------------------------ |
+| `sleep`        | `setNapping`                | info  | yes                      |
+| `wake`         | `setStarting`               | info  | yes                      |
+| `ready`        | `setReady`                  | info  | no                       |
+| `error`        | `setError`, `wake` failures | warn  | no                       |
+| `sleep_failed` | idle-tick stop failure      | warn  | no                       |
+
+Four things are worth knowing before changing this:
+
+- **The hooks live on the four `setX` functions in `state.go`, not on
+  `storeState`.** Teardown and the initial status store call `storeState`
+  directly and must stay silent; hooking the setters gives that carve-out for
+  free.
+- **Dispatch is edge triggered on `notifyPhase`, not on `lastIdleAction`.**
+  `sendEvent` overwrites `lastIdleAction` for every wake sub-event, so on the
+  request path it holds `waiting_ready` by the time `setStarting` runs and would
+  fail to dedupe the second `setStarting` arriving from the container event
+  stream. The phase is recorded before the event filter, so a filtered-out event
+  still advances it and the next edge is not missed.
+- **Dependency watchers are suppressed** (`IdleTimeout == neverTick`). They are
+  started and stopped as a side effect of their parent, so reporting them
+  separately would duplicate every notification.
+- **The phase is seeded from the container status** observed when the watcher is
+  created, so GoDoxy starting next to an already running container does not
+  report a wake that happened before it was watching.
+
+`sleep_failed` bypasses the phase check because it is a repeated failure, not a
+state transition.
 
 ### Metrics
 

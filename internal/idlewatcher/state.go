@@ -35,6 +35,7 @@ func (w *Watcher) setReady() {
 	})
 	// Send ready event via SSE
 	w.sendEvent(WakeEventReady, w.cfg.ContainerName()+" is ready!", nil)
+	w.notifyTransition(notifyPhaseAwake, idlewatcher.NotifyEventReady, "", nil)
 }
 
 func (w *Watcher) setStarting() {
@@ -50,6 +51,7 @@ func (w *Watcher) setStarting() {
 	if !alreadyStarting {
 		w.emitIdleActivity(gevents.LevelInfo, IdleEventActionStarting, w.cfg.ContainerName()+" is starting...", nil)
 	}
+	w.notifyTransition(notifyPhaseWaking, idlewatcher.NotifyEventWake, "", nil)
 }
 
 func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
@@ -65,6 +67,7 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 		message = w.cfg.ContainerName() + " was paused"
 	}
 	w.emitIdleActivity(gevents.LevelInfo, IdleEventActionNapping, message, nil)
+	w.notifyTransition(notifyPhaseAsleep, idlewatcher.NotifyEventSleep, string(status), nil)
 }
 
 func (w *Watcher) setError(err error) {
@@ -77,6 +80,7 @@ func (w *Watcher) setError(err error) {
 		healthTries: 0,
 	})
 	w.sendEvent(WakeEventError, "Container error", err)
+	w.notifyTransition(notifyPhaseErrored, idlewatcher.NotifyEventError, "", err)
 }
 
 // waitForReady waits for the container to become ready or context to be canceled.
