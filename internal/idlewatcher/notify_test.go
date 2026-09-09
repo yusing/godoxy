@@ -26,6 +26,12 @@ func newNotifyWatcher(t *testing.T, cfg idlewatchertypes.IdlewatcherNotifyConfig
 	w.notify = func(msg *notif.LogMessage) {
 		*sent = append(*sent, msg)
 	}
+
+	// NewWatcher seeds the phase from the container status it observes, and a
+	// watcher that starts out asleep correctly swallows a redundant sleep. Being
+	// awake is the precondition for observing a sleep at all, so start there;
+	// the seeding itself is covered by TestNotifySeeded* below.
+	w.notifyPhase.Store(uint32(notifyPhaseAwake))
 	return w, sent
 }
 
@@ -95,6 +101,7 @@ func TestNotifyEventFilterStillAdvancesPhase(t *testing.T) {
 func TestNotifyReadyAndErrorAreOptIn(t *testing.T) {
 	t.Run("excluded from the default set", func(t *testing.T) {
 		w, sent := newNotifyWatcher(t, idlewatchertypes.IdlewatcherNotifyConfig{To: []string{"gotify"}})
+		w.notifyPhase.Store(uint32(notifyPhaseWaking)) // ready follows a wake
 
 		w.setReady()
 		w.setError(errors.New("boom"))
@@ -107,6 +114,7 @@ func TestNotifyReadyAndErrorAreOptIn(t *testing.T) {
 			To:     []string{"gotify"},
 			Events: []idlewatchertypes.IdlewatcherNotifyEvent{idlewatchertypes.NotifyEventAll},
 		})
+		w.notifyPhase.Store(uint32(notifyPhaseWaking)) // ready follows a wake
 
 		w.setReady()
 		w.setError(errors.New("boom"))
@@ -264,4 +272,19 @@ func TestNotifyWithoutNotifierIsSafe(t *testing.T) {
 		w.setNapping(idlewatchertypes.ContainerStatusStopped)
 		w.notifyOneShot(idlewatchertypes.NotifyEventSleepFailed, "", errors.New("boom"))
 	})
+}
+
+// A container that was already stopped when the watcher was created must not be
+// announced as having just gone to sleep.
+func TestNotifySeededFromStoppedContainer(t *testing.T) {
+	w, sent := newNotifyWatcher(t, idlewatchertypes.IdlewatcherNotifyConfig{To: []string{"gotify"}})
+	w.notifyPhase.Store(uint32(initialNotifyPhase(idlewatchertypes.ContainerStatusStopped)))
+
+	w.setNapping(idlewatchertypes.ContainerStatusStopped)
+	require.Empty(t, *sent, "already asleep at startup is not a transition")
+
+	// A real wake afterwards is still reported.
+	w.setStarting()
+	require.Len(t, *sent, 1)
+	require.Contains(t, (*sent)[0].Title, "is waking up")
 }

@@ -56,7 +56,7 @@ func TestNotifyWantsEventMask(t *testing.T) {
 		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}}
 		cfg.resolve()
 
-		require.Equal(t, NotifyEventsDefault, cfg.Events)
+		require.Empty(t, cfg.Events, "resolve must not materialize the default set")
 		for _, event := range all {
 			want := event == NotifyEventSleep || event == NotifyEventWake
 			require.Equalf(t, want, cfg.Wants(event), "event %q", event)
@@ -201,7 +201,8 @@ func TestNotifyValidate(t *testing.T) {
 	t.Run("accepts an empty event list", func(t *testing.T) {
 		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}}
 		require.NoError(t, cfg.Validate())
-		require.Equal(t, NotifyEventsDefault, cfg.Events)
+		require.Empty(t, cfg.Events, "left empty so ApplyDefaults can still inherit")
+		require.True(t, cfg.Wants(NotifyEventSleep), "but the built-in set is in effect")
 	})
 }
 
@@ -212,7 +213,7 @@ func TestNotifyResolvedWithZeroIdleTimeout(t *testing.T) {
 	cfg.Notify = IdlewatcherNotifyConfig{To: []string{"gotify"}}
 
 	require.NoError(t, cfg.Validate())
-	require.Equal(t, NotifyEventsDefault, cfg.Notify.Events)
+	require.Empty(t, cfg.Notify.Events)
 	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
 }
 
@@ -294,4 +295,73 @@ notify:
 	optedOut := IdlewatcherNotifyConfig{Enabled: ptr(false)}
 	optedOut.ApplyDefaults(defaults.Notify)
 	require.False(t, optedOut.Wants(NotifyEventSleep))
+}
+
+// Regression: a route's notify config is resolved at deserialization time,
+// before routevalidate.finalize gets to offer the globals. If resolve
+// materialized the built-in event set, ApplyDefaults would see a non-empty
+// Events and defaults.idlewatcher.notify.events would never be inherited.
+func TestNotifyInheritsGlobalEventsAfterDeserialization(t *testing.T) {
+	globals := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
+	globals.resolve()
+
+	tests := []struct {
+		name  string
+		route map[string]any
+	}{
+		{
+			name:  "route declares a notify block without events",
+			route: map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
+		},
+		{
+			name:  "route has an idlewatcher block but no notify",
+			route: map[string]any{"idle_timeout": "30m"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := new(IdlewatcherConfig)
+			require.NoError(t, serialization.MapUnmarshalValidate(tc.route, cfg))
+
+			cfg.Notify.ApplyDefaults(globals)
+
+			require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventReady}, cfg.Notify.Events)
+			require.True(t, cfg.Notify.Wants(NotifyEventReady))
+			require.False(t, cfg.Notify.Wants(NotifyEventSleep))
+		})
+	}
+}
+
+// A route's own events still win over the globals.
+func TestNotifyRouteEventsBeatGlobalEvents(t *testing.T) {
+	globals := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
+	globals.resolve()
+
+	cfg := new(IdlewatcherConfig)
+	require.NoError(t, serialization.MapUnmarshalValidate(map[string]any{
+		"idle_timeout": "30m",
+		"notify":       map[string]any{"events": "sleep"},
+	}, cfg))
+
+	cfg.Notify.ApplyDefaults(globals)
+
+	require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep}, cfg.Notify.Events)
+	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
+	require.False(t, cfg.Notify.Wants(NotifyEventReady))
+}
+
+// With no globals configured, the built-in set applies.
+func TestNotifyFallsBackToBuiltinEvents(t *testing.T) {
+	cfg := new(IdlewatcherConfig)
+	require.NoError(t, serialization.MapUnmarshalValidate(map[string]any{
+		"idle_timeout": "30m",
+		"notify":       map[string]any{"to": "ntfy"},
+	}, cfg))
+
+	cfg.Notify.ApplyDefaults(IdlewatcherNotifyConfig{})
+
+	require.Equal(t, NotifyEventsDefault, cfg.Notify.Events)
+	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
+	require.True(t, cfg.Notify.Wants(NotifyEventWake))
+	require.False(t, cfg.Notify.Wants(NotifyEventReady))
 }

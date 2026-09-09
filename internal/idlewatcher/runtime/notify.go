@@ -97,6 +97,12 @@ func (c *IdlewatcherNotifyConfig) ApplyDefaults(defaults IdlewatcherNotifyConfig
 	if len(c.Events) == 0 {
 		c.Events = slices.Clone(defaults.Events)
 	}
+	// Materialize the built-in set only here, once the globals have had their
+	// chance. resolve must not do it: it runs at deserialization time, and a
+	// populated Events would make the inheritance above a no-op.
+	if len(c.Events) == 0 {
+		c.Events = slices.Clone(NotifyEventsDefault)
+	}
 	c.resolve()
 }
 
@@ -109,18 +115,23 @@ func (c *IdlewatcherNotifyConfig) resolve() {
 		c.enabled = len(c.To) > 0
 	}
 
-	if len(c.Events) == 0 {
-		c.Events = slices.Clone(NotifyEventsDefault)
+	// NOTE: Events is deliberately left alone. See ApplyDefaults.
+	events := c.Events
+	if len(events) == 0 {
+		events = NotifyEventsDefault
 	}
+	c.eventMask = eventMask(events)
+}
 
-	c.eventMask = 0
-	for _, event := range c.Events {
+func eventMask(events []IdlewatcherNotifyEvent) uint8 {
+	var mask uint8
+	for _, event := range events {
 		if event == NotifyEventAll {
-			c.eventMask = notifyEventMaskAll
-			break
+			return notifyEventMaskAll
 		}
-		c.eventMask |= notifyEventBits[event]
+		mask |= notifyEventBits[event]
 	}
+	return mask
 }
 
 // Wants reports whether event should raise a notification.
