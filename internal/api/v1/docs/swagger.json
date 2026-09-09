@@ -4660,6 +4660,16 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "notify": {
+          "description": "Notify opts this route into sleep/wake notifications. It lives on the\nbase so it survives the config copy done on reload in\nidlewatcher.NewWatcher.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/IdlewatcherNotifyConfig"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "proxmox": {
           "$ref": "#/definitions/IdlewatcherProxmoxNodeConfig",
           "x-nullable": false,
@@ -4719,6 +4729,73 @@
           "x-omitempty": false
         }
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherNotifyConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enabled is nil by default, meaning: inherit `defaults.idlewatcher.notify`,\nthen fall back to len(To) > 0. Set it explicitly to override the global\ndefault in either direction.",
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "events": {
+          "description": "Events lists the transitions to notify on. Empty means the default set,\nsee NotifyEventsDefault. \"all\" selects every event.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/IdlewatcherNotifyEvent"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "to": {
+          "description": "To lists the `providers.notification` names to send to. Empty means every\nconfigured provider.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherNotifyEvent": {
+      "type": "string",
+      "enum": [
+        "sleep",
+        "wake",
+        "ready",
+        "error",
+        "sleep_failed",
+        "all"
+      ],
+      "x-enum-comments": {
+        "NotifyEventError": "container failed to wake",
+        "NotifyEventReady": "container finished waking and is serving",
+        "NotifyEventSleep": "container stopped or paused",
+        "NotifyEventSleepFailed": "container failed to stop at idle timeout",
+        "NotifyEventWake": "container started waking up"
+      },
+      "x-enum-descriptions": [
+        "container stopped or paused",
+        "container started waking up",
+        "container finished waking and is serving",
+        "container failed to wake",
+        "container failed to stop at idle timeout",
+        ""
+      ],
+      "x-enum-varnames": [
+        "NotifyEventSleep",
+        "NotifyEventWake",
+        "NotifyEventReady",
+        "NotifyEventError",
+        "NotifyEventSleepFailed",
+        "NotifyEventAll"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },
