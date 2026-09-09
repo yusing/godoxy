@@ -25,6 +25,10 @@ type (
 		StopTimeout time.Duration       `json:"stop_timeout"`
 		StopMethod  ContainerStopMethod `json:"stop_method"`
 		StopSignal  ContainerSignal     `json:"stop_signal,omitempty"`
+		// Notify opts this route into sleep/wake notifications. It lives on the
+		// base so it survives the config copy done on reload in
+		// idlewatcher.NewWatcher.
+		Notify IdlewatcherNotifyConfig `json:"notify"`
 	} // @name IdlewatcherConfigBase
 	IdlewatcherConfig struct {
 		IdlewatcherProviderConfig
@@ -99,6 +103,11 @@ func (c *IdlewatcherConfig) ValidateResolved() error {
 }
 
 func (c *IdlewatcherConfig) validate(requireProvider bool) error {
+	// resolve before the early return so a config that never reaches
+	// routevalidate.finalize still has a coherent notify state. Idempotent:
+	// IdlewatcherNotifyConfig.ApplyDefaults re-runs it with the globals merged.
+	c.Notify.resolve()
+
 	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
 		c.valErr = nil
 		return nil

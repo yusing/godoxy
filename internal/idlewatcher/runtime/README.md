@@ -35,6 +35,27 @@ type IdlewatcherConfig struct {
 ```
 
 ```go
+// on IdlewatcherConfigBase, so it survives the config copy done on reload.
+type IdlewatcherNotifyConfig struct {
+    Enabled *bool                    // nil: inherit defaults, then fall back to len(To) > 0
+    To      []string                 // providers.notification names; empty means all
+    Events  []IdlewatcherNotifyEvent // empty means NotifyEventsDefault
+}
+```
+
+### Notify events
+
+`sleep`, `wake`, `ready`, `error`, `sleep_failed`, plus `all` as a shorthand for
+every event. Unknown names are rejected at deserialization time by
+`IdlewatcherNotifyConfig.Validate`, which runs for YAML routes and Docker labels
+alike. `NotifyEventsDefault` is `[sleep, wake]`.
+
+Global values under `defaults.idlewatcher.notify` are merged into each route by
+`internal/routevalidate.finalize`, which calls
+`IdlewatcherNotifyConfig.ApplyDefaults`. A route sets `enabled` explicitly to
+override the global default in either direction.
+
+```go
 type Provider interface {
     ContainerPause(ctx context.Context) error
     ContainerStart(ctx context.Context) error
