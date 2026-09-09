@@ -16,8 +16,10 @@ type (
 		CIDRWhitelistOpts
 	}
 	CIDRWhitelistOpts struct {
-		Allow      []*nettypes.CIDR `validate:"min=1"`
-		StatusCode int              `json:"status_code" aliases:"status" validate:"omitempty,status_code"`
+		// An empty list denies all non-bypassed requests, including unpromoted route entries.
+		Allow []*nettypes.CIDR
+
+		StatusCode int `json:"status_code" aliases:"status" validate:"omitempty,status_code"`
 		Message    string
 	}
 )

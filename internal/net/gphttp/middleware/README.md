@@ -154,6 +154,8 @@ Semantics:
 - if the route-local middleware entry contains additional options, only the bypass portion is consumed; the rest of the route-local middleware still executes normally
 - if no matching entrypoint middleware exists, route-local middleware behavior is unchanged
 
+`CIDRWhitelist` accepts an omitted or empty `allow` list and denies every request that does not match a bypass rule. A bypass-only route entry can therefore promote its rules without duplicating the entrypoint's allowed CIDRs. When no matching entrypoint middleware exists, the route entry allows only requests matching its own bypass rules.
+
 Example:
 
 ```yaml
