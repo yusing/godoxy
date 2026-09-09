@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"mime"
 	"net/http"
 	"net/url"
@@ -27,6 +26,7 @@ import (
 	"github.com/yusing/goutils/cache"
 	httputils "github.com/yusing/goutils/http"
 	strutils "github.com/yusing/goutils/strings"
+	"github.com/yusing/goutils/version"
 )
 
 type Result struct {
@@ -194,8 +194,13 @@ func FindIcon(ctx context.Context, r route, uri string, variant icons.Variant) (
 
 var findIconSlowCached = cache.NewKeyFunc(func(ctx context.Context, key string) (Result, error) {
 	v := ctx.Value(contextKey{}).(contextValue)
-	return findIconSlow(ctx, v.r, v.uri, nil)
-}).WithMaxEntries(200).WithRetriesConstantBackoff(math.MaxInt, 15*time.Second).Build() // infinite retries, 15 seconds interval
+	result, err := findIconSlow(ctx, v.r, v.uri, nil)
+	// A disconnected caller must not cache a failure for other dashboard requests.
+	if cause := context.Cause(ctx); cause != nil {
+		return result, cause
+	}
+	return result, err
+}).WithMaxEntries(200).WithTTL(time.Minute).Build() // Cache failures too; retry only on a later request after expiry.
 
 func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) (Result, error) {
 	select {
@@ -215,6 +220,7 @@ func findIconSlow(ctx context.Context, r httpRoute, uri string, stack []string) 
 	if err != nil {
 		return FetchResultWithErrorf(http.StatusInternalServerError, "cannot create request: %w", err)
 	}
+	newReq.Header.Set("User-Agent", "GoDoxy/"+version.Get().String())
 	newReq.Header.Set("Accept-Encoding", "identity") // disable compression
 
 	u, err := url.ParseRequestURI(strutils.SanitizeURI(uri))

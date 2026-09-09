@@ -1,6 +1,7 @@
 package iconfetch
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,10 @@ import (
 	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage/icons"
 	"github.com/yusing/godoxy/internal/net/gphttp"
+	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
+	"github.com/yusing/goutils/http/reverseproxy"
 	"github.com/yusing/goutils/task"
 )
 
@@ -103,6 +106,94 @@ func TestFindIconInstallsScrapedRouteContext(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("png-bytes"), result.Icon)
 	require.EqualValues(t, 1, scrapedRoute.served)
+}
+
+func TestFindIconThroughProxyWithRemoteHostMiddleware(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if _, present := req.Header["X-Forwarded-For"]; present {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if req.UserAgent() == "" || req.Header.Get("X-Middleware-Ran") != "yes" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("icon"))
+	}))
+	defer upstream.Close()
+
+	r := newStubIconRoute(t)
+	r.mon.status = health.StatusHealthy
+	target, err := url.Parse(upstream.URL)
+	require.NoError(t, err)
+	r.target = nettypes.NewURL(target)
+	proxy := reverseproxy.NewReverseProxy(r.Name(), target, upstream.Client().Transport)
+	require.NoError(t, middleware.PatchReverseProxy(proxy, map[string]middleware.OptionsRaw{
+		"modify_request": {
+			"set_headers": map[string]any{
+				"X-Forwarded-For":  "$remote_host",
+				"X-Middleware-Ran": "yes",
+			},
+		},
+	}))
+	r.handler = proxy.ServeHTTP
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	result, err := FindIcon(ctx, r, "/", icons.VariantNone)
+	require.NoError(t, err)
+	require.Equal(t, []byte("icon"), result.Icon)
+	require.Equal(t, 1, r.served)
+}
+
+func TestFindIconFailureReturnsAndCaches(t *testing.T) {
+	r := newStubIconRoute(t)
+	r.mon.status = health.StatusHealthy
+	r.handler = func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	for range 2 {
+		result, err := FindIcon(ctx, r, "/", icons.VariantNone)
+		require.Error(t, err)
+		require.NoError(t, ctx.Err(), "failed scraping must return without a retry loop")
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
+	}
+	require.Equal(t, 1, r.served, "cached failures must not hammer the upstream")
+}
+
+func TestFindIconCancellationDoesNotCacheFailure(t *testing.T) {
+	for _, before := range []bool{true, false} {
+		name := "during scrape"
+		if before {
+			name = "before scrape"
+		}
+		t.Run(name, func(t *testing.T) {
+			r := newStubIconRoute(t)
+			r.mon.status = health.StatusHealthy
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if before {
+				cancel()
+			}
+			r.handler = func(w http.ResponseWriter, _ *http.Request) {
+				cancel()
+				w.WriteHeader(http.StatusBadGateway)
+			}
+			_, err := FindIcon(ctx, r, "/", icons.VariantNone)
+			require.ErrorIs(t, err, context.Canceled)
+
+			r.handler = func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "image/png")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("recovered"))
+			}
+			result, err := FindIcon(t.Context(), r, "/", icons.VariantNone)
+			require.NoError(t, err)
+			require.Equal(t, []byte("recovered"), result.Icon)
+		})
+	}
 }
 
 type stubIconRoute struct {

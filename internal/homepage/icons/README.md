@@ -278,7 +278,8 @@ func FindIcon(ctx context.Context, r route, uri string, variant Variant) (Result
 **Key behaviors:**
 
 - `FetchIconAbsolute` is cached with 200 entries and 4-hour TTL
-- `findIconSlow` has infinite retries with 15-second backoff
+- Route scraping returns failures without background retries and caches results, including failures, for one minute. A later request after expiry can try again.
+- Scraping uses a GoDoxy User-Agent and the route middleware pipeline, without a client IP. Client-address variables are empty; authentication-like middleware is skipped for these internal requests.
 - HTML parsing fallback extracts `<link rel=icon>` from target pages
 - HTML scrape runs only when the route health monitor reports healthy, so a dashboard favicon fetch cannot wake a napping or starting idle container
 
