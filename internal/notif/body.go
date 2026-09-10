@@ -111,7 +111,7 @@ func (m MessageBodyBytes) Format(format LogFormat) ([]byte, error) {
 func (e errorBody) Format(format LogFormat) ([]byte, error) {
 	switch format {
 	case LogFormatRawJSON:
-		return strutils.MarshalJSON(e.Error)
+		return (FieldsBody{{Name: "Error", Value: string(gperr.Plain(e.Error))}}).Format(format)
 	case LogFormatPlain:
 		return gperr.Plain(e.Error), nil
 	case LogFormatMarkdown:
