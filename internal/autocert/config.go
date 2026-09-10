@@ -192,8 +192,8 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 // lego v5 takes recursive nameservers through a process-wide default client
 // instead of a per-challenge option. This is not a narrowing: lego v4's
 // dns01.AddRecursiveNameservers wrote to a package-level global too, so with
-// several providers configured the last one to initialise its client has always
-// won. An empty list is left alone so lego keeps its own resolv.conf fallback.
+// several providers configured the last one constructed wins. An empty list is
+// left alone so lego keeps its own resolv.conf fallback.
 func (cfg *Config) applyResolvers() {
 	if len(cfg.Resolvers) == 0 {
 		return
