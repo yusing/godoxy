@@ -179,9 +179,12 @@ var getTypeInfo func(t reflect.Type) typeInfo
 func init() {
 	m := xsync.NewMap[reflect.Type, typeInfo](xsync.WithGrowOnly(), xsync.WithPresize(100))
 	getTypeInfo = func(t reflect.Type) typeInfo {
-		ti, _ := m.LoadOrCompute(t, func() (typeInfo, bool) {
-			return initTypeKeyFieldIndexesMap(t), false
-		})
+		if ti, ok := m.Load(t); ok {
+			return ti
+		}
+		// Embedded structs recursively call getTypeInfo, so compute without
+		// holding a map bucket lock, then reuse whichever value was published first.
+		ti, _ := m.LoadOrStore(t, initTypeKeyFieldIndexesMap(t))
 		return ti
 	}
 }
