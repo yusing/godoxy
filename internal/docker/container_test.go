@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
-	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -224,98 +223,70 @@ func idlewatcherFromLabels(t *testing.T, labels map[string]string) *Container {
 }
 
 func TestIdlewatcherNotifyLabels(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_timeout":       "30m",
-		"proxy.idle_notify_to":     "gotify, ntfy",
-		"proxy.idle_notify_events": "sleep,ready",
-	})
+	tests := []struct {
+		name       string
+		labels     map[string]string
+		wantConfig bool
+		wantTo     []string
+		wantEnable *bool
+	}{
+		{
+			name:       "providers",
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify_to": "gotify, ntfy"},
+			wantConfig: true,
+			wantTo:     []string{"gotify", "ntfy"},
+		},
+		{
+			name:       "explicit opt out",
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify": "false"},
+			wantConfig: true,
+			wantEnable: ptrTo(false),
+		},
+		{
+			name:       "explicit opt in without providers",
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify": "true"},
+			wantConfig: true,
+			wantEnable: ptrTo(true),
+		},
+		{
+			// The idlewatcher config is only built when proxy.idle_timeout is
+			// present, so notify labels on their own are dropped with the rest.
+			name:   "without idle_timeout",
+			labels: map[string]string{"proxy.idle_notify_to": "gotify"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := idlewatcherFromLabels(t, tc.labels)
 
-	require.Nil(t, c.Errors)
-	require.NotNil(t, c.IdlewatcherConfig)
+			require.Nil(t, c.Errors)
+			if !tc.wantConfig {
+				require.Nil(t, c.IdlewatcherConfig)
+				return
+			}
+			require.NotNil(t, c.IdlewatcherConfig)
+			require.Equal(t, tc.wantTo, c.IdlewatcherConfig.Notify.To)
+			require.Equal(t, tc.wantEnable, c.IdlewatcherConfig.Notify.Enabled)
 
-	notify := c.IdlewatcherConfig.Notify
-	require.Equal(t, []string{"gotify", "ntfy"}, notify.To)
-	require.Equal(t, []idlewatcher.IdlewatcherNotifyEvent{
-		idlewatcher.NotifyEventSleep, idlewatcher.NotifyEventReady,
-	}, notify.Events)
-	require.True(t, notify.Wants(idlewatcher.NotifyEventSleep))
-	require.True(t, notify.Wants(idlewatcher.NotifyEventReady))
-	require.False(t, notify.Wants(idlewatcher.NotifyEventWake))
-}
-
-func TestIdlewatcherNotifyLabelOptOut(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_timeout": "30m",
-		"proxy.idle_notify":  "false",
-	})
-
-	require.Nil(t, c.Errors)
-	require.NotNil(t, c.IdlewatcherConfig)
-
-	enabled := c.IdlewatcherConfig.Notify.Enabled
-	require.NotNil(t, enabled)
-	require.False(t, *enabled)
-	require.False(t, c.IdlewatcherConfig.Notify.Wants(idlewatcher.NotifyEventSleep))
-}
-
-func TestIdlewatcherNotifyLabelEnableOnly(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_timeout": "30m",
-		"proxy.idle_notify":  "true",
-	})
-
-	require.Nil(t, c.Errors)
-	require.True(t, c.IdlewatcherConfig.Notify.Wants(idlewatcher.NotifyEventSleep))
-	require.Empty(t, c.IdlewatcherConfig.Notify.To, "no providers named means broadcast")
-}
-
-func TestIdlewatcherNotifyLabelRejectsUnknownEvent(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_timeout":       "30m",
-		"proxy.idle_notify_events": "slep",
-	})
-
-	require.NotNil(t, c.Errors)
-	require.Contains(t, c.Errors.Error(), "slep")
-}
-
-// The idlewatcher config is only built when proxy.idle_timeout is present, so
-// notify labels on their own are dropped along with the rest.
-func TestIdlewatcherNotifyLabelsWithoutIdleTimeout(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_notify_to": "gotify",
-	})
-
-	require.Nil(t, c.Errors)
-	require.Nil(t, c.IdlewatcherConfig)
-}
-
-// All idlewatcher labels are consumed by loadDeleteIdlewatcherLabels, so none of
-// them may leak into per-alias route field parsing.
-func TestIdlewatcherNotifyLabelsAreConsumed(t *testing.T) {
-	c := idlewatcherFromLabels(t, map[string]string{
-		"proxy.idle_timeout":       "30m",
-		"proxy.idle_notify":        "true",
-		"proxy.idle_notify_to":     "gotify",
-		"proxy.idle_notify_events": "sleep",
-	})
-
-	for _, lbl := range []string{
-		LabelIdleNotify, LabelIdleNotifyTo, LabelIdleNotifyEvents,
-	} {
-		require.NotContains(t, c.Labels, lbl)
+			// All idlewatcher labels are consumed, so none may leak into per-alias
+			// route field parsing.
+			for lbl := range tc.labels {
+				require.NotContains(t, c.Labels, lbl)
+			}
+		})
 	}
 }
+
+func ptrTo[T any](v T) *T { return &v }
 
 func TestSetNestedKey(t *testing.T) {
 	m := map[string]any{}
 
 	setNestedKey(m, "idle_timeout", "30m")
 	setNestedKey(m, "notify.to", "gotify")
-	setNestedKey(m, "notify.events", "sleep")
 	setNestedKey(m, "a.b.c", "deep")
 
 	require.Equal(t, "30m", m["idle_timeout"])
-	require.Equal(t, map[string]any{"to": "gotify", "events": "sleep"}, m["notify"])
+	require.Equal(t, map[string]any{"to": "gotify"}, m["notify"])
 	require.Equal(t, map[string]any{"b": map[string]any{"c": "deep"}}, m["a"])
 }

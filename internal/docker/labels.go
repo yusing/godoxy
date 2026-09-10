@@ -47,23 +47,21 @@ const (
 	LabelNoLoadingPage = NSProxy + ".no_loading_page" // No loading page when using idlewatcher
 	LabelNetwork       = NSProxy + ".network"
 
-	// Sleep/wake notifications. `to` and `events` are comma separated.
-	LabelIdleNotify       = NSProxy + ".idle_notify"
-	LabelIdleNotifyTo     = NSProxy + ".idle_notify_to"
-	LabelIdleNotifyEvents = NSProxy + ".idle_notify_events"
+	// Sleep/wake notifications. `to` is comma separated.
+	LabelIdleNotify   = NSProxy + ".idle_notify"
+	LabelIdleNotifyTo = NSProxy + ".idle_notify_to"
 )
 
 // key: label, value: dot separated key path in IdlewatcherConfig
 var idlewatcherLabels = map[string]string{
-	LabelIdleTimeout:      "idle_timeout",
-	LabelWakeTimeout:      "wake_timeout",
-	LabelStopMethod:       "stop_method",
-	LabelStopTimeout:      "stop_timeout",
-	LabelStopSignal:       "stop_signal",
-	LabelStartEndpoint:    "start_endpoint",
-	LabelDependsOn:        "depends_on",
-	LabelNoLoadingPage:    "no_loading_page",
-	LabelIdleNotify:       "notify.enabled",
-	LabelIdleNotifyTo:     "notify.to",
-	LabelIdleNotifyEvents: "notify.events",
+	LabelIdleTimeout:   "idle_timeout",
+	LabelWakeTimeout:   "wake_timeout",
+	LabelStopMethod:    "stop_method",
+	LabelStopTimeout:   "stop_timeout",
+	LabelStopSignal:    "stop_signal",
+	LabelStartEndpoint: "start_endpoint",
+	LabelDependsOn:     "depends_on",
+	LabelNoLoadingPage: "no_loading_page",
+	LabelIdleNotify:    "notify.enabled",
+	LabelIdleNotifyTo:  "notify.to",
 }

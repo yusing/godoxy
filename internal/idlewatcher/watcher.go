@@ -468,7 +468,6 @@ func (w *Watcher) wake(ctx context.Context) error {
 	// and cancellation ownership match the container start itself.
 	if err := w.wakeDependencies(ctx); err != nil {
 		w.sendEvent(WakeEventError, "Failed to wake dependencies", err)
-		w.notifyTransition(notifyPhaseErrored, idlewatcher.NotifyEventError, "dependency wake failed", err)
 		return err
 	}
 
@@ -476,7 +475,6 @@ func (w *Watcher) wake(ctx context.Context) error {
 	err := w.wakeIfStopped(ctx)
 	if err != nil {
 		w.sendEvent(WakeEventError, "Failed to start "+containerName, err)
-		w.notifyTransition(notifyPhaseErrored, idlewatcher.NotifyEventError, "container start failed", err)
 	} else {
 		w.sendEvent(WakeEventContainerWoke, containerName+" started successfully", nil)
 		w.sendEvent(WakeEventWaitingReady, "Waiting for "+containerName+" to be ready...", nil)
@@ -753,7 +751,6 @@ func (w *Watcher) watchUntilDestroy() (returnCause error) {
 					}
 					w.l.Err(err).Msgf("container stop with method %q failed", w.cfg.StopMethod)
 					w.emitIdleActivity(gevents.LevelError, IdleEventActionError, w.cfg.ContainerName()+" failed to sleep", err)
-					w.notifyOneShot(idlewatcher.NotifyEventSleepFailed, "", err)
 				default:
 					w.l.Info().Msg("idle timeout")
 				}

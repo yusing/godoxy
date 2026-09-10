@@ -123,8 +123,6 @@ defaults:
   #     enabled: true
   #     # names under `providers.notification`; omit to send to all of them
   #     to: [gotify, ntfy]
-  #     # sleep, wake, ready, error, sleep_failed, or [all]. default: [sleep, wake]
-  #     events: [sleep, wake]
 
 providers:
   # include files are standalone yaml files under `config/` directory

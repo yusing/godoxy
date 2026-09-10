@@ -648,54 +648,16 @@ definitions:
     properties:
       enabled:
         description: |-
-          Enabled is nil by default, meaning: inherit `defaults.idlewatcher.notify`,
-          then fall back to len(To) > 0. Set it explicitly to override the global
-          default in either direction.
+          Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,
+          then falls back to len(To) > 0.
         type: boolean
-      events:
-        description: |-
-          Events lists the transitions to notify on. Empty means the default set,
-          see NotifyEventsDefault. "all" selects every event.
-        items:
-          $ref: '#/definitions/IdlewatcherNotifyEvent'
-        type: array
       to:
-        description: |-
-          To lists the `providers.notification` names to send to. Empty means every
-          configured provider.
+        description: '`providers.notification` names to send to. Empty means all of
+          them.'
         items:
           type: string
         type: array
     type: object
-  IdlewatcherNotifyEvent:
-    enum:
-    - sleep
-    - wake
-    - ready
-    - error
-    - sleep_failed
-    - all
-    type: string
-    x-enum-comments:
-      NotifyEventError: container failed to wake
-      NotifyEventReady: container finished waking and is serving
-      NotifyEventSleep: container stopped or paused
-      NotifyEventSleepFailed: container failed to stop at idle timeout
-      NotifyEventWake: container started waking up
-    x-enum-descriptions:
-    - container stopped or paused
-    - container started waking up
-    - container finished waking and is serving
-    - container failed to wake
-    - container failed to stop at idle timeout
-    - ""
-    x-enum-varnames:
-    - NotifyEventSleep
-    - NotifyEventWake
-    - NotifyEventReady
-    - NotifyEventError
-    - NotifyEventSleepFailed
-    - NotifyEventAll
   IdlewatcherProxmoxNodeConfig:
     properties:
       node:
@@ -1971,11 +1933,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_1m:
+        type: string
       load_avg_5m:
         type: string
       load_avg_15m:
-        type: string
-      load_avg_1m:
         type: string
       mem_pct:
         type: string

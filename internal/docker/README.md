@@ -301,14 +301,12 @@ Sleep/wake notifications, sent through the providers configured under
 
 | Label                      | Description                                    | Example                                     |
 | -------------------------- | ---------------------------------------------- | ------------------------------------------- |
-| `proxy.idle_notify`        | Opt in or out explicitly                       | `proxy.idle_notify: false`                  |
-| `proxy.idle_notify_to`     | Provider names; omit to send to all            | `proxy.idle_notify_to: gotify,ntfy`         |
-| `proxy.idle_notify_events` | `sleep`, `wake`, `ready`, `error`, `sleep_failed`, or `all` | `proxy.idle_notify_events: sleep,wake`      |
+| `proxy.idle_notify`    | Opt in or out explicitly            | `proxy.idle_notify: false`          |
+| `proxy.idle_notify_to` | Provider names; omit to send to all | `proxy.idle_notify_to: gotify,ntfy` |
 
 Naming providers in `proxy.idle_notify_to` is enough to opt in;
 `proxy.idle_notify` is only needed to send to every provider without naming
-them, or to opt a route out of `defaults.idlewatcher.notify`. Default events are
-`sleep,wake`.
+them, or to opt a route out of `defaults.idlewatcher.notify`.
 
 Like the other idle watcher labels, these are only read when
 `proxy.idle_timeout` is also set; without it no idlewatcher config is built and

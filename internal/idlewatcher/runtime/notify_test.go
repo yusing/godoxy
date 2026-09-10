@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -11,140 +10,59 @@ import (
 
 func ptr[T any](v T) *T { return &v }
 
-func TestNotifyResolveEnabled(t *testing.T) {
+func TestNotifyEnabled(t *testing.T) {
 	tests := []struct {
-		name string
-		cfg  IdlewatcherNotifyConfig
-		want bool
+		name     string
+		route    IdlewatcherNotifyConfig
+		defaults IdlewatcherNotifyConfig
+		want     bool
+		wantTo   []string
 	}{
 		{
-			name: "zero value is disabled",
-			cfg:  IdlewatcherNotifyConfig{},
-			want: false,
+			name:  "zero value is disabled",
+			route: IdlewatcherNotifyConfig{},
 		},
 		{
-			name: "naming providers opts in",
-			cfg:  IdlewatcherNotifyConfig{To: []string{"gotify"}},
-			want: true,
+			name:   "naming providers opts in",
+			route:  IdlewatcherNotifyConfig{To: []string{"gotify"}},
+			want:   true,
+			wantTo: []string{"gotify"},
 		},
 		{
-			name: "explicit enable without providers broadcasts",
-			cfg:  IdlewatcherNotifyConfig{Enabled: ptr(true)},
-			want: true,
+			name:  "explicit enable without providers broadcasts",
+			route: IdlewatcherNotifyConfig{Enabled: ptr(true)},
+			want:  true,
 		},
 		{
-			name: "explicit disable beats a populated to",
-			cfg:  IdlewatcherNotifyConfig{Enabled: ptr(false), To: []string{"gotify"}},
-			want: false,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := tc.cfg
-			cfg.resolve()
-			require.Equal(t, tc.want, cfg.Wants(NotifyEventSleep))
-		})
-	}
-}
-
-func TestNotifyWantsEventMask(t *testing.T) {
-	all := []IdlewatcherNotifyEvent{
-		NotifyEventSleep, NotifyEventWake, NotifyEventReady,
-		NotifyEventError, NotifyEventSleepFailed,
-	}
-
-	t.Run("default set is exactly sleep and wake", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}}
-		cfg.resolve()
-
-		require.Empty(t, cfg.Events, "resolve must not materialize the default set")
-		for _, event := range all {
-			want := event == NotifyEventSleep || event == NotifyEventWake
-			require.Equalf(t, want, cfg.Wants(event), "event %q", event)
-		}
-	})
-
-	t.Run("all selects every event", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventAll}}
-		cfg.resolve()
-
-		for _, event := range all {
-			require.Truef(t, cfg.Wants(event), "event %q", event)
-		}
-	})
-
-	t.Run("narrow set excludes the rest", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventError}}
-		cfg.resolve()
-
-		require.True(t, cfg.Wants(NotifyEventError))
-		require.False(t, cfg.Wants(NotifyEventSleep))
-		require.False(t, cfg.Wants(NotifyEventWake))
-	})
-
-	t.Run("disabled never wants anything", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{Enabled: ptr(false), Events: []IdlewatcherNotifyEvent{NotifyEventAll}}
-		cfg.resolve()
-
-		for _, event := range all {
-			require.Falsef(t, cfg.Wants(event), "event %q", event)
-		}
-	})
-
-	t.Run("nil receiver is safe", func(t *testing.T) {
-		var cfg *IdlewatcherNotifyConfig
-		require.False(t, cfg.Wants(NotifyEventSleep))
-	})
-}
-
-func TestNotifyApplyDefaults(t *testing.T) {
-	tests := []struct {
-		name        string
-		route       IdlewatcherNotifyConfig
-		defaults    IdlewatcherNotifyConfig
-		wantEnabled bool
-		wantTo      []string
-		wantEvents  []IdlewatcherNotifyEvent
-	}{
-		{
-			name:        "empty route inherits everything",
-			route:       IdlewatcherNotifyConfig{},
-			defaults:    IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}},
-			wantEnabled: true,
-			wantTo:      []string{"gotify"},
-			wantEvents:  []IdlewatcherNotifyEvent{NotifyEventReady},
+			name:   "explicit disable beats a populated to",
+			route:  IdlewatcherNotifyConfig{Enabled: ptr(false), To: []string{"gotify"}},
+			want:   false,
+			wantTo: []string{"gotify"},
 		},
 		{
-			name:        "route to overrides defaults to",
-			route:       IdlewatcherNotifyConfig{To: []string{"ntfy"}},
-			defaults:    IdlewatcherNotifyConfig{To: []string{"gotify"}},
-			wantEnabled: true,
-			wantTo:      []string{"ntfy"},
-			wantEvents:  NotifyEventsDefault,
+			name:     "empty route inherits the globals",
+			defaults: IdlewatcherNotifyConfig{To: []string{"gotify"}},
+			want:     true,
+			wantTo:   []string{"gotify"},
 		},
 		{
-			name:        "route opts out of an enabled global default",
-			route:       IdlewatcherNotifyConfig{Enabled: ptr(false)},
-			defaults:    IdlewatcherNotifyConfig{Enabled: ptr(true), To: []string{"gotify"}},
-			wantEnabled: false,
-			wantTo:      []string{"gotify"},
-			wantEvents:  NotifyEventsDefault,
+			name:     "route to overrides the global to",
+			route:    IdlewatcherNotifyConfig{To: []string{"ntfy"}},
+			defaults: IdlewatcherNotifyConfig{To: []string{"gotify"}},
+			want:     true,
+			wantTo:   []string{"ntfy"},
 		},
 		{
-			name:        "route opts in to a disabled global default",
-			route:       IdlewatcherNotifyConfig{Enabled: ptr(true)},
-			defaults:    IdlewatcherNotifyConfig{},
-			wantEnabled: true,
-			wantTo:      nil,
-			wantEvents:  NotifyEventsDefault,
+			name:     "route opts out of an enabled global",
+			route:    IdlewatcherNotifyConfig{Enabled: ptr(false)},
+			defaults: IdlewatcherNotifyConfig{Enabled: ptr(true), To: []string{"gotify"}},
+			want:     false,
+			wantTo:   []string{"gotify"},
 		},
 		{
-			name:        "no config anywhere stays disabled",
-			route:       IdlewatcherNotifyConfig{},
-			defaults:    IdlewatcherNotifyConfig{},
-			wantEnabled: false,
-			wantTo:      nil,
-			wantEvents:  NotifyEventsDefault,
+			name:  "route opts in to a disabled global",
+			route: IdlewatcherNotifyConfig{Enabled: ptr(true)},
+			want:  true,
 		},
 	}
 	for _, tc := range tests {
@@ -152,59 +70,28 @@ func TestNotifyApplyDefaults(t *testing.T) {
 			cfg := tc.route
 			cfg.ApplyDefaults(tc.defaults)
 
-			require.Equal(t, tc.wantEnabled, cfg.enabled)
+			require.Equal(t, tc.want, cfg.Wants())
 			require.Equal(t, tc.wantTo, cfg.To)
-			require.Equal(t, tc.wantEvents, cfg.Events)
 		})
 	}
 }
 
-func TestNotifyApplyDefaultsIsIdempotent(t *testing.T) {
-	defaults := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventSleep}}
+func TestNotifyApplyDefaultsIsIdempotentAndDoesNotAlias(t *testing.T) {
+	defaults := IdlewatcherNotifyConfig{To: []string{"gotify"}}
 
 	cfg := IdlewatcherNotifyConfig{}
 	cfg.ApplyDefaults(defaults)
 	first := cfg
-
 	cfg.ApplyDefaults(defaults)
-
 	require.Equal(t, first, cfg)
-	require.True(t, cfg.Wants(NotifyEventSleep))
-	require.False(t, cfg.Wants(NotifyEventWake))
-}
 
-func TestNotifyApplyDefaultsDoesNotAliasDefaults(t *testing.T) {
-	defaults := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventSleep}}
-
-	cfg := IdlewatcherNotifyConfig{}
-	cfg.ApplyDefaults(defaults)
 	cfg.To[0] = "mutated"
-	cfg.Events[0] = NotifyEventReady
-
-	require.Equal(t, []string{"gotify"}, defaults.To)
-	require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep}, defaults.Events)
+	require.Equal(t, []string{"gotify"}, defaults.To, "defaults must not be aliased")
 }
 
-func TestNotifyValidate(t *testing.T) {
-	t.Run("normalizes case and whitespace", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{Events: []IdlewatcherNotifyEvent{" SLEEP ", "Wake"}}
-		require.NoError(t, cfg.Validate())
-		require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake}, cfg.Events)
-	})
-
-	t.Run("rejects an unknown event", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{Events: []IdlewatcherNotifyEvent{"slep"}}
-		err := cfg.Validate()
-		require.ErrorIs(t, err, ErrInvalidNotifyEvent)
-		require.Contains(t, err.Error(), "slep")
-	})
-
-	t.Run("accepts an empty event list", func(t *testing.T) {
-		cfg := IdlewatcherNotifyConfig{To: []string{"gotify"}}
-		require.NoError(t, cfg.Validate())
-		require.Empty(t, cfg.Events, "left empty so ApplyDefaults can still inherit")
-		require.True(t, cfg.Wants(NotifyEventSleep), "but the built-in set is in effect")
-	})
+func TestNotifyNilReceiverIsSafe(t *testing.T) {
+	var cfg *IdlewatcherNotifyConfig
+	require.False(t, cfg.Wants())
 }
 
 // Notify must resolve even for a route with idle_timeout: 0, which short
@@ -214,127 +101,39 @@ func TestNotifyResolvedWithZeroIdleTimeout(t *testing.T) {
 	cfg.Notify = IdlewatcherNotifyConfig{To: []string{"gotify"}}
 
 	require.NoError(t, cfg.Validate())
-	require.Empty(t, cfg.Notify.Events)
-	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
+	require.True(t, cfg.Notify.Wants())
 }
 
 // Exercises the real deserialization path used by both YAML routes and Docker
-// labels, including the CustomValidator hook on the nested struct.
+// labels, then the defaults merge that routevalidate.finalize performs.
 func TestNotifyDeserialization(t *testing.T) {
-	t.Run("nested map from yaml", func(t *testing.T) {
-		cfg := new(IdlewatcherConfig)
-		err := serialization.MapUnmarshalValidate(map[string]any{
-			"idle_timeout": "30m",
-			"notify": map[string]any{
-				"enabled": true,
-				"to":      []any{"gotify", "ntfy"},
-				"events":  []any{"sleep", "ready"},
-			},
-		}, cfg)
-		require.NoError(t, err)
-
-		require.Equal(t, []string{"gotify", "ntfy"}, cfg.Notify.To)
-		require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventReady}, cfg.Notify.Events)
-		require.True(t, cfg.Notify.Wants(NotifyEventReady))
-		require.False(t, cfg.Notify.Wants(NotifyEventWake))
-	})
-
-	t.Run("comma separated strings from docker labels", func(t *testing.T) {
-		cfg := new(IdlewatcherConfig)
-		err := serialization.MapUnmarshalValidate(map[string]any{
-			"idle_timeout": "30m",
-			"notify": map[string]any{
-				"enabled": "false",
-				"to":      "gotify, ntfy",
-				"events":  "sleep,wake",
-			},
-		}, cfg)
-		require.NoError(t, err)
-
-		require.NotNil(t, cfg.Notify.Enabled)
-		require.False(t, *cfg.Notify.Enabled)
-		require.Equal(t, []string{"gotify", "ntfy"}, cfg.Notify.To)
-		require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake}, cfg.Notify.Events)
-	})
-
-	t.Run("unknown event is rejected", func(t *testing.T) {
-		cfg := new(IdlewatcherConfig)
-		err := serialization.MapUnmarshalValidate(map[string]any{
-			"idle_timeout": "30m",
-			"notify":       map[string]any{"events": "slep"},
-		}, cfg)
-		require.ErrorIs(t, err, ErrInvalidNotifyEvent)
-	})
-}
-
-// Guards the `defaults.idlewatcher` shape documented in config.example.yml.
-func TestIdlewatcherDefaultsDeserialization(t *testing.T) {
-	var raw map[string]any
-	require.NoError(t, yaml.Unmarshal([]byte(`
-notify:
-  enabled: true
-  to: [gotify, ntfy]
-  events: [sleep, wake]
-`), &raw))
-
-	var defaults IdlewatcherDefaults
-	require.NoError(t, serialization.MapUnmarshalValidate(raw, &defaults))
-
-	require.NotNil(t, defaults.Notify.Enabled)
-	require.True(t, *defaults.Notify.Enabled)
-	require.Equal(t, []string{"gotify", "ntfy"}, defaults.Notify.To)
-	require.Equal(t, NotifyEventsDefault, defaults.Notify.Events)
-
-	// A route with nothing configured inherits the whole thing.
-	route := IdlewatcherNotifyConfig{}
-	route.ApplyDefaults(defaults.Notify)
-	require.True(t, route.Wants(NotifyEventSleep))
-	require.True(t, route.Wants(NotifyEventWake))
-	require.False(t, route.Wants(NotifyEventReady))
-
-	// A route can opt back out of an enabled global default.
-	optedOut := IdlewatcherNotifyConfig{Enabled: ptr(false)}
-	optedOut.ApplyDefaults(defaults.Notify)
-	require.False(t, optedOut.Wants(NotifyEventSleep))
-}
-
-// Regression: a route's notify config is resolved at deserialization time,
-// before routevalidate.finalize offers the globals. If resolve materialized the
-// built-in event set, ApplyDefaults would see a non-empty Events and
-// defaults.idlewatcher.notify.events would never be inherited.
-func TestNotifyEventInheritance(t *testing.T) {
-	globalReady := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
-	globalReady.resolve()
-
 	tests := []struct {
-		name     string
-		route    map[string]any
-		defaults IdlewatcherNotifyConfig
-		want     []IdlewatcherNotifyEvent
+		name   string
+		route  map[string]any
+		want   bool
+		wantTo []string
 	}{
 		{
-			name:     "notify block without events inherits the global",
-			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
-			defaults: globalReady,
-			want:     []IdlewatcherNotifyEvent{NotifyEventReady},
+			name:   "nested map from yaml",
+			route:  map[string]any{"idle_timeout": "30m", "notify": map[string]any{"enabled": true, "to": []any{"gotify", "ntfy"}}},
+			want:   true,
+			wantTo: []string{"gotify", "ntfy"},
 		},
 		{
-			name:     "idlewatcher block without a notify block inherits the global",
-			route:    map[string]any{"idle_timeout": "30m"},
-			defaults: globalReady,
-			want:     []IdlewatcherNotifyEvent{NotifyEventReady},
+			name:   "comma separated strings from docker labels",
+			route:  map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "gotify, ntfy"}},
+			want:   true,
+			wantTo: []string{"gotify", "ntfy"},
 		},
 		{
-			name:     "the route's own events win",
-			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"events": "sleep"}},
-			defaults: globalReady,
-			want:     []IdlewatcherNotifyEvent{NotifyEventSleep},
+			name:  "explicit opt out from a docker label",
+			route: map[string]any{"idle_timeout": "30m", "notify": map[string]any{"enabled": "false"}},
+			want:  false,
 		},
 		{
-			name:     "no globals falls back to the built-in set",
-			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
-			defaults: IdlewatcherNotifyConfig{},
-			want:     NotifyEventsDefault,
+			name:  "no notify block",
+			route: map[string]any{"idle_timeout": "30m"},
+			want:  false,
 		},
 	}
 	for _, tc := range tests {
@@ -342,12 +141,43 @@ func TestNotifyEventInheritance(t *testing.T) {
 			cfg := new(IdlewatcherConfig)
 			require.NoError(t, serialization.MapUnmarshalValidate(tc.route, cfg))
 
-			cfg.Notify.ApplyDefaults(tc.defaults)
+			cfg.Notify.ApplyDefaults(IdlewatcherNotifyConfig{})
 
-			require.Equal(t, tc.want, cfg.Notify.Events)
-			for _, event := range []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake, NotifyEventReady} {
-				require.Equalf(t, slices.Contains(tc.want, event), cfg.Notify.Wants(event), "event %q", event)
-			}
+			require.Equal(t, tc.want, cfg.Notify.Wants())
+			require.Equal(t, tc.wantTo, cfg.Notify.To)
 		})
 	}
+}
+
+// A route with an idlewatcher block but no notify block must still inherit the
+// globals that routevalidate.finalize offers.
+func TestNotifyInheritsGlobals(t *testing.T) {
+	globals := IdlewatcherNotifyConfig{To: []string{"gotify"}}
+	globals.resolve()
+
+	for _, route := range []map[string]any{
+		{"idle_timeout": "30m"},
+		{"idle_timeout": "30m", "notify": map[string]any{}},
+	} {
+		cfg := new(IdlewatcherConfig)
+		require.NoError(t, serialization.MapUnmarshalValidate(route, cfg))
+
+		cfg.Notify.ApplyDefaults(globals)
+
+		require.True(t, cfg.Notify.Wants())
+		require.Equal(t, []string{"gotify"}, cfg.Notify.To)
+	}
+}
+
+// Guards the `defaults.idlewatcher` shape documented in config.example.yml.
+func TestIdlewatcherDefaultsDeserialization(t *testing.T) {
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte("notify:\n  enabled: true\n  to: [gotify, ntfy]\n"), &raw))
+
+	var defaults IdlewatcherDefaults
+	require.NoError(t, serialization.MapUnmarshalValidate(raw, &defaults))
+
+	require.NotNil(t, defaults.Notify.Enabled)
+	require.True(t, *defaults.Notify.Enabled)
+	require.Equal(t, []string{"gotify", "ntfy"}, defaults.Notify.To)
 }

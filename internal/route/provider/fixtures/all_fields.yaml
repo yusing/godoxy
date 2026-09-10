@@ -108,12 +108,6 @@ example: # matching `example.y.z`
       enabled: true
       to:
         - gotify
-      events:
-        - sleep
-        - wake
-        - ready
-        - error
-        - sleep_failed
     docker:
       container_id: abc123
       container_name: example-app
