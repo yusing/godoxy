@@ -214,6 +214,7 @@ values = "@enum godoxy agent socket-proxy cli"
 help = "Build the embedded WebUI."
 sandboxed = false
 cmd = '''
+set -e
 @gen-rules-cheatsheet
 cd "{webui_dir}"
 bun i --frozen-lockfile
@@ -233,6 +234,7 @@ go run -ldflags="-X github.com/yusing/goutils/version.version=$version -checklin
 help = "Build a GoDoxy binary."
 sandboxed = false
 cmd = '''
+set -e
 configure_component "{component}" "{name}"
 if [ "$is_godoxy" = true ]; then
 	@ensure-webui-dist
