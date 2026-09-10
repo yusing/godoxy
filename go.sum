@@ -262,8 +262,8 @@ github.com/molecule-man/go-brrr v1.0.1 h1:cEjgx8hgNw6UGdhQ94SPDbPkKuRbkUcxBO3Izb
 github.com/molecule-man/go-brrr v1.0.1/go.mod h1:7ybW6/7gA3oKY45jOfVNjSJDtrr6ea4tzbsTkjmQDC4=
 github.com/morikuni/aec v1.1.0 h1:vBBl0pUnvi/Je71dsRrhMBtreIqNMYErSAbEeb8jrXQ=
 github.com/morikuni/aec v1.1.0/go.mod h1:xDRgiq/iw5l+zkao76YTKzKttOp2cwPEne25HDkJnBw=
-github.com/nrdcg/desec v0.11.2 h1:zPttKdQFzmlXMSkiuKnb34G7LkROdmRyL9SidYXIm4k=
-github.com/nrdcg/desec v0.11.2/go.mod h1:2LuxHlOcwML/7cntu0eimONmA1U+ZxFDAonoSXr4igQ=
+github.com/nrdcg/desec v0.11.1 h1:ilpKmCr4gGsLcyq3RHfHNmlRzm9fzT2XbWxoVaUCS0s=
+github.com/nrdcg/desec v0.11.1/go.mod h1:2LuxHlOcwML/7cntu0eimONmA1U+ZxFDAonoSXr4igQ=
 github.com/nrdcg/goacmedns v0.2.0 h1:ADMbThobzEMnr6kg2ohs4KGa3LFqmgiBA22/6jUWJR0=
 github.com/nrdcg/goacmedns v0.2.0/go.mod h1:T5o6+xvSLrQpugmwHvrSNkzWht0UGAwj2ACBMhh73Cg=
 github.com/nrdcg/goinwx v0.12.0 h1:ujdUqDBnaRSFwzVnImvPHYw3w3m9XgmGImNUw1GyMb4=

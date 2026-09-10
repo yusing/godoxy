@@ -14,6 +14,9 @@ replace (
 	github.com/yusing/goutils/server => ./goutils/server
 )
 
+// v0.11.2 JSON-encodes empty subname on PATCH; deSEC rejects it (create-only field).
+exclude github.com/nrdcg/desec v0.11.2
+
 require (
 	github.com/PuerkitoBio/goquery v1.13.0 // parsing HTML for extract fav icon; modify_html middleware
 	github.com/bytedance/gopkg v0.1.4 // xxhash64 for fast hash
@@ -142,7 +145,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/molecule-man/go-brrr v1.0.1 // indirect
-	github.com/nrdcg/desec v0.11.2 // indirect
+	github.com/nrdcg/desec v0.11.1 // indirect
 	github.com/nrdcg/goacmedns v0.2.0 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.124.2 // indirect

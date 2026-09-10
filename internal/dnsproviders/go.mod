@@ -6,8 +6,12 @@ replace github.com/yusing/godoxy => ../..
 
 replace github.com/yusing/goutils => ../../goutils
 
+// v0.11.2 JSON-encodes empty subname on PATCH; deSEC rejects it (create-only field).
+exclude github.com/nrdcg/desec v0.11.2
+
 require (
 	github.com/go-acme/lego/v5 v5.4.1
+	github.com/nrdcg/desec v0.11.1
 	github.com/yusing/godoxy v0.31.1
 )
 
@@ -71,7 +75,6 @@ require (
 	github.com/maxatome/go-testdeep v1.14.0 // indirect
 	github.com/miekg/dns v1.1.73 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/nrdcg/desec v0.11.2 // indirect
 	github.com/nrdcg/goacmedns v0.2.0 // indirect
 	github.com/nrdcg/goinwx v0.12.0 // indirect
 	github.com/nrdcg/oci-go-sdk/common/v1065 v1065.124.2 // indirect
