@@ -8,8 +8,8 @@ import (
 	gperr "github.com/yusing/goutils/errs"
 )
 
-// IdlewatcherNotifyEvent is a sleep/wake lifecycle transition that can raise a
-// notification through the providers configured under `providers.notification`.
+// IdlewatcherNotifyEvent is a sleep/wake transition that can raise a
+// notification through the providers under `providers.notification`.
 type IdlewatcherNotifyEvent string // @name IdlewatcherNotifyEvent
 
 const (
@@ -18,66 +18,50 @@ const (
 	NotifyEventReady       IdlewatcherNotifyEvent = "ready"        // container finished waking and is serving
 	NotifyEventError       IdlewatcherNotifyEvent = "error"        // container failed to wake
 	NotifyEventSleepFailed IdlewatcherNotifyEvent = "sleep_failed" // container failed to stop at idle timeout
+	NotifyEventAll         IdlewatcherNotifyEvent = "all"          // every event
+)
 
-	// NotifyEventAll selects every event.
-	NotifyEventAll IdlewatcherNotifyEvent = "all"
+var (
+	ErrInvalidNotifyEvent = errors.New("invalid idlewatcher notify event")
+
+	// notifyEvents doubles as the bit order behind eventMask.
+	notifyEvents = []IdlewatcherNotifyEvent{
+		NotifyEventSleep, NotifyEventWake, NotifyEventReady, NotifyEventError, NotifyEventSleepFailed,
+	}
+	// NotifyEventsDefault applies when `events` is not configured.
+	NotifyEventsDefault = []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake}
 )
 
 // IdlewatcherNotifyConfig opts a route's idlewatcher into sleep/wake
 // notifications. The zero value is disabled.
 type IdlewatcherNotifyConfig struct {
-	// Enabled is nil by default, meaning: inherit `defaults.idlewatcher.notify`,
-	// then fall back to len(To) > 0. Set it explicitly to override the global
-	// default in either direction.
+	// Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,
+	// then falls back to len(To) > 0.
 	Enabled *bool `json:"enabled,omitzero"`
-	// To lists the `providers.notification` names to send to. Empty means every
-	// configured provider.
+	// `providers.notification` names to send to. Empty means all of them.
 	To []string `json:"to,omitempty"`
-	// Events lists the transitions to notify on. Empty means the default set,
-	// see NotifyEventsDefault. "all" selects every event.
+	// Transitions to notify on. Empty means NotifyEventsDefault.
 	Events []IdlewatcherNotifyEvent `json:"events,omitempty"`
 
 	enabled   bool
 	eventMask uint8
 } // @name IdlewatcherNotifyConfig
 
-// IdlewatcherDefaults holds the `defaults.idlewatcher` config section.
-//
-// It is deliberately narrow rather than embedding IdlewatcherConfigBase: a
-// global idle_timeout default would silently satisfy Route.UseIdleWatcher for
-// every container-backed route.
+// IdlewatcherDefaults holds the `defaults.idlewatcher` section. It is
+// deliberately narrow: a global idle_timeout would silently satisfy
+// Route.UseIdleWatcher for every container-backed route.
 type IdlewatcherDefaults struct {
 	Notify IdlewatcherNotifyConfig `json:"notify"`
 } // @name IdlewatcherDefaults
 
-var ErrInvalidNotifyEvent = errors.New("invalid idlewatcher notify event")
-
-// NotifyEventsDefault is the event set used when `events` is not configured.
-var NotifyEventsDefault = []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake}
-
-var notifyEventBits = map[IdlewatcherNotifyEvent]uint8{
-	NotifyEventSleep:       1 << 0,
-	NotifyEventWake:        1 << 1,
-	NotifyEventReady:       1 << 2,
-	NotifyEventError:       1 << 3,
-	NotifyEventSleepFailed: 1 << 4,
-}
-
-const notifyEventMaskAll = uint8(1<<5 - 1)
-
-// Validate implements serialization.CustomValidator.
-//
-// It runs at deserialization time for both YAML routes and Docker labels,
-// independently of whether the enclosing IdlewatcherConfig has a positive
-// idle_timeout.
+// Validate implements serialization.CustomValidator. It runs at deserialization
+// time for YAML routes and Docker labels alike.
 func (c *IdlewatcherNotifyConfig) Validate() error {
 	for i, event := range c.Events {
 		normalized := IdlewatcherNotifyEvent(strings.ToLower(strings.TrimSpace(string(event))))
-		if _, ok := notifyEventBits[normalized]; !ok && normalized != NotifyEventAll {
+		if normalized != NotifyEventAll && !slices.Contains(notifyEvents, normalized) {
 			return gperr.PrependSubject(ErrInvalidNotifyEvent, string(event)).
-				Withf("expect one of: %s, %s, %s, %s, %s, %s",
-					NotifyEventAll, NotifyEventSleep, NotifyEventWake,
-					NotifyEventReady, NotifyEventError, NotifyEventSleepFailed)
+				Withf("expect one of: all, sleep, wake, ready, error, sleep_failed")
 		}
 		c.Events[i] = normalized
 	}
@@ -85,8 +69,8 @@ func (c *IdlewatcherNotifyConfig) Validate() error {
 	return nil
 }
 
-// ApplyDefaults fills unset fields from `defaults.idlewatcher.notify` and
-// recomputes the effective enabled flag and event mask. It is idempotent.
+// ApplyDefaults fills unset fields from `defaults.idlewatcher.notify`. It is
+// idempotent.
 func (c *IdlewatcherNotifyConfig) ApplyDefaults(defaults IdlewatcherNotifyConfig) {
 	if c.Enabled == nil {
 		c.Enabled = defaults.Enabled
@@ -106,35 +90,36 @@ func (c *IdlewatcherNotifyConfig) ApplyDefaults(defaults IdlewatcherNotifyConfig
 	c.resolve()
 }
 
-// resolve recomputes the unexported effective state. It is idempotent.
+// resolve recomputes the effective state. Idempotent, and must not touch Events.
 func (c *IdlewatcherNotifyConfig) resolve() {
+	// Same opt-in ergonomic as acl.notify: naming providers enables it.
+	c.enabled = len(c.To) > 0
 	if c.Enabled != nil {
 		c.enabled = *c.Enabled
-	} else {
-		// Same opt-in ergonomic as acl.notify: naming providers enables it.
-		c.enabled = len(c.To) > 0
 	}
 
-	// NOTE: Events is deliberately left alone. See ApplyDefaults.
 	events := c.Events
 	if len(events) == 0 {
 		events = NotifyEventsDefault
 	}
-	c.eventMask = eventMask(events)
-}
-
-func eventMask(events []IdlewatcherNotifyEvent) uint8 {
-	var mask uint8
+	c.eventMask = 0
 	for _, event := range events {
 		if event == NotifyEventAll {
-			return notifyEventMaskAll
+			c.eventMask = 1<<len(notifyEvents) - 1
+			break
 		}
-		mask |= notifyEventBits[event]
+		c.eventMask |= eventBit(event)
 	}
-	return mask
 }
 
 // Wants reports whether event should raise a notification.
 func (c *IdlewatcherNotifyConfig) Wants(event IdlewatcherNotifyEvent) bool {
-	return c != nil && c.enabled && c.eventMask&notifyEventBits[event] != 0
+	return c != nil && c.enabled && c.eventMask&eventBit(event) != 0
+}
+
+func eventBit(event IdlewatcherNotifyEvent) uint8 {
+	if i := slices.Index(notifyEvents, event); i >= 0 {
+		return 1 << i
+	}
+	return 0
 }

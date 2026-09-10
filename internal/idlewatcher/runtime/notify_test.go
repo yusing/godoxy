@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -298,24 +299,42 @@ notify:
 }
 
 // Regression: a route's notify config is resolved at deserialization time,
-// before routevalidate.finalize gets to offer the globals. If resolve
-// materialized the built-in event set, ApplyDefaults would see a non-empty
-// Events and defaults.idlewatcher.notify.events would never be inherited.
-func TestNotifyInheritsGlobalEventsAfterDeserialization(t *testing.T) {
-	globals := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
-	globals.resolve()
+// before routevalidate.finalize offers the globals. If resolve materialized the
+// built-in event set, ApplyDefaults would see a non-empty Events and
+// defaults.idlewatcher.notify.events would never be inherited.
+func TestNotifyEventInheritance(t *testing.T) {
+	globalReady := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
+	globalReady.resolve()
 
 	tests := []struct {
-		name  string
-		route map[string]any
+		name     string
+		route    map[string]any
+		defaults IdlewatcherNotifyConfig
+		want     []IdlewatcherNotifyEvent
 	}{
 		{
-			name:  "route declares a notify block without events",
-			route: map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
+			name:     "notify block without events inherits the global",
+			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
+			defaults: globalReady,
+			want:     []IdlewatcherNotifyEvent{NotifyEventReady},
 		},
 		{
-			name:  "route has an idlewatcher block but no notify",
-			route: map[string]any{"idle_timeout": "30m"},
+			name:     "idlewatcher block without a notify block inherits the global",
+			route:    map[string]any{"idle_timeout": "30m"},
+			defaults: globalReady,
+			want:     []IdlewatcherNotifyEvent{NotifyEventReady},
+		},
+		{
+			name:     "the route's own events win",
+			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"events": "sleep"}},
+			defaults: globalReady,
+			want:     []IdlewatcherNotifyEvent{NotifyEventSleep},
+		},
+		{
+			name:     "no globals falls back to the built-in set",
+			route:    map[string]any{"idle_timeout": "30m", "notify": map[string]any{"to": "ntfy"}},
+			defaults: IdlewatcherNotifyConfig{},
+			want:     NotifyEventsDefault,
 		},
 	}
 	for _, tc := range tests {
@@ -323,45 +342,12 @@ func TestNotifyInheritsGlobalEventsAfterDeserialization(t *testing.T) {
 			cfg := new(IdlewatcherConfig)
 			require.NoError(t, serialization.MapUnmarshalValidate(tc.route, cfg))
 
-			cfg.Notify.ApplyDefaults(globals)
+			cfg.Notify.ApplyDefaults(tc.defaults)
 
-			require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventReady}, cfg.Notify.Events)
-			require.True(t, cfg.Notify.Wants(NotifyEventReady))
-			require.False(t, cfg.Notify.Wants(NotifyEventSleep))
+			require.Equal(t, tc.want, cfg.Notify.Events)
+			for _, event := range []IdlewatcherNotifyEvent{NotifyEventSleep, NotifyEventWake, NotifyEventReady} {
+				require.Equalf(t, slices.Contains(tc.want, event), cfg.Notify.Wants(event), "event %q", event)
+			}
 		})
 	}
-}
-
-// A route's own events still win over the globals.
-func TestNotifyRouteEventsBeatGlobalEvents(t *testing.T) {
-	globals := IdlewatcherNotifyConfig{To: []string{"gotify"}, Events: []IdlewatcherNotifyEvent{NotifyEventReady}}
-	globals.resolve()
-
-	cfg := new(IdlewatcherConfig)
-	require.NoError(t, serialization.MapUnmarshalValidate(map[string]any{
-		"idle_timeout": "30m",
-		"notify":       map[string]any{"events": "sleep"},
-	}, cfg))
-
-	cfg.Notify.ApplyDefaults(globals)
-
-	require.Equal(t, []IdlewatcherNotifyEvent{NotifyEventSleep}, cfg.Notify.Events)
-	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
-	require.False(t, cfg.Notify.Wants(NotifyEventReady))
-}
-
-// With no globals configured, the built-in set applies.
-func TestNotifyFallsBackToBuiltinEvents(t *testing.T) {
-	cfg := new(IdlewatcherConfig)
-	require.NoError(t, serialization.MapUnmarshalValidate(map[string]any{
-		"idle_timeout": "30m",
-		"notify":       map[string]any{"to": "ntfy"},
-	}, cfg))
-
-	cfg.Notify.ApplyDefaults(IdlewatcherNotifyConfig{})
-
-	require.Equal(t, NotifyEventsDefault, cfg.Notify.Events)
-	require.True(t, cfg.Notify.Wants(NotifyEventSleep))
-	require.True(t, cfg.Notify.Wants(NotifyEventWake))
-	require.False(t, cfg.Notify.Wants(NotifyEventReady))
 }

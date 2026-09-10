@@ -82,8 +82,27 @@ func (w *Watcher) displayName() string {
 	return w.cfg.ContainerName()
 }
 
+var notifyMessages = map[idlewatcher.IdlewatcherNotifyEvent]struct {
+	emoji string
+	verb  string
+	level zerolog.Level
+	color notif.Color
+}{
+	idlewatcher.NotifyEventSleep:       {"💤", "went to sleep", zerolog.InfoLevel, notif.ColorInfo},
+	idlewatcher.NotifyEventWake:        {"⏰", "is waking up", zerolog.InfoLevel, notif.ColorInfo},
+	idlewatcher.NotifyEventReady:       {"✅", "is awake", zerolog.InfoLevel, notif.ColorSuccess},
+	idlewatcher.NotifyEventError:       {"❌", "failed to wake", zerolog.WarnLevel, notif.ColorError},
+	idlewatcher.NotifyEventSleepFailed: {"❌", "failed to sleep", zerolog.WarnLevel, notif.ColorError},
+}
+
 func (w *Watcher) buildNotification(event idlewatcher.IdlewatcherNotifyEvent, detail string, err error) *notif.LogMessage {
 	name := w.displayName()
+	msg := notifyMessages[event]
+
+	title := msg.emoji + " " + name + " " + msg.verb + " " + msg.emoji
+	if event == idlewatcher.NotifyEventSleep && detail == string(idlewatcher.ContainerStatusPaused) {
+		title = msg.emoji + " " + name + " was paused " + msg.emoji
+	}
 
 	// NOTE: FieldsBody is a slice, so it must be complete before it is assigned
 	// to msg.Body; an Add after the assignment would not be visible on msg.
@@ -92,33 +111,10 @@ func (w *Watcher) buildNotification(event idlewatcher.IdlewatcherNotifyEvent, de
 		{Name: "Container", Value: w.cfg.ContainerName()},
 		{Name: "Time", Value: strutils.FormatTime(time.Now())},
 	}
-
-	var title string
-	level := zerolog.InfoLevel
-	color := notif.ColorInfo
-
-	switch event {
-	case idlewatcher.NotifyEventSleep:
-		title = "💤 " + name + " went to sleep 💤"
-		if detail == string(idlewatcher.ContainerStatusPaused) {
-			title = "💤 " + name + " was paused 💤"
-		}
+	if event == idlewatcher.NotifyEventSleep {
 		fields.Add("Status", detail)
 		fields.Add("Idle Timeout", strutils.FormatDuration(w.cfg.IdleTimeout))
-	case idlewatcher.NotifyEventWake:
-		title = "⏰ " + name + " is waking up ⏰"
-	case idlewatcher.NotifyEventReady:
-		title = "✅ " + name + " is awake ✅"
-		color = notif.ColorSuccess
-	case idlewatcher.NotifyEventError:
-		title = "❌ " + name + " failed to wake ❌"
-		level, color = zerolog.WarnLevel, notif.ColorError
-	case idlewatcher.NotifyEventSleepFailed:
-		title = "❌ " + name + " failed to sleep ❌"
-		level, color = zerolog.WarnLevel, notif.ColorError
-	}
-
-	if detail != "" && event != idlewatcher.NotifyEventSleep {
+	} else if detail != "" {
 		fields.Add("Detail", detail)
 	}
 	if err != nil {
@@ -126,10 +122,10 @@ func (w *Watcher) buildNotification(event idlewatcher.IdlewatcherNotifyEvent, de
 	}
 
 	return &notif.LogMessage{
-		Level: level,
+		Level: msg.level,
 		Title: title,
 		Body:  fields,
-		Color: color,
+		Color: msg.color,
 		To:    w.cfg.Notify.To,
 	}
 }
