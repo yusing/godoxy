@@ -134,10 +134,9 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	watcherMapMu.RUnlock()
 
 	if exists {
-		// neverTick is positive, so a dependency-synthesized config would pass a
-		// bare `> 0` check and overwrite the route's own base config, depending
-		// on the order NewWatcher happens to be called in.
-		if cfg.IdleTimeout > 0 && cfg.IdleTimeout != neverTick {
+		// Dependency configs must not overwrite a route's own base config, but
+		// dependency-only watchers still need updated wake and stop settings.
+		if cfg.IdleTimeout > 0 && (cfg.IdleTimeout != neverTick || w.cfg.IdleTimeout == neverTick) {
 			w.cfg.IdlewatcherConfigBase = cfg.IdlewatcherConfigBase
 		}
 		cfg = w.cfg

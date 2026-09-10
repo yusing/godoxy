@@ -310,12 +310,16 @@ func TestNewWatcherReloadIgnoresDependencyConfig(t *testing.T) {
 	depCfg := idlewatcherTestConfig("dep-clobber", nil)
 	depCfg.IdleTimeout = neverTick
 	depCfg.WakeTimeout = 42 * time.Second
+	depCfg.StopTimeout = 10 * time.Second
+	depCfg.StopMethod = idlewatchertypes.ContainerStopMethodKill
+	depCfg.StopSignal = "SIGKILL"
+	want := w.cfg.IdlewatcherConfigBase
 
 	reloaded, err := NewWatcher(parent, mainRoute, depCfg)
 	require.NoError(t, err)
 	require.Same(t, w, reloaded)
 	require.Equal(t, time.Hour, reloaded.cfg.IdleTimeout, "route keeps its own idle timeout")
-	require.Equal(t, time.Second, reloaded.cfg.WakeTimeout, "and the rest of its own base config")
+	require.Equal(t, want, reloaded.cfg.IdlewatcherConfigBase, "route keeps all of its own base config")
 }
 
 // A genuine reload must still be adopted.
@@ -326,10 +330,92 @@ func TestNewWatcherReloadAdoptsUpdatedConfig(t *testing.T) {
 	newCfg := idlewatcherTestConfig("adopt-cfg", nil)
 	newCfg.IdleTimeout = 2 * time.Hour
 	newCfg.WakeTimeout = 5 * time.Second
+	newCfg.StopTimeout = 10 * time.Second
+	newCfg.StopMethod = idlewatchertypes.ContainerStopMethodKill
+	newCfg.StopSignal = "SIGKILL"
 
 	reloaded, err := NewWatcher(parent, mainRoute, newCfg)
 	require.NoError(t, err)
 	require.Same(t, w, reloaded)
 	require.Equal(t, 2*time.Hour, reloaded.cfg.IdleTimeout)
-	require.Equal(t, 5*time.Second, reloaded.cfg.WakeTimeout)
+	require.Equal(t, newCfg.IdlewatcherConfigBase, reloaded.cfg.IdlewatcherConfigBase)
+}
+
+func TestNewWatcherReloadDependencyOnlyConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		idleTimeout time.Duration
+		adopt       bool
+	}{
+		{"refresh", neverTick, true},
+		{"promote_to_route", 2 * time.Hour, true},
+		{"zero_unchanged", 0, false},
+		{"negative_unchanged", -1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w, parent, mainRoute, _ := newDependencyReloadTest(t, "dep-only", []string{"old"})
+			dep := w.dependsOn[0].Watcher
+			require.Equal(t, neverTick, dep.cfg.IdleTimeout)
+			want := dep.cfg.IdlewatcherConfigBase
+			cfg := idlewatcherTestConfig("old-id", nil)
+			cfg.IdleTimeout = tc.idleTimeout
+			cfg.WakeTimeout = 42 * time.Second
+			cfg.StopTimeout = 10 * time.Second
+			cfg.StopMethod = idlewatchertypes.ContainerStopMethodKill
+			cfg.StopSignal = "SIGKILL"
+			if tc.adopt {
+				want = cfg.IdlewatcherConfigBase
+			}
+			depRoute, ok := mainRoute.provider.GetRoute("old")
+			require.True(t, ok)
+			reloaded, err := NewWatcher(parent, depRoute, cfg)
+			require.NoError(t, err)
+			require.Same(t, dep, reloaded)
+			require.Equal(t, want, reloaded.cfg.IdlewatcherConfigBase)
+		})
+	}
+}
+
+func TestNewWatcherReloadRefreshesDependencySettings(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		explicit    bool
+		idleTimeout time.Duration
+	}{
+		{name: "inherited"},
+		{name: "explicit_zero", explicit: true},
+		{name: "explicit_negative", explicit: true, idleTimeout: -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w, parent, mainRoute, _ := newDependencyReloadTest(t, "parent-reload", []string{"old"})
+			dep := w.dependsOn[0].Watcher
+			require.Equal(t, neverTick, dep.cfg.IdleTimeout)
+			cfg := idlewatcherTestConfig("parent-reload", []string{"old"})
+			updated := idlewatchertypes.IdlewatcherConfigBase{
+				IdleTimeout: neverTick,
+				WakeTimeout: 42 * time.Second,
+				StopTimeout: 10 * time.Second,
+				StopMethod:  idlewatchertypes.ContainerStopMethodKill,
+				StopSignal:  "SIGKILL",
+			}
+			if tc.explicit {
+				depRoute, ok := mainRoute.provider.GetRoute("old")
+				require.True(t, ok)
+				depCfg := idlewatcherTestConfig("old-id", nil)
+				depCfg.IdlewatcherConfigBase = updated
+				depCfg.IdleTimeout = tc.idleTimeout
+				depRoute.(*idlewatcherTestRoute).cfg = depCfg
+			} else {
+				cfg.IdlewatcherConfigBase = updated
+				cfg.IdleTimeout = time.Hour
+			}
+
+			reloaded, err := NewWatcher(parent, mainRoute, cfg)
+			require.NoError(t, err)
+			require.Same(t, w, reloaded)
+			require.Len(t, reloaded.dependsOn, 1)
+			require.Same(t, dep, reloaded.dependsOn[0].Watcher)
+			require.Equal(t, updated, dep.cfg.IdlewatcherConfigBase)
+		})
+	}
 }
