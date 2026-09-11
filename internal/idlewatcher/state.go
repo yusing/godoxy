@@ -50,6 +50,7 @@ func (w *Watcher) setStarting() {
 	if !alreadyStarting {
 		w.emitIdleActivity(gevents.LevelInfo, IdleEventActionStarting, w.cfg.ContainerName()+" is starting...", nil)
 	}
+	w.notifyTransition(notifyPhaseAwake, idlewatcher.NotifyEventWake, "")
 }
 
 func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
@@ -65,6 +66,7 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 		message = w.cfg.ContainerName() + " was paused"
 	}
 	w.emitIdleActivity(gevents.LevelInfo, IdleEventActionNapping, message, nil)
+	w.notifyTransition(notifyPhaseAsleep, idlewatcher.NotifyEventSleep, string(status))
 }
 
 func (w *Watcher) setError(err error) {

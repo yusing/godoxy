@@ -22,6 +22,7 @@ import (
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
+	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/routing"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -74,6 +75,11 @@ type (
 		events         *gevents.History
 		eventsMu       sync.Mutex
 		lastIdleAction synk.Value[string]
+
+		// Sleep/wake notifications. notify is bound once from the task context;
+		// notifyPhase edge triggers it. See notify.go.
+		notify      notif.NotifyFunc
+		notifyPhase atomic.Uint32
 
 		dependenciesMu    sync.RWMutex
 		dependsOn         []*dependency
@@ -349,6 +355,12 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	if !exists {
 		watcherMapMu.Lock()
 		w.task = parent.Subtask("idlewatcher."+r.Name(), true)
+		if w.notify == nil { // tests inject their own
+			w.notify = notif.FromCtx(parent.Context()).Notify
+		}
+		// Seed the edge detector so an already running container does not report
+		// a wake that happened before this watcher existed.
+		w.notifyPhase.Store(uint32(initialNotifyPhase(status)))
 		watcherMap[key] = w
 		watcherMapMu.Unlock()
 

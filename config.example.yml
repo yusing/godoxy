@@ -112,6 +112,18 @@ defaults:
     timeout: 15s
     retries: 3
 
+  # defaults for every route using idlesleep (`idle_timeout`)
+  #
+  # idlewatcher:
+  #   # notify on sleep/wake through the providers under `providers.notification`
+  #   notify:
+  #     # opt every idle route in. omit this and naming providers in `to` is
+  #     # enough to opt in. a route sets `idlewatcher.notify.enabled: false`
+  #     # (or the label `proxy.idle_notify: false`) to opt back out.
+  #     enabled: true
+  #     # names under `providers.notification`; omit to send to all of them
+  #     to: [gotify, ntfy]
+
 providers:
   # include files are standalone yaml files under `config/` directory
   #
