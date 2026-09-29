@@ -23,6 +23,7 @@ import (
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/routing"
+	"golang.org/x/net/http2"
 	"golang.org/x/sys/unix"
 )
 
@@ -200,7 +201,7 @@ func (r *sniRouter) forwardHTTPS(listener *sniListener, conn net.Conn) {
 
 func (r *sniRouter) terminateTLS(ctx context.Context, conn net.Conn) (net.Conn, error) {
 	provider := autocert.FromCtx(r.ep.task.Context())
-	tlsConn := tls.Server(conn, &tls.Config{GetCertificate: provider.GetCert, MinVersion: tls.VersionTLS12})
+	tlsConn := tls.Server(conn, &tls.Config{GetCertificate: provider.GetCert, MinVersion: tls.VersionTLS12, NextProtos: []string{http2.NextProtoTLS, "http/1.1"}})
 	_ = conn.SetReadDeadline(time.Now().Add(clientHelloTimeout))
 	err := tlsConn.HandshakeContext(ctx)
 	_ = conn.SetReadDeadline(time.Time{})

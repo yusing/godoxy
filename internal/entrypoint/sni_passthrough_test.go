@@ -9,9 +9,63 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	agentcert "github.com/yusing/godoxy/agent/pkg/agent"
+	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/common"
 	netutils "github.com/yusing/godoxy/internal/net"
+	"github.com/yusing/goutils/task"
+	"golang.org/x/net/http2"
 )
+
+func TestSNIRouterTerminateTLSNegotiatesALPN(t *testing.T) {
+	_, serverAgent, _, err := agentcert.NewAgent()
+	require.NoError(t, err)
+	serverCert, err := serverAgent.ToTLSCert()
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name       string
+		nextProtos []string
+		want       string
+	}{
+		{name: "HTTP2", nextProtos: []string{http2.NextProtoTLS}, want: http2.NextProtoTLS},
+		{name: "HTTP1", nextProtos: []string{"http/1.1"}, want: "http/1.1"},
+		{name: "server prefers HTTP2", nextProtos: []string{"http/1.1", http2.NextProtoTLS}, want: http2.NextProtoTLS},
+		{name: "no ALPN"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			autocert.SetCtx(task.GetTestTask(t), &staticCertProvider{cert: serverCert})
+			ep := NewTestEntrypoint(t, nil)
+			clientConn, serverConn := net.Pipe()
+			defer clientConn.Close()
+			defer serverConn.Close()
+			require.NoError(t, clientConn.SetDeadline(time.Now().Add(5*time.Second)))
+			require.NoError(t, serverConn.SetDeadline(time.Now().Add(5*time.Second)))
+
+			type handshakeResult struct {
+				conn net.Conn
+				err  error
+			}
+			serverResult := make(chan handshakeResult, 1)
+			go func() {
+				conn, err := ep.sni.terminateTLS(t.Context(), serverConn)
+				serverResult <- handshakeResult{conn: conn, err: err}
+			}()
+
+			client := tls.Client(clientConn, &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         tc.nextProtos,
+				MinVersion:         tls.VersionTLS12,
+			})
+			require.NoError(t, client.HandshakeContext(t.Context()))
+			require.Equal(t, tc.want, client.ConnectionState().NegotiatedProtocol)
+			result := <-serverResult
+			require.NoError(t, result.err)
+			require.IsType(t, &tls.Conn{}, result.conn)
+			require.Equal(t, tc.want, result.conn.(*tls.Conn).ConnectionState().NegotiatedProtocol)
+		})
+	}
+}
 
 func TestSNIMatchUsesAliasOrFQDN(t *testing.T) {
 	routes := map[string]bool{
