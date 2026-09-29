@@ -7,7 +7,6 @@ import (
 	"maps"
 	"net"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -18,12 +17,13 @@ import (
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 var DummyContainer = new(Container)
 
-var EnvDockerHost = os.Getenv("DOCKER_HOST")
+var EnvDockerHost = env.GetEnvString("DOCKER_HOST", "")
 
 var (
 	ErrNetworkNotFound = errors.New("network not found")

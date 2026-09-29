@@ -32,6 +32,28 @@ test:
 	})
 }
 
+func TestDockerProviderEnvironment(t *testing.T) {
+	t.Setenv("GODOXY_DOCKER_HOST", "tcp://socket-proxy:2375")
+	t.Setenv("DOCKER_HOST", "tcp://lower-priority:2375")
+	var cfg DockerProviderConfig
+	assert.NoError(t, cfg.Parse("$DOCKER_HOST"))
+	assert.Equal(t, "tcp://socket-proxy:2375", cfg.URL)
+	for _, endpoint := range []string{"unix://$DOCKER_SOCKET", "$UNKNOWN", "tcp://${UNRESOLVED}:2375"} {
+		assert.ErrorContains(t, cfg.Parse(endpoint), "use ${VAR}")
+	}
+	t.Setenv("GODOXY_DOCKER_SOCKET", "/var/run/docker.sock")
+	var providers map[string]*DockerProviderConfig
+	assert.NoError(t, serialization.UnmarshalValidate([]byte("local: unix://${DOCKER_SOCKET}"), &providers, yaml.Unmarshal))
+	assert.Equal(t, "unix:///var/run/docker.sock", providers["local"].URL)
+	assert.NoError(t, cfg.Parse("unix:///run/docker$1.sock"))
+	t.Setenv("GODOXY_DOCKER_SOCKET", "/run/docker$1.sock")
+	assert.NoError(t, serialization.UnmarshalValidate([]byte("local: unix://${DOCKER_SOCKET}"), &providers, yaml.Unmarshal))
+	assert.Equal(t, "unix:///run/docker$1.sock", providers["local"].URL)
+	t.Setenv("GODOXY_DOCKER_HOST", "unix:///run/docker$1.sock")
+	assert.NoError(t, cfg.Parse("$DOCKER_HOST"))
+	assert.Equal(t, "unix:///run/docker$1.sock", cfg.URL)
+}
+
 func TestDockerProviderConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
