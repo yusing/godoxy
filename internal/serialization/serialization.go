@@ -613,22 +613,79 @@ func ConvertString(src string, dst reflect.Value) (convertible bool, convErr err
 
 var envRegex = regexp.MustCompile(`\$\{([^}]+)\}`) // e.g. ${CLOUDFLARE_API_KEY}
 
-func substituteEnv(data []byte) ([]byte, error) {
+// substituteEnv expands decoded strings, never YAML/JSON syntax. In particular,
+// quotes, newlines and mapping delimiters in an environment value stay data.
+func substituteEnv(m map[string]any) (map[string]any, error) {
 	envError := gperr.NewBuilder("env substitution error")
-	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
-		varName := string(match[2 : len(match)-1])
-		// NOTE: use env.LookupEnv instead of os.LookupEnv to support environment variable prefixes
-		// like ${API_ADDR} will lookup for GODOXY_API_ADDR, GOPROXY_API_ADDR and API_ADDR.
-		env, ok := env.LookupEnv(varName)
-		if !ok {
-			envError.Addf("%s is not set", varName)
+	expanded := transformStrings(m, func(value string) string {
+		return envRegex.ReplaceAllStringFunc(value, func(match string) string {
+			name := match[2 : len(match)-1]
+			value, ok := env.LookupEnv(name)
+			if !ok {
+				envError.Addf("%s is not set", name)
+			}
+			return value
+		})
+	}, &envError)
+	return expanded.(map[string]any), envError.Error()
+}
+
+func transformStrings(value any, transform func(string) string, errs *gperr.Builder) any {
+	switch value := value.(type) {
+	case string:
+		return transform(value)
+	case map[string]any:
+		if value == nil {
+			return value
 		}
-		return strconv.AppendQuote(nil, env)
-	})
-	if envError.HasError() {
-		return nil, envError.Error()
+		// YAML aliases can share containers. Never mutate decoded values or a
+		// later alias could expand environment contents a second time.
+		result := make(map[string]any, len(value))
+		for key, item := range value {
+			key = transform(key)
+			if _, exists := result[key]; exists {
+				errs.Adds("duplicate mapping key after environment substitution")
+			}
+			result[key] = transformStrings(item, transform, errs)
+		}
+		return result
+	case []any:
+		result := make([]any, len(value))
+		for i, item := range value {
+			result[i] = transformStrings(item, transform, errs)
+		}
+		return result
 	}
-	return data, nil
+	return value
+}
+
+// Mask braces before YAML parsing so unquoted ${VAR} works in flow collections
+// as well as block scalars. Restore references only in decoded strings, before
+// expanding them once; environment contents are never recursively expanded.
+func unmarshalEnv(data []byte, m *map[string]any, unmarshaler unmarshalFunc) error {
+	prefix := "GODOXY_ENV_REFERENCE_"
+	for bytes.Contains(data, []byte(prefix)) {
+		prefix += "_"
+	}
+	var replacements []string
+	data = envRegex.ReplaceAllFunc(data, func(match []byte) []byte {
+		marker := prefix + strconv.Itoa(len(replacements)/2) + "_END"
+		replacements = append(replacements, marker, string(match))
+		return []byte(marker)
+	})
+	if err := unmarshaler(data, m); err != nil {
+		return err
+	}
+	if len(replacements) > 0 {
+		var errs gperr.Builder
+		*m = transformStrings(*m, strings.NewReplacer(replacements...).Replace, &errs).(map[string]any)
+		if err := errs.Error(); err != nil {
+			return err
+		}
+	}
+	var err error
+	*m, err = substituteEnv(*m)
+	return err
 }
 
 type (
@@ -643,13 +700,8 @@ type (
 //   - The unmarshaler function converts data to a map[string]any.
 //   - Intercept functions can modify or validate the map before unmarshaling.
 func UnmarshalValidate[T any](data []byte, target *T, unmarshaler unmarshalFunc, interceptFns ...interceptFunc) error {
-	data, err := substituteEnv(data)
-	if err != nil {
-		return err
-	}
-
 	m := make(map[string]any)
-	if err := unmarshaler(data, &m); err != nil {
+	if err := unmarshalEnv(data, &m, unmarshaler); err != nil {
 		return err
 	}
 	if m == nil {

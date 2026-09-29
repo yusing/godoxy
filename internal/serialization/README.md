@@ -9,9 +9,17 @@ Flexible, type-safe serialization/deserialization with validation support for Go
 This package provides robust YAML/JSON serialization with:
 
 - Case-insensitive field matching using FNV-1a hashing
-- Environment variable substitution (`${VAR}` syntax)
+- Environment variable substitution (`${VAR}` syntax) within decoded string values and keys
 - Field-level validation with go-playground/validator tags
 - Custom type conversion with pluggable format handlers
+
+Environment contents remain literal string data, including quotes, newlines,
+colons, and comment markers. Both `host: ${HOST}` and
+`host: https://${HOST}/api` work, including quoted and flow-style YAML values.
+Missing variables are errors; empty values remain empty strings. Expansion is
+single-pass and honors `GODOXY_`, `GOPROXY_`, then unprefixed lookup. JSON request
+bodies use ordinary JSON strings, for example `{"host":"https://${HOST}"}`.
+Bare `$VAR` is not interpolated. YAML comments do not trigger env lookup.
 
 ### Primary Consumers
 
@@ -121,10 +129,10 @@ sequenceDiagram
     participant V as Validator
 
     C->>U: Data bytes + target struct + format handler
-    U->>E: Substitute ${ENV} vars
-    E-->>U: Substituted bytes
-    U->>F: Parse with format handler (YAML/JSON)
+    U->>F: Parse with format handler (mask YAML env references first)
     F-->>U: map[string]any
+    U->>E: Expand env references in decoded strings
+    E-->>U: Expanded map
     U->>M: Map + target
     M->>T: Get type info
     loop For each field in map
