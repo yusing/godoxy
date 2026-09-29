@@ -34,6 +34,7 @@ type (
 		routesMu    sync.RWMutex
 		diagnostics config.LoadDiagnostics
 		preparation routing.ProviderActivation
+		retryLoad   bool
 
 		watcher W.Watcher
 	}
@@ -156,10 +157,7 @@ func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
 	opts := eventqueue.Options[watcherEvents.Event]{
 		FlushInterval: providerEventFlushInterval,
 		OnFlush: func(evs []watcherEvents.Event) {
-			handler := p.newEventHandler()
-			// routes' lifetime should follow the provider's lifetime
-			handler.Handle(t, evs)
-			handler.Log()
+			p.handleEvents(t, evs)
 
 			history := events.FromCtx(t.Context())
 			if history == nil {
@@ -196,6 +194,10 @@ func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
 	if readyErr != nil {
 		watcherTask.FinishAndWait(readyErr)
 		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, readyErr)
+		if p.canRetry() && t.Context().Err() == nil {
+			p.retryWatcher(t, opts)
+			activation.EventLoopReady = true
+		}
 		return activation
 	}
 	if cause := context.Cause(t.Context()); cause != nil {
@@ -204,8 +206,16 @@ func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
 		return activation
 	}
 
-	eventQueue := eventqueue.New(watcherTask.Subtask("event_queue", false), opts)
-	eventQueue.Start(stream.Events, stream.Errors)
+	if p.canRetry() && p.retryLoad {
+		recovery := t.Subtask("initial_route_recovery", true)
+		go func() {
+			defer recovery.Finish(nil)
+			p.handleEvents(t, forceReloadEvents())
+			p.startEventQueue(watcherTask, stream, opts)
+		}()
+	} else {
+		p.startEventQueue(watcherTask, stream, opts)
+	}
 	activation.EventLoopReady = true
 	return activation
 }
@@ -217,6 +227,7 @@ func (p *Provider) LoadRoutes(ctx context.Context) (err error) {
 
 func (p *Provider) loadRoutes(ctx context.Context) (route.Routes, error) {
 	routes, infrastructureErr := p.loadRoutesImpl(ctx)
+	p.retryLoad = routes == nil && infrastructureErr != nil
 	if routes == nil {
 		routes = make(route.Routes)
 	}
@@ -249,6 +260,8 @@ func (p *Provider) loadRoutes(ctx context.Context) (route.Routes, error) {
 }
 
 func (p *Provider) NumRoutes() int {
+	p.routesMu.RLock()
+	defer p.routesMu.RUnlock()
 	return len(p.routes)
 }
 

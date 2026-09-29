@@ -149,17 +149,20 @@ sequenceDiagram
 Events are parsed and mapped to watcher event types:
 
 ```go
-func (w DockerWatcher) handleEvent(event dockerEvents.Message, ch chan<- Event) {
+func (w DockerWatcher) handleEvent(ctx context.Context, event dockerEvents.Message, ch chan<- Event) {
     action, ok := events.DockerEventMap[event.Action]
     if !ok {
         return // Unknown action, ignore
     }
-    ch <- Event{
+    select {
+    case ch <- Event{
         Type:            events.EventTypeDocker,
         ActorID:         event.Actor.ID,
         ActorAttributes: event.Actor.Attributes,
         ActorName:       event.Actor.Attributes["name"],
         Action:          action,
+    }:
+    case <-ctx.Done():
     }
 }
 ```
@@ -180,10 +183,15 @@ stateDiagram-v2
 On connection errors:
 
 1. Error is emitted to error channel
-1. Force reload event is sent to clear routes
-1. 3-second retry interval begins
+1. Known-good routes remain active while the 3-second retry interval runs
 1. On success, force reload triggers route reload
 1. Event channel is reopened
+
+An initial readiness error terminates that stream. Docker/agent providers own
+startup recovery: they retry agent initialization, route loading, and watcher
+creation with bounded backoff. Direct watcher consumers still receive the initial
+error and decide their own recovery policy. Event and error delivery observes
+context cancellation even while a provider is busy recovering routes.
 
 ## Configuration Surface
 
@@ -237,7 +245,7 @@ None exposed directly. Polling metrics are tracked by the period package for upt
 | Docker daemon unavailable | `client.IsErrConnectionFailed`   | Auto-retry every 3s      |
 | Context cancellation      | `<-ctx.Done()`                   | Graceful shutdown        |
 | Unknown event actions     | Missing in `DockerEventMap`      | Event ignored (no error) |
-| Channel blocked writing   | 3-second timeout on notification | Event dropped, continue  |
+| Channel blocked writing   | Context cancellation | Delivery stops on shutdown |
 
 ### Panic Recovery
 

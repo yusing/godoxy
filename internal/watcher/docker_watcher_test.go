@@ -30,6 +30,21 @@ func TestReceiveDockerStreamResultClosedMessageChannelReturnsStreamClosed(t *tes
 	require.False(t, result.done)
 }
 
+func TestDockerEventDeliveryStopsOnCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		DockerWatcher{}.handleEvent(ctx, dockerEvents.Message{Action: dockerEvents.ActionStart}, make(chan Event))
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("event delivery remained blocked after cancellation")
+	}
+}
+
 func TestReceiveDockerStreamResultClosedErrorChannelReturnsStreamClosed(t *testing.T) {
 	t.Parallel()
 

@@ -277,11 +277,11 @@ Log context includes: `provider`, `alias`, `route_count`
 
 | Failure                   | Behavior                     | Recovery                |
 | ------------------------- | ---------------------------- | ----------------------- |
-| Docker socket unavailable | Provider fails to start      | Fix socket permissions  |
+| Docker socket unavailable | Degraded, retries with backoff | Restore Docker access |
 | Container not found       | Route excluded with error    | Verify container exists |
 | YAML parse error          | Route excluded, error logged | Fix configuration file  |
-| Agent connection lost     | Routes removed, reconnection | Fix agent connectivity  |
-| Watcher error             | Provider finishes with error | Check watcher logs      |
+| Agent connection lost     | Keep known routes, reconnect | Restore agent connectivity |
+| Initial Docker/agent watcher error | Degraded, retries with backoff | Automatic on recovery |
 
 ## Usage Examples
 
@@ -311,6 +311,19 @@ load-time infrastructure error so later file/container events can recover the
 provider. A dynamic provider with zero routes and no infrastructure error is
 ready. A provider with attempted routes and no active route is failed. Provider
 task cancellation removes its event queue and all active routes.
+
+Docker and agent infrastructure failures retry without requiring Docker events or
+another config reload. Startup retries back off from 3 seconds to a maximum of
+30 seconds. A failed agent is initialized into the owning runtime's agent pool
+before its Docker routes and watcher are retried. Initial container-list failures
+are retried even when the ping succeeds; later failed lists retain known-good
+routes and retry through the same force-reload handler. Invalid route definitions
+are not treated as endpoint outages.
+
+An active recovery/event loop with infrastructure errors reports degraded rather
+than permanently failed. Activation reports are snapshots of the initial attempt,
+not live health reports; recovery logs and the route inventory show later results.
+Cancellation interrupts retries and prevents them from attaching to a new runtime.
 
 All loading and validation receives the owning state context. Agent pools,
 Proxmox nodes, MaxMind, notifications, events, entrypoint state, and candidate

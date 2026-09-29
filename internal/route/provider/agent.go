@@ -2,8 +2,11 @@ package provider
 
 import (
 	"context"
+	"errors"
+
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/agent/pkg/agent"
+	"github.com/yusing/godoxy/internal/agentpool"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/watcher"
 )
@@ -26,6 +29,19 @@ func (p *AgentProvider) IsExplicitOnly() bool {
 }
 
 func (p *AgentProvider) loadRoutesImpl(ctx context.Context) (route.Routes, error) {
+	pool := agentpool.FromCtx(ctx)
+	if pool == nil {
+		return nil, errors.New("agent pool not initialized")
+	}
+	if !pool.Has(p.AgentConfig) {
+		// Never mutate the config published through the provider registry.
+		// Init writes certificates and discovery metadata, even on failure.
+		cfg := &agent.AgentConfig{Addr: p.Addr}
+		if err := cfg.Init(ctx); err != nil {
+			return nil, err
+		}
+		pool.Add(cfg)
+	}
 	return p.docker.loadRoutesImpl(ctx)
 }
 

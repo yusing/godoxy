@@ -139,7 +139,7 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 				return
 			}
 			if result.hasMessage {
-				w.handleEvent(result.message, eventCh)
+				w.handleEvent(ctx, result.message, eventCh)
 				continue
 			}
 
@@ -147,7 +147,11 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 				continue
 			}
 
-			errCh <- w.parseError(result.err)
+			select {
+			case errCh <- w.parseError(result.err):
+			case <-ctx.Done():
+				return
+			}
 			client.Close()
 			client, err = reconnectDockerWatcherClient(ctx, w.cfg, errCh)
 			if err != nil {
@@ -156,7 +160,11 @@ func (w DockerWatcher) EventsWithOptions(ctx context.Context, options DockerList
 			// connection successful, trigger reload so routes can be refreshed from the
 			// latest container state without dropping the last known-good routes while the
 			// daemon was temporarily unreachable.
-			eventCh <- reloadTrigger
+			select {
+			case eventCh <- reloadTrigger:
+			case <-ctx.Done():
+				return
+			}
 			// reopen event channel
 			msgCh, dErrCh = client.Events(ctx, options)
 		}
@@ -201,17 +209,20 @@ func (w DockerWatcher) parseError(err error) error {
 	return err
 }
 
-func (w DockerWatcher) handleEvent(event dockerEvents.Message, ch chan<- Event) {
+func (w DockerWatcher) handleEvent(ctx context.Context, event dockerEvents.Message, ch chan<- Event) {
 	action, ok := watcherEvents.DockerEventMap[event.Action]
 	if !ok {
 		return
 	}
-	ch <- Event{
+	select {
+	case ch <- Event{
 		Type:            watcherEvents.EventTypeDocker,
 		ActorID:         event.Actor.ID,
 		ActorAttributes: event.Actor.Attributes, // labels
 		ActorName:       event.Actor.Attributes["name"],
 		Action:          action,
+	}:
+	case <-ctx.Done():
 	}
 }
 
