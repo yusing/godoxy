@@ -208,3 +208,42 @@ func Test_MaxMindConfig_loadMaxMindDB(t *testing.T) {
 		t.Error("expected db instance")
 	}
 }
+
+func TestDatabaseEditionSelection(t *testing.T) {
+	previous := common.MaxMindCountryOnly
+	t.Cleanup(func() { common.MaxMindCountryOnly = previous })
+	for _, product := range []struct {
+		database maxmind.DatabaseType
+		name     string
+	}{
+		{maxmind.MaxMindGeoLite, "GeoLite2"}, {maxmind.MaxMindGeoIP2, "GeoIP2"},
+	} {
+		for _, countryOnly := range []bool{false, true} {
+			edition := product.name + "-City"
+			if countryOnly {
+				edition = product.name + "-Country"
+			}
+			t.Run(edition, func(t *testing.T) {
+				common.MaxMindCountryOnly = countryOnly
+				cfg := testCfg()
+				cfg.Database = product.database
+				wantURL := "https://download.maxmind.com/geoip/databases/" + edition + "/download?suffix=tar.gz"
+				if got := cfg.dbURL(); got != wantURL {
+					t.Fatalf("URL = %q, want %q", got, wantURL)
+				}
+				if got := cfg.dbFilename(); got != edition+".mmdb" {
+					t.Fatalf("filename = %q", got)
+				}
+				mockDataDir(t)
+				mockDoReq(t, cfg)
+				mockMaxMindDBOpen(t)
+				if err := cfg.download(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := os.Stat(cfg.dbPath()); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+}

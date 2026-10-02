@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/maxmind"
 	maxmindtypes "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/task"
@@ -66,6 +67,9 @@ func mustMatchers(t *testing.T, rules ...string) Matchers {
 }
 
 func TestCountryACLWithDatabase(t *testing.T) {
+	previous := common.MaxMindCountryOnly
+	common.MaxMindCountryOnly = true
+	t.Cleanup(func() { common.MaxMindCountryOnly = previous })
 	db, err := os.ReadFile("testdata/GeoIP2-Country-Test.mmdb")
 	require.NoError(t, err)
 	t.Chdir(t.TempDir())
@@ -130,4 +134,27 @@ func TestCountryACLWithoutDatabase(t *testing.T) {
 			require.False(t, cfg.IPAllowed(net.ParseIP("200.1.2.3")))
 		})
 	}
+}
+
+func TestTimezoneACLWithDefaultCityDatabase(t *testing.T) {
+	previous := common.MaxMindCountryOnly
+	common.MaxMindCountryOnly = false
+	t.Cleanup(func() { common.MaxMindCountryOnly = previous })
+	db, err := os.ReadFile("testdata/GeoIP2-City-Test.mmdb")
+	require.NoError(t, err)
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.Mkdir("data", 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join("data", "GeoLite2-City.mmdb"), db, 0o600))
+	parent := task.GetTestTask(t)
+	instance, err := maxmind.New(parent, &maxmind.Config{Database: maxmindtypes.MaxMindGeoLite})
+	require.NoError(t, err)
+	maxmind.SetCtx(parent, instance)
+	cfg := &Config{Default: ACLDeny, Allow: mustMatchers(t, "country:BR", "tz:Europe/London")}
+	require.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Start(parent))
+	t.Cleanup(cfg.notifyTicker.Stop)
+	require.True(t, cfg.IPAllowed(net.ParseIP("81.2.69.160")))
+	record, err := cfg.ipCache(parent.Context(), "81.2.69.160")
+	require.NoError(t, err)
+	require.Equal(t, "allowed by allow rule: tz:Europe/London", record.reason)
 }

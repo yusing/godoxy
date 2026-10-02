@@ -163,8 +163,9 @@ Geographic rules require a configured, successfully loaded MaxMind provider.
 Multiple geographic rules reuse the same lookup result; a nonmatching rule does
 not prevent a later country or timezone rule from matching. Deny rules take
 precedence over allow rules, and the default applies only when neither matches.
-The downloaded Country databases support country codes, but do not provide the
-timezone data required by `tz:` rules.
+City databases are downloaded by default and support `tz:` rules. Set
+`GODOXY_MAXMIND_COUNTRY_ONLY=true` to opt out of City downloads; Country
+databases support country codes but lack timezone data.
 
 ## Configuration Surface
 

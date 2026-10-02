@@ -14,16 +14,16 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/agentpool"
+	env "github.com/yusing/godoxy/internal/env"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
-	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 )
 
 var DummyContainer = new(Container)
 
-var EnvDockerHost = env.GetEnvString("DOCKER_HOST", "")
+var EnvDockerHost = env.String("DOCKER_HOST")
 
 var (
 	ErrNetworkNotFound = errors.New("network not found")

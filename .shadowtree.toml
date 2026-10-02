@@ -419,3 +419,12 @@ help = "Scan for deadcode"
 for_each = "@go-main-packages"
 workdir = "{item}"
 cmd = "deadcode ./..."
+
+[recipes.gen-env-docs]
+help = "Generate environment example and wiki from the runtime registry."
+sandboxed = false
+cmd = "go run ./cmd/env-docs-gen"
+
+[recipes.check-env-docs]
+help = "Check environment example and wiki for drift."
+cmd = "go run ./cmd/env-docs-gen -check"

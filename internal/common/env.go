@@ -1,73 +1,71 @@
 package common
 
 import (
-	"os"
-	"strings"
-	"time"
-
-	"github.com/yusing/goutils/env"
+	env "github.com/yusing/godoxy/internal/env"
 )
 
 var (
-	IsTest  = env.GetEnvBool("TEST", false) || strings.HasSuffix(os.Args[0], ".test")
-	IsDebug = env.GetEnvBool("DEBUG", IsTest)
-	IsTrace = env.GetEnvBool("TRACE", false) && IsDebug
+	IsTest  = env.Bool("TEST")
+	IsDebug = env.Bool("DEBUG")
+	IsTrace = env.Bool("TRACE")
 
-	InitTimeout = env.GetEnvDuation("INIT_TIMEOUT", 1*time.Minute)
+	InitTimeout = env.Duration("INIT_TIMEOUT")
 
-	ShortLinkPrefix = env.GetEnvString("SHORTLINK_PREFIX", "go")
+	ShortLinkPrefix = env.String("SHORTLINK_PREFIX")
 
 	ProxyHTTPAddr,
 	ProxyHTTPHost,
 	ProxyHTTPPort,
-	ProxyHTTPURL = env.GetAddrEnv("HTTP_ADDR", ":80", "http")
+	ProxyHTTPURL = env.Address("HTTP_ADDR", "http")
 
 	ProxyHTTPSAddr,
 	ProxyHTTPSHost,
 	ProxyHTTPSPort,
-	ProxyHTTPSURL = env.GetAddrEnv("HTTPS_ADDR", ":443", "https")
+	ProxyHTTPSURL = env.Address("HTTPS_ADDR", "https")
 
 	APIHTTPAddr,
 	APIHTTPHost,
 	APIHTTPPort,
-	APIHTTPURL = env.GetAddrEnv("API_ADDR", "127.0.0.1:8888", "http")
+	APIHTTPURL = env.Address("API_ADDR", "http")
 
 	LocalAPIHTTPAddr,
 	LocalAPIHTTPHost,
 	LocalAPIHTTPPort,
-	LocalAPIHTTPURL = env.GetAddrEnv("LOCAL_API_ADDR", "", "http")
-	LocalAPIAllowNonLoopback = env.GetEnvBool("LOCAL_API_ALLOW_NON_LOOPBACK", false)
+	LocalAPIHTTPURL = env.Address("LOCAL_API_ADDR", "http")
+	LocalAPIAllowNonLoopback = env.Bool("LOCAL_API_ALLOW_NON_LOOPBACK")
 
-	APIJWTSecure   = env.GetEnvBool("API_JWT_SECURE", true)
-	APIJWTSecret   = decodeJWTKey(env.GetEnvString("API_JWT_SECRET", ""))
-	APIJWTTokenTTL = env.GetEnvDuation("API_JWT_TOKEN_TTL", 24*time.Hour)
-	APIUser        = env.GetEnvString("API_USER", "")
-	APIPassword    = env.GetEnvString("API_PASSWORD", "")
+	APIJWTSecure   = env.Bool("API_JWT_SECURE")
+	APIJWTSecret   = decodeJWTKey(env.String("API_JWT_SECRET"))
+	APIJWTTokenTTL = env.Duration("API_JWT_TOKEN_TTL")
+	APIUser        = env.String("API_USER")
+	APIPassword    = env.String("API_PASSWORD")
 
-	APISkipOriginCheck = env.GetEnvBool("API_SKIP_ORIGIN_CHECK", false) // skip this in UI Demo
+	APISkipOriginCheck = env.Bool("API_SKIP_ORIGIN_CHECK") // skip this in UI Demo
 
-	DebugDisableAuth = env.GetEnvBool("DEBUG_DISABLE_AUTH", false)
+	DebugDisableAuth = env.Bool("DEBUG_DISABLE_AUTH")
 
 	// OIDC Configuration.
-	OIDCIssuerURL       = env.GetEnvString("OIDC_ISSUER_URL", "")
-	OIDCClientID        = env.GetEnvString("OIDC_CLIENT_ID", "")
-	OIDCClientSecret    = env.GetEnvString("OIDC_CLIENT_SECRET", "")
-	OIDCScopes          = env.GetEnvCommaSep("OIDC_SCOPES", "openid, profile, email, groups")
-	OIDCAllowedUsers    = env.GetEnvCommaSep("OIDC_ALLOWED_USERS", "")
-	OIDCAllowedGroups   = env.GetEnvCommaSep("OIDC_ALLOWED_GROUPS", "")
-	OIDCRateLimit       = env.GetEnvInt("OIDC_RATE_LIMIT", 10)
-	OIDCRateLimitPeriod = env.GetEnvDuation("OIDC_RATE_LIMIT_PERIOD", time.Second)
+	OIDCIssuerURL       = env.String("OIDC_ISSUER_URL")
+	OIDCClientID        = env.String("OIDC_CLIENT_ID")
+	OIDCClientSecret    = env.String("OIDC_CLIENT_SECRET")
+	OIDCScopes          = env.CommaSep("OIDC_SCOPES")
+	OIDCAllowedUsers    = env.CommaSep("OIDC_ALLOWED_USERS")
+	OIDCAllowedGroups   = env.CommaSep("OIDC_ALLOWED_GROUPS")
+	OIDCRateLimit       = env.Int("OIDC_RATE_LIMIT")
+	OIDCRateLimitPeriod = env.Duration("OIDC_RATE_LIMIT_PERIOD")
 
-	FrontendAliasesLegacy = env.GetEnvCommaSep("FRONTEND_ALIASES", "godoxy")
+	FrontendAliasesLegacy = env.CommaSep("FRONTEND_ALIASES")
 
 	// metrics configuration
-	MetricsDisableCPU     = env.GetEnvBool("METRICS_DISABLE_CPU", false)
-	MetricsDisableMemory  = env.GetEnvBool("METRICS_DISABLE_MEMORY", false)
-	MetricsDisableDisk    = env.GetEnvBool("METRICS_DISABLE_DISK", false)
-	MetricsDisableNetwork = env.GetEnvBool("METRICS_DISABLE_NETWORK", false)
-	MetricsDisableSensors = env.GetEnvBool("METRICS_DISABLE_SENSORS", false)
+	MetricsDisableCPU     = env.Bool("METRICS_DISABLE_CPU")
+	MetricsDisableMemory  = env.Bool("METRICS_DISABLE_MEMORY")
+	MetricsDisableDisk    = env.Bool("METRICS_DISABLE_DISK")
+	MetricsDisableNetwork = env.Bool("METRICS_DISABLE_NETWORK")
+	MetricsDisableSensors = env.Bool("METRICS_DISABLE_SENSORS")
 
-	ForceResolveCountry = env.GetEnvBool("FORCE_RESOLVE_COUNTRY", false)
+	MaxMindCountryOnly = env.Bool("MAXMIND_COUNTRY_ONLY")
 
-	SNIRoutingForTCPRoutes = env.GetEnvBool("SNI_ROUTING_FOR_TCP_ROUTES", true)
+	ForceResolveCountry = env.Bool("FORCE_RESOLVE_COUNTRY")
+
+	SNIRoutingForTCPRoutes = env.Bool("SNI_ROUTING_FOR_TCP_ROUTES")
 )

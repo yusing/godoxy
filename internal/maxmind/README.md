@@ -4,15 +4,15 @@ The maxmind package provides MaxMind GeoIP database integration for IP geolocati
 
 ## Overview
 
-The maxmind package implements MaxMind GeoIP database management, providing IP-to-country lookups. It supports automatic database downloading, scheduled updates, and thread-safe access. Downloads use Country databases, which do not provide city or timezone data.
+The maxmind package implements MaxMind GeoIP database management, providing country, city, and timezone lookups. It supports automatic database downloading, scheduled updates, and thread-safe access. Downloads use City databases by default. Set `GODOXY_MAXMIND_COUNTRY_ONLY=true` to opt out of City downloads and use Country databases where City downloads are unavailable. Country databases do not provide city or timezone data. Switching the setting selects a separate database filename; an existing Country database does not satisfy a City download, and vice versa.
 
 ### Key Features
 
 - MaxMind GeoIP database loading
 - Automatic database downloading from MaxMind
 - Scheduled updates every 24 hours
-- Country lookup with cache support through the `LookupCity` API
-- IP geolocation (country ISO code)
+- Geographic lookup with cache support through the `LookupCity` API
+- IP geolocation (country ISO code, city, and timezone with City databases)
 - Thread-safe access
 
 ## Architecture
@@ -146,7 +146,7 @@ if ok {
 }
 ```
 
-Despite the API's name, the downloaded Country databases populate country
+With `GODOXY_MAXMIND_COUNTRY_ONLY=true`, lookup results contain country
 information only; `city.Location.TimeZone` is empty.
 
 Every runtime owns its MaxMind reader and lookup cache. Removing MaxMind from a
@@ -157,8 +157,8 @@ silently inheriting a process-global reader from the previous runtime.
 
 ```go
 const (
-    MaxMindGeoLite = "GeoLite2-Country"
-    MaxMindGeoIP2  = "GeoIP2-Country"
+    MaxMindGeoLite = "geolite"
+    MaxMindGeoIP2  = "geoip2"
 )
 ```
 
@@ -253,8 +253,8 @@ for {
         break
     }
     sumSize += hdr.Size
-    if sumSize > 30*1024*1024 {
-        return errors.New("file size exceeds 30MB")
+    if sumSize > maxArchiveSize {
+        return errors.New("archive size exceeds 256 MiB")
     }
 }
 ```
@@ -341,6 +341,6 @@ var (
 ## Performance Considerations
 
 - 24-hour update interval reduces unnecessary downloads
-- Database size ~10-30MB
+- City databases can exceed 100 MiB; archive extraction is bounded to 256 MiB.
 - City lookup cache reduces database queries
 - RLock for concurrent reads

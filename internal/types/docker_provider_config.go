@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/yusing/godoxy/internal/common"
+	env "github.com/yusing/godoxy/internal/env"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -41,7 +41,7 @@ func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
 
 func (cfg *DockerProviderConfig) Parse(value string) error {
 	if value == common.DockerHostFromEnv {
-		value = env.GetEnvString("DOCKER_HOST", "unix:///var/run/docker.sock")
+		value = env.String("DOCKER_HOST")
 	}
 	if unresolvedDockerEnv.MatchString(value) {
 		return fmt.Errorf("unresolved environment variable in Docker endpoint: use ${VAR} for substitution (only $DOCKER_HOST is supported without braces)")
