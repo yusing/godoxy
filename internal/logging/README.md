@@ -113,6 +113,15 @@ interleaving with or overtaking server, provider, or development-tool output.
 Loggers with an explicit independent destination serialize only that destination,
 so a slow rule log file cannot block the shared process log.
 
+### Startup environment diagnostics
+
+`LogEnvironment` uses the server registry to report effective non-secret settings
+and their selected environment sources after logger initialization. Sensitive
+settings, including identity fields and potentially credential-bearing endpoints,
+are redacted. Unknown `GODOXY_` variables and selected unprefixed fallbacks produce
+name-only warnings; the fallback remains available during migration. The report
+covers environment inputs, not per-route overrides or listener activation.
+
 ### Logs
 
 | Level   | When                                     |
