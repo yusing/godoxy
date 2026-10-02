@@ -3,12 +3,10 @@
   "private": true,
   "devDependencies": {
     "@types/argparse": "^2.0.17",
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.9.3"
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "argparse": "^2.0.1"
+    "argparse": "^3.0.2"
   }
 }
