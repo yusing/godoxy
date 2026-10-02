@@ -4660,6 +4660,16 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "notify": {
+          "description": "Notify opts this route into sleep/wake notifications. It lives on the\nbase so it survives the config copy done on reload in\nidlewatcher.NewWatcher.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/IdlewatcherNotifyConfig"
+            }
+          ],
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "proxmox": {
           "$ref": "#/definitions/IdlewatcherProxmoxNodeConfig",
           "x-nullable": false,
@@ -4715,6 +4725,28 @@
         },
         "docker_cfg": {
           "$ref": "#/definitions/DockerProviderConfig",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "IdlewatcherNotifyConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,\nthen falls back to len(To) > 0.",
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "to": {
+          "description": "`providers.notification` names to send to. Empty means all of them.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "x-nullable": false,
           "x-omitempty": false
         }

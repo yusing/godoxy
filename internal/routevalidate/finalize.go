@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	config "github.com/yusing/godoxy/internal/config/types"
-	"github.com/yusing/godoxy/internal/health"
 	"github.com/yusing/godoxy/internal/homepage"
 	iconlist "github.com/yusing/godoxy/internal/homepage/icons/list"
 	"github.com/yusing/godoxy/internal/route"
@@ -113,11 +112,15 @@ func finalize(ctx context.Context, r *route.Route) {
 	r.CanResolveDockerProxyPort = canResolveDockerProxyPort(r)
 	r.CheckedDockerProxyPort = true
 
-	state := config.FromCtx(ctx)
-	if state == nil {
-		r.HealthCheck.ApplyDefaults(health.HealthCheckConfig{})
-	} else {
-		r.HealthCheck.ApplyDefaults(state.Value().Defaults.HealthCheck)
+	var defaults config.Defaults
+	if state := config.FromCtx(ctx); state != nil {
+		defaults = state.Value().Defaults
+	}
+	r.HealthCheck.ApplyDefaults(defaults.HealthCheck)
+	// Only merge into an existing config: materializing r.Idlewatcher here would
+	// defeat `json:"idlewatcher,omitempty"` on every non-idle route.
+	if r.Idlewatcher != nil {
+		r.Idlewatcher.Notify.ApplyDefaults(defaults.Idlewatcher.Notify)
 	}
 
 	finalizeHomepageConfig(ctx, r)
