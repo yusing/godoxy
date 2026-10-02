@@ -70,6 +70,11 @@ graph TB
     end
 ```
 
+Utility diagnostics from `goutils` use the application's existing zerolog logger.
+`InitLogger` registers the framework-neutral adapter in `logadapter`; the agent
+registers the same adapter after configuring its logger. Severity filtering,
+structured fields, and output formatting remain owned by zerolog.
+
 ## Configuration Surface
 
 ### Access Log Configuration

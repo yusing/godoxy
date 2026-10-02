@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/logging/logadapter"
 
 	zerologlog "github.com/rs/zerolog/log"
 )
@@ -28,6 +29,7 @@ func InitLogger(out ...io.Writer) {
 	log.SetFlags(0)
 	zerolog.TimeFieldFormat = timeFmt
 	zerologlog.Logger = logger
+	logadapter.Register()
 }
 
 var (

@@ -126,4 +126,3 @@ func TestGetTypeInfoEmbeddedMetadata(t *testing.T) {
 	require.Equal(t, []int{0}, child.keyFieldIndexes[fnv1IgnoreCaseSnake("name")],
 		"embedding must not change cached child indexes")
 }
-

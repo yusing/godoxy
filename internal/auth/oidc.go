@@ -395,7 +395,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	if err != nil {
 		auth.clearCookie(w, r)
 		WriteBlockPage(w, http.StatusInternalServerError, "failed to exchange token", "Try again", OIDCAuthInitPath)
-		httputils.LogError(r).Msgf("failed to exchange token: %v", err)
+		httputils.LogError(r, fmt.Sprintf("failed to exchange token: %v", err))
 		return
 	}
 
@@ -403,7 +403,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 	if err != nil {
 		auth.clearCookie(w, r)
 		WriteBlockPage(w, http.StatusInternalServerError, "failed to get ID token", "Try again", OIDCAuthInitPath)
-		httputils.LogError(r).Msgf("failed to get ID token: %v", err)
+		httputils.LogError(r, fmt.Sprintf("failed to get ID token: %v", err))
 		return
 	}
 
@@ -412,7 +412,7 @@ func (auth *OIDCProvider) PostAuthCallbackHandler(w http.ResponseWriter, r *http
 		if err != nil {
 			auth.clearCookie(w, r)
 			WriteBlockPage(w, http.StatusInternalServerError, "failed to parse claims", "Try again", OIDCAuthInitPath)
-			httputils.LogError(r).Msgf("failed to parse claims: %v", err)
+			httputils.LogError(r, fmt.Sprintf("failed to parse claims: %v", err))
 			return
 		}
 		session := newSession(claims.Username, claims.Groups)

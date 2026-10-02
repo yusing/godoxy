@@ -50,6 +50,9 @@ require (
 	github.com/yusing/gointernals v0.2.1
 	github.com/yusing/goutils v0.7.0
 	github.com/yusing/goutils/cache v0.0.0-20260909085931-b7df9d8ce9b7
+	github.com/yusing/goutils/events/acl v0.0.0
+	github.com/yusing/goutils/events/http v0.0.0
+	github.com/yusing/goutils/http v0.0.0
 	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260909085931-b7df9d8ce9b7
 	github.com/yusing/goutils/http/websocket v0.0.0-20260909085931-b7df9d8ce9b7
 	github.com/yusing/goutils/server v0.0.0-20260909085931-b7df9d8ce9b7
@@ -201,3 +204,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.7.3 // indirect
 )
+
+replace github.com/yusing/goutils/http => ./goutils/http
+
+replace github.com/yusing/goutils/events/acl => ./goutils/events/acl
+
+replace github.com/yusing/goutils/events/http => ./goutils/events/http

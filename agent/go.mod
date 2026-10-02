@@ -25,6 +25,9 @@ require (
 	github.com/yusing/godoxy v0.31.1
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
 	github.com/yusing/goutils v0.7.0
+	github.com/yusing/goutils/events/acl v0.0.0
+	github.com/yusing/goutils/events/http v0.0.0
+	github.com/yusing/goutils/http v0.0.0
 	github.com/yusing/goutils/http/reverseproxy v0.0.0-20260909085931-b7df9d8ce9b7
 	golang.org/x/net v0.59.0
 )
@@ -108,3 +111,9 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
+
+replace github.com/yusing/goutils/http => ../goutils/http
+
+replace github.com/yusing/goutils/events/acl => ../goutils/events/acl
+
+replace github.com/yusing/goutils/events/http => ../goutils/events/http
