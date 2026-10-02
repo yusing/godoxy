@@ -13,7 +13,7 @@ import (
 )
 
 const wikiPath = "webui/wiki/content/docs/godoxy/getting-started/Environment-Variables.mdx"
-const migration = "App settings use the first non-empty value in this order: GODOXY_, legacy GOPROXY_, then the unprefixed name. The unprefixed fallback is deprecated but remains supported; rename app variables to GODOXY_ names. Compose inputs use their exact names and are not deprecated."
+const migration = "App settings use the first non-empty value in this order: GODOXY_, legacy GOPROXY_, then the unprefixed name. HTTPS_ADDR is the exception: the first present value wins, and an explicitly empty value disables shared HTTPS. The unprefixed fallback is deprecated but remains supported; rename app variables to GODOXY_ names. Compose inputs use their exact names and are not deprecated."
 
 func render() (example, wiki []byte) {
 	var e, w strings.Builder
@@ -24,7 +24,8 @@ func render() (example, wiki []byte) {
 	fmt.Fprint(&w, migration+"\n\n")
 	fmt.Fprint(&w, "Copy `.env.example` to `.env`, set credentials, and uncomment only settings you override. The Compose example keeps socket-proxy. Its required deployment inputs are active in the example; missing Compose inputs fail with an instruction to set them in `.env`. `GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}` selects that proxy. Compose does not inject or override a Docker endpoint, so another value in `.env` is respected. Keep the endpoint consistent with the chosen Docker service. When updating Compose while keeping an older `.env`, add `GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}` (or retain an existing explicit endpoint). Without any endpoint setting, the server defaults to a Unix socket that this Compose example does not mount.\n\n")
 	fmt.Fprint(&w, "At startup, GoDoxy warns on unrecognized `GODOXY_*` names and selected unprefixed aliases, without printing their values. Custom names referenced by configuration interpolation still work, but are not recognized built-in settings. An info-level report shows effective server environment settings and their selected source; derived booleans may differ from the source value. Secrets, identity fields, and potentially credential-bearing URLs are redacted. These are environment settings, not per-route overrides or a report of active listeners.\n\n")
-	fmt.Fprint(&w, "Defaults below describe normal execution. `TEST` is also enabled in Go test executables; `DEBUG` defaults to effective `TEST`, but an explicit false overrides it. `TRACE` requires effective `DEBUG`. Server and websocket debug also honor explicit `DEBUG=true`, not test-derived debug. Durations use Go duration syntax; lists are comma-separated. Empty values fall through to aliases or the default.\n\n")
+	fmt.Fprint(&w, "Defaults below describe normal execution. `TEST` is also enabled in Go test executables; `DEBUG` defaults to effective `TEST`, but an explicit false overrides it. `TRACE` requires effective `DEBUG`. Server and websocket debug also honor explicit `DEBUG=true`, not test-derived debug. Durations use Go duration syntax; lists are comma-separated. Empty values fall through to aliases or the default except for `HTTPS_ADDR`.\n\n")
+	fmt.Fprint(&w, "For HTTP-only deployment, set `GODOXY_HTTPS_ADDR=`. This disables shared HTTPS, its HTTP/3 listener and shared TCP SNI routing, but not dedicated route listeners. `redirectHTTP` does not redirect in this mode. Direct HTTP login also requires `GODOXY_API_JWT_SECURE=false`; keep secure cookies when clients use an external TLS-terminating proxy. Unset `HTTPS_ADDR` still defaults to `:443` and requires a certificate.\n\n")
 	for _, section := range []string{"Compose inputs", "Server settings", "Development and testing only"} {
 		fmt.Fprintf(&e, "\n# %s\n", section)
 		fmt.Fprintf(&w, "## %s\n\n", section)

@@ -34,7 +34,7 @@ var definitions = []Definition{
 	{Name: "DOCKER_SOCKET", Type: "string", Default: "/var/run/docker.sock", Description: "Host Docker socket path; use /var/run/podman/podman.sock for Podman.", Compose: true, Required: true},
 	{Name: "LISTEN_ADDR", Type: "address", Default: "127.0.0.1:2375", Description: "Socket-proxy listener used by the Compose example.", Compose: true, Required: true},
 	{Name: "HTTP_ADDR", Type: "address", Default: ":80", Description: "HTTP proxy listener."},
-	{Name: "HTTPS_ADDR", Type: "address", Default: ":443", Description: "HTTPS proxy listener."},
+	{Name: "HTTPS_ADDR", Type: "address", Default: ":443", Description: "Shared HTTPS proxy listener; explicitly empty disables it (including shared HTTP/3 and TCP SNI routing). Dedicated route listeners are unaffected."},
 	{Name: "HTTP3_ENABLED", Type: "bool", Default: "false", Description: "Enable HTTP/3 on HTTPS, except with PROXY protocol."},
 	{Name: "SNI_ROUTING_FOR_TCP_ROUTES", Type: "bool", Default: "true", Description: "Route TCP over the shared HTTPS listener using TLS SNI."},
 	{Name: "API_ADDR", Type: "address", Default: "127.0.0.1:8888", Description: "API and WebUI backend listener."},

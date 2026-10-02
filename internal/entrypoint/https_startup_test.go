@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/testcert"
 	"github.com/yusing/goutils/task"
 )
@@ -98,6 +99,31 @@ func TestHTTPSStartupFailureReleasesNewListener(t *testing.T) {
 	listener, err := net.Listen("tcp", addr)
 	require.NoError(t, err)
 	require.NoError(t, listener.Close())
+}
+
+func TestRouteAddressesWithSharedHTTPSDisabled(t *testing.T) {
+	previous := common.ProxyHTTPSAddr
+	common.ProxyHTTPSAddr = ""
+	t.Cleanup(func() { common.ProxyHTTPSAddr = previous })
+	for _, tc := range []struct {
+		url, https string
+	}{
+		{url: "https://:0"},
+		{url: "https://127.0.0.1:0"},
+		{url: "https://[::1]:0"},
+		{url: "https://127.0.0.1:8443", https: "127.0.0.1:8443"},
+	} {
+		t.Run(tc.url, func(t *testing.T) {
+			r := &testHTTPRoute{Route: &route.Route{LisURL: mustParseURL(t, tc.url)}}
+			httpAddr, httpsAddr := getAddr(r)
+			require.Equal(t, tc.https, httpsAddr)
+			if tc.https == "" {
+				require.NotEmpty(t, httpAddr)
+			} else {
+				require.Empty(t, httpAddr)
+			}
+		})
+	}
 }
 
 func TestConcurrentSNIRouteRegistrationSurvivesHTTPSFailure(t *testing.T) {

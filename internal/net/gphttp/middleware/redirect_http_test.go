@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/yusing/godoxy/internal/common"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -22,4 +23,16 @@ func TestNoRedirect(t *testing.T) {
 	})
 	expect.NoError(t, err)
 	expect.Equal(t, result.ResponseStatus, http.StatusOK)
+}
+
+func TestNoRedirectWhenSharedHTTPSDisabled(t *testing.T) {
+	previous := common.ProxyHTTPSAddr
+	common.ProxyHTTPSAddr = ""
+	t.Cleanup(func() { common.ProxyHTTPSAddr = previous })
+	result, err := newMiddlewareTest(RedirectHTTP, &testArgs{
+		reqURL: mustParseURL("http://example.com"),
+	})
+	expect.NoError(t, err)
+	expect.Equal(t, result.ResponseStatus, http.StatusOK)
+	expect.Equal(t, result.ResponseHeaders.Get("Location"), "")
 }

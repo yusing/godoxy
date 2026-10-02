@@ -14,6 +14,9 @@ func isolate(t *testing.T) {
 	for _, d := range Definitions() {
 		for _, prefix := range []string{"GODOXY_", "GOPROXY_", ""} {
 			t.Setenv(prefix+d.Name, "")
+			if err := os.Unsetenv(prefix + d.Name); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	previous := os.Args[0]

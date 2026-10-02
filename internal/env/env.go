@@ -22,7 +22,8 @@ func SetPrefixes(prefixes ...string) {
 
 // LookupEnv looks up an environment variable with the configured prefixes.
 //
-// It prefers the first non-empty value found.
+// It prefers the first non-empty value found, except HTTPS_ADDR where an empty
+// value explicitly disables the shared HTTPS listener.
 //
 // Returns the value and a boolean indicating if an environment variable was found.
 func LookupEnv(key string) (string, bool) {
@@ -31,12 +32,13 @@ func LookupEnv(key string) (string, bool) {
 }
 
 // LookupEnvSource also returns the selected variable name. Empty candidates do
-// not shadow non-empty aliases; if all candidates are empty, source is empty.
+// not shadow non-empty aliases, except HTTPS_ADDR. For other settings, source is
+// empty if all candidates are empty.
 func LookupEnvSource(key string) (value, source string, found bool) {
 	for _, prefix := range envPrefixes {
 		v, ok := os.LookupEnv(prefix + key)
 		found = found || ok
-		if ok && v != "" {
+		if ok && (v != "" || key == "HTTPS_ADDR") {
 			return v, prefix + key, true
 		}
 	}
@@ -56,12 +58,12 @@ func GetEnv[T any](key string, defaultValue T, parser func(string) (T, error)) T
 	return defaultValue
 }
 
-func stringstring(s string) (string, error) {
-	return s, nil
-}
-
 func GetEnvString(key string, defaultValue string) string {
-	return GetEnv(key, defaultValue, stringstring)
+	value, found := LookupEnv(key)
+	if found && (value != "" || key == "HTTPS_ADDR") {
+		return value
+	}
+	return defaultValue
 }
 
 func GetEnvBool(key string, defaultValue bool) bool {

@@ -157,6 +157,11 @@ Registration flow:
 3. If the route requests `tls_termination`, registration requires an active autocert provider.
 4. The route is stored in a per-listener atomic route table keyed by normalized route key.
 
+HTTPS startup checks that a certificate is available before acquiring a listener.
+Listener acquisition and route registration are serialized: if startup later fails,
+only a newly created listener is closed. Existing TCP SNI passthrough listeners remain
+registered and keep serving their routes.
+
 Runtime behavior is optimized for the common no-stream-route case:
 
 - Before any SNI TCP route is registered for a listener, `sniListener.Accept` delegates directly to the underlying `net.Listener.Accept`. Normal HTTPS routes therefore avoid ClientHello sniffing, queueing, goroutine handoff, and eventfd wakeups.
