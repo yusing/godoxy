@@ -458,6 +458,13 @@ func TestReverseProxyRoute_AgentProxyConfigHeadersPreserveH2CScheme(t *testing.T
 			wantLegacy: true,
 		},
 		{
+			name:       "first modern agent receives full scheme header",
+			agentVer:   version.New(0, 18, 6),
+			wantScheme: "h2c",
+			wantHost:   "netbird-server:80",
+			wantModern: true,
+		},
+		{
 			name:       "modern agents receive full scheme header",
 			agentVer:   version.New(0, 28, 1),
 			wantScheme: "h2c",

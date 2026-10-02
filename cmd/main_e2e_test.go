@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/testcert"
 )
 
 const (
@@ -280,6 +281,8 @@ type godoxyE2EProcess struct {
 func startGodoxyE2EProcess(t *testing.T, cfg godoxyE2EProcessConfig) *godoxyE2EProcess {
 	t.Helper()
 	workDir := t.TempDir()
+	// Startup requests HTTPS even though these auth checks use HTTP.
+	testcert.WriteFiles(t, workDir)
 	logFile, err := os.Create(filepath.Join(workDir, "godoxy.log"))
 	require.NoError(t, err)
 	writeOIDCProxyConfig(t, workDir, cfg.oidcUpstreamURL)
