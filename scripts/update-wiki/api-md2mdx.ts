@@ -62,20 +62,20 @@ export function md2mdx(md: string) {
 		description = description.slice(0, -1);
 	}
 
-	let header = `---\ntitle: ${title}`;
+	let header = `---\ntitle: ${JSON.stringify(title)}`;
 	if (description) {
-		header += `\ndescription: ${description}`;
+		header += `\ndescription: ${JSON.stringify(description)}`;
 	}
 	header += "\n---";
 
 	const body = indexFirstH2 === -1 ? "" : md.slice(indexFirstH2);
 	const calloutsBlock = callouts.join("\n\n");
-	md = [header, calloutsBlock, body].filter(Boolean).join("\n\n");
+	md = [calloutsBlock, body].filter(Boolean).join("\n\n");
 
 	md = md.replaceAll("</br>", "<br/>");
 	md = md.replaceAll("<0", "\\<0");
 
-	return md;
+	return [header, md].filter(Boolean).join("\n\n");
 }
 
 async function main() {
