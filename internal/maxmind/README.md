@@ -4,15 +4,15 @@ The maxmind package provides MaxMind GeoIP database integration for IP geolocati
 
 ## Overview
 
-The maxmind package implements MaxMind GeoIP database management, providing IP geolocation lookups for country and city information. It supports automatic database downloading, scheduled updates, and thread-safe access.
+The maxmind package implements MaxMind GeoIP database management, providing IP-to-country lookups. It supports automatic database downloading, scheduled updates, and thread-safe access. Downloads use Country databases, which do not provide city or timezone data.
 
 ### Key Features
 
 - MaxMind GeoIP database loading
 - Automatic database downloading from MaxMind
 - Scheduled updates every 24 hours
-- City lookup with cache support
-- IP geolocation (country, city, timezone)
+- Country lookup with cache support through the `LookupCity` API
+- IP geolocation (country ISO code)
 - Thread-safe access
 
 ## Architecture
@@ -107,8 +107,9 @@ func FromCtx(ctx context.Context) *MaxMind
 ### Lookup
 
 ```go
-// LookupCity looks up city information for an IP.
-func LookupCity(ctx context.Context, info *IPInfo) (city *City, loaded bool)
+// LookupCity returns geographic information, including previously resolved data.
+// ok reports availability, not whether a new database lookup occurred.
+func LookupCity(ctx context.Context, info *IPInfo) (city *City, ok bool)
 ```
 
 ## Usage
@@ -142,10 +143,11 @@ ipInfo := &maxmind.IPInfo{
 city, ok := maxmind.LookupCity(parent.Context(), ipInfo)
 if ok {
     fmt.Printf("Country: %s\n", city.Country.IsoCode)
-    fmt.Printf("City: %s\n", city.Name)
-    fmt.Printf("Timezone: %s\n", city.Location.TimeZone)
 }
 ```
+
+Despite the API's name, the downloaded Country databases populate country
+information only; `city.Location.TimeZone` is empty.
 
 Every runtime owns its MaxMind reader and lookup cache. Removing MaxMind from a
 new configuration therefore yields no instance in the new context instead of

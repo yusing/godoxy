@@ -159,6 +159,13 @@ sequenceDiagram
 | TimeZone | `tz:timezone`     | `tz:Asia/Shanghai`    |
 | Country  | `country:ISOCode` | `country:GB`          |
 
+Geographic rules require a configured, successfully loaded MaxMind provider.
+Multiple geographic rules reuse the same lookup result; a nonmatching rule does
+not prevent a later country or timezone rule from matching. Deny rules take
+precedence over allow rules, and the default applies only when neither matches.
+The downloaded Country databases support country codes, but do not provide the
+timezone data required by `tz:` rules.
+
 ## Configuration Surface
 
 ### Config sources

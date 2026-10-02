@@ -47,6 +47,30 @@ func TestLookupCityRealReturnsErrDBNotLoaded(t *testing.T) {
 	assert.Nil(t, city)
 }
 
+func TestLookupCityReusesResolvedInfo(t *testing.T) {
+	want := &City{}
+	want.Country.IsoCode = "BR"
+	calls := 0
+	instance := &MaxMind{}
+	instance.lookupCity = cache.NewKeyFunc(func(context.Context, string) (*City, error) {
+		calls++
+		return want, nil
+	}).Build()
+	parent := task.GetTestTask(t)
+	SetCtx(parent, instance)
+	info := &IPInfo{Str: "200.1.2.3"}
+
+	city, ok := LookupCity(parent.Context(), info)
+	require.True(t, ok)
+	require.Same(t, want, city)
+
+	// A resolved record is usable without another database or context lookup.
+	city, ok = LookupCity(t.Context(), info)
+	require.True(t, ok)
+	require.Same(t, want, city)
+	require.Equal(t, 1, calls)
+}
+
 func TestLogLookupCityErrorIncludesSuppressedCount(t *testing.T) {
 	oldLimiter := errLogRateLimiter
 	oldSuppressed := errLogSuppressedCounts

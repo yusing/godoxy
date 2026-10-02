@@ -69,3 +69,20 @@ func TestMatcherRejectsMalformedNonIPValues(t *testing.T) {
 		})
 	}
 }
+
+func TestGeographicMatchersReuseResolvedInfo(t *testing.T) {
+	city := &maxmind.City{}
+	city.Country.IsoCode = "BR"
+	city.Location.TimeZone = "America/Sao_Paulo"
+	for _, rules := range [][]string{
+		{"country:CN", "country:BR"},
+		{"tz:Asia/Shanghai", "country:BR"},
+		{"country:CN", "tz:America/Sao_Paulo"},
+	} {
+		matchers := mustMatchers(t, rules...)
+		info := &maxmind.IPInfo{City: city}
+		if got := matchers.MatchedIndex(t.Context(), info); got != 1 {
+			t.Errorf("MatchedIndex(%v) = %d, want 1", rules, got)
+		}
+	}
+}

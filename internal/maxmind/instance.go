@@ -42,9 +42,11 @@ func New(parent task.Parent, cfg *Config) (*MaxMind, error) {
 	return instance, nil
 }
 
+// LookupCity returns geographic information and whether it is available,
+// including information already resolved on ip.
 func LookupCity(ctx context.Context, ip *IPInfo) (*City, bool) {
 	if ip.City != nil {
-		return ip.City, false
+		return ip.City, true
 	}
 
 	instance := FromCtx(ctx)
