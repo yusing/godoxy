@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -42,9 +43,51 @@ func TestLookupCityPropagatesContext(t *testing.T) {
 func TestLookupCityRealReturnsErrDBNotLoaded(t *testing.T) {
 	cfg := &MaxMind{}
 
-	city, err := cfg.lookupCityReal("1.1.1.1")
-	require.ErrorIs(t, err, ErrDBNotLoaded)
-	assert.Nil(t, city)
+	for _, ip := range []string{"1.1.1.1", "not-an-ip", "fe80::1%eth0"} {
+		t.Run(ip, func(t *testing.T) {
+			city, err := cfg.lookupCityReal(ip)
+			require.ErrorIs(t, err, ErrDBNotLoaded)
+			assert.Nil(t, city)
+		})
+	}
+}
+
+func TestLookupCityRealDecodesDatabase(t *testing.T) {
+	// Authoritative fixture from maxmind/MaxMind-DB at
+	// 276926d23b4109ca5452709bfb5931c338afb34c, test-data/GeoIP2-City-Test.mmdb.
+	// Expected records come from source-data/GeoIP2-City-Test.json at that revision.
+	// Distributed under the accompanying Apache-2.0 or MIT licenses.
+	reader, err := maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reader.Close()) })
+	cfg := &MaxMind{}
+	cfg.db.Reader = reader
+
+	for _, tt := range []struct {
+		name, ip, country, timeZone string
+	}{
+		{"IPv4", "81.2.69.142", "GB", "Europe/London"},
+		{"IPv6", "2001:218::1", "JP", "Asia/Tokyo"},
+		{"IPv4-mapped", "::ffff:81.2.69.142", "GB", "Europe/London"},
+		{"missing IPv4", "192.0.2.1", "", ""},
+		{"missing IPv6", "2001:db8::1", "", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			city, err := cfg.lookupCityReal(tt.ip)
+			require.NoError(t, err)
+			require.NotNil(t, city)
+			assert.Equal(t, tt.country, city.Country.IsoCode)
+			assert.Equal(t, tt.timeZone, city.Location.TimeZone)
+		})
+	}
+
+	for _, ip := range []string{"", "not-an-ip", "999.1.1.1", "81.2.69.142:80", "[2001:218::1]", "fe80::1%eth0", "2001:218::1%eth0", "::ffff:81.2.69.142%eth0"} {
+		t.Run("invalid/"+ip, func(t *testing.T) {
+			city, err := cfg.lookupCityReal(ip)
+			require.ErrorIs(t, err, ErrInvalidIP)
+			assert.Nil(t, city)
+		})
+	}
 }
 
 func TestLookupCityReusesResolvedInfo(t *testing.T) {

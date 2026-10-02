@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/task"
@@ -66,8 +66,8 @@ func mockDataDir(t *testing.T) {
 func mockMaxMindDBOpen(t *testing.T) {
 	t.Helper()
 	oldMaxMindDBOpen := maxmindDBOpen
-	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
-		return &maxminddb.Reader{}, nil
+	maxmindDBOpen = func(path string, _ ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
+		return maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldMaxMindDBOpen })
 }
@@ -123,12 +123,12 @@ func Test_MaxMindConfig_loadMaxMindDBSchedulesUpdateAfterDownload(t *testing.T) 
 
 	oldMaxMindDBOpen := maxmindDBOpen
 	dbMissing := true
-	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
+	maxmindDBOpen = func(path string, _ ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
 		if dbMissing {
 			dbMissing = false
 			return nil, os.ErrNotExist
 		}
-		return &maxminddb.Reader{}, nil
+		return maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldMaxMindDBOpen })
 

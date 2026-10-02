@@ -295,10 +295,21 @@ type MaxMind struct {
 }
 
 // Lookups use RLock
-func (cfg *MaxMind) lookup(ip net.IP) (*maxminddb.City, error) {
+func (cfg *MaxMind) lookupCityReal(ipStr string) (*City, error) {
     cfg.db.RLock()
     defer cfg.db.RUnlock()
-    return cfg.db.Lookup(ip)
+    if cfg.db.Reader == nil {
+        return nil, ErrDBNotLoaded
+    }
+    ip, err := netip.ParseAddr(ipStr)
+    if err != nil || ip.Zone() != "" {
+        return nil, ErrInvalidIP
+    }
+    city := new(City)
+    if err := cfg.db.Lookup(ip).Decode(city); err != nil {
+        return nil, err
+    }
+    return city, nil
 }
 ```
 

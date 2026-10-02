@@ -2,7 +2,7 @@ package maxmind
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 )
 
 var ErrInvalidIP = errors.New("invalid IP address")
@@ -17,11 +17,11 @@ func (cfg *MaxMind) lookupCityReal(ipStr string) (*City, error) {
 	}
 
 	city := new(City)
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
+	ip, err := netip.ParseAddr(ipStr)
+	if err != nil || ip.Zone() != "" {
 		return nil, ErrInvalidIP
 	}
-	err := cfg.db.Lookup(ip, city)
+	err = cfg.db.Lookup(ip).Decode(city)
 	if err != nil {
 		return nil, err
 	}

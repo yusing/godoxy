@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/cache"

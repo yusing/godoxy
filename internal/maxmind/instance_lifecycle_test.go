@@ -9,7 +9,7 @@ import (
 	"time"
 	"weak"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/task"
@@ -84,7 +84,7 @@ func newFailedWeakMaxMindConfig(t *testing.T, parent task.Parent) weak.Pointer[C
 
 func TestNewMaxMindInitializationFailureDoesNotRetainRuntime(t *testing.T) {
 	oldOpen := maxmindDBOpen
-	maxmindDBOpen = func(string) (*maxminddb.Reader, error) {
+	maxmindDBOpen = func(string, ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
 		return nil, os.ErrPermission
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldOpen })
@@ -105,10 +105,10 @@ func TestNewMaxMindCancellationDuringInitializationDoesNotRetainRuntime(t *testi
 	resume := make(chan struct{})
 	var unblock sync.Once
 	oldOpen := maxmindDBOpen
-	maxmindDBOpen = func(string) (*maxminddb.Reader, error) {
+	maxmindDBOpen = func(string, ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
 		close(entered)
 		<-resume
-		return &maxminddb.Reader{}, nil
+		return maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldOpen })
 	parent := task.RootTask("maxmind_cancel_during_initialization", true)
