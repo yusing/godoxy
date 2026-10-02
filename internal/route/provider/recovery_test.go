@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,11 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/certs"
@@ -142,6 +145,10 @@ func TestProviderRecoversFailedListWithoutDockerEvents(t *testing.T) {
 
 func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	t.Chdir(t.TempDir())
+	var logs bytes.Buffer
+	oldLogger := log.Logger
+	log.Logger = zerolog.New(zerolog.SyncWriter(&logs))
+	t.Cleanup(func() { log.Logger = oldLogger })
 	ca, serverPair, clientPair, err := agent.NewAgent()
 	require.NoError(t, err)
 	serverCert, err := serverPair.ToTLSCert()
@@ -184,20 +191,40 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	impl := &recoveryTestImpl{logger: zerolog.Nop()}
 	impl.available.Store(true)
 	p.ProviderImpl.(*AgentProvider).docker = impl
-	w := &recoveryTestWatcher{available: &impl.available}
+	var watcherAvailable atomic.Bool
+	w := &recoveryTestWatcher{available: &watcherAvailable}
 	p.watcher = w
 	runtimeTask := newRecoveryRuntime(t)
 	pool := agentpool.NewPool()
 	agentpool.SetCtx(runtimeTask, pool)
+	registryKey := p.String()
+	readerCtx, stopReaders := context.WithCancel(t.Context())
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for readerCtx.Err() == nil {
+				_ = p.ShortName()
+				_ = p.String()
+				_ = p.Logger().GetLevel()
+				_ = configured.Name
+			}
+		})
+	}
+	t.Cleanup(func() {
+		stopReaders()
+		readers.Wait()
+	})
 
 	require.Error(t, p.LoadRoutes(runtimeTask.Context()), "initialization requires the missing certificate archive")
 	require.False(t, pool.Has(configured))
+	require.Empty(t, p.ShortName(), "failed initialization must not publish metadata")
 	activation := p.Activate(runtimeTask)
 	require.True(t, activation.EventLoopReady)
 
 	archive, err := certs.ZipCert(ca.Cert, clientPair.Cert, clientPair.Key)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(certFile, archive, 0o600))
+	watcherAvailable.Store(true)
 	waitForRecoveredRoute(t, p)
 	_, routed := entrypoint.FromCtx(runtimeTask.Context()).HTTPRoutes().Get("recovered")
 	require.True(t, routed, "recovered route must be registered for HTTP traffic")
@@ -205,6 +232,24 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, addr, initialized.Addr)
 	require.Empty(t, configured.Name, "registry config should remain unmodified")
+	require.Equal(t, "recovered-agent", p.ShortName())
+	require.Equal(t, registryKey, p.String(), "provider registry key must remain stable")
+	recovered, ok := p.lockGetRoute("recovered")
+	require.True(t, ok)
+	require.Equal(t, "recovered-agent", recovered.Provider)
+	require.Eventually(t, func() bool { return w.calls.Load() >= 2 }, time.Second, 10*time.Millisecond)
+	runtimeTask.FinishAndWait(nil)
+	stopReaders()
+	readers.Wait()
+	var recoveryLog string
+	for line := range strings.SplitSeq(logs.String(), "\n") {
+		if strings.Contains(line, `"message":"provider watcher recovered"`) {
+			recoveryLog = line
+			break
+		}
+	}
+	require.NotEmpty(t, recoveryLog)
+	require.Contains(t, recoveryLog, `"name":"recovered-agent"`)
 }
 
 func TestProviderRecoveryStopsAfterCancellation(t *testing.T) {
@@ -222,4 +267,36 @@ func TestProviderRecoveryStopsAfterCancellation(t *testing.T) {
 	require.False(t, waitProviderRetry(runtimeTask.Context(), 3*time.Second))
 	require.Equal(t, loads, impl.loads.Load())
 	require.Equal(t, watches, w.calls.Load())
+}
+
+func TestAgentProviderPublishesPooledIdentityBeforeRouteListing(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		configured string
+		pooled     string
+	}{
+		{name: "recovered", pooled: "recovered-agent"},
+		{name: "already initialized", configured: "healthy-agent", pooled: "healthy-agent"},
+		{name: "partial discovery", configured: "stale-agent", pooled: "current-agent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			configured := &agent.AgentConfig{Addr: "agent.test:8890", AgentInfo: agent.AgentInfo{Name: tc.configured}}
+			p := NewAgentProvider(configured)
+			impl := p.ProviderImpl.(*AgentProvider)
+			impl.docker = &recoveryTestImpl{logger: zerolog.Nop()}
+			require.Equal(t, tc.configured, p.ShortName())
+			_, err := impl.loadRoutesImpl(t.Context())
+			require.EqualError(t, err, "agent pool not initialized")
+			require.Equal(t, tc.configured, p.ShortName())
+
+			pool := agentpool.NewPool()
+			pool.Add(&agent.AgentConfig{Addr: configured.Addr, AgentInfo: agent.AgentInfo{Name: tc.pooled}})
+			runtimeTask := task.GetTestTask(t)
+			agentpool.SetCtx(runtimeTask, pool)
+			_, err = impl.loadRoutesImpl(runtimeTask.Context())
+			require.EqualError(t, err, "daemon list unavailable")
+			require.Equal(t, tc.pooled, p.ShortName(), "agent discovery is published even if Docker listing fails")
+			require.Equal(t, tc.configured, configured.Name, "registered config stays immutable")
+		})
+	}
 }

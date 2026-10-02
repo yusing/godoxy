@@ -315,10 +315,11 @@ task cancellation removes its event queue and all active routes.
 Docker and agent infrastructure failures retry without requiring Docker events or
 another config reload. Startup retries back off from 3 seconds to a maximum of
 30 seconds. A failed agent is initialized into the owning runtime's agent pool
-before its Docker routes and watcher are retried. Initial container-list failures
-are retried even when the ping succeeds; later failed lists retain known-good
-routes and retry through the same force-reload handler. Invalid route definitions
-are not treated as endpoint outages.
+before its Docker routes and watcher are retried. Its discovered name then appears
+in provider logs, route metadata, and provider statistics without a config reload.
+Initial container-list failures are retried even when the ping succeeds; later
+failed lists retain known-good routes and retry through the same force-reload
+handler. Invalid route definitions are not treated as endpoint outages.
 
 An active recovery/event loop with infrastructure errors reports degraded rather
 than permanently failed. Activation reports are snapshots of the initial attempt,
