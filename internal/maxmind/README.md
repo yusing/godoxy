@@ -12,6 +12,7 @@ The maxmind package implements MaxMind GeoIP database management, providing coun
 - Automatic database downloading from MaxMind
 - Scheduled updates every 24 hours
 - Geographic lookup with cache support through the `LookupCity` API
+- Runtime-owned cache registration, released when its parent task is cancelled
 - IP geolocation (country ISO code, city, and timezone with City databases)
 - Thread-safe access
 

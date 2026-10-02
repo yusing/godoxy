@@ -33,12 +33,15 @@ func warnNotConfigured(ctx context.Context) {
 
 func New(parent task.Parent, cfg *Config) (*MaxMind, error) {
 	instance := &MaxMind{Config: cfg}
-	instance.lookupCity = cache.NewKeyFunc(func(_ context.Context, ip string) (*City, error) {
-		return instance.lookupCityReal(ip)
-	}).WithMaxEntries(1000).Build()
 	if err := instance.LoadMaxMindDB(parent); err != nil {
 		return nil, err
 	}
+	lookup, release := cache.NewKeyFunc(func(_ context.Context, ip string) (*City, error) {
+		return instance.lookupCityReal(ip)
+	}).WithMaxEntries(1000).BuildWithRelease()
+	instance.lookupCity = lookup
+	// Initialization may finish after the parent has already cancelled.
+	context.AfterFunc(parent.Context(), release)
 	return instance, nil
 }
 
