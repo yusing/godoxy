@@ -81,7 +81,7 @@ func GetAddrEnv(key, defaultValue, scheme string) (addr, host string, portInt in
 	if err != nil {
 		log.Panicf("env %s: invalid address", key)
 	}
-	fullURL = fmt.Sprintf("%s://%s:%s", scheme, host, port)
+	fullURL = fmt.Sprintf("%s://%s", scheme, net.JoinHostPort(host, port))
 	portInt, err = strconv.Atoi(port)
 	if err != nil {
 		log.Panicf("env %s: invalid port", key)
