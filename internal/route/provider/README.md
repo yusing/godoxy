@@ -326,6 +326,12 @@ than permanently failed. Activation reports are snapshots of the initial attempt
 not live health reports; recovery logs and the route inventory show later results.
 Cancellation interrupts retries and prevents them from attaching to a new runtime.
 
+File provider reloads apply valid routes even when other aliases fail validation.
+During an errored reload, previously loaded aliases missing from the partial result
+are retained because the load cannot establish that they were deleted. A clean
+reload removes aliases absent from the file; a clean empty reload removes all file
+routes. Load errors remain reported.
+
 All loading and validation receives the owning state context. Agent pools,
 Proxmox nodes, MaxMind, notifications, events, entrypoint state, and candidate
 defaults are therefore selected from the correct runtime rather than a global

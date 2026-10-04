@@ -40,7 +40,10 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 		newr, ok := newRoutes[k]
 		switch {
 		case !ok:
-			handler.Remove(oldr)
+			// An incomplete load cannot prove that an absent route was deleted.
+			if err == nil {
+				handler.Remove(oldr)
+			}
 		case handler.shouldUpdateRoute(forceReload, events, newr):
 			handler.Update(parent, oldr, newr)
 		}
