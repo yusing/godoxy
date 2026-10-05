@@ -21,8 +21,8 @@ func TestNotifyTransitions(t *testing.T) {
 			w := newTestWatcher(t)
 			w.cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify", "ntfy"}}
 			w.cfg.IdleTimeout = 30 * time.Minute
-			var sent []*notif.LogMessage
-			w.notify = func(msg *notif.LogMessage) { sent = append(sent, msg) }
+			sink := make(notifySink, 3)
+			notif.SetCtx(w.task, sink)
 
 			// Initial status stores stay silent, and redundant provider events
 			// must not report transitions that happened before startup.
@@ -32,7 +32,7 @@ func TestNotifyTransitions(t *testing.T) {
 			} else {
 				w.setNapping(status)
 			}
-			require.Empty(t, sent)
+			require.Empty(t, sink)
 
 			w.setStarting()
 			w.sendEvent(WakeEventWaitingReady, "waiting", nil)
@@ -43,10 +43,11 @@ func TestNotifyTransitions(t *testing.T) {
 			w.setNapping(idlewatcher.ContainerStatusStopped)
 			w.setStarting()
 			if status != idlewatcher.ContainerStatusRunning {
-				require.Contains(t, sent[0].Title, "is waking up")
-				sent = sent[1:]
+				require.Len(t, sink, 3)
+				require.Contains(t, (<-sink).Title, "is waking up")
 			}
-			require.Len(t, sent, 2)
+			require.Len(t, sink, 2)
+			sent := []*notif.LogMessage{<-sink, <-sink}
 			require.Contains(t, sent[0].Title, w.cfg.ContainerName()+" was paused")
 			require.Contains(t, sent[1].Title, "is waking up")
 			require.Equal(t, w.cfg.Notify.To, sent[0].To)
@@ -64,7 +65,7 @@ func TestNotifyTransitions(t *testing.T) {
 
 			// Reload and teardown stores are silent as well.
 			w.storeState(&containerState{status: idlewatcher.ContainerStatusStopped})
-			require.Len(t, sent, 2)
+			require.Empty(t, sink)
 		})
 	}
 }
@@ -87,20 +88,20 @@ func TestNotifyOptIn(t *testing.T) {
 			if tc.dependency {
 				w.cfg.IdleTimeout = neverTick
 			}
-			var sent []*notif.LogMessage
-			w.notify = func(msg *notif.LogMessage) { sent = append(sent, msg) }
+			sink := make(notifySink, 1)
+			notif.SetCtx(w.task, sink)
 			w.storeState(&containerState{status: idlewatcher.ContainerStatusRunning})
 			w.setNapping(idlewatcher.ContainerStatusStopped)
-			require.Len(t, sent, tc.want)
+			require.Len(t, sink, tc.want)
 			if tc.want > 0 {
-				require.Contains(t, sent[0].Title, "went to sleep")
-				require.Empty(t, sent[0].To)
+				msg := <-sink
+				require.Contains(t, msg.Title, "went to sleep")
+				require.Empty(t, msg.To)
 			}
 		})
 	}
 }
 
-// A channel sink also checks the constructor's runtime notifier binding.
 type notifySink chan *notif.LogMessage
 
 func (s notifySink) Notify(msg *notif.LogMessage) { s <- msg }
@@ -108,12 +109,13 @@ func (s notifySink) Notify(msg *notif.LogMessage) { s <- msg }
 func TestNewWatcherNotifyReload(t *testing.T) {
 	_, parent, mainRoute, _ := newDependencyReloadTest(t, "notify-fixture", nil)
 	sink := make(notifySink, 2)
-	notif.SetCtx(parent, sink)
 	cfg := idlewatcherTestConfig("notify", nil)
 	cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
 	r := newIdlewatcherTestRoute("notify-route", mainRoute.provider, cfg)
 	w, err := NewWatcher(parent, r, cfg)
 	require.NoError(t, err)
+	// Notifiers added after construction are resolved from the task context.
+	notif.SetCtx(parent, sink)
 	require.Empty(t, sink)
 	w.setStarting()
 	require.Len(t, sink, 1)
@@ -121,13 +123,16 @@ func TestNewWatcherNotifyReload(t *testing.T) {
 	require.Contains(t, msg.Title, "notify-route is waking up")
 	require.Equal(t, []string{"gotify"}, msg.To)
 
+	replacement := make(notifySink, 1)
+	notif.SetCtx(w.task, replacement)
 	cfg = idlewatcherTestConfig("notify", nil)
 	cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}
 	reloaded, err := NewWatcher(parent, r, cfg)
 	require.NoError(t, err)
 	require.Same(t, w, reloaded)
-	require.Empty(t, sink, "reloading the observed container state is silent")
+	require.Empty(t, replacement, "reloading the observed container state is silent")
 	w.setStarting()
-	require.Len(t, sink, 1)
-	require.Equal(t, []string{"ntfy"}, (<-sink).To)
+	require.Len(t, replacement, 1)
+	require.Equal(t, []string{"ntfy"}, (<-replacement).To)
+	require.Empty(t, sink, "the previous notifier is no longer used")
 }

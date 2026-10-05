@@ -11,7 +11,7 @@ import (
 
 // notifyTransition reports sleep/wake edges observed by the state setters.
 func (w *Watcher) notifyTransition(status idlewatcher.ContainerStatus) {
-	if w.notify == nil || w.cfg.IdleTimeout == neverTick || !w.cfg.Notify.Wants() {
+	if w.cfg.IdleTimeout == neverTick || !w.cfg.Notify.Wants() {
 		return
 	}
 	name := w.cfg.ContainerName()
@@ -37,7 +37,7 @@ func (w *Watcher) notifyTransition(status idlewatcher.ContainerStatus) {
 		fields.Add("Idle Timeout", strutils.FormatDuration(w.cfg.IdleTimeout))
 	}
 
-	w.notify(&notif.LogMessage{
+	notif.FromCtx(w.task.Context()).Notify(&notif.LogMessage{
 		Level: zerolog.InfoLevel,
 		Title: title,
 		Body:  fields,

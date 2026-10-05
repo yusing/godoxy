@@ -22,7 +22,6 @@ import (
 	"github.com/yusing/godoxy/internal/idlewatcher/provider"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
-	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/routing"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
 	gperr "github.com/yusing/goutils/errs"
@@ -75,8 +74,6 @@ type (
 		events         *gevents.History
 		eventsMu       sync.Mutex
 		lastIdleAction synk.Value[string]
-
-		notify notif.NotifyFunc
 
 		dependenciesMu    sync.RWMutex
 		dependsOn         []*dependency
@@ -155,7 +152,6 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 			stateChangedCh: make(chan struct{}),
 			events:         gevents.NewHistory(),
 			cfg:            cfg,
-			notify:         notif.FromCtx(parent.Context()).Notify,
 			hc:             monitor.NewMonitor(r),
 			dependsOn:      make([]*dependency, 0, len(cfg.DependsOn)),
 		}
