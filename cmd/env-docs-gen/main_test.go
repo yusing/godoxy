@@ -26,6 +26,13 @@ func TestRenderIndependentOfEnvironment(t *testing.T) {
 
 func TestRenderRegistryDefaultsAndDeploymentExamples(t *testing.T) {
 	example, wiki := render()
+	for _, line := range strings.Split(string(example), "\n") {
+		if line != "" && !strings.HasPrefix(line, "#") {
+			if _, _, ok := strings.Cut(line, "="); !ok {
+				t.Errorf("uncommented line is not an environment assignment: %q", line)
+			}
+		}
+	}
 	for _, d := range godoxy.Definitions() {
 		name := "GODOXY_" + d.Name
 		if d.Compose {
