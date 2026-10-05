@@ -101,7 +101,7 @@ func renderTypes(names []string) ([]byte, error) {
 	var b strings.Builder
 	b.Write(renderType(names))
 	fmt.Fprintln(&b, "import type { AutocertConfigBase, LocalOptions, CustomOptions } from './autocert'")
-	fmt.Fprintln(&b, "\n/** Go duration, for example 30s or 1m30s. */\nexport type ProviderDuration = string")
+	fmt.Fprintln(&b, "\n// Go duration, for example 30s or 1m30s.\nexport type ProviderDuration = string")
 	var variants []string
 	for _, name := range names {
 		if name == autocert.ProviderLocal || name == autocert.ProviderCustom {
