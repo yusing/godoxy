@@ -2268,6 +2268,26 @@ paths:
       tags:
       - cert
       x-id: info
+  /cert/providers:
+    get:
+      description: List available DNS certificate provider IDs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "403":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: List certificate providers
+      tags:
+      - cert
+      x-id: providers
   /cert/renew:
     get:
       description: Renew cert

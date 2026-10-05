@@ -343,6 +343,37 @@
         "operationId": "info"
       }
     },
+    "/cert/providers": {
+      "get": {
+        "description": "List available DNS certificate provider IDs",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "cert"
+        ],
+        "summary": "List certificate providers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "providers",
+        "operationId": "providers"
+      }
+    },
     "/cert/renew": {
       "get": {
         "description": "Renew cert",

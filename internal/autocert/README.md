@@ -210,39 +210,49 @@ root:
 
 ### Provider Types
 
-| Type           | Description                  | Use Case                  |
-| -------------- | ---------------------------- | ------------------------- |
-| `local`        | No ACME, use existing cert   | Pre-existing certificates |
-| `pseudo`       | Mock provider for testing    | Development               |
-| ACME providers | Let's Encrypt, ZeroSSL, etc. | Production                |
+| Type            | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `local`         | Load an existing certificate and key            |
+| `custom`        | Use an ACME CA selected by `ca_dir_url`          |
+| DNS provider ID | Issue and renew certificates through DNS-01      |
+| `pseudo`        | Internal test provider; not for user config      |
 
-### Supported DNS Providers
+### Bundled DNS Provider IDs
 
-| Provider     | Name           | Required Options                    |
-| ------------ | -------------- | ----------------------------------- |
-| Cloudflare   | `cloudflare`   | `CF_API_TOKEN`                      |
-| Route 53     | `route53`      | AWS credentials                     |
-| DigitalOcean | `digitalocean` | `DO_API_TOKEN`                      |
-| GoDaddy      | `godaddy`      | `GD_API_KEY`, `GD_API_SECRET`       |
-| OVH          | `ovh`          | `OVH_ENDPOINT`, `OVH_APP_KEY`, etc. |
-| CloudDNS     | `clouddns`     | GCP credentials                     |
-| AzureDNS     | `azuredns`     | Azure credentials                   |
-| deSEC        | `desec`        | `DESEC_TOKEN`                      |
-| DuckDNS      | `duckdns`      | `DUCKDNS_TOKEN`                     |
+GoDoxy bundles these 30 Lego DNS providers:
+`acmedns`, `azuredns`, `cloudflare`, `cloudns`, `clouddns`, `desec`,
+`digitalocean`, `dnsupdate`, `duckdns`, `edgedns`, `gcloud`, `godaddy`,
+`hetzner`, `hostinger`, `httpreq`, `infomaniak`, `inwx`, `ionos`, `linode`,
+`namecheap`, `netcup`, `netlify`, `oraclecloud`, `ovh`, `porkbun`, `scaleway`,
+`spaceship`, `timewebcloud`, `vercel`, and `vultr`. `rfc2136` is also accepted
+as an alias for `dnsupdate`.
+
+The WebUI's searchable certificate-provider picker reads the runtime catalogue;
+all listed IDs appear alongside `local` and `custom`.
+
+Provider option requirements depend on the bundled provider. GoDoxy passes the
+provider's default config when `options` is omitted; include fields in
+`options` when that provider requires them. YAML values may reference GoDoxy
+environment variables with `${VAR}`. Option names follow the matching Lego
+provider config. `ca_dir_url`, `ca_certs`, `eab_kid`, and `eab_hmac` are common
+ACME settings. DNS providers use Lego's default CA unless `ca_dir_url` is set;
+`custom` requires that field. See the [DNS-01 provider guide](../../webui/wiki/content/docs/godoxy/getting-started/DNS-01-Providers.mdx)
+for the user-facing setup details.
 
 ### Example Configuration
 
 ```yaml
 autocert:
-  provider: cloudflare
+  provider: spaceship
   email: admin@example.com
   domains:
     - example.com
     - "*.example.com"
+  options:
+    api_key: ${SPACESHIP_API_KEY}
+    api_secret: ${SPACESHIP_API_SECRET}
   # Optional: RSA leaf certs for clients without ECDSA support (e.g. some embedded MQTT stacks)
   # certificate_key_type: RSA2048
-  options:
-    auth_token: ${CF_API_TOKEN}
   resolvers:
     - 1.1.1.1:53
 ```

@@ -127,6 +127,7 @@ func NewHandler(requireAuth bool) *gin.Engine {
 		cert := v1.Group("/cert")
 		{
 			cert.GET("/info", certApi.Info)
+			cert.GET("/providers", certApi.Providers)
 			cert.GET("/renew", certApi.Renew)
 		}
 

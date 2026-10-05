@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/auth"
+	autocertcore "github.com/yusing/godoxy/internal/autocert"
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/goutils/task"
@@ -179,6 +180,35 @@ func TestCertRenewRejectsCrossOriginWebSocketRequest(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 	assert.Zero(t, provider.forceExpiryCalls)
+}
+
+func TestCertProvidersRouteReturnsAuthenticatedSortedCatalog(t *testing.T) {
+	previousProviders := autocertcore.Providers
+	autocertcore.Providers = map[string]autocertcore.Generator{
+		"spaceship":                 nil,
+		"rfc2136":                   nil,
+		"dnsupdate":                 nil,
+		autocertcore.ProviderLocal:  nil,
+		autocertcore.ProviderPseudo: nil,
+	}
+	t.Cleanup(func() { autocertcore.Providers = previousProviders })
+	handler := newAuthenticatedHandler(t)
+
+	unauthenticated := httptest.NewRecorder()
+	handler.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/api/v1/cert/providers", nil))
+	assert.Equal(t, http.StatusUnauthorized, unauthenticated.Code)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/cert/providers", nil)
+	request.Host = "app.example.com"
+	request.AddCookie(&http.Cookie{Name: "godoxy_token", Value: issueSessionToken(t)})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var providers []string
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &providers))
+
+	require.Equal(t, []string{"custom", "dnsupdate", "local", "rfc2136", "spaceship"}, providers)
 }
 
 func newAuthenticatedHandler(t *testing.T) *gin.Engine {
