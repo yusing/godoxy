@@ -4,6 +4,21 @@ on:
   pull_request:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/autocert-providers-contract.yml"
+      - ".gitmodules"
+      - "go.mod"
+      - "go.sum"
+      - "goutils"
+      - "cmd/autocert-providers-gen/**"
+      - "internal/autocert/**"
+      - "internal/dnsproviders/**"
+      - "internal/common/**"
+      - "internal/env/**"
+      - "internal/notif/**"
+      - "internal/serialization/**"
+      # Root pushes record frontend and wiki changes as a submodule update.
+      - "webui"
 
 permissions:
   contents: read

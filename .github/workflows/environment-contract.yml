@@ -4,6 +4,17 @@ on:
   pull_request:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/environment-contract.yml"
+      - ".gitmodules"
+      - "go.mod"
+      - "go.sum"
+      - "cmd/env-docs-gen/**"
+      - "internal/env/**"
+      - ".env.example"
+      - "compose.example.yml"
+      # Root pushes record generated wiki changes as a submodule update.
+      - "webui"
 
 permissions:
   contents: read
