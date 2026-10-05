@@ -117,11 +117,10 @@ defaults:
   # idlewatcher:
   #   # notify on sleep/wake through the providers under `providers.notification`
   #   notify:
-  #     # opt every idle route in. omit this and naming providers in `to` is
-  #     # enough to opt in. a route sets `idlewatcher.notify.enabled: false`
-  #     # (or the label `proxy.idle_notify: false`) to opt back out.
-  #     enabled: true
-  #     # names under `providers.notification`; omit to send to all of them
+  #     # names under `providers.notification`; use notify: {} to send to all
+  #     # current providers. routes inherit these targets when `to` is omitted.
+  #     # a route sets `idlewatcher.notify.to: []` (or the Docker label
+  #     # `proxy.idle_notify_to: ""`) to opt out, overriding these defaults.
   #     to: [gotify, ntfy]
 
 providers:

@@ -105,7 +105,6 @@ example: # matching `example.y.z`
       - other-service
     no_loading_page: false
     notify:
-      enabled: true
       to:
         - gotify
     docker:

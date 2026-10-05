@@ -73,15 +73,15 @@ func (s notifyDefaultsState) Value() *config.Config { return &s.cfg }
 func TestFinalizeIdlewatcherNotify(t *testing.T) {
 	for _, tc := range []struct {
 		name                    string
-		notify                  idlewatcher.IdlewatcherNotifyConfig
+		notify                  *idlewatcher.IdlewatcherNotifyConfig
 		global, noWatcher, want bool
 		to                      []string
 	}{
 		{name: "non-idle route", global: true, noWatcher: true},
 		{name: "off by default"},
-		{name: "route opt in", notify: idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}, want: true, to: []string{"ntfy"}},
+		{name: "route opt in", notify: &idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}, want: true, to: []string{"ntfy"}},
 		{name: "inherit globals", global: true, want: true, to: []string{"gotify"}},
-		{name: "route opts out", global: true, notify: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(false)}, to: []string{"gotify"}},
+		{name: "route opts out", global: true, notify: &idlewatcher.IdlewatcherNotifyConfig{To: []string{}}, to: []string{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &route.Route{Alias: "app", Host: "10.0.0.5", Port: route.Port{Proxy: 8080}}
@@ -93,7 +93,7 @@ func TestFinalizeIdlewatcherNotify(t *testing.T) {
 			if tc.global {
 				parent := task.GetTestTask(t)
 				state := notifyDefaultsState{}
-				state.cfg.Defaults.Idlewatcher.Notify = idlewatcher.IdlewatcherNotifyConfig{Enabled: new(true), To: []string{"gotify"}}
+				state.cfg.Defaults.Idlewatcher.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
 				config.SetCtx(parent, state)
 				ctx = parent.Context()
 			}
@@ -102,7 +102,9 @@ func TestFinalizeIdlewatcherNotify(t *testing.T) {
 				require.Nil(t, r.Idlewatcher)
 			} else {
 				require.Equal(t, tc.want, r.Idlewatcher.Notify.Wants())
-				require.Equal(t, tc.to, r.Idlewatcher.Notify.To)
+				if r.Idlewatcher.Notify != nil {
+					require.Equal(t, tc.to, r.Idlewatcher.Notify.To)
+				}
 			}
 		})
 	}

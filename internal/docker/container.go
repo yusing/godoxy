@@ -301,27 +301,26 @@ func setPrivateHostname(c *Container, helper containerHelper) {
 func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 	hasIdleTimeout := false
 	cfg := make(map[string]any, len(idlewatcherLabels))
-	notify := make(map[string]any, 2)
 	for lbl, key := range idlewatcherLabels {
 		value := helper.getDeleteLabel(lbl)
 		if value == "" {
 			continue
 		}
+		cfg[key] = value
 		switch lbl {
-		case LabelIdleNotify, LabelIdleNotifyTo:
-			notify[key] = value
-			continue
 		case LabelIdleTimeout:
 			hasIdleTimeout = true
 		case LabelDependsOn:
 			cfg[key] = Dependencies(c)
-			continue
 		}
-		cfg[key] = value
 	}
 
-	if len(notify) > 0 {
-		cfg["notify"] = notify
+	if _, present := helper.Labels[LabelIdleNotifyTo]; present {
+		to := any(helper.getDeleteLabel(LabelIdleNotifyTo))
+		if to == "" {
+			to = []string{}
+		}
+		cfg["notify"] = map[string]any{"to": to}
 	}
 
 	// set only if idlewatcher is enabled

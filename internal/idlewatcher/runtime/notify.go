@@ -2,38 +2,32 @@ package runtime
 
 import "slices"
 
-// IdlewatcherNotifyConfig opts a route's idlewatcher into sleep/wake
-// notifications. The zero value is disabled.
+// IdlewatcherNotifyConfig selects sleep/wake notification providers.
+// Omitted targets inherit defaults or use all providers at send time; [] disables.
 type IdlewatcherNotifyConfig struct {
-	// Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,
-	// then falls back to len(To) > 0.
-	Enabled *bool `json:"enabled,omitzero"`
-	// `providers.notification` names to send to. Empty means all of them.
-	To []string `json:"to,omitempty"`
+	To []string `json:"to,omitzero" extensions:"x-omitempty"`
 } // @name IdlewatcherNotifyConfig
 
-// IdlewatcherDefaults holds the `defaults.idlewatcher` section. It is
-// deliberately narrow: a global idle_timeout would silently satisfy
-// Route.UseIdleWatcher for every container-backed route.
+// IdlewatcherDefaults cannot set timeouts, which would enable idlewatchers.
 type IdlewatcherDefaults struct {
-	Notify IdlewatcherNotifyConfig `json:"notify"`
+	Notify *IdlewatcherNotifyConfig `json:"notify,omitzero"`
 } // @name IdlewatcherDefaults
 
-// ApplyDefaults fills unset fields from `defaults.idlewatcher.notify`. It is
-// idempotent.
-func (c *IdlewatcherNotifyConfig) ApplyDefaults(defaults IdlewatcherNotifyConfig) {
-	if c.Enabled == nil {
-		c.Enabled = defaults.Enabled
+// ApplyDefaults resolves static targets without capturing the provider list.
+func (c *IdlewatcherNotifyConfig) ApplyDefaults(defaults *IdlewatcherNotifyConfig) *IdlewatcherNotifyConfig {
+	if c == nil {
+		c = defaults
 	}
-	if len(c.To) == 0 {
-		c.To = slices.Clone(defaults.To)
+	if c == nil {
+		return nil
 	}
+	to := c.To
+	if to == nil && defaults != nil {
+		to = defaults.To
+	}
+	return &IdlewatcherNotifyConfig{To: slices.Clone(to)}
 }
 
-// Wants reports whether sleep/wake notifications are enabled.
-func (c IdlewatcherNotifyConfig) Wants() bool {
-	if c.Enabled != nil {
-		return *c.Enabled
-	}
-	return len(c.To) > 0
+func (c *IdlewatcherNotifyConfig) Wants() bool {
+	return c != nil && (c.To == nil || len(c.To) > 0)
 }

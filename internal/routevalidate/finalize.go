@@ -120,7 +120,7 @@ func finalize(ctx context.Context, r *route.Route) {
 	// Only merge into an existing config: materializing r.Idlewatcher here would
 	// defeat `json:"idlewatcher,omitempty"` on every non-idle route.
 	if r.Idlewatcher != nil {
-		r.Idlewatcher.Notify.ApplyDefaults(defaults.Idlewatcher.Notify)
+		r.Idlewatcher.Notify = r.Idlewatcher.Notify.ApplyDefaults(defaults.Idlewatcher.Notify)
 	}
 
 	finalizeHomepageConfig(ctx, r)

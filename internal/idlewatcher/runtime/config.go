@@ -28,7 +28,7 @@ type (
 		// Notify opts this route into sleep/wake notifications. It lives on the
 		// base so it survives the config copy done on reload in
 		// idlewatcher.NewWatcher.
-		Notify IdlewatcherNotifyConfig `json:"notify"`
+		Notify *IdlewatcherNotifyConfig `json:"notify,omitzero" extensions:"x-omitempty"`
 	} // @name IdlewatcherConfigBase
 	IdlewatcherConfig struct {
 		IdlewatcherProviderConfig

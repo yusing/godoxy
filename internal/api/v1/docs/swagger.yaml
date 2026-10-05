@@ -617,6 +617,7 @@ definitions:
           Notify opts this route into sleep/wake notifications. It lives on the
           base so it survives the config copy done on reload in
           idlewatcher.NewWatcher.
+        x-omitempty: true
       proxmox:
         $ref: '#/definitions/IdlewatcherProxmoxNodeConfig'
       start_endpoint:
@@ -646,17 +647,11 @@ definitions:
     type: object
   IdlewatcherNotifyConfig:
     properties:
-      enabled:
-        description: |-
-          Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,
-          then falls back to len(To) > 0.
-        type: boolean
       to:
-        description: '`providers.notification` names to send to. Empty means all of
-          them.'
         items:
           type: string
         type: array
+        x-omitempty: true
     type: object
   IdlewatcherProxmoxNodeConfig:
     properties:
@@ -1933,11 +1928,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_15m:
+        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
-        type: string
-      load_avg_15m:
         type: string
       mem_pct:
         type: string

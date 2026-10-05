@@ -1,13 +1,60 @@
 package notif
 
 import (
+	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/goutils/task"
 )
+
+type recordingProvider struct {
+	ProviderBase
+	messages []*LogMessage
+}
+
+func (p *recordingProvider) MarshalMessage(msg *LogMessage) ([]byte, error) {
+	p.messages = append(p.messages, msg)
+	return nil, nil
+}
+
+type successfulNotificationTransport struct{}
+
+func (successfulNotificationTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusNoContent,
+		Body:       io.NopCloser(strings.NewReader("")),
+	}, nil
+}
+
+func TestDispatcherSelectsProvidersAtSendTime(t *testing.T) {
+	client := http.DefaultClient
+	http.DefaultClient = &http.Client{Transport: successfulNotificationTransport{}}
+	t.Cleanup(func() { http.DefaultClient = client })
+
+	disp := testDispatcher(t, task.GetTestTask(t), "notification", 0)
+	disp.providers = xsync.NewMap[Provider, struct{}]()
+	disp.retryMsg = xsync.NewMap[*RetryMessage, struct{}]()
+	initial := &recordingProvider{ProviderBase: ProviderBase{Name: "initial", URL: "http://initial.test"}}
+	disp.RegisterProvider(&NotificationConfig{Provider: initial})
+
+	broadcast := &LogMessage{Title: "broadcast"}
+	targeted := &LogMessage{Title: "targeted", To: []string{"initial"}}
+	later := &recordingProvider{ProviderBase: ProviderBase{Name: "later", URL: "http://later.test"}}
+	disp.RegisterProvider(&NotificationConfig{Provider: later})
+
+	disp.dispatch(broadcast)
+	disp.dispatch(targeted)
+
+	require.Equal(t, []*LogMessage{broadcast, targeted}, initial.messages)
+	require.Equal(t, []*LogMessage{broadcast}, later.messages)
+	require.Zero(t, disp.retryMsg.Size())
+}
 
 func testDispatcher(t *testing.T, parent *task.Task, name string, size int) *Dispatcher {
 	t.Helper()

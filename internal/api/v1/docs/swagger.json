@@ -4667,8 +4667,8 @@
               "$ref": "#/definitions/IdlewatcherNotifyConfig"
             }
           ],
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-omitempty": true,
+          "x-nullable": true
         },
         "proxmox": {
           "$ref": "#/definitions/IdlewatcherProxmoxNodeConfig",
@@ -4735,20 +4735,13 @@
     "IdlewatcherNotifyConfig": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "description": "Opt in or out explicitly. Unset inherits `defaults.idlewatcher.notify`,\nthen falls back to len(To) > 0.",
-          "type": "boolean",
-          "x-nullable": false,
-          "x-omitempty": false
-        },
         "to": {
-          "description": "`providers.notification` names to send to. Empty means all of them.",
           "type": "array",
           "items": {
             "type": "string"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-omitempty": true,
+          "x-nullable": true
         }
       },
       "x-nullable": false,

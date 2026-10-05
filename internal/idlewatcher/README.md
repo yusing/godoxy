@@ -197,7 +197,7 @@ type IdlewatcherConfigBase struct {
     DependsOn    []string               // Container dependencies
     StartEndpoint string                // Optional path restriction
     NoLoadingPage bool                  // Skip loading page
-    Notify       runtime.IdlewatcherNotifyConfig // Sleep/wake notifications
+    Notify       *runtime.IdlewatcherNotifyConfig // Sleep/wake notifications
 }
 ```
 
@@ -262,6 +262,12 @@ Every idlewatcher state change is published to the global event history used by 
 Sleep and wake transitions can additionally be sent through the providers
 configured under `providers.notification`. This is opt-in, per route or globally
 via `defaults.idlewatcher.notify`, and off by default. See `notify.go`.
+
+An absent `notify` block inherits the global block, if configured; otherwise it
+stays silent. `notify: {}` opts in and inherits global targets when `to` is
+omitted. If both omit targets, dispatch uses all current providers at send time.
+`notify: {to: []}` disables notifications and overrides global targets. A global
+empty target list also disables them, unless a route names its own providers.
 
 Three things are worth knowing before changing this:
 

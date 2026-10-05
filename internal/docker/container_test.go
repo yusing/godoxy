@@ -228,7 +228,6 @@ func TestIdlewatcherNotifyLabels(t *testing.T) {
 		labels     map[string]string
 		wantConfig bool
 		wantTo     []string
-		wantEnable *bool
 	}{
 		{
 			name:       "providers",
@@ -238,15 +237,9 @@ func TestIdlewatcherNotifyLabels(t *testing.T) {
 		},
 		{
 			name:       "explicit opt out",
-			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify": "false"},
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify_to": ""},
 			wantConfig: true,
-			wantEnable: ptrTo(false),
-		},
-		{
-			name:       "explicit opt in without providers",
-			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify": "true"},
-			wantConfig: true,
-			wantEnable: ptrTo(true),
+			wantTo:     []string{},
 		},
 		{
 			// The idlewatcher config is only built when proxy.idle_timeout is
@@ -266,7 +259,6 @@ func TestIdlewatcherNotifyLabels(t *testing.T) {
 			}
 			require.NotNil(t, c.IdlewatcherConfig)
 			require.Equal(t, tc.wantTo, c.IdlewatcherConfig.Notify.To)
-			require.Equal(t, tc.wantEnable, c.IdlewatcherConfig.Notify.Enabled)
 
 			// All idlewatcher labels are consumed, so none may leak into per-alias
 			// route field parsing.
@@ -276,5 +268,3 @@ func TestIdlewatcherNotifyLabels(t *testing.T) {
 		})
 	}
 }
-
-func ptrTo[T any](v T) *T { return &v }

@@ -19,7 +19,7 @@ func TestNotifyTransitions(t *testing.T) {
 	} {
 		t.Run(string(status), func(t *testing.T) {
 			w := newTestWatcher(t)
-			w.cfg.Notify.To = []string{"gotify", "ntfy"}
+			w.cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify", "ntfy"}}
 			w.cfg.IdleTimeout = 30 * time.Minute
 			var sent []*notif.LogMessage
 			w.notify = func(msg *notif.LogMessage) { sent = append(sent, msg) }
@@ -72,14 +72,14 @@ func TestNotifyTransitions(t *testing.T) {
 func TestNotifyOptIn(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
-		cfg        idlewatcher.IdlewatcherNotifyConfig
+		cfg        *idlewatcher.IdlewatcherNotifyConfig
 		dependency bool
 		want       int
 	}{
 		{name: "disabled by default"},
-		{name: "broadcast", cfg: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(true)}, want: 1},
-		{name: "opt out", cfg: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(false), To: []string{"gotify"}}},
-		{name: "dependency", cfg: idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}, dependency: true},
+		{name: "broadcast", cfg: &idlewatcher.IdlewatcherNotifyConfig{}, want: 1},
+		{name: "opt out", cfg: &idlewatcher.IdlewatcherNotifyConfig{To: []string{}}},
+		{name: "dependency", cfg: &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}, dependency: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w := newTestWatcher(t)
@@ -110,7 +110,7 @@ func TestNewWatcherNotifyReload(t *testing.T) {
 	sink := make(notifySink, 2)
 	notif.SetCtx(parent, sink)
 	cfg := idlewatcherTestConfig("notify", nil)
-	cfg.Notify.To = []string{"gotify"}
+	cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
 	r := newIdlewatcherTestRoute("notify-route", mainRoute.provider, cfg)
 	w, err := NewWatcher(parent, r, cfg)
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestNewWatcherNotifyReload(t *testing.T) {
 	require.Equal(t, []string{"gotify"}, msg.To)
 
 	cfg = idlewatcherTestConfig("notify", nil)
-	cfg.Notify.To = []string{"ntfy"}
+	cfg.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}
 	reloaded, err := NewWatcher(parent, r, cfg)
 	require.NoError(t, err)
 	require.Same(t, w, reloaded)
