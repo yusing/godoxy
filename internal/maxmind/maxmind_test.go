@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/task"
@@ -66,8 +66,8 @@ func mockDataDir(t *testing.T) {
 func mockMaxMindDBOpen(t *testing.T) {
 	t.Helper()
 	oldMaxMindDBOpen := maxmindDBOpen
-	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
-		return &maxminddb.Reader{}, nil
+	maxmindDBOpen = func(path string, _ ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
+		return maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldMaxMindDBOpen })
 }
@@ -123,12 +123,12 @@ func Test_MaxMindConfig_loadMaxMindDBSchedulesUpdateAfterDownload(t *testing.T) 
 
 	oldMaxMindDBOpen := maxmindDBOpen
 	dbMissing := true
-	maxmindDBOpen = func(path string) (*maxminddb.Reader, error) {
+	maxmindDBOpen = func(path string, _ ...maxminddb.ReaderOption) (*maxminddb.Reader, error) {
 		if dbMissing {
 			dbMissing = false
 			return nil, os.ErrNotExist
 		}
-		return &maxminddb.Reader{}, nil
+		return maxminddb.Open("testdata/GeoIP2-City-Test.mmdb")
 	}
 	t.Cleanup(func() { maxmindDBOpen = oldMaxMindDBOpen })
 
@@ -206,5 +206,44 @@ func Test_MaxMindConfig_loadMaxMindDB(t *testing.T) {
 	}
 	if cfg.db.Reader == nil {
 		t.Error("expected db instance")
+	}
+}
+
+func TestDatabaseEditionSelection(t *testing.T) {
+	previous := common.MaxMindCountryOnly
+	t.Cleanup(func() { common.MaxMindCountryOnly = previous })
+	for _, product := range []struct {
+		database maxmind.DatabaseType
+		name     string
+	}{
+		{maxmind.MaxMindGeoLite, "GeoLite2"}, {maxmind.MaxMindGeoIP2, "GeoIP2"},
+	} {
+		for _, countryOnly := range []bool{false, true} {
+			edition := product.name + "-City"
+			if countryOnly {
+				edition = product.name + "-Country"
+			}
+			t.Run(edition, func(t *testing.T) {
+				common.MaxMindCountryOnly = countryOnly
+				cfg := testCfg()
+				cfg.Database = product.database
+				wantURL := "https://download.maxmind.com/geoip/databases/" + edition + "/download?suffix=tar.gz"
+				if got := cfg.dbURL(); got != wantURL {
+					t.Fatalf("URL = %q, want %q", got, wantURL)
+				}
+				if got := cfg.dbFilename(); got != edition+".mmdb" {
+					t.Fatalf("filename = %q", got)
+				}
+				mockDataDir(t)
+				mockDoReq(t, cfg)
+				mockMaxMindDBOpen(t)
+				if err := cfg.download(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := os.Stat(cfg.dbPath()); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
 	}
 }

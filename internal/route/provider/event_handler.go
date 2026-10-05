@@ -40,7 +40,11 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 		newr, ok := newRoutes[k]
 		switch {
 		case !ok:
-			handler.Remove(oldr)
+			// A partial file load cannot distinguish invalid aliases from deletions.
+			// Docker listings can still confirm removals despite sibling errors.
+			if err == nil || handler.provider.GetType() != routing.ProviderTypeFile {
+				handler.Remove(oldr)
+			}
 		case handler.shouldUpdateRoute(forceReload, events, newr):
 			handler.Update(parent, oldr, newr)
 		}

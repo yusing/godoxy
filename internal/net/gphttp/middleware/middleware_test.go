@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -420,4 +421,39 @@ func TestMiddlewareResponseRewriteGateServeHTTPIgnoresUnsupportedBufferedFlush(t
 	expect.NoError(t, readErr)
 	expect.Equal(t, resp.StatusCode, http.StatusOK)
 	expect.Equal(t, string(data), "rewritten-body")
+}
+
+func TestMiddlewareMarshalJSON(t *testing.T) {
+	t.Run("flattens common and implementation options", func(t *testing.T) {
+		mid, err := ModifyRequest.New(OptionsRaw{
+			"bypass":      []string{"path /health"},
+			"set_headers": map[string]string{"X-Test": "1"},
+		})
+		require.NoError(t, err)
+
+		data, err := json.Marshal(mid)
+		require.NoError(t, err)
+
+		var got struct {
+			Name    string `json:"name"`
+			Options struct {
+				Priority   int               `json:"priority"`
+				Bypass     []string          `json:"bypass"`
+				SetHeaders map[string]string `json:"SetHeaders"`
+			} `json:"options"`
+		}
+		require.NoError(t, json.Unmarshal(data, &got))
+
+		require.Equal(t, "modifyRequest", got.Name)
+		require.Equal(t, []string{"path /health"}, got.Options.Bypass)
+		require.Equal(t, map[string]string{"X-Test": "1"}, got.Options.SetHeaders)
+	})
+
+	t.Run("omits options for an implementation that exposes none", func(t *testing.T) {
+		chain := NewMiddlewareChain("chain", nil)
+
+		data, err := json.Marshal(chain)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"name":"chain","options":{"priority":0,"bypass":[]}}`, string(data))
+	})
 }

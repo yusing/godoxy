@@ -23,6 +23,7 @@ import (
 	netutils "github.com/yusing/godoxy/internal/net"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/routing"
+	"golang.org/x/net/http2"
 	"golang.org/x/sys/unix"
 )
 
@@ -33,6 +34,7 @@ const clientHelloTimeout = 5 * time.Second
 type sniRouter struct {
 	ep        *Entrypoint
 	listeners *xsync.Map[string, *sniListener]
+	listenMu  sync.Mutex // serializes listener acquisition and route/startup ownership
 }
 
 type sniListener struct {
@@ -72,6 +74,8 @@ func newSNIRouter(ep *Entrypoint) *sniRouter {
 }
 
 func (r *sniRouter) AddRoute(route routing.StreamRoute) error {
+	r.listenMu.Lock()
+	defer r.listenMu.Unlock()
 	proxy, ok := route.Stream().(nettypes.ConnProxy)
 	if !ok {
 		return fmt.Errorf("route %q stream does not support accepted connection proxying", route.Name())
@@ -82,7 +86,7 @@ func (r *sniRouter) AddRoute(route routing.StreamRoute) error {
 		return fmt.Errorf("route %q tls_termination requires an autocert provider", route.Name())
 	}
 	addr := sniListenAddr(route)
-	listener, err := r.Listen(ctx, addr)
+	listener, _, err := r.listen(ctx, addr)
 	if err != nil {
 		return err
 	}
@@ -99,44 +103,46 @@ func (r *sniRouter) DelRoute(route routing.StreamRoute) {
 }
 
 func (r *sniRouter) Listen(ctx context.Context, addr string) (net.Listener, error) {
+	r.listenMu.Lock()
+	defer r.listenMu.Unlock()
+	listener, _, err := r.listen(ctx, addr)
+	return listener, err
+}
+
+// listen requires listenMu. created identifies ownership for failed startup cleanup.
+func (r *sniRouter) listen(ctx context.Context, addr string) (listener net.Listener, created bool, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
 	proxyProtocolPolicy, err := r.ep.ProxyProtocolPolicy()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	var listenErr error
-	listener, loaded := r.listeners.LoadOrCompute(addr, func() (*sniListener, bool) {
-		var lc net.ListenConfig
-		ln, err := lc.Listen(ctx, "tcp", addr)
-		if err != nil {
-			listenErr = err
-			return nil, true
-		}
-		if proxyProtocolPolicy.Enabled() {
-			ln = proxyProtocolPolicy.Wrap(ln)
-		}
-		if aclCfg := acl.FromCtx(r.ep.task.Context()); aclCfg != nil {
-			ln = aclCfg.WrapTCP(ln)
-		}
-		listener := &sniListener{
-			Listener: ln,
-			router:   r,
-			addr:     addr,
-		}
-		listener.routes.Store(&sniRouteTable{byKey: map[string]*sniRouteEntry{}})
-		listener.queue.init()
-		return listener, false
-	})
-	if listenErr != nil {
-		return nil, listenErr
+	if listener, ok := r.listeners.Load(addr); ok {
+		return listener, false, nil
 	}
-	if !loaded && listener == nil {
-		return nil, net.ErrClosed
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", addr)
+	if err != nil {
+		return nil, false, err
 	}
-	return listener, nil
+	if proxyProtocolPolicy.Enabled() {
+		ln = proxyProtocolPolicy.Wrap(ln)
+	}
+	if aclCfg := acl.FromCtx(r.ep.task.Context()); aclCfg != nil {
+		ln = aclCfg.WrapTCP(ln)
+	}
+	sniListener := &sniListener{Listener: ln, router: r, addr: addr}
+	sniListener.routes.Store(&sniRouteTable{byKey: map[string]*sniRouteEntry{}})
+	sniListener.queue.init()
+	r.listeners.Store(addr, sniListener)
+	return sniListener, true, nil
 }
 
 func (r *sniRouter) Close() error {
+	r.listenMu.Lock()
+	defer r.listenMu.Unlock()
 	var err error
 	for addr, listener := range r.listeners.AllRelaxed() {
 		err = errors.Join(err, listener.Close())
@@ -200,7 +206,7 @@ func (r *sniRouter) forwardHTTPS(listener *sniListener, conn net.Conn) {
 
 func (r *sniRouter) terminateTLS(ctx context.Context, conn net.Conn) (net.Conn, error) {
 	provider := autocert.FromCtx(r.ep.task.Context())
-	tlsConn := tls.Server(conn, &tls.Config{GetCertificate: provider.GetCert, MinVersion: tls.VersionTLS12})
+	tlsConn := tls.Server(conn, &tls.Config{GetCertificate: provider.GetCert, MinVersion: tls.VersionTLS12, NextProtos: []string{http2.NextProtoTLS, "http/1.1"}})
 	_ = conn.SetReadDeadline(time.Now().Add(clientHelloTimeout))
 	err := tlsConn.HandshakeContext(ctx)
 	_ = conn.SetReadDeadline(time.Time{})

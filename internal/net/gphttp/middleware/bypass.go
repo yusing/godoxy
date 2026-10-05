@@ -157,7 +157,7 @@ func getModReqCheckEnforceFuncs(modReq RequestModifier) (checks []checkReqFunc) 
 		return nil
 	}
 	if _, ok := modReq.(*oidcMiddleware); ok {
-		checks = append(checks, isOIDCAuthPath)
+		checks = append(checks, isOIDCReservedPath)
 	}
 	return checks
 }

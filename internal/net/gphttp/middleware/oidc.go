@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -35,8 +34,15 @@ type oidcMiddleware struct {
 
 var OIDC = NewMiddleware[oidcMiddleware]()
 
-func isOIDCAuthPath(r *http.Request) bool {
-	return strings.HasPrefix(r.URL.Path, auth.OIDCAuthBasePath)
+// isOIDCReservedPath reports whether the request targets a path the login flow
+// owns on every protected host. Those paths must reach the middleware even when
+// a bypass rule matches them, otherwise login can never complete.
+//
+// The reservation is limited to these exact paths. The rest of
+// [auth.OIDCAuthBasePath] stays bypassable so a route can expose its backend's
+// own /auth/* endpoints.
+func isOIDCReservedPath(r *http.Request) bool {
+	return r.URL.Path == auth.OIDCPostAuthPath || r.URL.Path == auth.OIDCLogoutPath
 }
 
 func (amw *oidcMiddleware) finalize() error {
@@ -108,9 +114,9 @@ func (amw *oidcMiddleware) initSlow(ctx context.Context) error {
 		return err
 	}
 
-	// Always trigger login on unknown paths.
-	// This prevents falling back to the default login page, which applies bypass rules.
-	// Without this, redirecting to the global login page could circumvent the intended route restrictions.
+	// Start login on unknown /auth/* paths instead of redirecting to the route root.
+	// The root re-enters the middleware chain and may match a bypass rule, which would
+	// serve the app instead of the login page the request asked for.
 	authProvider.SetOnUnknownPathHandler(authProvider.LoginHandler)
 
 	amw.auth = authProvider

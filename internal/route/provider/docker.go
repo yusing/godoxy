@@ -47,7 +47,7 @@ func (p *DockerProvider) ShortName() string {
 }
 
 func (p *DockerProvider) IsExplicitOnly() bool {
-	return p.name[len(p.name)-1] == '!'
+	return len(p.name) > 0 && p.name[len(p.name)-1] == '!'
 }
 
 func (p *DockerProvider) Logger() *zerolog.Logger {

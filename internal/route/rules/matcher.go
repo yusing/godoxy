@@ -114,6 +114,7 @@ func StringMatcher(s string, negate bool) (Matcher, gperr.Error) {
 }
 
 func GlobMatcher(expr string, negate bool) (Matcher, gperr.Error) {
+	// Compile without separators so `*` and `?` match `/` (gobwas/glob v1).
 	g, err := glob.Compile(expr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)

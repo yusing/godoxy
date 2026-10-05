@@ -7,7 +7,6 @@ import (
 	"maps"
 	"net"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/agentpool"
+	env "github.com/yusing/godoxy/internal/env"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/serialization"
 	"github.com/yusing/godoxy/internal/types"
@@ -23,7 +23,7 @@ import (
 
 var DummyContainer = new(Container)
 
-var EnvDockerHost = os.Getenv("DOCKER_HOST")
+var EnvDockerHost = env.String("DOCKER_HOST")
 
 var (
 	ErrNetworkNotFound = errors.New("network not found")

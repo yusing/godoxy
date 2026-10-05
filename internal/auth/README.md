@@ -206,6 +206,12 @@ sequenceDiagram
     end
 ```
 
+### Session cookie domain
+
+Auth cookies set `Domain` to the parent of the request host so sibling subdomains share a session (`app.example.com` sends `Domain=example.com`). A port in the host is ignored.
+
+When that parent is a public suffix, `Domain` is omitted and the cookie is host-only. That covers a registrable name directly under a public suffix (`example.host`, `example.co.uk`, `name.blogspot.com`), a single-label host (`localhost`), and an IP address. Browsers discard a `Set-Cookie` whose `Domain` is a public suffix, so the session never sticks and the next request returns to the login screen.
+
 ## Configuration Surface
 
 ### Environment variables
@@ -245,6 +251,7 @@ When authentication is enabled and `OIDC_ISSUER_URL` is empty, startup requires 
 - `github.com/coreos/go-oidc/v3/oidc` - OIDC protocol
 - `golang.org/x/oauth2` - OAuth2/OIDC implementation
 - `github.com/golang-jwt/jwt/v5` - JWT token handling
+- `golang.org/x/net/publicsuffix` - Public suffix list for auth cookie Domain
 - `golang.org/x/time/rate` - OIDC rate limiting
 
 ### Integration points

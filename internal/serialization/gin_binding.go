@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/goccy/go-yaml"
@@ -20,7 +21,11 @@ func (b GinJSONBinding) Name() string {
 // Bind implements binding.Binding.
 func (b GinJSONBinding) Bind(req *http.Request, obj any) error {
 	m := make(map[string]any)
-	if err := strutils.NewJSONDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {
+	if err := strutils.NewJSONDecoder(req.Body).Decode(&m); err != nil {
+		return err
+	}
+	m, err := substituteEnv(m)
+	if err != nil {
 		return err
 	}
 	return MapUnmarshalValidate(m, obj)
@@ -34,7 +39,11 @@ func (b GinYAMLBinding) Name() string {
 // Bind implements binding.Binding.
 func (b GinYAMLBinding) Bind(req *http.Request, obj any) error {
 	m := make(map[string]any)
-	if err := yaml.NewDecoder(NewSubstituteEnvReader(req.Body)).Decode(&m); err != nil {
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+	if err := unmarshalEnv(data, &m, yaml.Unmarshal); err != nil {
 		return err
 	}
 	return MapUnmarshalValidate(m, obj)

@@ -30,6 +30,29 @@ describe("rewriteImplMarkdown", () => {
 });
 
 describe("md2mdx", () => {
+  test.each([
+    "`Percentage`: values between 0 and 100",
+    "Registry: keyed objects # not a YAML comment",
+    '[links](https://example.com) and "quotes"',
+    "null",
+    "true",
+    "123",
+    "It's a path: C:\\tmp and <0",
+    "*alias",
+    "{mapping: value}",
+  ])("preserves YAML-sensitive metadata: %s", (value) => {
+    const mdx = md2mdx(`# ${value}\n\n${value}\n\n## Usage\n\nText.`);
+    expect(Bun.YAML.parse(mdx.split("---")[1]!)).toEqual({
+      title: value,
+      description: value,
+    });
+  });
+
+  test("omits an empty description", () => {
+    expect(Bun.YAML.parse(md2mdx("# Title\n\n## Usage").split("---")[1]!))
+      .toEqual({ title: "Title" });
+  });
+
   test("converts markdown without any level-two heading", () => {
     const mdx = md2mdx([
       "# GoDoxy WebUI",
@@ -40,9 +63,10 @@ describe("md2mdx", () => {
       "",
     ].join("\n"));
 
-    expect(mdx).toContain("title: GoDoxy WebUI");
-    expect(mdx).toContain(
-      "description: This is the frontend for [GoDoxy](https://github.com/yusing/godoxy)",
+    const metadata = Bun.YAML.parse(mdx.split("---")[1]!) as { title: string; description: string };
+    expect(metadata.title).toBe("GoDoxy WebUI");
+    expect(metadata.description).toContain(
+      "This is the frontend for [GoDoxy](https://github.com/yusing/godoxy)",
     );
     expect(mdx).not.toContain("## ");
   });
@@ -60,8 +84,9 @@ describe("md2mdx", () => {
       "",
     ].join("\n"));
 
-    expect(mdx).toContain(
-      "description: Route health monitor construction, scheduling, last-seen tracking, and status change notifications",
+    const metadata = Bun.YAML.parse(mdx.split("---")[1]!) as { description: string };
+    expect(metadata.description).toBe(
+      "Route health monitor construction, scheduling, last-seen tracking, and status change notifications",
     );
     expect(mdx).not.toContain("\nchange notifications\n");
   });

@@ -194,13 +194,20 @@ Combined flags are expected for nested/compound commands and variable templates 
 
 ```sh
 # String: exact match (default)
-# Glob: shell-style wildcards (*, ?)
+# Glob: gobwas/glob compiled with no separators (`*` and `?` match `/`)
 # Regex: regular expressions
 
 path /api/users                // exact match
 path glob("/api/*")            // glob pattern
 path regex("/api/v[0-9]+/.*")  // regex pattern
 ```
+
+Glob syntax is [github.com/gobwas/glob](https://github.com/gobwas/glob) v1.
+`GlobMatcher` calls `glob.Compile(expr)` with no separators, so `*` matches
+nested paths (`/api/*` matches `/api/users/123`). A `[...]` class is either
+one range (`[a-z]`) or a set (`[abc]`, `[-abcdef0123456789]`), not mixed
+(`[a-f0-9]` does not compile). The operator-facing table is in the Conditions
+wiki page.
 
 ### Actions
 

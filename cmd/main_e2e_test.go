@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc/oidctest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/testcert"
 )
 
 const (
@@ -50,9 +51,11 @@ func TestAuthCallbackStartupMatrix(t *testing.T) {
 		name      string
 		oidc      bool
 		envJWTKey bool
+		httpOnly  bool
 	}{
 		{name: "basic/no_env_jwt"},
 		{name: "basic/env_jwt", envJWTKey: true},
+		{name: "basic/http_only_without_certificate", httpOnly: true},
 		{name: "oidc/no_env_jwt", oidc: true},
 		{name: "oidc/env_jwt", oidc: true, envJWTKey: true},
 	}
@@ -67,6 +70,7 @@ func TestAuthCallbackStartupMatrix(t *testing.T) {
 				proxyAddr: proxyAddr,
 				oidcURL:   oidcURL,
 				envJWTKey: tt.envJWTKey,
+				httpOnly:  tt.httpOnly,
 			})
 
 			directBaseURL := "http://" + apiAddr
@@ -269,6 +273,7 @@ type godoxyE2EProcessConfig struct {
 	oidcUpstreamURL string
 	envJWTKey       bool
 	omitCredentials bool
+	httpOnly        bool
 }
 
 type godoxyE2EProcess struct {
@@ -280,6 +285,10 @@ type godoxyE2EProcess struct {
 func startGodoxyE2EProcess(t *testing.T, cfg godoxyE2EProcessConfig) *godoxyE2EProcess {
 	t.Helper()
 	workDir := t.TempDir()
+	// Startup requests HTTPS even though these auth checks use HTTP.
+	if !cfg.httpOnly {
+		testcert.WriteFiles(t, workDir)
+	}
 	logFile, err := os.Create(filepath.Join(workDir, "godoxy.log"))
 	require.NoError(t, err)
 	writeOIDCProxyConfig(t, workDir, cfg.oidcUpstreamURL)
@@ -361,11 +370,15 @@ func godoxyE2EEnvironment(cfg godoxyE2EProcessConfig) []string {
 		"TRACE",
 	}
 	env := withoutEnvironmentKeys(os.Environ(), keys)
+	httpsAddr := "127.0.0.1:0"
+	if cfg.httpOnly {
+		httpsAddr = ""
+	}
 	env = append(env,
 		e2eChildEnv+"=1",
 		"GODOXY_API_ADDR="+cfg.apiAddr,
 		"GODOXY_HTTP_ADDR="+cfg.proxyAddr,
-		"GODOXY_HTTPS_ADDR=127.0.0.1:0",
+		"GODOXY_HTTPS_ADDR="+httpsAddr,
 		"GODOXY_API_JWT_SECURE=false",
 		"GODOXY_DEBUG_DISABLE_AUTH=false",
 		"GODOXY_FRONTEND_ALIASES="+e2eRuleHost,

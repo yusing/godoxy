@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/auth"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/route/rules"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -102,4 +103,54 @@ func TestShouldHandleOIDCLogin(t *testing.T) {
 			require.Equal(t, tt.want, shouldHandleOIDCLogin(tt.err))
 		})
 	}
+}
+
+func newOIDCCheckBypass(tb testing.TB, rawRules ...string) *checkBypass {
+	tb.Helper()
+
+	modReq := &oidcMiddleware{}
+	bypass := make(Bypass, 0, len(rawRules))
+	for _, raw := range rawRules {
+		var on rules.RuleOn
+		require.NoError(tb, on.Parse(raw))
+		bypass = append(bypass, on)
+	}
+
+	return &checkBypass{
+		name:                    "oidc",
+		bypass:                  bypass,
+		modReq:                  modReq,
+		modReqCheckEnforceFuncs: getModReqCheckEnforceFuncs(modReq),
+		modReqCheckBypassFuncs:  getModReqCheckBypassFuncs(modReq),
+	}
+}
+
+func TestOIDCBypassReservesOnlyLoginFlowPaths(t *testing.T) {
+	t.Run("bypass covering /auth/*", func(t *testing.T) {
+		c := newOIDCCheckBypass(t, "path glob(/auth/*)")
+
+		tests := []struct {
+			name       string
+			path       string
+			wantBypass bool
+		}{
+			{"backend auth endpoint", "/auth/login", true},
+			{"backend auth subtree", "/auth/realms/master/protocol", true},
+			{"callback stays reserved", auth.OIDCPostAuthPath, false},
+			{"logout stays reserved", auth.OIDCLogoutPath, false},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, "http://app.example.com"+tt.path, nil)
+				require.Equal(t, tt.wantBypass, c.shouldModReqBypass(httptest.NewRecorder(), req))
+			})
+		}
+	})
+
+	t.Run("bypass not covering /auth/*", func(t *testing.T) {
+		c := newOIDCCheckBypass(t, "path glob(/public/*)")
+
+		req := httptest.NewRequest(http.MethodGet, "http://app.example.com/auth/login", nil)
+		require.False(t, c.shouldModReqBypass(httptest.NewRecorder(), req))
+	})
 }

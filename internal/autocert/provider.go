@@ -92,6 +92,8 @@ func NewProvider(cfg *Config, user *User, legoCfg *lego.Config) (*Provider, erro
 	} else {
 		p.logger = log.With().Str("provider", fmt.Sprintf("extra[%d]", cfg.idx)).Logger()
 	}
+	// Configure process-wide DNS before any providers begin concurrent ACME work.
+	cfg.applyResolvers()
 	if err := p.setupExtraProviders(); err != nil {
 		return nil, err
 	}
@@ -221,20 +223,6 @@ func (p *Provider) allProviders() []*Provider {
 
 // ObtainCertIfNotExistsAll obtains a new certificate for this provider and all extra providers if they do not exist.
 func (p *Provider) ObtainCertIfNotExistsAll(ctx context.Context) error {
-	// Serialize initClient calls to prevent concurrent process-wide DNS resolver changes
-	for _, provider := range p.allProviders() {
-		if provider.cfg.Provider != ProviderLocal && provider.cfg.Provider != ProviderPseudo {
-			provider.mu.RLock()
-			client := provider.client
-			provider.mu.RUnlock()
-			if client == nil {
-				if err := provider.initClient(); err != nil {
-					return provider.fmtError(err)
-				}
-			}
-		}
-	}
-
 	errs := gperr.NewGroup("obtain cert error")
 
 	for _, provider := range p.allProviders() {
@@ -523,6 +511,7 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 
 		renewed, err := p.renew(task.Context(), renewMode)
 		if err != nil {
+			timer.Reset(renewalCooldownDuration)
 			log.Warn().Err(p.fmtError(err)).Msg("autocert: cert renew failed")
 			notifier.Notify(&notif.LogMessage{
 				Level: zerolog.ErrorLevel,
@@ -544,8 +533,8 @@ func (p *Provider) scheduleRenewal(parent task.Parent) {
 			if err := p.ClearLastFailure(); err != nil {
 				log.Warn().Err(p.fmtError(err)).Msg("autocert: failed to clear last failure")
 			}
-			timer.Reset(time.Until(p.ShouldRenewOn()))
 		}
+		timer.Reset(time.Until(p.ShouldRenewOn()))
 	}
 
 	go func() {
@@ -570,8 +559,6 @@ func (p *Provider) initClient() error {
 	if err != nil {
 		return err
 	}
-
-	p.cfg.applyResolvers()
 
 	err = legoClient.Challenge.SetDNS01Provider(p.cfg.challengeProvider)
 	if err != nil {
@@ -648,12 +635,13 @@ func (p *Provider) saveCert(cert *certificate.Resource) error {
 }
 
 func (p *Provider) certState() CertState {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	if time.Now().After(p.ShouldRenewOn()) {
+	// ShouldRenewOn takes mu itself; recursive read locks can deadlock behind a writer.
+	if !time.Now().Before(p.ShouldRenewOn()) {
 		return CertStateExpired
 	}
+
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	if len(p.certExpiries) != len(p.cfg.Domains) {
 		return CertStateMismatch

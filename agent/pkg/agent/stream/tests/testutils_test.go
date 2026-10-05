@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/transport/v3/udp"
+	"github.com/pion/transport/v5/udp"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/agent/stream"

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yusing/godoxy/internal/common"
+	"golang.org/x/net/publicsuffix"
 )
 
 var (
@@ -36,45 +37,55 @@ func requestHost(r *http.Request) string {
 	return r.Host
 }
 
-// cookieDomain returns the fully qualified domain name of the request host
-// with subdomain stripped.
+// cookieDomain is the Domain attribute for auth cookies.
 //
-// If the request host does not have a subdomain,
-// an empty string is returned
+// The leftmost label is removed so a session opened on app.example.com is
+// also sent to other hosts under example.com. The parent is omitted when it
+// is a public suffix ("com", "co.uk", "host", "localhost"): browsers reject
+// that Domain, drop the cookie, and the next request looks logged out. The
+// cookie is then host-only. IP addresses are host-only too.
 //
-//	"abc.example.com" -> ".example.com" (cross subdomain)
-//	"example.com" -> "" (same domain only)
-//	"abc.localhost" -> ".localhost"
-//	"abc.local" -> ".local"
-//	"abc.internal" -> ".internal"
+//	"abc.example.com"    -> ".example.com"
+//	"a.b.example.com"    -> ".b.example.com"
+//	"example.com"        -> ""
+//	"example.host"       -> ""
+//	"app.example.host"   -> ".example.host"
+//	"example.co.uk"      -> ""
+//	"foo.example.co.uk"  -> ".example.co.uk"
+//	"abc.localhost"      -> ""
+//	"a.b.localhost"      -> ".b.localhost"
+//	"192.0.2.1"          -> ""
+//	"app.example.com:8443" -> ".example.com"
 func cookieDomain(r *http.Request) string {
-	reqHost := requestHost(r)
-	switch {
-	case strings.HasSuffix(reqHost, ".internal"):
-		return ".internal"
-	case strings.HasSuffix(reqHost, ".localhost"):
-		return ".localhost"
-	case strings.HasSuffix(reqHost, ".local"):
-		return ".local"
-	}
-
-	// if the host is an IP address, return an empty string
-	{
-		host, _, err := net.SplitHostPort(reqHost)
-		if err != nil {
-			host = reqHost
-		}
-		if net.ParseIP(host) != nil {
-			return ""
-		}
-	}
-
-	parts := strings.Split(reqHost, ".")
-	if len(parts) < 2 {
+	host := cookieHost(requestHost(r))
+	if host == "" || net.ParseIP(host) != nil || strings.HasPrefix(host, ".") || strings.Contains(host, "..") {
 		return ""
 	}
-	parts[0] = ""
-	return strings.Join(parts, ".")
+	_, parent, ok := strings.Cut(host, ".")
+	if !ok || parent == "" || isPublicSuffix(parent) {
+		return ""
+	}
+	return "." + parent
+}
+
+// cookieHost is the hostname the browser used, without a port or trailing dot.
+// A comma-separated X-Forwarded-Host list uses the first value.
+func cookieHost(hostport string) string {
+	if before, _, ok := strings.Cut(hostport, ","); ok {
+		hostport = before
+	}
+	hostport = strings.TrimSpace(hostport)
+	if host, _, err := net.SplitHostPort(hostport); err == nil {
+		hostport = host
+	} else {
+		hostport = strings.Trim(hostport, "[]")
+	}
+	return strings.TrimRight(strings.ToLower(hostport), ".")
+}
+
+func isPublicSuffix(domain string) bool {
+	suffix, _ := publicsuffix.PublicSuffix(domain)
+	return suffix == domain
 }
 
 func SetTokenCookie(w http.ResponseWriter, r *http.Request, name, value string, ttl time.Duration) {

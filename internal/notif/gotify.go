@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gotify/server/v2/model"
+	"github.com/gotify/server/v3/model"
 	"github.com/rs/zerolog"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"

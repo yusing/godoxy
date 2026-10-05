@@ -201,6 +201,35 @@ func TestOIDCLoginHandlerRefresh(t *testing.T) {
 	})
 }
 
+// tamperJWTPayload alters one character of the token's payload segment so the
+// signature no longer matches.
+//
+// The payload is tampered rather than the signature, because the final
+// character of a base64url segment carries fewer than six significant bits.
+// Overwriting it decodes to the same bytes whenever the replacement falls in
+// the original character's equivalence class, which for an HS512 signature is
+// one time in four.
+func tamperJWTPayload(tb testing.TB, token string) string {
+	tb.Helper()
+
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		tb.Fatalf("token has %d segments, want 3", len(parts))
+	}
+
+	payload := []byte(parts[1])
+	if len(payload) == 0 {
+		tb.Fatal("token has an empty payload segment")
+	}
+	if payload[0] == 'A' {
+		payload[0] = 'B'
+	} else {
+		payload[0] = 'A'
+	}
+	parts[1] = string(payload)
+	return strings.Join(parts, ".")
+}
+
 func TestOIDCLoginTransaction(t *testing.T) {
 	previousSecret := common.APIJWTSecret
 	common.APIJWTSecret = []byte("test-secret")
@@ -255,7 +284,7 @@ func TestOIDCLoginTransaction(t *testing.T) {
 		setRecorder := httptest.NewRecorder()
 		expect.NoError(t, auth.setLoginTransactionCookie(setRecorder, request, state))
 		cookie := findResponseCookie(t, setRecorder, auth.loginTransactionCookieName(state))
-		cookie.Value = cookie.Value[:len(cookie.Value)-1] + "x"
+		cookie.Value = tamperJWTPayload(t, cookie.Value)
 
 		callbackRequest := httptest.NewRequest(http.MethodGet, OIDCPostAuthPath, nil)
 		callbackRequest.AddCookie(cookie)

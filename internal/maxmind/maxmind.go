@@ -14,18 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 	"github.com/yusing/godoxy/internal/common"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/goutils/cache"
 	"github.com/yusing/goutils/task"
 )
-
-/*
-refactor(maxmind): switch to Country database
-
-- In compliance with [Title 28 of the Code of Federal Regulations of the United States of America Part 202](https://www.ecfr.gov/current/title-28/chapter-I/part-202), non US IPs are blocked from downloading the City database
-*/
 
 type MaxMind struct {
 	*Config
@@ -47,6 +41,7 @@ type (
 const (
 	updateInterval = 24 * time.Hour
 	updateTimeout  = 10 * time.Second
+	maxArchiveSize = 256 << 20 // City databases exceed 100 MiB; bound total uncompressed entries.
 )
 
 var httpClient = &http.Client{
@@ -63,17 +58,22 @@ func (cfg *MaxMind) dbPath() string {
 }
 
 func (cfg *MaxMind) dbURL() string {
-	if cfg.Database == maxmind.MaxMindGeoLite {
-		return "https://download.maxmind.com/geoip/databases/GeoLite2-Country/download?suffix=tar.gz"
-	}
-	return "https://download.maxmind.com/geoip/databases/GeoIP2-Country/download?suffix=tar.gz"
+	return "https://download.maxmind.com/geoip/databases/" + cfg.dbEdition() + "/download?suffix=tar.gz"
 }
 
 func (cfg *MaxMind) dbFilename() string {
+	return cfg.dbEdition() + ".mmdb"
+}
+
+func (cfg *MaxMind) dbEdition() string {
+	product := "GeoIP2"
 	if cfg.Database == maxmind.MaxMindGeoLite {
-		return "GeoLite2-Country.mmdb"
+		product = "GeoLite2"
 	}
-	return "GeoIP2-Country.mmdb"
+	if common.MaxMindCountryOnly {
+		return product + "-Country"
+	}
+	return product + "-City"
 }
 
 func (cfg *MaxMind) LoadMaxMindDB(parent task.Parent) error {
@@ -297,11 +297,10 @@ func extractFileFromTarGz(tarGzBytes []byte, targetFilename, destPath string) er
 		if err != nil {
 			return err
 		}
-		// NOTE: it should be around 10MB, but just in case
-		// This is to prevent malicious tar.gz file (e.g. tar bomb)
+		// Bound extraction while accommodating both Country and City editions.
 		sumSize += hdr.Size
-		if sumSize > 30*1024*1024 {
-			return errors.New("file size exceeds 30MB")
+		if sumSize > maxArchiveSize {
+			return errors.New("archive size exceeds 256 MiB")
 		}
 		// Only extract the file that matches targetFilename (basename match)
 		if filepath.Base(hdr.Name) == targetFilename {

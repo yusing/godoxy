@@ -70,6 +70,11 @@ graph TB
     end
 ```
 
+Utility diagnostics from `goutils` use the application's existing zerolog logger.
+`InitLogger` registers the framework-neutral adapter in `logadapter`; the agent
+registers the same adapter after configuring its logger. Severity filtering,
+structured fields, and output formatting remain owned by zerolog.
+
 ## Configuration Surface
 
 ### Access Log Configuration
@@ -107,6 +112,15 @@ This prevents multiline startup summaries from
 interleaving with or overtaking server, provider, or development-tool output.
 Loggers with an explicit independent destination serialize only that destination,
 so a slow rule log file cannot block the shared process log.
+
+### Startup environment diagnostics
+
+`LogEnvironment` uses the server registry to report effective non-secret settings
+and their selected environment sources after logger initialization. Sensitive
+settings, including identity fields and potentially credential-bearing endpoints,
+are redacted. Unknown `GODOXY_` variables and selected unprefixed fallbacks produce
+name-only warnings; the fallback remains available during migration. The report
+covers environment inputs, not per-route overrides or listener activation.
 
 ### Logs
 

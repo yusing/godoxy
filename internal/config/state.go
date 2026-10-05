@@ -858,6 +858,8 @@ func (state *state) initWebUIRoute() error {
 	return nil
 }
 
+var errWebUINotBuilt = errors.New("embedded WebUI assets not found; build the WebUI first (`shadowtree build-webui`)")
+
 func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 	webuiRules, err := loadWebUIRules("webui.yml", state.WebUI.Rules)
 	if err != nil {
@@ -883,8 +885,18 @@ func (state *state) newWebUIRoute() (*routeimpl.Route, error) {
 	}
 
 	host, port, ok, err := webUIDevServerURL()
-	if err != nil || !ok {
+	if err != nil {
 		return &r, err
+	}
+	if !ok {
+		// Without the dev server the route serves the embedded build, so the
+		// assets have to be there. Report that directly: Root is the
+		// "embed://webui" sentinel, which the file server would otherwise
+		// reject as a non-absolute path.
+		if r.RootFS == nil {
+			return nil, errWebUINotBuilt
+		}
+		return &r, nil
 	}
 
 	r.Scheme = route.SchemeHTTP

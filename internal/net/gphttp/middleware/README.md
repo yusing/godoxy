@@ -156,6 +156,10 @@ Semantics:
 
 `CIDRWhitelist` accepts an omitted or empty `allow` list and denies every request that does not match a bypass rule. A bypass-only route entry can therefore promote its rules without duplicating the entrypoint's allowed CIDRs. When no matching entrypoint middleware exists, the route entry allows only requests matching its own bypass rules.
 
+#### Enforced paths
+
+A middleware may reserve paths that bypass rules cannot skip, because the middleware's own flow depends on serving them. `oidc` reserves exactly `/auth/callback` and `/auth/logout`, the two paths the login flow owns on every protected host. Every other path under `/auth/` follows normal bypass evaluation, so a route can expose its backend's own `/auth/*` endpoints.
+
 Example:
 
 ```yaml

@@ -17,6 +17,7 @@ import (
 	"github.com/yusing/godoxy/agent/pkg/agent/stream"
 	"github.com/yusing/godoxy/agent/pkg/env"
 	"github.com/yusing/godoxy/agent/pkg/handler"
+	"github.com/yusing/godoxy/internal/logging/logadapter"
 	"github.com/yusing/godoxy/internal/metrics/systeminfo"
 	_ "github.com/yusing/godoxy/internal/serialization"
 	socketproxy "github.com/yusing/godoxy/socketproxy/pkg"
@@ -34,6 +35,7 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = writer.TimeFormat
 	log.Logger = zerolog.New(writer).Level(zerolog.InfoLevel).With().Timestamp().Logger()
+	logadapter.Register()
 	ca := &agent.PEMPair{}
 	err := ca.Load(env.AgentCACert)
 	if err != nil {

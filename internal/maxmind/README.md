@@ -4,15 +4,16 @@ The maxmind package provides MaxMind GeoIP database integration for IP geolocati
 
 ## Overview
 
-The maxmind package implements MaxMind GeoIP database management, providing IP geolocation lookups for country and city information. It supports automatic database downloading, scheduled updates, and thread-safe access.
+The maxmind package implements MaxMind GeoIP database management, providing country, city, and timezone lookups. It supports automatic database downloading, scheduled updates, and thread-safe access. Downloads use City databases by default. Set `GODOXY_MAXMIND_COUNTRY_ONLY=true` to opt out of City downloads and use Country databases where City downloads are unavailable. Country databases do not provide city or timezone data. Switching the setting selects a separate database filename; an existing Country database does not satisfy a City download, and vice versa.
 
 ### Key Features
 
 - MaxMind GeoIP database loading
 - Automatic database downloading from MaxMind
 - Scheduled updates every 24 hours
-- City lookup with cache support
-- IP geolocation (country, city, timezone)
+- Geographic lookup with cache support through the `LookupCity` API
+- Runtime-owned cache registration, released when its parent task is cancelled
+- IP geolocation (country ISO code, city, and timezone with City databases)
 - Thread-safe access
 
 ## Architecture
@@ -107,8 +108,9 @@ func FromCtx(ctx context.Context) *MaxMind
 ### Lookup
 
 ```go
-// LookupCity looks up city information for an IP.
-func LookupCity(ctx context.Context, info *IPInfo) (city *City, loaded bool)
+// LookupCity returns geographic information, including previously resolved data.
+// ok reports availability, not whether a new database lookup occurred.
+func LookupCity(ctx context.Context, info *IPInfo) (city *City, ok bool)
 ```
 
 ## Usage
@@ -142,10 +144,11 @@ ipInfo := &maxmind.IPInfo{
 city, ok := maxmind.LookupCity(parent.Context(), ipInfo)
 if ok {
     fmt.Printf("Country: %s\n", city.Country.IsoCode)
-    fmt.Printf("City: %s\n", city.Name)
-    fmt.Printf("Timezone: %s\n", city.Location.TimeZone)
 }
 ```
+
+With `GODOXY_MAXMIND_COUNTRY_ONLY=true`, lookup results contain country
+information only; `city.Location.TimeZone` is empty.
 
 Every runtime owns its MaxMind reader and lookup cache. Removing MaxMind from a
 new configuration therefore yields no instance in the new context instead of
@@ -155,8 +158,8 @@ silently inheriting a process-global reader from the previous runtime.
 
 ```go
 const (
-    MaxMindGeoLite = "GeoLite2-Country"
-    MaxMindGeoIP2  = "GeoIP2-Country"
+    MaxMindGeoLite = "geolite"
+    MaxMindGeoIP2  = "geoip2"
 )
 ```
 
@@ -251,8 +254,8 @@ for {
         break
     }
     sumSize += hdr.Size
-    if sumSize > 30*1024*1024 {
-        return errors.New("file size exceeds 30MB")
+    if sumSize > maxArchiveSize {
+        return errors.New("archive size exceeds 256 MiB")
     }
 }
 ```
@@ -292,10 +295,21 @@ type MaxMind struct {
 }
 
 // Lookups use RLock
-func (cfg *MaxMind) lookup(ip net.IP) (*maxminddb.City, error) {
+func (cfg *MaxMind) lookupCityReal(ipStr string) (*City, error) {
     cfg.db.RLock()
     defer cfg.db.RUnlock()
-    return cfg.db.Lookup(ip)
+    if cfg.db.Reader == nil {
+        return nil, ErrDBNotLoaded
+    }
+    ip, err := netip.ParseAddr(ipStr)
+    if err != nil || ip.Zone() != "" {
+        return nil, ErrInvalidIP
+    }
+    city := new(City)
+    if err := cfg.db.Lookup(ip).Decode(city); err != nil {
+        return nil, err
+    }
+    return city, nil
 }
 ```
 
@@ -339,6 +353,6 @@ var (
 ## Performance Considerations
 
 - 24-hour update interval reduces unnecessary downloads
-- Database size ~10-30MB
+- City databases can exceed 100 MiB; archive extraction is bounded to 256 MiB.
 - City lookup cache reduces database queries
 - RLock for concurrent reads

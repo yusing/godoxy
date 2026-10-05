@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/docker"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/types"
@@ -120,7 +121,29 @@ func TestApplyLabel(t *testing.T) {
 	expect.Equal(t, a.HealthCheck.Interval, 10*time.Second)
 }
 
+// withGlobalOIDC configures global OIDC for the duration of the test. A
+// route-local `middlewares.oidc` entry compiles only when the global settings
+// supply the issuer and credentials it does not carry itself, which is the
+// setup a bypass overlay is written for.
+func withGlobalOIDC(t *testing.T) {
+	t.Helper()
+
+	issuerURL, clientID := common.OIDCIssuerURL, common.OIDCClientID
+	clientSecret, allowedUsers := common.OIDCClientSecret, common.OIDCAllowedUsers
+	t.Cleanup(func() {
+		common.OIDCIssuerURL, common.OIDCClientID = issuerURL, clientID
+		common.OIDCClientSecret, common.OIDCAllowedUsers = clientSecret, allowedUsers
+	})
+
+	common.OIDCIssuerURL = "https://auth.example.com"
+	common.OIDCClientID = "test-client-id"
+	common.OIDCClientSecret = "test-client-secret"
+	common.OIDCAllowedUsers = []string{"user@example.com"}
+}
+
 func TestApplyLabelParsesMiddlewareBypassOverlay(t *testing.T) {
+	withGlobalOIDC(t)
+
 	entries := makeRoutes(&container.Summary{
 		Names: dummyNames,
 		Labels: map[string]string{
@@ -141,6 +164,8 @@ func TestApplyLabelParsesMiddlewareBypassOverlay(t *testing.T) {
 }
 
 func TestApplyLabelWithMixedObjectAndFlatMiddlewareFields(t *testing.T) {
+	withGlobalOIDC(t)
+
 	entries := makeRoutes(&container.Summary{
 		Names: dummyNames,
 		State: "running",

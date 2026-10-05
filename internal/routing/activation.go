@@ -29,7 +29,7 @@ type ProviderActivation struct {
 
 func (activation ProviderActivation) Health() ProviderActivationHealth {
 	switch {
-	case activation.InfrastructureError != nil && activation.ActiveRoutes == 0:
+	case activation.InfrastructureError != nil && activation.ActiveRoutes == 0 && !activation.EventLoopReady:
 		return ProviderActivationFailed
 	case activation.InfrastructureError != nil:
 		return ProviderActivationDegraded

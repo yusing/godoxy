@@ -120,8 +120,11 @@ webui_dir="{repo_root}/webui"
 docs_dir="{webui_dir}/wiki"
 
 [recipes.test]
+help = "Run tests, building the embedded WebUI first when it is missing."
 sandboxed = false
 cmd = '''
+set -e
+@ensure-webui-dist
 configure_build_mode production
 CGO_ENABLED="$cgo_enabled" \
 GODOXY_DEBUG="$godoxy_debug" \
@@ -135,6 +138,8 @@ go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg} {@}
 help = "Run tests with the race detector."
 sandboxed = false
 cmd = '''
+set -e
+@ensure-webui-dist
 configure_build_mode race
 CGO_ENABLED=1 \
 GODOXY_DEBUG="$godoxy_debug" \
@@ -214,6 +219,7 @@ values = "@enum godoxy agent socket-proxy cli"
 help = "Build the embedded WebUI."
 sandboxed = false
 cmd = '''
+set -e
 @gen-rules-cheatsheet
 cd "{webui_dir}"
 bun i --frozen-lockfile
@@ -233,6 +239,7 @@ go run -ldflags="-X github.com/yusing/goutils/version.version=$version -checklin
 help = "Build a GoDoxy binary."
 sandboxed = false
 cmd = '''
+set -e
 configure_component "{component}" "{name}"
 if [ "$is_godoxy" = true ]; then
 	@ensure-webui-dist
@@ -412,3 +419,12 @@ help = "Scan for deadcode"
 for_each = "@go-main-packages"
 workdir = "{item}"
 cmd = "deadcode ./..."
+
+[recipes.gen-env-docs]
+help = "Generate environment example and wiki from the runtime registry."
+sandboxed = false
+cmd = "go run ./cmd/env-docs-gen"
+
+[recipes.check-env-docs]
+help = "Check environment example and wiki for drift."
+cmd = "go run ./cmd/env-docs-gen -check"

@@ -152,6 +152,14 @@ flowchart TD
     style U fill:#84261A,color:#fff
 ```
 
+Existing certificate/key pairs are loaded before any ACME network request. An
+unreachable CA therefore does not prevent HTTPS startup with cached certificates.
+ACME clients are created only for issuance or renewal; failed scheduled renewals
+retry after one hour while the loaded certificate remains available. If a
+certificate is missing, initial issuance must still succeed before autocert starts.
+TLS certificate selection reads memory only and returns an error when no certificate
+is loaded; it never waits for ACME.
+
 ### Concurrency Model
 
 - Certificate obtain / renew work is serialized per provider.
@@ -241,7 +249,7 @@ autocert:
 
 `resolvers` sets the recursive nameservers used for the dns-01 propagation check.
 lego applies it to a process-wide DNS client, so when extra providers each set
-their own list, the last provider to initialise its ACME client wins. Set one
+their own list, the last provider constructed wins. Set one
 list on the main provider unless you know all providers agree.
 
 ### Extra Providers

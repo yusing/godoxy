@@ -65,6 +65,7 @@ func main() {
 
 	logging.InitLogger(os.Stderr, memlogger.GetMemLogger())
 	log.Info().Msgf("GoDoxy version %s", version.Get())
+	logging.LogEnvironment(log.Logger)
 	log.Trace().Msg("trace enabled")
 	parallel(
 		dnsproviders.InitProviders,

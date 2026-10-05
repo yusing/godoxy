@@ -12,10 +12,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	autocertctx "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/entrypoint"
 	. "github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/routetest"
+	"github.com/yusing/godoxy/internal/testcert"
 
 	"github.com/yusing/godoxy/internal/types"
 	"github.com/yusing/goutils/http/reverseproxy"
@@ -33,7 +35,10 @@ func newTestEntrypoint(tb testing.TB) *entrypoint.Entrypoint {
 	tb.Helper()
 
 	testTask := task.GetTestTask(tb)
+	// Routes with a dedicated listening port use HTTPS.
+	autocertctx.SetCtx(testTask, testcert.NewProvider(tb))
 	ep := entrypoint.NewEntrypoint(testTask, nil)
+	tb.Cleanup(func() { ep.Task().FinishAndWait(nil) })
 	entrypoint.SetCtx(testTask, ep)
 	return ep
 }

@@ -57,8 +57,3 @@ Significant change → refresh package `README.md`, wiki, webui types. Skip for 
 3. `github.com/puzpuzpuz/xsync/v4` lock-free concurrent maps
 4. `goutils/synk` byte buffer get/put
 
-## Testing
-
-- Scoped tests preferred
-- `testify`
-- `-ldflags="-checklinkname=0"`

@@ -88,9 +88,26 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		return err
 	}
 	certProvider := autocert.FromCtx(srv.ep.task.Context())
+	if proto == HTTPProtoHTTPS {
+		if certProvider == nil {
+			return errors.New("HTTPS requested without a certificate provider")
+		}
+		cert, err := certProvider.GetCert(nil)
+		if err != nil {
+			return fmt.Errorf("failed to load HTTPS certificate: %w", err)
+		}
+		if cert == nil {
+			return errors.New("HTTPS certificate provider returned no certificate")
+		}
+	}
 	var sniListener net.Listener
+	var createdSNIListener bool
 	if proto == HTTPProtoHTTPS && listener == nil && common.SNIRoutingForTCPRoutes {
-		sniListener, err = srv.ep.sni.Listen(srv.ep.task.Context(), addr)
+		// Keep registration serialized until startup commits or releases a new
+		// listener. A failed HTTP server never owns a pre-existing SNI listener.
+		srv.ep.sni.listenMu.Lock()
+		defer srv.ep.sni.listenMu.Unlock()
+		sniListener, createdSNIListener, err = srv.ep.sni.listen(srv.ep.task.Context(), addr)
 		if err != nil {
 			return err
 		}
@@ -120,20 +137,22 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		opts.TLSConfigMutator = srv.mutateServerTLSConfig
 	}
 
+	// StartServer can serve requests before returning. Publish all handler state
+	// before it launches the serving goroutine.
+	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
+	srv.routes.SetEventHistory(events.FromCtx(srv.ep.task.Context()))
+	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	task := srv.ep.task.Subtask("http_server", false)
 	_, err = server.StartServer(task, opts)
 	if err != nil {
 		task.Finish(err)
-		if sniListener != nil {
+		if createdSNIListener {
 			err = errors.Join(err, sniListener.Close())
 		}
 		return err
 	}
 	srv.stopFunc = task.FinishAndWait
 	srv.addr = addr
-	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
-	srv.routes.SetEventHistory(events.FromCtx(srv.ep.task.Context()))
-	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
 	return nil
 }
 

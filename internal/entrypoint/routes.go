@@ -104,7 +104,9 @@ func getAddr(route routing.HTTPRoute) (httpAddr, httpsAddr string) {
 			httpsAddr = common.ProxyHTTPSAddr
 		} else {
 			httpAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPPort))
-			httpsAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
+			if common.ProxyHTTPSAddr != "" {
+				httpsAddr = net.JoinHostPort(host, strconv.Itoa(common.ProxyHTTPSPort))
+			}
 		}
 		return httpAddr, httpsAddr
 	}

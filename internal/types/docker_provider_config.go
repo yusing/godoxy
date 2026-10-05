@@ -5,11 +5,12 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 
 	"github.com/yusing/godoxy/internal/common"
+	env "github.com/yusing/godoxy/internal/env"
 	"github.com/yusing/godoxy/internal/serialization"
-	"github.com/yusing/goutils/env"
 	gperr "github.com/yusing/goutils/errs"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -18,6 +19,8 @@ type DockerProviderConfig struct {
 	URL string           `json:"url,omitempty"`
 	TLS *DockerTLSConfig `json:"tls,omitempty"`
 } // @name DockerProviderConfig
+
+var unresolvedDockerEnv = regexp.MustCompile(`\$(?:[A-Za-z_]|\{)`)
 
 type DockerProviderConfigDetailed struct {
 	Scheme string           `json:"scheme,omitempty" validate:"required,oneof=http https tcp tls unix ssh"`
@@ -38,8 +41,10 @@ func (cfg *DockerProviderConfig) MarshalJSON() ([]byte, error) {
 
 func (cfg *DockerProviderConfig) Parse(value string) error {
 	if value == common.DockerHostFromEnv {
-		cfg.URL = env.GetEnvString("DOCKER_HOST", "unix:///var/run/docker.sock")
-		return nil
+		value = env.String("DOCKER_HOST")
+	}
+	if unresolvedDockerEnv.MatchString(value) {
+		return fmt.Errorf("unresolved environment variable in Docker endpoint: use ${VAR} for substitution (only $DOCKER_HOST is supported without braces)")
 	}
 
 	u, err := url.Parse(value)

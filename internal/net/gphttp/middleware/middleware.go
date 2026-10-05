@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json/jsontext"
 	"fmt"
 	"maps"
 	"mime"
@@ -158,17 +159,71 @@ func (m *Middleware) String() string {
 }
 
 func (m *Middleware) MarshalJSON() ([]byte, error) {
+	// checkBypass only wraps another middleware and carries no options of its
+	// own, so report the middleware it guards instead.
+	impl := m.impl
+	if bypass, ok := impl.(*checkBypass); ok {
+		if bypass.modReq != nil {
+			impl = bypass.modReq
+		} else {
+			impl = bypass.modRes
+		}
+	}
+
+	// encoding/json/v2 cannot embed an interface field, because the members it
+	// would contribute are unknown until the dynamic value is resolved. Marshal
+	// the implementation on its own and inline the resulting object next to the
+	// common options.
+	var implOptions jsontext.Value
+	if exposesOptions(impl) {
+		var err error
+		implOptions, err = strutils.MarshalJSON(impl)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	type allOptions struct {
 		commonOptions
-		any
+		Impl jsontext.Value `json:",embed"`
 	}
 	return strutils.MarshalJSONIndent(map[string]any{
 		"name": m.name,
 		"options": allOptions{
 			commonOptions: m.commonOptions,
-			any:           m.impl,
+			Impl:          implOptions,
 		},
 	}, "", "  ")
+}
+
+// exposesOptions reports whether impl contributes any JSON object member.
+// encoding/json/v2 refuses to marshal a struct whose fields are all unexported,
+// which chains and option-less middlewares are, so those contribute nothing.
+func exposesOptions(impl any) bool {
+	return typeExposesOptions(reflect.TypeOf(impl))
+}
+
+func typeExposesOptions(t reflect.Type) bool {
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch {
+	case t == nil:
+		return false
+	case t.Kind() != reflect.Struct:
+		return true
+	}
+	for i := range t.NumField() {
+		field := t.Field(i)
+		switch {
+		case field.Tag.Get("json") == "-":
+		case field.IsExported():
+			return true
+		case field.Anonymous && field.Type.Kind() == reflect.Struct && typeExposesOptions(field.Type):
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Middleware) ModifyRequest(next http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
