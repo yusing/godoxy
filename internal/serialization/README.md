@@ -214,6 +214,9 @@ autocert:
 | Slice      | `a,b,c` or YAML list format |
 | Map/Struct | YAML key: value format      |
 
+Slice conversion preserves non-nil empty slices (including YAML `[]`) and keeps
+nil inputs nil, so an explicit empty list remains distinct from nil.
+
 ## Dependency and Integration Map
 
 ### External Dependencies

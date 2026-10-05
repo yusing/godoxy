@@ -307,3 +307,23 @@ autocert:
 	require.NoError(t, UnmarshalValidate(data, &cfg, yaml.Unmarshal))
 	require.Equal(t, "test", cfg.Autocert.Options.AuthToken)
 }
+
+func TestDeserializeDistinguishesNilAndEmptySlices(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		source  any
+		wantNil bool
+	}{
+		{"null", nil, true},
+		{"nil slice", []any(nil), true},
+		{"empty YAML slice", []any{}, false},
+		{"empty typed slice", []string{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target := struct{ Values []string }{Values: []string{"existing"}}
+			require.NoError(t, MapUnmarshalValidate(SerializedObject{"values": tc.source}, &target))
+			require.Empty(t, target.Values)
+			require.Equal(t, tc.wantNil, target.Values == nil)
+		})
+	}
+}

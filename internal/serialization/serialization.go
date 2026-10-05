@@ -482,7 +482,11 @@ func ConvertSlice(src reflect.Value, dst reflect.Value, checkValidateTag bool) e
 
 	srcLen := src.Len()
 	if srcLen == 0 {
-		dst.SetZero()
+		if dst.Kind() == reflect.Slice && !src.IsNil() {
+			gi.ReflectInitSlice(dst, 0, 0)
+		} else {
+			dst.SetZero()
+		}
 		return nil
 	}
 	if dst.Kind() != reflect.Slice {
