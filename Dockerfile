@@ -182,6 +182,7 @@ COPY --from=main-builder /app/run /app/run
 COPY --from=main-builder /etc/ssl/certs /etc/ssl/certs
 
 ENV DOCKER_HOST=unix:///var/run/docker.sock
+ENV HOME=/app
 
 WORKDIR /app
 
