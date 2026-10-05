@@ -2,7 +2,7 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"maps"
@@ -15,8 +15,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/agentpool"
@@ -127,7 +125,6 @@ gamma:
 // entrypoint, API route list, homepage, and uptime poller's source inventory.
 func TestFileProviderConfiguredRouteVisibilityAcrossReloads(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	quietLogs(t)
 
 	oldHTTPAddr, oldHTTPSAddr := common.ProxyHTTPAddr, common.ProxyHTTPSAddr
 	common.ProxyHTTPAddr, common.ProxyHTTPSAddr = "127.0.0.1:0", ""
@@ -265,7 +262,6 @@ func collectHTTPAliases(ep *entrypoint.Entrypoint) []string {
 
 func TestFileProviderRetainsConfiguredRouteWhenPartialReloadValidationFails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	quietLogs(t)
 	oldHTTPAddr, oldHTTPSAddr := common.ProxyHTTPAddr, common.ProxyHTTPSAddr
 	common.ProxyHTTPAddr, common.ProxyHTTPSAddr = "127.0.0.1:0", ""
 	t.Cleanup(func() { common.ProxyHTTPAddr, common.ProxyHTTPSAddr = oldHTTPAddr, oldHTTPSAddr })
@@ -370,11 +366,4 @@ func TestFileProviderRetainsConfiguredRouteWhenPartialReloadValidationFails(t *t
 	require.Empty(t, p.preparation.FailedRoutes, "an intentional empty route map must be a clean provider load")
 	require.Zero(t, p.NumRoutes())
 	assertConfiguredRoutesVisible(t, root, p, ep, []string{}, "after clean empty route file removes all routes")
-}
-
-func quietLogs(t *testing.T) {
-	t.Helper()
-	oldLogger := log.Logger
-	log.Logger = zerolog.Nop()
-	t.Cleanup(func() { log.Logger = oldLogger })
 }

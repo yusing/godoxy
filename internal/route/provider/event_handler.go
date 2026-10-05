@@ -40,8 +40,9 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 		newr, ok := newRoutes[k]
 		switch {
 		case !ok:
-			// An incomplete load cannot prove that an absent route was deleted.
-			if err == nil {
+			// A partial file load cannot distinguish invalid aliases from deletions.
+			// Docker listings can still confirm removals despite sibling errors.
+			if err == nil || handler.provider.GetType() != routing.ProviderTypeFile {
 				handler.Remove(oldr)
 			}
 		case handler.shouldUpdateRoute(forceReload, events, newr):

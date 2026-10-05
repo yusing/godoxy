@@ -312,6 +312,14 @@ provider. A dynamic provider with zero routes and no infrastructure error is
 ready. A provider with attempted routes and no active route is failed. Provider
 task cancellation removes its event queue and all active routes.
 
+On a partial file-provider reload, valid updates and additions apply, but old
+aliases absent from the validated result remain active and errors are still
+reported. This also delays genuine deletions until a clean load, which removes
+missing aliases; a clean empty map clears all file routes. Docker and agent
+partial loads that return valid routes still remove aliases absent from that
+result despite sibling errors. Total-load-error retention and retries are
+unchanged.
+
 Docker and agent infrastructure failures retry without requiring Docker events or
 another config reload. Startup retries back off from 3 seconds to a maximum of
 30 seconds. A failed agent is initialized into the owning runtime's agent pool
@@ -325,12 +333,6 @@ An active recovery/event loop with infrastructure errors reports degraded rather
 than permanently failed. Activation reports are snapshots of the initial attempt,
 not live health reports; recovery logs and the route inventory show later results.
 Cancellation interrupts retries and prevents them from attaching to a new runtime.
-
-File provider reloads apply valid routes even when other aliases fail validation.
-During an errored reload, previously loaded aliases missing from the partial result
-are retained because the load cannot establish that they were deleted. A clean
-reload removes aliases absent from the file; a clean empty reload removes all file
-routes. Load errors remain reported.
 
 All loading and validation receives the owning state context. Agent pools,
 Proxmox nodes, MaxMind, notifications, events, entrypoint state, and candidate
