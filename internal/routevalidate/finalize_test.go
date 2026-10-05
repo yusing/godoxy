@@ -5,8 +5,11 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/goutils/task"
 )
 
 func TestPreferredPort(t *testing.T) {
@@ -58,4 +61,51 @@ func TestFinalizeHomepage_ImmichServerUsesImmichCategory(t *testing.T) {
 	require.NotNil(t, r.Homepage)
 	require.Equal(t, "Media", r.Homepage.Category)
 	require.Equal(t, "Immich Server", r.Homepage.Name)
+}
+
+type notifyDefaultsState struct {
+	config.State
+	cfg config.Config
+}
+
+func (s notifyDefaultsState) Value() *config.Config { return &s.cfg }
+
+func TestFinalizeIdlewatcherNotify(t *testing.T) {
+	for _, tc := range []struct {
+		name                    string
+		notify                  *idlewatcher.IdlewatcherNotifyConfig
+		global, noWatcher, want bool
+		to                      []string
+	}{
+		{name: "non-idle route", global: true, noWatcher: true},
+		{name: "off by default"},
+		{name: "route opt in", notify: &idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}, want: true, to: []string{"ntfy"}},
+		{name: "inherit globals", global: true, want: true, to: []string{"gotify"}},
+		{name: "route opts out", global: true, notify: &idlewatcher.IdlewatcherNotifyConfig{To: []string{}}, to: []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &route.Route{Alias: "app", Host: "10.0.0.5", Port: route.Port{Proxy: 8080}}
+			if !tc.noWatcher {
+				r.Idlewatcher = new(idlewatcher.IdlewatcherConfig)
+				r.Idlewatcher.Notify = tc.notify
+			}
+			ctx := t.Context()
+			if tc.global {
+				parent := task.GetTestTask(t)
+				state := notifyDefaultsState{}
+				state.cfg.Defaults.Idlewatcher.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
+				config.SetCtx(parent, state)
+				ctx = parent.Context()
+			}
+			finalize(ctx, r)
+			if tc.noWatcher {
+				require.Nil(t, r.Idlewatcher)
+			} else {
+				require.Equal(t, tc.want, r.Idlewatcher.Notify.Wants())
+				if r.Idlewatcher.Notify != nil {
+					require.Equal(t, tc.to, r.Idlewatcher.Notify.To)
+				}
+			}
+		})
+	}
 }

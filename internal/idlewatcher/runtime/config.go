@@ -25,6 +25,10 @@ type (
 		StopTimeout time.Duration       `json:"stop_timeout"`
 		StopMethod  ContainerStopMethod `json:"stop_method"`
 		StopSignal  ContainerSignal     `json:"stop_signal,omitempty"`
+		// Notify opts this route into sleep/wake notifications. It lives on the
+		// base so it survives the config copy done on reload in
+		// idlewatcher.NewWatcher.
+		Notify *IdlewatcherNotifyConfig `json:"notify,omitzero" extensions:"x-omitempty"`
 	} // @name IdlewatcherConfigBase
 	IdlewatcherConfig struct {
 		IdlewatcherProviderConfig

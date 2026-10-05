@@ -112,6 +112,17 @@ defaults:
     timeout: 15s
     retries: 3
 
+  # Sleep/wake notifications for routes that use idle_timeout.
+  # List provider names from providers.notification below.
+  # Replace the notify block with notify: {} to use all providers when sending.
+  #
+  # Routes use these defaults unless they set notify.to themselves.
+  # Turn off notifications for one route with idlewatcher.notify.to: [].
+  # Docker label: proxy.idle_notify_to: "".
+  # idlewatcher:
+  #   notify:
+  #     to: [gotify, ntfy]
+
 providers:
   # include files are standalone yaml files under `config/` directory
   #
@@ -120,7 +131,9 @@ providers:
   #   - file2.yml
 
   docker:
-    # $DOCKER_HOST implies environment variable `DOCKER_HOST` or unix:///var/run/docker.sock by default
+    # Set GODOXY_DOCKER_HOST in .env to choose the Docker endpoint.
+    # $DOCKER_HOST below reads that setting.
+    # If no endpoint is configured, GoDoxy uses unix:///var/run/docker.sock.
     local: $DOCKER_HOST
 
     # explicit only mode

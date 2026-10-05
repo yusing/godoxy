@@ -296,6 +296,23 @@ labels:
 | `proxy.start_endpoint`  | Optional path restriction       | `proxy.start_endpoint: /api/ready` |
 | `proxy.no_loading_page` | Skip loading page               | `proxy.no_loading_page: true`      |
 
+Sleep/wake notifications, sent through the providers configured under
+`providers.notification`:
+
+| Label                  | Description                           | Example                           |
+| ---------------------- | ------------------------------------- | --------------------------------- |
+| `proxy.idle_notify_to` | Provider names; empty string disables | `proxy.idle_notify_to: gotify,ntfy` |
+
+Naming providers in `proxy.idle_notify_to` opts in. An explicit empty string
+(`proxy.idle_notify_to: ""`) disables notifications, overriding global targets.
+A missing label inherits `defaults.idlewatcher.notify`, staying silent when no
+global block exists. For broadcast, configure global `notify: {}`; all current
+providers are resolved at send time when targets are omitted.
+
+Like the other idle watcher labels, this only takes effect when
+`proxy.idle_timeout` is also set; without it no idlewatcher config is built and
+the label is dropped.
+
 ### Docker Compose labels
 
 Those are created by Docker Compose.

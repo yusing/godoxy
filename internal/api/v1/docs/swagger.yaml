@@ -610,6 +610,14 @@ definitions:
           Negative: idle watcher as a dependency.
       no_loading_page:
         type: boolean
+      notify:
+        allOf:
+        - $ref: '#/definitions/IdlewatcherNotifyConfig'
+        description: |-
+          Notify opts this route into sleep/wake notifications. It lives on the
+          base so it survives the config copy done on reload in
+          idlewatcher.NewWatcher.
+        x-omitempty: true
       proxmox:
         $ref: '#/definitions/IdlewatcherProxmoxNodeConfig'
       start_endpoint:
@@ -636,6 +644,14 @@ definitions:
     - container_id
     - container_name
     - docker_cfg
+    type: object
+  IdlewatcherNotifyConfig:
+    properties:
+      to:
+        items:
+          type: string
+        type: array
+        x-omitempty: true
     type: object
   IdlewatcherProxmoxNodeConfig:
     properties:
@@ -1912,11 +1928,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_15m:
+        type: string
       load_avg_1m:
         type: string
       load_avg_5m:
-        type: string
-      load_avg_15m:
         type: string
       mem_pct:
         type: string

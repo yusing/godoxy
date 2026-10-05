@@ -46,6 +46,9 @@ const (
 	LabelDependsOn     = NSProxy + ".depends_on"
 	LabelNoLoadingPage = NSProxy + ".no_loading_page" // No loading page when using idlewatcher
 	LabelNetwork       = NSProxy + ".network"
+
+	// Sleep/wake notifications. `to` is comma separated.
+	LabelIdleNotifyTo = NSProxy + ".idle_notify_to"
 )
 
 // key: label, value: key in IdlewatcherConfig

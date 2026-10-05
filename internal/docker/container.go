@@ -315,6 +315,14 @@ func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 		}
 	}
 
+	if _, present := helper.Labels[LabelIdleNotifyTo]; present {
+		to := any(helper.getDeleteLabel(LabelIdleNotifyTo))
+		if to == "" {
+			to = []string{}
+		}
+		cfg["notify"] = map[string]any{"to": to}
+	}
+
 	// set only if idlewatcher is enabled
 	if hasIdleTimeout {
 		idwCfg := new(idlewatcher.IdlewatcherConfig)

@@ -56,7 +56,7 @@ var definitions = []Definition{
 	{Name: "FRONTEND_ALIASES", Type: "list", Default: "godoxy", Description: "Legacy WebUI aliases, used only when webui.aliases is empty."},
 	{Name: "SHORTLINK_PREFIX", Type: "string", Default: "go", Description: "Path prefix for short links."},
 	{Name: "INIT_TIMEOUT", Type: "duration", Default: "1m", Description: "Startup initialization timeout; unavailable providers retry in the background."},
-	{Required: true, Example: "tcp://${LISTEN_ADDR}", Name: "DOCKER_HOST", Type: "string", Default: "unix:///var/run/docker.sock", Description: "Endpoint used by providers configured as $DOCKER_HOST.", Sensitive: true},
+	{Required: true, Example: "tcp://${LISTEN_ADDR}", Name: "DOCKER_HOST", Type: "string", Default: "unix:///var/run/docker.sock", Description: "Docker endpoint for $DOCKER_HOST entries in config.yml.", Sensitive: true},
 	{Name: "METRICS_DISABLE_CPU", Type: "bool", Default: "false", Description: "Disable cpu metrics collection."},
 	{Name: "METRICS_DISABLE_MEMORY", Type: "bool", Default: "false", Description: "Disable memory metrics collection."},
 	{Name: "METRICS_DISABLE_DISK", Type: "bool", Default: "false", Description: "Disable disk metrics collection."},

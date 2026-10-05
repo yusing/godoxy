@@ -35,6 +35,25 @@ type IdlewatcherConfig struct {
 ```
 
 ```go
+// Notify is *IdlewatcherNotifyConfig on IdlewatcherConfigBase, so it survives reload.
+type IdlewatcherNotifyConfig struct {
+    To []string `json:"to,omitzero"` // nil: inherit or broadcast; []: disable
+}
+```
+
+Global values under `defaults.idlewatcher.notify` are merged into each route by
+`internal/routevalidate.finalize`, which calls
+`IdlewatcherNotifyConfig.ApplyDefaults`. An absent `notify` pointer inherits the
+global block, or stays nil and silent when no default exists. An empty block
+(`notify: {}`) opts in; omitted `to` inherits global targets. If neither block
+specifies targets, `To` stays nil and dispatch resolves all current providers at
+send time, without capturing the provider list during initialization.
+
+A non-nil empty `To` (`notify: {to: []}`) disables notifications and overrides
+global targets. Global `to: []` also disables them, but a route can override it
+with named providers. JSON `omitzero` preserves empty blocks and explicit `[]`.
+
+```go
 type Provider interface {
     ContainerPause(ctx context.Context) error
     ContainerStart(ctx context.Context) error

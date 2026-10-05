@@ -104,6 +104,9 @@ example: # matching `example.y.z`
     depends_on:
       - other-service
     no_loading_page: false
+    notify:
+      to:
+        - gotify
     docker:
       container_id: abc123
       container_name: example-app

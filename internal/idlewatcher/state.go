@@ -20,12 +20,13 @@ func (w *Watcher) error() error {
 	return w.state.Load().err
 }
 
-func (w *Watcher) storeState(state *containerState) {
+func (w *Watcher) storeState(state *containerState) *containerState {
 	w.stateChangedMu.Lock()
-	w.state.Store(state)
+	previous := w.state.Swap(state)
 	close(w.stateChangedCh)
 	w.stateChangedCh = make(chan struct{})
 	w.stateChangedMu.Unlock()
+	return previous
 }
 
 func (w *Watcher) setReady() {
@@ -40,7 +41,7 @@ func (w *Watcher) setReady() {
 func (w *Watcher) setStarting() {
 	alreadyStarting := w.wakeInProgress()
 	now := time.Now()
-	w.storeState(&containerState{
+	previous := w.storeState(&containerState{
 		status:    idlewatcher.ContainerStatusRunning,
 		ready:     false,
 		startedAt: now,
@@ -50,11 +51,14 @@ func (w *Watcher) setStarting() {
 	if !alreadyStarting {
 		w.emitIdleActivity(gevents.LevelInfo, IdleEventActionStarting, w.cfg.ContainerName()+" is starting...", nil)
 	}
+	if previous != nil && previous.status != idlewatcher.ContainerStatusRunning {
+		w.notifyTransition(idlewatcher.ContainerStatusRunning)
+	}
 }
 
 func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 	w.clearEventHistory() // Clear events on stop/pause
-	w.storeState(&containerState{
+	previous := w.storeState(&containerState{
 		status:      status,
 		ready:       false,
 		startedAt:   time.Time{},
@@ -65,6 +69,9 @@ func (w *Watcher) setNapping(status idlewatcher.ContainerStatus) {
 		message = w.cfg.ContainerName() + " was paused"
 	}
 	w.emitIdleActivity(gevents.LevelInfo, IdleEventActionNapping, message, nil)
+	if previous != nil && previous.status == idlewatcher.ContainerStatusRunning {
+		w.notifyTransition(status)
+	}
 }
 
 func (w *Watcher) setError(err error) {

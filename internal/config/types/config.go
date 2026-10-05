@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/entrypoint"
 	"github.com/yusing/godoxy/internal/health"
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
@@ -32,7 +33,8 @@ type (
 		TimeoutShutdown     int                                 `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Defaults struct {
-		HealthCheck health.HealthCheckConfig `json:"healthcheck"`
+		HealthCheck health.HealthCheckConfig        `json:"healthcheck"`
+		Idlewatcher idlewatcher.IdlewatcherDefaults `json:"idlewatcher"`
 	}
 	Providers struct {
 		Files        []string                              `json:"include" yaml:"include,omitempty" validate:"dive,filepath"`

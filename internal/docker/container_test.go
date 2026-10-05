@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/types"
 	expect "github.com/yusing/goutils/testing"
 )
@@ -208,6 +209,62 @@ func TestImageNameParsing(t *testing.T) {
 			expect.Equal(t, im.Author, tt.author)
 			expect.Equal(t, im.Name, tt.image)
 			expect.Equal(t, im.Tag, tt.tag)
+		})
+	}
+}
+
+func idlewatcherFromLabels(t *testing.T, labels map[string]string) *Container {
+	t.Helper()
+	return FromDocker(t.Context(), &container.Summary{
+		Names:  []string{"test"},
+		State:  "exited",
+		Labels: labels,
+	}, types.DockerProviderConfig{})
+}
+
+func TestIdlewatcherNotifyLabels(t *testing.T) {
+	tests := []struct {
+		name       string
+		labels     map[string]string
+		wantConfig bool
+		wantTo     []string
+	}{
+		{
+			name:       "providers",
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify_to": "gotify, ntfy"},
+			wantConfig: true,
+			wantTo:     []string{"gotify", "ntfy"},
+		},
+		{
+			name:       "explicit opt out",
+			labels:     map[string]string{"proxy.idle_timeout": "30m", "proxy.idle_notify_to": ""},
+			wantConfig: true,
+			wantTo:     []string{},
+		},
+		{
+			// The idlewatcher config is only built when proxy.idle_timeout is
+			// present, so notify labels on their own are dropped with the rest.
+			name:   "without idle_timeout",
+			labels: map[string]string{"proxy.idle_notify_to": "gotify"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := idlewatcherFromLabels(t, tc.labels)
+
+			require.Nil(t, c.Errors)
+			if !tc.wantConfig {
+				require.Nil(t, c.IdlewatcherConfig)
+				return
+			}
+			require.NotNil(t, c.IdlewatcherConfig)
+			require.Equal(t, tc.wantTo, c.IdlewatcherConfig.Notify.To)
+
+			// All idlewatcher labels are consumed, so none may leak into per-alias
+			// route field parsing.
+			for lbl := range tc.labels {
+				require.NotContains(t, c.Labels, lbl)
+			}
 		})
 	}
 }
