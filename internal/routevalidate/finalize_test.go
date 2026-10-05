@@ -2,13 +2,14 @@ package routevalidate
 
 import (
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/goutils/task"
 )
 
 func TestPreferredPort(t *testing.T) {
@@ -62,50 +63,47 @@ func TestFinalizeHomepage_ImmichServerUsesImmichCategory(t *testing.T) {
 	require.Equal(t, "Immich Server", r.Homepage.Name)
 }
 
-// finalize must not materialize an idlewatcher config on a route that has none,
-// which would defeat `json:"idlewatcher,omitempty"` for every non-idle route.
-func TestFinalizeLeavesNilIdlewatcherNil(t *testing.T) {
-	r := &route.Route{Alias: "app", Host: "10.0.0.5", Port: route.Port{Proxy: 8080}}
-
-	finalize(t.Context(), r)
-
-	require.Nil(t, r.Idlewatcher)
+type notifyDefaultsState struct {
+	config.State
+	cfg config.Config
 }
 
-// With no config state in the context the defaults are zero, but the route's own
-// notify config must still end up resolved.
-func TestFinalizeResolvesIdlewatcherNotify(t *testing.T) {
-	r := &route.Route{
-		Alias: "app",
-		Host:  "10.0.0.5",
-		Port:  route.Port{Proxy: 8080},
-		Idlewatcher: &idlewatcher.IdlewatcherConfig{
-			IdlewatcherConfigBase: idlewatcher.IdlewatcherConfigBase{
-				IdleTimeout: 30 * time.Minute,
-				Notify:      idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}},
-			},
-		},
+func (s notifyDefaultsState) Value() *config.Config { return &s.cfg }
+
+func TestFinalizeIdlewatcherNotify(t *testing.T) {
+	for _, tc := range []struct {
+		name                    string
+		notify                  idlewatcher.IdlewatcherNotifyConfig
+		global, noWatcher, want bool
+		to                      []string
+	}{
+		{name: "non-idle route", global: true, noWatcher: true},
+		{name: "off by default"},
+		{name: "route opt in", notify: idlewatcher.IdlewatcherNotifyConfig{To: []string{"ntfy"}}, want: true, to: []string{"ntfy"}},
+		{name: "inherit globals", global: true, want: true, to: []string{"gotify"}},
+		{name: "route opts out", global: true, notify: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(false)}, to: []string{"gotify"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &route.Route{Alias: "app", Host: "10.0.0.5", Port: route.Port{Proxy: 8080}}
+			if !tc.noWatcher {
+				r.Idlewatcher = new(idlewatcher.IdlewatcherConfig)
+				r.Idlewatcher.Notify = tc.notify
+			}
+			ctx := t.Context()
+			if tc.global {
+				parent := task.GetTestTask(t)
+				state := notifyDefaultsState{}
+				state.cfg.Defaults.Idlewatcher.Notify = idlewatcher.IdlewatcherNotifyConfig{Enabled: new(true), To: []string{"gotify"}}
+				config.SetCtx(parent, state)
+				ctx = parent.Context()
+			}
+			finalize(ctx, r)
+			if tc.noWatcher {
+				require.Nil(t, r.Idlewatcher)
+			} else {
+				require.Equal(t, tc.want, r.Idlewatcher.Notify.Wants())
+				require.Equal(t, tc.to, r.Idlewatcher.Notify.To)
+			}
+		})
 	}
-
-	finalize(t.Context(), r)
-
-	require.True(t, r.Idlewatcher.Notify.Wants(idlewatcher.NotifyEventSleep))
-	require.True(t, r.Idlewatcher.Notify.Wants(idlewatcher.NotifyEventWake))
-	require.False(t, r.Idlewatcher.Notify.Wants(idlewatcher.NotifyEventReady))
-}
-
-// A route that configures nothing stays silent even after the defaults merge.
-func TestFinalizeLeavesUnconfiguredIdlewatcherNotifyDisabled(t *testing.T) {
-	r := &route.Route{
-		Alias: "app",
-		Host:  "10.0.0.5",
-		Port:  route.Port{Proxy: 8080},
-		Idlewatcher: &idlewatcher.IdlewatcherConfig{
-			IdlewatcherConfigBase: idlewatcher.IdlewatcherConfigBase{IdleTimeout: 30 * time.Minute},
-		},
-	}
-
-	finalize(t.Context(), r)
-
-	require.False(t, r.Idlewatcher.Notify.Wants(idlewatcher.NotifyEventSleep))
 }

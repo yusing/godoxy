@@ -52,7 +52,7 @@ const (
 	LabelIdleNotifyTo = NSProxy + ".idle_notify_to"
 )
 
-// key: label, value: dot separated key path in IdlewatcherConfig
+// key: label, value: field in IdlewatcherConfig (or its Notify config)
 var idlewatcherLabels = map[string]string{
 	LabelIdleTimeout:   "idle_timeout",
 	LabelWakeTimeout:   "wake_timeout",
@@ -62,6 +62,6 @@ var idlewatcherLabels = map[string]string{
 	LabelStartEndpoint: "start_endpoint",
 	LabelDependsOn:     "depends_on",
 	LabelNoLoadingPage: "no_loading_page",
-	LabelIdleNotify:    "notify.enabled",
-	LabelIdleNotifyTo:  "notify.to",
+	LabelIdleNotify:    "enabled",
+	LabelIdleNotifyTo:  "to",
 }

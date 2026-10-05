@@ -301,18 +301,27 @@ func setPrivateHostname(c *Container, helper containerHelper) {
 func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 	hasIdleTimeout := false
 	cfg := make(map[string]any, len(idlewatcherLabels))
+	notify := make(map[string]any, 2)
 	for lbl, key := range idlewatcherLabels {
 		value := helper.getDeleteLabel(lbl)
 		if value == "" {
 			continue
 		}
-		setNestedKey(cfg, key, value)
 		switch lbl {
+		case LabelIdleNotify, LabelIdleNotifyTo:
+			notify[key] = value
+			continue
 		case LabelIdleTimeout:
 			hasIdleTimeout = true
 		case LabelDependsOn:
-			setNestedKey(cfg, key, Dependencies(c))
+			cfg[key] = Dependencies(c)
+			continue
 		}
+		cfg[key] = value
+	}
+
+	if len(notify) > 0 {
+		cfg["notify"] = notify
 	}
 
 	// set only if idlewatcher is enabled
@@ -329,25 +338,6 @@ func loadDeleteIdlewatcherLabels(c *Container, helper containerHelper) {
 		} else {
 			c.IdlewatcherConfig = idwCfg
 		}
-	}
-}
-
-// setNestedKey assigns value at a dot separated key path, creating intermediate
-// objects as needed. serialization.Convert only recurses into map[string]any, so
-// the intermediates must be exactly that type.
-func setNestedKey(m map[string]any, path string, value any) {
-	for {
-		head, rest, nested := strings.Cut(path, ".")
-		if !nested {
-			m[head] = value
-			return
-		}
-		child, ok := m[head].(map[string]any)
-		if !ok {
-			child = make(map[string]any)
-			m[head] = child
-		}
-		m, path = child, rest
 	}
 }
 

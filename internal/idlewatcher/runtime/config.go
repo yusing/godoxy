@@ -103,11 +103,6 @@ func (c *IdlewatcherConfig) ValidateResolved() error {
 }
 
 func (c *IdlewatcherConfig) validate(requireProvider bool) error {
-	// resolve before the early return so a config that never reaches
-	// routevalidate.finalize still has a coherent notify state. Idempotent:
-	// IdlewatcherNotifyConfig.ApplyDefaults re-runs it with the globals merged.
-	c.Notify.resolve()
-
 	if c.IdleTimeout == 0 { // zero idle timeout means no idle watcher
 		c.valErr = nil
 		return nil

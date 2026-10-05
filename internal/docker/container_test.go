@@ -217,7 +217,7 @@ func idlewatcherFromLabels(t *testing.T, labels map[string]string) *Container {
 	t.Helper()
 	return FromDocker(t.Context(), &container.Summary{
 		Names:  []string{"test"},
-		State:  "running",
+		State:  "exited",
 		Labels: labels,
 	}, types.DockerProviderConfig{})
 }
@@ -278,15 +278,3 @@ func TestIdlewatcherNotifyLabels(t *testing.T) {
 }
 
 func ptrTo[T any](v T) *T { return &v }
-
-func TestSetNestedKey(t *testing.T) {
-	m := map[string]any{}
-
-	setNestedKey(m, "idle_timeout", "30m")
-	setNestedKey(m, "notify.to", "gotify")
-	setNestedKey(m, "a.b.c", "deep")
-
-	require.Equal(t, "30m", m["idle_timeout"])
-	require.Equal(t, map[string]any{"to": "gotify"}, m["notify"])
-	require.Equal(t, map[string]any{"b": map[string]any{"c": "deep"}}, m["a"])
-}

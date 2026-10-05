@@ -76,10 +76,7 @@ type (
 		eventsMu       sync.Mutex
 		lastIdleAction synk.Value[string]
 
-		// Sleep/wake notifications. notify is bound once from the task context;
-		// notifyPhase edge triggers it. See notify.go.
-		notify      notif.NotifyFunc
-		notifyPhase atomic.Uint32
+		notify notif.NotifyFunc
 
 		dependenciesMu    sync.RWMutex
 		dependsOn         []*dependency
@@ -158,6 +155,7 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 			stateChangedCh: make(chan struct{}),
 			events:         gevents.NewHistory(),
 			cfg:            cfg,
+			notify:         notif.FromCtx(parent.Context()).Notify,
 			hc:             monitor.NewMonitor(r),
 			dependsOn:      make([]*dependency, 0, len(cfg.DependsOn)),
 		}
@@ -355,12 +353,6 @@ func NewWatcher(parent task.Parent, r routing.Route, cfg *Config) (*Watcher, err
 	if !exists {
 		watcherMapMu.Lock()
 		w.task = parent.Subtask("idlewatcher."+r.Name(), true)
-		if w.notify == nil { // tests inject their own
-			w.notify = notif.FromCtx(parent.Context()).Notify
-		}
-		// Seed the edge detector so an already running container does not report
-		// a wake that happened before this watcher existed.
-		w.notifyPhase.Store(uint32(initialNotifyPhase(status)))
 		watcherMap[key] = w
 		watcherMapMu.Unlock()
 

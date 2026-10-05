@@ -1,211 +1,133 @@
 package idlewatcher
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
-	idlewatchertypes "github.com/yusing/godoxy/internal/idlewatcher/runtime"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/notif"
 )
 
-type notifyCfg = idlewatchertypes.IdlewatcherNotifyConfig
+func TestNotifyTransitions(t *testing.T) {
+	for _, status := range []idlewatcher.ContainerStatus{
+		idlewatcher.ContainerStatusRunning,
+		idlewatcher.ContainerStatusStopped,
+		idlewatcher.ContainerStatusPaused,
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			w := newTestWatcher(t)
+			w.cfg.Notify.To = []string{"gotify", "ntfy"}
+			w.cfg.IdleTimeout = 30 * time.Minute
+			var sent []*notif.LogMessage
+			w.notify = func(msg *notif.LogMessage) { sent = append(sent, msg) }
 
-func ptr[T any](v T) *T { return &v }
-
-// newNotifyWatcher returns a watcher with cfg resolved and a sink capturing
-// every dispatched message.
-//
-// NewWatcher seeds the phase from the container status it observes, and a
-// watcher that starts out asleep correctly swallows a redundant sleep. Being
-// awake is the precondition for observing a sleep at all, so start there; the
-// seeding itself is covered by the seeded* cases below.
-func newNotifyWatcher(t *testing.T, cfg notifyCfg) (*Watcher, *[]*notif.LogMessage) {
-	t.Helper()
-
-	w := newTestWatcher(t)
-	cfg.ApplyDefaults(notifyCfg{})
-	w.cfg.Notify = cfg
-
-	sent := new([]*notif.LogMessage)
-	w.notify = func(msg *notif.LogMessage) { *sent = append(*sent, msg) }
-	w.notifyPhase.Store(uint32(notifyPhaseAwake))
-	return w, sent
-}
-
-func requireTitles(t *testing.T, sent []*notif.LogMessage, want []string) {
-	t.Helper()
-	got := make([]string, 0, len(sent))
-	for _, msg := range sent {
-		got = append(got, msg.Title)
-	}
-	require.Len(t, got, len(want), "got %v", got)
-	for i, substr := range want {
-		require.Contains(t, got[i], substr)
-	}
-}
-
-func TestNotifyDispatch(t *testing.T) {
-	var (
-		sleep = func(w *Watcher) { w.setNapping(idlewatchertypes.ContainerStatusStopped) }
-		pause = func(w *Watcher) { w.setNapping(idlewatchertypes.ContainerStatusPaused) }
-		wake  = func(w *Watcher) { w.setStarting() }
-		ready = func(w *Watcher) { w.setReady() }
-	)
-
-	tests := []struct {
-		name  string
-		cfg   notifyCfg
-		phase *notifyPhase
-		setup func(*Watcher)
-		steps []func(*Watcher)
-		want  []string
-	}{
-		{
-			name:  "silent unless opted in",
-			cfg:   notifyCfg{},
-			steps: []func(*Watcher){wake, sleep},
-		},
-		{
-			name:  "sleep and wake",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			steps: []func(*Watcher){sleep, wake},
-			want:  []string{"went to sleep", "is waking up"},
-		},
-		{
-			// The second setStarting arrives from the container event stream and is
-			// the case lastIdleAction would fail to dedupe, because sendEvent
-			// overwrites it with the wake sub-events in between.
-			name:  "repeats of the same phase are suppressed",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			steps: []func(*Watcher){sleep, sleep, wake, wake, sleep},
-			want:  []string{"went to sleep", "is waking up", "went to sleep"},
-		},
-		{
-			name:  "becoming ready is not a separate notification",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			phase: ptr(notifyPhaseAsleep),
-			steps: []func(*Watcher){wake, ready},
-			want:  []string{"is waking up"},
-		},
-		{
-			name:  "pause has its own wording",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			steps: []func(*Watcher){pause},
-			want:  []string{"was paused"},
-		},
-		{
-			name:  "explicit disable beats an enabled global",
-			cfg:   notifyCfg{Enabled: ptr(false), To: []string{"gotify"}},
-			steps: []func(*Watcher){sleep, wake},
-		},
-		{
-			// Dependency watchers start and stop as a side effect of their parent,
-			// so reporting them would duplicate every notification.
-			name:  "dependency watchers are suppressed",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			setup: func(w *Watcher) { w.cfg.IdleTimeout = neverTick },
-			steps: []func(*Watcher){sleep, wake},
-		},
-		{
-			// GoDoxy starting next to a running container must not report a wake
-			// that happened before it was watching.
-			name:  "seeded from a running container",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			phase: ptr(initialNotifyPhase(idlewatchertypes.ContainerStatusRunning)),
-			steps: []func(*Watcher){wake, sleep},
-			want:  []string{"went to sleep"},
-		},
-		{
-			name:  "seeded from a stopped container",
-			cfg:   notifyCfg{To: []string{"gotify"}},
-			phase: ptr(initialNotifyPhase(idlewatchertypes.ContainerStatusStopped)),
-			steps: []func(*Watcher){sleep, wake},
-			want:  []string{"is waking up"},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			w, sent := newNotifyWatcher(t, tc.cfg)
-			if tc.setup != nil {
-				tc.setup(w)
+			// Initial status stores stay silent, and redundant provider events
+			// must not report transitions that happened before startup.
+			w.storeState(&containerState{status: status})
+			if status == idlewatcher.ContainerStatusRunning {
+				w.setStarting()
+			} else {
+				w.setNapping(status)
 			}
-			if tc.phase != nil {
-				w.notifyPhase.Store(uint32(*tc.phase))
+			require.Empty(t, sent)
+
+			w.setStarting()
+			w.sendEvent(WakeEventWaitingReady, "waiting", nil)
+			w.setStarting()
+			w.setReady()
+			w.setError(errors.New("health check failed"))
+			w.setNapping(idlewatcher.ContainerStatusPaused)
+			w.setNapping(idlewatcher.ContainerStatusStopped)
+			w.setStarting()
+			if status != idlewatcher.ContainerStatusRunning {
+				require.Contains(t, sent[0].Title, "is waking up")
+				sent = sent[1:]
 			}
-			for _, step := range tc.steps {
-				step(w)
+			require.Len(t, sent, 2)
+			require.Contains(t, sent[0].Title, w.cfg.ContainerName()+" was paused")
+			require.Contains(t, sent[1].Title, "is waking up")
+			require.Equal(t, w.cfg.Notify.To, sent[0].To)
+			require.Equal(t, zerolog.InfoLevel, sent[0].Level)
+			require.Equal(t, notif.ColorInfo, sent[0].Color)
+			fields := map[string]string{}
+			for _, field := range sent[0].Body.(notif.FieldsBody) {
+				fields[field.Name] = field.Value
 			}
-			requireTitles(t, *sent, tc.want)
+			require.Equal(t, w.cfg.ContainerName(), fields["Container"])
+			require.Equal(t, w.cfg.ContainerName(), fields["Route"])
+			require.Equal(t, "paused", fields["Status"])
+			require.Equal(t, "30 minutes", fields["Idle Timeout"])
+			require.NotEmpty(t, fields["Time"])
+
+			// Reload and teardown stores are silent as well.
+			w.storeState(&containerState{status: idlewatcher.ContainerStatusStopped})
+			require.Len(t, sent, 2)
 		})
 	}
 }
 
-func TestInitialNotifyPhase(t *testing.T) {
-	require.Equal(t, notifyPhaseAwake, initialNotifyPhase(idlewatchertypes.ContainerStatusRunning))
-	require.Equal(t, notifyPhaseAsleep, initialNotifyPhase(idlewatchertypes.ContainerStatusStopped))
-	require.Equal(t, notifyPhaseAsleep, initialNotifyPhase(idlewatchertypes.ContainerStatusPaused))
+func TestNotifyOptIn(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		cfg        idlewatcher.IdlewatcherNotifyConfig
+		dependency bool
+		want       int
+	}{
+		{name: "disabled by default"},
+		{name: "broadcast", cfg: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(true)}, want: 1},
+		{name: "opt out", cfg: idlewatcher.IdlewatcherNotifyConfig{Enabled: new(false), To: []string{"gotify"}}},
+		{name: "dependency", cfg: idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}, dependency: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newTestWatcher(t)
+			w.cfg.Notify = tc.cfg
+			if tc.dependency {
+				w.cfg.IdleTimeout = neverTick
+			}
+			var sent []*notif.LogMessage
+			w.notify = func(msg *notif.LogMessage) { sent = append(sent, msg) }
+			w.storeState(&containerState{status: idlewatcher.ContainerStatusRunning})
+			w.setNapping(idlewatcher.ContainerStatusStopped)
+			require.Len(t, sent, tc.want)
+			if tc.want > 0 {
+				require.Contains(t, sent[0].Title, "went to sleep")
+				require.Empty(t, sent[0].To)
+			}
+		})
+	}
 }
 
-func TestNotifyProviderTargeting(t *testing.T) {
-	t.Run("named providers", func(t *testing.T) {
-		w, sent := newNotifyWatcher(t, notifyCfg{To: []string{"gotify", "ntfy"}})
-		w.setNapping(idlewatchertypes.ContainerStatusStopped)
+// A channel sink also checks the constructor's runtime notifier binding.
+type notifySink chan *notif.LogMessage
 
-		require.Len(t, *sent, 1)
-		require.Equal(t, []string{"gotify", "ntfy"}, (*sent)[0].To)
-	})
+func (s notifySink) Notify(msg *notif.LogMessage) { s <- msg }
 
-	t.Run("none named broadcasts", func(t *testing.T) {
-		w, sent := newNotifyWatcher(t, notifyCfg{Enabled: ptr(true)})
-		w.setNapping(idlewatchertypes.ContainerStatusStopped)
+func TestNewWatcherNotifyReload(t *testing.T) {
+	_, parent, mainRoute, _ := newDependencyReloadTest(t, "notify-fixture", nil)
+	sink := make(notifySink, 2)
+	notif.SetCtx(parent, sink)
+	cfg := idlewatcherTestConfig("notify", nil)
+	cfg.Notify.To = []string{"gotify"}
+	r := newIdlewatcherTestRoute("notify-route", mainRoute.provider, cfg)
+	w, err := NewWatcher(parent, r, cfg)
+	require.NoError(t, err)
+	require.Empty(t, sink)
+	w.setStarting()
+	require.Len(t, sink, 1)
+	msg := <-sink
+	require.Contains(t, msg.Title, "notify-route is waking up")
+	require.Equal(t, []string{"gotify"}, msg.To)
 
-		require.Len(t, *sent, 1)
-		require.Empty(t, (*sent)[0].To)
-	})
-}
-
-func TestNotifyMessageBody(t *testing.T) {
-	t.Run("sleep carries status and idle timeout", func(t *testing.T) {
-		w, sent := newNotifyWatcher(t, notifyCfg{To: []string{"gotify"}})
-		w.cfg.IdleTimeout = 30 * time.Minute
-
-		w.setNapping(idlewatchertypes.ContainerStatusStopped)
-
-		require.Len(t, *sent, 1)
-		body, ok := (*sent)[0].Body.(notif.FieldsBody)
-		require.True(t, ok, "body should be a FieldsBody")
-
-		got := make(map[string]string, len(body))
-		for _, field := range body {
-			got[field.Name] = field.Value
-		}
-		require.Equal(t, w.cfg.ContainerName(), got["Container"])
-		require.Equal(t, string(idlewatchertypes.ContainerStatusStopped), got["Status"])
-		require.Equal(t, "30 minutes", got["Idle Timeout"])
-		require.NotEmpty(t, got["Route"])
-		require.NotEmpty(t, got["Time"])
-		require.Equal(t, zerolog.InfoLevel, (*sent)[0].Level)
-	})
-
-	// newTestWatcher leaves route nil, as dependency watchers can.
-	t.Run("nil route falls back to the container name", func(t *testing.T) {
-		w, sent := newNotifyWatcher(t, notifyCfg{To: []string{"gotify"}})
-		require.Nil(t, w.route)
-
-		w.setNapping(idlewatchertypes.ContainerStatusStopped)
-
-		requireTitles(t, *sent, []string{w.cfg.ContainerName()})
-	})
-}
-
-func TestNotifyWithoutNotifierIsSafe(t *testing.T) {
-	w := newTestWatcher(t)
-	cfg := notifyCfg{To: []string{"gotify"}}
-	cfg.ApplyDefaults(notifyCfg{})
-	w.cfg.Notify = cfg
-	require.Nil(t, w.notify)
-
-	require.NotPanics(t, func() { w.setNapping(idlewatchertypes.ContainerStatusStopped) })
+	cfg = idlewatcherTestConfig("notify", nil)
+	cfg.Notify.To = []string{"ntfy"}
+	reloaded, err := NewWatcher(parent, r, cfg)
+	require.NoError(t, err)
+	require.Same(t, w, reloaded)
+	require.Empty(t, sink, "reloading the observed container state is silent")
+	w.setStarting()
+	require.Len(t, sink, 1)
+	require.Equal(t, []string{"ntfy"}, (<-sink).To)
 }

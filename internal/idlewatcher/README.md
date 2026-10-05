@@ -269,15 +269,14 @@ Three things are worth knowing before changing this:
   `storeState`.** Teardown and the initial status store call `storeState`
   directly and must stay silent; hooking the setters gives that carve-out for
   free.
-- **Dispatch is edge triggered on `notifyPhase`, not on `lastIdleAction`.**
-  `sendEvent` overwrites `lastIdleAction` for every wake sub-event, so on the
-  request path it holds `waiting_ready` by the time `setStarting` runs and would
-  fail to dedupe the second `setStarting` arriving from the container event
-  stream.
-- **Dependency watchers are suppressed** (`IdleTimeout == neverTick`), and the
-  phase is **seeded from the container status** observed when the watcher is
-  created, so GoDoxy starting next to an already running container does not
-  report a wake that happened before it was watching.
+- **Dispatch uses the previous container state returned by `storeState`'s
+  atomic exchange.** `setStarting` notifies only when the previous status was
+  not running; `setNapping` notifies only when it was running. Repeated setters
+  do not send duplicate notifications, and wake progress events do not affect
+  this check. Direct state stores during reload also stay silent.
+- **Dependency-only watchers are suppressed** (`IdleTimeout == neverTick`).
+  Notifications have info severity and report only sleep/pause and wake, not
+  readiness or errors. Paused containers use pause wording.
 
 ### Metrics
 
