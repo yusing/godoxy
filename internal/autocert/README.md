@@ -213,22 +213,59 @@ root:
 | Type           | Description                  | Use Case                  |
 | -------------- | ---------------------------- | ------------------------- |
 | `local`        | No ACME, use existing cert   | Pre-existing certificates |
-| `pseudo`       | Mock provider for testing    | Development               |
-| ACME providers | Let's Encrypt, ZeroSSL, etc. | Production                |
+| `pseudo`       | Internal mock provider      | Tests; not user-selectable |
+| `custom`       | Custom ACME CA directory    | Internal ACME CAs          |
+| DNS providers  | DNS-01 via bundled lego providers | Production           |
 
-### Supported DNS Providers
+### Selectable Certificate Providers
 
-| Provider     | Name           | Required Options                    |
-| ------------ | -------------- | ----------------------------------- |
-| Cloudflare   | `cloudflare`   | `CF_API_TOKEN`                      |
-| Route 53     | `route53`      | AWS credentials                     |
-| DigitalOcean | `digitalocean` | `DO_API_TOKEN`                      |
-| GoDaddy      | `godaddy`      | `GD_API_KEY`, `GD_API_SECRET`       |
-| OVH          | `ovh`          | `OVH_ENDPOINT`, `OVH_APP_KEY`, etc. |
-| CloudDNS     | `clouddns`     | GCP credentials                     |
-| AzureDNS     | `azuredns`     | Azure credentials                   |
-| deSEC        | `desec`        | `DESEC_TOKEN`                      |
-| DuckDNS      | `duckdns`      | `DUCKDNS_TOKEN`                     |
+[autocert-providers-start]: #
+
+Generated from the bundled provider registry with `shadowtree gen-autocert-providers`.
+
+| Provider ID | Configuration reference |
+| --- | --- |
+| `acmedns` | [lego acmedns](https://go-acme.github.io/lego/dns/acmedns/) |
+| `azuredns` | [lego azuredns](https://go-acme.github.io/lego/dns/azuredns/) |
+| `clouddns` | [lego clouddns](https://go-acme.github.io/lego/dns/clouddns/) |
+| `cloudflare` | [lego cloudflare](https://go-acme.github.io/lego/dns/cloudflare/) |
+| `cloudns` | [lego cloudns](https://go-acme.github.io/lego/dns/cloudns/) |
+| `custom` | Custom ACME CA (`ca_dir_url`) |
+| `desec` | [lego desec](https://go-acme.github.io/lego/dns/desec/) |
+| `digitalocean` | [lego digitalocean](https://go-acme.github.io/lego/dns/digitalocean/) |
+| `dnsupdate` | [lego dnsupdate](https://go-acme.github.io/lego/dns/dnsupdate/) |
+| `duckdns` | [lego duckdns](https://go-acme.github.io/lego/dns/duckdns/) |
+| `edgedns` | [lego edgedns](https://go-acme.github.io/lego/dns/edgedns/) |
+| `gcloud` | [lego gcloud](https://go-acme.github.io/lego/dns/gcloud/) |
+| `godaddy` | [lego godaddy](https://go-acme.github.io/lego/dns/godaddy/) |
+| `hetzner` | [lego hetzner](https://go-acme.github.io/lego/dns/hetzner/) |
+| `hostinger` | [lego hostinger](https://go-acme.github.io/lego/dns/hostinger/) |
+| `httpreq` | [lego httpreq](https://go-acme.github.io/lego/dns/httpreq/) |
+| `infomaniak` | [lego infomaniak](https://go-acme.github.io/lego/dns/infomaniak/) |
+| `inwx` | [lego inwx](https://go-acme.github.io/lego/dns/inwx/) |
+| `ionos` | [lego ionos](https://go-acme.github.io/lego/dns/ionos/) |
+| `linode` | [lego linode](https://go-acme.github.io/lego/dns/linode/) |
+| `local` | Existing certificate files (`cert_path` and `key_path`); no ACME |
+| `namecheap` | [lego namecheap](https://go-acme.github.io/lego/dns/namecheap/) |
+| `netcup` | [lego netcup](https://go-acme.github.io/lego/dns/netcup/) |
+| `netlify` | [lego netlify](https://go-acme.github.io/lego/dns/netlify/) |
+| `oraclecloud` | [lego oraclecloud](https://go-acme.github.io/lego/dns/oraclecloud/) |
+| `ovh` | [lego ovh](https://go-acme.github.io/lego/dns/ovh/) |
+| `porkbun` | [lego porkbun](https://go-acme.github.io/lego/dns/porkbun/) |
+| `rfc2136` | Alias for `dnsupdate` |
+| `scaleway` | [lego scaleway](https://go-acme.github.io/lego/dns/scaleway/) |
+| `spaceship` | [lego spaceship](https://go-acme.github.io/lego/dns/spaceship/) |
+| `timewebcloud` | [lego timewebcloud](https://go-acme.github.io/lego/dns/timewebcloud/) |
+| `vercel` | [lego vercel](https://go-acme.github.io/lego/dns/vercel/) |
+| `vultr` | [lego vultr](https://go-acme.github.io/lego/dns/vultr/) |
+
+`pseudo` is internal and is not offered in the picker. Only the bundled DNS providers above are supported; lego's full catalogue includes providers that GoDoxy does not bundle.
+
+[autocert-providers-end]: #
+
+The WebUI uses the generated provider list for both the main certificate and
+extra certificates. Providers without a dedicated credential form use the base
+certificate fields and an editable `options` map.
 
 ### Example Configuration
 
@@ -246,6 +283,10 @@ autocert:
   resolvers:
     - 1.1.1.1:53
 ```
+
+`options` keys match fields in the selected lego provider's `Config` struct,
+written in snake_case (for example, `APIKey` becomes `api_key`). They are not
+lego environment variable names. Only bundled providers are available.
 
 `resolvers` sets the recursive nameservers used for the dns-01 propagation check.
 lego applies it to a process-wide DNS client, so when extra providers each set
@@ -363,6 +404,14 @@ if provider.ForceExpiryAll() {
     provider.WaitRenewalDone(ctx)
 }
 ```
+
+## Maintaining the Provider Contract
+
+`internal/dnsproviders/providers.go` is the source of the bundled DNS provider
+list. Run `shadowtree gen-autocert-providers` after changing it to regenerate the
+WebUI provider union, the marked documentation tables, and the config/autocert
+schemas. Run `shadowtree check-autocert-providers` to detect drift; CI runs this
+contract check too. Preserve generated blocks when editing surrounding prose.
 
 ## Testing Notes
 

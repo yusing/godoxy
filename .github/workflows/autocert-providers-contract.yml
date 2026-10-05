@@ -1,0 +1,37 @@
+name: Certificate provider contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: Test provider generator
+        run: go test -ldflags=-checklinkname=0 ./cmd/autocert-providers-gen
+      - name: Check provider types, schemas, and documentation
+        run: go run -ldflags=-checklinkname=0 ./cmd/autocert-providers-gen -check
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: webui/package.json
+      - name: Install WebUI dependencies
+        working-directory: webui
+        run: bun install --frozen-lockfile
+      - name: Check provider type constraints
+        working-directory: webui
+        run: bunx tsc --noEmit --strict --skipLibCheck --target ES2022 --moduleResolution bundler --module preserve --ignoreConfig src/types/godoxy/config/autocert.type-test.ts
+      - name: Test schema-backed certificate settings
+        working-directory: webui
+        run: bun test src/components/config_editor/general_config/AutocertConfigContent.test.tsx

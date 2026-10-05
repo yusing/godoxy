@@ -428,3 +428,17 @@ cmd = "go run ./cmd/env-docs-gen"
 [recipes.check-env-docs]
 help = "Check environment example and wiki for drift."
 cmd = "go run ./cmd/env-docs-gen -check"
+
+[recipes.gen-autocert-providers]
+help = "Generate certificate provider types, documentation, and WebUI schemas."
+sandboxed = false
+cmd = '''
+set -e
+go run -ldflags=-checklinkname=0 ./cmd/autocert-providers-gen
+@webui:gen-schema-single in=config/config.ts class=Config out=config.schema.json
+@webui:gen-schema-single in=config/autocert.ts class=AutocertConfigWithoutExtra out=autocert.schema.json
+'''
+
+[recipes.check-autocert-providers]
+help = "Check certificate provider types, documentation, and schemas for drift."
+cmd = "go run -ldflags=-checklinkname=0 ./cmd/autocert-providers-gen -check"
