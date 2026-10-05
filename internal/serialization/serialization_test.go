@@ -324,6 +324,7 @@ func TestDeserializeDistinguishesNilAndEmptySlices(t *testing.T) {
 			require.NoError(t, MapUnmarshalValidate(SerializedObject{"values": tc.source}, &target))
 			require.Empty(t, target.Values)
 			require.Equal(t, tc.wantNil, target.Values == nil)
+			require.Zero(t, cap(target.Values), "empty input must release previous backing storage")
 		})
 	}
 }
