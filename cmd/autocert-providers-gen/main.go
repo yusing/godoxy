@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"flag"
 	"fmt"
@@ -104,6 +105,9 @@ type schema struct {
 	AnyOf       []schema          `json:"anyOf"`
 	Properties  map[string]schema `json:"properties"`
 	Definitions map[string]schema `json:"definitions"`
+	Type        jsontext.Value    `json:"type"`
+	Additional  jsontext.Value    `json:"additionalProperties"`
+	Items       *schema           `json:"items"`
 }
 
 func schemaProviders(s schema, defs map[string]schema) ([]string, error) {
@@ -160,6 +164,9 @@ func checkSchemas(root string, want []string) error {
 			if err != nil || !slices.Equal(got, want) {
 				return fmt.Errorf("%s %s provider schema is stale (%v); run shadowtree gen-autocert-providers", path, name, err)
 			}
+			if err := checkProviderOptionSchemas(doc.Definitions[name], doc.Definitions); err != nil {
+				return fmt.Errorf("%s %s options schema is stale: %w; run shadowtree gen-autocert-providers", path, name, err)
+			}
 		}
 	}
 	return nil
@@ -167,7 +174,11 @@ func checkSchemas(root string, want []string) error {
 
 func generate(root string, check bool) error {
 	names := providerNames()
-	if err := updateFile(root, typePath, renderType(names), check); err != nil {
+	providerTypes, err := renderTypes(names)
+	if err != nil {
+		return err
+	}
+	if err := updateFile(root, typePath, providerTypes, check); err != nil {
 		return err
 	}
 	for _, path := range docPaths {

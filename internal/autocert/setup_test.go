@@ -55,7 +55,7 @@ extra:
 	require.Equal(t, "custom", merged0.Provider)                                          // inherited
 	require.Equal(t, []string{"example.com"}, merged0.Domains)                            // inherited
 	require.Equal(t, "https://ca.example.com:9000/acme/acme/directory", merged0.CADirURL) // inherited
-	require.Equal(t, map[string]strutils.Redacted{"key": "value"}, merged0.Options)       // inherited
+	require.Equal(t, autocert.ProviderOptions{"key": "value"}, merged0.Options)           // inherited
 	require.Equal(t, []string{"8.8.8.8"}, merged0.Resolvers)                              // inherited
 	require.Equal(t, []string{"ca.crt"}, merged0.CACerts)                                 // inherited
 	require.Equal(t, "eabKid", merged0.EABKid)                                            // inherited
@@ -68,15 +68,15 @@ extra:
 	require.Equal(t, "certs/extra2.crt", merged1.CertPath)
 	require.Equal(t, "certs/extra2.key", merged1.KeyPath)
 	// Overridden fields:
-	require.Equal(t, "override@example.com", merged1.Email)                         // overridden
-	require.Equal(t, "pseudo", merged1.Provider)                                    // overridden
-	require.Equal(t, []string{"override.com"}, merged1.Domains)                     // overridden
-	require.Equal(t, "https://ca2.example.com/directory", merged1.CADirURL)         // overridden
-	require.Equal(t, map[string]strutils.Redacted{"opt2": "val2"}, merged1.Options) // overridden
-	require.Equal(t, []string{"1.1.1.1"}, merged1.Resolvers)                        // overridden
-	require.Equal(t, []string{"ca2.crt"}, merged1.CACerts)                          // overridden
-	require.Equal(t, "eabKid2", merged1.EABKid)                                     // overridden
-	require.Equal(t, strutils.Redacted("eabHmac2"), merged1.EABHmac)                // overridden
+	require.Equal(t, "override@example.com", merged1.Email)                     // overridden
+	require.Equal(t, "pseudo", merged1.Provider)                                // overridden
+	require.Equal(t, []string{"override.com"}, merged1.Domains)                 // overridden
+	require.Equal(t, "https://ca2.example.com/directory", merged1.CADirURL)     // overridden
+	require.Equal(t, autocert.ProviderOptions{"opt2": "val2"}, merged1.Options) // overridden
+	require.Equal(t, []string{"1.1.1.1"}, merged1.Resolvers)                    // overridden
+	require.Equal(t, []string{"ca2.crt"}, merged1.CACerts)                      // overridden
+	require.Equal(t, "eabKid2", merged1.EABKid)                                 // overridden
+	require.Equal(t, strutils.Redacted("eabHmac2"), merged1.EABHmac)            // overridden
 	// Inherited field:
 	require.Equal(t, cfg.HTTPClient, merged1.HTTPClient) // inherited
 	require.Nil(t, merged1.Extra)

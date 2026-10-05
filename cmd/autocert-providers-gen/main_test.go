@@ -28,7 +28,7 @@ func TestProviderNames(t *testing.T) {
 		}
 	}
 	// Keep the catalogue tied to registration, not another manually maintained list.
-	autocert.Providers["new-provider"] = nil
+	autocert.Providers["new-provider"] = autocert.Generator{}
 	t.Cleanup(func() { delete(autocert.Providers, "new-provider") })
 	if !slices.Contains(providerNames(), "new-provider") {
 		t.Fatal("new registrations must be generated automatically")
@@ -151,5 +151,32 @@ func TestSchemaProvidersRejectsUnrestrictedStrings(t *testing.T) {
 	}
 	if _, err := schemaProviders(schema{Ref: "#/definitions/Missing"}, nil); err == nil {
 		t.Fatal("missing schema references must fail the guard")
+	}
+}
+
+func TestOptionSchemaGuardDetectsMissingAndIncorrectFields(t *testing.T) {
+	providerNames()
+	data, err := os.ReadFile("../../webui/src/types/godoxy/autocert.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc schema
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	root := doc.Definitions["AutocertConfigWithoutExtra"]
+	if err := checkProviderOptionSchemas(root, doc.Definitions); err != nil {
+		t.Fatal(err)
+	}
+	options := doc.Definitions["SpaceshipOptions"].Properties["options"]
+	original := options.Properties["api_secret"]
+	delete(options.Properties, "api_secret")
+	if err := checkProviderOptionSchemas(root, doc.Definitions); err == nil {
+		t.Fatal("guard must detect a missing concrete option field")
+	}
+	options.Properties["api_secret"] = original
+	options.Properties["api_secret"] = schema{Type: []byte(`"number"`)}
+	if err := checkProviderOptionSchemas(root, doc.Definitions); err == nil {
+		t.Fatal("guard must detect an incorrect option field type")
 	}
 }

@@ -27,14 +27,14 @@ import (
 type (
 	ConfigExtra Config
 	Config      struct {
-		Email       string                       `json:"email,omitempty"`
-		Domains     []string                     `json:"domains,omitempty"`
-		CertPath    string                       `json:"cert_path,omitempty"`
-		KeyPath     string                       `json:"key_path,omitempty"`
-		Extra       []ConfigExtra                `json:"extra,omitempty"`
-		ACMEKeyPath string                       `json:"acme_key_path,omitempty"` // shared by all extra providers with the same CA directory URL
-		Provider    string                       `json:"provider,omitempty"`
-		Options     map[string]strutils.Redacted `json:"options,omitempty"`
+		Email       string          `json:"email,omitempty"`
+		Domains     []string        `json:"domains,omitempty"`
+		CertPath    string          `json:"cert_path,omitempty"`
+		KeyPath     string          `json:"key_path,omitempty"`
+		Extra       []ConfigExtra   `json:"extra,omitempty"`
+		ACMEKeyPath string          `json:"acme_key_path,omitempty"` // shared by all extra providers with the same CA directory URL
+		Provider    string          `json:"provider,omitempty"`
+		Options     ProviderOptions `json:"options,omitempty"`
 
 		Resolvers []string `json:"resolvers,omitempty"`
 
@@ -155,7 +155,7 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 				With(gperr.DoYouMeanField(cfg.Provider, Providers)))
 		}
 	} else {
-		provider, err := providerConstructor(cfg.Options)
+		provider, err := providerConstructor.New(cfg.Options)
 		if err != nil {
 			b.Add(err)
 		} else {
@@ -164,7 +164,7 @@ func (cfg *Config) validate(seenPaths map[string]int) error {
 	}
 
 	if cfg.challengeProvider == nil {
-		cfg.challengeProvider, _ = Providers[ProviderLocal](nil)
+		cfg.challengeProvider, _ = Providers[ProviderLocal].New(nil)
 	}
 
 	if keyType, err := parseCertificateKeyType(cfg.CertificateKeyType); err != nil {

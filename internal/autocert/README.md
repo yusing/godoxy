@@ -43,7 +43,7 @@ type Config struct {
     Extra       []ConfigExtra                // Additional cert configs
     ACMEKeyPath string                       // ACME account private key
     Provider    string                       // DNS provider name
-    Options     map[string]strutils.Redacted // Provider options
+    Options     ProviderOptions              // Redacted provider-specific options
     Resolvers   []string                     // DNS resolvers (process-wide, see note below)
     CADirURL    string                       // Custom ACME CA directory
     CACerts     []string                     // Custom CA certificates
@@ -263,9 +263,10 @@ Generated from the bundled provider registry with `shadowtree gen-autocert-provi
 
 [autocert-providers-end]: #
 
-The WebUI uses the generated provider list for both the main certificate and
-extra certificates. Providers without a dedicated credential form use the base
-certificate fields and an editable `options` map.
+The WebUI uses the same schema-generated provider picker for the main certificate
+and extra certificates. Selecting a bundled DNS provider shows its concrete
+option fields, including nested objects and arrays, alongside the base
+certificate fields.
 
 ### Example Configuration
 
@@ -287,6 +288,16 @@ autocert:
 `options` keys match fields in the selected lego provider's `Config` struct,
 written in snake_case (for example, `APIKey` becomes `api_key`). They are not
 lego environment variable names. Only bundled providers are available.
+
+Each bundled DNS provider has a generated option type derived from its registered
+lego `Config` type at the pinned dependency version. Options accept strings,
+booleans, numbers, arrays (such as acmedns `allow_list`), and nested objects (such
+as OVH `oauth2_config`). Duration options use Go duration strings such as `30s`
+or `1m30s`. Named maps are available only where the provider config defines one,
+such as Azure's `environment.services` with `audience` and `endpoint` values.
+HTTP transports and SDK credential objects are excluded from editable options.
+`ProviderOptions` accepts these structured values while keeping option values
+redacted when serialized as JSON or YAML.
 
 `resolvers` sets the recursive nameservers used for the dns-01 propagation check.
 lego applies it to a process-wide DNS client, so when extra providers each set
@@ -408,10 +419,13 @@ if provider.ForceExpiryAll() {
 ## Maintaining the Provider Contract
 
 `internal/dnsproviders/providers.go` is the source of the bundled DNS provider
-list. Run `shadowtree gen-autocert-providers` after changing it to regenerate the
-WebUI provider union, the marked documentation tables, and the config/autocert
-schemas. Run `shadowtree check-autocert-providers` to detect drift; CI runs this
-contract check too. Preserve generated blocks when editing surrounding prose.
+list. Run `shadowtree gen-autocert-providers` after changing the registry or
+updating lego to regenerate provider-specific WebUI option types, the provider
+union, the marked documentation tables, and the config/autocert schemas.
+`shadowtree check-autocert-providers` rejects stale provider lists, option types,
+option schemas, and documentation tables. CI runs this guard, Go tests, the
+WebUI type-contract test, and rendered editor tests. Preserve generated blocks
+when editing surrounding prose.
 
 ## Testing Notes
 

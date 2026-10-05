@@ -157,17 +157,28 @@ autocert:
     auth_token: your-api-token
 ```
 
-The WebUI offers the same generated list for main and extra certificates. For
-providers without dedicated credential forms, it shows base certificate fields
-and an editable `options` map.
+The WebUI uses the same schema-generated provider picker for main and extra
+certificates. Each bundled DNS provider has its own generated options shape from
+the registered lego `Config` type at the pinned dependency version. Selecting a
+provider shows its concrete fields alongside the base certificate fields.
+
+Options accept booleans, numbers, arrays (for example, acmedns `allow_list`), and
+nested objects (for example, OVH `oauth2_config`) as well as strings. Durations
+use Go duration strings such as `30s` or `1m30s`. Named maps are exposed only
+where the native config has them, such as Azure's `environment.services`, whose
+entries have `audience` and `endpoint` fields. HTTP transports and SDK credential
+objects are excluded from editable options.
 
 ### Maintaining the provider contract
 
 The registry in `internal/dnsproviders/providers.go` defines the bundled providers.
-Run `shadowtree gen-autocert-providers` after changing it to regenerate the
-WebUI provider union, marked documentation tables, and config/autocert schemas.
-`shadowtree check-autocert-providers` detects drift, and CI runs this contract
-check. Preserve the marked blocks when editing surrounding prose.
+Run `shadowtree gen-autocert-providers` after changing the registry or updating
+lego to regenerate provider-specific WebUI option types, the provider union,
+marked documentation tables, and config/autocert schemas.
+`shadowtree check-autocert-providers` rejects stale provider lists, option types,
+option schemas, and documentation tables. CI runs this guard, Go tests, the
+WebUI type-contract test, and rendered editor tests. Preserve the marked blocks
+when editing surrounding prose.
 
 ### Hot-reloading
 
@@ -187,7 +198,10 @@ Supports hot-reloading via editing `config/config.yml`.
 
 ```go
 // In autocert package
-type Generator func(map[string]strutils.Redacted) (challenge.Provider, error)
+type Generator struct {
+    ConfigType reflect.Type
+    New        func(map[string]strutils.Redacted) (challenge.Provider, error)
+}
 
 var Providers = make(map[string]Generator)
 
@@ -213,6 +227,7 @@ No metrics are currently exposed.
 
 - API credentials are passed to provider configuration
 - Credentials are stored in configuration files (should be protected)
+- `autocert.ProviderOptions` accepts structured option values and redacts them on JSON/YAML serialization
 - DNS-01 challenge requires TXT record creation capability
 - Provider should have minimal DNS permissions (only TXT records)
 
@@ -259,7 +274,7 @@ if !ok {
     log.Fatal("Cloudflare provider not available")
 }
 
-dnsProvider, err := provider(map[string]strutils.Redacted{
+dnsProvider, err := provider.New(map[string]strutils.Redacted{
     "auth_token": strutils.Redacted("your-api-token"),
 })
 // Handle err before using dnsProvider.
