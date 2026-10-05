@@ -115,12 +115,12 @@ defaults:
   # defaults for every route using idlesleep (`idle_timeout`)
   #
   # idlewatcher:
-  #   # notify on sleep/wake through the providers under `providers.notification`
+  #   # Default sleep/wake targets: names from `providers.notification`.
+  #   # Use `notify: {}` here instead to broadcast to all providers at send time.
+  #   # Routes inherit this default when `notify` or `notify.to` is omitted.
+  #   # Route opt-out: `idlewatcher.notify.to: []`.
+  #   # Docker opt-out: `proxy.idle_notify_to: ""`.
   #   notify:
-  #     # names under `providers.notification`; use notify: {} to send to all
-  #     # current providers. routes inherit these targets when `to` is omitted.
-  #     # a route sets `idlewatcher.notify.to: []` (or the Docker label
-  #     # `proxy.idle_notify_to: ""`) to opt out, overriding these defaults.
   #     to: [gotify, ntfy]
 
 providers:
