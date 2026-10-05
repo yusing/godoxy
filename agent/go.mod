@@ -24,8 +24,8 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/yusing/godoxy v0.31.4
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils v0.9.1
-	github.com/yusing/goutils/http v0.9.1
+	github.com/yusing/goutils v0.9.3
+	github.com/yusing/goutils/http v0.9.3
 	github.com/yusing/goutils/http/reverseproxy v0.9.1
 	golang.org/x/net v0.59.0
 )
