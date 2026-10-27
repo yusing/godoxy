@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -59,10 +60,13 @@ func TestBulkActivationSuppressesDuplicateRouteLogs(t *testing.T) {
 	bulk, bulkRoute := newProvider("bulk", "bulk-route")
 	state.providers.Store(bulk.String(), bulk)
 
-	var runtimeLogs bytes.Buffer
+	var runtimeLogs synchronizedLogBuffer
 	previousLogger := log.Logger
 	log.Logger = zerolog.New(&runtimeLogs).Level(zerolog.InfoLevel)
-	t.Cleanup(func() { log.Logger = previousLogger })
+	t.Cleanup(func() {
+		state.Stop(nil)
+		log.Logger = previousLogger
+	})
 
 	report := state.ActivateProviders(state.Task())
 	require.Equal(t, 1, report.ActiveRoutes)
@@ -83,6 +87,23 @@ func TestBulkActivationSuppressesDuplicateRouteLogs(t *testing.T) {
 
 	bulkRoute.FinishAndWait(nil)
 	dynamicRoute.FinishAndWait(nil)
+}
+
+type synchronizedLogBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *synchronizedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *synchronizedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func TestStartupDiagnosticsAllowlist(t *testing.T) {
