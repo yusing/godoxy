@@ -441,6 +441,9 @@ type idlewatcherTestRouteProvider struct {
 }
 
 func (p *idlewatcherTestRouteProvider) Activate(task.Parent) routing.ProviderActivation {
+	return p.ActivationSnapshot()
+}
+func (p *idlewatcherTestRouteProvider) ActivationSnapshot() routing.ProviderActivation {
 	return routing.ProviderActivation{Provider: p.String(), EventLoopReady: true}
 }
 func (p *idlewatcherTestRouteProvider) LoadRoutes(context.Context) error { return nil }

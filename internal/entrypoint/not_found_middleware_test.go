@@ -130,7 +130,7 @@ func TestConfigValidateRejectsNotFoundMiddlewareInResponsePhase(t *testing.T) {
 			cfg.Rules.NotFound = notFoundRules
 			err := cfg.Validate()
 			if test.wantError {
-				require.ErrorContains(t, err, "request middleware cannot be used in a response-phase rule or action block")
+				require.ErrorContains(t, err, "request-only actions (authentication or middleware) cannot be used in a response-phase rule or action block")
 			} else {
 				require.NoError(t, err)
 			}
