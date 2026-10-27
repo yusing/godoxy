@@ -24,8 +24,8 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/yusing/godoxy v0.32.3
 	github.com/yusing/godoxy/socketproxy v0.0.0-00010101000000-000000000000
-	github.com/yusing/goutils v0.9.3
-	github.com/yusing/goutils/http v0.9.3
+	github.com/yusing/goutils v0.9.4
+	github.com/yusing/goutils/http v0.9.4
 	github.com/yusing/goutils/http/reverseproxy v0.9.3
 	golang.org/x/net v0.61.0
 )
@@ -33,7 +33,7 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.6.4 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
-	github.com/bytedance/sonic v1.15.4 // indirect
+	github.com/bytedance/sonic v1.15.5 // indirect
 	github.com/bytedance/sonic/loader v0.5.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect

@@ -48,11 +48,11 @@ require (
 	github.com/yusing/godoxy/agent v0.0.0-20261016044556-9105c6e0f700
 	github.com/yusing/godoxy/internal/dnsproviders v0.0.0-20261016044556-9105c6e0f700
 	github.com/yusing/gointernals v0.2.1
-	github.com/yusing/goutils v0.9.3
+	github.com/yusing/goutils v0.9.4
 	github.com/yusing/goutils/cache v0.9.3
 	github.com/yusing/goutils/events/acl v0.9.3
 	github.com/yusing/goutils/events/http v0.9.3
-	github.com/yusing/goutils/http v0.9.3
+	github.com/yusing/goutils/http v0.9.4
 	github.com/yusing/goutils/http/reverseproxy v0.9.3
 	github.com/yusing/goutils/http/websocket v0.9.3
 	github.com/yusing/goutils/server v0.9.3
