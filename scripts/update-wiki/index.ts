@@ -134,9 +134,13 @@ export function rewriteImplMarkdown(params: {
     // 1) Directory links like "common" or "common/" that have a README
     const dirPathNormalized = urlNoFragment.replace(/\/+$/, "");
     let rewritten: string | undefined;
-    // First try exact match
-    if (dirPathToDocRoute.has(dirPathNormalized)) {
-      rewritten = `${dirPathToDocRoute.get(dirPathNormalized)}${fragment}`;
+    const relativeDir = path.posix.normalize(
+      path.posix.join(pkgPath, dirPathNormalized),
+    );
+    const directoryRoute = dirPathToDocRoute.get(relativeDir) ??
+      dirPathToDocRoute.get(dirPathNormalized);
+    if (directoryRoute) {
+      rewritten = `${directoryRoute}${fragment}`;
     } else {
       // Fallback: check parent directories for a README
       // This handles paths like "internal/watcher/events" where only the parent has a README

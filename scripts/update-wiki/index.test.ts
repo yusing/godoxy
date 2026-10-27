@@ -13,6 +13,33 @@ import { md2mdx } from "./api-md2mdx";
 import { rewriteImplMarkdown, syncImplDocs } from "./index";
 
 describe("rewriteImplMarkdown", () => {
+  test.each([
+    ["../errs/#usage", "/docs/impl/goutils-errs#usage"],
+    ["./nested", "/docs/impl/goutils-eventqueue-nested"],
+    ["../errs/README.md", "/docs/impl/goutils-errs"],
+    [
+      "queue.go:12",
+      "https://github.com/yusing/godoxy/blob/main/goutils/eventqueue/queue.go#L12",
+    ],
+  ])(
+    "resolves package-relative links without swallowing source files: %s",
+    (href, target) => {
+      expect(rewriteImplMarkdown({
+        md: `[target](${href})`,
+        pkgPath: "goutils/eventqueue",
+        dirPathToDocRoute: new Map([
+          ["goutils/eventqueue", "/docs/impl/goutils-eventqueue"],
+          ["goutils/errs", "/docs/impl/goutils-errs"],
+          ["goutils/eventqueue/nested", "/docs/impl/goutils-eventqueue-nested"],
+        ]),
+        readmeRelToDocRoute: new Map([
+          ["goutils/errs/README.md", "/docs/impl/goutils-errs"],
+        ]),
+        repoUrl: "https://github.com/yusing/godoxy",
+      })).toBe(`[target](${target})`);
+    },
+  );
+
   test("uses a line anchor instead of appending the original fragment", () => {
     const rewritten = rewriteImplMarkdown({
       md: "# Feature\n\nFeature docs.\n\n## Usage\n\nSee [config](config.go:29#section).\n",
