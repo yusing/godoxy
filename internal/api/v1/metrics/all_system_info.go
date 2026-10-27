@@ -84,6 +84,8 @@ func AllSystemInfo(c *gin.Context) {
 
 	// leave 5 extra slots for buffering in case new agents are added.
 	dataCh := make(chan systemInfoData, 1+agents.Num()+5)
+	// Each collection round waits for its producers before returning.
+	defer close(dataCh)
 
 	ticker := time.NewTicker(req.Interval)
 	defer ticker.Stop()
@@ -109,15 +111,14 @@ func AllSystemInfo(c *gin.Context) {
 }
 
 func streamSystemInfo(manager *websocket.Manager, dataCh <-chan systemInfoData) {
-	for {
+	for data := range dataCh {
 		select {
 		case <-manager.Done():
-			return
-		case data := <-dataCh:
+			releaseSystemInfo(data.systemInfo)
+		default:
 			err := marshalSystemInfo(manager, data.agentName, data.systemInfo)
 			if err != nil {
 				manager.Close()
-				return
 			}
 		}
 	}
@@ -126,6 +127,7 @@ func streamSystemInfo(manager *websocket.Manager, dataCh <-chan systemInfoData) 
 func queueSystemInfo(manager *websocket.Manager, dataCh chan<- systemInfoData, data systemInfoData) {
 	select {
 	case <-manager.Done():
+		releaseSystemInfo(data.systemInfo)
 	case dataCh <- data:
 	}
 }
@@ -202,7 +204,7 @@ func getAgentSystemInfo(ctx context.Context, a *agentpool.Agent, query string) (
 	}
 	defer resp.Body.Close()
 
-	// NOTE: buffer will be released by marshalSystemInfo once marshaling is done.
+	// The queue owns the buffer until it is marshaled or discarded.
 	bytesBuf, release, err := httputils.ReadAllBody(resp)
 	if err != nil {
 		return bytesFromPool{}, err
@@ -238,10 +240,7 @@ func marshalSystemInfo(ws *websocket.Manager, agentName string, systemInfo any) 
 	buf := bytesPool.GetBuffer()
 	defer bytesPool.PutBuffer(buf)
 
-	// release the buffer retrieved from getAgentSystemInfo
-	if bufFromPool, ok := systemInfo.(bytesFromPool); ok {
-		defer bufFromPool.release(bufFromPool.RawMessage)
-	}
+	defer releaseSystemInfo(systemInfo)
 
 	err := strutils.NewJSONEncoder(buf).Encode(map[string]any{
 		agentName: systemInfo,
@@ -251,4 +250,10 @@ func marshalSystemInfo(ws *websocket.Manager, agentName string, systemInfo any) 
 	}
 
 	return ws.WriteData(websocket.TextMessage, buf.Bytes(), 3*time.Second)
+}
+
+func releaseSystemInfo(systemInfo any) {
+	if data, ok := systemInfo.(bytesFromPool); ok {
+		data.release(data.RawMessage)
+	}
 }
