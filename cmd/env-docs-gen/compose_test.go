@@ -24,7 +24,9 @@ func TestComposeEnvironment(t *testing.T) {
 	}{
 		{name: "generated example", key: "GODOXY_DOCKER_HOST", endpoint: "tcp://127.0.0.1:2375"},
 		{name: "prefixed override", replace: "GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}", with: "GODOXY_DOCKER_HOST=unix:///custom/docker.sock", key: "GODOXY_DOCKER_HOST", endpoint: "unix:///custom/docker.sock"},
-		{name: "legacy endpoint", replace: "GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}", with: "DOCKER_HOST=unix:///custom/docker.sock", key: "DOCKER_HOST", endpoint: "unix:///custom/docker.sock"},
+		{name: "legacy endpoint only", replace: "GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}", with: "DOCKER_HOST=unix:///custom/docker.sock", fail: true},
+		{name: "missing endpoint", replace: "GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}", with: "", fail: true},
+		{name: "empty endpoint", replace: "GODOXY_DOCKER_HOST=tcp://${LISTEN_ADDR}", with: "GODOXY_DOCKER_HOST=", fail: true},
 		{name: "missing input", replace: "LISTEN_ADDR=127.0.0.1:2375", with: "", fail: true},
 		{name: "empty input", replace: "GODOXY_UID=1000", with: "GODOXY_UID=", fail: true},
 	} {
