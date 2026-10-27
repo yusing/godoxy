@@ -159,10 +159,10 @@ func (state *lifecycleTestState) setStatus(status configtypes.RuntimeStatus) {
 	state.mu.Unlock()
 }
 
-func (state *lifecycleTestState) setActivation(report configtypes.ActivationReport, health configtypes.ActivationHealth) {
+func (state *lifecycleTestState) setActivation(report configtypes.ActivationReport, issues []configtypes.ActivationIssue) {
 	state.mu.Lock()
 	state.activation = report
-	switch health {
+	switch activationHealth(append(issues, issuesFromActivation(report)...), report) {
 	case configtypes.ActivationHealthy:
 		state.status = configtypes.RuntimeHealthy
 	case configtypes.ActivationDegraded:

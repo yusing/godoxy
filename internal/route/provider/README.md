@@ -29,11 +29,7 @@ Internal package with stable provider interface.
 ```go
 type Provider struct {
     ProviderImpl
-    t        provider.Type
-    routes   route.Routes
-    routesMu sync.RWMutex
-    loadErr  error
-    watcher  W.Watcher
+    // unexported runtime state
 }
 
 type ProviderImpl interface {
@@ -71,6 +67,7 @@ func NewStaticProvider(name string, routes route.Routes) *Provider
 ```go
 func (p *Provider) GetType() provider.Type
 func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation
+func (p *Provider) ActivationSnapshot() routing.ProviderActivation
 func (p *Provider) LoadRoutes(ctx context.Context) error
 func (p *Provider) IterRoutes(yield func(string, types.Route) bool)
 func (p *Provider) GetRoute(alias string) (types.Route, bool)
@@ -330,8 +327,11 @@ failed lists retain known-good routes and retry through the same force-reload
 handler. Invalid route definitions are not treated as endpoint outages.
 
 An active recovery/event loop with infrastructure errors reports degraded rather
-than permanently failed. Activation reports are snapshots of the initial attempt,
-not live health reports; recovery logs and the route inventory show later results.
+than permanently failed. `Activate` returns the initial attempt; subsequent
+`ActivationSnapshot` calls reflect route reloads and watcher recovery. Runtime
+statistics use these snapshots, including recovered agent names, without changing
+provider registry keys. A failed watcher keeps the provider degraded even if its
+routes have recovered.
 Cancellation interrupts retries and prevents them from attaching to a new runtime.
 
 All loading and validation receives the owning state context. Agent pools,

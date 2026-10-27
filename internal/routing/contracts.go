@@ -74,6 +74,7 @@ type (
 	}
 	Provider interface {
 		Activate(parent task.Parent) ProviderActivation
+		ActivationSnapshot() ProviderActivation
 		LoadRoutes(ctx context.Context) error
 		GetRoute(alias string) (r Route, ok bool)
 		IterRoutes(yield func(alias string, r Route) bool)

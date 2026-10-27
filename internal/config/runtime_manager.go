@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -25,7 +26,7 @@ type managedState interface {
 	PreparationIssues() []configtypes.ActivationIssue
 	discardTmpLog()
 	setStatus(configtypes.RuntimeStatus)
-	setActivation(configtypes.ActivationReport, configtypes.ActivationHealth)
+	setActivation(configtypes.ActivationReport, []configtypes.ActivationIssue)
 }
 
 type runtimeFactory func() managedState
@@ -246,18 +247,20 @@ func (manager *RuntimeManager) transition(initial bool, initializeRuntime func(c
 			Err:       gperr.Wrap(runtimeCause),
 		})
 	}
+	persistentIssues := slices.Clone(issues)
 	issues = append(issues, issuesFromActivation(report)...)
 
 	health := activationHealth(issues, report)
-	candidate.setActivation(report, health)
+	candidate.setActivation(report, persistentIssues)
 	if err := candidate.FlushTmpLog(); err != nil {
 		issues = append(issues, configtypes.ActivationIssue{
 			Component: "diagnostics",
 			Severity:  configtypes.IssueDegraded,
 			Err:       gperr.Wrap(err),
 		})
+		persistentIssues = append(persistentIssues, issues[len(issues)-1])
 		health = activationHealth(issues, report)
-		candidate.setActivation(report, health)
+		candidate.setActivation(report, persistentIssues)
 	}
 
 	return manager.report(candidate.Context(), configtypes.ReloadResult{

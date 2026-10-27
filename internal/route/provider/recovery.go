@@ -7,6 +7,7 @@ import (
 	"github.com/yusing/godoxy/internal/routing"
 	"github.com/yusing/godoxy/internal/watcher"
 	watcherEvents "github.com/yusing/godoxy/internal/watcher/events"
+	gperr "github.com/yusing/goutils/errs"
 	"github.com/yusing/goutils/eventqueue"
 	"github.com/yusing/goutils/task"
 )
@@ -85,6 +86,10 @@ func (p *Provider) retryWatcher(parent task.Parent, opts eventqueue.Options[watc
 					err = context.Cause(recovery.Context())
 				}
 			}
+			p.activationMu.Lock()
+			p.watcherErr = err
+			p.activation.InfrastructureError = gperr.Join(p.preparation.InfrastructureError, err)
+			p.activationMu.Unlock()
 			if err != nil {
 				watcherTask.FinishAndWait(err)
 				p.Logger().Warn().Err(err).Msg("provider watcher retry failed")

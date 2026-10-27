@@ -120,6 +120,11 @@ func TestProviderRecoversAfterDockerWatcherAndListBecomeAvailable(t *testing.T) 
 	require.True(t, routed, "recovered route must be registered for HTTP traffic")
 	require.Eventually(t, func() bool { return w.calls.Load() >= 2 }, time.Second, 10*time.Millisecond,
 		"watcher must reconnect after its failed ping")
+	require.Eventually(t, func() bool { return p.ActivationSnapshot().Health() == routing.ProviderActivationReady }, time.Second, 10*time.Millisecond)
+	recovered := p.ActivationSnapshot()
+	require.Equal(t, 1, recovered.ActiveRoutes)
+	require.NoError(t, recovered.InfrastructureError)
+	require.Error(t, activation.InfrastructureError, "the initial activation report remains historical")
 }
 
 func TestProviderRecoversFailedListWithoutDockerEvents(t *testing.T) {
@@ -141,6 +146,7 @@ func TestProviderRecoversFailedListWithoutDockerEvents(t *testing.T) {
 	_, routed := entrypoint.FromCtx(runtimeTask.Context()).HTTPRoutes().Get("recovered")
 	require.True(t, routed, "recovered route must be registered for HTTP traffic")
 	require.GreaterOrEqual(t, impl.loads.Load(), int32(3))
+	require.Eventually(t, func() bool { return p.ActivationSnapshot().Health() == routing.ProviderActivationReady }, time.Second, 10*time.Millisecond)
 }
 
 func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
@@ -206,6 +212,7 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 				_ = p.ShortName()
 				_ = p.String()
 				_ = p.Logger().GetLevel()
+				_ = p.ActivationSnapshot()
 				_ = configured.Name
 			}
 		})
@@ -234,6 +241,7 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	require.Empty(t, configured.Name, "registry config should remain unmodified")
 	require.Equal(t, "recovered-agent", p.ShortName())
 	require.Equal(t, registryKey, p.String(), "provider registry key must remain stable")
+	require.Equal(t, "recovered-agent@"+addr, p.ActivationSnapshot().Provider)
 	recovered, ok := p.lockGetRoute("recovered")
 	require.True(t, ok)
 	require.Equal(t, "recovered-agent", recovered.Provider)

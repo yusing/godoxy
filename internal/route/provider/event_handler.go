@@ -14,6 +14,7 @@ type EventHandler struct {
 	provider *Provider
 
 	errs               gperr.Builder
+	activation         routing.ProviderActivation
 	proxmoxDiscoveries []proxmox.Discovery
 }
 
@@ -29,6 +30,18 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 	forceReload := hasForceReload(events)
 
 	newRoutes, err := handler.provider.loadRoutes(parent.Context())
+	handler.activation = handler.provider.preparation
+	handler.activation.FailedRoutes = append([]routing.RouteActivationIssue(nil), handler.activation.FailedRoutes...)
+	handler.activation.AttemptedRoutes = len(newRoutes)
+	defer func() {
+		p := handler.provider
+		p.activationMu.Lock()
+		defer p.activationMu.Unlock()
+		handler.activation.ActiveRoutes = p.NumRoutes()
+		handler.activation.EventLoopReady = p.activation.EventLoopReady
+		handler.activation.InfrastructureError = gperr.Join(handler.activation.InfrastructureError, p.watcherErr)
+		p.activation = handler.activation
+	}()
 	if err != nil {
 		handler.errs.Add(err)
 		if len(newRoutes) == 0 {
@@ -94,6 +107,7 @@ func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 	err := handler.provider.startRoute(parent, route)
 	if err != nil {
 		handler.errs.AddSubjectf(err, "add")
+		handler.activation.FailedRoutes = append(handler.activation.FailedRoutes, routing.RouteActivationIssue{Route: route.Alias, Err: gperr.Wrap(err)})
 		return
 	}
 	handler.recordProxmoxDiscovery(route)
@@ -108,6 +122,7 @@ func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, n
 	err := handler.provider.startRoute(parent, newRoute)
 	if err != nil {
 		handler.errs.AddSubjectf(err, "update")
+		handler.activation.FailedRoutes = append(handler.activation.FailedRoutes, routing.RouteActivationIssue{Route: newRoute.Alias, Err: gperr.Wrap(err)})
 		return
 	}
 	handler.recordProxmoxDiscovery(newRoute)

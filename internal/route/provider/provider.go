@@ -36,6 +36,10 @@ type (
 		preparation routing.ProviderActivation
 		retryLoad   bool
 
+		activationMu sync.Mutex
+		activation   routing.ProviderActivation
+		watcherErr   error
+
 		watcher W.Watcher
 	}
 	ProviderImpl interface {
@@ -110,7 +114,12 @@ func (p *Provider) MarshalText() ([]byte, error) {
 // partially failed initial load. An infrastructure failure is retained in the
 // report; a zero-route provider without such a failure is ready.
 func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
+	p.activationMu.Lock()
 	activation := p.preparation
+	defer func() {
+		p.activation = activation
+		p.activationMu.Unlock()
+	}()
 	activation.Provider = p.String()
 	activation.FailedRoutes = slices.Clone(activation.FailedRoutes)
 	if state := config.FromCtx(parent.Context()); state != nil {
@@ -193,6 +202,7 @@ func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
 	}
 	if readyErr != nil {
 		watcherTask.FinishAndWait(readyErr)
+		p.watcherErr = readyErr
 		activation.InfrastructureError = gperr.Join(activation.InfrastructureError, readyErr)
 		if p.canRetry() && t.Context().Err() == nil {
 			p.retryWatcher(t, opts)
@@ -217,6 +227,21 @@ func (p *Provider) Activate(parent task.Parent) routing.ProviderActivation {
 		p.startEventQueue(watcherTask, stream, opts)
 	}
 	activation.EventLoopReady = true
+	return activation
+}
+
+// ActivationSnapshot reports the latest completed activation or reload while
+// keeping the provider's registry identity stable across agent discovery.
+func (p *Provider) ActivationSnapshot() routing.ProviderActivation {
+	p.activationMu.Lock()
+	defer p.activationMu.Unlock()
+	activation := p.activation
+	activation.FailedRoutes = slices.Clone(activation.FailedRoutes)
+	if agent, ok := p.ProviderImpl.(*AgentProvider); ok {
+		if cfg := agent.initialized.Load(); cfg != nil {
+			activation.Provider = cfg.String()
+		}
+	}
 	return activation
 }
 

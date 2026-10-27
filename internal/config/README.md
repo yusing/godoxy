@@ -47,7 +47,10 @@ func Reload() ReloadResult
 The final report contains provider ready/degraded/failed counts, route
 active/failed counts, separate main/local API results, metrics readiness, and
 classified component issues. `RuntimeSnapshot` exposes the current runtime
-status through `/api/v1/stats`.
+status through `/api/v1/stats`, refreshing provider names, route counts, errors,
+and overall health after recovery. API, metrics, and preparation failures remain
+visible independently of provider recovery. Lifecycle event reports retain the
+result of the original activation attempt.
 
 ## Error ownership and classification
 

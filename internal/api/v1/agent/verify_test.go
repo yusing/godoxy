@@ -613,6 +613,9 @@ func (p *verifyTestProvider) LoadRoutes(context.Context) error {
 	p.loadRoutesCalls++
 	return p.loadErr
 }
+func (p *verifyTestProvider) ActivationSnapshot() routing.ProviderActivation {
+	return routing.ProviderActivation{Provider: p.name, ActiveRoutes: p.numRoutes, EventLoopReady: true}
+}
 func (p *verifyTestProvider) GetRoute(string) (routing.Route, bool) { return nil, false }
 func (p *verifyTestProvider) IterRoutes(func(string, routing.Route) bool) {
 }

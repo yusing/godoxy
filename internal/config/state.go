@@ -62,7 +62,7 @@ type state struct {
 	task *task.Task
 
 	status     synk.Value[config.RuntimeStatus]
-	activation synk.Value[config.ActivationReport]
+	activation synk.Value[runtimeActivation]
 
 	preparationIssues   []config.ActivationIssue
 	providerPreparation []routing.ProviderActivation
@@ -71,6 +71,11 @@ type state struct {
 	// discarded on failed reload
 	tmpLogBuf *logging.Buffer
 	tmpLog    zerolog.Logger
+}
+
+type runtimeActivation struct {
+	report config.ActivationReport
+	issues []config.ActivationIssue
 }
 
 // RejectingError prevents configuration acceptance.
@@ -404,9 +409,9 @@ func isLoopbackLocalAPIHost(addr string) bool {
 	return err == nil && ip.IsLoopback()
 }
 
-func (state *state) setActivation(report config.ActivationReport, health config.ActivationHealth) {
-	state.activation.Store(report)
-	switch health {
+func (state *state) setActivation(report config.ActivationReport, issues []config.ActivationIssue) {
+	state.activation.Store(runtimeActivation{report: report, issues: slices.Clone(issues)})
+	switch activationHealth(append(slices.Clone(issues), issuesFromActivation(report)...), report) {
 	case config.ActivationHealthy:
 		state.status.Store(config.RuntimeHealthy)
 	case config.ActivationDegraded:
@@ -422,19 +427,35 @@ func (state *state) setStatus(status config.RuntimeStatus) {
 
 func (state *state) RuntimeSnapshot() config.RuntimeSnapshot {
 	status := state.status.Load()
+	activation := state.activation.Load()
+	report := activation.report
 	var health config.ActivationHealth
 	switch status {
-	case config.RuntimeHealthy:
-		health = config.ActivationHealthy
-	case config.RuntimeDegraded:
-		health = config.ActivationDegraded
-	case config.RuntimeFailed:
-		health = config.ActivationFailed
+	case config.RuntimeHealthy, config.RuntimeDegraded, config.RuntimeFailed:
+		report.Providers = routing.ProviderActivationReport{}
+		for _, prepared := range state.providerPreparation {
+			report.Providers.Add(prepared)
+		}
+		for _, p := range state.providers.Range {
+			report.Providers.Add(p.ActivationSnapshot())
+		}
+		if cause := context.Cause(state.Context()); cause != nil {
+			report = canceledActivationReport(report, cause)
+		}
+		health = activationHealth(append(slices.Clone(activation.issues), issuesFromActivation(report)...), report)
+		switch health {
+		case config.ActivationHealthy:
+			status = config.RuntimeHealthy
+		case config.ActivationDegraded:
+			status = config.RuntimeDegraded
+		case config.ActivationFailed:
+			status = config.RuntimeFailed
+		}
 	}
 	return config.RuntimeSnapshot{
 		Status:     status,
 		Health:     health,
-		Activation: state.activation.Load(),
+		Activation: report,
 	}
 }
 
