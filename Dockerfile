@@ -1,5 +1,5 @@
 # Stage 1: go-base
-FROM golang:1.27.0-alpine AS go-base
+FROM golang:1.27.3-alpine AS go-base
 HEALTHCHECK NONE
 
 # package version does not matter
@@ -14,15 +14,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # Stage 2: frontend-base
 FROM go-base AS frontend-base
 
-# libgcc and libstdc++ are needed for bun
+# Runtime libraries for bun and node
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache libgcc libstdc++
+RUN apk add --no-cache libatomic libgcc libstdc++
 
 # for minify and webui build
-COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=oven/bun:1-alpine /usr/local/bin/bunx /usr/local/bin/bunx
-COPY --from=node:lts-alpine3.22 /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:lts-alpine3.22 /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=oven/bun:1.4.4-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.4-alpine /usr/local/bin/bunx /usr/local/bin/bunx
+COPY --from=node:26.12.1-alpine /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:26.12.1-alpine /usr/local/bin/npm /usr/local/bin/npm
 
 # Stage 3: godoxy deps
 FROM go-base AS godoxy-deps
@@ -119,14 +119,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # Stage 10: main builder
 FROM binary-source AS main-builder
 
-# libgcc and libstdc++ are needed for bun
+# Runtime libraries for bun and node
 # trunk-ignore(hadolint/DL3018)
-RUN apk add --no-cache libgcc libstdc++
+RUN apk add --no-cache libatomic libgcc libstdc++
 
-COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=oven/bun:1-alpine /usr/local/bin/bunx /usr/local/bin/bunx
-COPY --from=node:lts-alpine3.22 /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:lts-alpine3.22 /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=oven/bun:1.4.4-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.4-alpine /usr/local/bin/bunx /usr/local/bin/bunx
+COPY --from=node:26.12.1-alpine /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:26.12.1-alpine /usr/local/bin/npm /usr/local/bin/npm
 COPY webui/embed.go ./webui/embed.go
 COPY webui/embed_dev.go ./webui/embed_dev.go
 COPY --from=webui-build /src/dist/client ./webui/dist/client

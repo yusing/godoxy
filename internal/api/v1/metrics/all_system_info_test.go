@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cenkalti/backoff/v6"
+	"github.com/cenkalti/backoff/v7"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/internal/agentpool"

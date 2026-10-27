@@ -6,8 +6,8 @@ replace github.com/yusing/goutils => ../goutils
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/yusing/goutils v0.9.1
-	golang.org/x/net v0.59.0
+	github.com/yusing/goutils v0.9.3
+	golang.org/x/net v0.61.0
 )
 
-require golang.org/x/text v0.42.0 // indirect
+require golang.org/x/text v0.43.0 // indirect

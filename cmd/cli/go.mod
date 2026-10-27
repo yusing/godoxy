@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/yusing/goutils v0.9.1
+	github.com/yusing/goutils v0.9.3
 )
 
 replace github.com/yusing/goutils => ../../goutils
