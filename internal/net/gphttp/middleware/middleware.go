@@ -37,7 +37,8 @@ type (
 		//
 		// Middleware compose follows the order of the slice
 		//
-		// Default is 10, 0 is the highest
+		// Default is 0, the highest. Lower runs first. On equal priority,
+		// real IP middlewares run first, then the rest by name, see [ByPriority].
 		Priority int    `json:"priority"`
 		Bypass   Bypass `json:"bypass"`
 	}
@@ -66,11 +67,34 @@ type (
 	}
 )
 
-const DefaultPriority = 10
+func (m ByPriority) Len() int      { return len(m) }
+func (m ByPriority) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
 
-func (m ByPriority) Len() int           { return len(m) }
-func (m ByPriority) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-func (m ByPriority) Less(i, j int) bool { return m[i].Priority < m[j].Priority }
+// Less orders by priority, then puts real IP middlewares first so that
+// middlewares reading the client IP see the resolved one, then by name.
+// Route middlewares come from a map, so ties must not depend on input order.
+func (m ByPriority) Less(i, j int) bool {
+	if m[i].Priority != m[j].Priority {
+		return m[i].Priority < m[j].Priority
+	}
+	if ri, rj := isClientIPResolver(m[i].impl), isClientIPResolver(m[j].impl); ri != rj {
+		return ri
+	}
+	return m[i].name < m[j].name
+}
+
+// isClientIPResolver reports whether impl rewrites the request's client IP.
+func isClientIPResolver(impl any) bool {
+	if bypass, ok := impl.(*checkBypass); ok {
+		impl = bypass.modReq
+	}
+	switch impl.(type) {
+	case *realIP, *cloudflareRealIP:
+		return true
+	default:
+		return false
+	}
+}
 
 func NewMiddleware[ImplType any]() *Middleware {
 	// type check
@@ -460,7 +484,7 @@ func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) e
 }
 
 func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) {
-	sort.Sort(ByPriority(middlewares))
+	sort.Stable(ByPriority(middlewares))
 
 	mid := NewMiddlewareChain(rp.TargetName, middlewares)
 

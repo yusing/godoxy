@@ -66,7 +66,7 @@ func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, er
 	if invalidOpts.HasError() {
 		errs.Add(invalidOpts.Error())
 	}
-	sort.Sort(ByPriority(middlewares))
+	sort.Stable(ByPriority(middlewares))
 	return middlewares, errs.Error()
 }
 
