@@ -9,6 +9,7 @@ import (
 
 	"github.com/yusing/godoxy/internal/maxmind"
 	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -28,6 +29,7 @@ const (
 	MatcherTypeIP       = "ip"
 	MatcherTypeCIDR     = "cidr"
 	MatcherTypeHost     = "host"
+	MatcherTypeSet      = "set"
 	MatcherTypeTimeZone = "tz"
 	MatcherTypeCountry  = "country"
 )
@@ -37,10 +39,11 @@ const (
 //nolint:unused
 var errMatcherFormat = gperr.Multiline().AddLines(
 	"invalid matcher format, expect {type}:{value}",
-	"Available types: ip|cidr|host|tz|country",
+	"Available types: ip|cidr|host|set|tz|country",
 	"ip:127.0.0.1",
 	"cidr:127.0.0.0/8",
 	"host:home.dyndns.example",
+	"set:family",
 	"tz:Asia/Shanghai",
 	"country:GB",
 )
@@ -77,6 +80,14 @@ func (matcher *Matcher) Parse(s string) error {
 			return err
 		}
 		matcher.match = matchHost(host)
+		matcher.dynamic = true
+	case MatcherTypeSet:
+		set, err := nettypes.NewAddressSetRef(matcherValue)
+		if err != nil {
+			return err
+		}
+		matcher.match = matchSet(set)
+		// sets can contain host: entries
 		matcher.dynamic = true
 	case MatcherTypeTimeZone:
 		if strings.Contains(matcherValue, ":") {
@@ -149,6 +160,12 @@ func matchCIDR(n *net.IPNet) MatcherFunc {
 func matchHost(host *hostaddr.Name) MatcherFunc {
 	return func(_ context.Context, ip *maxmind.IPInfo) bool {
 		return host.Contains(ip.IP)
+	}
+}
+
+func matchSet(set *nettypes.AddressSet) MatcherFunc {
+	return func(_ context.Context, ip *maxmind.IPInfo) bool {
+		return set.Contains(ip.IP)
 	}
 }
 

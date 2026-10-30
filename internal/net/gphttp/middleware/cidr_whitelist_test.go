@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
@@ -178,4 +179,27 @@ func TestCIDRWhitelistHostSource(t *testing.T) {
 	hostaddr.RefreshAllForTest(t)
 	expect.Equal(t, status("198.51.100.9:1234"), http.StatusOK)
 	expect.Equal(t, status("203.0.113.7:1234"), http.StatusForbidden)
+}
+
+func TestCIDRWhitelistAddressSet(t *testing.T) {
+	nettypes.PublishAddressSets(nil)
+	t.Cleanup(func() { nettypes.PublishAddressSets(nil) })
+
+	mid, err := CIDRWhiteList.New(OptionsRaw{"allow": []string{"set:family"}})
+	expect.NoError(t, err)
+
+	status := func(remoteAddr string) int {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://app.example.com/", nil)
+		req.RemoteAddr = remoteAddr
+		mid.ServeHTTP(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }, rec, req)
+		return rec.Code
+	}
+	expect.Equal(t, status("10.1.2.3:1234"), http.StatusForbidden)
+
+	var cidr nettypes.CIDR
+	expect.NoError(t, cidr.Parse("10.0.0.0/8"))
+	nettypes.PublishAddressSets(map[string][]*nettypes.CIDR{"family": {&cidr}})
+	expect.Equal(t, status("10.1.2.3:1234"), http.StatusOK)
+	expect.Equal(t, status("192.168.1.1:1234"), http.StatusForbidden)
 }

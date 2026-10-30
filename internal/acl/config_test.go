@@ -11,6 +11,7 @@ import (
 	"github.com/yusing/godoxy/internal/maxmind"
 	maxmindtypes "github.com/yusing/godoxy/internal/maxmind/types"
 	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/task"
 )
 
@@ -180,4 +181,23 @@ func TestIPAllowedFollowsHostChanges(t *testing.T) {
 	hostaddr.RefreshAllForTest(t)
 	require.True(t, cfg.IPAllowed(newIP))
 	require.False(t, cfg.IPAllowed(oldIP))
+}
+
+func TestIPAllowedAddressSet(t *testing.T) {
+	nettypes.PublishAddressSets(nil)
+	t.Cleanup(func() { nettypes.PublishAddressSets(nil) })
+
+	var cidr nettypes.CIDR
+	require.NoError(t, cidr.Parse("203.0.113.0/24"))
+	nettypes.PublishAddressSets(map[string][]*nettypes.CIDR{"family": {&cidr}})
+
+	cfg := &Config{
+		Default:    ACLDeny,
+		AllowLocal: new(false),
+		Allow:      mustMatchers(t, "set:family"),
+	}
+	require.NoError(t, cfg.Validate())
+	require.True(t, cfg.Allow.HasDynamic())
+	require.True(t, cfg.IPAllowed(net.ParseIP("203.0.113.7")))
+	require.False(t, cfg.IPAllowed(net.ParseIP("198.51.100.9")))
 }

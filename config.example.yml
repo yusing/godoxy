@@ -31,6 +31,20 @@
 #     ca_files:
 #       - /app/certs/corp-ca.pem
 
+# Address sets (optional)
+#
+# Named lists of CIDRs, IPs or host:<name> (A/AAAA, re-resolved every minute),
+# referenced as set:<name> wherever a CIDR is accepted: cidr_whitelist allow,
+# real_ip from, rules and bypass `remote`, ACL allow/deny, access log cidr.
+# Sets cannot reference other sets. An undefined set matches nothing.
+#
+# address_sets:
+#   family:
+#     - host:home.dyndns.example
+#     - 203.0.113.0/29
+#   office:
+#     - 198.51.100.0/24
+
 # Access Control
 # When enabled, it will be applied globally at connection level,
 # all incoming connections (web, tcp and udp) will be checked against the ACL rules.
@@ -42,6 +56,7 @@
 #     - ip:1.2.3.4
 #     - cidr:1.2.3.4/32
 #     - host:home.dyndns.example # A/AAAA, re-resolved every minute
+#     - set:family # see address_sets
 #     - country:US
 #     - timezone:Asia/Shanghai
 #   deny:

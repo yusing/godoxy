@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	. "github.com/yusing/godoxy/internal/route/rules"
@@ -505,4 +506,29 @@ func TestOnRemoteHost(t *testing.T) {
 
 	var bad RuleOn
 	expect.ErrorContains(t, bad.Parse("remote host:-bad.example"), "invalid hostname")
+}
+
+func TestOnRemoteAddressSet(t *testing.T) {
+	nettypes.PublishAddressSets(nil)
+	t.Cleanup(func() { nettypes.PublishAddressSets(nil) })
+
+	var on RuleOn
+	expect.NoError(t, on.Parse("route plex & remote set:family"))
+	var remote RuleOn
+	expect.NoError(t, remote.Parse("remote set:family"))
+	expect.Equal(t, remote.String(), "remote set:family")
+
+	check := func(remoteAddr string) bool {
+		return remote.Check(httptest.NewRecorder(), &http.Request{RemoteAddr: remoteAddr})
+	}
+	expect.False(t, check("10.1.2.3:1234"))
+
+	var cidr nettypes.CIDR
+	expect.NoError(t, cidr.Parse("10.0.0.0/8"))
+	nettypes.PublishAddressSets(map[string][]*nettypes.CIDR{"family": {&cidr}})
+	expect.True(t, check("10.1.2.3:1234"))
+	expect.False(t, check("192.168.1.1:1234"))
+
+	var bad RuleOn
+	expect.HasError(t, bad.Parse("remote set:bad.name"))
 }

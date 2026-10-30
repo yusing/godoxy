@@ -17,6 +17,7 @@ Accepted in:
 | rules / bypass `remote` | `remote host:home.dyndns.example` |
 | ACL `allow` / `deny` | `- host:home.dyndns.example` |
 | access log `filters.cidr` | `- host:monitor.example.com` |
+| root `address_sets` entries | `family: [host:home.dyndns.example]` |
 
 All entries except the ACL use `nettypes.CIDR` or the rules `remote`
 validator, both of which call `Get`; the ACL has its own `host:` matcher

@@ -8,15 +8,17 @@ import (
 	"github.com/yusing/godoxy/internal/net/hostaddr"
 )
 
-// CIDR is an address source in config: a CIDR, a bare IP (a single host), or
+// CIDR is an address source in config: a CIDR, a bare IP (a single host),
 // "host:<name>", a hostname whose A/AAAA addresses are re-resolved in the
-// background (see package hostaddr).
+// background (see package hostaddr), or "set:<name>", a named address set
+// from the root config's address_sets.
 //
 //nolint:recvcheck
 type CIDR struct {
 	net.IPNet
 
 	host *hostaddr.Name
+	set  *AddressSet
 }
 
 // NewCIDR returns a static CIDR for ipnet.
@@ -42,6 +44,14 @@ func ParseCIDROrIP(v string) (*net.IPNet, error) {
 }
 
 func (cidr *CIDR) Parse(v string) error {
+	if name, ok := strings.CutPrefix(v, AddressSetPrefix); ok {
+		set, err := NewAddressSetRef(name)
+		if err != nil {
+			return err
+		}
+		*cidr = CIDR{set: set}
+		return nil
+	}
 	if name, ok := strings.CutPrefix(v, hostaddr.Prefix); ok {
 		host, err := hostaddr.Get(name)
 		if err != nil {
@@ -52,7 +62,7 @@ func (cidr *CIDR) Parse(v string) error {
 	}
 	ipnet, err := ParseCIDROrIP(v)
 	if err != nil {
-		return fmt.Errorf("invalid CIDR, IP or host:<name> %q: %w", v, err)
+		return fmt.Errorf("invalid CIDR, IP, host:<name> or set:<name> %q: %w", v, err)
 	}
 	*cidr = CIDR{IPNet: *ipnet}
 	return nil
@@ -63,7 +73,15 @@ func (cidr CIDR) Host() *hostaddr.Name {
 	return cidr.host
 }
 
+// Set returns the address set reference, nil unless parsed from "set:<name>".
+func (cidr CIDR) Set() *AddressSet {
+	return cidr.set
+}
+
 func (cidr CIDR) Contains(ip net.IP) bool {
+	if cidr.set != nil {
+		return cidr.set.Contains(ip)
+	}
 	if cidr.host != nil {
 		return cidr.host.Contains(ip)
 	}
@@ -71,6 +89,9 @@ func (cidr CIDR) Contains(ip net.IP) bool {
 }
 
 func (cidr CIDR) String() string {
+	if cidr.set != nil {
+		return cidr.set.String()
+	}
 	if cidr.host != nil {
 		return cidr.host.String()
 	}

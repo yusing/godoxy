@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
@@ -403,14 +404,16 @@ var checkers = map[string]struct {
 				"Match remote client IP against an address, a CIDR, or a hostname.",
 				"A bare IP is an exact host match: /32 for IPv4, /128 for IPv6.",
 				"host:<name> matches the name's current A/AAAA addresses, re-resolved every minute (e.g. a dynamic DNS name).",
+				"set:<name> matches any entry of the named set under the root config's address_sets.",
 				helpExample(OnRemote, "203.0.113.42"),
 				helpExample(OnRemote, "192.168.0.0/16"),
 				helpExample(OnRemote, "2001:db8::1"),
 				helpExample(OnRemote, "2001:db8::/32"),
 				helpExample(OnRemote, "host:home.dyndns.example"),
+				helpExample(OnRemote, "set:family"),
 			),
 			args: helpArgs(
-				helpArg{"ip|cidr|host:<name>", "IPv4/IPv6 CIDR, a bare IPv4/IPv6 address for an exact host match, or host:<name>"},
+				helpArg{"ip|cidr|host:<name>|set:<name>", "IPv4/IPv6 CIDR, a bare IPv4/IPv6 address for an exact host match, host:<name>, or set:<name>"},
 			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -418,6 +421,11 @@ var checkers = map[string]struct {
 			return
 		},
 		builder: func(args any) CheckFunc {
+			if set, ok := args.(*nettypes.AddressSet); ok {
+				return func(w *httputils.ResponseModifier, r *http.Request) bool {
+					return set.Contains(w.SharedData().GetRemoteIP(r))
+				}
+			}
 			if host, ok := args.(*hostaddr.Name); ok {
 				return func(w *httputils.ResponseModifier, r *http.Request) bool {
 					return host.Contains(w.SharedData().GetRemoteIP(r))
