@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/auth"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	httputils "github.com/yusing/goutils/http"
 
 	_ "embed"
@@ -32,6 +33,7 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 	}
 
 	if !httputils.GetAccept(r.Header).AcceptHTML() {
+		accesslog.RecordDenied(r, "Captcha", "captcha required, client does not accept HTML")
 		http.Error(w, "Captcha is required", http.StatusForbidden)
 		return false
 	}
@@ -47,6 +49,7 @@ func PreRequest(p Provider, w http.ResponseWriter, r *http.Request) (proceed boo
 		}
 
 		log.Warn().Err(err).Str("url", r.URL.String()).Str("remote_addr", r.RemoteAddr).Msg("failed to verify captcha")
+		accesslog.RecordDenied(r, "Captcha", "captcha verification failed")
 		http.Error(w, "Failed to verify captcha", http.StatusUnauthorized)
 		return false
 	}
