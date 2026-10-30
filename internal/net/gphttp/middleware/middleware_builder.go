@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/goccy/go-yaml"
+	"github.com/rs/zerolog/log"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -37,6 +38,9 @@ func BuildMiddlewaresFromYAML(source string, data []byte, eb *gperr.Builder) map
 			eb.AddSubject(err, source)
 		} else {
 			middlewares[name+"@file"] = chain
+			for _, warning := range ClientIPOrderWarnings(name, defs) {
+				log.Warn().Str("file", source).Msg(warning)
+			}
 		}
 	}
 	return middlewares
