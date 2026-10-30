@@ -321,3 +321,29 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	c.logAndNotify(record.IPInfo, record.allow, record.reason)
 	return record.allow
 }
+
+// ExplainIP returns the decision IPAllowed would make for ip and why,
+// without logging, notifying or caching.
+func (c *Config) ExplainIP(ip net.IP) (allowed bool, reason string) {
+	if ip == nil {
+		return false, "invalid IP"
+	}
+	if ip.IsLoopback() {
+		return true, "loopback is always allowed"
+	}
+	if c.allowLocal && ip.IsPrivate() {
+		return true, "allowed by allow_local rule"
+	}
+	record, err := c.evaluateIP(context.WithoutCancel(c.explainContext()), ip.String())
+	if err != nil {
+		return c.defaultAllow, err.Error()
+	}
+	return record.allow, record.reason
+}
+
+func (c *Config) explainContext() context.Context {
+	if c.runtimeCtx != nil {
+		return c.runtimeCtx
+	}
+	return context.Background()
+}

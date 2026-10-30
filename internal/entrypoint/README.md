@@ -176,6 +176,29 @@ Runtime behavior is optimized for the common no-stream-route case:
 - Without a global profile, route-level inbound mTLS may still select profiles by TLS SNI.
 - For a route that enforces client certificates, the route matched from the HTTP `Host` and the route matched from TLS SNI must be the same route (compared by route identity/key after `FindRoute`). That resolution is the entrypoint's route table, not DNS or any external name resolution.
 
+### Explain
+
+`Entrypoint.Explain(ExplainRequest)` dry-runs a hypothetical request and
+reports how it would be handled, without reaching the upstream. It backs
+`GET /api/v1/route/explain`.
+
+1. ACL: the peer IP is checked with `acl.Explainer.ExplainIP` (no logging,
+   notification or caching).
+2. Route lookup on the listener that serves the host, with the same
+   `resolveRequestRoute` as live traffic.
+3. Entrypoint middlewares, with the route's promoted bypass overlay, then the
+   route's compiled middlewares (`CompiledMiddleware()` on reverse proxy and
+   file server routes), via `middleware.Middleware.Explain`.
+
+`middleware.Middleware.Explain` runs only middlewares without side effects
+(`real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,
+`set_x_forwarded`, `hide_x_forwarded`, `modify_request`) against a recorder.
+Others (`forward_auth`, `oidc`, `crowdsec`, `rate_limit`, captcha, response
+modifiers) are reported as `not_evaluated` after their bypass rules are
+checked; a request that nothing denied but that hit one of them gets the
+decision `conditional`. Route rules and not-found rules are not evaluated.
+The probe request uses a fresh context, so denials do not emit blocked events.
+
 ### Inbound mTLS profiles
 
 Root config provides reusable named inbound mTLS profiles via `config.Config.InboundMTLSProfiles`. Each profile is a [`types.InboundMTLSProfile`](internal/types/inbound_mtls.go): optional system trust roots plus zero or more PEM CA certificate files on disk (`ca_files`). `SetInboundMTLSProfiles` compiles those profiles into certificate pools, and the TLS server sets `ClientCAs` from the selected pool.
