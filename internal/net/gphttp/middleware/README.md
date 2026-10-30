@@ -89,7 +89,7 @@ type Middleware struct {
 }
 
 type commonOptions struct {
-    Priority int    `json:"priority"` // Default: 10, 0 is highest
+    Priority int    `json:"priority"` // Default: 0, the highest
     Bypass   Bypass `json:"bypass"`
 }
 ```
@@ -323,7 +323,14 @@ mid, _ := middleware.RateLimiter.New(middleware.OptionsRaw{
 
 ## Priority
 
-Middleware are executed in priority order (lower number = higher priority):
+Middleware are executed in priority order (lower number = higher priority).
+The default priority is 0. Entrypoint and compose-file chains (lists) keep
+their declared order; priority only sorts route-level middleware maps.
+
+Route-level middlewares come from a map, so equal priorities are broken
+deterministically: `real_ip` and `cloudflare_real_ip` first, so that
+`cidr_whitelist`, `rate_limit` and others see the resolved client IP, then
+the remaining middlewares by name.
 
 ```mermaid
 graph LR
