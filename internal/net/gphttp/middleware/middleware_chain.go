@@ -9,9 +9,11 @@ import (
 )
 
 type middlewareChain struct {
-	befores    []RequestModifier
-	respHeader []ResponseModifier
-	respBody   []ResponseModifier
+	befores []RequestModifier
+	// beforeNames[i] is the name of the middleware behind befores[i].
+	beforeNames []string
+	respHeader  []ResponseModifier
+	respBody    []ResponseModifier
 }
 
 // TODO: check conflict or duplicates.
@@ -22,6 +24,7 @@ func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
 	for _, comp := range chain {
 		if before, ok := comp.impl.(RequestModifier); ok {
 			chainMid.befores = append(chainMid.befores, before)
+			chainMid.beforeNames = append(chainMid.beforeNames, comp.name)
 		}
 		if mr, ok := comp.impl.(ResponseModifier); ok {
 			if isBodyResponseModifier(mr) {

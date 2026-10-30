@@ -30,6 +30,7 @@ type ReverseProxyRoute struct {
 	loadBalancer *loadbalancer.LoadBalancer
 	handler      http.Handler
 	rp           *reverseproxy.ReverseProxy
+	middleware   *middleware.Middleware
 }
 
 var _ routing.ReverseProxyRoute = (*ReverseProxyRoute)(nil)
@@ -86,8 +87,10 @@ func NewReverseProxyRoute(base *route.Route) (*ReverseProxyRoute, error) {
 		}
 	}
 
+	var routeMiddleware *middleware.Middleware
 	if len(base.Middlewares) > 0 {
-		err := middleware.PatchReverseProxy(rp, base.Middlewares)
+		var err error
+		routeMiddleware, err = middleware.PatchReverseProxyChain(rp, base.Middlewares)
 		if err != nil {
 			return nil, err
 		}
@@ -112,10 +115,17 @@ func NewReverseProxyRoute(base *route.Route) (*ReverseProxyRoute, error) {
 	}
 
 	r := &ReverseProxyRoute{
-		Route: base,
-		rp:    rp,
+		Route:      base,
+		rp:         rp,
+		middleware: routeMiddleware,
 	}
 	return r, nil
+}
+
+// CompiledMiddleware returns the route's compiled middleware chain, nil if it
+// has none.
+func (r *ReverseProxyRoute) CompiledMiddleware() *middleware.Middleware {
+	return r.middleware
 }
 
 // ReverseProxy implements routes.ReverseProxyRoute.

@@ -158,3 +158,26 @@ func TestTimezoneACLWithDefaultCityDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "allowed by allow rule: tz:Europe/London", record.reason)
 }
+
+func TestExplainIPDoesNotCache(t *testing.T) {
+	cfg := &Config{
+		Default:    ACLDeny,
+		AllowLocal: new(false),
+		Allow:      mustMatchers(t, "ip:8.8.8.8"),
+	}
+	require.NoError(t, cfg.Validate())
+
+	ip := net.ParseIP("8.8.8.8")
+	allowed, reason := cfg.ExplainIP(ip)
+	require.True(t, allowed)
+	require.Equal(t, "allowed by allow rule: ip:8.8.8.8", reason)
+
+	cfg.Allow = nil
+	allowed, reason = cfg.ExplainIP(ip)
+	require.False(t, allowed, "ExplainIP must not reuse cached decisions")
+	require.Equal(t, "denied by default", reason)
+
+	allowed, reason = cfg.ExplainIP(net.ParseIP("127.0.0.1"))
+	require.True(t, allowed)
+	require.Equal(t, "loopback is always allowed", reason)
+}
