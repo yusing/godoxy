@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/routing"
 	httputils "github.com/yusing/goutils/http"
 	ioutils "github.com/yusing/goutils/io"
@@ -145,6 +146,7 @@ func (m *crowdsecMiddleware) before(w http.ResponseWriter, r *http.Request) (pro
 				Str("ip", remoteIP).
 				Msg("request blocked by CrowdSec")
 		}
+		accesslog.RecordDenied(r, "CrowdSec", "blocked by CrowdSec")
 		w.WriteHeader(http.StatusForbidden)
 		return false
 	case http.StatusInternalServerError:
