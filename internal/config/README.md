@@ -115,6 +115,19 @@ the entrypoint, and loads all route providers with the candidate context.
 Provider files and agents are attempted independently; one failed source does
 not prevent other sources from being represented in the candidate.
 
+`address_sets` are named lists of address sources (CIDR, IP, `host:<name>`)
+referenced as `set:<name>` wherever a CIDR is accepted (cidr_whitelist allow,
+real_ip from, rules and bypass `remote`, ACL allow/deny, access log cidr).
+References hold only the name and read the published definitions on every
+match. `state.Init` stages the set names first (`config.StageAddressSetNames`)
+so references parsed in the same document do not warn, validates names and
+rejects sets that reference other sets. The definitions are published
+(`nettypes.PublishAddressSets`) only when the runtime manager marks the
+candidate `RuntimeActivating`, so a rejected reload never changes what the
+active runtime matches. An undefined set matches nothing and logs a warning;
+it is not an error, because the API validates edited configs before they are
+active.
+
 Preparation diagnostics remain buffered until the lifecycle decision. Rejected
 candidates discard the buffer. Accepted candidates flush it once; persistent
 flush failure degrades the runtime and enables direct logging for subsequent

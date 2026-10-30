@@ -154,13 +154,14 @@ Semantics:
 - if the route-local middleware entry contains additional options, only the bypass portion is consumed; the rest of the route-local middleware still executes normally
 - if no matching entrypoint middleware exists, route-local middleware behavior is unchanged
 
-`allow` (CIDRWhitelist) and `from` (RealIP) entries are address sources: a CIDR, a bare IP (a single host: /32 for IPv4, /128 for IPv6), or `host:<name>`, which matches the hostname's current A/AAAA addresses and follows DNS changes without a reload (see `internal/net/hostaddr`). Bypass rules accept the same forms in `remote`.
+`allow` (CIDRWhitelist) and `from` (RealIP) entries are address sources: a CIDR, a bare IP (a single host: /32 for IPv4, /128 for IPv6), or `host:<name>`, which matches the hostname's current A/AAAA addresses and follows DNS changes without a reload (see `internal/net/hostaddr`), or `set:<name>`, a named list from the root config's `address_sets` (see `internal/config`). Bypass rules accept the same forms in `remote`.
 
 ```yaml
 - use: cidr_whitelist
   allow:
     - 10.0.0.0/8
     - host:home.dyndns.example
+    - set:office
 ```
 
 `CIDRWhitelist` accepts an omitted or empty `allow` list and denies every request that does not match a bypass rule. A bypass-only route entry can therefore promote its rules without duplicating the entrypoint's allowed CIDRs. When no matching entrypoint middleware exists, the route entry allows only requests matching its own bypass rules.
