@@ -286,6 +286,26 @@ Rotation checks:
 }
 ```
 
+Optional JSON (and console) fields, written only when they apply:
+
+| Field | When |
+| --- | --- |
+| `peer_ip` | A real IP middleware rewrote the client address. `ip` is the resolved client, `peer_ip` the connection's address (e.g. `127.0.0.1` for cloudflared). |
+| `denied_by` | A middleware or rule denied the request: `CIDRWhitelist`, `ForwardAuth`, `OIDC`, `CrowdSec`, `RateLimit`, `Captcha`, or `rules` (`error` with a 4xx code, `require_basic_auth`). The first denial is kept. |
+| `deny_reason` | Why, e.g. `IP not allowed`, `HTTP 401`, `error 403`. |
+
+```json
+{"ip": "198.51.100.10", "peer_ip": "127.0.0.1", "status": 403, "denied_by": "CIDRWhitelist", "deny_reason": "IP not allowed", "...": "..."}
+```
+
+Common and combined formats are unchanged so existing parsers keep working.
+
+The entrypoint attaches the per-request slot (`WithRequestInfo`) before its
+middlewares run, and only when the entrypoint or the matched route has an
+access log. Deny points call `RecordDenied`; it is a no-op without a slot.
+Route-level logs of proxied routes only record requests that reach the
+upstream, so denials show up in the entrypoint access log.
+
 ## Configuration Surface
 
 ### YAML Configuration

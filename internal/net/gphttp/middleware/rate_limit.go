@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"golang.org/x/time/rate"
 )
 
@@ -66,6 +67,7 @@ func (rl *rateLimiter) limit(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	accesslog.RecordDenied(r, "RateLimit", "rate limit exceeded")
 	http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 	return false
 }
