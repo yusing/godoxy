@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -529,4 +530,39 @@ default {
 }
 `)
 	require.ErrorIs(t, err, ErrInvalidArguments)
+}
+
+func TestDenyingCommandsRecordAccessLogReason(t *testing.T) {
+	tests := []struct {
+		rules      string
+		wantCode   int
+		wantReason string
+	}{
+		{rules: `remote 10.0.0.0/8 { error 403 "forbidden" }`, wantCode: http.StatusForbidden, wantReason: "error 403"},
+		{rules: `default { require_basic_auth "Restricted" }`, wantCode: http.StatusUnauthorized, wantReason: "require_basic_auth"},
+		{rules: `default { error 503 "maintenance" }`, wantCode: http.StatusServiceUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.rules, func(t *testing.T) {
+			var rules Rules
+			require.NoError(t, rules.Parse(tt.rules))
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.RemoteAddr = "10.1.2.3:1234"
+			req = accesslog.WithRequestInfo(req)
+			w := httptest.NewRecorder()
+			rules.BuildHandler(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})(w, req)
+			require.Equal(t, tt.wantCode, w.Code)
+
+			info, ok := accesslog.RequestInfoOf(req)
+			require.True(t, ok)
+			if tt.wantReason == "" {
+				require.Empty(t, info.DeniedBy, "5xx is not a denial")
+				return
+			}
+			require.Equal(t, "rules", info.DeniedBy)
+			require.Equal(t, tt.wantReason, info.DenyReason)
+		})
+	}
 }

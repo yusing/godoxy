@@ -12,7 +12,6 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
-	httpevents "github.com/yusing/goutils/events/http"
 	"github.com/yusing/goutils/http/httpheaders"
 	strutils "github.com/yusing/goutils/strings"
 )
@@ -154,7 +153,7 @@ func (amw *oidcMiddleware) before(w http.ResponseWriter, r *http.Request) (proce
 
 	emitBlockedEvent := func() {
 		if r.Method != http.MethodHead {
-			httpevents.Blocked(r, "OIDC", err.Error())
+			blocked(r, "OIDC", err.Error())
 		}
 	}
 
