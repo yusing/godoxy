@@ -100,6 +100,7 @@ type Config struct {
     SupportProxyProtocol bool                     `json:"support_proxy_protocol"` // deprecated
     ProxyProtocol        *server.ProxyProtocolConfig `json:"proxy_protocol,omitempty"`
     InboundMTLSProfile   string                   `json:"inbound_mtls_profile,omitempty"`
+    StrictSNI            bool                     `json:"strict_sni,omitempty"`
     Rules                struct {
         NotFound rules.Rules                     `json:"not_found"`
     }                                               `json:"rules"`
@@ -175,6 +176,28 @@ Runtime behavior is optimized for the common no-stream-route case:
 - When configured, route-level inbound mTLS overrides are not supported.
 - Without a global profile, route-level inbound mTLS may still select profiles by TLS SNI.
 - For a route that enforces client certificates, the route matched from the HTTP `Host` and the route matched from TLS SNI must be the same route (compared by route identity/key after `FindRoute`). That resolution is the entrypoint's route table, not DNS or any external name resolution.
+
+### Strict SNI
+
+By default HTTPS requests are routed by the `Host` header alone, whatever TLS SNI the client sent. A client that opens TLS to the bare IP (no SNI) or with another name's SNI can still reach any route by setting `Host`.
+
+`strict_sni: true` makes the entrypoint reject such HTTPS requests with `421 Misdirected Request`:
+
+- the request has no TLS SNI, or
+- the route matched from `Host` differs from the route matched from SNI (compared by route identity after `FindRoute`, case-insensitive).
+
+A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
+
+```yaml
+entrypoint:
+  strict_sni: true
+```
+
+Compatibility notes:
+
+- Browsers reuse HTTP/2 connections across names covered by one certificate (for example a wildcard). A request for a different route on such a connection gets 421, and browsers retry it on a new connection (RFC 9113 section 9.1.2).
+- A reverse proxy or tunnel in front of GoDoxy must send SNI matching `Host`. For cloudflared pointing at `https://localhost`, set `originRequest.matchSNItoHost: true` (or `originServerName` per ingress rule); otherwise it sends `localhost` and every request gets 421.
+- Health checks or scripts that connect by IP over HTTPS need SNI set to the route's hostname.
 
 ### Inbound mTLS profiles
 
