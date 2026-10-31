@@ -184,9 +184,9 @@ By default HTTPS requests are routed by the `Host` header alone, whatever TLS SN
 `strict_sni: true` makes the entrypoint reject such HTTPS requests with `421 Misdirected Request`:
 
 - the request has no TLS SNI, or
-- the route matched from `Host` differs from the route matched from SNI (compared by route identity after `FindRoute`, case-insensitive).
+- `Host` and SNI are different names (case-insensitive) and resolve to different routes (compared by route identity after `FindRoute`).
 
-A request that passes is routed by the route both names matched, so a mixed-case `Host` resolves like its lowercase form. A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
+Names are looked up as given and then lowercased, since route keys keep their configured case: an `App` alias and a mixed-case `Host` for an `app` alias both resolve. A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
 
 ```yaml
 entrypoint:

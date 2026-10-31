@@ -379,23 +379,38 @@ func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute
 	return hostRoute, nil
 }
 
-// checkStrictSNI requires TLS SNI and requires the route matched from the
-// Host header to be the route matched from SNI. Both names are compared
-// case-insensitively (RFC 6066, RFC 9110). A Host that matches no route passes
-// only when SNI matches no route either, so unknown hosts still reach the
-// not-found handling.
+// checkStrictSNI requires TLS SNI, and requires Host and SNI to be the same
+// name (case-insensitive, RFC 6066 / RFC 9110) or to resolve to the same
+// route. A Host that matches no route passes only when SNI matches no route
+// either, so unknown hosts still reach the not-found handling.
 //
-// It returns the matched route (nil when neither matches).
+// It returns the route to serve: the Host's route, looked up as given and
+// then lowercased, so both exact-case aliases and mixed-case Hosts resolve.
 func (srv *httpServer) checkStrictSNI(host, serverName string) (routing.HTTPRoute, error) {
 	if serverName == "" {
 		return nil, errStrictSNIRequired
 	}
-	hostRoute := srv.FindRoute(strings.ToLower(host))
-	sniRoute := srv.FindRoute(strings.ToLower(serverName))
-	if !sameHTTPRoute(hostRoute, sniRoute) {
+	hostRoute := srv.findRouteFoldCase(host)
+	if strings.EqualFold(hostWithoutPort(host), serverName) {
+		return hostRoute, nil
+	}
+	if !sameHTTPRoute(hostRoute, srv.findRouteFoldCase(serverName)) {
 		return nil, errStrictSNIMisdirected
 	}
 	return hostRoute, nil
+}
+
+// findRouteFoldCase looks name up as given, then lowercased. Route keys keep
+// their configured case, so neither lookup alone covers both "App" aliases
+// and mixed-case client names.
+func (srv *httpServer) findRouteFoldCase(name string) routing.HTTPRoute {
+	if route := srv.FindRoute(name); route != nil {
+		return route
+	}
+	if lower := strings.ToLower(name); lower != name {
+		return srv.FindRoute(lower)
+	}
+	return nil
 }
 
 func sameHTTPRoute(left, right routing.HTTPRoute) bool {
