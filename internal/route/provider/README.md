@@ -311,6 +311,27 @@ provider. A dynamic provider with zero routes and no infrastructure error is
 ready. A provider with attempted routes and no active route is failed. Provider
 task cancellation removes its event queue and all active routes.
 
+A file event matches every route in the file, but routes whose raw definition
+did not change keep running: the file provider stores a SHA-256 of each
+route's definition (anchors resolved, keys sorted, as canonical JSON) on the
+route (`SourceFingerprint`), and the event handler skips routes whose
+fingerprint is unchanged. Restarting a route removes it from the entrypoint
+until its replacement starts and resets its health state, so this avoids
+brief 404s and health flaps on unrelated routes. Inventory keys use the alias
+normalized by route validation, including case and surrounding whitespace.
+Definitions whose aliases normalize to the same identity are all rejected;
+partial file reloads retain the running route while applying valid siblings.
+Default-only (`null`) definitions also receive fingerprints. Removed routes,
+including excluded routes, leave the inventory so re-adding them starts a new
+instance.
+
+Routes with `rule_file`, `ssl_trusted_certificate`, `ssl_certificate`, or
+`ssl_certificate_key` are rebuilt on every matching event: their definitions
+contain paths rather than the referenced content. This also applies to embedded
+rule presets. Saving an unchanged file keeps other routes running; a force
+reload still restarts every route. These rules do not add watchers for referenced
+files, so reload the route file after changing an external rule or TLS file.
+
 On a partial file-provider reload, valid updates and additions apply, but old
 aliases absent from the validated result remain active and errors are still
 reported. This also delays genuine deletions until a clean load, which removes
