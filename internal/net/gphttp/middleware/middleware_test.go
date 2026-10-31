@@ -117,6 +117,52 @@ func TestMiddlewarePriority(t *testing.T) {
 	expect.Equal(t, strings.Join(res.ResponseHeaders["Test-Value"], ","), "3,0,1,2")
 }
 
+func compiledNames(t *testing.T, mws map[string]OptionsRaw) string {
+	t.Helper()
+	compiled, err := compileMiddlewares(mws)
+	expect.NoError(t, err)
+	names := make([]string, len(compiled))
+	for i, m := range compiled {
+		names[i] = m.Name()
+	}
+	return strings.Join(names, ",")
+}
+
+// Route-level middlewares come from a map. Equal priorities must still give one
+// order, with the real IP middleware before anything that reads the client IP.
+func TestRouteMiddlewareOrderIsDeterministic(t *testing.T) {
+	newMap := func() map[string]OptionsRaw {
+		return map[string]OptionsRaw{
+			"cidr_whitelist":     {"allow": []string{"127.0.0.1/32"}},
+			"rate_limit":         {"average": 10, "burst": 10},
+			"cloudflare_real_ip": {},
+			"set_x_forwarded":    {},
+		}
+	}
+	want := "cloudflareRealIP,cidrWhitelist,rateLimiter,setXForwarded"
+	for range 200 {
+		expect.Equal(t, compiledNames(t, newMap()), want)
+	}
+
+	realIP := map[string]OptionsRaw{
+		"cidr_whitelist": {"allow": []string{"127.0.0.1/32"}},
+		"real_ip":        {"header": "X-Real-IP", "from": []string{"10.0.0.0/8"}},
+	}
+	for range 200 {
+		expect.Equal(t, compiledNames(t, realIP), "realIP,cidrWhitelist")
+	}
+}
+
+func TestRouteMiddlewareOrderExplicitPriorityWins(t *testing.T) {
+	mws := map[string]OptionsRaw{
+		"cidr_whitelist":     {"allow": []string{"127.0.0.1/32"}, "priority": 0},
+		"cloudflare_real_ip": {"priority": 5},
+	}
+	for range 50 {
+		expect.Equal(t, compiledNames(t, mws), "cidrWhitelist,cloudflareRealIP")
+	}
+}
+
 func TestMiddlewareResponseRewriteGate(t *testing.T) {
 	headerOpts := OptionsRaw{
 		"status_code": 418,
@@ -456,4 +502,26 @@ func TestMiddlewareMarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		require.JSONEq(t, `{"name":"chain","options":{"priority":0,"bypass":[]}}`, string(data))
 	})
+}
+
+func TestRouteMiddlewareOrderComposeChainAndAliases(t *testing.T) {
+	resolve := registerComposeChain(t, "resolvechain", []map[string]any{{"use": "cloudflare_real_ip"}})
+	for range 50 {
+		expect.Equal(t, compiledNames(t, map[string]OptionsRaw{
+			"cidr_whitelist": {"allow": []string{"127.0.0.1/32"}},
+			resolve:          {},
+		}), "resolvechain,cidrWhitelist")
+	}
+
+	// two aliases of one middleware: same name and priority, ordered by key
+	for range 50 {
+		compiled, err := compileMiddlewares(map[string]OptionsRaw{
+			"request":        {"set_headers": map[string]string{"X-Order": "request"}},
+			"modify_request": {"set_headers": map[string]string{"X-Order": "modify_request"}},
+		})
+		expect.NoError(t, err)
+		expect.Equal(t, len(compiled), 2)
+		first := compiled[0].impl.(*modifyRequest)
+		expect.Equal(t, first.SetHeaders["X-Order"], "modify_request")
+	}
 }

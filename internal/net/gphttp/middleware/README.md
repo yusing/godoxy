@@ -89,7 +89,7 @@ type Middleware struct {
 }
 
 type commonOptions struct {
-    Priority int    `json:"priority"` // Default: 10, 0 is highest
+    Priority int    `json:"priority"` // Default: 0, the highest
     Bypass   Bypass `json:"bypass"`
 }
 ```
@@ -153,6 +153,15 @@ Semantics:
 - if the route-local middleware entry is **bypass-only**, it is consumed so the same middleware is not evaluated twice
 - if the route-local middleware entry contains additional options, only the bypass portion is consumed; the rest of the route-local middleware still executes normally
 - if no matching entrypoint middleware exists, route-local middleware behavior is unchanged
+
+`allow` (CIDRWhitelist) and `from` (RealIP) entries are address sources: a CIDR, a bare IP (a single host: /32 for IPv4, /128 for IPv6), or `host:<name>`, which matches the hostname's current A/AAAA addresses and follows DNS changes without a reload (see `internal/net/hostaddr`). Bypass rules accept the same forms in `remote`.
+
+```yaml
+- use: cidr_whitelist
+  allow:
+    - 10.0.0.0/8
+    - host:home.dyndns.example
+```
 
 `CIDRWhitelist` accepts an omitted or empty `allow` list and denies every request that does not match a bypass rule. A bypass-only route entry can therefore promote its rules without duplicating the entrypoint's allowed CIDRs. When no matching entrypoint middleware exists, the route entry allows only requests matching its own bypass rules.
 
@@ -323,7 +332,14 @@ mid, _ := middleware.RateLimiter.New(middleware.OptionsRaw{
 
 ## Priority
 
-Middleware are executed in priority order (lower number = higher priority):
+Middleware are executed in priority order (lower number = higher priority).
+The default priority is 0. Entrypoint and compose-file chains (lists) keep
+their declared order; priority only sorts route-level middleware maps.
+
+Route-level middlewares come from a map, so equal priorities are broken
+deterministically: `real_ip` and `cloudflare_real_ip` first, so that
+`cidr_whitelist`, `rate_limit` and others see the resolved client IP, then
+the remaining middlewares by name.
 
 ```mermaid
 graph LR

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	"github.com/yusing/godoxy/internal/route/routes"
 	"github.com/yusing/godoxy/internal/serialization"
 	gperr "github.com/yusing/goutils/errs"
@@ -149,4 +150,32 @@ func TestCIDRWhitelistOverlayPromotion(t *testing.T) {
 			require.Equal(t, tc.status, rec.Code)
 		})
 	}
+}
+
+func TestCIDRWhitelistHostSource(t *testing.T) {
+	records := map[string][]string{"dino.dyndns.example": {"203.0.113.7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+
+	mid, err := CIDRWhiteList.New(OptionsRaw{
+		"allow": []string{"10.0.0.0/8", "host:dino.dyndns.example"},
+	})
+	expect.NoError(t, err)
+
+	status := func(remoteAddr string) int {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://app.example.com/", nil)
+		req.RemoteAddr = remoteAddr
+		mid.ServeHTTP(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }, rec, req)
+		return rec.Code
+	}
+
+	expect.Equal(t, status("203.0.113.7:1234"), http.StatusOK)
+	expect.Equal(t, status("10.1.2.3:1234"), http.StatusOK)
+	expect.Equal(t, status("198.51.100.9:1234"), http.StatusForbidden)
+
+	// dynamic DNS moves to a new address: no reload needed
+	records["dino.dyndns.example"] = []string{"198.51.100.9"}
+	hostaddr.RefreshAllForTest(t)
+	expect.Equal(t, status("198.51.100.9:1234"), http.StatusOK)
+	expect.Equal(t, status("203.0.113.7:1234"), http.StatusForbidden)
 }
