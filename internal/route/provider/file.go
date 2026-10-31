@@ -2,6 +2,9 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path"
 	"strings"
@@ -50,6 +53,26 @@ func validate(data []byte) (routes route.Routes, err error) {
 	return routes, err
 }
 
+// sourceFingerprints returns, per alias, a hash of the route's raw definition
+// (anchors and aliases resolved, map keys sorted), so a reload can tell which
+// routes actually changed. It returns nil if data cannot be decoded.
+func sourceFingerprints(data []byte) map[string]string {
+	var raw map[string]any
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+	fps := make(map[string]string, len(raw))
+	for alias, def := range raw {
+		b, err := json.Marshal(def)
+		if err != nil {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		fps[alias] = hex.EncodeToString(sum[:])
+	}
+	return fps
+}
+
 func Validate(ctx context.Context, data []byte) (err error) {
 	routes, err := validate(data)
 	var errs gperr.Builder
@@ -93,6 +116,12 @@ func (p *FileProvider) loadRoutesImpl(context.Context) (route.Routes, error) {
 	routes, err := validate(data)
 	if err != nil && len(routes) == 0 {
 		return nil, err
+	}
+	fps := sourceFingerprints(data)
+	for alias, r := range routes {
+		if r != nil {
+			r.SetSourceFingerprint(fps[alias])
+		}
 	}
 	return routes, err
 }

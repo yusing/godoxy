@@ -58,7 +58,7 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 			if err == nil || handler.provider.GetType() != routing.ProviderTypeFile {
 				handler.Remove(oldr)
 			}
-		case handler.shouldUpdateRoute(forceReload, events, newr):
+		case handler.shouldUpdateRoute(forceReload, events, oldr, newr):
 			handler.Update(parent, oldr, newr)
 		}
 	}
@@ -69,8 +69,28 @@ func (handler *EventHandler) Handle(parent task.Parent, events []watcher.Event) 
 	}
 }
 
-func (handler *EventHandler) shouldUpdateRoute(forceReload bool, events []watcher.Event, route *route.Route) bool {
-	return forceReload || handler.matchAny(events, route)
+// shouldUpdateRoute reports whether newr must replace the running oldr.
+//
+// A file event matches every route in the file. Restarting a route removes it
+// from the entrypoint until its replacement starts and resets its health
+// state, so routes whose raw definition did not change are kept running. A
+// force reload still restarts everything.
+func (handler *EventHandler) shouldUpdateRoute(forceReload bool, events []watcher.Event, oldr, newr *route.Route) bool {
+	if forceReload {
+		return true
+	}
+	if !handler.matchAny(events, newr) {
+		return false
+	}
+	if handler.provider.GetType() == routing.ProviderTypeFile && sameSource(oldr, newr) {
+		return false
+	}
+	return true
+}
+
+func sameSource(oldr, newr *route.Route) bool {
+	fp := oldr.SourceFingerprint()
+	return fp != "" && fp == newr.SourceFingerprint()
 }
 
 func hasForceReload(events []watcher.Event) bool {
