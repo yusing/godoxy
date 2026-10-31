@@ -20,6 +20,7 @@ func TestResolveRequestRouteStrictSNI(t *testing.T) {
 		srv := newTestHTTPServer(t, ep)
 		srv.AddRoute(newFakeHTTPRoute(t, "app", ""))
 		srv.AddRoute(newFakeHTTPRoute(t, "other", ""))
+		srv.AddRoute(newFakeHTTPRoute(t, "Mixed", ""))
 		return srv
 	}
 	newReq := func(host string, tlsState *tls.ConnectionState) *http.Request {
@@ -43,6 +44,9 @@ func TestResolveRequestRouteStrictSNI(t *testing.T) {
 		{name: "host and sni case differ", host: "APP.EXAMPLE.COM", tls: &tls.ConnectionState{ServerName: "App.Example.Com"}, wantRoute: "app"},
 		{name: "unknown host and sni case-variant", host: "Unknown.example.com", tls: &tls.ConnectionState{ServerName: "UNKNOWN.example.com"}},
 		{name: "case-variant sni for another route", host: "App.example.com", tls: &tls.ConnectionState{ServerName: "OTHER.example.com"}, wantErr: errStrictSNIMisdirected},
+		{name: "exact-case alias", host: "Mixed.example.com", tls: &tls.ConnectionState{ServerName: "Mixed.example.com"}, wantRoute: "Mixed"},
+		{name: "exact-case alias with lowercase sni", host: "Mixed.example.com", tls: &tls.ConnectionState{ServerName: "mixed.example.com"}, wantRoute: "Mixed"},
+		{name: "exact-case alias with ip sni", host: "Mixed.example.com", tls: &tls.ConnectionState{ServerName: "192.0.2.1"}, wantErr: errStrictSNIMisdirected},
 		{name: "no sni", host: "app.example.com", tls: &tls.ConnectionState{}, wantErr: errStrictSNIRequired},
 		{name: "sni for another route", host: "app.example.com", tls: &tls.ConnectionState{ServerName: "other.example.com"}, wantErr: errStrictSNIMisdirected},
 		{name: "sni matches no route", host: "app.example.com", tls: &tls.ConnectionState{ServerName: "unknown.example.com"}, wantErr: errStrictSNIMisdirected},
