@@ -70,6 +70,12 @@ entrypoint:
   #     - 172.18.0.10
   #     - 10.0.0.0/8
 
+  # Reject HTTPS requests without TLS SNI, or whose Host header resolves to a
+  # different route than the SNI, with 421 Misdirected Request.
+  # Proxies or tunnels in front must send SNI matching Host
+  # (cloudflared: originRequest.matchSNItoHost: true).
+  # strict_sni: true
+
   # Below define an example of middleware config
   # 1. set security headers
   # 2. block non local IP connections
