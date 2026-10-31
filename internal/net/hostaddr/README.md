@@ -18,8 +18,9 @@ Accepted in:
 | ACL `allow` / `deny` | `- host:home.dyndns.example` |
 | access log `filters.cidr` | `- host:monitor.example.com` |
 
-The first four use `nettypes.CIDR` or the rules `remote` validator, both of
-which call `Get`; the ACL has its own `host:` matcher type.
+All entries except the ACL use `nettypes.CIDR` or the rules `remote`
+validator, both of which call `Get`; the ACL has its own `host:` matcher
+type, which calls `Get` too.
 
 ## Behavior
 
