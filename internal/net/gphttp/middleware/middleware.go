@@ -83,17 +83,10 @@ func (m ByPriority) Less(i, j int) bool {
 	return m[i].name < m[j].name
 }
 
-// isClientIPResolver reports whether impl rewrites the request's client IP.
+// isClientIPResolver reports whether impl rewrites the request's client IP,
+// including compose chains that start by doing so.
 func isClientIPResolver(impl any) bool {
-	if bypass, ok := impl.(*checkBypass); ok {
-		impl = bypass.modReq
-	}
-	switch impl.(type) {
-	case *realIP, *cloudflareRealIP:
-		return true
-	default:
-		return false
-	}
+	return implRole(impl) == clientIPRoleResolver
 }
 
 func NewMiddleware[ImplType any]() *Middleware {
