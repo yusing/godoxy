@@ -503,3 +503,25 @@ func TestMiddlewareMarshalJSON(t *testing.T) {
 		require.JSONEq(t, `{"name":"chain","options":{"priority":0,"bypass":[]}}`, string(data))
 	})
 }
+
+func TestRouteMiddlewareOrderComposeChainAndAliases(t *testing.T) {
+	resolve := registerComposeChain(t, "resolvechain", []map[string]any{{"use": "cloudflare_real_ip"}})
+	for range 50 {
+		expect.Equal(t, compiledNames(t, map[string]OptionsRaw{
+			"cidr_whitelist": {"allow": []string{"127.0.0.1/32"}},
+			resolve:          {},
+		}), "resolvechain,cidrWhitelist")
+	}
+
+	// two aliases of one middleware: same name and priority, ordered by key
+	for range 50 {
+		compiled, err := compileMiddlewares(map[string]OptionsRaw{
+			"request":        {"set_headers": map[string]string{"X-Order": "request"}},
+			"modify_request": {"set_headers": map[string]string{"X-Order": "modify_request"}},
+		})
+		expect.NoError(t, err)
+		expect.Equal(t, len(compiled), 2)
+		first := compiled[0].impl.(*modifyRequest)
+		expect.Equal(t, first.SetHeaders["X-Order"], "modify_request")
+	}
+}

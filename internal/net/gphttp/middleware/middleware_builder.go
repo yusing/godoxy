@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"slices"
 	"sort"
 
 	"github.com/goccy/go-yaml"
@@ -52,7 +53,11 @@ func compileMiddlewares(middlewaresMap map[string]OptionsRaw) ([]*Middleware, er
 	var errs gperr.Builder
 	var invalidOpts gperr.Builder
 
-	for name, opts := range middlewaresMap {
+	// Sorted keys: aliases of one middleware (e.g. "request" and
+	// "modify_request") compile to the same name and priority, so the input
+	// order is their last tie-breaker and must not be map order.
+	for _, name := range slices.Sorted(maps.Keys(middlewaresMap)) {
+		opts := middlewaresMap[name]
 		m, err := Get(name)
 		if err != nil {
 			errs.Add(err)
