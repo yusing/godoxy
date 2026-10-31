@@ -323,7 +323,7 @@ access_log:
 | `format`               | string   | combined | Log format          |
 | `filters.status_codes` | range[]  | all      | Status code filter  |
 | `filters.method`       | string[] | all      | HTTP method filter  |
-| `filters.cidr`         | CIDR[]   | none     | IP range filter     |
+| `filters.cidr`         | CIDR[]   | none     | IP range filter (CIDR, IP, `host:<name>` or `set:<name>`) |
 
 Time-based retention (`days`, `weeks`, `months`) rotates the active file into timestamped sibling archives and deletes archives after the retention cutoff. This keeps high-traffic logs cheap to rotate. `last N` retention counts lines in the active file, so prefer size or time retention for very large access logs.
 

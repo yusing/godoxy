@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
@@ -13,6 +14,7 @@ import (
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/serialization"
@@ -25,12 +27,15 @@ type (
 		AutoCert            *autocert.Config                    `json:"autocert"`
 		Entrypoint          entrypoint.Config                   `json:"entrypoint"`
 		InboundMTLSProfiles map[string]types.InboundMTLSProfile `json:"inbound_mtls_profiles"`
-		Providers           Providers                           `json:"providers"`
-		MatchDomains        []string                            `json:"match_domains" validate:"domain_name"`
-		Homepage            homepage.Config                     `json:"homepage"`
-		WebUI               WebUIConfig                         `json:"webui"`
-		Defaults            Defaults                            `json:"defaults"`
-		TimeoutShutdown     int                                 `json:"timeout_shutdown" validate:"gte=0"`
+		// AddressSets are named lists of address sources (CIDR, IP, host:<name>),
+		// referenced as set:<name> wherever a CIDR is accepted.
+		AddressSets     map[string][]*nettypes.CIDR `json:"address_sets"`
+		Providers       Providers                   `json:"providers"`
+		MatchDomains    []string                    `json:"match_domains" validate:"domain_name"`
+		Homepage        homepage.Config             `json:"homepage"`
+		WebUI           WebUIConfig                 `json:"webui"`
+		Defaults        Defaults                    `json:"defaults"`
+		TimeoutShutdown int                         `json:"timeout_shutdown" validate:"gte=0"`
 	}
 	Defaults struct {
 		HealthCheck health.HealthCheckConfig        `json:"healthcheck"`
@@ -48,7 +53,43 @@ type (
 
 func Validate(data []byte) error {
 	var model Config
-	return serialization.UnmarshalValidate(data, &model, yaml.Unmarshal)
+	if err := serialization.UnmarshalValidate(data, &model, yaml.Unmarshal); err != nil {
+		return err
+	}
+	return model.ValidateAddressSets()
+}
+
+// StageAddressSetNames reads only the address_sets keys from a config
+// document and stages them, so set:<name> references parsed while the rest of
+// the document loads do not warn about sets that are about to be published.
+func StageAddressSetNames(data []byte) {
+	var doc struct {
+		AddressSets map[string]any `yaml:"address_sets"`
+	}
+	if yaml.Unmarshal(data, &doc) != nil {
+		return
+	}
+	names := make([]string, 0, len(doc.AddressSets))
+	for name := range doc.AddressSets {
+		names = append(names, name)
+	}
+	nettypes.StageAddressSetNames(names)
+}
+
+// ValidateAddressSets checks set names and rejects sets that reference other
+// sets.
+func (cfg *Config) ValidateAddressSets() error {
+	for name, entries := range cfg.AddressSets {
+		if err := nettypes.ValidateAddressSetName(name); err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.Set() != nil {
+				return fmt.Errorf("address_sets.%s: %s: address sets cannot reference other sets", name, entry)
+			}
+		}
+	}
+	return nil
 }
 
 func DefaultConfig() Config {

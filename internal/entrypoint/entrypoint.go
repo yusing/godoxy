@@ -162,6 +162,9 @@ func (ep *Entrypoint) SetMiddlewares(mws []map[string]any) error {
 	if err != nil {
 		return err
 	}
+	for _, warning := range middleware.ClientIPOrderWarnings("entrypoint.middlewares", mws) {
+		log.Warn().Msg(warning)
+	}
 	ep.middleware = mid
 	ep.cfg.Middlewares = tmpMiddlewares
 	for _, srv := range ep.servers.Range {

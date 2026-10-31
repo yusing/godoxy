@@ -1,6 +1,6 @@
 # internal/acl
 
-Access control at the TCP connection level with IP/CIDR, timezone, and country-based filtering.
+Access control at the TCP connection level with IP/CIDR, hostname, timezone, and country-based filtering.
 
 ## Overview
 
@@ -156,8 +156,19 @@ sequenceDiagram
 | -------- | ----------------- | --------------------- |
 | IP       | `ip:address`      | `ip:192.168.1.1`      |
 | CIDR     | `cidr:network`    | `cidr:192.168.0.0/16` |
+| Host     | `host:hostname`   | `host:home.dyndns.example` |
+| Set      | `set:name`        | `set:family`          |
 | TimeZone | `tz:timezone`     | `tz:Asia/Shanghai`    |
 | Country  | `country:ISOCode` | `country:GB`          |
+
+`host:` matches the hostname's current A/AAAA addresses, re-resolved every
+minute (see `internal/net/hostaddr`). When allow or deny contain `host:`
+matchers, the decision cache key includes `hostaddr.Generation()`, so cached
+decisions do not outlive an address change.
+
+`set:` matches any entry of the named root `address_sets` entry (see
+`internal/config`). Set matchers count as dynamic for the cache key, since a
+set can contain `host:` entries.
 
 Geographic rules require a configured, successfully loaded MaxMind provider.
 Multiple geographic rules reuse the same lookup result; a nonmatching rule does
