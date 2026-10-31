@@ -186,7 +186,7 @@ By default HTTPS requests are routed by the `Host` header alone, whatever TLS SN
 - the request has no TLS SNI, or
 - the route matched from `Host` differs from the route matched from SNI (compared by route identity after `FindRoute`, case-insensitive).
 
-A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
+A request that passes is routed by the route both names matched, so a mixed-case `Host` resolves like its lowercase form. A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
 
 ```yaml
 entrypoint:
