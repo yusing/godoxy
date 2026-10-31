@@ -130,8 +130,13 @@ func TestExplainValidatesInput(t *testing.T) {
 		{IP: "not-an-ip", Host: "app.example.com"},
 		{IP: "10.1.2.3"},
 		{IP: "10.1.2.3", Host: "app.example.com", Scheme: "ftp"},
+		{IP: "10.1.2.3", Host: "app example.com"},
+		{IP: "10.1.2.3", Host: "app.example.com", Method: "BAD METHOD"},
+		{IP: "10.1.2.3", Host: "app.example.com", Path: "/%zz"},
 	} {
-		_, err := ep.Explain(req)
-		require.Error(t, err)
+		require.NotPanics(t, func() {
+			_, err := ep.Explain(req)
+			require.ErrorIs(t, err, ErrInvalidExplainRequest, "%+v", req)
+		})
 	}
 }

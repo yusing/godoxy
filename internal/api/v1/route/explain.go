@@ -1,6 +1,7 @@
 package routeApi
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -71,9 +72,12 @@ func Explain(c *gin.Context) {
 		Scheme:  request.Scheme,
 		Headers: headers,
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, entrypoint.ErrInvalidExplainRequest):
 		c.JSON(http.StatusBadRequest, apitypes.Error("invalid request", err))
-		return
+	case err != nil:
+		c.JSON(http.StatusInternalServerError, apitypes.Error("explain failed", err))
+	default:
+		c.JSON(http.StatusOK, result)
 	}
-	c.JSON(http.StatusOK, result)
 }
