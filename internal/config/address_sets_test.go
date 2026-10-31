@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	config "github.com/yusing/godoxy/internal/config/types"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 )
 
@@ -27,6 +28,9 @@ entrypoint:
 
 func resetPublishedAddressSets(t *testing.T) {
 	t.Helper()
+	// host: entries resolve in the background; pin them so assertions
+	// right after loading are deterministic.
+	hostaddr.UseStaticRecordsForTest(t, map[string][]string{"localhost": {"127.0.0.1"}})
 	nettypes.PublishAddressSets(nil)
 	t.Cleanup(func() { nettypes.PublishAddressSets(nil) })
 }
