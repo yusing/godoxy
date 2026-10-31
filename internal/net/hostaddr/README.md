@@ -75,7 +75,9 @@ Test helpers: `UseStaticRecordsForTest`, `RefreshAllForTest`.
   load, longer if DNS is down), requests from that proxy keep its address. A
   whitelist that allows the proxy's own address admits them in that window;
   prefer allow lists that do not include the proxy.
-- After an IP change, the old address stays allowed and the new one denied
-  until a refresh succeeds: normally within a minute (plus any upstream DNS
-  caching), but as long as DNS keeps failing, since a failed refresh keeps
-  the last addresses.
+- After an IP change, the name keeps matching the old address and does not
+  match the new one until a refresh succeeds: normally within a minute (plus
+  any upstream DNS caching), but as long as DNS keeps failing, since a failed
+  refresh keeps the last addresses. In an allow list the old address stays
+  allowed and the new one is not allowed; in an ACL deny list the old address
+  stays denied and the new one is not denied.
