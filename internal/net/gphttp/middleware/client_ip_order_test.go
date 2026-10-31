@@ -97,6 +97,12 @@ func TestClientIPOrderWarningsComposeChains(t *testing.T) {
 
 	w = ClientIPOrderWarnings("entrypoint", []map[string]any{{"use": resolve}, {"use": guard}})
 	expect.Equal(t, len(w), 0)
+
+	remoteBypass := registerComposeChain(t, "remotebypass", []map[string]any{
+		{"use": "redirect_http", "bypass": []string{"remote 127.0.0.1"}},
+	})
+	w = ClientIPOrderWarnings("entrypoint", []map[string]any{{"use": remoteBypass}, {"use": "cloudflare_real_ip"}})
+	expect.Equal(t, len(w), 1, "a compose chain member with a remote bypass reads the client IP")
 }
 
 func TestPromotedClientIPOrderWarnings(t *testing.T) {

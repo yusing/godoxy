@@ -18,10 +18,15 @@ const (
 
 // implRole returns the role of a middleware implementation. A compose chain
 // takes the role of its first member that has one: a chain that resolves the
-// client IP before reading it acts as a resolver.
+// client IP before reading it acts as a resolver. A member whose bypass rules
+// match `remote` reads the client IP even if the middleware itself does not.
 func implRole(impl any) clientIPRole {
 	if bypass, ok := impl.(*checkBypass); ok {
-		impl = bypass.modReq
+		role := implRole(bypass.modReq)
+		if role == clientIPRoleNone && bypass.bypass.usesRemote() {
+			return clientIPRoleReader
+		}
+		return role
 	}
 	switch impl := impl.(type) {
 	case *realIP, *cloudflareRealIP:
@@ -103,7 +108,12 @@ func bypassUsesRemote(raw any) bool {
 	if err != nil || !ok {
 		return false
 	}
-	for _, rule := range bypass {
+	return bypass.usesRemote()
+}
+
+// usesRemote reports whether any rule matches on the client IP (`remote`).
+func (b Bypass) usesRemote() bool {
+	for _, rule := range b {
 		if remoteMatcherRe.MatchString(rule.String()) {
 			return true
 		}
