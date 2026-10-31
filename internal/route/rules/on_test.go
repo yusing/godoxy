@@ -205,6 +205,46 @@ func TestOnCorrectness(t *testing.T) {
 			want: false,
 		},
 		{
+			name:    "remote_bare_ipv4_exact_match",
+			checker: "remote 192.168.1.5",
+			input: &http.Request{
+				RemoteAddr: "192.168.1.5:1234",
+			},
+			want: true,
+		},
+		{
+			name:    "remote_bare_ipv4_no_match",
+			checker: "remote 192.168.1.5",
+			input: &http.Request{
+				RemoteAddr: "192.168.1.6:1234",
+			},
+			want: false,
+		},
+		{
+			name:    "remote_bare_ipv6_exact_match",
+			checker: "remote 2001:db8::1",
+			input: &http.Request{
+				RemoteAddr: "[2001:db8::1]:1234",
+			},
+			want: true,
+		},
+		{
+			name:    "remote_bare_ipv6_no_match_in_same_32",
+			checker: "remote 2001:db8::1",
+			input: &http.Request{
+				RemoteAddr: "[2001:db8:ffff::99]:1234",
+			},
+			want: false,
+		},
+		{
+			name:    "remote_ipv6_prefix_match",
+			checker: "remote 2001:db8::/32",
+			input: &http.Request{
+				RemoteAddr: "[2001:db8:ffff::99]:1234",
+			},
+			want: true,
+		},
+		{
 			name:    "basic_auth_correct",
 			checker: "basic_auth user " + string(expect.Must(bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost))),
 			input: &http.Request{
