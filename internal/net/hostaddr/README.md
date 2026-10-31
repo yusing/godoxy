@@ -31,10 +31,15 @@ type, which calls `Get` too.
 - **Refresh**: every referenced name is re-resolved every `RefreshInterval`
   (1 minute) by one background task. Lookups time out after `LookupTimeout`
   (5 seconds).
-- **Failures**: a failed first lookup does not fail config parsing; the name
-  matches nothing until it resolves (fail closed for allow lists). A later
-  failure, including NXDOMAIN, keeps the last good addresses. Both are logged
-  as warnings.
+- **First lookup**: `Get` never waits for DNS. A new name starts its first
+  lookup in its own goroutine, so the names of a config resolve in parallel
+  and a DNS outage at startup neither stalls nor rejects the config. Until it
+  resolves, the name matches nothing (fail closed for allow lists; for
+  `real_ip` `from` the proxy is not trusted yet). `Name.Ready()` is closed
+  once the first lookup finished.
+- **Failures**: a failed first lookup is logged and retried every refresh. A
+  later failure, including NXDOMAIN, keeps the last good addresses. Both are
+  logged as warnings.
 - **Changes**: logged at info level with old and new addresses. Matching
   reads an atomic pointer, so a change applies to the next request.
   `Generation()` increases on every change; the ACL adds it to its decision
@@ -52,6 +57,7 @@ func Get(host string) (*Name, error) // validates, resolves, registers
 func Generation() uint64
 
 func (n *Name) Contains(ip net.IP) bool
+func (n *Name) Ready() <-chan struct{} // closed after the first lookup
 func (n *Name) Addrs() []netip.Addr
 func (n *Name) Hostname() string
 func (n *Name) String() string // "host:<name>"
@@ -65,5 +71,9 @@ Test helpers: `UseStaticRecordsForTest`, `RefreshAllForTest`.
   resolver path. Prefer names under your control and a trusted resolver.
 - Several names can share an address (CGNAT, shared hosting); allowing a name
   allows everyone behind its addresses.
+- Until a `real_ip` `from` name first resolves (normally milliseconds after a
+  load, longer if DNS is down), requests from that proxy keep its address. A
+  whitelist that allows the proxy's own address admits them in that window;
+  prefer allow lists that do not include the proxy.
 - Between an IP change and the next refresh (up to 1 minute plus DNS TTL
   caching upstream), the old address stays allowed and the new one is denied.

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +50,21 @@ func useFakeDNS(t *testing.T, records map[string][]string) *fakeDNS {
 	return f
 }
 
+// getReady calls Get and waits for the name's first lookup.
+func getReady(t *testing.T, host string) (*Name, error) {
+	t.Helper()
+	n, err := Get(host)
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case <-n.Ready():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("first lookup of %s did not finish", host)
+	}
+	return n, nil
+}
+
 func (f *fakeDNS) set(host string, addrs ...string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -64,7 +80,7 @@ func (f *fakeDNS) fail(err error) {
 func TestGetResolvesAndMatches(t *testing.T) {
 	useFakeDNS(t, map[string][]string{"dyn.example.com": {"203.0.113.7", "2001:db8::7"}})
 
-	n, err := Get("Dyn.Example.com.")
+	n, err := getReady(t, "Dyn.Example.com.")
 	require.NoError(t, err)
 	require.Equal(t, "dyn.example.com", n.Hostname())
 	require.Equal(t, "host:dyn.example.com", n.String())
@@ -79,9 +95,9 @@ func TestGetResolvesAndMatches(t *testing.T) {
 func TestGetSharesInstances(t *testing.T) {
 	f := useFakeDNS(t, map[string][]string{"dyn.example.com": {"203.0.113.7"}})
 
-	a, err := Get("dyn.example.com")
+	a, err := getReady(t, "dyn.example.com")
 	require.NoError(t, err)
-	b, err := Get("DYN.example.com")
+	b, err := getReady(t, "DYN.example.com")
 	require.NoError(t, err)
 	require.Same(t, a, b)
 	require.Equal(t, 1, f.calls["dyn.example.com"])
@@ -90,7 +106,7 @@ func TestGetSharesInstances(t *testing.T) {
 func TestRefreshFollowsAddressChange(t *testing.T) {
 	f := useFakeDNS(t, map[string][]string{"dyn.example.com": {"203.0.113.7"}})
 
-	n, err := Get("dyn.example.com")
+	n, err := getReady(t, "dyn.example.com")
 	require.NoError(t, err)
 	gen := Generation()
 
@@ -109,7 +125,7 @@ func TestRefreshFollowsAddressChange(t *testing.T) {
 func TestRefreshFailureKeepsLastAddresses(t *testing.T) {
 	f := useFakeDNS(t, map[string][]string{"dyn.example.com": {"203.0.113.7"}})
 
-	n, err := Get("dyn.example.com")
+	n, err := getReady(t, "dyn.example.com")
 	require.NoError(t, err)
 
 	f.fail(errors.New("dns down"))
@@ -125,7 +141,7 @@ func TestRefreshFailureKeepsLastAddresses(t *testing.T) {
 func TestUnresolvedMatchesNothingUntilResolved(t *testing.T) {
 	f := useFakeDNS(t, map[string][]string{})
 
-	n, err := Get("later.example.com")
+	n, err := getReady(t, "later.example.com")
 	require.NoError(t, err, "a failed first lookup must not fail config parsing")
 	require.Nil(t, n.Addrs())
 	require.False(t, n.Contains(net.ParseIP("203.0.113.7")))
@@ -138,7 +154,7 @@ func TestUnresolvedMatchesNothingUntilResolved(t *testing.T) {
 func TestUnreferencedNamesAreDropped(t *testing.T) {
 	f := useFakeDNS(t, map[string][]string{"gone.example.com": {"203.0.113.7"}})
 
-	_, err := Get("gone.example.com")
+	_, err := getReady(t, "gone.example.com")
 	require.NoError(t, err)
 	runtime.GC()
 	runtime.GC()
@@ -154,7 +170,56 @@ func TestUnreferencedNamesAreDropped(t *testing.T) {
 func TestGetRejectsInvalidHostnames(t *testing.T) {
 	useFakeDNS(t, map[string][]string{})
 	for _, h := range []string{"", " ", "a..b", "-a.example.com", "a-.example.com", "a b.example.com", "a/24", "a:b"} {
-		_, err := Get(h)
+		_, err := getReady(t, h)
 		require.ErrorIs(t, err, ErrInvalidHostname, h)
 	}
+}
+
+func TestGetDoesNotWaitForDNS(t *testing.T) {
+	useFakeDNS(t, nil)
+	release := make(chan struct{})
+	orig := lookup
+	lookup = func(ctx context.Context, host string) ([]netip.Addr, error) {
+		<-release
+		return []netip.Addr{netip.MustParseAddr("203.0.113.7")}, nil
+	}
+	t.Cleanup(func() { lookup = orig })
+
+	start := time.Now()
+	n, err := Get("slow.example.com")
+	require.NoError(t, err)
+	require.Less(t, time.Since(start), 100*time.Millisecond, "Get must not wait for DNS")
+	require.False(t, n.Contains(net.ParseIP("203.0.113.7")), "matches nothing until resolved")
+
+	close(release)
+	<-n.Ready()
+	require.True(t, n.Contains(net.ParseIP("203.0.113.7")))
+}
+
+func TestFirstLookupsRunInParallel(t *testing.T) {
+	useFakeDNS(t, nil)
+	var started sync.WaitGroup
+	started.Add(2)
+	bothStarted := make(chan struct{})
+	go func() { started.Wait(); close(bothStarted) }()
+	orig := lookup
+	lookup = func(ctx context.Context, host string) ([]netip.Addr, error) {
+		started.Done()
+		select {
+		case <-bothStarted:
+		case <-time.After(2 * time.Second):
+			return nil, errors.New("lookups did not overlap")
+		}
+		return []netip.Addr{netip.MustParseAddr("203.0.113.7")}, nil
+	}
+	t.Cleanup(func() { lookup = orig })
+
+	a, err := Get("a.example.com")
+	require.NoError(t, err)
+	b, err := Get("b.example.com")
+	require.NoError(t, err)
+	<-a.Ready()
+	<-b.Ready()
+	require.True(t, a.Contains(net.ParseIP("203.0.113.7")), "a sequential first lookup would have timed out")
+	require.True(t, b.Contains(net.ParseIP("203.0.113.7")))
 }
