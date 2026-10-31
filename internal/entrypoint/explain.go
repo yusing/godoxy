@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 
 	acl "github.com/yusing/godoxy/internal/acl/types"
@@ -66,7 +65,9 @@ type ExplainResult struct {
 	Notes []string `json:"notes,omitempty"`
 } // @name ExplainResult
 
-var errExplainBadIP = errors.New("ip must be an IP address")
+// ErrInvalidExplainRequest wraps errors caused by the ExplainRequest itself
+// (bad IP, missing host, bad scheme or method, unparsable URL).
+var ErrInvalidExplainRequest = errors.New("invalid explain request")
 
 // Explain dry-runs a request through the ACL, the entrypoint middleware chain
 // (with route bypass overlays) and the route's middlewares, without reaching
@@ -75,10 +76,10 @@ var errExplainBadIP = errors.New("ip must be an IP address")
 func (ep *Entrypoint) Explain(req ExplainRequest) (*ExplainResult, error) {
 	peer := net.ParseIP(req.IP)
 	if peer == nil {
-		return nil, fmt.Errorf("%w: %q", errExplainBadIP, req.IP)
+		return nil, fmt.Errorf("%w: ip must be an IP address, got %q", ErrInvalidExplainRequest, req.IP)
 	}
 	if req.Host == "" {
-		return nil, errors.New("host is required")
+		return nil, fmt.Errorf("%w: host is required", ErrInvalidExplainRequest)
 	}
 	if req.Method == "" {
 		req.Method = http.MethodGet
@@ -91,7 +92,7 @@ func (ep *Entrypoint) Explain(req ExplainRequest) (*ExplainResult, error) {
 		scheme = "https"
 	}
 	if scheme != "https" && scheme != "http" {
-		return nil, fmt.Errorf("scheme must be http or https, got %q", req.Scheme)
+		return nil, fmt.Errorf("%w: scheme must be http or https, got %q", ErrInvalidExplainRequest, req.Scheme)
 	}
 
 	result := &ExplainResult{ClientIP: peer.String()}
@@ -107,7 +108,11 @@ func (ep *Entrypoint) Explain(req ExplainRequest) (*ExplainResult, error) {
 
 	// A fresh context: no events history, so denials during the dry run do
 	// not emit "blocked" events or notifications.
-	r := httptest.NewRequestWithContext(context.Background(), req.Method, scheme+"://"+req.Host+req.Path, nil)
+	r, err := http.NewRequestWithContext(context.Background(), req.Method, scheme+"://"+req.Host+req.Path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidExplainRequest, err)
+	}
+	r.RequestURI = r.URL.RequestURI()
 	r.RemoteAddr = net.JoinHostPort(peer.String(), "0")
 	for k, v := range req.Headers {
 		r.Header[http.CanonicalHeaderKey(k)] = v

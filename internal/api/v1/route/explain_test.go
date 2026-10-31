@@ -28,6 +28,8 @@ func TestExplainHandler(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, serve("host=app.example.com").Code, "ip is required")
 	require.Equal(t, http.StatusBadRequest, serve("ip=nope&host=app.example.com").Code)
 	require.Equal(t, http.StatusBadRequest, serve("ip=10.1.2.3&host=app.example.com&header=no-colon").Code)
+	require.Equal(t, http.StatusBadRequest, serve("ip=10.1.2.3&host=app%20example.com").Code, "malformed host must not panic")
+	require.Equal(t, http.StatusBadRequest, serve("ip=10.1.2.3&host=app.example.com&method=BAD%20METHOD").Code)
 
 	rec := serve("ip=10.1.2.3&host=app.example.com&header=CF-Connecting-IP:%20198.51.100.10")
 	require.Equal(t, http.StatusOK, rec.Code)
