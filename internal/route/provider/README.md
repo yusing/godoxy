@@ -309,6 +309,15 @@ provider. A dynamic provider with zero routes and no infrastructure error is
 ready. A provider with attempted routes and no active route is failed. Provider
 task cancellation removes its event queue and all active routes.
 
+A file event matches every route in the file, but routes whose raw definition
+did not change keep running: the file provider stores a SHA-256 of each
+route's definition (anchors resolved, keys sorted, as canonical JSON) on the
+route (`SourceFingerprint`), and the event handler skips routes whose
+fingerprint is unchanged. Restarting a route removes it from the entrypoint
+until its replacement starts and resets its health state, so this avoids
+brief 404s and health flaps on unrelated routes. Re-saving an unchanged file
+restarts nothing; a force reload still restarts every route.
+
 On a partial file-provider reload, valid updates and additions apply, but old
 aliases absent from the validated result remain active and errors are still
 reported. This also delays genuine deletions until a clean load, which removes
