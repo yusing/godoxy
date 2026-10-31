@@ -123,6 +123,7 @@ func (f JSONFormatter) LogRequestZeroLog(logger *zerolog.Logger, req *http.Reque
 		Object("query", query).
 		Object("headers", headers).
 		Object("cookies", cookies)
+	appendRequestInfo(event, req)
 
 	// NOTE: zerolog will append a newline to the buffer
 	event.Send()
@@ -140,9 +141,27 @@ func (f ConsoleFormatter) LogRequestZeroLog(logger *zerolog.Logger, req *http.Re
 		Str("type", contentType).
 		Int64("size", res.ContentLength).
 		Str("useragent", req.UserAgent())
+	appendRequestInfo(event, req)
 
 	// NOTE: zerolog will append a newline to the buffer
 	event.Msgf("[%d] %s %s://%s from %s", res.StatusCode, req.Method, scheme(req), req.Host, clientIP(req))
+}
+
+// appendRequestInfo adds peer_ip (when a real IP middleware rewrote the
+// client IP) and denied_by / deny_reason (when a middleware or rule denied
+// the request). Common and combined formats are left unchanged so existing
+// parsers keep working.
+func appendRequestInfo(event *zerolog.Event, req *http.Request) {
+	info := getRequestInfo(req)
+	if info == nil {
+		return
+	}
+	if peer := info.peerIPIfRewritten(req); peer != "" {
+		event.Str("peer_ip", peer)
+	}
+	if info.DeniedBy != "" {
+		event.Str("denied_by", info.DeniedBy).Str("deny_reason", info.DenyReason)
+	}
 }
 
 func (f ACLLogFormatter) AppendACLLog(line *bytes.Buffer, info *maxmind.IPInfo, blocked bool) {

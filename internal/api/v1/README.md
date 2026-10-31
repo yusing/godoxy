@@ -37,7 +37,7 @@ Types are defined in `goutils/apitypes`:
 
 | Package    | Purpose                                        |
 | ---------- | ---------------------------------------------- |
-| `route`    | Route listing, details, and playground testing |
+| `route`    | Route listing, details, playground testing, and access explain |
 | `docker`   | Docker container management and monitoring     |
 | `cert`     | Certificate information and renewal            |
 | `metrics`  | System metrics and uptime information          |
@@ -49,6 +49,22 @@ Types are defined in `goutils/apitypes`:
 | `proxmox`  | Proxmox API management and monitoring          |
 
 ## Architecture
+
+### Access explain
+
+`GET /api/v1/route/explain?ip=<peer>&host=<host>[&path=][&method=][&scheme=https|http][&header=Name: value]...`
+dry-runs a request through the ACL, the entrypoint middlewares (including route
+bypass overlays) and the route's middlewares, and returns each step and the
+final decision (`allowed`, `denied`, `responded`, `conditional`, `not_found`).
+`ip` is the connection's peer address; pass forwarded headers with `header` to
+see real IP resolution, e.g. a tunnel on loopback:
+
+```
+/api/v1/route/explain?ip=127.0.0.1&host=app.example.com&header=CF-Connecting-IP:%20198.51.100.10
+```
+
+The upstream is never called. See `internal/entrypoint` (`Entrypoint.Explain`)
+for what is and is not evaluated. The read-only token cannot use it.
 
 ### Public route URLs
 

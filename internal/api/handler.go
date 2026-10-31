@@ -94,6 +94,7 @@ func NewHandler(requireAuth bool) *gin.Engine {
 			route.GET("/providers", routeApi.Providers)
 			route.GET("/by_provider", routeApi.ByProvider)
 			route.POST("/playground", routeApi.Playground)
+			route.GET("/explain", routeApi.Explain)
 			route.GET("/validate", routeApi.Validate) // websocket
 			route.POST("/validate", routeApi.Validate)
 		}

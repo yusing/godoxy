@@ -195,6 +195,11 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	route, err := srv.resolveRequestRoute(r)
+	if srv.ep.accessLogger != nil || (route != nil && route.UseAccessLog()) {
+		// Before entrypoint middlewares, so the peer IP is recorded before
+		// real IP middlewares rewrite RemoteAddr.
+		r = accesslog.WithRequestInfo(r)
+	}
 	switch {
 	case errors.Is(err, errSecureRouteRequiresSNI), errors.Is(err, errSecureRouteMisdirected):
 		http.Error(w, err.Error(), http.StatusMisdirectedRequest)

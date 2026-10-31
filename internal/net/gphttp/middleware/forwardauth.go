@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/yusing/godoxy/internal/routing"
-	httpevents "github.com/yusing/goutils/events/http"
 	httputils "github.com/yusing/goutils/http"
 	"github.com/yusing/goutils/http/httpheaders"
 )
@@ -97,7 +96,7 @@ func (m *forwardAuthMiddleware) before(w http.ResponseWriter, r *http.Request) (
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		defer httpevents.Blocked(r, "ForwardAuth", fmt.Sprintf("HTTP %d", resp.StatusCode))
+		defer blocked(r, "ForwardAuth", fmt.Sprintf("HTTP %d", resp.StatusCode))
 
 		body, release, err := httputils.ReadAllBody(resp)
 		defer release(body)

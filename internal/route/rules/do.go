@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/yusing/godoxy/internal/logging"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
 	gphttp "github.com/yusing/godoxy/internal/net/gphttp"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
@@ -436,6 +437,9 @@ var commands = map[string]struct {
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 				// error command should overwrite the response body
 				w.ResetBody()
+				if code >= 400 && code < 500 {
+					accesslog.RecordDenied(r, "rules", CommandError+" "+strconv.Itoa(code))
+				}
 				w.WriteHeader(code)
 				if code == http.StatusNoContent || code == http.StatusNotModified {
 					return errTerminateRule
@@ -474,6 +478,7 @@ var commands = map[string]struct {
 			realm := args.(string)
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 				w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm=%q`, realm))
+				accesslog.RecordDenied(r, "rules", CommandRequireBasicAuth)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return errTerminateRule
 			}
