@@ -2,6 +2,9 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path"
 	"strings"
@@ -50,6 +53,34 @@ func validate(data []byte) (routes route.Routes, err error) {
 	return routes, err
 }
 
+// validateWithFingerprints is validate that also returns, per alias, a hash of
+// the route's definition, so a reload can tell which routes actually changed.
+// The hash is taken from the same decoded map the routes are built from
+// (anchors resolved, environment references expanded, x- keys removed), so
+// its keys are the loaded aliases.
+func validateWithFingerprints(data []byte) (routes route.Routes, fps map[string]string, err error) {
+	err = serialization.UnmarshalValidate(data, &routes, yaml.Unmarshal, removeXPrefix, func(m map[string]any) error {
+		fps = fingerprintDefinitions(m)
+		return nil
+	})
+	return routes, fps, err
+}
+
+// fingerprintDefinitions hashes each definition as canonical JSON (map keys
+// sorted).
+func fingerprintDefinitions(defs map[string]any) map[string]string {
+	fps := make(map[string]string, len(defs))
+	for alias, def := range defs {
+		b, err := json.Marshal(def)
+		if err != nil {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		fps[alias] = hex.EncodeToString(sum[:])
+	}
+	return fps
+}
+
 func Validate(ctx context.Context, data []byte) (err error) {
 	routes, err := validate(data)
 	var errs gperr.Builder
@@ -90,9 +121,14 @@ func (p *FileProvider) loadRoutesImpl(context.Context) (route.Routes, error) {
 	if err != nil {
 		return nil, err
 	}
-	routes, err := validate(data)
+	routes, fps, err := validateWithFingerprints(data)
 	if err != nil && len(routes) == 0 {
 		return nil, err
+	}
+	for alias, r := range routes {
+		if r != nil {
+			r.SetSourceFingerprint(fps[alias])
+		}
 	}
 	return routes, err
 }

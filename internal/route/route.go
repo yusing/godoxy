@@ -103,6 +103,9 @@ type (
 		startErr lockedError
 
 		provider routing.Provider
+		// sourceFingerprint identifies the route's raw definition in its
+		// provider source; empty if the provider does not set one.
+		sourceFingerprint string
 
 		agent            *agentpool.Agent
 		proxmoxDiscovery proxmox.DiscoveryKind
@@ -142,6 +145,16 @@ const DefaultHost = "localhost"
 func (r Routes) Contains(alias string) bool {
 	_, ok := r[alias]
 	return ok
+}
+
+// SetSourceFingerprint records a fingerprint of the route's raw definition.
+func (r *Route) SetSourceFingerprint(fp string) {
+	r.sourceFingerprint = fp
+}
+
+// SourceFingerprint returns the fingerprint set by the provider, "" if none.
+func (r *Route) SourceFingerprint() string {
+	return r.sourceFingerprint
 }
 
 func (r *Route) RouteMiddlewares() map[string]types.LabelMap {

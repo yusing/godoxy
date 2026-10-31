@@ -81,17 +81,18 @@ func TestEventHandlerShouldUpdateRouteOnForceReloadEvenWithoutMatchingContainerE
 		provider: &Provider{t: routing.ProviderTypeDocker},
 	}
 
+	app := &route.Route{
+		Container: &docker.Container{
+			ContainerID:   "app-id",
+			ContainerName: "app-name",
+		},
+	}
 	shouldUpdate := handler.shouldUpdateRoute(true, []watcher.Event{{
 		Type:      watcherEvents.EventTypeDocker,
 		Action:    watcherEvents.ActionContainerDie,
 		ActorID:   "other-id",
 		ActorName: "other-name",
-	}}, &route.Route{
-		Container: &docker.Container{
-			ContainerID:   "app-id",
-			ContainerName: "app-name",
-		},
-	})
+	}}, app, app)
 
 	require.True(t, shouldUpdate)
 }
@@ -145,4 +146,79 @@ func TestEventHandlerEmitsItsProxmoxDiscoveryBatch(t *testing.T) {
 
 	handler.Log()
 	require.Equal(t, [][]proxmox.Discovery{discoveries}, diagnostics.discoveries)
+}
+
+func TestEventHandlerSkipsUnchangedFileRoutes(t *testing.T) {
+	handler := &EventHandler{provider: &Provider{t: routing.ProviderTypeFile}}
+	written := []watcher.Event{{Type: watcherEvents.EventTypeFile, Action: watcherEvents.ActionFileWritten}}
+	withFP := func(fp string) *route.Route {
+		r := &route.Route{}
+		r.SetSourceFingerprint(fp)
+		return r
+	}
+
+	require.False(t, handler.shouldUpdateRoute(false, written, withFP("a"), withFP("a")), "unchanged definition")
+	require.True(t, handler.shouldUpdateRoute(false, written, withFP("a"), withFP("b")), "changed definition")
+	require.True(t, handler.shouldUpdateRoute(false, written, withFP(""), withFP("")), "no fingerprint: update as before")
+	require.True(t, handler.shouldUpdateRoute(true, written, withFP("a"), withFP("a")), "force reload restarts everything")
+}
+
+func TestSourceFingerprints(t *testing.T) {
+	base := []byte(`
+x-common: &common
+  scheme: http
+alpha:
+  <<: *common
+  host: 10.0.0.1
+  port: "80"
+beta:
+  host: 10.0.0.2
+`)
+	reordered := []byte(`
+beta:
+  host: 10.0.0.2
+x-common: &common
+  scheme: http
+alpha:
+  port: "80"   # comments and key order do not matter
+  host: 10.0.0.1
+  <<: *common
+`)
+	anchorChanged := []byte(`
+x-common: &common
+  scheme: https
+alpha:
+  <<: *common
+  host: 10.0.0.1
+  port: "80"
+beta:
+  host: 10.0.0.2
+`)
+	fingerprints := func(data []byte) map[string]string {
+		t.Helper()
+		_, fps, err := validateWithFingerprints(data)
+		require.NoError(t, err)
+		return fps
+	}
+	a, b, c := fingerprints(base), fingerprints(reordered), fingerprints(anchorChanged)
+	require.NotEmpty(t, a["alpha"])
+	require.NotContains(t, a, "x-common", "x- keys are not routes")
+	require.Equal(t, a["alpha"], b["alpha"])
+	require.Equal(t, a["beta"], b["beta"])
+	require.NotEqual(t, a["alpha"], c["alpha"], "a change in a shared anchor changes the routes using it")
+	require.Equal(t, a["beta"], c["beta"])
+}
+
+func TestSourceFingerprintsFollowLoadedAliases(t *testing.T) {
+	t.Setenv("FP_TEST_HOST", "10.0.0.9")
+	routes, fps, err := validateWithFingerprints([]byte("alpha:\n  host: ${FP_TEST_HOST}\n"))
+	require.NoError(t, err)
+	require.Contains(t, routes, "alpha")
+	require.Equal(t, "10.0.0.9", routes["alpha"].Host)
+	fp := fps["alpha"]
+	require.NotEmpty(t, fp)
+
+	_, literal, err := validateWithFingerprints([]byte("alpha:\n  host: 10.0.0.9\n"))
+	require.NoError(t, err)
+	require.Equal(t, literal["alpha"], fp, "fingerprints use the expanded definition")
 }
