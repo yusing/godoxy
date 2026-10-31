@@ -39,8 +39,9 @@ var (
 var ErrInvalidHostname = errors.New("invalid hostname")
 
 // Name is a hostname whose A/AAAA addresses are re-resolved every
-// RefreshInterval. Until the first successful lookup it matches nothing; after
-// that a failed lookup keeps the last good addresses.
+// RefreshInterval. Until the first successful lookup (started by Get in the
+// background) it matches nothing; after that a failed lookup keeps the last
+// good addresses.
 type Name struct {
 	name  string
 	addrs atomic.Pointer[[]netip.Addr]
@@ -56,12 +57,19 @@ var (
 	// generation increases whenever any name resolves to a different set of
 	// addresses, so callers can invalidate caches keyed by IP.
 	generation atomic.Uint64
+
+	// syncFirstLookup makes Get resolve new names before returning; only set
+	// by UseStaticRecordsForTest, so consumers' tests can assert right after
+	// parsing.
+	syncFirstLookup atomic.Bool
 )
 
-// Get returns the shared Name for host, resolving it first if it is new.
-// A failed first lookup is logged and retried in the background; it does not
-// make Get fail, so a DNS outage at startup does not reject the config.
-// Entries are dropped once no caller references them.
+// Get returns the shared Name for host. It never waits for DNS: a new name
+// starts its first lookup in its own goroutine (so the names of a config
+// resolve in parallel) and matches nothing until that lookup succeeds. A
+// failed first lookup is logged and retried every RefreshInterval; it does
+// not make Get fail, so a DNS outage at startup neither rejects nor stalls
+// the config. Entries are dropped once no caller references them.
 func Get(host string) (*Name, error) {
 	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
 	if err := validateHostname(host); err != nil {
@@ -72,7 +80,6 @@ func Get(host string) (*Name, error) {
 	if p, ok := registry[host]; ok {
 		if n := p.Value(); n != nil {
 			registryMu.Unlock()
-			<-n.ready
 			return n, nil
 		}
 	}
@@ -80,10 +87,23 @@ func Get(host string) (*Name, error) {
 	registry[host] = weak.Make(n)
 	registryMu.Unlock()
 
+	startLoop.Do(startRefreshLoop)
+	if syncFirstLookup.Load() {
+		n.firstLookup()
+	} else {
+		go n.firstLookup()
+	}
+	return n, nil
+}
+
+func (n *Name) firstLookup() {
 	n.refresh(task.RootContext())
 	close(n.ready)
-	startLoop.Do(startRefreshLoop)
-	return n, nil
+}
+
+// Ready is closed once the first lookup has finished, successful or not.
+func (n *Name) Ready() <-chan struct{} {
+	return n.ready
 }
 
 // Generation returns a counter that increases on every address change of any

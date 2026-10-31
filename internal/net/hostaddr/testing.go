@@ -8,11 +8,14 @@ import (
 
 // UseStaticRecordsForTest makes lookups return records (host -> addresses)
 // until the test ends, and resets the registry around it. Mutating records
-// and calling RefreshAllForTest simulates a DNS change.
+// and calling RefreshAllForTest simulates a DNS change. While it is active,
+// Get resolves new names before returning, so tests can assert right after
+// parsing.
 func UseStaticRecordsForTest(tb testing.TB, records map[string][]string) {
 	tb.Helper()
 	orig := lookup
 	resetRegistry()
+	syncFirstLookup.Store(true)
 	lookup = func(_ context.Context, host string) ([]netip.Addr, error) {
 		var out []netip.Addr
 		for _, s := range records[host] {
@@ -22,6 +25,7 @@ func UseStaticRecordsForTest(tb testing.TB, records map[string][]string) {
 	}
 	tb.Cleanup(func() {
 		lookup = orig
+		syncFirstLookup.Store(false)
 		resetRegistry()
 	})
 }
