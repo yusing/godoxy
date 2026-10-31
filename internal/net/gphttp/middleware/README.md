@@ -302,7 +302,7 @@ rp := &reverseproxy.ReverseProxy{
     Target: backendURL,
 }
 
-err := middleware.PatchReverseProxy(rp, middlewaresMap)
+_, err := middleware.PatchReverseProxy(rp, middlewaresMap)
 if err != nil {
     log.Fatal(err)
 }

@@ -114,7 +114,8 @@ func TestCIDRWhitelistOverlayPromotion(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	require.NoError(t, PatchReverseProxy(rp, routeOpts))
+	_, err = PatchReverseProxy(rp, routeOpts)
+	require.NoError(t, err)
 
 	overlay, err := BuildEntrypointRouteOverlay("entrypoint", []map[string]any{{
 		"use":   "CIDRWhitelist",

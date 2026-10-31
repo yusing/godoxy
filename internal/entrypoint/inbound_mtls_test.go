@@ -116,6 +116,7 @@ func newTestHTTPServer(t *testing.T, ep *Entrypoint) *httpServer {
 	srv = &httpServer{
 		ep:     ep,
 		addr:   common.ProxyHTTPAddr,
+		proto:  HTTPProtoHTTP,
 		routes: pool.New[routing.HTTPRoute]("test-http-routes", "test-http-routes"),
 	}
 	srv.resetRouteEntrypointOverlays()

@@ -9,14 +9,16 @@ import (
 )
 
 type middlewareChain struct {
-	befores    []RequestModifier
+	befores []RequestModifier
+	// components preserves configured names and response-only steps for Explain.
+	components []*Middleware
 	respHeader []ResponseModifier
 	respBody   []ResponseModifier
 }
 
 // TODO: check conflict or duplicates.
 func NewMiddlewareChain(name string, chain []*Middleware) *Middleware {
-	chainMid := &middlewareChain{}
+	chainMid := &middlewareChain{components: chain}
 	m := &Middleware{name: name, impl: chainMid}
 
 	for _, comp := range chain {

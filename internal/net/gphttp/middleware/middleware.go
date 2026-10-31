@@ -470,16 +470,16 @@ func (m *Middleware) LogError(req *http.Request) *zerolog.Event {
 		Str("path", req.URL.Path)
 }
 
-func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) error {
+// PatchReverseProxy installs and returns the compiled middleware chain.
+func PatchReverseProxy(rp *ReverseProxy, middlewaresMap map[string]OptionsRaw) (*Middleware, error) {
 	middlewares, err := compileMiddlewares(middlewaresMap)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	patchReverseProxy(rp, middlewares)
-	return nil
+	return patchReverseProxy(rp, middlewares), nil
 }
 
-func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) {
+func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) *Middleware {
 	sort.Stable(ByPriority(middlewares))
 
 	mid := NewMiddlewareChain(rp.TargetName, middlewares)
@@ -506,4 +506,5 @@ func patchReverseProxy(rp *ReverseProxy, middlewares []*Middleware) {
 			rp.ModifyResponse = mr.modifyResponse
 		}
 	}
+	return mid
 }

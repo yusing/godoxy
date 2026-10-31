@@ -1,0 +1,174 @@
+package middleware
+
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+)
+
+// ExplainResult is the outcome of one middleware in a dry run.
+type ExplainResult string
+
+const (
+	// ExplainPassed: the middleware ran and let the request through.
+	ExplainPassed ExplainResult = "passed"
+	// ExplainDenied: the middleware ran and answered with a 4xx/5xx.
+	ExplainDenied ExplainResult = "denied"
+	// ExplainResponded: the middleware ran and answered itself (e.g. a redirect).
+	ExplainResponded ExplainResult = "responded"
+	// ExplainBypassed: a bypass rule matched, the middleware did not run.
+	ExplainBypassed ExplainResult = "bypassed"
+	// ExplainSkipped: the middleware does not apply (e.g. its route entry was
+	// promoted into the entrypoint chain).
+	ExplainSkipped ExplainResult = "skipped"
+	// ExplainNotEvaluated: the middleware has side effects or needs a live
+	// client (auth, CrowdSec, rate limit), so the dry run does not run it.
+	ExplainNotEvaluated ExplainResult = "not_evaluated"
+)
+
+// ExplainStep is one middleware's outcome in a dry run.
+type ExplainStep struct {
+	// Middleware is the configured name, e.g. "entrypoint[2]" or "cidrWhitelist".
+	Middleware string `json:"middleware"`
+	// Type is the middleware implementation, e.g. "cidrWhitelist".
+	Type   string        `json:"type"`
+	Result ExplainResult `json:"result"`
+	Detail string        `json:"detail,omitempty" extensions:"x-omitempty"`
+	// ClientIP is set when this step changed the client IP (real IP middlewares).
+	ClientIP string `json:"client_ip,omitempty" extensions:"x-omitempty"`
+} // @name MiddlewareExplainStep
+
+// Explain dry-runs the request phase of m on r. Middlewares without side
+// effects (real IP, cidr_whitelist, redirect, header modifiers) run for real
+// against a recorder; the others are reported as not evaluated, after their
+// bypass rules are checked. It stops at an unknown request modifier, since its
+// effects could change later checks. The bool reports whether evaluation can
+// continue, not whether the real request is allowed. r is modified as in a live request
+// (e.g. RemoteAddr after real IP middlewares).
+func (m *Middleware) Explain(r *http.Request) (steps []ExplainStep, proceed bool) {
+	mod, ok := m.impl.(RequestModifier)
+	if !ok {
+		if _, ok := m.impl.(ResponseModifier); ok {
+			return []ExplainStep{{Middleware: m.name, Type: typeName(m.impl), Result: ExplainNotEvaluated, Detail: "response phase is not evaluated"}}, true
+		}
+		return nil, true
+	}
+	return explainModifier(m.name, mod, r)
+}
+
+func explainModifier(name string, mod RequestModifier, r *http.Request) ([]ExplainStep, bool) {
+	var steps []ExplainStep
+	if chain, ok := mod.(*middlewareChain); ok {
+		for _, component := range chain.components {
+			next, proceed := component.Explain(r)
+			steps = append(steps, next...)
+			if !proceed {
+				return steps, false
+			}
+		}
+		return steps, true
+	}
+
+	impl := mod
+	if bypass, ok := mod.(*checkBypass); ok {
+		impl = bypass.modReq
+		step := ExplainStep{Middleware: name, Type: typeName(impl)}
+		switch {
+		case isRouteMiddlewareConsumed(r, bypass.name):
+			step.Result = ExplainSkipped
+			step.Detail = "bypass rules promoted into the entrypoint chain"
+			return append(steps, step), true
+		case impl == nil:
+			if bypass.modRes != nil {
+				step.Type = typeName(bypass.modRes)
+				step.Result = ExplainNotEvaluated
+				step.Detail = "response phase and its bypass rules are not evaluated"
+				return append(steps, step), true
+			}
+			return steps, true
+		case bypass.shouldModReqBypass(httptest.NewRecorder(), r):
+			step.Result = ExplainBypassed
+			step.Detail = "a bypass rule matched"
+			return append(steps, step), true
+		}
+		if inner, ok := impl.(*middlewareChain); ok {
+			return explainModifier(name, inner, r)
+		}
+	}
+
+	step := ExplainStep{Middleware: name, Type: typeName(impl)}
+	if !isDryRunSafe(impl) {
+		step.Result = ExplainNotEvaluated
+		step.Detail = "has side effects or needs a live client; result depends on the real request"
+		return append(steps, step), false
+	}
+
+	clientIPBefore := hostOf(r.RemoteAddr)
+	rec := httptest.NewRecorder()
+	var proceed bool
+	if cloudflare, ok := impl.(*cloudflareRealIP); ok {
+		// Live requests may refresh Cloudflare ranges in the background. A dry
+		// run uses the current cache (or seeded ranges), without starting I/O.
+		realIP := cloudflare.realIP
+		if cidrs := cfCIDRs.Load(); len(cidrs) > 0 {
+			realIP.From = cidrs
+		}
+		proceed = realIP.before(rec, r)
+	} else {
+		proceed = impl.before(rec, r)
+	}
+	if ip := hostOf(r.RemoteAddr); ip != clientIPBefore {
+		step.ClientIP = ip
+	}
+	switch {
+	case proceed:
+		step.Result = ExplainPassed
+	case rec.Code >= http.StatusBadRequest:
+		step.Result = ExplainDenied
+		step.Detail = fmt.Sprintf("HTTP %d", rec.Code)
+		if reason := accesslog.DenyReason(r); reason != "" {
+			step.Detail += ": " + reason
+		}
+	default:
+		step.Result = ExplainResponded
+		step.Detail = fmt.Sprintf("HTTP %d", rec.Code)
+		if loc := rec.Header().Get("Location"); loc != "" {
+			step.Detail += " " + loc
+		}
+	}
+	return append(steps, step), proceed
+}
+
+// isDryRunSafe reports whether running impl on a synthetic request has no
+// effect outside that request.
+func isDryRunSafe(impl RequestModifier) bool {
+	switch impl.(type) {
+	case *realIP, *cloudflareRealIP, *cidrWhitelist, *redirectHTTP,
+		*setXForwarded, *hideXForwarded, *modifyRequest:
+		return true
+	default:
+		return false
+	}
+}
+
+func typeName(impl any) string {
+	if impl == nil {
+		return ""
+	}
+	t := reflect.TypeOf(impl)
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Name()
+}
+
+func hostOf(addr string) string {
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		return host
+	}
+	return addr
+}

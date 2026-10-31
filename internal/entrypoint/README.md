@@ -199,6 +199,55 @@ Compatibility notes:
 - A reverse proxy or tunnel in front of GoDoxy must send SNI matching `Host`. For cloudflared pointing at `https://localhost`, set `originRequest.matchSNItoHost: true` (or `originServerName` per ingress rule); otherwise it sends `localhost` and every request gets 421.
 - Health checks or scripts that connect by IP over HTTPS need SNI set to the route's hostname.
 
+### Explain
+
+`Entrypoint.Explain(ExplainRequest)` dry-runs a hypothetical request and
+reports how it would be handled, without reaching the upstream. It backs
+`GET /api/v1/route/explain`.
+
+1. ACL: the peer IP is checked with `acl.Explainer.ExplainIP` (no logging,
+   notification or caching).
+2. Select a listener with the requested scheme and authority port (80 for
+   HTTP or 443 for HTTPS when omitted), then use the same `resolveRequestRoute`
+   as live traffic. An exact authority bind takes precedence over the default.
+   For literal IP authorities, a listener bound to another IP is inapplicable.
+   Hostname authorities or binds alone do not identify the connection destination:
+   selection assumes the configured default or a wildcard bind at that scheme
+   and port when no exact bind exists, and notes that assumption.
+   No DNS lookup or route search is used to choose a listener.
+3. Entrypoint middlewares, with the route's promoted bypass overlay, then the
+   route's compiled middlewares (`CompiledMiddleware()` on reverse proxy and
+   file server routes), via `middleware.Middleware.Explain`. Consumed-overlay
+   context is attached after entrypoint request mutations.
+
+The probe starts with an origin-form URL, like a normal server request:
+`$req_url` contains the path and query, while authority remains in `Host`
+and HTTPS is represented by TLS state.
+
+`middleware.Middleware.Explain` evaluates request-only behavior without external
+side effects: `real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,
+`set_x_forwarded`, `hide_x_forwarded`, and `modify_request`. Cloudflare IP
+resolution uses cached or bundled ranges without starting a refresh.
+
+Auth, CrowdSec, rate limiting and captcha are reported as `not_evaluated`,
+after checking request bypass rules. Evaluation stops there with `conditional`:
+their unknown effects could change later checks, so subsequent middleware
+outcomes are not guessed. Response-only modifiers are listed as `not_evaluated`,
+and their presence also makes an otherwise passing result `conditional`.
+Their response-dependent bypass rules are not evaluated.
+
+Load-balancer backend selection, backend middleware and TLS client-certificate
+verification are not modeled and produce `conditional` results. HTTPS assumes
+SNI matches the supplied Host. Route rules, short links and not-found rules are
+not evaluated; notes identify the applicable limitation even on early middleware
+denials. `allowed` means only that the evaluated phases passed, not that the
+backend or route rules will accept the request.
+
+All input is validated before ACL evaluation. Invalid input returns
+`ErrInvalidExplainRequest`; internal route/profile/overlay failures propagate to
+the API as errors. The probe uses a fresh context, emits no blocked events,
+access logs or notifications, and consumes no limiter state.
+
 ### Inbound mTLS profiles
 
 Root config provides reusable named inbound mTLS profiles via `config.Config.InboundMTLSProfiles`. Each profile is a [`types.InboundMTLSProfile`](internal/types/inbound_mtls.go): optional system trust roots plus zero or more PEM CA certificate files on disk (`ca_files`). `SetInboundMTLSProfiles` compiles those profiles into certificate pools, and the TLS server sets `ClientCAs` from the selected pool.
