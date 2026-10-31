@@ -222,7 +222,7 @@ func parseCloudflareCIDRs(body []byte) ([]*nettypes.CIDR, error) {
 			return nil, fmt.Errorf("cloudflare responded an invalid CIDR: %s", line)
 		}
 
-		cfCIDRs = append(cfCIDRs, (*nettypes.CIDR)(cidr))
+		cfCIDRs = append(cfCIDRs, nettypes.NewCIDR(cidr))
 	}
 	return cfCIDRs, nil
 }

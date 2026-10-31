@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/route/routes"
 	. "github.com/yusing/godoxy/internal/route/rules"
@@ -477,4 +478,31 @@ func TestOnPathMatchesCanonicalRequestPath(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
 	expect.False(t, trailingSlash.Check(w, req), "/admin")
+}
+
+func TestOnRemoteHost(t *testing.T) {
+	records := map[string][]string{"dino.dyndns.example": {"203.0.113.7", "2001:db8::7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+
+	var on RuleOn
+	expect.NoError(t, on.Parse("remote host:dino.dyndns.example"))
+	expect.Equal(t, on.String(), "remote host:dino.dyndns.example")
+
+	check := func(remoteAddr string) bool {
+		return on.Check(httptest.NewRecorder(), &http.Request{RemoteAddr: remoteAddr})
+	}
+	expect.True(t, check("203.0.113.7:1234"))
+	expect.True(t, check("[2001:db8::7]:1234"))
+	expect.False(t, check("198.51.100.9:1234"))
+
+	records["dino.dyndns.example"] = []string{"198.51.100.9"}
+	hostaddr.RefreshAllForTest(t)
+	expect.True(t, check("198.51.100.9:1234"))
+	expect.False(t, check("203.0.113.7:1234"))
+
+	var composite RuleOn
+	expect.NoError(t, composite.Parse("route plex & remote host:dino.dyndns.example"))
+
+	var bad RuleOn
+	expect.ErrorContains(t, bad.Parse("remote host:-bad.example"), "invalid hostname")
 }

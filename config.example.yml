@@ -41,6 +41,7 @@
 #   allow:
 #     - ip:1.2.3.4
 #     - cidr:1.2.3.4/32
+#     - host:home.dyndns.example # A/AAAA, re-resolved every minute
 #     - country:US
 #     - timezone:Asia/Shanghai
 #   deny:

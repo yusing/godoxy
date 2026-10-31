@@ -3,6 +3,8 @@ package nettypes
 import (
 	"net"
 	"testing"
+
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 )
 
 func TestCIDRParse(t *testing.T) {
@@ -47,5 +49,39 @@ func TestCIDRParseInvalid(t *testing.T) {
 		if err := c.Parse(in); err == nil {
 			t.Errorf("Parse(%q) = %s, want error", in, c.String())
 		}
+	}
+}
+
+func TestCIDRParseHost(t *testing.T) {
+	records := map[string][]string{"dyn.example.com": {"203.0.113.7", "2001:db8::7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+
+	var c CIDR
+	if err := c.Parse("host:dyn.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.String(); got != "host:dyn.example.com" {
+		t.Errorf("String() = %q", got)
+	}
+	if text, _ := c.MarshalText(); string(text) != "host:dyn.example.com" {
+		t.Errorf("MarshalText() = %q", text)
+	}
+	if c.Host() == nil {
+		t.Fatal("Host() = nil")
+	}
+	for ip, want := range map[string]bool{"203.0.113.7": true, "2001:db8::7": true, "203.0.113.8": false} {
+		if got := c.Contains(net.ParseIP(ip)); got != want {
+			t.Errorf("Contains(%s) = %v, want %v", ip, got, want)
+		}
+	}
+
+	records["dyn.example.com"] = []string{"198.51.100.9"}
+	hostaddr.RefreshAllForTest(t)
+	if c.Contains(net.ParseIP("203.0.113.7")) || !c.Contains(net.ParseIP("198.51.100.9")) {
+		t.Error("CIDR did not follow the new address")
+	}
+
+	if err := c.Parse("host:not a host"); err == nil {
+		t.Error("Parse(host:not a host) succeeded")
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/yusing/godoxy/internal/maxmind"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	gperr "github.com/yusing/goutils/errs"
 )
 
@@ -16,6 +17,9 @@ type MatcherFunc func(context.Context, *maxmind.IPInfo) bool
 type Matcher struct {
 	match MatcherFunc
 	raw   string
+	// dynamic is set for matchers whose result can change without a config
+	// reload (host:), so cached decisions must be invalidated.
+	dynamic bool
 }
 
 type Matchers []Matcher
@@ -23,6 +27,7 @@ type Matchers []Matcher
 const (
 	MatcherTypeIP       = "ip"
 	MatcherTypeCIDR     = "cidr"
+	MatcherTypeHost     = "host"
 	MatcherTypeTimeZone = "tz"
 	MatcherTypeCountry  = "country"
 )
@@ -32,9 +37,10 @@ const (
 //nolint:unused
 var errMatcherFormat = gperr.Multiline().AddLines(
 	"invalid matcher format, expect {type}:{value}",
-	"Available types: ip|cidr|tz|country",
+	"Available types: ip|cidr|host|tz|country",
 	"ip:127.0.0.1",
 	"cidr:127.0.0.0/8",
+	"host:home.dyndns.example",
 	"tz:Asia/Shanghai",
 	"country:GB",
 )
@@ -65,6 +71,13 @@ func (matcher *Matcher) Parse(s string) error {
 			return errInvalidCIDR
 		}
 		matcher.match = matchCIDR(net)
+	case MatcherTypeHost:
+		host, err := hostaddr.Get(matcherValue)
+		if err != nil {
+			return err
+		}
+		matcher.match = matchHost(host)
+		matcher.dynamic = true
 	case MatcherTypeTimeZone:
 		if strings.Contains(matcherValue, ":") {
 			return errSyntax
@@ -99,6 +112,16 @@ func (matchers Matchers) MatchedIndex(ctx context.Context, ip *maxmind.IPInfo) i
 	return -1
 }
 
+// HasDynamic reports whether any matcher can change result without a reload.
+func (matchers Matchers) HasDynamic() bool {
+	for _, m := range matchers {
+		if m.dynamic {
+			return true
+		}
+	}
+	return false
+}
+
 func (matchers Matchers) MarshalText() ([]byte, error) {
 	if len(matchers) == 0 {
 		return []byte("[]"), nil
@@ -120,6 +143,12 @@ func matchIP(ip net.IP) MatcherFunc {
 func matchCIDR(n *net.IPNet) MatcherFunc {
 	return func(_ context.Context, ip *maxmind.IPInfo) bool {
 		return n.Contains(ip.IP)
+	}
+}
+
+func matchHost(host *hostaddr.Name) MatcherFunc {
+	return func(_ context.Context, ip *maxmind.IPInfo) bool {
+		return host.Contains(ip.IP)
 	}
 }
 

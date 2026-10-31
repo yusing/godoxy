@@ -180,7 +180,7 @@ Combined flags are expected for nested/compound commands and variable templates 
 | `host`        | Request  | Match virtual host           |
 | `path`        | Request  | Match request path           |
 | `proto`       | Request  | Match protocol (http/https)  |
-| `remote`      | Request  | Match remote IP/CIDR         |
+| `remote`      | Request  | Match remote IP/CIDR/`host:<name>` |
 | `basic_auth`  | Request  | Match basic auth credentials |
 | `route`       | Request  | Match route name             |
 | `resp_header` | Response | Match response header        |
@@ -545,7 +545,7 @@ diagnostics; their templates determine whether they run before or after upstream
 ## Security Considerations
 
 - `require_auth` enforces authentication
-- `remote` matcher supports IP/CIDR for access control
+- `remote` matcher supports IP/CIDR and `host:<name>` (current A/AAAA addresses, re-resolved every minute) for access control
 - Template values are text, not automatically escaped for HTML, JSON, or shell use.
 - Do not place secrets in response templates or unredacted logs.
 - Path matchers canonicalize request paths before matching.
