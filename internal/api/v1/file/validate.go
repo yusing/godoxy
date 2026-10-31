@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/provider"
 	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
@@ -58,7 +59,8 @@ func validateFile(ctx context.Context, fileType FileType, content []byte) error 
 		return config.Validate(content)
 	case FileTypeMiddleware:
 		errs := gperr.NewBuilder("middleware errors")
-		middleware.BuildMiddlewaresFromYAML("", content, &errs)
+		compiled := middleware.BuildMiddlewaresFromYAML("", content, &errs)
+		errs.Add(nettypes.ValidateAddressSetReferences(compiled, config.AddressSetCheck(ctx)))
 		return errs.Error()
 	}
 	return provider.Validate(ctx, content)

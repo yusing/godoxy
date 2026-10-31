@@ -20,6 +20,9 @@ import (
 )
 
 func Validate(ctx context.Context, r *route.Route) (impl routing.Route, agent *agentpool.Agent, err error) {
+	if err := ValidateAddressSources(ctx, r); err != nil {
+		return nil, nil, err
+	}
 	if r.Agent != "" {
 		if r.Container != nil {
 			return nil, nil, errors.New("specifying agent is not allowed for docker container routes")
@@ -83,10 +86,6 @@ func Validate(ctx context.Context, r *route.Route) (impl routing.Route, agent *a
 				}
 			}
 		}
-	}
-
-	if err := validateRules(r); err != nil {
-		errs.Add(err)
 	}
 
 	if r.ShouldExclude() {

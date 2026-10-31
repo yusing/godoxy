@@ -51,22 +51,25 @@ var (
 )
 
 func init() {
-	rules.InitRequestMiddlewareResolver(func(name string, options map[string]any) (rules.RequestMiddleware, error) {
+	rules.InitRequestMiddlewareResolver(func(name string, options map[string]any) (rules.ResolvedRequestMiddleware, error) {
 		definition, err := Get(name)
 		if err != nil {
-			return nil, err
+			return rules.ResolvedRequestMiddleware{}, err
 		}
 
 		middleware, err := definition.New(OptionsRaw(options))
 		if err != nil {
-			return nil, err
+			return rules.ResolvedRequestMiddleware{}, err
 		}
 
 		if !hasRequestPhase(middleware.impl) {
-			return nil, fmt.Errorf("middleware %q has no request phase", name)
+			return rules.ResolvedRequestMiddleware{}, fmt.Errorf("middleware %q has no request phase", name)
 		}
 
-		return NewMiddlewareChain(name, []*Middleware{middleware}).TryModifyRequest, nil
+		return rules.ResolvedRequestMiddleware{
+			Run:                 NewMiddlewareChain(name, []*Middleware{middleware}).TryModifyRequest,
+			ValidateAddressSets: middleware.ValidateAddressSetReferences,
+		}, nil
 	})
 }
 
