@@ -194,11 +194,31 @@ alpha:
 beta:
   host: 10.0.0.2
 `)
-	a, b, c := sourceFingerprints(base), sourceFingerprints(reordered), sourceFingerprints(anchorChanged)
+	fingerprints := func(data []byte) map[string]string {
+		t.Helper()
+		_, fps, err := validateWithFingerprints(data)
+		require.NoError(t, err)
+		return fps
+	}
+	a, b, c := fingerprints(base), fingerprints(reordered), fingerprints(anchorChanged)
 	require.NotEmpty(t, a["alpha"])
+	require.NotContains(t, a, "x-common", "x- keys are not routes")
 	require.Equal(t, a["alpha"], b["alpha"])
 	require.Equal(t, a["beta"], b["beta"])
 	require.NotEqual(t, a["alpha"], c["alpha"], "a change in a shared anchor changes the routes using it")
 	require.Equal(t, a["beta"], c["beta"])
-	require.Nil(t, sourceFingerprints([]byte("alpha: [")))
+}
+
+func TestSourceFingerprintsFollowLoadedAliases(t *testing.T) {
+	t.Setenv("FP_TEST_HOST", "10.0.0.9")
+	routes, fps, err := validateWithFingerprints([]byte("alpha:\n  host: ${FP_TEST_HOST}\n"))
+	require.NoError(t, err)
+	require.Contains(t, routes, "alpha")
+	require.Equal(t, "10.0.0.9", routes["alpha"].Host)
+	fp := fps["alpha"]
+	require.NotEmpty(t, fp)
+
+	_, literal, err := validateWithFingerprints([]byte("alpha:\n  host: 10.0.0.9\n"))
+	require.NoError(t, err)
+	require.Equal(t, literal["alpha"], fp, "fingerprints use the expanded definition")
 }

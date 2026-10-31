@@ -53,16 +53,24 @@ func validate(data []byte) (routes route.Routes, err error) {
 	return routes, err
 }
 
-// sourceFingerprints returns, per alias, a hash of the route's raw definition
-// (anchors and aliases resolved, map keys sorted), so a reload can tell which
-// routes actually changed. It returns nil if data cannot be decoded.
-func sourceFingerprints(data []byte) map[string]string {
-	var raw map[string]any
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+// validateWithFingerprints is validate that also returns, per alias, a hash of
+// the route's definition, so a reload can tell which routes actually changed.
+// The hash is taken from the same decoded map the routes are built from
+// (anchors resolved, environment references expanded, x- keys removed), so
+// its keys are the loaded aliases.
+func validateWithFingerprints(data []byte) (routes route.Routes, fps map[string]string, err error) {
+	err = serialization.UnmarshalValidate(data, &routes, yaml.Unmarshal, removeXPrefix, func(m map[string]any) error {
+		fps = fingerprintDefinitions(m)
 		return nil
-	}
-	fps := make(map[string]string, len(raw))
-	for alias, def := range raw {
+	})
+	return routes, fps, err
+}
+
+// fingerprintDefinitions hashes each definition as canonical JSON (map keys
+// sorted).
+func fingerprintDefinitions(defs map[string]any) map[string]string {
+	fps := make(map[string]string, len(defs))
+	for alias, def := range defs {
 		b, err := json.Marshal(def)
 		if err != nil {
 			continue
@@ -113,11 +121,10 @@ func (p *FileProvider) loadRoutesImpl(context.Context) (route.Routes, error) {
 	if err != nil {
 		return nil, err
 	}
-	routes, err := validate(data)
+	routes, fps, err := validateWithFingerprints(data)
 	if err != nil && len(routes) == 0 {
 		return nil, err
 	}
-	fps := sourceFingerprints(data)
 	for alias, r := range routes {
 		if r != nil {
 			r.SetSourceFingerprint(fps[alias])
