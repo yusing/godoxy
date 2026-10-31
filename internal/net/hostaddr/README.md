@@ -75,5 +75,7 @@ Test helpers: `UseStaticRecordsForTest`, `RefreshAllForTest`.
   load, longer if DNS is down), requests from that proxy keep its address. A
   whitelist that allows the proxy's own address admits them in that window;
   prefer allow lists that do not include the proxy.
-- Between an IP change and the next refresh (up to 1 minute plus DNS TTL
-  caching upstream), the old address stays allowed and the new one is denied.
+- After an IP change, the old address stays allowed and the new one denied
+  until a refresh succeeds: normally within a minute (plus any upstream DNS
+  caching), but as long as DNS keeps failing, since a failed refresh keeps
+  the last addresses.
