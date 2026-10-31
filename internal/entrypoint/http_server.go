@@ -331,11 +331,17 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route routing.HTTPRoute) (*
 }
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute, error) {
-	hostRoute := srv.FindRoute(req.Host)
+	var hostRoute routing.HTTPRoute
 	if req.TLS != nil && srv.ep.cfg.StrictSNI {
-		if err := srv.checkStrictSNI(req.Host, req.TLS.ServerName); err != nil {
+		// Route by the name both Host and SNI agree on, so a mixed-case Host
+		// that passed the check resolves the same route.
+		route, err := srv.checkStrictSNI(req.Host, req.TLS.ServerName)
+		if err != nil {
 			return nil, err
 		}
+		hostRoute = route
+	} else {
+		hostRoute = srv.FindRoute(req.Host)
 	}
 	// Skip per-route mTLS resolution if no TLS or a global mTLS profile is configured
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
@@ -378,16 +384,18 @@ func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute
 // case-insensitively (RFC 6066, RFC 9110). A Host that matches no route passes
 // only when SNI matches no route either, so unknown hosts still reach the
 // not-found handling.
-func (srv *httpServer) checkStrictSNI(host, serverName string) error {
+//
+// It returns the matched route (nil when neither matches).
+func (srv *httpServer) checkStrictSNI(host, serverName string) (routing.HTTPRoute, error) {
 	if serverName == "" {
-		return errStrictSNIRequired
+		return nil, errStrictSNIRequired
 	}
 	hostRoute := srv.FindRoute(strings.ToLower(host))
 	sniRoute := srv.FindRoute(strings.ToLower(serverName))
 	if !sameHTTPRoute(hostRoute, sniRoute) {
-		return errStrictSNIMisdirected
+		return nil, errStrictSNIMisdirected
 	}
-	return nil
+	return hostRoute, nil
 }
 
 func sameHTTPRoute(left, right routing.HTTPRoute) bool {
