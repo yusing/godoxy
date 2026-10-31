@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/route/rules"
 	"github.com/yusing/godoxy/internal/serialization"
 	strutils "github.com/yusing/goutils/strings"
@@ -82,6 +83,10 @@ func BuildEntrypointRouteOverlay(
 		return nil, ErrNoEntrypointRouteOverlay
 	}
 
+	for _, warning := range promotedClientIPOrderWarnings(name, entrypointDefs, effectiveDefs) {
+		log.Warn().Str("route", routeName).Msg(warning)
+	}
+
 	mid, err := BuildMiddlewareFromChainRaw(name, effectiveDefs)
 	if err != nil {
 		return nil, err
@@ -151,6 +156,21 @@ func recordPromotedRouteOverlayConsumption(
 	}
 	consumedMiddlewares[normalizedName] = struct{}{}
 	return consumedBypass, consumedMiddlewares
+}
+
+// promotedClientIPOrderWarnings returns client IP order warnings that only the
+// effective chain has, i.e. caused by route bypass rules promoted into an
+// entrypoint middleware that runs before real IP resolution. Warnings of the
+// base chain are logged once by the entrypoint already.
+func promotedClientIPOrderWarnings(name string, base, effective []map[string]any) []string {
+	baseWarnings := ClientIPOrderWarnings(name, base)
+	var out []string
+	for _, w := range ClientIPOrderWarnings(name, effective) {
+		if !slices.Contains(baseWarnings, w) {
+			out = append(out, w)
+		}
+	}
+	return out
 }
 
 func cloneMiddlewareDefs(defs []map[string]any) []map[string]any {
