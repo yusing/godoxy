@@ -6,12 +6,13 @@ import (
 )
 
 type HealthCheckConfig struct {
-	Disable  bool          `json:"disable,omitempty" aliases:"disabled"` // Disable the route-specific probe; Docker health remains active.
-	UseGet   bool          `json:"use_get,omitempty"`
-	Path     string        `json:"path,omitempty" validate:"omitempty,uri,startswith=/"`
-	Interval time.Duration `json:"interval" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
-	Timeout  time.Duration `json:"timeout" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
-	Retries  int64         `json:"retries"` // <0: immediate, 0: default, >0: threshold
+	Disable  bool            `json:"disable,omitempty" aliases:"disabled"` // Disable the route-specific probe; Docker health remains active.
+	UseGet   bool            `json:"use_get,omitempty"`
+	Path     string          `json:"path,omitempty" validate:"omitempty,uri,startswith=/"`
+	Interval time.Duration   `json:"interval" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
+	Timeout  time.Duration   `json:"timeout" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
+	Retries  int64           `json:"retries"`                            // <0: immediate, 0: default, >0: threshold
+	Silence  []SilenceWindow `json:"silence" swaggertype:"array,string"` // daily local-time windows without down notifications; nil inherits defaults, empty disables
 
 	BaseContext func() context.Context `json:"-"`
 } //	@name	HealthCheckConfig
@@ -42,5 +43,8 @@ func (hc *HealthCheckConfig) ApplyDefaults(defaults HealthCheckConfig) {
 		if hc.Retries == 0 {
 			hc.Retries = max(1, int64(HealthCheckDownNotifyDelayDefault/hc.Interval))
 		}
+	}
+	if hc.Silence == nil {
+		hc.Silence = defaults.Silence
 	}
 }

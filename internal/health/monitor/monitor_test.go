@@ -370,3 +370,112 @@ func TestMonitorStartCancelsDuringJitterDelay(t *testing.T) {
 	require.Less(t, time.Since(start), time.Second)
 	require.Equal(t, int32(1), checks.Load(), "monitor should exit before post-check ticker starts")
 }
+
+func mustSilence(t *testing.T, windows ...string) []health.SilenceWindow {
+	t.Helper()
+	out := make([]health.SilenceWindow, len(windows))
+	for i, w := range windows {
+		require.NoError(t, out[i].Parse(w))
+	}
+	return out
+}
+
+func at(hour, minute int) time.Time {
+	return time.Date(2026, 11, 2, hour, minute, 0, 0, time.Local)
+}
+
+func TestSilence_DownInsideWindowAlertsAfterWindowEnds(t *testing.T) {
+	for _, retries := range []int64{-1, 2} {
+		mon, tracker := createTestMonitor(health.HealthCheckConfig{
+			Interval: time.Second,
+			Retries:  retries,
+			Silence:  mustSilence(t, "02:00-04:00"),
+		}, func(u *url.URL) (health.HealthCheckResult, error) {
+			return health.HealthCheckResult{Healthy: false}, nil
+		})
+
+		now := at(2, 30)
+		mon.now = func() time.Time { return now }
+		for range 5 {
+			require.NoError(t, mon.checkUpdateHealth())
+		}
+		up, down, _ := tracker.getStats()
+		require.Equal(t, 0, down, "retries=%d: no down alert inside window", retries)
+		require.Equal(t, 0, up)
+
+		now = at(4, 0)
+		require.NoError(t, mon.checkUpdateHealth())
+		require.NoError(t, mon.checkUpdateHealth())
+		up, down, last := tracker.getStats()
+		require.Equal(t, 1, down, "retries=%d: exactly one down alert after window", retries)
+		require.Equal(t, 0, up)
+		require.Equal(t, "down", last)
+	}
+}
+
+func TestSilence_RecoveryInsideWindowSendsNothing(t *testing.T) {
+	healthy := false
+	mon, tracker := createTestMonitor(health.HealthCheckConfig{
+		Interval: time.Second,
+		Retries:  -1,
+		Silence:  mustSilence(t, "02:00-04:00"),
+	}, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: healthy}, nil
+	})
+	mon.now = func() time.Time { return at(3, 0) }
+
+	require.NoError(t, mon.checkUpdateHealth())
+	healthy = true
+	require.NoError(t, mon.checkUpdateHealth())
+
+	up, down, _ := tracker.getStats()
+	require.Equal(t, 0, up)
+	require.Equal(t, 0, down)
+	require.Equal(t, health.StatusHealthy, mon.Status())
+}
+
+func TestSilence_RecoveryInsideWindowAfterAlertSendsUp(t *testing.T) {
+	healthy := false
+	mon, tracker := createTestMonitor(health.HealthCheckConfig{
+		Interval: time.Second,
+		Retries:  -1,
+		Silence:  mustSilence(t, "02:00-04:00"),
+	}, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: healthy}, nil
+	})
+
+	now := at(1, 59)
+	mon.now = func() time.Time { return now }
+	require.NoError(t, mon.checkUpdateHealth())
+
+	now = at(2, 30)
+	healthy = true
+	require.NoError(t, mon.checkUpdateHealth())
+
+	up, down, last := tracker.getStats()
+	require.Equal(t, 1, down)
+	require.Equal(t, 1, up, "an alert already sent must be resolved")
+	require.Equal(t, "up", last)
+}
+
+func TestSilence_WindowCrossingMidnight(t *testing.T) {
+	mon, tracker := createTestMonitor(health.HealthCheckConfig{
+		Interval: time.Second,
+		Retries:  -1,
+		Silence:  mustSilence(t, "23:30-00:30"),
+	}, func(u *url.URL) (health.HealthCheckResult, error) {
+		return health.HealthCheckResult{Healthy: false}, nil
+	})
+
+	for _, now := range []time.Time{at(23, 45), at(0, 15)} {
+		mon.now = func() time.Time { return now }
+		require.NoError(t, mon.checkUpdateHealth())
+	}
+	_, down, _ := tracker.getStats()
+	require.Equal(t, 0, down)
+
+	mon.now = func() time.Time { return at(0, 30) }
+	require.NoError(t, mon.checkUpdateHealth())
+	_, down, _ = tracker.getStats()
+	require.Equal(t, 1, down)
+}
