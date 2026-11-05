@@ -1,7 +1,6 @@
 package nettypes
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -62,7 +61,7 @@ func (cidr *CIDR) Parse(v string) error {
 	}
 	ipnet, err := ParseCIDROrIP(v)
 	if err != nil {
-		return fmt.Errorf("invalid CIDR, IP, host:<name> or set:<name> %q: %w", v, err)
+		return err
 	}
 	*cidr = CIDR{IPNet: *ipnet}
 	return nil

@@ -34,7 +34,8 @@ static IPs and CIDRs, not `host:` sources.
   use resolver search domains. These are distinct shared sources.
 - **Refresh**: every referenced name is re-resolved every `RefreshInterval`
   (1 minute) by one background task. Lookups time out after `LookupTimeout`
-  (5 seconds). Lookups and publication are serialized per name, so an older
+  (5 seconds). `goutils/cache` owns the cached value and serializes lookups
+  and publication per name, so an older
   lookup cannot overwrite a later refresh. Different names resolve in parallel.
 - **First lookup**: `Get` never waits for DNS. A new name starts its first
   lookup in its own goroutine, so the names of a config resolve in parallel
@@ -48,8 +49,8 @@ static IPs and CIDRs, not `host:` sources.
   logged as warnings.
 - **Changes**: logged at info level with old and new addresses. Matching
   reads an atomic pointer, so a change applies to the next request.
-  `Generation()` increases on every change; the ACL adds it to its decision
-  cache key when it has `host:` matchers.
+  `Generation()` increases on every change; the ACL uses it to invalidate
+  existing IP-keyed decision entries when it has `host:` matchers.
 - **Sharing and lifetime**: `Get` returns one shared `*Name` per normalized
   hostname. The registry holds weak pointers, so names no longer referenced
   by any loaded config are dropped on the next refresh.
@@ -65,7 +66,6 @@ func Generation() uint64
 func (n *Name) Contains(ip net.IP) bool
 func (n *Name) Ready() <-chan struct{} // closed after the first lookup
 func (n *Name) Addrs() []netip.Addr
-func (n *Name) Hostname() string
 func (n *Name) String() string // "host:<name>"
 ```
 

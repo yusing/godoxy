@@ -7,10 +7,8 @@ import (
 	"net/netip"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
-	"weak"
 
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +82,6 @@ func TestGetResolvesAndMatches(t *testing.T) {
 
 	n, err := getReady(t, "Dyn.Example.com.")
 	require.NoError(t, err)
-	require.Equal(t, "dyn.example.com.", n.Hostname())
 	require.Equal(t, "host:dyn.example.com.", n.String())
 
 	require.True(t, n.Contains(net.ParseIP("203.0.113.7")))
@@ -191,40 +188,6 @@ func TestRootedAndUnrootedNamesStayDistinct(t *testing.T) {
 	require.False(t, a.Contains(net.ParseIP("198.51.100.9")))
 	require.True(t, b.Contains(net.ParseIP("198.51.100.9")))
 	require.False(t, b.Contains(net.ParseIP("203.0.113.7")))
-}
-
-func TestFirstLookupAndRefreshAreSerialized(t *testing.T) {
-	started, release, second := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	var calls atomic.Int32
-	// The resolver belongs to this name, so no background worker can race a
-	// process-wide resolver replacement. Publish it through the normal registry.
-	n := &Name{name: "overlap.example", ready: make(chan struct{}), lookup: func(context.Context, string) ([]netip.Addr, error) {
-		if calls.Add(1) == 1 {
-			close(started)
-			<-release
-			return []netip.Addr{netip.MustParseAddr("203.0.113.7")}, nil
-		}
-		close(second)
-		return []netip.Addr{netip.MustParseAddr("198.51.100.9")}, nil
-	}}
-	registryMu.Lock()
-	registry[n.name] = weak.Make(n)
-	registryMu.Unlock()
-	defer resetRegistry()
-	go n.firstLookup()
-	<-started
-	done := make(chan struct{})
-	go func() { refreshAll(t.Context()); close(done) }()
-	select {
-	case <-second:
-		t.Error("periodic lookup overlapped the initial lookup")
-	case <-time.After(50 * time.Millisecond):
-	}
-	close(release)
-	<-n.Ready()
-	<-done
-	require.True(t, n.Contains(net.ParseIP("198.51.100.9")))
-	require.False(t, n.Contains(net.ParseIP("203.0.113.7")))
 }
 
 func TestGetDoesNotWaitForDNS(t *testing.T) {

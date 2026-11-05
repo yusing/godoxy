@@ -23,16 +23,15 @@ func (on *RuleOn) UsesClientIP() bool {
 	return checkerUsesClientIP(on.checker)
 }
 
-type onMatcher struct {
+type remoteMatcher struct {
 	CheckFunc
-	command string
-	set     *nettypes.AddressSet
+	set *nettypes.AddressSet
 }
 
 func checkerUsesClientIP(checker Checker) bool {
 	switch checker := checker.(type) {
-	case onMatcher:
-		return checker.command == OnRemote
+	case remoteMatcher:
+		return true
 	case CheckMatchAll:
 		for _, child := range checker {
 			if checkerUsesClientIP(child) {
@@ -798,9 +797,12 @@ func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 			return !origCheckFunc(w, r)
 		}
 	}
-	var set *nettypes.AddressSet
-	if source, ok := validArgs.(*nettypes.CIDR); ok {
-		set = source.Set()
+	if subject == OnRemote {
+		var set *nettypes.AddressSet
+		if source, ok := validArgs.(*nettypes.CIDR); ok {
+			set = source.Set()
+		}
+		return remoteMatcher{CheckFunc: checkFunc, set: set}, phase, nil
 	}
-	return onMatcher{CheckFunc: checkFunc, command: subject, set: set}, phase, nil
+	return checkFunc, phase, nil
 }

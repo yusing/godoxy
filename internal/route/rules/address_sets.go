@@ -3,7 +3,7 @@ package rules
 import nettypes "github.com/yusing/godoxy/internal/net/types"
 
 // Validate the same parsed source that matching uses, including negation.
-func (c onMatcher) ValidateAddressSetReferences(check nettypes.AddressSetValidator) error {
+func (c remoteMatcher) ValidateAddressSetReferences(check nettypes.AddressSetValidator) error {
 	return nettypes.ValidateAddressSetReferences(c.set, check)
 }
 

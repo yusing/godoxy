@@ -18,6 +18,7 @@ import (
 	"weak"
 
 	"github.com/rs/zerolog/log"
+	"github.com/yusing/goutils/cache"
 	"github.com/yusing/goutils/task"
 )
 
@@ -44,11 +45,7 @@ var ErrInvalidHostname = errors.New("invalid hostname")
 // good addresses.
 type Name struct {
 	name  string
-	addrs atomic.Pointer[[]netip.Addr]
-	// Serialize lookup and publication so a slow first lookup cannot restore
-	// addresses superseded by a periodic refresh. Different names stay parallel.
-	refreshMu sync.Mutex
-	lookup    func(context.Context, string) ([]netip.Addr, error)
+	addrs *cache.CachedFuncState[[]netip.Addr]
 	// ready is closed once the first lookup has finished, successful or not.
 	ready chan struct{}
 }
@@ -61,11 +58,6 @@ var (
 	// generation increases whenever any name resolves to a different set of
 	// addresses, so callers can invalidate caches keyed by IP.
 	generation atomic.Uint64
-
-	// syncFirstLookup makes Get resolve new names before returning; only set
-	// by UseStaticRecordsForTest, so consumers' tests can assert right after
-	// parsing.
-	syncFirstLookup atomic.Bool
 )
 
 // Get returns the shared Name for host. It never waits for DNS: a new name
@@ -87,16 +79,28 @@ func Get(host string) (*Name, error) {
 			return n, nil
 		}
 	}
-	n := &Name{name: host, ready: make(chan struct{}), lookup: lookup}
+	resolve := lookup
+	n := &Name{
+		name:  host,
+		ready: make(chan struct{}),
+		addrs: cache.NewFunc(func(parent context.Context) ([]netip.Addr, error) {
+			ctx, cancel := context.WithTimeout(parent, LookupTimeout)
+			defer cancel()
+			addrs, err := resolve(ctx, host)
+			if err != nil {
+				return nil, err
+			}
+			if len(addrs) == 0 {
+				return nil, errors.New("no addresses")
+			}
+			return normalize(addrs), nil
+		}).BuildState(),
+	}
 	registry[host] = weak.Make(n)
 	registryMu.Unlock()
 
 	startLoop.Do(startRefreshLoop)
-	if syncFirstLookup.Load() {
-		n.firstLookup()
-	} else {
-		go n.firstLookup()
-	}
+	go n.firstLookup()
 	return n, nil
 }
 
@@ -116,11 +120,6 @@ func Generation() uint64 {
 	return generation.Load()
 }
 
-// Hostname returns the normalized hostname.
-func (n *Name) Hostname() string {
-	return n.name
-}
-
 // String returns the source form, "host:<name>".
 func (n *Name) String() string {
 	return Prefix + n.name
@@ -128,10 +127,8 @@ func (n *Name) String() string {
 
 // Addrs returns the current addresses, nil before the first successful lookup.
 func (n *Name) Addrs() []netip.Addr {
-	if p := n.addrs.Load(); p != nil {
-		return *p
-	}
-	return nil
+	addrs, _ := n.addrs.Peek()
+	return addrs
 }
 
 // Contains reports whether ip is one of the current addresses.
@@ -150,17 +147,7 @@ func (n *Name) Contains(ip net.IP) bool {
 }
 
 func (n *Name) refresh(parent context.Context) {
-	n.refreshMu.Lock()
-	defer n.refreshMu.Unlock()
-
-	ctx, cancel := context.WithTimeout(parent, LookupTimeout)
-	defer cancel()
-
-	addrs, err := n.lookup(ctx, n.name)
-	if err == nil && len(addrs) == 0 {
-		err = errors.New("no addresses")
-	}
-	old := n.Addrs()
+	old, addrs, err := n.addrs.Refresh(parent)
 	if err != nil {
 		if old == nil {
 			log.Warn().Err(err).Str("host", n.name).Msg("hostname source unresolved, matching nothing until it resolves")
@@ -170,11 +157,9 @@ func (n *Name) refresh(parent context.Context) {
 		return
 	}
 
-	addrs = normalize(addrs)
 	if slices.Equal(addrs, old) {
 		return
 	}
-	n.addrs.Store(&addrs)
 	generation.Add(1)
 	if old == nil {
 		log.Info().Str("host", n.name).Strs("addrs", addrStrings(addrs)).Msg("hostname source resolved")

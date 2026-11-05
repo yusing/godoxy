@@ -163,8 +163,8 @@ sequenceDiagram
 
 `host:` matches the hostname's current A/AAAA addresses, re-resolved every
 minute (see `internal/net/hostaddr`). When allow or deny contain `host:`
-matchers, the decision cache key includes `hostaddr.Generation()`, so cached
-decisions do not outlive an address change.
+matchers, changes to `hostaddr.Generation()` invalidate existing IP-keyed
+decision entries, so cached decisions do not outlive an address change.
 
 `set:` matches any entry of the named root `address_sets` entry (see
 `internal/config`). Set matchers count as dynamic for the cache key, since a
