@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/yusing/godoxy/internal/net/hostaddr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/routes"
 	gperr "github.com/yusing/goutils/errs"
@@ -452,14 +451,9 @@ var checkers = map[string]struct {
 			return
 		},
 		builder: func(args any) CheckFunc {
-			if set, ok := args.(*nettypes.AddressSet); ok {
+			if source, ok := args.(*nettypes.CIDR); ok {
 				return func(w *httputils.ResponseModifier, r *http.Request) bool {
-					return set.Contains(w.SharedData().GetRemoteIP(r))
-				}
-			}
-			if host, ok := args.(*hostaddr.Name); ok {
-				return func(w *httputils.ResponseModifier, r *http.Request) bool {
-					return host.Contains(w.SharedData().GetRemoteIP(r))
+					return source.Contains(w.SharedData().GetRemoteIP(r))
 				}
 			}
 			ipnet := args.(*net.IPNet)
@@ -804,6 +798,9 @@ func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 			return !origCheckFunc(w, r)
 		}
 	}
-	set, _ := validArgs.(*nettypes.AddressSet)
+	var set *nettypes.AddressSet
+	if source, ok := validArgs.(*nettypes.CIDR); ok {
+		set = source.Set()
+	}
 	return onMatcher{CheckFunc: checkFunc, command: subject, set: set}, phase, nil
 }

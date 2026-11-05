@@ -107,26 +107,19 @@ func validateURL(args []string) (any, gperr.Error) {
 	return u, nil
 }
 
-// validateCIDR returns *net.IPNet for a CIDR or bare IP, *hostaddr.Name for
-// "host:<name>", or *nettypes.AddressSet for "set:<name>".
+// validateCIDR returns *net.IPNet for a CIDR or bare IP, or *nettypes.CIDR
+// for dynamic host:<name> and set:<name> sources.
 func validateCIDR(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
 	cidr := args[0]
-	if name, ok := strings.CutPrefix(cidr, nettypes.AddressSetPrefix); ok {
-		set, err := nettypes.NewAddressSetRef(name)
-		if err != nil {
+	if strings.HasPrefix(cidr, nettypes.AddressSetPrefix) || strings.HasPrefix(cidr, hostaddr.Prefix) {
+		var source nettypes.CIDR
+		if err := source.Parse(cidr); err != nil {
 			return nil, ErrInvalidArguments.With(err)
 		}
-		return set, nil
-	}
-	if name, ok := strings.CutPrefix(cidr, hostaddr.Prefix); ok {
-		host, err := hostaddr.Get(name)
-		if err != nil {
-			return nil, ErrInvalidArguments.With(err)
-		}
-		return host, nil
+		return &source, nil
 	}
 	if cached, ok := cidrCache.Load(cidr); ok {
 		return cached, nil

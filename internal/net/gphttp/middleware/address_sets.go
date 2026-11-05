@@ -7,9 +7,6 @@ import (
 )
 
 func (m *Middleware) ValidateAddressSetReferences(check nettypes.AddressSetValidator) error {
-	if err := nettypes.ValidateAddressSetReferences(m.Bypass, check); err != nil {
-		return err
-	}
 	return nettypes.ValidateAddressSetReferences(m.impl, check)
 }
 
