@@ -57,10 +57,11 @@ func (m *Middleware) Explain(r *http.Request) (steps []ExplainStep, proceed bool
 		}
 		return nil, true
 	}
-	return explainModifier(m.name, mod, r, steps)
+	return explainModifier(m.name, mod, r)
 }
 
-func explainModifier(name string, mod RequestModifier, r *http.Request, steps []ExplainStep) ([]ExplainStep, bool) {
+func explainModifier(name string, mod RequestModifier, r *http.Request) ([]ExplainStep, bool) {
+	var steps []ExplainStep
 	if chain, ok := mod.(*middlewareChain); ok {
 		for _, component := range chain.components {
 			next, proceed := component.Explain(r)
@@ -95,7 +96,7 @@ func explainModifier(name string, mod RequestModifier, r *http.Request, steps []
 			return append(steps, step), true
 		}
 		if inner, ok := impl.(*middlewareChain); ok {
-			return explainModifier(name, inner, r, steps)
+			return explainModifier(name, inner, r)
 		}
 	}
 

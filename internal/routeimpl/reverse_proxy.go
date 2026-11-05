@@ -90,7 +90,7 @@ func NewReverseProxyRoute(base *route.Route) (*ReverseProxyRoute, error) {
 	var routeMiddleware *middleware.Middleware
 	if len(base.Middlewares) > 0 {
 		var err error
-		routeMiddleware, err = middleware.PatchReverseProxyChain(rp, base.Middlewares)
+		routeMiddleware, err = middleware.PatchReverseProxy(rp, base.Middlewares)
 		if err != nil {
 			return nil, err
 		}

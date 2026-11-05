@@ -129,14 +129,15 @@ func TestFindIconThroughProxyWithRemoteHostMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	r.target = nettypes.NewURL(target)
 	proxy := reverseproxy.NewReverseProxy(r.Name(), target, upstream.Client().Transport)
-	require.NoError(t, middleware.PatchReverseProxy(proxy, map[string]middleware.OptionsRaw{
+	_, err = middleware.PatchReverseProxy(proxy, map[string]middleware.OptionsRaw{
 		"modify_request": {
 			"set_headers": map[string]any{
 				"X-Forwarded-For":  "$remote_host",
 				"X-Middleware-Ran": "yes",
 			},
 		},
-	}))
+	})
+	require.NoError(t, err)
 	r.handler = proxy.ServeHTTP
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
