@@ -59,6 +59,7 @@ func Validate(ctx context.Context, data []byte) (err error) {
 			continue
 		}
 		r.Alias = alias
+		errs.AddSubject(routevalidate.ValidateAddressSources(ctx, r), alias)
 		routevalidate.ResolveProxmox(ctx, r)
 		if r.Idlewatcher != nil {
 			if err := r.Idlewatcher.ValidateResolved(); err != nil {

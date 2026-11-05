@@ -10,6 +10,8 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/maxmind"
 	maxmindtypes "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/goutils/task"
 )
 
@@ -157,4 +159,45 @@ func TestTimezoneACLWithDefaultCityDatabase(t *testing.T) {
 	record, err := cfg.ipCache(parent.Context(), "81.2.69.160")
 	require.NoError(t, err)
 	require.Equal(t, "allowed by allow rule: tz:Europe/London", record.reason)
+}
+
+func TestIPAllowedFollowsHostChanges(t *testing.T) {
+	records := map[string][]string{"dino.dyndns.example": {"203.0.113.7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+
+	cfg := &Config{
+		Default:    ACLDeny,
+		AllowLocal: new(false),
+		Allow:      mustMatchers(t, "host:dino.dyndns.example"),
+	}
+	require.NoError(t, cfg.Validate())
+
+	oldIP, newIP := net.ParseIP("203.0.113.7"), net.ParseIP("198.51.100.9")
+	require.True(t, cfg.IPAllowed(oldIP))
+	require.False(t, cfg.IPAllowed(newIP))
+
+	// Cached decisions must not outlive an address change.
+	records["dino.dyndns.example"] = []string{"198.51.100.9"}
+	hostaddr.RefreshAllForTest(t)
+	require.True(t, cfg.IPAllowed(newIP))
+	require.False(t, cfg.IPAllowed(oldIP))
+}
+
+func TestIPAllowedAddressSet(t *testing.T) {
+	nettypes.PublishAddressSets(nil)
+	t.Cleanup(func() { nettypes.PublishAddressSets(nil) })
+
+	var cidr nettypes.CIDR
+	require.NoError(t, cidr.Parse("203.0.113.0/24"))
+	nettypes.PublishAddressSets(map[string][]*nettypes.CIDR{"family": {&cidr}})
+
+	cfg := &Config{
+		Default:    ACLDeny,
+		AllowLocal: new(false),
+		Allow:      mustMatchers(t, "set:family"),
+	}
+	require.NoError(t, cfg.Validate())
+	require.True(t, cfg.Allow.HasDynamic())
+	require.True(t, cfg.IPAllowed(net.ParseIP("203.0.113.7")))
+	require.False(t, cfg.IPAllowed(net.ParseIP("198.51.100.9")))
 }

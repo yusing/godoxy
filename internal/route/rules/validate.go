@@ -11,6 +11,7 @@ import (
 
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rs/zerolog"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	gperr "github.com/yusing/goutils/errs"
 	httputils "github.com/yusing/goutils/http"
@@ -106,19 +107,24 @@ func validateURL(args []string) (any, gperr.Error) {
 	return u, nil
 }
 
-// validateCIDR returns types.CIDR with the CIDR validated.
+// validateCIDR returns *net.IPNet for a CIDR or bare IP, or *nettypes.CIDR
+// for dynamic host:<name> and set:<name> sources.
 func validateCIDR(args []string) (any, gperr.Error) {
 	if len(args) != 1 {
 		return nil, ErrExpectOneArg
 	}
 	cidr := args[0]
-	if !strings.Contains(cidr, "/") {
-		cidr += "/32"
+	if strings.HasPrefix(cidr, nettypes.AddressSetPrefix) || strings.HasPrefix(cidr, hostaddr.Prefix) {
+		var source nettypes.CIDR
+		if err := source.Parse(cidr); err != nil {
+			return nil, ErrInvalidArguments.With(err)
+		}
+		return &source, nil
 	}
 	if cached, ok := cidrCache.Load(cidr); ok {
 		return cached, nil
 	}
-	_, ipnet, err := net.ParseCIDR(cidr)
+	ipnet, err := nettypes.ParseCIDROrIP(cidr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

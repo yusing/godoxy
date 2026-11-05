@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/internal/route"
+	"github.com/yusing/godoxy/internal/routevalidate"
 	"github.com/yusing/godoxy/internal/serialization"
 	apitypes "github.com/yusing/goutils/apitypes"
 	"github.com/yusing/goutils/http/httpheaders"
@@ -40,6 +41,10 @@ func Validate(c *gin.Context) {
 		c.JSON(http.StatusExpectationFailed, err)
 		return
 	}
+	if err := routevalidate.ValidateAddressSources(c.Request.Context(), &request); err != nil {
+		c.JSON(http.StatusExpectationFailed, err)
+		return
+	}
 	c.JSON(http.StatusOK, apitypes.Success("route validated"))
 }
 
@@ -60,6 +65,10 @@ func ValidateWS(c *gin.Context) {
 		case msg := <-manager.ReadCh():
 			var request route.Route
 			if err := serialization.UnmarshalValidate(msg, &request, yaml.Unmarshal); err != nil {
+				manager.WriteJSON(gin.H{"error": err}, writeTimeout)
+				continue
+			}
+			if err := routevalidate.ValidateAddressSources(c.Request.Context(), &request); err != nil {
 				manager.WriteJSON(gin.H{"error": err}, writeTimeout)
 				continue
 			}

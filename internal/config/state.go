@@ -34,6 +34,7 @@ import (
 	"github.com/yusing/godoxy/internal/homepage"
 	"github.com/yusing/godoxy/internal/logging"
 	"github.com/yusing/godoxy/internal/maxmind"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
 	"github.com/yusing/godoxy/internal/route"
@@ -130,6 +131,9 @@ func (state *state) Init(data []byte) error {
 	state.Config = config.DefaultConfig()
 
 	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
+	if err == nil {
+		err = state.Config.ValidateAddressSets()
+	}
 	if err != nil {
 		state.addPreparationIssue("config", config.IssueRejecting, err)
 		return RejectingError{err}
@@ -173,7 +177,12 @@ func (state *state) Init(data []byte) error {
 	// structured provider activation report. Do not also add one aggregate
 	// preparation issue for the same failures.
 	if err := state.loadRouteProviders(); err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, nettypes.ErrUndefinedAddressSet) {
+			state.addPreparationIssue("address_sets", config.IssueRejecting, err)
+			errs = append(errs, RejectingError{err})
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -422,6 +431,12 @@ func (state *state) setActivation(report config.ActivationReport, issues []confi
 }
 
 func (state *state) setStatus(status config.RuntimeStatus) {
+	if status == config.RuntimeActivating {
+		// The runtime manager sets Activating once, when this candidate is
+		// accepted. Publishing here (not during preparation) keeps a rejected
+		// reload from changing the sets the active runtime matches against.
+		nettypes.PublishAddressSets(state.Config.AddressSets)
+	}
 	state.status.Store(status)
 }
 

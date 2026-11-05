@@ -56,7 +56,8 @@ result of the original activation attempt.
 
 `RejectingError` is reserved for preparation failures that make the candidate
 unsafe to accept: unreadable root configuration, invalid YAML or root semantics,
-and inability to build required entrypoint state. Optional provider,
+undefined address-set references (including included routes), and inability to
+build required entrypoint state. Optional provider,
 notification, MaxMind, Proxmox, certificate, and route-source failures are
 recorded as non-rejecting preparation issues.
 
@@ -114,6 +115,22 @@ type State interface {
 the entrypoint, and loads all route providers with the candidate context.
 Provider files and agents are attempted independently; one failed source does
 not prevent other sources from being represented in the candidate.
+
+`address_sets` are named lists of address sources (CIDR, IP, `host:<name>`)
+referenced as `set:<name>` wherever a CIDR is accepted (cidr_whitelist allow,
+real_ip from, rules and bypass `remote`, ACL allow/deny, access log cidr).
+References hold only the name and read the published definitions on every
+match. Validation checks references against the candidate's definitions, including
+ACLs, entrypoint and WebUI rules, access logs, route files, rule files, and used
+composed middleware. Undefined references reject the candidate even if the active
+runtime defines that name. The validation API uses the edited root document's
+definitions; standalone route edits use the request's runtime definitions.
+Set names are validated. Entries must be valid, nonempty address sources; null or
+malformed entries and nested sets are rejected with the set name and entry index.
+The definitions are published
+(`nettypes.PublishAddressSets`) only when the runtime manager marks the
+candidate `RuntimeActivating`, so a rejected reload never changes what the
+active runtime matches. Parsing references requires no global staging registry.
 
 Preparation diagnostics remain buffered until the lifecycle decision. Rejected
 candidates discard the buffer. Accepted candidates flush it once; persistent
