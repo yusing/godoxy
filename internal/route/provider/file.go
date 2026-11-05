@@ -126,9 +126,16 @@ func (p *FileProvider) loadRoutesImpl(context.Context) (route.Routes, error) {
 		return nil, err
 	}
 	for alias, r := range routes {
-		if r != nil {
-			r.SetSourceFingerprint(fps[alias])
+		if r == nil {
+			r = new(route.Route)
+			routes[alias] = r
 		}
+		// These definitions reference content outside this file. Rebuild them on
+		// reload rather than treating an unchanged pathname as unchanged content.
+		if r.RuleFile != "" || r.SSLTrustedCertificate != "" || r.SSLCertificate != "" || r.SSLCertificateKey != "" {
+			continue
+		}
+		r.SetSourceFingerprint(fps[alias])
 	}
 	return routes, err
 }

@@ -264,10 +264,11 @@ func (p *Provider) loadRoutes(ctx context.Context) (route.Routes, error) {
 
 	errs := gperr.NewBuilder("routes error")
 	errs.Add(infrastructureErr)
+	prepared := make(route.Routes, len(routes))
+	sourceAliases := make(map[string][]string, len(routes))
 	for alias, r := range routes {
 		if r == nil {
 			r = new(route.Route)
-			routes[alias] = r
 		}
 		r.Alias = alias
 		r.SetProvider(p)
@@ -278,10 +279,28 @@ func (p *Provider) loadRoutes(ctx context.Context) (route.Routes, error) {
 				Route: alias,
 				Err:   subjectErr,
 			})
-			delete(routes, alias)
+			continue
+		}
+		// Validation owns alias normalization. Inventory and event reconciliation
+		// must use the same identity as startRoute and the entrypoint.
+		prepared[r.Alias] = r
+		sourceAliases[r.Alias] = append(sourceAliases[r.Alias], alias)
+	}
+	for alias, sources := range sourceAliases {
+		if len(sources) < 2 {
+			continue
+		}
+		// No definition wins an ambiguous identity. Treat all of them as invalid
+		// so partial file reloads retain the running route instead.
+		delete(prepared, alias)
+		slices.Sort(sources)
+		collisionErr := gperr.Wrap(fmt.Errorf("route aliases %q normalize to the same alias %q", sources, alias))
+		errs.Add(collisionErr)
+		for _, source := range sources {
+			p.preparation.FailedRoutes = append(p.preparation.FailedRoutes, routing.RouteActivationIssue{Route: source, Err: collisionErr})
 		}
 	}
-	return routes, errs.Error()
+	return prepared, errs.Error()
 }
 
 func (p *Provider) NumRoutes() int {

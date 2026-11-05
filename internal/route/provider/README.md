@@ -317,8 +317,20 @@ route's definition (anchors resolved, keys sorted, as canonical JSON) on the
 route (`SourceFingerprint`), and the event handler skips routes whose
 fingerprint is unchanged. Restarting a route removes it from the entrypoint
 until its replacement starts and resets its health state, so this avoids
-brief 404s and health flaps on unrelated routes. Re-saving an unchanged file
-restarts nothing; a force reload still restarts every route.
+brief 404s and health flaps on unrelated routes. Inventory keys use the alias
+normalized by route validation, including case and surrounding whitespace.
+Definitions whose aliases normalize to the same identity are all rejected;
+partial file reloads retain the running route while applying valid siblings.
+Default-only (`null`) definitions also receive fingerprints. Removed routes,
+including excluded routes, leave the inventory so re-adding them starts a new
+instance.
+
+Routes with `rule_file`, `ssl_trusted_certificate`, `ssl_certificate`, or
+`ssl_certificate_key` are rebuilt on every matching event: their definitions
+contain paths rather than the referenced content. This also applies to embedded
+rule presets. Saving an unchanged file keeps other routes running; a force
+reload still restarts every route. These rules do not add watchers for referenced
+files, so reload the route file after changing an external rule or TLS file.
 
 On a partial file-provider reload, valid updates and additions apply, but old
 aliases absent from the validated result remain active and errors are still

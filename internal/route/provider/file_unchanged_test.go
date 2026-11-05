@@ -1,8 +1,15 @@
 package provider
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,14 +35,14 @@ nas:
     disabled: true
 `
 
-// Editing one route in a file must not restart the other routes in it.
-func TestFileReloadRestartsOnlyChangedRoutes(t *testing.T) {
+func fileReloadFixture(t *testing.T, definition string) (*Provider, *task.Task, *entrypoint.Entrypoint, string) {
+	t.Helper()
 	oldHTTPAddr, oldHTTPSAddr := common.ProxyHTTPAddr, common.ProxyHTTPSAddr
 	common.ProxyHTTPAddr, common.ProxyHTTPSAddr = "127.0.0.1:0", ""
 	t.Cleanup(func() { common.ProxyHTTPAddr, common.ProxyHTTPSAddr = oldHTTPAddr, oldHTTPSAddr })
 
 	routeFile := filepath.Join(t.TempDir(), "routes.yml")
-	require.NoError(t, os.WriteFile(routeFile, []byte(unchangedRoutesYAML), 0o600))
+	require.NoError(t, os.WriteFile(routeFile, []byte(definition), 0o600))
 
 	root := task.RootTask("unchanged-route-reload", false)
 	t.Cleanup(func() { root.FinishAndWait("test finished") })
@@ -46,19 +53,28 @@ func TestFileReloadRestartsOnlyChangedRoutes(t *testing.T) {
 	p.watcher = noopWatcher{}
 
 	require.NoError(t, p.LoadRoutes(root.Context()))
-	require.NoError(t, p.Activate(root).InfrastructureError)
+	activation := p.Activate(root)
+	require.NoError(t, activation.InfrastructureError)
+	require.Empty(t, activation.FailedRoutes)
+	return p, root, ep, routeFile
+}
 
+func reloadFile(p *Provider, root *task.Task) {
+	p.newEventHandler().Handle(root, []watcher.Event{{Type: watcherEvents.EventTypeFile, Action: watcherEvents.ActionFileWritten, ActorName: "routes.yml"}})
+}
+
+// Editing one route in a file must not restart the other routes in it.
+func TestFileReloadRestartsOnlyChangedRoutes(t *testing.T) {
+	p, root, _, routeFile := fileReloadFixture(t, unchangedRoutesYAML)
 	plexBefore, ok := p.GetRoute("plex")
 	require.True(t, ok)
 	nasBefore, ok := p.GetRoute("nas")
 	require.True(t, ok)
 
-	written := []watcher.Event{{Type: watcherEvents.EventTypeFile, Action: watcherEvents.ActionFileWritten, ActorName: "routes.yml"}}
-
 	// rewrite with only nas changed
 	edited := unchangedRoutesYAML[:len(unchangedRoutesYAML)-len("    disabled: true\n")] + "    disabled: true\n  homepage:\n    name: NAS\n"
 	require.NoError(t, os.WriteFile(routeFile, []byte(edited), 0o600))
-	p.newEventHandler().Handle(root, written)
+	reloadFile(p, root)
 
 	plexAfter, ok := p.GetRoute("plex")
 	require.True(t, ok)
@@ -70,7 +86,7 @@ func TestFileReloadRestartsOnlyChangedRoutes(t *testing.T) {
 	require.Equal(t, "NAS", nasAfter.HomepageItem().Name)
 
 	// re-saving identical content restarts nothing
-	p.newEventHandler().Handle(root, written)
+	reloadFile(p, root)
 	plexAgain, _ := p.GetRoute("plex")
 	nasAgain, _ := p.GetRoute("nas")
 	require.Same(t, plexAfter, plexAgain)
@@ -80,4 +96,149 @@ func TestFileReloadRestartsOnlyChangedRoutes(t *testing.T) {
 	p.newEventHandler().Handle(root, forceReloadEvents())
 	plexForced, _ := p.GetRoute("plex")
 	require.NotSame(t, plexAfter, plexForced)
+}
+
+func TestFileReloadKeepsCanonicalAndDefaultRoutes(t *testing.T) {
+	for name, definition := range map[string]string{
+		"normalized alias": "' App ':\n  host: 192.0.2.10\n  port: 8080\n  healthcheck:\n    disabled: true\n",
+		"default route":    "portainer: null\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			p, root, ep, _ := fileReloadFixture(t, definition)
+			require.Equal(t, 1, p.NumRoutes())
+			for alias, before := range p.lockCloneRoutes() {
+				require.Equal(t, before.Alias, alias)
+				require.NotEmpty(t, before.SourceFingerprint())
+				reloadFile(p, root)
+				after, ok := p.lockGetRoute(alias)
+				require.True(t, ok)
+				require.Same(t, before, after)
+				require.Nil(t, before.Task().FinishCause())
+				active, ok := ep.HTTPRoutes().Get(alias)
+				require.True(t, ok)
+				require.Same(t, before.Impl(), active)
+			}
+			require.Equal(t, 1, p.NumRoutes())
+		})
+	}
+}
+
+func TestFileProviderRejectsCanonicalAliasCollisionsOnFirstLoad(t *testing.T) {
+	definition := "app:\n  host: 192.0.2.10\n  port: 8080\nApp:\n  host: 192.0.2.11\n  port: 8081\n' app ':\n  host: 192.0.2.12\n  port: 8082\n"
+	file := filepath.Join(t.TempDir(), "routes.yml")
+	require.NoError(t, os.WriteFile(file, []byte(definition), 0o600))
+	root := task.RootTask(t.Name(), false)
+	t.Cleanup(func() { root.FinishAndWait("test finished") })
+	p := newProvider(routing.ProviderTypeFile)
+	p.ProviderImpl = &FileProvider{fileName: "routes.yml", path: file}
+	p.watcher = noopWatcher{}
+
+	require.ErrorContains(t, p.LoadRoutes(root.Context()), "normalize to the same alias")
+	require.Zero(t, p.NumRoutes(), "no colliding definition may become a candidate")
+	activation := p.Activate(root)
+	require.Equal(t, 3, activation.DesiredRoutes)
+	require.Zero(t, activation.AttemptedRoutes)
+	require.Zero(t, activation.ActiveRoutes)
+	require.Len(t, activation.FailedRoutes, 3)
+	aliases := make([]string, 0, len(activation.FailedRoutes))
+	for _, issue := range activation.FailedRoutes {
+		aliases = append(aliases, issue.Route)
+		require.ErrorContains(t, issue.Err, "normalize to the same alias")
+	}
+	require.ElementsMatch(t, []string{"app", "App", " app "}, aliases)
+}
+
+func TestFileReloadRetainsAmbiguousAliasAndUpdatesValidSibling(t *testing.T) {
+	p, root, ep, file := fileReloadFixture(t, unchangedRoutesYAML)
+	before, ok := p.lockGetRoute("plex")
+	require.True(t, ok)
+	nasBefore, ok := p.lockGetRoute("nas")
+	require.True(t, ok)
+	candidate := strings.Replace(unchangedRoutesYAML, "192.0.2.31", "192.0.2.32", 1) + "Plex:\n  host: 192.0.2.99\n  port: 8080\n"
+	require.NoError(t, os.WriteFile(file, []byte(candidate), 0o600))
+	reloadFile(p, root)
+
+	after, ok := p.lockGetRoute("plex")
+	require.True(t, ok)
+	require.Same(t, before, after, "ambiguous replacement must retain the running instance")
+	require.Nil(t, before.Task().FinishCause())
+	active, ok := ep.HTTPRoutes().Get("plex")
+	require.True(t, ok)
+	require.Same(t, before.Impl(), active)
+	nasAfter, ok := p.lockGetRoute("nas")
+	require.True(t, ok)
+	require.NotSame(t, nasBefore, nasAfter)
+	require.Equal(t, "192.0.2.32", nasAfter.Host)
+	activation := p.ActivationSnapshot()
+	require.Equal(t, 3, activation.DesiredRoutes)
+	require.Equal(t, 1, activation.AttemptedRoutes)
+	require.Equal(t, 2, activation.ActiveRoutes)
+	require.Len(t, activation.FailedRoutes, 2)
+}
+
+func TestFileReloadReaddsExcludedRoute(t *testing.T) {
+	definition := "app-old:\n  host: 192.0.2.10\n  port: 8080\n  healthcheck:\n    disabled: true\n"
+	p, root, ep, file := fileReloadFixture(t, definition)
+	before, ok := ep.ExcludedRoutes().Get("routes:app-old")
+	require.True(t, ok)
+	require.NoError(t, os.WriteFile(file, []byte("{}\n"), 0o600))
+	reloadFile(p, root)
+	_, ok = ep.ExcludedRoutes().Get("routes:app-old")
+	require.False(t, ok)
+	require.Zero(t, p.NumRoutes())
+	require.NoError(t, os.WriteFile(file, []byte(definition), 0o600))
+	reloadFile(p, root)
+	after, ok := ep.ExcludedRoutes().Get("routes:app-old")
+	require.True(t, ok, "route commands must find the re-added excluded route")
+	require.NotSame(t, before, after)
+	require.Equal(t, 1, p.NumRoutes())
+}
+
+func TestFileReloadReadsChangedRuleFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("custom.rules", []byte("default { error 403 old }\n"), 0o600))
+	definition := "app:\n  host: 192.0.2.10\n  port: 8080\n  healthcheck:\n    disabled: true\n  rule_file: custom.rules\n"
+	p, root, ep, _ := fileReloadFixture(t, definition)
+	response := func() int {
+		r, ok := ep.HTTPRoutes().Get("app")
+		require.True(t, ok)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://app/", nil))
+		return w.Code
+	}
+	require.Equal(t, http.StatusForbidden, response())
+	require.NoError(t, os.WriteFile("custom.rules", []byte("default { error 401 new }\n"), 0o600))
+	reloadFile(p, root)
+	require.Equal(t, http.StatusUnauthorized, response())
+}
+
+func TestFileReloadPreservesInFlightResponse(t *testing.T) {
+	started, release := make(chan struct{}), make(chan struct{})
+	unblock := sync.OnceFunc(func() { close(release) })
+	defer unblock()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		_, _ = io.WriteString(w, "complete response")
+	}))
+	t.Cleanup(upstream.Close)
+	target, err := url.Parse(upstream.URL)
+	require.NoError(t, err)
+	definition := fmt.Sprintf("app:\n  host: %s\n  port: %s\n  healthcheck:\n    disabled: true\n", target.Hostname(), target.Port())
+	p, root, ep, file := fileReloadFixture(t, definition)
+	r, ok := ep.HTTPRoutes().Get("app")
+	require.True(t, ok)
+	w := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://app/", nil))
+	}()
+	<-started
+	require.NoError(t, os.WriteFile(file, []byte(definition+"  homepage:\n    name: changed\n"), 0o600))
+	reloadFile(p, root)
+	unblock()
+	<-done
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "complete response", w.Body.String())
 }

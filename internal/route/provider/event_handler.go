@@ -135,6 +135,7 @@ func (handler *EventHandler) Add(parent task.Parent, route *route.Route) {
 
 func (handler *EventHandler) Remove(route *route.Route) {
 	route.FinishAndWait("route removed")
+	handler.provider.lockDeleteRoute(route.Alias)
 }
 
 func (handler *EventHandler) Update(parent task.Parent, oldRoute *route.Route, newRoute *route.Route) {
