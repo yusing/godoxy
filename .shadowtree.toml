@@ -380,6 +380,7 @@ cmd = "scc -w -i go,ts,tsx --not-match '_test.go$' --not-match '.test.ts$' --not
 help = "Regenerate Swagger docs and sync api.json into the wiki."
 sandboxed = false
 cmd = '''
+set -e
 swag init --parseDependency --parseInternal --parseFuncBody -g handler.go -d internal/api -o internal/api/v1/docs
 python3 scripts/fix-swagger-json.py
 rm internal/api/v1/docs/docs.go

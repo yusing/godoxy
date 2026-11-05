@@ -15,7 +15,10 @@ type Config struct {
 	// ProxyProtocol configures durable source-authenticated PROXY handling.
 	ProxyProtocol      *server.ProxyProtocolConfig `json:"proxy_protocol,omitempty"`
 	InboundMTLSProfile string                      `json:"inbound_mtls_profile,omitempty"`
-	Rules              struct {
+	// StrictSNI rejects HTTPS requests without TLS SNI, or whose Host
+	// resolves to a different route than the SNI, with 421 Misdirected Request.
+	StrictSNI bool `json:"strict_sni,omitempty"`
+	Rules     struct {
 		NotFound rules.Rules `json:"not_found"`
 	} `json:"rules"`
 	Middlewares []map[string]any               `json:"middlewares"`
