@@ -49,3 +49,11 @@ func getRequestInfo(r *http.Request) *requestInfo {
 	info, _ := r.Context().Value(requestInfoKey{}).(*requestInfo)
 	return info
 }
+
+// DenyReason returns the recorded denial reason, or an empty string if none was recorded.
+func DenyReason(r *http.Request) string {
+	if info := getRequestInfo(r); info != nil {
+		return info.DenyReason
+	}
+	return ""
+}

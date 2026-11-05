@@ -130,8 +130,8 @@ func explainModifier(name string, mod RequestModifier, r *http.Request) ([]Expla
 	case rec.Code >= http.StatusBadRequest:
 		step.Result = ExplainDenied
 		step.Detail = fmt.Sprintf("HTTP %d", rec.Code)
-		if info, ok := accesslog.RequestInfoOf(r); ok && info.DenyReason != "" {
-			step.Detail += ": " + info.DenyReason
+		if reason := accesslog.DenyReason(r); reason != "" {
+			step.Detail += ": " + reason
 		}
 	default:
 		step.Result = ExplainResponded
