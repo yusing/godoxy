@@ -301,6 +301,29 @@ func TestFindRouteWildcardFallbackPrecedence(t *testing.T) {
 	assert.Equal(t, "*.domain.com", route.Name())
 }
 
+func TestFindRouteCaseInsensitive(t *testing.T) {
+	for _, domains := range [][]string{nil, {".ExAmPlE.CoM"}} {
+		t.Run(strconv.Itoa(len(domains)), func(t *testing.T) {
+			ep := NewTestEntrypoint(t, nil)
+			ep.SetFindRouteDomains(domains)
+			addRoute(t, "mixed")
+			addRoute(t, "api.example.net")
+			addRoute(t, "*.example.com")
+			server, ok := ep.GetServer(":" + strconv.Itoa(testHTTPRouteListenPort))
+			require.True(t, ok)
+			for host, want := range map[string]string{
+				"mIxEd.ExAmPlE.CoM:8080": "mixed",
+				"API.EXAMPLE.NET":        "api.example.net",
+				"OtHeR.ExAmPlE.CoM":      "*.example.com",
+			} {
+				got := server.FindRoute(host)
+				require.NotNil(t, got, host)
+				assert.Equal(t, want, got.Name(), host)
+			}
+		})
+	}
+}
+
 func TestHealthInfoQueries(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
 

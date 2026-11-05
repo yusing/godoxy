@@ -134,9 +134,11 @@ func (ep *Entrypoint) SetFindRouteDomains(domains []string) {
 		ep.findRouteKeyFunc = findRouteKeyAnyDomain
 	} else {
 		for i, domain := range domains {
+			domain = strings.ToLower(domain)
 			if !strings.HasPrefix(domain, ".") {
-				domains[i] = "." + domain
+				domain = "." + domain
 			}
+			domains[i] = domain
 		}
 		ep.findRouteFunc = findRouteByDomains(domains)
 		ep.findRouteKeyFunc = findRouteKeyByDomains(domains)
@@ -193,7 +195,7 @@ func (ep *Entrypoint) SetAccessLogger(parent task.Parent, cfg *accesslog.Request
 }
 
 func findRouteAnyDomain(routes HTTPRoutes, host string) routing.HTTPRoute {
-	host = hostWithoutPort(host)
+	host = strings.ToLower(hostWithoutPort(host))
 	if r, ok := routes.Get(host); ok {
 		return r
 	}
@@ -207,7 +209,7 @@ func findRouteAnyDomain(routes HTTPRoutes, host string) routing.HTTPRoute {
 }
 
 func findRouteKeyAnyDomain(host string, exists func(string) bool) (string, bool) {
-	host = hostWithoutPort(host)
+	host = strings.ToLower(hostWithoutPort(host))
 	if exists(host) {
 		return host, true
 	}
@@ -227,7 +229,7 @@ func hostWithoutPort(host string) string {
 
 func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) routing.HTTPRoute {
 	return func(routes HTTPRoutes, host string) routing.HTTPRoute {
-		host = hostWithoutPort(host)
+		host = strings.ToLower(hostWithoutPort(host))
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok {
 				if r, ok := routes.Get(target); ok {
@@ -246,7 +248,7 @@ func findRouteByDomains(domains []string) func(routes HTTPRoutes, host string) r
 
 func findRouteKeyByDomains(domains []string) findRouteKeyFunc {
 	return func(host string, exists func(string) bool) (string, bool) {
-		host = hostWithoutPort(host)
+		host = strings.ToLower(hostWithoutPort(host))
 		for _, domain := range domains {
 			if target, ok := strings.CutSuffix(host, domain); ok && exists(target) {
 				return target, true

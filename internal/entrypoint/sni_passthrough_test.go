@@ -88,10 +88,10 @@ func TestSNIMatchUsesAliasOrFQDN(t *testing.T) {
 
 func TestSNIMatchHonorsDomainFilters(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
-	ep.SetFindRouteDomains([]string{".example.test"})
+	ep.SetFindRouteDomains([]string{".ExAmPlE.TeSt"})
 	exists := func(key string) bool { return key == "db" }
 
-	key, ok := matchSNI("db.example.test", ep.findRouteKeyFunc, exists)
+	key, ok := matchSNI("DB.Example.Test", ep.findRouteKeyFunc, exists)
 	require.True(t, ok)
 	require.Equal(t, "db", key)
 
