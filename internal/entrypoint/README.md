@@ -186,11 +186,20 @@ reports how it would be handled, without reaching the upstream. It backs
    notification or caching).
 2. Select a listener with the requested scheme and authority port (80 for
    HTTP or 443 for HTTPS when omitted), then use the same `resolveRequestRoute`
-   as live traffic. It never searches another listener just to find the route.
+   as live traffic. An exact authority bind takes precedence over the default.
+   For literal IP authorities, a listener bound to another IP is inapplicable.
+   Hostname authorities or binds alone do not identify the connection destination:
+   selection assumes the configured default or a wildcard bind at that scheme
+   and port when no exact bind exists, and notes that assumption.
+   No DNS lookup or route search is used to choose a listener.
 3. Entrypoint middlewares, with the route's promoted bypass overlay, then the
    route's compiled middlewares (`CompiledMiddleware()` on reverse proxy and
    file server routes), via `middleware.Middleware.Explain`. Consumed-overlay
    context is attached after entrypoint request mutations.
+
+The probe starts with an origin-form URL, like a normal server request:
+`$req_url` contains the path and query, while authority remains in `Host`
+and HTTPS is represented by TLS state.
 
 `middleware.Middleware.Explain` evaluates request-only behavior without external
 side effects: `real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,

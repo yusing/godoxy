@@ -145,6 +145,9 @@ func (ep *Entrypoint) Explain(req ExplainRequest) (*ExplainResult, error) {
 		}
 	}
 	r.RequestURI = r.URL.RequestURI()
+	// Server requests use an origin-form URL. Keep authority in Request.Host
+	// and scheme in TLS so URL-based variables match the live handler input.
+	r.URL.Scheme, r.URL.Host = "", ""
 	r.RemoteAddr = net.JoinHostPort(peer.String(), "0")
 	if scheme == "https" {
 		r.TLS = &tls.ConnectionState{ServerName: hostWithoutPort(req.Host)}
@@ -155,6 +158,10 @@ func (ep *Entrypoint) Explain(req ExplainRequest) (*ExplainResult, error) {
 	if srv == nil {
 		result.Decision, result.Detail = ExplainNotFound, "no HTTP listener"
 		return result, nil
+	}
+	bind, _, _ := net.SplitHostPort(srv.addr)
+	if net.ParseIP(authority.Hostname()) == nil || (bind != "" && net.ParseIP(bind) == nil) {
+		result.Notes = append(result.Notes, "hostname-based authorities or binds do not establish the connection destination; listener selection assumes configured binds/defaults without DNS resolution")
 	}
 	route, err := srv.resolveRequestRoute(r)
 	if err != nil {
@@ -294,15 +301,35 @@ func (ep *Entrypoint) explainServer(scheme, host string) *httpServer {
 	if explicitPort := authority.Port(); explicitPort != "" {
 		port = explicitPort
 	}
+	destination := net.ParseIP(authority.Hostname())
 	matches := func(srv *httpServer) bool {
-		_, listenerPort, err := net.SplitHostPort(srv.addr)
-		return err == nil && listenerPort == port && string(srv.proto) == scheme
+		bind, listenerPort, err := net.SplitHostPort(srv.addr)
+		if err != nil || listenerPort != port || string(srv.proto) != scheme {
+			return false
+		}
+		if destination == nil || bind == "" {
+			return true
+		}
+		boundIP := net.ParseIP(bind)
+		return boundIP == nil || boundIP.Equal(destination) ||
+			(boundIP.IsUnspecified() && (boundIP.To4() == nil || destination.To4() != nil))
+	}
+	if srv, ok := ep.servers.Load(net.JoinHostPort(authority.Hostname(), port)); ok && matches(srv) {
+		return srv
+	}
+	if destination != nil {
+		// Equivalent IP spellings still identify the same explicit bind.
+		for _, srv := range ep.servers.Range {
+			bind, _, _ := net.SplitHostPort(srv.addr)
+			if boundIP := net.ParseIP(bind); boundIP != nil && boundIP.Equal(destination) && matches(srv) {
+				return srv
+			}
+		}
 	}
 	if srv, ok := ep.servers.Load(addr); ok && matches(srv) {
 		return srv
 	}
-	// Dedicated listeners use their configured authority, or a wildcard bind.
-	for _, bind := range []string{authority.Hostname(), "", "0.0.0.0", "::"} {
+	for _, bind := range []string{"", "0.0.0.0", "::"} {
 		if srv, ok := ep.servers.Load(net.JoinHostPort(bind, port)); ok && matches(srv) {
 			return srv
 		}

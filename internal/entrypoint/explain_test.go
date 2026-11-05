@@ -1,9 +1,11 @@
 package entrypoint
 
 import (
+	"bufio"
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -313,4 +315,116 @@ func TestExplainUnknownEntrypointStopsBeforeRoute(t *testing.T) {
 	require.Equal(t, ExplainConditional, res.Decision)
 	require.Len(t, res.Entrypoint, 1)
 	require.Empty(t, res.RouteMiddlewares)
+}
+
+func readExplainOriginRequest(t *testing.T, target, host, scheme string) *http.Request {
+	t.Helper()
+	r, err := http.ReadRequest(bufio.NewReader(strings.NewReader("GET " + target + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n")))
+	require.NoError(t, err)
+	r.RemoteAddr = "198.51.100.10:1234"
+	if scheme == "https" {
+		r.TLS = &tls.ConnectionState{ServerName: hostWithoutPort(host)}
+	}
+	return r
+}
+
+func TestExplainOriginFormRequestURL(t *testing.T) {
+	for _, scheme := range []string{"http", "https"} {
+		for _, path := range []string{"", "/public", "/public?view=compact", "/public%2Ffile?view=a%20b"} {
+			t.Run(scheme+":"+path, func(t *testing.T) {
+				target := path
+				if target == "" {
+					target = "/"
+				}
+				ep, srv := newExplainEntrypoint(t, []map[string]any{
+					{"use": "modify_request", "set_headers": map[string]string{"X-Request-URL": "$req_url"}},
+					{"use": "cidr_whitelist", "allow": []string{"10.0.0.0/8"}, "bypass": []string{"header X-Request-URL " + target}},
+				})
+				if scheme == "https" {
+					srv.addr, srv.proto = common.ProxyHTTPSAddr, HTTPProtoHTTPS
+					ep.servers.Store(srv.addr, srv)
+				}
+				route := newFakeHTTPRoute(t, "app", "")
+				route.handler = func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }
+				srv.AddRoute(route)
+				live := readExplainOriginRequest(t, target, "app.example.com", scheme)
+				rec := httptest.NewRecorder()
+				srv.ServeHTTP(rec, live)
+				require.Equal(t, http.StatusNoContent, rec.Code)
+				require.Equal(t, []string{target}, live.Header["X-Request-URL"])
+				res, err := ep.Explain(ExplainRequest{IP: "198.51.100.10", Host: "app.example.com", Scheme: scheme, Path: path})
+				require.NoError(t, err)
+				require.Equal(t, ExplainAllowed, res.Decision)
+				require.Equal(t, middleware.ExplainBypassed, res.Entrypoint[1].Result)
+			})
+		}
+	}
+}
+
+func TestExplainAuthorityBindBeforeDefaultListener(t *testing.T) {
+	original := common.ProxyHTTPAddr
+	common.ProxyHTTPAddr = "127.0.0.1:18080"
+	t.Cleanup(func() { common.ProxyHTTPAddr = original })
+	ep, def := newExplainEntrypoint(t, nil)
+	dedicated := &httpServer{ep: ep, addr: "127.0.0.2:18080", proto: HTTPProtoHTTP, routes: pool.New[routing.HTTPRoute]("test-dedicated", "routes")}
+	ep.servers.Store(dedicated.addr, dedicated)
+	for _, entry := range []struct {
+		srv  *httpServer
+		name string
+	}{{dedicated, "127.0.0.2"}, {def, "127.0.0.1"}, {def, "127.0.0.3"}, {def, "app"}} {
+		route := newFakeHTTPRoute(t, entry.name, "")
+		route.handler = func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }
+		entry.srv.AddRoute(route)
+	}
+	for _, tc := range []struct {
+		host, scheme string
+		live         *httpServer
+	}{
+		{"127.0.0.2:18080", "http", dedicated},
+		{"127.0.0.1:18080", "http", def},
+		{"app.example.com:18080", "http", def},
+		{"127.0.0.3:18080", "http", nil},
+		{"127.0.0.2:18081", "http", nil},
+		{"127.0.0.2:18080", "https", nil},
+	} {
+		t.Run(tc.scheme+":"+tc.host, func(t *testing.T) {
+			res, err := ep.Explain(ExplainRequest{IP: "198.51.100.10", Host: tc.host, Scheme: tc.scheme})
+			require.NoError(t, err)
+			if tc.live == nil {
+				require.Equal(t, ExplainNotFound, res.Decision)
+				return
+			}
+			rec := httptest.NewRecorder()
+			tc.live.ServeHTTP(rec, readExplainOriginRequest(t, "/", tc.host, tc.scheme))
+			require.Equal(t, http.StatusNoContent, rec.Code)
+			require.Equal(t, ExplainAllowed, res.Decision)
+		})
+	}
+}
+
+func TestExplainLiteralAuthorityMatchesDefaultBindings(t *testing.T) {
+	original := common.ProxyHTTPAddr
+	t.Cleanup(func() { common.ProxyHTTPAddr = original })
+	for _, tc := range []struct{ bind, host string }{
+		{":18080", "127.0.0.2"}, {"0.0.0.0:18080", "127.0.0.2"}, {"localhost:18080", "127.0.0.1"},
+	} {
+		common.ProxyHTTPAddr = tc.bind
+		ep, srv := newExplainEntrypoint(t, nil)
+		srv.AddRoute(newFakeHTTPRoute(t, tc.host, ""))
+		res, err := ep.Explain(ExplainRequest{IP: "198.51.100.10", Host: tc.host + ":18080", Scheme: "http"})
+		require.NoError(t, err)
+		require.Equal(t, ExplainAllowed, res.Decision, "bind %s", tc.bind)
+		if tc.bind == "0.0.0.0:18080" {
+			require.Nil(t, ep.explainServer("http", "[::1]:18080"), "IPv4 wildcard binds cannot receive IPv6 destinations")
+		}
+	}
+}
+
+func TestExplainAuthorityBindMatchesEquivalentIPForms(t *testing.T) {
+	ep, _ := newExplainEntrypoint(t, nil)
+	dedicated := &httpServer{ep: ep, addr: "[::1]:18080", proto: HTTPProtoHTTP}
+	ep.servers.Store(dedicated.addr, dedicated)
+	require.Same(t, dedicated, ep.explainServer("http", "[0:0:0:0:0:0:0:1]:18080"))
+	require.Nil(t, ep.explainServer("https", "[0:0:0:0:0:0:0:1]:18080"))
+	require.Nil(t, ep.explainServer("http", "[0:0:0:0:0:0:0:1]:18081"))
 }
