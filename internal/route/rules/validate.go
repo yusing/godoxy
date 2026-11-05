@@ -112,13 +112,10 @@ func validateCIDR(args []string) (any, gperr.Error) {
 		return nil, ErrExpectOneArg
 	}
 	cidr := args[0]
-	if !strings.Contains(cidr, "/") {
-		cidr += "/32"
-	}
 	if cached, ok := cidrCache.Load(cidr); ok {
 		return cached, nil
 	}
-	_, ipnet, err := net.ParseCIDR(cidr)
+	ipnet, err := nettypes.ParseCIDROrIP(cidr)
 	if err != nil {
 		return nil, ErrInvalidArguments.With(err)
 	}

@@ -17,6 +17,35 @@ type RuleOn struct {
 	phase   PhaseFlag
 }
 
+// UsesClientIP reports whether a parsed matcher reads the remote client IP.
+func (on *RuleOn) UsesClientIP() bool {
+	return checkerUsesClientIP(on.checker)
+}
+
+type remoteMatcher struct {
+	CheckFunc
+}
+
+func checkerUsesClientIP(checker Checker) bool {
+	switch checker := checker.(type) {
+	case remoteMatcher:
+		return true
+	case CheckMatchAll:
+		for _, child := range checker {
+			if checkerUsesClientIP(child) {
+				return true
+			}
+		}
+	case CheckMatchSingle:
+		for _, child := range checker {
+			if checkerUsesClientIP(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (on *RuleOn) Check(w http.ResponseWriter, r *http.Request) bool {
 	if on.checker == nil {
 		return true
@@ -400,15 +429,14 @@ var checkers = map[string]struct {
 			command: OnRemote,
 			description: makeLines(
 				"Match remote client IP against an address or CIDR.",
-				"Bare IPv4 input is treated as /32 for an exact host match.",
-				"Use /128 for an exact IPv6 host; bare IPv6 input expands to /32, and wider prefixes match the whole subnet.",
+				"A bare IP is an exact host match: /32 for IPv4, /128 for IPv6.",
 				helpExample(OnRemote, "203.0.113.42"),
 				helpExample(OnRemote, "192.168.0.0/16"),
-				helpExample(OnRemote, "2001:db8::1/128"),
+				helpExample(OnRemote, "2001:db8::1"),
 				helpExample(OnRemote, "2001:db8::/32"),
 			),
 			args: helpArgs(
-				helpArg{"ip|cidr", "IPv4/IPv6 CIDR, or a bare IPv4 address for /32 exact match"},
+				helpArg{"ip|cidr", "IPv4/IPv6 CIDR, or a bare IPv4/IPv6 address for an exact host match"},
 			),
 		},
 		validate: func(args []string) (phase PhaseFlag, parsedArgs any, err error) {
@@ -727,7 +755,7 @@ func parseOn(line string) (Checker, PhaseFlag, error) {
 	return parseOnAtom(line)
 }
 
-func parseOnAtom(line string) (CheckFunc, PhaseFlag, error) {
+func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 	var phase PhaseFlag
 	subject, args, err := parse(line)
 	if err != nil {
@@ -757,6 +785,9 @@ func parseOnAtom(line string) (CheckFunc, PhaseFlag, error) {
 		checkFunc = func(w *httputils.ResponseModifier, r *http.Request) bool {
 			return !origCheckFunc(w, r)
 		}
+	}
+	if subject == OnRemote {
+		return remoteMatcher{checkFunc}, phase, nil
 	}
 	return checkFunc, phase, nil
 }
