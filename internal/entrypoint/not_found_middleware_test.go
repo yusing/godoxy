@@ -1,13 +1,17 @@
 package entrypoint
 
 import (
+	json "encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/route/rules"
+	"github.com/yusing/goutils/task"
 )
 
 type remoteAddrAccessLogger struct {
@@ -140,25 +144,16 @@ func TestConfigValidateRejectsNotFoundMiddlewareInResponsePhase(t *testing.T) {
 	}
 }
 
-type requestInfoAccessLogger struct {
-	accesslog.AccessLogger
-	ip   string
-	info accesslog.RequestInfo
-	ok   bool
-}
-
-func (logger *requestInfoAccessLogger) LogRequest(request *http.Request, _ *http.Response) {
-	logger.ip = request.RemoteAddr
-	logger.info, logger.ok = accesslog.RequestInfoOf(request)
-}
-
-// The chain from the 2026-10 report, in the safe order: cloudflare_real_ip,
-// then cidr_whitelist. The access log must show the visitor, the peer
+// With cloudflare_real_ip before cidr_whitelist, the log shows the visitor, the peer
 // (cloudflared on loopback) and why the request was denied.
 func TestAccessLogRecordsPeerIPAndDenial(t *testing.T) {
 	ep := NewTestEntrypoint(t, nil)
 	server := newTestHTTPServer(t, ep)
-	logger := &requestInfoAccessLogger{}
+	cfg := accesslog.DefaultRequestLoggerConfig()
+	cfg.Format = accesslog.FormatJSON
+	cfg.Path = filepath.Join(t.TempDir(), "access.log")
+	logger, err := accesslog.NewAccessLogger(task.GetTestTask(t), cfg)
+	require.NoError(t, err)
 	ep.accessLogger = logger
 	require.NoError(t, ep.SetMiddlewares([]map[string]any{
 		{"use": "cloudflare_real_ip"},
@@ -173,30 +168,13 @@ func TestAccessLogRecordsPeerIPAndDenial(t *testing.T) {
 	server.ServeHTTP(response, request)
 
 	require.Equal(t, http.StatusForbidden, response.Code)
-	require.Equal(t, "198.51.100.10:1234", logger.ip)
-	require.True(t, logger.ok)
-	require.Equal(t, accesslog.RequestInfo{
-		PeerIP:     "127.0.0.1",
-		DeniedBy:   "CIDRWhitelist",
-		DenyReason: "IP not allowed",
-	}, logger.info)
-}
-
-func TestAccessLogRequestInfoNotAttachedWithoutLogger(t *testing.T) {
-	ep := NewTestEntrypoint(t, nil)
-	server := newTestHTTPServer(t, ep)
-	var seen *http.Request
-	route := newFakeHTTPRoute(t, "app", "")
-	route.handler = func(w http.ResponseWriter, r *http.Request) {
-		seen = r
-		w.WriteHeader(http.StatusNoContent)
-	}
-	server.AddRoute(route)
-
-	request := httptest.NewRequest(http.MethodGet, "http://app.example.com/", nil)
-	server.ServeHTTP(httptest.NewRecorder(), request)
-
-	require.NotNil(t, seen)
-	_, ok := accesslog.RequestInfoOf(seen)
-	require.False(t, ok, "no access log, no per-request allocation")
+	logger.Flush()
+	data, err := os.ReadFile(cfg.Path)
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(data, &fields))
+	require.Equal(t, "198.51.100.10", fields["ip"])
+	require.Equal(t, "127.0.0.1", fields["peer_ip"])
+	require.Equal(t, "CIDRWhitelist", fields["denied_by"])
+	require.Equal(t, "IP not allowed", fields["deny_reason"])
 }
