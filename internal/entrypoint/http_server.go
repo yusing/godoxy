@@ -331,16 +331,14 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route routing.HTTPRoute) (*
 }
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute, error) {
-	var hostRoute routing.HTTPRoute
-	if req.TLS != nil && srv.ep.cfg.StrictSNI {
-		// Validate and serve the same route selected by normal Host routing.
-		route, err := srv.checkStrictSNI(req.Host, req.TLS.ServerName)
-		if err != nil {
-			return nil, err
-		}
-		hostRoute = route
-	} else {
-		hostRoute = srv.FindRoute(req.Host)
+	if req.TLS != nil && srv.ep.cfg.StrictSNI && req.TLS.ServerName == "" {
+		return nil, errStrictSNIRequired
+	}
+	hostRoute := srv.FindRoute(req.Host)
+	// Validate and serve the same route selected by normal Host routing.
+	// Both unmatched names pass so unknown hosts keep the not-found handling.
+	if req.TLS != nil && srv.ep.cfg.StrictSNI && !sameHTTPRoute(hostRoute, srv.FindRoute(req.TLS.ServerName)) {
+		return nil, errStrictSNIMisdirected
 	}
 	// Skip per-route mTLS resolution if no TLS or a global mTLS profile is configured
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
@@ -374,19 +372,6 @@ func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute
 
 	if hostSecure {
 		return nil, errSecureRouteMisdirected
-	}
-	return hostRoute, nil
-}
-
-// checkStrictSNI requires TLS SNI and the same resolved Host and SNI route.
-// Both unmatched names pass so unknown hosts keep the not-found handling.
-func (srv *httpServer) checkStrictSNI(host, serverName string) (routing.HTTPRoute, error) {
-	if serverName == "" {
-		return nil, errStrictSNIRequired
-	}
-	hostRoute := srv.FindRoute(host)
-	if !sameHTTPRoute(hostRoute, srv.FindRoute(serverName)) {
-		return nil, errStrictSNIMisdirected
 	}
 	return hostRoute, nil
 }

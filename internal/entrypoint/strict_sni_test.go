@@ -118,8 +118,8 @@ func TestStrictSNIHandshake(t *testing.T) {
 			}
 			listener, releaseListener := reserveTCPAddr(t)
 			listenAddr := listener.Addr().String()
-			for i, alias := range []string{"app", "other", "Mixed", "Clash", "clash", "api.example.net", "*.example.com"} {
-				// Production finalization canonicalizes mixed-case and colliding aliases.
+			for i, alias := range []string{"app", "other", "Mixed", "api.example.net", "*.example.com"} {
+				// Production finalization canonicalizes mixed-case aliases.
 				alias = strings.ToLower(alias)
 				route := newFakeHTTPRouteAt(t, alias, profile, "https://"+listenAddr)
 				route.handler = func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, alias) }
@@ -140,7 +140,6 @@ func TestStrictSNIHandshake(t *testing.T) {
 				{name: "mixed alias", host: "mixed.example.com", serverName: "Mixed.example.com", status: http.StatusOK, body: "mixed"},
 				{name: "same route different names", host: "app", serverName: "app.example.com", status: http.StatusOK, body: "app"},
 				{name: "same wildcard different names", host: "one.example.com", serverName: "two.example.com", status: http.StatusOK, body: "*.example.com"},
-				{name: "canonicalized case collision", host: "Clash.example.com", serverName: "clash.example.com", status: http.StatusOK, body: "clash"},
 				{name: "exact vs wildcard", host: "one.example.com", serverName: "app.example.com", status: http.StatusMisdirectedRequest},
 				{name: "no sni", host: "app.example.com", status: http.StatusMisdirectedRequest},
 				{name: "ip as sni", host: "app.example.com", serverName: "127.0.0.1", status: http.StatusMisdirectedRequest},

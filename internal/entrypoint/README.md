@@ -179,7 +179,7 @@ Runtime behavior is optimized for the common no-stream-route case:
 
 ### Strict SNI
 
-By default HTTPS requests are routed by the `Host` header alone, whatever TLS SNI the client sent. A client that opens TLS to the bare IP (no SNI) or with another name's SNI can still reach any route by setting `Host`.
+Without strict SNI or per-route inbound mTLS enforcement, HTTPS requests are routed by the `Host` header alone, whatever TLS SNI the client sent. A client that opens TLS to the bare IP (no SNI) or with another name's SNI can still reach those routes by setting `Host`. Routes enforcing per-route inbound mTLS already require matching Host and SNI route identities.
 
 `strict_sni: true` makes the entrypoint reject such HTTPS requests with `421 Misdirected Request`:
 
