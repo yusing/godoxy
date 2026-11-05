@@ -195,8 +195,9 @@ webapp:
 ```
 
 `rule_file` and inline `rules` are mutually exclusive. There is no `include`
-action. To customize a preset, copy its rules into a separate rule file and use
-`rule_file: /path/to/custom.rules`, or put the combined rules in `rules: |`.
+action. To customize a preset, copy its rules into `custom.rules` in GoDoxy's
+working directory and use `rule_file: custom.rules`, or put the combined rules in
+`rules: |`. Local rule files must use a filename without directory separators.
 
 ## Limitations
 

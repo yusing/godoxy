@@ -218,12 +218,14 @@ If the entrypoint already has `use: oidc`, the route-local bypass is promoted in
 
 ```yaml
 # config/routes/myapp.yml
-routes:
-  myapp:
-    target: http://localhost:8080
-    rules:
-      - name: default
-        do: pass
+myapp:
+  scheme: http
+  host: localhost
+  port: 8080
+  rules: |
+    default {
+      upstream
+    }
 ```
 
 ### Agent Provider Configuration
