@@ -17,6 +17,36 @@ type RuleOn struct {
 	phase   PhaseFlag
 }
 
+// UsesClientIP reports whether a parsed matcher reads the remote client IP.
+func (on *RuleOn) UsesClientIP() bool {
+	return checkerUsesClientIP(on.checker)
+}
+
+type onMatcher struct {
+	CheckFunc
+	command string
+}
+
+func checkerUsesClientIP(checker Checker) bool {
+	switch checker := checker.(type) {
+	case onMatcher:
+		return checker.command == OnRemote
+	case CheckMatchAll:
+		for _, child := range checker {
+			if checkerUsesClientIP(child) {
+				return true
+			}
+		}
+	case CheckMatchSingle:
+		for _, child := range checker {
+			if checkerUsesClientIP(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (on *RuleOn) Check(w http.ResponseWriter, r *http.Request) bool {
 	if on.checker == nil {
 		return true
@@ -726,7 +756,7 @@ func parseOn(line string) (Checker, PhaseFlag, error) {
 	return parseOnAtom(line)
 }
 
-func parseOnAtom(line string) (CheckFunc, PhaseFlag, error) {
+func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 	var phase PhaseFlag
 	subject, args, err := parse(line)
 	if err != nil {
@@ -757,5 +787,5 @@ func parseOnAtom(line string) (CheckFunc, PhaseFlag, error) {
 			return !origCheckFunc(w, r)
 		}
 	}
-	return checkFunc, phase, nil
+	return onMatcher{CheckFunc: checkFunc, command: subject}, phase, nil
 }

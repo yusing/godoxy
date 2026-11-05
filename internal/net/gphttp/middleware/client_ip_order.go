@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"fmt"
-	"regexp"
 )
 
 // clientIPRole classifies a middleware by how it relates to the client IP.
@@ -23,7 +22,7 @@ const (
 func implRole(impl any) clientIPRole {
 	if bypass, ok := impl.(*checkBypass); ok {
 		role := implRole(bypass.modReq)
-		if role == clientIPRoleNone && bypass.bypass.usesRemote() {
+		if role == clientIPRoleNone && bypass.modReq != nil && bypass.bypass.usesRemote() {
 			return clientIPRoleReader
 		}
 		return role
@@ -43,22 +42,51 @@ func implRole(impl any) clientIPRole {
 	return clientIPRoleNone
 }
 
-// defRole returns the role of a chain entry by its `use` name, following
-// compose chains ("name@file").
-func defRole(def map[string]any) clientIPRole {
+// clientIPFacts keeps reading and resolving independent for diagnostics. Unlike
+// the first-role classification used for sorting, a compose chain can do both.
+type clientIPFacts struct {
+	reads    bool
+	resolves bool
+	request  bool
+}
+
+func implClientIPFacts(impl any) clientIPFacts {
+	switch impl := impl.(type) {
+	case *checkBypass:
+		// Response-only bypasses run after the request chain has finished.
+		if impl.modReq == nil {
+			return clientIPFacts{}
+		}
+		facts := implClientIPFacts(impl.modReq)
+		facts.reads = facts.reads || impl.bypass.usesRemote()
+		return facts
+	case *middlewareChain:
+		facts := clientIPFacts{request: true}
+		for _, before := range impl.befores {
+			child := implClientIPFacts(before)
+			facts.reads = facts.reads || child.reads
+			facts.resolves = facts.resolves || child.resolves
+		}
+		return facts
+	default:
+		role := implRole(impl)
+		_, request := impl.(RequestModifier)
+		return clientIPFacts{reads: role == clientIPRoleReader, resolves: role == clientIPRoleResolver, request: request}
+	}
+}
+
+func defClientIPFacts(def map[string]any) clientIPFacts {
 	use, _ := def["use"].(string)
 	m, err := Get(use)
 	if err != nil {
-		return clientIPRoleNone
+		return clientIPFacts{}
 	}
 	if m.construct != nil {
 		// built-in: classify a zero instance of its implementation
-		return implRole(m.construct())
+		return implClientIPFacts(m.construct())
 	}
-	return implRole(m.impl)
+	return implClientIPFacts(m.impl)
 }
-
-var remoteMatcherRe = regexp.MustCompile(`(^|[\s&|!(])remote(\s|$)`)
 
 // ClientIPOrderWarnings checks a list-form middleware chain (entrypoint or
 // compose file), where middlewares run in declared order. It returns one
@@ -70,11 +98,11 @@ var remoteMatcherRe = regexp.MustCompile(`(^|[\s&|!(])remote(\s|$)`)
 //
 // Chains without a real IP middleware produce no warnings.
 func ClientIPOrderWarnings(name string, defs []map[string]any) []string {
-	roles := make([]clientIPRole, len(defs))
+	facts := make([]clientIPFacts, len(defs))
 	lastResolver := -1
 	for i, def := range defs {
-		roles[i] = defRole(def)
-		if roles[i] == clientIPRoleResolver {
+		facts[i] = defClientIPFacts(def)
+		if facts[i].resolves {
 			lastResolver = i
 		}
 	}
@@ -88,9 +116,9 @@ func ClientIPOrderWarnings(name string, defs []map[string]any) []string {
 		use, _ := def["use"].(string)
 		var reason string
 		switch {
-		case roles[i] == clientIPRoleReader:
+		case facts[i].reads:
 			reason = "reads the client IP"
-		case bypassUsesRemote(def["bypass"]):
+		case facts[i].request && bypassUsesRemote(def["bypass"]):
 			reason = "has bypass rules matching `remote`"
 		default:
 			continue
@@ -114,7 +142,7 @@ func bypassUsesRemote(raw any) bool {
 // usesRemote reports whether any rule matches on the client IP (`remote`).
 func (b Bypass) usesRemote() bool {
 	for _, rule := range b {
-		if remoteMatcherRe.MatchString(rule.String()) {
+		if rule.UsesClientIP() {
 			return true
 		}
 	}

@@ -153,7 +153,10 @@ func (m *Middleware) New(optsRaw OptionsRaw) (*Middleware, error) {
 		if len(optsRaw) != 0 {
 			return nil, fmt.Errorf("additional options not allowed for middleware %s", m.name)
 		}
-		return m, nil
+		// Compose registrations share their stateful implementation, but each use
+		// needs its own metadata (the chain builder assigns a local name).
+		mid := *m
+		return &mid, nil
 	}
 	mid := &Middleware{name: m.name, impl: m.construct()}
 	mid.setup()

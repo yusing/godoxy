@@ -525,3 +525,29 @@ func TestRouteMiddlewareOrderComposeChainAndAliases(t *testing.T) {
 		expect.Equal(t, first.SetHeaders["X-Order"], "modify_request")
 	}
 }
+
+func TestComposeUsesKeepIndependentMetadata(t *testing.T) {
+	childName := registerComposeChain(t, "child", []map[string]any{
+		{"use": "modify_request", "set_headers": map[string]string{"X-Order": "child"}},
+	})
+	child, err := Get(childName)
+	expect.NoError(t, err)
+	for _, parent := range []string{"aaaa", "zzzz"} {
+		use, err := child.New(nil)
+		expect.NoError(t, err)
+		if use == child || use.impl != child.impl {
+			t.Fatal("compose uses must clone metadata and share the implementation")
+		}
+		_, err = BuildMiddlewareFromChainRaw(parent, []map[string]any{{"use": childName}})
+		expect.NoError(t, err)
+		expect.Equal(t, child.Name(), "child")
+		route, err := BuildMiddlewareFromMap("route", map[string]OptionsRaw{
+			childName:        {},
+			"modify_request": {"set_headers": map[string]string{"X-Order": "direct"}},
+		})
+		expect.NoError(t, err)
+		req := httptest.NewRequest(http.MethodGet, "http://example.test", nil)
+		route.TryModifyRequest(httptest.NewRecorder(), req)
+		expect.Equal(t, req.Header.Get("X-Order"), "direct")
+	}
+}

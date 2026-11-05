@@ -330,7 +330,13 @@ their declared order; priority only sorts route-level middleware maps.
 Route-level middlewares come from a map, so equal priorities are broken
 deterministically: `real_ip` and `cloudflare_real_ip` first, so that
 `cidr_whitelist`, `rate_limit` and others see the resolved client IP, then
-the remaining middlewares by name.
+the remaining middlewares by name. A compose chain gets the same resolver
+preference when its first client-IP operation resolves the address.
+
+Entrypoint and compose-file chains log a warning when a client-IP reader
+runs before a later resolver, including readers and resolvers inside nested
+compose chains and `remote` bypass matchers. Warnings leave the declared
+order unchanged. Put real-IP resolution before client-IP access checks.
 
 ```mermaid
 graph LR

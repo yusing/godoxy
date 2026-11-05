@@ -56,6 +56,23 @@ func TestClientIPOrderWarnings(t *testing.T) {
 		})
 		expect.Equal(t, len(w), 0)
 	})
+
+	for _, tc := range []struct {
+		rule string
+		want int
+	}{
+		{`"remote" 127.0.0.1`, 1},
+		{`path /health | !remote 127.0.0.1`, 1},
+		{`header X-Note "please remote 127.0.0.1"`, 0},
+		{`header X-Note "!remote 127.0.0.1" & path /health`, 0},
+	} {
+		t.Run(tc.rule, func(t *testing.T) {
+			defs := []map[string]any{{"use": "redirect_http", "bypass": []string{tc.rule}}, cfRealIP}
+			_, err := BuildMiddlewareFromChainRaw("parsed", defs)
+			expect.NoError(t, err)
+			expect.Equal(t, len(ClientIPOrderWarnings("parsed", defs)), tc.want)
+		})
+	}
 }
 
 func TestClientIPOrderWarningsReaderBetweenResolvers(t *testing.T) {
@@ -67,6 +84,32 @@ func TestClientIPOrderWarningsReaderBetweenResolvers(t *testing.T) {
 	expect.Equal(t, len(w), 1)
 	expect.True(t, strings.Contains(w[0], "entrypoint[1] cidr_whitelist reads the client IP"))
 	expect.True(t, strings.Contains(w[0], "entrypoint[2] cloudflare_real_ip"))
+}
+
+func TestClientIPOrderWarningsBypassRequestPhase(t *testing.T) {
+	for _, tc := range []struct {
+		use  string
+		want int
+	}{
+		{"modify_response", 0},
+		{"modify_request", 1},
+	} {
+		t.Run(tc.use, func(t *testing.T) {
+			def := map[string]any{
+				"use": tc.use, "set_headers": map[string]string{"X-Phase": "applied"},
+				"bypass": []string{"remote 127.0.0.1"},
+			}
+			resolver := map[string]any{"use": "real_ip", "from": []string{"127.0.0.1"}}
+			expect.Equal(t, len(ClientIPOrderWarnings("raw", []map[string]any{def, resolver})), tc.want)
+			nested := registerComposeChain(t, "phase", []map[string]any{def})
+			expect.Equal(t, len(ClientIPOrderWarnings("nested", []map[string]any{{"use": nested}, resolver})), tc.want)
+			// Response-only bypasses must not hide the resolver preference of
+			// a compose chain that otherwise starts by resolving the client IP.
+			chain, err := BuildMiddlewareFromChainRaw("sorted", []map[string]any{{"use": nested}, resolver})
+			expect.NoError(t, err)
+			expect.Equal(t, isClientIPResolver(chain.impl), tc.want == 0)
+		})
+	}
 }
 
 // registerComposeChain makes a compose chain available as name@file for a test.
@@ -103,6 +146,15 @@ func TestClientIPOrderWarningsComposeChains(t *testing.T) {
 	})
 	w = ClientIPOrderWarnings("entrypoint", []map[string]any{{"use": remoteBypass}, {"use": "cloudflare_real_ip"}})
 	expect.Equal(t, len(w), 1, "a compose chain member with a remote bypass reads the client IP")
+
+	mixed := registerComposeChain(t, "mixed", []map[string]any{
+		{"use": guard},
+		{"use": "cloudflare_real_ip"},
+	})
+	w = ClientIPOrderWarnings("entrypoint", []map[string]any{{"use": guard}, {"use": mixed}})
+	expect.Equal(t, len(w), 1, "a nested reader must not hide its later resolver from outer diagnostics")
+	w = ClientIPOrderWarnings("entrypoint", []map[string]any{{"use": mixed}, {"use": "cloudflare_real_ip"}})
+	expect.Equal(t, len(w), 1, "a nested resolver must not hide readers from outer diagnostics")
 }
 
 func TestPromotedClientIPOrderWarnings(t *testing.T) {
