@@ -39,10 +39,6 @@ func TestRequestInfoDenialAndPeerIP(t *testing.T) {
 	RecordDenied(r, "CIDRWhitelist", "IP not allowed")
 	RecordDenied(r, "RateLimit", "rate limit exceeded")
 
-	info, ok := RequestInfoOf(r)
-	expect.True(t, ok)
-	expect.Equal(t, info, RequestInfo{PeerIP: "127.0.0.1", DeniedBy: "CIDRWhitelist", DenyReason: "IP not allowed"})
-
 	m := jsonFields(t, formatRequest(t, FormatJSON, r))
 	expect.Equal(t, m["ip"], "203.0.113.7")
 	expect.Equal(t, m["peer_ip"], "127.0.0.1")
@@ -68,8 +64,6 @@ func TestRequestInfoOmittedWhenNothingToAdd(t *testing.T) {
 func TestRecordDeniedWithoutSlotIsNoop(t *testing.T) {
 	r := req.Clone(t.Context())
 	RecordDenied(r, "CIDRWhitelist", "IP not allowed")
-	_, ok := RequestInfoOf(r)
-	expect.False(t, ok)
 	_, has := jsonFields(t, formatRequest(t, FormatJSON, r))["denied_by"]
 	expect.False(t, has)
 }

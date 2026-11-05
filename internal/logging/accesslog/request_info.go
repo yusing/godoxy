@@ -5,9 +5,9 @@ import (
 	"net/http"
 )
 
-// RequestInfo carries access log annotations that are only known while the
+// requestInfo carries access log annotations that are only known while the
 // request is being handled.
-type RequestInfo struct {
+type requestInfo struct {
 	// PeerIP is the connection's address before real IP middlewares
 	// rewrote RemoteAddr.
 	PeerIP string
@@ -29,7 +29,7 @@ func WithRequestInfo(r *http.Request) *http.Request {
 	if getRequestInfo(r) != nil {
 		return r
 	}
-	info := &RequestInfo{PeerIP: clientIP(r)}
+	info := &requestInfo{PeerIP: clientIP(r)}
 	return r.WithContext(context.WithValue(r.Context(), requestInfoKey{}, info))
 }
 
@@ -45,25 +45,7 @@ func RecordDenied(r *http.Request, source, reason string) {
 	info.DenyReason = reason
 }
 
-// RequestInfoOf returns a copy of r's annotations, false if r has no slot.
-func RequestInfoOf(r *http.Request) (RequestInfo, bool) {
-	info := getRequestInfo(r)
-	if info == nil {
-		return RequestInfo{}, false
-	}
-	return *info, true
-}
-
-func getRequestInfo(r *http.Request) *RequestInfo {
-	info, _ := r.Context().Value(requestInfoKey{}).(*RequestInfo)
+func getRequestInfo(r *http.Request) *requestInfo {
+	info, _ := r.Context().Value(requestInfoKey{}).(*requestInfo)
 	return info
-}
-
-// peerIPIfRewritten returns the recorded peer IP when it differs from the
-// logged client IP, i.e. when a real IP middleware rewrote RemoteAddr.
-func (info *RequestInfo) peerIPIfRewritten(req *http.Request) string {
-	if info == nil || info.PeerIP == "" || info.PeerIP == clientIP(req) {
-		return ""
-	}
-	return info.PeerIP
 }

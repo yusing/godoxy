@@ -156,8 +156,8 @@ func appendRequestInfo(event *zerolog.Event, req *http.Request) {
 	if info == nil {
 		return
 	}
-	if peer := info.peerIPIfRewritten(req); peer != "" {
-		event.Str("peer_ip", peer)
+	if info.PeerIP != "" && info.PeerIP != clientIP(req) {
+		event.Str("peer_ip", info.PeerIP)
 	}
 	if info.DeniedBy != "" {
 		event.Str("denied_by", info.DeniedBy).Str("deny_reason", info.DenyReason)

@@ -1,15 +1,18 @@
 package rules
 
 import (
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -555,14 +558,23 @@ func TestDenyingCommandsRecordAccessLogReason(t *testing.T) {
 			})(w, req)
 			require.Equal(t, tt.wantCode, w.Code)
 
-			info, ok := accesslog.RequestInfoOf(req)
-			require.True(t, ok)
+			cfg := accesslog.DefaultRequestLoggerConfig()
+			cfg.Format = accesslog.FormatJSON
+			cfg.Path = filepath.Join(t.TempDir(), "access.log")
+			logger, err := accesslog.NewAccessLogger(task.GetTestTask(t), cfg)
+			require.NoError(t, err)
+			logger.LogRequest(req, w.Result())
+			logger.Flush()
+			data, err := os.ReadFile(cfg.Path)
+			require.NoError(t, err)
+			var fields map[string]any
+			require.NoError(t, json.Unmarshal(data, &fields))
 			if tt.wantReason == "" {
-				require.Empty(t, info.DeniedBy, "5xx is not a denial")
+				require.Empty(t, fields["denied_by"], "5xx is not a denial")
 				return
 			}
-			require.Equal(t, "rules", info.DeniedBy)
-			require.Equal(t, tt.wantReason, info.DenyReason)
+			require.Equal(t, "rules", fields["denied_by"])
+			require.Equal(t, tt.wantReason, fields["deny_reason"])
 		})
 	}
 }
