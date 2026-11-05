@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/agent/pkg/agent"
 	"github.com/yusing/godoxy/agent/pkg/certs"
@@ -38,6 +37,33 @@ type recoveryTestImpl struct {
 	available atomic.Bool
 	loads     atomic.Int32
 	logger    zerolog.Logger
+}
+
+type recoveryTestLogBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *recoveryTestLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *recoveryTestLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
+}
+
+type recoveryTestAgentProvider struct {
+	*AgentProvider
+	logs *recoveryTestLogBuffer
+}
+
+func (p *recoveryTestAgentProvider) Logger() *zerolog.Logger {
+	l := p.AgentProvider.Logger().Output(p.logs)
+	return &l
 }
 
 func (p *recoveryTestImpl) String() string              { return "docker@recovery-test" }
@@ -151,10 +177,7 @@ func TestProviderRecoversFailedListWithoutDockerEvents(t *testing.T) {
 
 func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	t.Chdir(t.TempDir())
-	var logs bytes.Buffer
-	oldLogger := log.Logger
-	log.Logger = zerolog.New(zerolog.SyncWriter(&logs))
-	t.Cleanup(func() { log.Logger = oldLogger })
+	var logs recoveryTestLogBuffer
 	ca, serverPair, clientPair, err := agent.NewAgent()
 	require.NoError(t, err)
 	serverCert, err := serverPair.ToTLSCert()
@@ -196,7 +219,9 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	p := NewAgentProvider(configured)
 	impl := &recoveryTestImpl{logger: zerolog.Nop()}
 	impl.available.Store(true)
-	p.ProviderImpl.(*AgentProvider).docker = impl
+	agentProvider := p.ProviderImpl.(*AgentProvider)
+	agentProvider.docker = impl
+	p.ProviderImpl = &recoveryTestAgentProvider{AgentProvider: agentProvider, logs: &logs}
 	var watcherAvailable atomic.Bool
 	w := &recoveryTestWatcher{available: &watcherAvailable}
 	p.watcher = w
@@ -241,7 +266,6 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	require.Empty(t, configured.Name, "registry config should remain unmodified")
 	require.Equal(t, "recovered-agent", p.ShortName())
 	require.Equal(t, registryKey, p.String(), "provider registry key must remain stable")
-	require.Equal(t, "recovered-agent@"+addr, p.ActivationSnapshot().Provider)
 	recovered, ok := p.lockGetRoute("recovered")
 	require.True(t, ok)
 	require.Equal(t, "recovered-agent", recovered.Provider)
@@ -249,6 +273,10 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	runtimeTask.FinishAndWait(nil)
 	stopReaders()
 	readers.Wait()
+	// Restore the concrete provider for snapshot identity reporting only after
+	// all provider work and concurrent metadata readers have stopped.
+	p.ProviderImpl = agentProvider
+	require.Equal(t, "recovered-agent@"+addr, p.ActivationSnapshot().Provider)
 	var recoveryLog string
 	for line := range strings.SplitSeq(logs.String(), "\n") {
 		if strings.Contains(line, `"message":"provider watcher recovered"`) {
