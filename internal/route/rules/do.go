@@ -60,7 +60,7 @@ const (
 type (
 	AuthHandler               func(w http.ResponseWriter, r *http.Request) (proceed bool)
 	RequestMiddleware         func(w http.ResponseWriter, r *http.Request) (proceed bool)
-	RequestMiddlewareResolver func(name string, options map[string]any) (RequestMiddleware, error)
+	RequestMiddlewareResolver func(name string, options map[string]any) (ResolvedRequestMiddleware, error)
 )
 
 var (
@@ -187,7 +187,7 @@ var commands = map[string]struct {
 		},
 		build: func(args any) HandlerFunc {
 
-			middleware := args.(RequestMiddleware)
+			middleware := args.(ResolvedRequestMiddleware).Run
 			return func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error {
 				if proceed := middleware(w, r); !proceed {
 					return errTerminateRule

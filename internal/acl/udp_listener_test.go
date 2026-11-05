@@ -7,12 +7,33 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 )
 
 type udpWriteRecorder struct {
 	net.PacketConn
 	writes int
 	err    error
+}
+
+func TestUDPWriteRejectsRevokedHostAddress(t *testing.T) {
+	records := map[string][]string{"home.example": {"203.0.113.7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+	cfg := &Config{Default: ACLDeny, AllowLocal: new(false), Allow: mustMatchers(t, "host:home.example")}
+	require.NoError(t, cfg.Validate())
+	conn := &udpWriteRecorder{}
+	wrapped := cfg.WrapUDP(conn)
+	destination := &net.UDPAddr{IP: net.ParseIP("203.0.113.7"), Port: 1234}
+	_, err := wrapped.WriteTo([]byte("response"), destination)
+	require.NoError(t, err)
+	require.Equal(t, 1, conn.writes)
+
+	records["home.example"] = []string{"198.51.100.9"}
+	hostaddr.RefreshAllForTest(t)
+	n, err := wrapped.WriteTo([]byte("response"), destination)
+	require.ErrorIs(t, err, fs.ErrPermission)
+	require.Zero(t, n)
+	require.Equal(t, 1, conn.writes, "revocation must take effect before sending")
 }
 
 func (c *udpWriteRecorder) WriteTo(p []byte, _ net.Addr) (int, error) {

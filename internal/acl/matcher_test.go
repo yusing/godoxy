@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	"github.com/yusing/godoxy/internal/serialization"
 )
 
@@ -84,5 +85,30 @@ func TestGeographicMatchersReuseResolvedInfo(t *testing.T) {
 		if got := matchers.MatchedIndex(t.Context(), info); got != 1 {
 			t.Errorf("MatchedIndex(%v) = %d, want 1", rules, got)
 		}
+	}
+}
+
+func TestHostMatcher(t *testing.T) {
+	records := map[string][]string{"dino.dyndns.example": {"203.0.113.7"}}
+	hostaddr.UseStaticRecordsForTest(t, records)
+
+	var m Matchers
+	err := serialization.Convert(reflect.ValueOf([]string{"host:dino.dyndns.example"}), reflect.ValueOf(&m), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.HasDynamic() {
+		t.Error("host matcher must be dynamic")
+	}
+	if !m.Match(t.Context(), &maxmind.IPInfo{IP: net.ParseIP("203.0.113.7")}) {
+		t.Error("host matcher did not match its address")
+	}
+	if m.Match(t.Context(), &maxmind.IPInfo{IP: net.ParseIP("198.51.100.9")}) {
+		t.Error("host matcher matched another address")
+	}
+
+	var bad Matcher
+	if err := bad.Parse("host:"); err == nil {
+		t.Error("empty host accepted")
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-yaml"
 	"github.com/yusing/godoxy/internal/common"
+	config "github.com/yusing/godoxy/internal/config/types"
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/route/rules"
 	apitypes "github.com/yusing/goutils/apitypes"
 	gperr "github.com/yusing/goutils/errs"
@@ -126,6 +128,12 @@ func Playground(c *gin.Context) {
 
 	// Parse rules only after checking the inputs, before any action can run.
 	parsedRules, rulesList, parseErr := parseRules(req.Rules)
+	if parseErr == nil {
+		parseErr = nettypes.ValidateAddressSetReferences(rulesList, config.AddressSetCheck(c.Request.Context()))
+		for i := range parsedRules {
+			parsedRules[i].ValidationError = parseErr
+		}
+	}
 
 	// Create mock HTTP response writer
 	recorder := httptest.NewRecorder()

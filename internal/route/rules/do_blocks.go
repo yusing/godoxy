@@ -396,6 +396,7 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 		h := builder.build(validArgs)
 		handlers = append(handlers, Handler{
 			fn: h, phase: phase, terminate: builder.terminate, requestPhaseOnly: builder.requestPhaseOnly,
+			validateAddressSets: addressSetValidation(validArgs),
 		})
 		return nil
 	}
@@ -443,6 +444,7 @@ func parseDoWithBlocks(src string) (handlers []CommandHandler, err error) {
 		h := builder.build(validArgs)
 		handlers = append(handlers, Handler{
 			fn: h, phase: phase, terminate: builder.terminate, requestPhaseOnly: builder.requestPhaseOnly,
+			validateAddressSets: addressSetValidation(validArgs),
 		})
 		return true, nil
 	}

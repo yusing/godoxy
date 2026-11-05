@@ -137,3 +137,49 @@ func TestExplainCloudflareDoesNotRefreshRanges(t *testing.T) {
 	require.False(t, cfCIDRsRefreshing.Load(), "dry run must not start background network calls")
 	require.True(t, cfCIDRsLastUpdate.Load().IsZero())
 }
+
+func TestPatchReverseProxyChainExplainMatchesComposedIPOrder(t *testing.T) {
+	resolver := registerComposeChain(t, "explainedresolver", []map[string]any{
+		{"use": "real_ip", "header": "X-Real-IP", "from": []string{"127.0.0.1/32"}},
+	})
+	// Another use must not rename the registered compose chain's metadata.
+	_, err := BuildMiddlewareFromChainRaw("entrypoint", []map[string]any{{"use": resolver}})
+	require.NoError(t, err)
+	registered, err := Get(resolver)
+	require.NoError(t, err)
+	require.Equal(t, "explainedresolver", registered.Name())
+
+	var liveAddr, liveOrder string
+	rp := &ReverseProxy{TargetName: "app", HandlerFunc: func(w http.ResponseWriter, r *http.Request) {
+		liveAddr, liveOrder = r.RemoteAddr, r.Header.Get("X-Order")
+		w.WriteHeader(http.StatusNoContent)
+	}}
+	chain, err := PatchReverseProxy(rp, map[string]OptionsRaw{
+		resolver:         {},
+		"cidr_whitelist": {"allow": []string{"198.51.100.0/24"}},
+		"modify_request": {"set_headers": map[string]string{"X-Order": "modify_request"}},
+		"request":        {"set_headers": map[string]string{"X-Order": "request"}},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, chain)
+	newRequest := func() *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "https://app.example.com/", nil)
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("X-Real-IP", "198.51.100.10")
+		return r
+	}
+	probe := newRequest()
+	steps, proceed := chain.Explain(probe)
+	require.True(t, proceed)
+	require.Len(t, steps, 4)
+	require.Equal(t, "realIP", steps[0].Type)
+	require.Equal(t, "explainedresolver[0]", steps[0].Middleware)
+	require.Equal(t, "cidrWhitelist", steps[1].Type)
+	require.Equal(t, "request", probe.Header.Get("X-Order"))
+
+	rec := httptest.NewRecorder()
+	rp.ServeHTTP(rec, newRequest())
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.Equal(t, probe.RemoteAddr, liveAddr)
+	require.Equal(t, probe.Header.Get("X-Order"), liveOrder)
+}

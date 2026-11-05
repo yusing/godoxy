@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	nettypes "github.com/yusing/godoxy/internal/net/types"
 	httputils "github.com/yusing/goutils/http"
 )
 
@@ -12,10 +13,11 @@ var errTerminateRule = errors.New("terminate rule")
 type (
 	HandlerFunc func(w *httputils.ResponseModifier, r *http.Request, upstream http.HandlerFunc) error
 	Handler     struct {
-		fn               HandlerFunc
-		phase            PhaseFlag
-		requestPhaseOnly bool
-		terminate        bool
+		fn                  HandlerFunc
+		phase               PhaseFlag
+		requestPhaseOnly    bool
+		terminate           bool
+		validateAddressSets func(nettypes.AddressSetValidator) error
 	}
 
 	CommandHandler interface {

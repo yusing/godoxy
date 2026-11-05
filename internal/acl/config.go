@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/maxmind"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/goutils/cache"
 	gperr "github.com/yusing/goutils/errs"
@@ -121,7 +122,11 @@ func (c *Config) Validate() error {
 		return c.valErr
 	}
 
-	c.ipCache = cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL).Build()
+	cacheBuilder := cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL)
+	if c.Allow.HasDynamic() || c.Deny.HasDynamic() {
+		cacheBuilder = cacheBuilder.WithGeneration(hostaddr.Generation)
+	}
+	c.ipCache = cacheBuilder.Build()
 
 	if c.Notify.IncludeAllowed != nil {
 		c.notifyAllowed = *c.Notify.IncludeAllowed
