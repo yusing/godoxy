@@ -162,8 +162,8 @@ sequenceDiagram
 
 `host:` matches the hostname's current A/AAAA addresses, re-resolved every
 minute (see `internal/net/hostaddr`). When allow or deny contain `host:`
-matchers, the decision cache key includes `hostaddr.Generation()`, so cached
-decisions do not outlive an address change.
+matchers, changes to `hostaddr.Generation()` invalidate existing IP-keyed
+decision entries, so cached decisions do not outlive an address change.
 
 Geographic rules require a configured, successfully loaded MaxMind provider.
 Multiple geographic rules reuse the same lookup result; a nonmatching rule does

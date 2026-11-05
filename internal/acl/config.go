@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -47,9 +45,6 @@ type config struct {
 	defaultAllow bool
 	allowLocal   bool
 	ipCache      cache.CachedContextKeyFunc[*checkCache, string]
-	// dynamicMatchers is set when allow/deny use host: matchers; cache keys
-	// then carry hostaddr.Generation so address changes apply immediately.
-	dynamicMatchers bool
 
 	// will be nil if Notify.To is empty
 	// these are per IP, reset every Notify.Interval
@@ -127,8 +122,11 @@ func (c *Config) Validate() error {
 		return c.valErr
 	}
 
-	c.dynamicMatchers = c.Allow.HasDynamic() || c.Deny.HasDynamic()
-	c.ipCache = cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL).Build()
+	cacheBuilder := cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL)
+	if c.Allow.HasDynamic() || c.Deny.HasDynamic() {
+		cacheBuilder = cacheBuilder.WithGeneration(hostaddr.Generation)
+	}
+	c.ipCache = cacheBuilder.Build()
 
 	if c.Notify.IncludeAllowed != nil {
 		c.notifyAllowed = *c.Notify.IncludeAllowed
@@ -192,16 +190,7 @@ func (c *Config) newCheckCache(ctx context.Context, info *maxmind.IPInfo, allow 
 	}
 }
 
-// cacheKey returns the ipCache key for ip.
-func (c *Config) cacheKey(ip string) string {
-	if !c.dynamicMatchers {
-		return ip
-	}
-	return ip + "#" + strconv.FormatUint(hostaddr.Generation(), 10)
-}
-
-func (c *Config) evaluateIP(ctx context.Context, key string) (*checkCache, error) {
-	ipStr, _, _ := strings.Cut(key, "#")
+func (c *Config) evaluateIP(ctx context.Context, ipStr string) (*checkCache, error) {
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
 		return nil, fmt.Errorf("invalid IP: %q", ipStr)
@@ -235,7 +224,7 @@ func (c *Config) needNotify() bool {
 }
 
 func (c *Config) getCachedCity(ip string) string {
-	record, err := c.ipCache(c.runtimeCtx, c.cacheKey(ip))
+	record, err := c.ipCache(c.runtimeCtx, ip)
 	if err != nil {
 		return "unknown location"
 	}
@@ -329,7 +318,7 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 
 	ipStr := ip.String()
-	record, err := c.ipCache(c.runtimeCtx, c.cacheKey(ipStr))
+	record, err := c.ipCache(c.runtimeCtx, ipStr)
 	if err != nil {
 		log.Warn().Err(err).Str("ip", ipStr).Msg("unexpected ACL cache lookup error")
 		record = c.newCheckCache(c.runtimeCtx, &maxmind.IPInfo{IP: ip, Str: ipStr}, c.defaultAllow, "invalid ACL cache lookup")
