@@ -192,6 +192,12 @@ func (s *FileServer) RootPath() string {
 	return s.Root
 }
 
+// CompiledMiddleware returns the route's compiled middleware chain, nil if it
+// has none.
+func (s *FileServer) CompiledMiddleware() *middleware.Middleware {
+	return s.middleware
+}
+
 // ServeHTTP implements http.Handler.
 func (s *FileServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if s.accessLogger != nil {

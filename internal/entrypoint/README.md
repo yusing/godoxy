@@ -100,6 +100,7 @@ type Config struct {
     SupportProxyProtocol bool                     `json:"support_proxy_protocol"` // deprecated
     ProxyProtocol        *server.ProxyProtocolConfig `json:"proxy_protocol,omitempty"`
     InboundMTLSProfile   string                   `json:"inbound_mtls_profile,omitempty"`
+    StrictSNI            bool                     `json:"strict_sni,omitempty"`
     Rules                struct {
         NotFound rules.Rules                     `json:"not_found"`
     }                                               `json:"rules"`
@@ -175,6 +176,77 @@ Runtime behavior is optimized for the common no-stream-route case:
 - When configured, route-level inbound mTLS overrides are not supported.
 - Without a global profile, route-level inbound mTLS may still select profiles by TLS SNI.
 - For a route that enforces client certificates, the route matched from the HTTP `Host` and the route matched from TLS SNI must be the same route (compared by route identity/key after `FindRoute`). That resolution is the entrypoint's route table, not DNS or any external name resolution.
+
+### Strict SNI
+
+Without strict SNI or per-route inbound mTLS enforcement, HTTPS requests are routed by the `Host` header alone, whatever TLS SNI the client sent. A client that opens TLS to the bare IP (no SNI) or with another name's SNI can still reach those routes by setting `Host`. Routes enforcing per-route inbound mTLS already require matching Host and SNI route identities.
+
+`strict_sni: true` makes the entrypoint reject such HTTPS requests with `421 Misdirected Request`:
+
+- the request has no TLS SNI, or
+- `Host` and SNI resolve to different routes (compared by route identity after `FindRoute`).
+
+Both names use the same case-insensitive route lookup as ordinary requests, including exact-route precedence over wildcard routes. Different names that select the same route are accepted. A `Host` that matches no route passes when SNI matches no route either, so unknown hosts still get the normal not-found handling. Plain HTTP requests are not checked. The check runs before per-route mTLS resolution and also applies with a global `inbound_mtls_profile`.
+
+```yaml
+entrypoint:
+  strict_sni: true
+```
+
+Compatibility notes:
+
+- Browsers reuse HTTP/2 connections across names covered by one certificate (for example a wildcard). A request for a different route on such a connection gets 421, and browsers retry it on a new connection (RFC 9113 section 9.1.2).
+- A reverse proxy or tunnel in front of GoDoxy must send SNI matching `Host`. For cloudflared pointing at `https://localhost`, set `originRequest.matchSNItoHost: true` (or `originServerName` per ingress rule); otherwise it sends `localhost` and every request gets 421.
+- Health checks or scripts that connect by IP over HTTPS need SNI set to the route's hostname.
+
+### Explain
+
+`Entrypoint.Explain(ExplainRequest)` dry-runs a hypothetical request and
+reports how it would be handled, without reaching the upstream. It backs
+`GET /api/v1/route/explain`.
+
+1. ACL: the peer IP is checked with `acl.Explainer.ExplainIP` (no logging,
+   notification or caching).
+2. Select a listener with the requested scheme and authority port (80 for
+   HTTP or 443 for HTTPS when omitted), then use the same `resolveRequestRoute`
+   as live traffic. An exact authority bind takes precedence over the default.
+   For literal IP authorities, a listener bound to another IP is inapplicable.
+   Hostname authorities or binds alone do not identify the connection destination:
+   selection assumes the configured default or a wildcard bind at that scheme
+   and port when no exact bind exists, and notes that assumption.
+   No DNS lookup or route search is used to choose a listener.
+3. Entrypoint middlewares, with the route's promoted bypass overlay, then the
+   route's compiled middlewares (`CompiledMiddleware()` on reverse proxy and
+   file server routes), via `middleware.Middleware.Explain`. Consumed-overlay
+   context is attached after entrypoint request mutations.
+
+The probe starts with an origin-form URL, like a normal server request:
+`$req_url` contains the path and query, while authority remains in `Host`
+and HTTPS is represented by TLS state.
+
+`middleware.Middleware.Explain` evaluates request-only behavior without external
+side effects: `real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,
+`set_x_forwarded`, `hide_x_forwarded`, and `modify_request`. Cloudflare IP
+resolution uses cached or bundled ranges without starting a refresh.
+
+Auth, CrowdSec, rate limiting and captcha are reported as `not_evaluated`,
+after checking request bypass rules. Evaluation stops there with `conditional`:
+their unknown effects could change later checks, so subsequent middleware
+outcomes are not guessed. Response-only modifiers are listed as `not_evaluated`,
+and their presence also makes an otherwise passing result `conditional`.
+Their response-dependent bypass rules are not evaluated.
+
+Load-balancer backend selection, backend middleware and TLS client-certificate
+verification are not modeled and produce `conditional` results. HTTPS assumes
+SNI matches the supplied Host. Route rules, short links and not-found rules are
+not evaluated; notes identify the applicable limitation even on early middleware
+denials. `allowed` means only that the evaluated phases passed, not that the
+backend or route rules will accept the request.
+
+All input is validated before ACL evaluation. Invalid input returns
+`ErrInvalidExplainRequest`; internal route/profile/overlay failures propagate to
+the API as errors. The probe uses a fresh context, emits no blocked events,
+access logs or notifications, and consumes no limiter state.
 
 ### Inbound mTLS profiles
 

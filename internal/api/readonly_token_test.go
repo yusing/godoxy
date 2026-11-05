@@ -177,3 +177,31 @@ func TestReadOnlyBearerAccessLogRedaction(t *testing.T) {
 		})
 	}
 }
+
+func TestExplainAPIAuthentication(t *testing.T) {
+	t.Setenv("GODOXY_API_READONLY_TOKEN", "machine-test-credential")
+	h := newAuthenticatedHandler(t)
+	parent := task.GetTestTask(t)
+	entrypoint.SetCtx(parent, entrypoint.NewEntrypoint(parent, nil))
+	for _, tc := range []struct {
+		name   string
+		cookie bool
+		bearer bool
+		want   int
+	}{
+		{"no session", false, false, 401}, {"session", true, false, 200}, {"read only", false, true, 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/api/v1/route/explain?ip=127.0.0.1&host=app.example.com", nil).WithContext(parent.Context())
+			if tc.cookie {
+				req.AddCookie(&http.Cookie{Name: "godoxy_token", Value: issueSessionToken(t)})
+			}
+			if tc.bearer {
+				req.Header.Set("Authorization", "Bearer machine-test-credential")
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			require.Equal(t, tc.want, rec.Code, rec.Body.String())
+		})
+	}
+}

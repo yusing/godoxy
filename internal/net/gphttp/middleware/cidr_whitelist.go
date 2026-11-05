@@ -7,7 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/serialization"
-	httpevents "github.com/yusing/goutils/events/http"
 	httputils "github.com/yusing/goutils/http"
 )
 
@@ -58,7 +57,7 @@ func (wl *cidrWhitelist) checkIP(w http.ResponseWriter, r *http.Request) bool {
 		allow = ipInCIDRs(ipStr, wl.Allow)
 	}
 	if !allow {
-		defer httpevents.Blocked(r, "CIDRWhitelist", "IP not allowed")
+		defer blocked(r, "CIDRWhitelist", "IP not allowed")
 		http.Error(w, wl.Message, wl.StatusCode)
 		return false
 	}

@@ -1,13 +1,17 @@
 package entrypoint
 
 import (
+	json "encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/route/rules"
+	"github.com/yusing/goutils/task"
 )
 
 type remoteAddrAccessLogger struct {
@@ -42,7 +46,9 @@ default {
 	server.ServeHTTP(response, request)
 
 	require.Equal(t, http.StatusNotFound, response.Code)
-	require.Equal(t, "198.51.100.10:1234", request.RemoteAddr)
+	// The entrypoint hands a request copy (with the access log slot) to its
+	// handlers, so check the address the access log saw, not the caller's
+	// request object.
 	require.Equal(t, "198.51.100.10:1234", logger.remoteAddr)
 	require.Equal(t, "198.51.100.10", request.Header.Get("X-Real-IP"))
 }
@@ -136,4 +142,39 @@ func TestConfigValidateRejectsNotFoundMiddlewareInResponsePhase(t *testing.T) {
 			}
 		})
 	}
+}
+
+// With cloudflare_real_ip before cidr_whitelist, the log shows the visitor, the peer
+// (cloudflared on loopback) and why the request was denied.
+func TestAccessLogRecordsPeerIPAndDenial(t *testing.T) {
+	ep := NewTestEntrypoint(t, nil)
+	server := newTestHTTPServer(t, ep)
+	cfg := accesslog.DefaultRequestLoggerConfig()
+	cfg.Format = accesslog.FormatJSON
+	cfg.Path = filepath.Join(t.TempDir(), "access.log")
+	logger, err := accesslog.NewAccessLogger(task.GetTestTask(t), cfg)
+	require.NoError(t, err)
+	ep.accessLogger = logger
+	require.NoError(t, ep.SetMiddlewares([]map[string]any{
+		{"use": "cloudflare_real_ip"},
+		{"use": "cidr_whitelist", "allow": []string{"10.0.0.0/8"}},
+	}))
+	server.AddRoute(newFakeHTTPRoute(t, "app", ""))
+
+	request := httptest.NewRequest(http.MethodGet, "http://app.example.com/", nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	request.Header.Set("CF-Connecting-IP", "198.51.100.10")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusForbidden, response.Code)
+	logger.Flush()
+	data, err := os.ReadFile(cfg.Path)
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(data, &fields))
+	require.Equal(t, "198.51.100.10", fields["ip"])
+	require.Equal(t, "127.0.0.1", fields["peer_ip"])
+	require.Equal(t, "CIDRWhitelist", fields["denied_by"])
+	require.Equal(t, "IP not allowed", fields["deny_reason"])
 }

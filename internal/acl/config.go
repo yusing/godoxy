@@ -12,6 +12,7 @@ import (
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
 	"github.com/yusing/godoxy/internal/maxmind"
+	"github.com/yusing/godoxy/internal/net/hostaddr"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/goutils/cache"
 	gperr "github.com/yusing/goutils/errs"
@@ -121,7 +122,11 @@ func (c *Config) Validate() error {
 		return c.valErr
 	}
 
-	c.ipCache = cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL).Build()
+	cacheBuilder := cache.NewKeyFunc(c.evaluateIP).WithTTL(cacheTTL)
+	if c.Allow.HasDynamic() || c.Deny.HasDynamic() {
+		cacheBuilder = cacheBuilder.WithGeneration(hostaddr.Generation)
+	}
+	c.ipCache = cacheBuilder.Build()
 
 	if c.Notify.IncludeAllowed != nil {
 		c.notifyAllowed = *c.Notify.IncludeAllowed
@@ -320,4 +325,30 @@ func (c *Config) IPAllowed(ip net.IP) bool {
 	}
 	c.logAndNotify(record.IPInfo, record.allow, record.reason)
 	return record.allow
+}
+
+// ExplainIP returns the decision IPAllowed would make for ip and why,
+// without logging, notifying or caching.
+func (c *Config) ExplainIP(ip net.IP) (allowed bool, reason string) {
+	if ip == nil {
+		return false, "invalid IP"
+	}
+	if ip.IsLoopback() {
+		return true, "loopback is always allowed"
+	}
+	if c.allowLocal && ip.IsPrivate() {
+		return true, "allowed by allow_local rule"
+	}
+	record, err := c.evaluateIP(context.WithoutCancel(c.explainContext()), ip.String())
+	if err != nil {
+		return c.defaultAllow, err.Error()
+	}
+	return record.allow, record.reason
+}
+
+func (c *Config) explainContext() context.Context {
+	if c.runtimeCtx != nil {
+		return c.runtimeCtx
+	}
+	return context.Background()
 }

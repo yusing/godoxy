@@ -39,6 +39,7 @@ type httpServer struct {
 	stopFunc func(reason any)
 
 	addr   string
+	proto  HTTPProto
 	routes *pool.Pool[routing.HTTPRoute]
 
 	routeEntrypointOverlays atomic.Pointer[xsync.Map[string, *routeEntrypointOverlay]]
@@ -142,6 +143,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
 	srv.routes.SetEventHistory(events.FromCtx(srv.ep.task.Context()))
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
+	srv.proto = proto
 	task := srv.ep.task.Subtask("http_server", false)
 	_, err = server.StartServer(task, opts)
 	if err != nil {
@@ -195,8 +197,14 @@ func (srv *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	route, err := srv.resolveRequestRoute(r)
+	if srv.ep.accessLogger != nil || (route != nil && route.UseAccessLog()) {
+		// Before entrypoint middlewares, so the peer IP is recorded before
+		// real IP middlewares rewrite RemoteAddr.
+		r = accesslog.WithRequestInfo(r)
+	}
 	switch {
-	case errors.Is(err, errSecureRouteRequiresSNI), errors.Is(err, errSecureRouteMisdirected):
+	case errors.Is(err, errSecureRouteRequiresSNI), errors.Is(err, errSecureRouteMisdirected),
+		errors.Is(err, errStrictSNIRequired), errors.Is(err, errStrictSNIMisdirected):
 		http.Error(w, err.Error(), http.StatusMisdirectedRequest)
 		return
 	case err != nil:
@@ -330,7 +338,15 @@ func (srv *httpServer) compileRouteEntrypointOverlay(route routing.HTTPRoute) (*
 }
 
 func (srv *httpServer) resolveRequestRoute(req *http.Request) (routing.HTTPRoute, error) {
+	if req.TLS != nil && srv.ep.cfg.StrictSNI && req.TLS.ServerName == "" {
+		return nil, errStrictSNIRequired
+	}
 	hostRoute := srv.FindRoute(req.Host)
+	// Validate and serve the same route selected by normal Host routing.
+	// Both unmatched names pass so unknown hosts keep the not-found handling.
+	if req.TLS != nil && srv.ep.cfg.StrictSNI && !sameHTTPRoute(hostRoute, srv.FindRoute(req.TLS.ServerName)) {
+		return nil, errStrictSNIMisdirected
+	}
 	// Skip per-route mTLS resolution if no TLS or a global mTLS profile is configured
 	if req.TLS == nil || srv.ep.cfg.InboundMTLSProfile != "" {
 		return hostRoute, nil

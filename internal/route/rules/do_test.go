@@ -1,14 +1,18 @@
 package rules
 
 import (
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/yusing/godoxy/internal/logging/accesslog"
+	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -61,9 +65,9 @@ func TestMiddlewareCommandBlockEnvironmentName(t *testing.T) {
 	t.Setenv("GODOXY_RULE_MIDDLEWARE", "test")
 	previous := requestMiddlewareResolver
 	t.Cleanup(func() { InitRequestMiddlewareResolver(previous) })
-	InitRequestMiddlewareResolver(func(name string, options map[string]any) (RequestMiddleware, error) {
+	InitRequestMiddlewareResolver(func(name string, options map[string]any) (ResolvedRequestMiddleware, error) {
 		require.Equal(t, "test", name)
-		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool { return true }}, nil
 	})
 	var rules Rules
 	require.NoError(t, rules.Parse(`default {
@@ -266,12 +270,12 @@ func TestMiddlewareCommandExecutesInDeclarationOrder(t *testing.T) {
 	})
 
 	var order []string
-	InitRequestMiddlewareResolver(func(name string, _ map[string]any) (RequestMiddleware, error) {
-		return func(_ http.ResponseWriter, r *http.Request) bool {
+	InitRequestMiddlewareResolver(func(name string, _ map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{Run: func(_ http.ResponseWriter, r *http.Request) bool {
 			order = append(order, name)
 			r.Header.Add("X-Middleware", name)
 			return true
-		}, nil
+		}}, nil
 	})
 
 	var configured Rules
@@ -305,11 +309,11 @@ func TestMiddlewareCommandTerminatesWhenMiddlewareHandlesRequest(t *testing.T) {
 		InitRequestMiddlewareResolver(previousResolver)
 	})
 
-	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
-		return func(w http.ResponseWriter, _ *http.Request) bool {
+	InitRequestMiddlewareResolver(func(string, map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{Run: func(w http.ResponseWriter, _ *http.Request) bool {
 			http.Error(w, "blocked", http.StatusForbidden)
 			return false
-		}, nil
+		}}, nil
 	})
 
 	var configured Rules
@@ -335,10 +339,10 @@ func TestMiddlewareCommandTerminationDoesNotFallThroughWithoutResponse(t *testin
 	t.Cleanup(func() {
 		InitRequestMiddlewareResolver(previousResolver)
 	})
-	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
-		return func(http.ResponseWriter, *http.Request) bool {
+	InitRequestMiddlewareResolver(func(string, map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool {
 			return false
-		}, nil
+		}}, nil
 	})
 
 	var configured Rules
@@ -366,10 +370,10 @@ func TestMatchedMiddlewareTerminationDoesNotFallThroughWithoutResponse(t *testin
 	t.Cleanup(func() {
 		InitRequestMiddlewareResolver(previousResolver)
 	})
-	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
-		return func(http.ResponseWriter, *http.Request) bool {
+	InitRequestMiddlewareResolver(func(string, map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool {
 			return false
-		}, nil
+		}}, nil
 	})
 
 	var configured Rules
@@ -399,8 +403,8 @@ func TestMiddlewareCommandValidation(t *testing.T) {
 	})
 
 	resolveErr := errors.New("middleware unavailable")
-	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
-		return nil, resolveErr
+	InitRequestMiddlewareResolver(func(string, map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{}, resolveErr
 	})
 
 	tests := []struct {
@@ -425,8 +429,8 @@ func TestRulesValidateRejectsMiddlewareAfterResponseMatcher(t *testing.T) {
 	t.Cleanup(func() {
 		InitRequestMiddlewareResolver(previousResolver)
 	})
-	InitRequestMiddlewareResolver(func(string, map[string]any) (RequestMiddleware, error) {
-		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+	InitRequestMiddlewareResolver(func(string, map[string]any) (ResolvedRequestMiddleware, error) {
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool { return true }}, nil
 	})
 
 	tests := map[string]string{
@@ -471,10 +475,10 @@ func TestMiddlewareCommandBlockProperties(t *testing.T) {
 
 	var resolvedName string
 	var resolvedOptions map[string]any
-	InitRequestMiddlewareResolver(func(name string, options map[string]any) (RequestMiddleware, error) {
+	InitRequestMiddlewareResolver(func(name string, options map[string]any) (ResolvedRequestMiddleware, error) {
 		resolvedName = name
 		resolvedOptions = options
-		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool { return true }}, nil
 	})
 
 	var configured Rules
@@ -502,9 +506,9 @@ func TestMiddlewareCommandBlockDoesNotRewriteQuotedTabs(t *testing.T) {
 	})
 
 	var resolvedHeader any
-	InitRequestMiddlewareResolver(func(_ string, options map[string]any) (RequestMiddleware, error) {
+	InitRequestMiddlewareResolver(func(_ string, options map[string]any) (ResolvedRequestMiddleware, error) {
 		resolvedHeader = options["header"]
-		return func(http.ResponseWriter, *http.Request) bool { return true }, nil
+		return ResolvedRequestMiddleware{Run: func(http.ResponseWriter, *http.Request) bool { return true }}, nil
 	})
 
 	var configured Rules
@@ -529,4 +533,48 @@ default {
 }
 `)
 	require.ErrorIs(t, err, ErrInvalidArguments)
+}
+
+func TestDenyingCommandsRecordAccessLogReason(t *testing.T) {
+	tests := []struct {
+		rules      string
+		wantCode   int
+		wantReason string
+	}{
+		{rules: `remote 10.0.0.0/8 { error 403 "forbidden" }`, wantCode: http.StatusForbidden, wantReason: "error 403"},
+		{rules: `default { require_basic_auth "Restricted" }`, wantCode: http.StatusUnauthorized, wantReason: "require_basic_auth"},
+		{rules: `default { error 503 "maintenance" }`, wantCode: http.StatusServiceUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.rules, func(t *testing.T) {
+			var rules Rules
+			require.NoError(t, rules.Parse(tt.rules))
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.RemoteAddr = "10.1.2.3:1234"
+			req = accesslog.WithRequestInfo(req)
+			w := httptest.NewRecorder()
+			rules.BuildHandler(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})(w, req)
+			require.Equal(t, tt.wantCode, w.Code)
+
+			cfg := accesslog.DefaultRequestLoggerConfig()
+			cfg.Format = accesslog.FormatJSON
+			cfg.Path = filepath.Join(t.TempDir(), "access.log")
+			logger, err := accesslog.NewAccessLogger(task.GetTestTask(t), cfg)
+			require.NoError(t, err)
+			logger.LogRequest(req, w.Result())
+			logger.Flush()
+			data, err := os.ReadFile(cfg.Path)
+			require.NoError(t, err)
+			var fields map[string]any
+			require.NoError(t, json.Unmarshal(data, &fields))
+			if tt.wantReason == "" {
+				require.Empty(t, fields["denied_by"], "5xx is not a denial")
+				return
+			}
+			require.Equal(t, "rules", fields["denied_by"])
+			require.Equal(t, tt.wantReason, fields["deny_reason"])
+		})
+	}
 }
