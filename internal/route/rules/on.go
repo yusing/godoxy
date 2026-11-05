@@ -22,15 +22,14 @@ func (on *RuleOn) UsesClientIP() bool {
 	return checkerUsesClientIP(on.checker)
 }
 
-type onMatcher struct {
+type remoteMatcher struct {
 	CheckFunc
-	command string
 }
 
 func checkerUsesClientIP(checker Checker) bool {
 	switch checker := checker.(type) {
-	case onMatcher:
-		return checker.command == OnRemote
+	case remoteMatcher:
+		return true
 	case CheckMatchAll:
 		for _, child := range checker {
 			if checkerUsesClientIP(child) {
@@ -787,5 +786,8 @@ func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 			return !origCheckFunc(w, r)
 		}
 	}
-	return onMatcher{CheckFunc: checkFunc, command: subject}, phase, nil
+	if subject == OnRemote {
+		return remoteMatcher{checkFunc}, phase, nil
+	}
+	return checkFunc, phase, nil
 }
