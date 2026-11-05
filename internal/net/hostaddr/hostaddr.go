@@ -45,6 +45,10 @@ var ErrInvalidHostname = errors.New("invalid hostname")
 type Name struct {
 	name  string
 	addrs atomic.Pointer[[]netip.Addr]
+	// Serialize lookup and publication so a slow first lookup cannot restore
+	// addresses superseded by a periodic refresh. Different names stay parallel.
+	refreshMu sync.Mutex
+	lookup    func(context.Context, string) ([]netip.Addr, error)
 	// ready is closed once the first lookup has finished, successful or not.
 	ready chan struct{}
 }
@@ -71,7 +75,7 @@ var (
 // not make Get fail, so a DNS outage at startup neither rejects nor stalls
 // the config. Entries are dropped once no caller references them.
 func Get(host string) (*Name, error) {
-	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	host = strings.ToLower(strings.TrimSpace(host))
 	if err := validateHostname(host); err != nil {
 		return nil, err
 	}
@@ -83,7 +87,7 @@ func Get(host string) (*Name, error) {
 			return n, nil
 		}
 	}
-	n := &Name{name: host, ready: make(chan struct{})}
+	n := &Name{name: host, ready: make(chan struct{}), lookup: lookup}
 	registry[host] = weak.Make(n)
 	registryMu.Unlock()
 
@@ -146,10 +150,13 @@ func (n *Name) Contains(ip net.IP) bool {
 }
 
 func (n *Name) refresh(parent context.Context) {
+	n.refreshMu.Lock()
+	defer n.refreshMu.Unlock()
+
 	ctx, cancel := context.WithTimeout(parent, LookupTimeout)
 	defer cancel()
 
-	addrs, err := lookup(ctx, n.name)
+	addrs, err := n.lookup(ctx, n.name)
 	if err == nil && len(addrs) == 0 {
 		err = errors.New("no addresses")
 	}
@@ -231,10 +238,13 @@ func addrStrings(addrs []netip.Addr) []string {
 }
 
 func validateHostname(host string) error {
-	if host == "" || len(host) > 253 {
+	// A terminal dot denotes an absolute DNS name. Validate its labels without
+	// changing the name passed to the resolver or its registry identity.
+	labels := strings.TrimSuffix(host, ".")
+	if labels == "" || len(labels) > 253 {
 		return fmt.Errorf("%w: %q", ErrInvalidHostname, host)
 	}
-	for label := range strings.SplitSeq(host, ".") {
+	for label := range strings.SplitSeq(labels, ".") {
 		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
 			return fmt.Errorf("%w: %q", ErrInvalidHostname, host)
 		}

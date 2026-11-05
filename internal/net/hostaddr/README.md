@@ -1,6 +1,6 @@
 # internal/net/hostaddr
 
-Hostname address sources: `host:<name>` wherever GoDoxy accepts an IP or CIDR.
+Hostname address sources: `host:<name>` in supported address filters.
 
 ## Overview
 
@@ -20,22 +20,27 @@ Accepted in:
 
 All entries except the ACL use `nettypes.CIDR` or the rules `remote`
 validator, both of which call `Get`; the ACL has its own `host:` matcher
-type, which calls `Get` too.
+type, which calls `Get` too. Proxy Protocol `trusted_proxies` accepts only
+static IPs and CIDRs, not `host:` sources.
 
 ## Behavior
 
 - **Resolution**: `net.DefaultResolver.LookupNetIP(ctx, "ip", name)`, so
   `/etc/hosts` and the system resolver configuration apply. Addresses are
   normalized (IPv4-mapped IPv6 unmapped, zones dropped, sorted, deduplicated)
-  and compared exactly, like a bare IP (/32 or /128).
+  and compared exactly, like a bare IP (/32 or /128). A terminal DNS dot is
+  preserved: `host:home.example.` is absolute, while `host:home.example` may
+  use resolver search domains. These are distinct shared sources.
 - **Refresh**: every referenced name is re-resolved every `RefreshInterval`
   (1 minute) by one background task. Lookups time out after `LookupTimeout`
-  (5 seconds).
+  (5 seconds). Lookups and publication are serialized per name, so an older
+  lookup cannot overwrite a later refresh. Different names resolve in parallel.
 - **First lookup**: `Get` never waits for DNS. A new name starts its first
   lookup in its own goroutine, so the names of a config resolve in parallel
   and a DNS outage at startup neither stalls nor rejects the config. Until it
   resolves, the name matches nothing (fail closed for allow lists; for
-  `real_ip` `from` the proxy is not trusted yet). `Name.Ready()` is closed
+  `real_ip` `from` the proxy is not trusted yet). In a deny list, an unresolved
+  name denies nothing. `Name.Ready()` is closed
   once the first lookup finished.
 - **Failures**: a failed first lookup is logged and retried every refresh. A
   later failure, including NXDOMAIN, keeps the last good addresses. Both are
@@ -53,7 +58,7 @@ type, which calls `Get` too.
 ```go
 const Prefix = "host:"
 
-func Get(host string) (*Name, error) // validates, resolves, registers
+func Get(host string) (*Name, error) // validates, registers, starts resolution
 func Generation() uint64
 
 func (n *Name) Contains(ip net.IP) bool
