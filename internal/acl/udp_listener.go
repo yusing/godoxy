@@ -2,6 +2,7 @@ package acl
 
 import (
 	"errors"
+	"io/fs"
 	"net"
 	"time"
 
@@ -48,23 +49,14 @@ func (s *UDPListener) ReadFrom(p []byte) (int, net.Addr, error) {
 }
 
 func (s *UDPListener) WriteTo(p []byte, addr net.Addr) (int, error) {
-	for {
-		n, err := s.lis.WriteTo(p, addr)
-		if err != nil {
-			return n, err
-		}
-		udpAddr, ok := addr.(*net.UDPAddr)
-		if !ok {
-			log.Error().Msgf("unexpected remote address type: %T, addr: %s", addr, addr.String())
-			// Not a UDPAddr, drop
-			continue
-		}
-		if !s.acl.IPAllowed(udpAddr.IP) {
-			// Drop packet to disallowed IP
-			continue
-		}
-		return n, nil
+	udpAddr, ok := addr.(*net.UDPAddr)
+	if !ok {
+		return 0, net.InvalidAddrError("not a UDP address")
 	}
+	if !s.acl.IPAllowed(udpAddr.IP) {
+		return 0, fs.ErrPermission
+	}
+	return s.lis.WriteTo(p, addr)
 }
 
 func (s *UDPListener) SetDeadline(t time.Time) error {
