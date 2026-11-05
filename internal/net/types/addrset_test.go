@@ -11,10 +11,8 @@ import (
 func resetAddressSets(t *testing.T) {
 	t.Helper()
 	PublishAddressSets(nil)
-	StageAddressSetNames(nil)
 	t.Cleanup(func() {
 		PublishAddressSets(nil)
-		StageAddressSetNames(nil)
 	})
 }
 
@@ -88,12 +86,11 @@ func TestAddressSetNames(t *testing.T) {
 	}
 }
 
-func TestAddressSetKnown(t *testing.T) {
+func TestAddressSetReferenceValidation(t *testing.T) {
 	resetAddressSets(t)
-	require.False(t, addressSetKnown("family"))
-	StageAddressSetNames([]string{"family"})
-	require.True(t, addressSetKnown("family"), "staged names count as known")
-	StageAddressSetNames(nil)
+	ref, err := NewAddressSetRef("family")
+	require.NoError(t, err)
+	require.ErrorIs(t, ValidateAddressSetReferences(ref, PublishedAddressSetValidator), ErrUndefinedAddressSet)
 	PublishAddressSets(map[string][]*CIDR{"family": nil})
-	require.True(t, addressSetKnown("family"), "published names count as known")
+	require.NoError(t, ValidateAddressSetReferences(ref, PublishedAddressSetValidator))
 }

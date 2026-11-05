@@ -3,10 +3,7 @@ package nettypes
 import (
 	"fmt"
 	"net"
-	"sync"
 	"sync/atomic"
-
-	"github.com/rs/zerolog/log"
 )
 
 // AddressSetPrefix marks a reference to a named address set, e.g. "set:family".
@@ -25,21 +22,13 @@ type AddressSet struct {
 var (
 	// published definitions of the active config.
 	addressSets atomic.Pointer[map[string][]*CIDR]
-
-	// names defined by the config being loaded, used only to decide whether
-	// a reference to a not-yet-published set deserves a warning.
-	stagedMu    sync.Mutex
-	stagedNames map[string]struct{}
 )
 
-// NewAddressSetRef validates name and returns a reference to it. It logs a
-// warning, but does not fail, when no loaded or loading config defines it.
+// NewAddressSetRef validates the name's syntax. Configuration acceptance checks
+// its definition against the candidate, independently of the published sets.
 func NewAddressSetRef(name string) (*AddressSet, error) {
 	if err := ValidateAddressSetName(name); err != nil {
 		return nil, err
-	}
-	if !addressSetKnown(name) {
-		log.Warn().Str("set", name).Msg("address set is not defined; references to it match nothing")
 	}
 	return &AddressSet{name: name}, nil
 }
@@ -58,18 +47,6 @@ func ValidateAddressSetName(name string) error {
 	return nil
 }
 
-// StageAddressSetNames records the set names of a config being loaded, so
-// that references parsed before it is published do not warn.
-func StageAddressSetNames(names []string) {
-	staged := make(map[string]struct{}, len(names))
-	for _, n := range names {
-		staged[n] = struct{}{}
-	}
-	stagedMu.Lock()
-	stagedNames = staged
-	stagedMu.Unlock()
-}
-
 // PublishAddressSets makes sets the active definitions. Call it when a config
 // is accepted, not while it is being prepared.
 func PublishAddressSets(sets map[string][]*CIDR) {
@@ -78,18 +55,6 @@ func PublishAddressSets(sets map[string][]*CIDR) {
 		cloned[name] = append([]*CIDR(nil), cidrs...)
 	}
 	addressSets.Store(&cloned)
-}
-
-func addressSetKnown(name string) bool {
-	if sets := addressSets.Load(); sets != nil {
-		if _, ok := (*sets)[name]; ok {
-			return true
-		}
-	}
-	stagedMu.Lock()
-	defer stagedMu.Unlock()
-	_, ok := stagedNames[name]
-	return ok
 }
 
 // Name returns the set name.

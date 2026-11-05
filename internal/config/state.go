@@ -130,7 +130,6 @@ func (state *state) Init(data []byte) error {
 	// as timeout_shutdown and homepage.use_default_categories.
 	state.Config = config.DefaultConfig()
 
-	config.StageAddressSetNames(data)
 	err := serialization.UnmarshalValidate(data, &state.Config, yaml.Unmarshal)
 	if err == nil {
 		err = state.Config.ValidateAddressSets()
@@ -178,7 +177,12 @@ func (state *state) Init(data []byte) error {
 	// structured provider activation report. Do not also add one aggregate
 	// preparation issue for the same failures.
 	if err := state.loadRouteProviders(); err != nil {
-		errs = append(errs, err)
+		if errors.Is(err, nettypes.ErrUndefinedAddressSet) {
+			state.addPreparationIssue("address_sets", config.IssueRejecting, err)
+			errs = append(errs, RejectingError{err})
+		} else {
+			errs = append(errs, err)
+		}
 	}
 	return errors.Join(errs...)
 }

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
@@ -14,6 +16,7 @@ import (
 	homepage "github.com/yusing/godoxy/internal/homepage/types"
 	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	maxmind "github.com/yusing/godoxy/internal/maxmind/types"
+	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	nettypes "github.com/yusing/godoxy/internal/net/types"
 	"github.com/yusing/godoxy/internal/notif"
 	"github.com/yusing/godoxy/internal/proxmox"
@@ -59,37 +62,67 @@ func Validate(data []byte) error {
 	return model.ValidateAddressSets()
 }
 
-// StageAddressSetNames reads only the address_sets keys from a config
-// document and stages them, so set:<name> references parsed while the rest of
-// the document loads do not warn about sets that are about to be published.
-func StageAddressSetNames(data []byte) {
-	var doc struct {
-		AddressSets map[string]any `yaml:"address_sets"`
-	}
-	if yaml.Unmarshal(data, &doc) != nil {
-		return
-	}
-	names := make([]string, 0, len(doc.AddressSets))
-	for name := range doc.AddressSets {
-		names = append(names, name)
-	}
-	nettypes.StageAddressSetNames(names)
-}
-
 // ValidateAddressSets checks set names and rejects sets that reference other
-// sets.
+// sets, invalid entries, and references absent from this candidate.
 func (cfg *Config) ValidateAddressSets() error {
 	for name, entries := range cfg.AddressSets {
 		if err := nettypes.ValidateAddressSetName(name); err != nil {
 			return err
 		}
-		for _, entry := range entries {
+		for i, entry := range entries {
+			if entry == nil {
+				return fmt.Errorf("address_sets.%s[%d]: expected a CIDR, IP or host:<name>", name, i)
+			}
+			if entry.Host() == nil && entry.Set() == nil {
+				if _, _, err := net.ParseCIDR(entry.IPNet.String()); err != nil {
+					return fmt.Errorf("address_sets.%s[%d]: invalid CIDR or IP: %w", name, i, err)
+				}
+			}
 			if entry.Set() != nil {
-				return fmt.Errorf("address_sets.%s: %s: address sets cannot reference other sets", name, entry)
+				return fmt.Errorf("address_sets.%s[%d]: %s: address sets cannot reference other sets", name, i, entry)
 			}
 		}
 	}
+	for name, value := range map[string]any{
+		"acl":                   cfg.ACL,
+		"entrypoint.rules":      cfg.Entrypoint.Rules,
+		"entrypoint.access_log": cfg.Entrypoint.AccessLog,
+		"webui.rules":           cfg.WebUI.Rules,
+		"webui.access_log":      cfg.WebUI.AccessLog,
+	} {
+		if err := nettypes.ValidateAddressSetReferences(value, cfg.CheckAddressSet); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+	}
+	if len(cfg.Entrypoint.Middlewares) != 0 {
+		chain, err := middleware.BuildMiddlewareFromChainRaw("entrypoint", cfg.Entrypoint.Middlewares)
+		if err != nil {
+			return fmt.Errorf("entrypoint.middlewares: %w", err)
+		}
+		if err := chain.ValidateAddressSetReferences(cfg.CheckAddressSet); err != nil {
+			return fmt.Errorf("entrypoint.middlewares: %w", err)
+		}
+	}
+	if err := middleware.ValidateAddressSetMap(cfg.WebUI.Middlewares, cfg.CheckAddressSet); err != nil {
+		return fmt.Errorf("webui.middlewares: %w", err)
+	}
 	return nil
+}
+
+// CheckAddressSet resolves against this candidate, never a previous runtime.
+func (cfg *Config) CheckAddressSet(name string) error {
+	if _, ok := cfg.AddressSets[name]; !ok {
+		return fmt.Errorf("%w: set:%s", nettypes.ErrUndefinedAddressSet, name)
+	}
+	return nil
+}
+
+// AddressSetCheck uses the request or candidate's definitions when available.
+func AddressSetCheck(ctx context.Context) nettypes.AddressSetValidator {
+	if state := FromCtx(ctx); state != nil {
+		return state.Value().CheckAddressSet
+	}
+	return nettypes.PublishedAddressSetValidator
 }
 
 func DefaultConfig() Config {

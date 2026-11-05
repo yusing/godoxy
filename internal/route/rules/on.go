@@ -27,6 +27,7 @@ func (on *RuleOn) UsesClientIP() bool {
 type onMatcher struct {
 	CheckFunc
 	command string
+	set     *nettypes.AddressSet
 }
 
 func checkerUsesClientIP(checker Checker) bool {
@@ -803,5 +804,6 @@ func parseOnAtom(line string) (Checker, PhaseFlag, error) {
 			return !origCheckFunc(w, r)
 		}
 	}
-	return onMatcher{CheckFunc: checkFunc, command: subject}, phase, nil
+	set, _ := validArgs.(*nettypes.AddressSet)
+	return onMatcher{CheckFunc: checkFunc, command: subject, set: set}, phase, nil
 }

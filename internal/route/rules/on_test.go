@@ -514,8 +514,10 @@ func TestOnRemoteAddressSet(t *testing.T) {
 
 	var on RuleOn
 	expect.NoError(t, on.Parse("route plex & remote set:family"))
+	expect.True(t, on.UsesClientIP())
 	var remote RuleOn
 	expect.NoError(t, remote.Parse("remote set:family"))
+	expect.True(t, remote.UsesClientIP())
 	expect.Equal(t, remote.String(), "remote set:family")
 
 	check := func(remoteAddr string) bool {

@@ -133,6 +133,13 @@ func (matchers Matchers) HasDynamic() bool {
 	return false
 }
 
+func (matcher Matcher) ValidateAddressSetReferences(check nettypes.AddressSetValidator) error {
+	if name, ok := strings.CutPrefix(matcher.raw, nettypes.AddressSetPrefix); ok {
+		return check(name)
+	}
+	return nil
+}
+
 func (matchers Matchers) MarshalText() ([]byte, error) {
 	if len(matchers) == 0 {
 		return []byte("[]"), nil
