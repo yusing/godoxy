@@ -184,20 +184,37 @@ reports how it would be handled, without reaching the upstream. It backs
 
 1. ACL: the peer IP is checked with `acl.Explainer.ExplainIP` (no logging,
    notification or caching).
-2. Route lookup on the listener that serves the host, with the same
-   `resolveRequestRoute` as live traffic.
+2. Select a listener with the requested scheme and authority port (80 for
+   HTTP or 443 for HTTPS when omitted), then use the same `resolveRequestRoute`
+   as live traffic. It never searches another listener just to find the route.
 3. Entrypoint middlewares, with the route's promoted bypass overlay, then the
    route's compiled middlewares (`CompiledMiddleware()` on reverse proxy and
-   file server routes), via `middleware.Middleware.Explain`.
+   file server routes), via `middleware.Middleware.Explain`. Consumed-overlay
+   context is attached after entrypoint request mutations.
 
-`middleware.Middleware.Explain` runs only middlewares without side effects
-(`real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,
-`set_x_forwarded`, `hide_x_forwarded`, `modify_request`) against a recorder.
-Others (`forward_auth`, `oidc`, `crowdsec`, `rate_limit`, captcha, response
-modifiers) are reported as `not_evaluated` after their bypass rules are
-checked; a request that nothing denied but that hit one of them gets the
-decision `conditional`. Route rules and not-found rules are not evaluated.
-The probe request uses a fresh context, so denials do not emit blocked events.
+`middleware.Middleware.Explain` evaluates request-only behavior without external
+side effects: `real_ip`, `cloudflare_real_ip`, `cidr_whitelist`, `redirect_http`,
+`set_x_forwarded`, `hide_x_forwarded`, and `modify_request`. Cloudflare IP
+resolution uses cached or bundled ranges without starting a refresh.
+
+Auth, CrowdSec, rate limiting and captcha are reported as `not_evaluated`,
+after checking request bypass rules. Evaluation stops there with `conditional`:
+their unknown effects could change later checks, so subsequent middleware
+outcomes are not guessed. Response-only modifiers are listed as `not_evaluated`,
+and their presence also makes an otherwise passing result `conditional`.
+Their response-dependent bypass rules are not evaluated.
+
+Load-balancer backend selection, backend middleware and TLS client-certificate
+verification are not modeled and produce `conditional` results. HTTPS assumes
+SNI matches the supplied Host. Route rules, short links and not-found rules are
+not evaluated; notes identify the applicable limitation even on early middleware
+denials. `allowed` means only that the evaluated phases passed, not that the
+backend or route rules will accept the request.
+
+All input is validated before ACL evaluation. Invalid input returns
+`ErrInvalidExplainRequest`; internal route/profile/overlay failures propagate to
+the API as errors. The probe uses a fresh context, emits no blocked events,
+access logs or notifications, and consumes no limiter state.
 
 ### Inbound mTLS profiles
 

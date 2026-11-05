@@ -37,20 +37,24 @@ type ExplainStep struct {
 	// Type is the middleware implementation, e.g. "cidrWhitelist".
 	Type   string        `json:"type"`
 	Result ExplainResult `json:"result"`
-	Detail string        `json:"detail,omitempty"`
+	Detail string        `json:"detail,omitempty" extensions:"x-omitempty"`
 	// ClientIP is set when this step changed the client IP (real IP middlewares).
-	ClientIP string `json:"client_ip,omitempty"`
+	ClientIP string `json:"client_ip,omitempty" extensions:"x-omitempty"`
 } // @name MiddlewareExplainStep
 
 // Explain dry-runs the request phase of m on r. Middlewares without side
 // effects (real IP, cidr_whitelist, redirect, header modifiers) run for real
 // against a recorder; the others are reported as not evaluated, after their
-// bypass rules are checked. It returns the steps and whether the request
-// would reach the next handler. r is modified like a real request would be
+// bypass rules are checked. It stops at an unknown request modifier, since its
+// effects could change later checks. The bool reports whether evaluation can
+// continue, not whether the real request is allowed. r is modified as in a live request
 // (e.g. RemoteAddr after real IP middlewares).
 func (m *Middleware) Explain(r *http.Request) (steps []ExplainStep, proceed bool) {
 	mod, ok := m.impl.(RequestModifier)
 	if !ok {
+		if _, ok := m.impl.(ResponseModifier); ok {
+			return []ExplainStep{{Middleware: m.name, Type: typeName(m.impl), Result: ExplainNotEvaluated, Detail: "response phase is not evaluated"}}, true
+		}
 		return nil, true
 	}
 	return explainModifier(m.name, mod, r, steps)
@@ -58,9 +62,10 @@ func (m *Middleware) Explain(r *http.Request) (steps []ExplainStep, proceed bool
 
 func explainModifier(name string, mod RequestModifier, r *http.Request, steps []ExplainStep) ([]ExplainStep, bool) {
 	if chain, ok := mod.(*middlewareChain); ok {
-		for i, before := range chain.befores {
-			var proceed bool
-			if steps, proceed = explainModifier(chain.beforeNames[i], before, r, steps); !proceed {
+		for _, component := range chain.components {
+			next, proceed := component.Explain(r)
+			steps = append(steps, next...)
+			if !proceed {
 				return steps, false
 			}
 		}
@@ -77,6 +82,12 @@ func explainModifier(name string, mod RequestModifier, r *http.Request, steps []
 			step.Detail = "bypass rules promoted into the entrypoint chain"
 			return append(steps, step), true
 		case impl == nil:
+			if bypass.modRes != nil {
+				step.Type = typeName(bypass.modRes)
+				step.Result = ExplainNotEvaluated
+				step.Detail = "response phase and its bypass rules are not evaluated"
+				return append(steps, step), true
+			}
 			return steps, true
 		case bypass.shouldModReqBypass(httptest.NewRecorder(), r):
 			step.Result = ExplainBypassed
@@ -92,12 +103,23 @@ func explainModifier(name string, mod RequestModifier, r *http.Request, steps []
 	if !isDryRunSafe(impl) {
 		step.Result = ExplainNotEvaluated
 		step.Detail = "has side effects or needs a live client; result depends on the real request"
-		return append(steps, step), true
+		return append(steps, step), false
 	}
 
 	clientIPBefore := hostOf(r.RemoteAddr)
 	rec := httptest.NewRecorder()
-	proceed := impl.before(rec, r)
+	var proceed bool
+	if cloudflare, ok := impl.(*cloudflareRealIP); ok {
+		// Live requests may refresh Cloudflare ranges in the background. A dry
+		// run uses the current cache (or seeded ranges), without starting I/O.
+		realIP := cloudflare.realIP
+		if cidrs := cfCIDRs.Load(); len(cidrs) > 0 {
+			realIP.From = cidrs
+		}
+		proceed = realIP.before(rec, r)
+	} else {
+		proceed = impl.before(rec, r)
+	}
 	if ip := hostOf(r.RemoteAddr); ip != clientIPBefore {
 		step.ClientIP = ip
 	}

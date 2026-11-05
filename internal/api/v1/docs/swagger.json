@@ -2957,6 +2957,103 @@
         "operationId": "byProvider"
       }
     },
+    "/route/explain": {
+      "get": {
+        "description": "Dry-run a request through the ACL, the entrypoint middlewares and the route middlewares, without reaching the upstream. Unknown request middleware effects stop evaluation with a conditional decision. Response phases, route rules, load-balancer backends and TLS client certificate verification are not simulated.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "route"
+        ],
+        "summary": "Explain access decision",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Peer IP of the connection",
+            "name": "ip",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Host authority, optionally including listener port",
+            "name": "host",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "default": "/",
+            "description": "Request path and query",
+            "name": "path",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "default": "GET",
+            "description": "HTTP method",
+            "name": "method",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "http",
+              "https"
+            ],
+            "type": "string",
+            "default": "https",
+            "description": "Listener scheme",
+            "name": "scheme",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "Request header as Name: value, repeatable",
+            "name": "header",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/ExplainResult"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        },
+        "x-id": "explain",
+        "operationId": "explain"
+      }
+    },
     "/route/list": {
       "get": {
         "description": "List routes",
@@ -3913,6 +4010,91 @@
           "type": "string",
           "x-nullable": false,
           "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ExplainACL": {
+      "type": "object",
+      "properties": {
+        "allowed": {
+          "type": "boolean",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "reason": {
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "ExplainResult": {
+      "type": "object",
+      "properties": {
+        "acl": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ExplainACL"
+            }
+          ],
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "client_ip": {
+          "description": "ClientIP is the client address after real IP middlewares.",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "decided_by": {
+          "description": "DecidedBy names the component or middleware step that stopped evaluation.",
+          "type": "string",
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "decision": {
+          "$ref": "#/definitions/entrypoint.ExplainDecision",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "detail": {
+          "type": "string",
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "entrypoint": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MiddlewareExplainStep"
+          },
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "notes": {
+          "description": "Notes lists what the dry run did not cover.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "route": {
+          "type": "string",
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "route_middlewares": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MiddlewareExplainStep"
+          },
+          "x-omitempty": true,
+          "x-nullable": true
         }
       },
       "x-nullable": false,
@@ -4995,6 +5177,41 @@
         "MetricsPeriod1d",
         "MetricsPeriod1mo"
       ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "MiddlewareExplainStep": {
+      "type": "object",
+      "properties": {
+        "client_ip": {
+          "description": "ClientIP is set when this step changed the client IP (real IP middlewares).",
+          "type": "string",
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "detail": {
+          "type": "string",
+          "x-omitempty": true,
+          "x-nullable": true
+        },
+        "middleware": {
+          "description": "Middleware is the configured name, e.g. \"entrypoint[2]\" or \"cidrWhitelist\".",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "result": {
+          "$ref": "#/definitions/middleware.ExplainResult",
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "type": {
+          "description": "Type is the middleware implementation, e.g. \"cidrWhitelist\".",
+          "type": "string",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
       "x-nullable": false,
       "x-omitempty": false
     },
@@ -7328,6 +7545,35 @@
       "x-nullable": false,
       "x-omitempty": false
     },
+    "entrypoint.ExplainDecision": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "denied",
+        "responded",
+        "conditional",
+        "not_found"
+      ],
+      "x-enum-comments": {
+        "ExplainAllowed": "The evaluated request phases passed; see Notes for limitations."
+      },
+      "x-enum-descriptions": [
+        "The evaluated request phases passed; see Notes for limitations.",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "x-enum-varnames": [
+        "ExplainAllowed",
+        "ExplainDenied",
+        "ExplainResponded",
+        "ExplainConditional",
+        "ExplainNotFound"
+      ],
+      "x-nullable": false,
+      "x-omitempty": false
+    },
     "events.Level": {
       "type": "string",
       "enum": [
@@ -7390,6 +7636,27 @@
           "x-omitempty": false
         }
       },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "middleware.ExplainResult": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "denied",
+        "responded",
+        "bypassed",
+        "skipped",
+        "not_evaluated"
+      ],
+      "x-enum-varnames": [
+        "ExplainPassed",
+        "ExplainDenied",
+        "ExplainResponded",
+        "ExplainBypassed",
+        "ExplainSkipped",
+        "ExplainNotEvaluated"
+      ],
       "x-nullable": false,
       "x-omitempty": false
     },

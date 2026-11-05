@@ -266,6 +266,52 @@ definitions:
       uuid:
         type: string
     type: object
+  ExplainACL:
+    properties:
+      allowed:
+        type: boolean
+      reason:
+        type: string
+    type: object
+  ExplainResult:
+    properties:
+      acl:
+        allOf:
+        - $ref: '#/definitions/ExplainACL'
+        x-omitempty: true
+      client_ip:
+        description: ClientIP is the client address after real IP middlewares.
+        type: string
+      decided_by:
+        description: DecidedBy names the component or middleware step that stopped
+          evaluation.
+        type: string
+        x-omitempty: true
+      decision:
+        $ref: '#/definitions/entrypoint.ExplainDecision'
+      detail:
+        type: string
+        x-omitempty: true
+      entrypoint:
+        items:
+          $ref: '#/definitions/MiddlewareExplainStep'
+        type: array
+        x-omitempty: true
+      notes:
+        description: Notes lists what the dry run did not cover.
+        items:
+          type: string
+        type: array
+        x-omitempty: true
+      route:
+        type: string
+        x-omitempty: true
+      route_middlewares:
+        items:
+          $ref: '#/definitions/MiddlewareExplainStep'
+        type: array
+        x-omitempty: true
+    type: object
   FileType:
     enum:
     - config
@@ -777,6 +823,25 @@ definitions:
     - MetricsPeriod1h
     - MetricsPeriod1d
     - MetricsPeriod1mo
+  MiddlewareExplainStep:
+    properties:
+      client_ip:
+        description: ClientIP is set when this step changed the client IP (real IP
+          middlewares).
+        type: string
+        x-omitempty: true
+      detail:
+        type: string
+        x-omitempty: true
+      middleware:
+        description: Middleware is the configured name, e.g. "entrypoint[2]" or "cidrWhitelist".
+        type: string
+      result:
+        $ref: '#/definitions/middleware.ExplainResult'
+      type:
+        description: Type is the middleware implementation, e.g. "cidrWhitelist".
+        type: string
+    type: object
   MockCookie:
     properties:
       name:
@@ -2001,6 +2066,28 @@ definitions:
     required:
     - id
     type: object
+  entrypoint.ExplainDecision:
+    enum:
+    - allowed
+    - denied
+    - responded
+    - conditional
+    - not_found
+    type: string
+    x-enum-comments:
+      ExplainAllowed: The evaluated request phases passed; see Notes for limitations.
+    x-enum-descriptions:
+    - The evaluated request phases passed; see Notes for limitations.
+    - ""
+    - ""
+    - ""
+    - ""
+    x-enum-varnames:
+    - ExplainAllowed
+    - ExplainDenied
+    - ExplainResponded
+    - ExplainConditional
+    - ExplainNotFound
   events.Level:
     enum:
     - debug
@@ -2049,6 +2136,22 @@ definitions:
           This value is computed from the kernel specific values.
         type: number
     type: object
+  middleware.ExplainResult:
+    enum:
+    - passed
+    - denied
+    - responded
+    - bypassed
+    - skipped
+    - not_evaluated
+    type: string
+    x-enum-varnames:
+    - ExplainPassed
+    - ExplainDenied
+    - ExplainResponded
+    - ExplainBypassed
+    - ExplainSkipped
+    - ExplainNotEvaluated
   net.IOCountersStat:
     properties:
       bytes_recv:
@@ -4213,6 +4316,76 @@ paths:
       tags:
       - route
       x-id: byProvider
+  /route/explain:
+    get:
+      description: Dry-run a request through the ACL, the entrypoint middlewares and
+        the route middlewares, without reaching the upstream. Unknown request middleware
+        effects stop evaluation with a conditional decision. Response phases, route
+        rules, load-balancer backends and TLS client certificate verification are
+        not simulated.
+      parameters:
+      - description: Peer IP of the connection
+        in: query
+        name: ip
+        required: true
+        type: string
+      - description: Host authority, optionally including listener port
+        in: query
+        name: host
+        required: true
+        type: string
+      - default: /
+        description: Request path and query
+        in: query
+        name: path
+        type: string
+      - default: GET
+        description: HTTP method
+        in: query
+        name: method
+        type: string
+      - default: https
+        description: Listener scheme
+        enum:
+        - http
+        - https
+        in: query
+        name: scheme
+        type: string
+      - collectionFormat: multi
+        description: 'Request header as Name: value, repeatable'
+        in: query
+        items:
+          type: string
+        name: header
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ExplainResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Explain access decision
+      tags:
+      - route
+      x-id: explain
   /route/list:
     get:
       consumes:

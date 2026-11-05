@@ -63,8 +63,18 @@ see real IP resolution, e.g. a tunnel on loopback:
 /api/v1/route/explain?ip=127.0.0.1&host=app.example.com&header=CF-Connecting-IP:%20198.51.100.10
 ```
 
-The upstream is never called. See `internal/entrypoint` (`Entrypoint.Explain`)
-for what is and is not evaluated. The read-only token cannot use it.
+The upstream is never called. A `conditional` result marks unmodeled behavior,
+including auth, response modifiers, load-balancer backend selection and mTLS.
+Evaluation stops when an unknown request modifier could affect later checks.
+See the [entrypoint explain contract](../../entrypoint/README.md#explain) for
+limits and the meaning of `allowed`. `host` is an authority, optionally including
+the listener port; it cannot contain a URL path. `path` defaults to `/`, `method`
+to `GET`, and `scheme` to `https`. Repeated headers retain multiple values.
+
+The authenticated API requires a browser session: missing credentials return
+401, and a read-only bearer token returns 403. Valid explain requests return
+200 with a decision, including denials and missing routes. Malformed inputs
+return 400 before any ACL decision; internal failures return 500.
 
 ### Public route URLs
 

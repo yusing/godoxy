@@ -39,6 +39,7 @@ type httpServer struct {
 	stopFunc func(reason any)
 
 	addr   string
+	proto  HTTPProto
 	routes *pool.Pool[routing.HTTPRoute]
 
 	routeEntrypointOverlays atomic.Pointer[xsync.Map[string, *routeEntrypointOverlay]]
@@ -142,6 +143,7 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 	srv.routes = pool.New[routing.HTTPRoute](fmt.Sprintf("[%s] %s", proto, addr), "http_routes")
 	srv.routes.SetEventHistory(events.FromCtx(srv.ep.task.Context()))
 	srv.routes.DisableLog(srv.ep.httpPoolDisableLog.Load())
+	srv.proto = proto
 	task := srv.ep.task.Subtask("http_server", false)
 	_, err = server.StartServer(task, opts)
 	if err != nil {

@@ -26,18 +26,20 @@ type ExplainRequest struct {
 // @x-id				"explain"
 // @BasePath		/api/v1
 // @Summary		Explain access decision
-// @Description	Dry-run a request through the ACL, the entrypoint middlewares and the route middlewares, without reaching the upstream. Middlewares with side effects (auth, CrowdSec, rate limit) are reported as not evaluated.
+// @Description	Dry-run a request through the ACL, the entrypoint middlewares and the route middlewares, without reaching the upstream. Unknown request middleware effects stop evaluation with a conditional decision. Response phases, route rules, load-balancer backends and TLS client certificate verification are not simulated.
 // @Tags			route
 // @Produce		json
 // @Param			ip		query		string		true	"Peer IP of the connection"
-// @Param			host	query		string		true	"Host header"
-// @Param			path	query		string		false	"Request path"	default(/)
+// @Param			host	query		string		true	"Host authority, optionally including listener port"
+// @Param			path	query		string		false	"Request path and query"	default(/)
 // @Param			method	query		string		false	"HTTP method"	default(GET)
-// @Param			scheme	query		string		false	"http or https"	default(https)
+// @Param			scheme	query		string		false	"Listener scheme"	default(https)	Enums(http,https)
 // @Param			header	query		[]string	false	"Request header as Name: value, repeatable"	collectionFormat(multi)
 // @Success		200		{object}	entrypoint.ExplainResult
 // @Failure		400		{object}	apitypes.ErrorResponse
+// @Failure		401		{object}	apitypes.ErrorResponse
 // @Failure		403		{object}	apitypes.ErrorResponse
+// @Failure		500		{object}	apitypes.ErrorResponse
 // @Router			/route/explain [get]
 func Explain(c *gin.Context) {
 	var request ExplainRequest
