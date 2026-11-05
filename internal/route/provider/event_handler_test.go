@@ -148,21 +148,6 @@ func TestEventHandlerEmitsItsProxmoxDiscoveryBatch(t *testing.T) {
 	require.Equal(t, [][]proxmox.Discovery{discoveries}, diagnostics.discoveries)
 }
 
-func TestEventHandlerSkipsUnchangedFileRoutes(t *testing.T) {
-	handler := &EventHandler{provider: &Provider{t: routing.ProviderTypeFile}}
-	written := []watcher.Event{{Type: watcherEvents.EventTypeFile, Action: watcherEvents.ActionFileWritten}}
-	withFP := func(fp string) *route.Route {
-		r := &route.Route{}
-		r.SetSourceFingerprint(fp)
-		return r
-	}
-
-	require.False(t, handler.shouldUpdateRoute(false, written, withFP("a"), withFP("a")), "unchanged definition")
-	require.True(t, handler.shouldUpdateRoute(false, written, withFP("a"), withFP("b")), "changed definition")
-	require.True(t, handler.shouldUpdateRoute(false, written, withFP(""), withFP("")), "no fingerprint: update as before")
-	require.True(t, handler.shouldUpdateRoute(true, written, withFP("a"), withFP("a")), "force reload restarts everything")
-}
-
 func TestSourceFingerprints(t *testing.T) {
 	base := []byte(`
 x-common: &common

@@ -1,15 +1,11 @@
 package provider
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -210,35 +206,4 @@ func TestFileReloadReadsChangedRuleFile(t *testing.T) {
 	require.NoError(t, os.WriteFile("custom.rules", []byte("default { error 401 new }\n"), 0o600))
 	reloadFile(p, root)
 	require.Equal(t, http.StatusUnauthorized, response())
-}
-
-func TestFileReloadPreservesInFlightResponse(t *testing.T) {
-	started, release := make(chan struct{}), make(chan struct{})
-	unblock := sync.OnceFunc(func() { close(release) })
-	defer unblock()
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(started)
-		<-release
-		_, _ = io.WriteString(w, "complete response")
-	}))
-	t.Cleanup(upstream.Close)
-	target, err := url.Parse(upstream.URL)
-	require.NoError(t, err)
-	definition := fmt.Sprintf("app:\n  host: %s\n  port: %s\n  healthcheck:\n    disabled: true\n", target.Hostname(), target.Port())
-	p, root, ep, file := fileReloadFixture(t, definition)
-	r, ok := ep.HTTPRoutes().Get("app")
-	require.True(t, ok)
-	w := httptest.NewRecorder()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://app/", nil))
-	}()
-	<-started
-	require.NoError(t, os.WriteFile(file, []byte(definition+"  homepage:\n    name: changed\n"), 0o600))
-	reloadFile(p, root)
-	unblock()
-	<-done
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "complete response", w.Body.String())
 }

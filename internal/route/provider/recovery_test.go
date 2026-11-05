@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -39,26 +40,9 @@ type recoveryTestImpl struct {
 	logger    zerolog.Logger
 }
 
-type recoveryTestLogBuffer struct {
-	mu     sync.Mutex
-	buffer bytes.Buffer
-}
-
-func (b *recoveryTestLogBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buffer.Write(p)
-}
-
-func (b *recoveryTestLogBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buffer.String()
-}
-
 type recoveryTestAgentProvider struct {
 	*AgentProvider
-	logs *recoveryTestLogBuffer
+	logs io.Writer
 }
 
 func (p *recoveryTestAgentProvider) Logger() *zerolog.Logger {
@@ -177,7 +161,7 @@ func TestProviderRecoversFailedListWithoutDockerEvents(t *testing.T) {
 
 func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	t.Chdir(t.TempDir())
-	var logs recoveryTestLogBuffer
+	var logs bytes.Buffer
 	ca, serverPair, clientPair, err := agent.NewAgent()
 	require.NoError(t, err)
 	serverCert, err := serverPair.ToTLSCert()
@@ -221,7 +205,7 @@ func TestAgentInitializationRecoversAndPublishesInitializedAgent(t *testing.T) {
 	impl.available.Store(true)
 	agentProvider := p.ProviderImpl.(*AgentProvider)
 	agentProvider.docker = impl
-	p.ProviderImpl = &recoveryTestAgentProvider{AgentProvider: agentProvider, logs: &logs}
+	p.ProviderImpl = &recoveryTestAgentProvider{AgentProvider: agentProvider, logs: zerolog.SyncWriter(&logs)}
 	var watcherAvailable atomic.Bool
 	w := &recoveryTestWatcher{available: &watcherAvailable}
 	p.watcher = w
