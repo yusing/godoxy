@@ -176,8 +176,10 @@ func (p *DockerProvider) routesFromContainerLabels(container *docker.Container) 
 			routes[alias] = r
 		}
 
-		// deserialize map into entry object
-		err := serialization.MapUnmarshalValidate(entryMap, r)
+		// Decode fields and nested validators without Route.Validate, which must
+		// run during provider preparation with the configuration context.
+		type routeLabels route.Route
+		err := serialization.MapUnmarshalValidate(entryMap, (*routeLabels)(r))
 		if err != nil {
 			errs.AddSubject(err, alias)
 		} else {

@@ -8,10 +8,15 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/stretchr/testify/require"
 	"github.com/yusing/godoxy/internal/common"
+	config "github.com/yusing/godoxy/internal/config/types"
 	"github.com/yusing/godoxy/internal/docker"
+	"github.com/yusing/godoxy/internal/health"
+	idlewatcher "github.com/yusing/godoxy/internal/idlewatcher/runtime"
 	"github.com/yusing/godoxy/internal/route"
 	"github.com/yusing/godoxy/internal/types"
+	"github.com/yusing/goutils/task"
 	expect "github.com/yusing/goutils/testing"
 )
 
@@ -37,6 +42,55 @@ func makeRoutes(cont *container.Summary, dockerHostIP ...string) route.Routes {
 		_ = r.Validate()
 	}
 	return routes
+}
+
+type dockerDefaultsState struct {
+	config.State
+	cfg config.Config
+}
+
+func (s dockerDefaultsState) Value() *config.Config { return &s.cfg }
+
+func TestDockerLabelsInheritConfiguredDefaults(t *testing.T) {
+	parent := task.GetTestTask(t)
+	state := dockerDefaultsState{}
+	state.cfg.Defaults.HealthCheck = health.HealthCheckConfig{
+		Interval: 31 * time.Second, Timeout: 7 * time.Second, Retries: 9,
+	}
+	state.cfg.Defaults.Idlewatcher.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
+	config.SetCtx(parent, state)
+	c := docker.FromDocker(parent.Context(), &container.Summary{
+		ID: "test", Names: dummyNames, State: "running",
+		Labels: map[string]string{
+			docker.LabelAliases:            "a",
+			docker.LabelIdleTimeout:        "10m",
+			"proxy.a.alias":                "a",
+			"proxy.a.port":                 "8080",
+			"proxy.b.port":                 "8081",
+			"proxy.c.port":                 "8082",
+			"proxy.c.healthcheck.interval": "17s",
+			"proxy.c.healthcheck.timeout":  "3s",
+			"proxy.c.healthcheck.retries":  "2",
+		},
+	}, types.DockerProviderConfig{URL: client.DefaultDockerHost})
+	var p DockerProvider
+	routes, err := p.routesFromContainerLabels(c)
+	require.NoError(t, err)
+	require.Len(t, routes, 3)
+	for alias, r := range routes {
+		// Match provider preparation, which supplies the alias and config context.
+		r.Alias = alias
+		require.NoError(t, r.ValidateContext(parent.Context()))
+		want := state.cfg.Defaults.HealthCheck
+		if alias == "c" {
+			want = health.HealthCheckConfig{Interval: 17 * time.Second, Timeout: 3 * time.Second, Retries: 2}
+		}
+		require.Equal(t, want.Interval, r.HealthCheck.Interval, alias)
+		require.Equal(t, want.Timeout, r.HealthCheck.Timeout, alias)
+		require.Equal(t, want.Retries, r.HealthCheck.Retries, alias)
+		require.NotNil(t, r.Idlewatcher, alias)
+		require.Equal(t, state.cfg.Defaults.Idlewatcher.Notify, r.Idlewatcher.Notify, alias)
+	}
 }
 
 func TestExplicitOnly(t *testing.T) {
