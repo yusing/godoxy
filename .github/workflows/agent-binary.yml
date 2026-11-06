@@ -32,7 +32,10 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Verify dependencies
-        run: go mod verify
+        working-directory: agent
+        run: |
+          go mod verify
+          go mod tidy -diff
       - name: Install Shadowtree
         run: go install github.com/yusing/shadowtree/cmd/shadowtree@latest
       - name: Build
