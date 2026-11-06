@@ -294,7 +294,7 @@ func TestCheckHealthAgentProxiedReturnsUnhealthyForInvalidURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := CheckHealthAgentProxied(nil, time.Hour, tt.url)
+			result, err := CheckHealthAgentProxied(nil, health.HealthCheckConfig{Timeout: time.Hour}, tt.url)
 			require.NoError(t, err)
 			require.False(t, result.Healthy)
 			require.Equal(t, tt.detail, result.Detail)

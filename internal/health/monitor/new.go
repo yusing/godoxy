@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/yusing/godoxy/internal/agentpool"
@@ -182,12 +181,12 @@ func newDockerHealthMonitor(
 func NewAgentProxiedMonitor(config health.HealthCheckConfig, agent *agentpool.Agent, targetURL *url.URL) Monitor {
 	var mon monitor
 	mon.init(targetURL, config, func(u *url.URL) (result Result, err error) {
-		return CheckHealthAgentProxied(agent, config.Timeout, u)
+		return CheckHealthAgentProxied(agent, config, u)
 	})
 	return &mon
 }
 
-func CheckHealthAgentProxied(agent *agentpool.Agent, timeout time.Duration, targetURL *url.URL) (Result, error) {
+func CheckHealthAgentProxied(agent *agentpool.Agent, config health.HealthCheckConfig, targetURL *url.URL) (Result, error) {
 	switch {
 	case targetURL == nil:
 		return Result{Detail: "no url specified"}, nil
@@ -199,9 +198,18 @@ func CheckHealthAgentProxied(agent *agentpool.Agent, timeout time.Duration, targ
 		"scheme":  {targetURL.Scheme},
 		"host":    {targetURL.Host},
 		"path":    {targetURL.Path},
-		"timeout": {strconv.FormatInt(timeout.Milliseconds(), 10)},
+		"timeout": {strconv.FormatInt(config.Timeout.Milliseconds(), 10)},
 	}
-	resp, err := agent.DoHealthCheck(timeout, query.Encode())
+	switch targetURL.Scheme {
+	case "http", "https", "h2c":
+		method := http.MethodHead
+		if config.UseGet {
+			method = http.MethodGet
+		}
+		query.Set("method", method)
+		query.Set("path", targetURL.JoinPath(config.Path).EscapedPath())
+	}
+	resp, err := agent.DoHealthCheck(config.Timeout, query.Encode())
 	result := Result{
 		Healthy: resp.Healthy,
 		Detail:  resp.Detail,

@@ -41,11 +41,19 @@ func CheckHealth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "missing host", http.StatusBadRequest)
 			return
 		}
+		method := query.Get("method")
+		if method == "" {
+			method = http.MethodHead
+		}
+		if method != http.MethodHead && method != http.MethodGet {
+			http.Error(w, "method must be HEAD or GET", http.StatusBadRequest)
+			return
+		}
 		url := url.URL{Scheme: scheme, Host: host}
 		if scheme == "h2c" {
-			result, err = healthcheck.H2C(r.Context(), &url, http.MethodHead, path, timeout)
+			result, err = healthcheck.H2C(r.Context(), &url, method, path, timeout)
 		} else {
-			result, err = healthcheck.HTTP(&url, http.MethodHead, path, timeout)
+			result, err = healthcheck.HTTP(&url, method, path, timeout)
 		}
 	case "tcp", "udp", "tcp4", "udp4", "tcp6", "udp6":
 		host := query.Get("host")
