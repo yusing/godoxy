@@ -62,6 +62,7 @@ var (
 	MetricsDisableDisk    = env.Bool("METRICS_DISABLE_DISK")
 	MetricsDisableNetwork = env.Bool("METRICS_DISABLE_NETWORK")
 	MetricsDisableSensors = env.Bool("METRICS_DISABLE_SENSORS")
+	MetricsDisableGPU     = env.Bool("METRICS_DISABLE_GPU")
 
 	MaxMindCountryOnly = env.Bool("MAXMIND_COUNTRY_ONLY")
 
