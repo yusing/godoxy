@@ -377,6 +377,12 @@ definitions:
       retries:
         description: '<0: immediate, 0: default, >0: threshold'
         type: integer
+      silence:
+        description: daily local-time windows without down notifications; nil inherits
+          defaults, empty disables
+        items:
+          type: string
+        type: array
       timeout:
         type: integer
       use_get:
