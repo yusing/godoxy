@@ -1844,7 +1844,8 @@
               "disk_usage",
               "network_speed",
               "network_transfer",
-              "sensor_temperature"
+              "sensor_temperature",
+              "gpu_usage"
             ],
             "type": "string",
             "x-enum-varnames": [
@@ -1857,7 +1858,8 @@
               "SystemInfoAggregateModeDiskUsage",
               "SystemInfoAggregateModeNetworkSpeed",
               "SystemInfoAggregateModeNetworkTransfer",
-              "SystemInfoAggregateModeSensorTemperature"
+              "SystemInfoAggregateModeSensorTemperature",
+              "SystemInfoAggregateModeGPUUsage"
             ],
             "name": "aggregate",
             "in": "query"
@@ -1954,7 +1956,8 @@
               "disk_usage",
               "network_speed",
               "network_transfer",
-              "sensor_temperature"
+              "sensor_temperature",
+              "gpu_usage"
             ],
             "type": "string",
             "x-enum-varnames": [
@@ -1967,7 +1970,8 @@
               "SystemInfoAggregateModeDiskUsage",
               "SystemInfoAggregateModeNetworkSpeed",
               "SystemInfoAggregateModeNetworkTransfer",
-              "SystemInfoAggregateModeSensorTemperature"
+              "SystemInfoAggregateModeSensorTemperature",
+              "SystemInfoAggregateModeGPUUsage"
             ],
             "name": "aggregate",
             "in": "query"
@@ -4185,6 +4189,28 @@
         },
         "statusCode": {
           "type": "integer",
+          "x-nullable": false,
+          "x-omitempty": false
+        }
+      },
+      "x-nullable": false,
+      "x-omitempty": false
+    },
+    "GPUStat": {
+      "type": "object",
+      "properties": {
+        "engines": {
+          "description": "busy percent (0-100) by engine",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "float64"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
+        "name": {
+          "type": "string",
           "x-nullable": false,
           "x-omitempty": false
         }
@@ -6442,6 +6468,14 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "gpus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GPUStat"
+          },
+          "x-nullable": false,
+          "x-omitempty": false
+        },
         "memory": {
           "$ref": "#/definitions/mem.VirtualMemoryStat",
           "x-nullable": false,
@@ -6503,7 +6537,8 @@
         "disk_usage",
         "network_speed",
         "network_transfer",
-        "sensor_temperature"
+        "sensor_temperature",
+        "gpu_usage"
       ],
       "x-enum-varnames": [
         "SystemInfoAggregateModeCPUAverage",
@@ -6515,7 +6550,8 @@
         "SystemInfoAggregateModeDiskUsage",
         "SystemInfoAggregateModeNetworkSpeed",
         "SystemInfoAggregateModeNetworkTransfer",
-        "SystemInfoAggregateModeSensorTemperature"
+        "SystemInfoAggregateModeSensorTemperature",
+        "SystemInfoAggregateModeGPUUsage"
       ],
       "x-nullable": false,
       "x-omitempty": false

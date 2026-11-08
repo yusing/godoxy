@@ -10,6 +10,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
+	"github.com/yusing/godoxy/internal/metrics/gpu"
 	strutils "github.com/yusing/goutils/strings"
 	expect "github.com/yusing/goutils/testing"
 
@@ -78,6 +79,9 @@ var (
 				Temperature: 40.0,
 			},
 		},
+		GPUs: []gpu.Stat{
+			{Name: "i915", Engines: map[string]float64{"Render/3D": 12.5, "Video": 40}},
+		},
 	}
 )
 
@@ -136,6 +140,7 @@ func TestSerialize(t *testing.T) {
 		SystemInfoAggregateModeNetworkSpeed,
 		SystemInfoAggregateModeNetworkTransfer,
 		SystemInfoAggregateModeSensorTemperature,
+		SystemInfoAggregateModeGPUUsage,
 	}
 	for _, query := range allQueries {
 		t.Run(string(query), func(t *testing.T) {
@@ -153,4 +158,18 @@ func TestSerialize(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAggregateGPUUsage(t *testing.T) {
+	single := &SystemInfo{Timestamp: 1, GPUs: []gpu.Stat{{Name: "i915", Engines: map[string]float64{"Render/3D": 10}}}}
+	multi := &SystemInfo{Timestamp: 2, GPUs: []gpu.Stat{
+		{Name: "a", Engines: map[string]float64{"Video": 20}},
+		{Name: "b", Engines: map[string]float64{"Video": 30}},
+	}}
+	none := &SystemInfo{Timestamp: 3}
+
+	total, result := aggregate([]*SystemInfo{single, multi, none}, url.Values{"aggregate": []string{string(SystemInfoAggregateModeGPUUsage)}})
+	expect.Equal(t, total, 2)
+	expect.Equal(t, result[0], map[string]any{"timestamp": int64(1), "Render/3D": 10.0})
+	expect.Equal(t, result[1], map[string]any{"timestamp": int64(2), "a Video": 20.0, "b Video": 30.0})
 }

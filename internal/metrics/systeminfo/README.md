@@ -1,6 +1,6 @@
 # internal/metrics/systeminfo
 
-Collects and aggregates system metrics including CPU, memory, disk, network, and sensor data with configurable aggregation modes.
+Collects and aggregates system metrics including CPU, memory, disk, network, sensor, and GPU data with configurable aggregation modes.
 
 ## Overview
 
@@ -38,6 +38,7 @@ type SystemInfo struct {
     DisksIO    map[string]*disk.IOCountersStat `json:"disks_io"`
     Network    net.IOCountersStat              `json:"network"`
     Sensors    Sensors                         `json:"sensors"`
+    GPUs       []gpu.Stat                      `json:"gpus,omitempty"`
 }
 ```
 
@@ -52,6 +53,7 @@ Container for all system metrics at a point in time.
 - `DisksIO` - Disk I/O counters by device name
 - `Network` - Network I/O counters for primary interface
 - `Sensors` - Hardware temperature sensor readings
+- `GPUs` - Per-engine GPU busy percentage from `internal/metrics/gpu`; empty when no supported GPU is readable
 
 #### Sensors Type
 
@@ -89,6 +91,7 @@ const (
     SystemInfoAggregateModeNetworkSpeed       SystemInfoAggregateMode = "network_speed"
     SystemInfoAggregateModeNetworkTransfer    SystemInfoAggregateMode = "network_transfer"
     SystemInfoAggregateModeSensorTemperature  SystemInfoAggregateMode = "sensor_temperature"
+    SystemInfoAggregateModeGPUUsage           SystemInfoAggregateMode = "gpu_usage"
 )
 ```
 
@@ -154,6 +157,7 @@ flowchart TD
         G -->|Disks| Disk[Partitions & IO]
         G -->|Network| Net[Network Counters]
         G -->|Sensors| Sens[Temperature]
+        GPU[internal/metrics/gpu] -->|GPUs| Busy[Engine busy %]
     end
 
     subgraph Poller
@@ -172,6 +176,7 @@ flowchart TD
         NetSpeed[network_speed]
         NetTransfer[network_transfer]
         SensorTemp[sensor_temperature]
+        GPUUsage[gpu_usage]
     end
 
     Period -->|Query with| Aggregate[aggregate function]
@@ -197,6 +202,7 @@ sequenceDiagram
         Poller->>gopsutil: Collect Disks (partition + IO)
         Poller->>gopsutil: Collect Network
         Poller->>gopsutil: Collect Sensors
+        Poller->>Poller: Collect GPUs (gpu.Collect)
 
         gopsutil-->>Poller: SystemInfo
         Poller->>Period: Add(SystemInfo)
@@ -217,6 +223,7 @@ sequenceDiagram
 | Disks    | `disk.PartitionsWithContext` + `disk.UsageWithContext` | Yes      | Yes (read/write/IOPS) |
 | Network  | `net.IOCountersWithContext`                            | Yes      | Yes (upload/download) |
 | Sensors  | `sensors.TemperaturesWithContext`                      | Yes      | No                    |
+| GPUs     | `gpu.Collect`                                          | Yes      | Yes (busy % per poll) |
 
 ### Aggregation Modes
 
@@ -249,6 +256,15 @@ Each mode produces chart-friendly output:
 ]
 ```
 
+**GPU Usage:** one key per engine; prefixed with the GPU name when several GPUs are present.
+
+```json
+[
+  { "timestamp": 1704892800, "Render/3D": 12.5, "Video": 40.1 },
+  { "timestamp": 1704892810, "Render/3D": 3.2, "Video": 38.7 }
+]
+```
+
 ## Configuration Surface
 
 ### Disabling Metrics Categories
@@ -262,6 +278,7 @@ Metrics categories can be disabled via environment variables:
 | `METRICS_DISABLE_DISK`    | Set to "true" to disable disk collection    |
 | `METRICS_DISABLE_NETWORK` | Set to "true" to disable network collection |
 | `METRICS_DISABLE_SENSORS` | Set to "true" to disable sensor collection  |
+| `METRICS_DISABLE_GPU`     | Set to "true" to disable GPU collection     |
 
 ## Dependency and Integration Map
 

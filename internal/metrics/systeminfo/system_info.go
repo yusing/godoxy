@@ -16,6 +16,7 @@ import (
 	"github.com/shirou/gopsutil/v4/sensors"
 	"github.com/shirou/gopsutil/v4/warning"
 	"github.com/yusing/godoxy/internal/common"
+	"github.com/yusing/godoxy/internal/metrics/gpu"
 	"github.com/yusing/godoxy/internal/metrics/period"
 	gperr "github.com/yusing/goutils/errs"
 )
@@ -35,6 +36,7 @@ type SystemInfo struct {
 	DisksIO    map[string]*disk.IOCountersStat `json:"disks_io"` // disk IO by device
 	Network    net.IOCountersStat              `json:"network"`
 	Sensors    Sensors                         `json:"sensors"` // sensor temperature by key
+	GPUs       []gpu.Stat                      `json:"gpus,omitempty"`
 } // @name SystemInfo
 
 type SystemInfoAggregateMode string // @name SystemInfoAggregateMode
@@ -50,6 +52,7 @@ const (
 	SystemInfoAggregateModeNetworkSpeed       SystemInfoAggregateMode = "network_speed"        // @name SystemInfoAggregateModeNetworkSpeed
 	SystemInfoAggregateModeNetworkTransfer    SystemInfoAggregateMode = "network_transfer"     // @name SystemInfoAggregateModeNetworkTransfer
 	SystemInfoAggregateModeSensorTemperature  SystemInfoAggregateMode = "sensor_temperature"   // @name SystemInfoAggregateModeSensorTemperature
+	SystemInfoAggregateModeGPUUsage           SystemInfoAggregateMode = "gpu_usage"            // @name SystemInfoAggregateModeGPUUsage
 )
 
 var Poller = period.NewPoller("system_info", getSystemInfo, aggregate)
@@ -86,6 +89,12 @@ func getSystemInfo(ctx context.Context, lastResult *SystemInfo) (*SystemInfo, er
 	if !common.MetricsDisableSensors {
 		errs.Go(func() error {
 			return s.collectSensorsInfo(ctx)
+		})
+	}
+	if !common.MetricsDisableGPU {
+		errs.Go(func() error {
+			s.GPUs = gpu.Collect()
+			return nil
 		})
 	}
 
@@ -349,6 +358,23 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m := make(map[string]any, len(entry.Sensors)+1)
 			for _, sensor := range entry.Sensors {
 				m[sensor.SensorKey] = sensor.Temperature
+			}
+			m["timestamp"] = entry.Timestamp
+			aggregated = append(aggregated, m)
+		}
+	case SystemInfoAggregateModeGPUUsage:
+		for _, entry := range entries {
+			if len(entry.GPUs) == 0 {
+				continue
+			}
+			m := make(map[string]any)
+			for _, g := range entry.GPUs {
+				for engine, busy := range g.Engines {
+					if len(entry.GPUs) > 1 {
+						engine = g.Name + " " + engine
+					}
+					m[engine] = busy
+				}
 			}
 			m["timestamp"] = entry.Timestamp
 			aggregated = append(aggregated, m)
