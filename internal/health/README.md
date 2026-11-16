@@ -9,7 +9,7 @@ checks and monitor scheduling are implemented in subpackages.
 
 ## Responsibilities
 
-- Define `HealthCheckConfig` and default interval/timeout/retry behavior.
+- Define `HealthCheckConfig` and default interval/timeout/retry/silence behavior.
 - Define health status values and JSON encoding.
 - Define monitor/checker interfaces used by routes, load balancers, idlewatchers, and APIs.
 - Define health JSON/API representation structs.
@@ -35,8 +35,16 @@ type HealthCheckConfig struct {
     Interval time.Duration
     Timeout  time.Duration
     Retries  int64
+    Silence  []SilenceWindow
 }
 ```
+
+`Silence` holds daily `HH:MM-HH:MM` windows in container local time (`TZ`),
+possibly crossing midnight, during which service-down notifications are
+deferred. Windows compare wall-clock time, so on a daylight saving change a
+window inside the skipped hour never matches. `ApplyDefaults` inherits it only
+when nil, so a route can opt out of the global `defaults.healthcheck.silence`
+with an empty list (`"[]"` as a Docker label value).
 
 ```go
 type HealthMonitor interface {
