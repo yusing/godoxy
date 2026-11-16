@@ -39,9 +39,19 @@ cap_add:
   - PERFMON
 ```
 
-Docker only passes added capabilities to processes running as root, so this
-does not work for the main server's default non-root `user:`. There, either
-run as root or set `kernel.perf_event_paranoid` to `0` or lower on the host.
+The main server's default non-root `user:` does not retain added capabilities.
+To use the capability approach there, override `user: "0:0"` and add `PERFMON`.
+This changes the container's security posture; keep the other restrictions.
+
+Both kernel permission and the container's seccomp policy must allow
+`perf_event_open`. Current Docker default profiles allow it with `PERFMON`,
+but older or custom profiles may need a narrowly scoped allow rule.
+Lowering host `kernel.perf_event_paranoid` to `0` or below is an alternative
+to the capability check, not a seccomp bypass, and grants broader host-wide
+access. In particular, the default main container drops all capabilities,
+so changing that sysctl alone is insufficient under Docker's default filter.
+Do not use privileged mode or disable seccomp merely to enable metrics.
+See [Docker seccomp profiles](https://docs.docker.com/engine/security/seccomp/).
 
 ## Key Types
 

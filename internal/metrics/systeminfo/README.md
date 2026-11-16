@@ -256,12 +256,12 @@ Each mode produces chart-friendly output:
 ]
 ```
 
-**GPU Usage:** one key per engine; prefixed with the GPU name when several GPUs are present.
+**GPU Usage:** one key per engine, always prefixed with the GPU name so a temporary read failure on another GPU does not rename the remaining series. Missing readings are omitted, not reported as zero utilization.
 
 ```json
 [
-  { "timestamp": 1704892800, "Render/3D": 12.5, "Video": 40.1 },
-  { "timestamp": 1704892810, "Render/3D": 3.2, "Video": 38.7 }
+  { "timestamp": 1704892800, "i915 Render/3D": 12.5, "i915 Video": 40.1 },
+  { "timestamp": 1704892810, "i915 Render/3D": 3.2, "i915 Video": 38.7 }
 ]
 ```
 

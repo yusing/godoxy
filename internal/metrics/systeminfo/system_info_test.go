@@ -161,15 +161,17 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestAggregateGPUUsage(t *testing.T) {
-	single := &SystemInfo{Timestamp: 1, GPUs: []gpu.Stat{{Name: "i915", Engines: map[string]float64{"Render/3D": 10}}}}
+	single := &SystemInfo{Timestamp: 1, GPUs: []gpu.Stat{{Name: "a", Engines: map[string]float64{"Video": 10}}}}
 	multi := &SystemInfo{Timestamp: 2, GPUs: []gpu.Stat{
 		{Name: "a", Engines: map[string]float64{"Video": 20}},
 		{Name: "b", Engines: map[string]float64{"Video": 30}},
 	}}
 	none := &SystemInfo{Timestamp: 3}
 
-	total, result := aggregate([]*SystemInfo{single, multi, none}, url.Values{"aggregate": []string{string(SystemInfoAggregateModeGPUUsage)}})
-	expect.Equal(t, total, 2)
-	expect.Equal(t, result[0], map[string]any{"timestamp": int64(1), "Render/3D": 10.0})
+	recovered := &SystemInfo{Timestamp: 4, GPUs: single.GPUs}
+	total, result := aggregate([]*SystemInfo{single, multi, none, recovered}, url.Values{"aggregate": []string{string(SystemInfoAggregateModeGPUUsage)}})
+	expect.Equal(t, total, 3)
+	expect.Equal(t, result[0], map[string]any{"timestamp": int64(1), "a Video": 10.0})
 	expect.Equal(t, result[1], map[string]any{"timestamp": int64(2), "a Video": 20.0, "b Video": 30.0})
+	expect.Equal(t, result[2], map[string]any{"timestamp": int64(4), "a Video": 10.0})
 }

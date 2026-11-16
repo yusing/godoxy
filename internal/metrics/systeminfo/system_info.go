@@ -36,7 +36,7 @@ type SystemInfo struct {
 	DisksIO    map[string]*disk.IOCountersStat `json:"disks_io"` // disk IO by device
 	Network    net.IOCountersStat              `json:"network"`
 	Sensors    Sensors                         `json:"sensors"` // sensor temperature by key
-	GPUs       []gpu.Stat                      `json:"gpus,omitempty"`
+	GPUs       []gpu.Stat                      `json:"gpus,omitempty" extensions:"x-omitempty"`
 } // @name SystemInfo
 
 type SystemInfoAggregateMode string // @name SystemInfoAggregateMode
@@ -370,10 +370,7 @@ func aggregate(entries []*SystemInfo, query url.Values) (total int, result Aggre
 			m := make(map[string]any)
 			for _, g := range entry.GPUs {
 				for engine, busy := range g.Engines {
-					if len(entry.GPUs) > 1 {
-						engine = g.Name + " " + engine
-					}
-					m[engine] = busy
+					m[g.Name+" "+engine] = busy
 				}
 			}
 			m["timestamp"] = entry.Timestamp
