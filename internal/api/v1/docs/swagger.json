@@ -4240,8 +4240,8 @@
           "items": {
             "type": "string"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-omitempty": true,
+          "x-nullable": true
         },
         "timeout": {
           "type": "integer",

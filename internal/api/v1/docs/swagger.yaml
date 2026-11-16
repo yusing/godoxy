@@ -383,6 +383,7 @@ definitions:
         items:
           type: string
         type: array
+        x-omitempty: true
       timeout:
         type: integer
       use_get:
@@ -2181,11 +2182,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_5m:
+        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
-        type: string
-      load_avg_5m:
         type: string
       mem_pct:
         type: string
