@@ -94,6 +94,12 @@ the latest result and updates status:
 Service-up and service-down notifications are emitted only on status transitions
 and after retry thresholds are met.
 
+While the current local time is inside one of `config.Silence` windows, the
+service-down notification is deferred: `downNotificationSent` stays false, so a
+service still down when the window ends is notified on the next check. A service
+that recovers inside the window without having been notified produces no up
+notification.
+
 ## Dependency Map
 
 | Dependency | Purpose |

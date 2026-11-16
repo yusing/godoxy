@@ -377,6 +377,13 @@ definitions:
       retries:
         description: '<0: immediate, 0: default, >0: threshold'
         type: integer
+      silence:
+        description: daily local-time windows without down notifications; nil inherits
+          defaults, empty disables
+        items:
+          type: string
+        type: array
+        x-omitempty: true
       timeout:
         type: integer
       use_get:
@@ -2175,11 +2182,11 @@ definitions:
         type: string
       kernel_version:
         type: string
+      load_avg_5m:
+        type: string
       load_avg_15m:
         type: string
       load_avg_1m:
-        type: string
-      load_avg_5m:
         type: string
       mem_pct:
         type: string

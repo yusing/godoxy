@@ -4234,6 +4234,15 @@
           "x-nullable": false,
           "x-omitempty": false
         },
+        "silence": {
+          "description": "daily local-time windows without down notifications; nil inherits defaults, empty disables",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-omitempty": true,
+          "x-nullable": true
+        },
         "timeout": {
           "type": "integer",
           "x-nullable": false,

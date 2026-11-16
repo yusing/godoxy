@@ -34,6 +34,7 @@ type (
 
 		checkHealth HealthCheckFunc
 		startTime   time.Time
+		now         func() time.Time
 
 		notifyFunc           notif.NotifyFunc
 		numConsecFailures    atomic.Int64
@@ -53,7 +54,8 @@ func (mon *monitor) init(u *url.URL, cfg health.HealthCheckConfig, healthCheckFu
 	cfg.ApplyDefaults(health.HealthCheckConfig{})
 	mon.config = cfg
 	mon.checkHealth = healthCheckFunc
-	mon.startTime = time.Now()
+	mon.now = time.Now
+	mon.startTime = mon.now()
 	mon.status.Store(health.StatusHealthy)
 	mon.lastResult.Store(health.HealthCheckResult{Healthy: true, Detail: "started"})
 
@@ -250,28 +252,24 @@ func (mon *monitor) checkUpdateHealth() error {
 	}
 	mon.lastResult.Store(result)
 
-	// change of status
-	if result.Healthy != (lastStatus == health.StatusHealthy) {
-		if result.Healthy {
+	if result.Healthy {
+		if lastStatus != health.StatusHealthy {
 			mon.numConsecFailures.Store(0)
 			if mon.downNotificationSent.Load() { // Only notify if the service down has been notified
 				mon.notifyServiceUp(&logger, &result)
 				mon.downNotificationSent.Store(false) // Reset notification state when service comes back up
 			}
-		} else if mon.config.Retries < 0 {
-			// immediate notification when retries < 0
-			mon.notifyServiceDown(&logger, &result)
-			mon.downNotificationSent.Store(true)
 		}
+		return err
 	}
 
-	// if threshold >= 0, notify after threshold consecutive failures (but only once)
-	if !result.Healthy && mon.config.Retries >= 0 {
-		failureCount := mon.numConsecFailures.Add(1)
-		if failureCount >= mon.config.Retries && !mon.downNotificationSent.Load() {
-			mon.notifyServiceDown(&logger, &result)
-			mon.downNotificationSent.Store(true)
-		}
+	// notify once after threshold consecutive failures (retries < 0: immediately).
+	// Inside a silence window the notification is deferred, not dropped:
+	// downNotificationSent stays false so the next check after the window alerts.
+	failureCount := mon.numConsecFailures.Add(1)
+	if failureCount >= max(mon.config.Retries, 1) && !mon.downNotificationSent.Load() && !mon.config.IsSilenced(mon.now()) {
+		mon.notifyServiceDown(&logger, &result)
+		mon.downNotificationSent.Store(true)
 	}
 
 	return err
