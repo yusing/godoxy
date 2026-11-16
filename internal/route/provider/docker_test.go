@@ -54,8 +54,11 @@ func (s dockerDefaultsState) Value() *config.Config { return &s.cfg }
 func TestDockerLabelsInheritConfiguredDefaults(t *testing.T) {
 	parent := task.GetTestTask(t)
 	state := dockerDefaultsState{}
+	var window health.SilenceWindow
+	require.NoError(t, window.Parse("02:00-04:00"))
 	state.cfg.Defaults.HealthCheck = health.HealthCheckConfig{
 		Interval: 31 * time.Second, Timeout: 7 * time.Second, Retries: 9,
+		Silence: []health.SilenceWindow{window},
 	}
 	state.cfg.Defaults.Idlewatcher.Notify = &idlewatcher.IdlewatcherNotifyConfig{To: []string{"gotify"}}
 	config.SetCtx(parent, state)
@@ -67,10 +70,12 @@ func TestDockerLabelsInheritConfiguredDefaults(t *testing.T) {
 			"proxy.a.alias":                "a",
 			"proxy.a.port":                 "8080",
 			"proxy.b.port":                 "8081",
+			"proxy.b.healthcheck.silence":  "[]",
 			"proxy.c.port":                 "8082",
 			"proxy.c.healthcheck.interval": "17s",
 			"proxy.c.healthcheck.timeout":  "3s",
 			"proxy.c.healthcheck.retries":  "2",
+			"proxy.c.healthcheck.silence":  "23:00-01:00",
 		},
 	}, types.DockerProviderConfig{URL: client.DefaultDockerHost})
 	var p DockerProvider
@@ -88,6 +93,16 @@ func TestDockerLabelsInheritConfiguredDefaults(t *testing.T) {
 		require.Equal(t, want.Interval, r.HealthCheck.Interval, alias)
 		require.Equal(t, want.Timeout, r.HealthCheck.Timeout, alias)
 		require.Equal(t, want.Retries, r.HealthCheck.Retries, alias)
+		switch alias {
+		case "a":
+			require.Equal(t, state.cfg.Defaults.HealthCheck.Silence, r.HealthCheck.Silence)
+		case "b":
+			require.NotNil(t, r.HealthCheck.Silence)
+			require.Empty(t, r.HealthCheck.Silence)
+		case "c":
+			require.Len(t, r.HealthCheck.Silence, 1)
+			require.Equal(t, "23:00-01:00", r.HealthCheck.Silence[0].String())
+		}
 		require.NotNil(t, r.Idlewatcher, alias)
 		require.Equal(t, state.cfg.Defaults.Idlewatcher.Notify, r.Idlewatcher.Notify, alias)
 	}

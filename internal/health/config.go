@@ -11,8 +11,8 @@ type HealthCheckConfig struct {
 	Path     string          `json:"path,omitempty" validate:"omitempty,uri,startswith=/"`
 	Interval time.Duration   `json:"interval" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
 	Timeout  time.Duration   `json:"timeout" validate:"omitempty,min=1s" swaggertype:"primitive,integer"`
-	Retries  int64           `json:"retries"`                            // <0: immediate, 0: default, >0: threshold
-	Silence  []SilenceWindow `json:"silence" swaggertype:"array,string"` // daily local-time windows without down notifications; nil inherits defaults, empty disables
+	Retries  int64           `json:"retries"`                                                              // <0: immediate, 0: default, >0: threshold
+	Silence  []SilenceWindow `json:"silence,omitzero" swaggertype:"array,string" extensions:"x-omitempty"` // daily local-time windows without down notifications; nil inherits defaults, empty disables
 
 	BaseContext func() context.Context `json:"-"`
 } //	@name	HealthCheckConfig
