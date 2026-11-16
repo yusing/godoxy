@@ -279,7 +279,7 @@ setenv "GODOXY_API_PASSWORD" "$LOGIN_PASSWORD"
 # 8. setup autocert
 ask_while_empty "Configure autocert? (y/n): " ENABLE_AUTOCERT
 
-# quit if not using autocert
+autocert_configured=false
 if [ "$ENABLE_AUTOCERT" = "y" ]; then
 	echo "Setting up autocert"
 	skip=false
@@ -345,7 +345,20 @@ ${options_block}
 		printf '%s\n' "$autocert_config" > "$_cfg_tmp"
 		cat "$CONFIG_FILE_PATH" >> "$_cfg_tmp"
 		mv "$_cfg_tmp" "$CONFIG_FILE_PATH"
+		autocert_configured=true
 	fi
+fi
+
+# The shared HTTPS listener requires a certificate; GoDoxy exits at startup
+# when it is enabled without one. Without autocert, start HTTP-only.
+if [ "$autocert_configured" != "true" ]; then
+	echo "No certificate configured, disabling the shared HTTPS listener"
+	setenv "GODOXY_HTTPS_ADDR" ""
+	if ! grep -q '^GODOXY_HTTPS_ADDR=' "$DOT_ENV_PATH"; then
+		printf '%s\n' 'GODOXY_HTTPS_ADDR=""' >> "$DOT_ENV_PATH"
+	fi
+	echo "After configuring a certificate, remove GODOXY_HTTPS_ADDR from ${DOT_ENV_PATH} to enable HTTPS"
+	echo "To log in to the WebUI over plain HTTP, also set GODOXY_API_JWT_SECURE=false in ${DOT_ENV_PATH}"
 fi
 
 # 9. set uid and gid

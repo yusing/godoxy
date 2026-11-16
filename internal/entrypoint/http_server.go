@@ -15,6 +15,7 @@ import (
 	autocert "github.com/yusing/godoxy/internal/autocert/types"
 	"github.com/yusing/godoxy/internal/common"
 	"github.com/yusing/godoxy/internal/logging/accesslog"
+	netutils "github.com/yusing/godoxy/internal/net"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware"
 	"github.com/yusing/godoxy/internal/net/gphttp/middleware/errorpage"
 	"github.com/yusing/godoxy/internal/route/routes"
@@ -95,6 +96,9 @@ func (srv *httpServer) listen(addr string, proto HTTPProto, listener net.Listene
 		}
 		cert, err := certProvider.GetCert(nil)
 		if err != nil {
+			if netutils.IsSharedHTTPSListenAddr(addr) {
+				return fmt.Errorf("failed to load HTTPS certificate: %w; configure a certificate, or set GODOXY_HTTPS_ADDR= (empty) to run HTTP-only", err)
+			}
 			return fmt.Errorf("failed to load HTTPS certificate: %w", err)
 		}
 		if cert == nil {
