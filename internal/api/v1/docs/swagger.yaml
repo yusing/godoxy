@@ -358,6 +358,17 @@ definitions:
       statusCode:
         type: integer
     type: object
+  GPUStat:
+    properties:
+      engines:
+        additionalProperties:
+          format: float64
+          type: number
+        description: busy percent (0-100) by engine
+        type: object
+      name:
+        type: string
+    type: object
   HTTPHeader:
     properties:
       key:
@@ -1475,6 +1486,11 @@ definitions:
           $ref: '#/definitions/disk.IOCountersStat'
         description: disk IO by device
         type: object
+      gpus:
+        items:
+          $ref: '#/definitions/GPUStat'
+        type: array
+        x-omitempty: true
       memory:
         $ref: '#/definitions/mem.VirtualMemoryStat'
       network:
@@ -1509,6 +1525,7 @@ definitions:
     - network_speed
     - network_transfer
     - sensor_temperature
+    - gpu_usage
     type: string
     x-enum-varnames:
     - SystemInfoAggregateModeCPUAverage
@@ -1521,6 +1538,7 @@ definitions:
     - SystemInfoAggregateModeNetworkSpeed
     - SystemInfoAggregateModeNetworkTransfer
     - SystemInfoAggregateModeSensorTemperature
+    - SystemInfoAggregateModeGPUUsage
   UptimeAggregate:
     properties:
       data:
@@ -3522,6 +3540,7 @@ paths:
         - network_speed
         - network_transfer
         - sensor_temperature
+        - gpu_usage
         in: query
         name: aggregate
         type: string
@@ -3536,6 +3555,7 @@ paths:
         - SystemInfoAggregateModeNetworkSpeed
         - SystemInfoAggregateModeNetworkTransfer
         - SystemInfoAggregateModeSensorTemperature
+        - SystemInfoAggregateModeGPUUsage
       - format: duration
         in: query
         name: interval
@@ -3602,6 +3622,7 @@ paths:
         - network_speed
         - network_transfer
         - sensor_temperature
+        - gpu_usage
         in: query
         name: aggregate
         type: string
@@ -3616,6 +3637,7 @@ paths:
         - SystemInfoAggregateModeNetworkSpeed
         - SystemInfoAggregateModeNetworkTransfer
         - SystemInfoAggregateModeSensorTemperature
+        - SystemInfoAggregateModeGPUUsage
       - enum:
         - 5m
         - 15m

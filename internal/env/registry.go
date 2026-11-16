@@ -63,6 +63,7 @@ var definitions = []Definition{
 	{Name: "METRICS_DISABLE_DISK", Type: "bool", Default: "false", Description: "Disable disk metrics collection."},
 	{Name: "METRICS_DISABLE_NETWORK", Type: "bool", Default: "false", Description: "Disable network metrics collection."},
 	{Name: "METRICS_DISABLE_SENSORS", Type: "bool", Default: "false", Description: "Disable sensors metrics collection."},
+	{Name: "METRICS_DISABLE_GPU", Type: "bool", Default: "false", Description: "Disable gpu metrics collection."},
 	{Name: "MAXMIND_COUNTRY_ONLY", Type: "bool", Default: "false", Description: "Use Country instead of City databases; opt out of City downloads when unavailable. Country databases do not support timezone rules."},
 	{Name: "FORCE_RESOLVE_COUNTRY", Type: "bool", Default: "false", Description: "Always resolve the client country with GeoIP."},
 	{Name: "DEBUG", Type: "bool", Default: "false", Description: "General debug logging. Defaults to TEST or a Go test executable; explicit false overrides that default."},

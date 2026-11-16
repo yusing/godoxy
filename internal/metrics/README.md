@@ -44,7 +44,11 @@ Route health status monitoring using the period framework.
 
 ### `systeminfo/`
 
-System metrics collection (CPU, memory, disk, network, sensors) using the period framework.
+System metrics collection (CPU, memory, disk, network, sensors, GPU) using the period framework.
+
+### `gpu/`
+
+Per-engine GPU utilization collectors used by `systeminfo/`.
 
 ## Architecture
 
