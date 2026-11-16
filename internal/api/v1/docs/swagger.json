@@ -6473,8 +6473,8 @@
           "items": {
             "$ref": "#/definitions/GPUStat"
           },
-          "x-nullable": false,
-          "x-omitempty": false
+          "x-omitempty": true,
+          "x-nullable": true
         },
         "memory": {
           "$ref": "#/definitions/mem.VirtualMemoryStat",
