@@ -149,6 +149,22 @@ GORACE="$go_race" \
 go test -tags "$go_tags" -ldflags "$ldflags" -trimpath $extra_flags {pkg} {@}
 '''
 
+[recipes.test-browser]
+help = "Run the browser end-to-end suite in Chromium."
+sandboxed = false
+cmd = '''
+set -e
+(
+	cd "{webui_dir}"
+	bun install --frozen-lockfile
+	bun run build
+)
+configure_build_mode production
+GODOXY_E2E_BROWSER=1 CGO_ENABLED="$cgo_enabled" \
+	go test -tags "$go_tags" -ldflags "$ldflags" -count=1 -v \
+	-run '^TestBrowser' ./e2e
+'''
+
 [recipes.ensure-webui-dist]
 help = "Build the embedded WebUI when building the GoDoxy module."
 sandboxed = false
