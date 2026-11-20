@@ -322,7 +322,7 @@ if [ "$ENABLE_AUTOCERT" = "y" ]; then
 		options_block=$(printf '    token: "%s"' "$token")
 		;;
 	*)
-		echo "Please check Wiki for other DNS providers: https://docs.godoxy.dev/DNS-01-Providers"
+		echo "Please check Wiki for other DNS providers: https://docs.godoxy.dev/docs/godoxy/getting-started/DNS-01-Providers"
 		echo "Skipping autocert setup"
 		skip=true
 		options_block=

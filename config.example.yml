@@ -18,7 +18,7 @@
 #   options:
 #     auth_token: c1234565789-abcdefghijklmnopqrst # your zone API token
 
-# 3. other providers, see https://docs.godoxy.dev/DNS-01-Providers
+# 3. other providers, see https://docs.godoxy.dev/docs/godoxy/getting-started/DNS-01-Providers
 
 # Inbound mTLS profiles (optional)
 #
@@ -238,7 +238,7 @@ webui:
 #     tls_termination: true
 
 # Match domains
-# See https://docs.godoxy.dev/Certificates-and-domain-matching
+# See https://docs.godoxy.dev/docs/godoxy/advanced-topics/Domain-Matching
 #
 # match_domains:
 #   - my.site

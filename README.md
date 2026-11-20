@@ -58,20 +58,20 @@ Configure Wildcard DNS Record(s) to point to machine running `GoDoxy`, e.g.
 ## Key features
 
 - **Simple setup**
-  - Configure routes with [Docker labels or route files](https://docs.godoxy.dev/Docker-labels-and-Route-Files)
-  - Manage routes, config, containers, logs, metrics, and uptime from the WebUI
-  - Use [multi-node Docker setups](https://docs.godoxy.dev/Configurations#multi-docker-nodes-setup)
+  - Configure routes with [Docker labels or route files](https://docs.godoxy.dev/docs/godoxy/getting-started/Configuring-Routes)
+  - Manage routes, config, containers, logs, metrics, and uptime from the [WebUI](https://docs.godoxy.dev/docs/godoxy/customization/WebUI)
+  - Use [multi-node Docker setups](https://docs.godoxy.dev/docs/godoxy/getting-started/Multi-Docker-Nodes)
 - **Automatic routing**
   - Discover Docker and Podman containers
   - Hot-reload config and container state changes
-  - Manage Let's Encrypt certificates with [DNS-01 providers](https://docs.godoxy.dev/DNS-01-Providers)
+  - Manage Let's Encrypt certificates with [DNS-01 providers](https://docs.godoxy.dev/docs/godoxy/getting-started/DNS-01-Providers)
 - **Traffic management**
   - HTTP reverse proxy
   - TCP/UDP port forwarding
-  - OpenID Connect SSO
-  - ForwardAuth integration, e.g. TinyAuth
-  - [HTTP middlewares](https://docs.godoxy.dev/Middlewares)
-  - [Custom error pages](https://docs.godoxy.dev/Custom-Error-Pages)
+  - [OpenID Connect SSO](https://docs.godoxy.dev/docs/godoxy/getting-started/OIDC)
+  - [ForwardAuth](https://docs.godoxy.dev/docs/godoxy/advanced-topics/middlewares/authentication-and-security/Forward-Auth) integration, e.g. TinyAuth
+  - [HTTP middlewares](https://docs.godoxy.dev/docs/godoxy/advanced-topics/middlewares)
+  - [Custom error pages](https://docs.godoxy.dev/docs/godoxy/customization/Custom-Error-Pages)
 - **Access control**
   - IP/CIDR rules
   - Country and timezone rules with a MaxMind account
