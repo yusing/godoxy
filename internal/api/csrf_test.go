@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -125,6 +127,100 @@ func TestLogoutRequiresCSRFCookie(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestLogoutFormCSRF(t *testing.T) {
+	handler := newAuthenticatedHandler(t)
+	csrfCookie := issueCSRFCookie(t, handler)
+	sessionToken := issueSessionToken(t)
+	forged := strings.Repeat("0", 64) + "." + strings.Repeat("0", 64)
+	const path = "/api/v1/auth/logout"
+
+	for _, tc := range []struct {
+		name                               string
+		bodyToken, queryToken, headerToken string
+		cookieToken                        string
+		wantStatus                         int
+	}{
+		{
+			name: "valid", bodyToken: csrfCookie.Value,
+			cookieToken: csrfCookie.Value, wantStatus: http.StatusFound,
+		},
+		{
+			name: "missing cookie", bodyToken: csrfCookie.Value,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "missing form token", cookieToken: csrfCookie.Value,
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "mismatched token", bodyToken: "wrong",
+			cookieToken: csrfCookie.Value, wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "forged matching tokens", bodyToken: forged,
+			cookieToken: forged, wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "query token", queryToken: csrfCookie.Value,
+			cookieToken: csrfCookie.Value, wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "invalid header", bodyToken: csrfCookie.Value, headerToken: "wrong",
+			cookieToken: csrfCookie.Value, wantStatus: http.StatusForbidden,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			form := make(url.Values)
+			if tc.bodyToken != "" {
+				form.Set(auth.CSRFFormField, tc.bodyToken)
+			}
+			target := path
+			if tc.queryToken != "" {
+				query := url.Values{auth.CSRFFormField: {tc.queryToken}}
+				target += "?" + query.Encode()
+			}
+			body := strings.NewReader(form.Encode())
+			req := httptest.NewRequest(http.MethodPost, target, body)
+			req.Host = "app.example.com"
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set(auth.CSRFHeaderName, tc.headerToken)
+			req.AddCookie(&http.Cookie{Name: "godoxy_token", Value: sessionToken})
+			if tc.cookieToken != "" {
+				req.AddCookie(&http.Cookie{
+					Name: auth.CSRFCookieName, Value: tc.cookieToken,
+				})
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			assert.Equal(t, tc.wantStatus, rec.Code)
+			cookie := findCookie(rec.Result().Cookies(), "godoxy_token")
+			if tc.wantStatus == http.StatusFound {
+				assert.Equal(t, "/", rec.Header().Get("Location"))
+				require.NotNil(t, cookie)
+				assert.Negative(t, cookie.MaxAge)
+			} else {
+				assert.Nil(t, cookie)
+				assert.Empty(t, rec.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+func TestAuthCheckReplacesStaleCSRFCookie(t *testing.T) {
+	handler := newAuthenticatedHandler(t)
+	req := httptest.NewRequest(http.MethodHead, "/api/v1/auth/check", nil)
+	req.Host = "app.example.com"
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: "stale"})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	cookie := findCookie(rec.Result().Cookies(), auth.CSRFCookieName)
+	require.NotNil(t, cookie)
+	assert.True(t, auth.ValidateCSRFToken(cookie.Value))
 }
 
 func TestLoginAllowsSameOriginPostWithoutCSRFCookie(t *testing.T) {

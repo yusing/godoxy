@@ -16,6 +16,7 @@ const (
 	CSRFCookieName  = "godoxy_csrf"
 	CSRFHKDFSalt    = "godoxy-csrf"
 	CSRFHeaderName  = "X-CSRF-Token"
+	CSRFFormField   = "csrf_token"
 	csrfTokenLength = 32
 )
 

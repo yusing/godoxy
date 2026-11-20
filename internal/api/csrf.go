@@ -16,6 +16,7 @@ import (
 // Safe methods (GET/HEAD/OPTIONS): ensure a signed CSRF cookie exists.
 // Unsafe methods (POST/PUT/DELETE/PATCH): require X-CSRF-Token header
 // matching the cookie value, with a valid HMAC signature.
+// Logout also accepts the token in the POST body for browser navigation.
 func CSRFMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetBool(readOnlyBearerKey) {
@@ -44,8 +45,16 @@ func CSRFMiddleware() gin.HandlerFunc {
 		}
 
 		cookieToken := canonicalCSRFToken(cookie.Value)
-		headerToken := canonicalCSRFToken(c.GetHeader(auth.CSRFHeaderName))
-		if headerToken == "" || cookieToken != headerToken || !auth.ValidateCSRFToken(cookieToken) {
+		requestToken := c.GetHeader(auth.CSRFHeaderName)
+		r := c.Request
+		if requestToken == "" && r.Method == http.MethodPost &&
+			r.URL.Path == "/api/v1/auth/logout" {
+			if err := r.ParseForm(); err == nil {
+				requestToken = r.PostForm.Get(auth.CSRFFormField)
+			}
+		}
+		if cookieToken != canonicalCSRFToken(requestToken) ||
+			!auth.ValidateCSRFToken(cookieToken) {
 			// Stale or forged token — issue a fresh one so the
 			// frontend can read the new cookie and retry.
 			reissueCSRFCookie(c)
@@ -59,8 +68,11 @@ func CSRFMiddleware() gin.HandlerFunc {
 }
 
 func ensureCSRFCookie(c *gin.Context) {
-	if _, err := c.Request.Cookie(auth.CSRFCookieName); err == nil {
-		return
+	if cookie, err := c.Request.Cookie(auth.CSRFCookieName); err == nil {
+		if c.FullPath() != "/api/v1/auth/check" ||
+			auth.ValidateCSRFToken(canonicalCSRFToken(cookie.Value)) {
+			return
+		}
 	}
 	reissueCSRFCookie(c)
 }
